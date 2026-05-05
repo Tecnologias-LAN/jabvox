@@ -63,7 +63,7 @@ jobs:
           script_stop: true
           script: |
             # --- CONFIGURATION ---
-            PROJECT_DIR="/var/www/crm"
+            PROJECT_DIR="/home/chatwoot/chatwoot"
             BACKUP_DIR="$PROJECT_DIR/backups"
 
             cd $PROJECT_DIR
@@ -75,8 +75,11 @@ jobs:
             export $(grep -v '^#' .env | xargs)
 
             FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
-            docker compose exec -T -e PGPASSWORD=$POSTGRES_PASSWORD db \
-              pg_dump -U $POSTGRES_USER $POSTGRES_DB > $BACKUP_DIR/$FILE
+            PGPASSWORD=$POSTGRES_PASSWORD pg_dump \
+              -h ${POSTGRES_HOST:-127.0.0.1} \
+              -p ${POSTGRES_PORT:-5432} \
+              -U ${POSTGRES_USERNAME:-chatwoot} \
+              ${POSTGRES_DATABASE:-chatwoot_production} > $BACKUP_DIR/$FILE
 
             echo "Backup saved: $FILE"
             find $BACKUP_DIR -name "backup_*.sql" -mtime +7 -delete
@@ -88,26 +91,20 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            # --- STEP 3: RESTART APPLICATION ---
-            echo "Restarting Containers..."
-            docker compose down
-            docker compose up -d --build
+            # --- STEP 3: INSTALL DEPENDENCIES ---
+            echo "Installing dependencies..."
+            export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+            eval "$(rbenv init -)"
+            bundle install
+            pnpm install --frozen-lockfile
 
-            # --- STEP 4: MIGRATIONS ---
-            echo "Waiting 20s for NestJS to initialize..."
-            sleep 20
+            # --- STEP 4: MIGRATIONS & ASSETS ---
+            echo "Running DB migrations and assets precompile..."
+            DISABLE_DATABASE_ENVIRONMENT_CHECK=1 RAILS_ENV=production bundle exec rake db:migrate
+            RAILS_ENV=production bundle exec rake assets:precompile
 
-            echo "Running Common (Global) Database Migrations..."
-            docker compose exec -T api \
-              node apps/backend/dist/core/database/migrations/migrate-common.js
-
-            echo "Running Tenant Migrations..."
-            docker compose exec -T api \
-              node apps/backend/dist/core/database/migrations/migrate-all-tenants.js
-
-            # --- STEP 5: SEEDING ---
-            echo "Running Tenant Data Seeding (Idempotent)..."
-            docker compose exec -T api \
-              node apps/backend/dist/core/database/seeds/seed-all-tenants.js
+            # --- STEP 5: RESTART APPLICATION ---
+            echo "Restarting services..."
+            sudo systemctl restart chatwoot-web.1.service chatwoot-worker.1.service
 
             echo "🚀 Deployment Complete!"
