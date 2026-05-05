@@ -29,21 +29,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Install Dependencies
         run: corepack enable && pnpm install --frozen-lockfile
 
-      # Build Backend
-      - name: Verify Backend Builds
-        run: pnpm build --filter=backend
-
-      # Build Frontend (with dummy env vars just for the build check)
-      - name: Verify Frontend Builds
-        run: pnpm build --filter=frontend
-        env:
-          VITE_API_URL: "http://check"
-          VITE_WS_URL: "ws://check"
+      - name: Verify SDK Build
+        run: pnpm build:sdk
 
   # JOB 2: Deploy to VM
   # ONLY runs if you clicked the button AND typed "yes"
