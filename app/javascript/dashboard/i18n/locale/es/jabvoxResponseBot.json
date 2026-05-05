@@ -1,0 +1,92 @@
+{
+  "JABVOX_RESPONSE_BOT": {
+    "SIDEBAR_LABEL": "Bot de Respuestas",
+    "SETTINGS": {
+      "TITLE": "Bot de Respuestas",
+      "SUBTITLE": "Configure el bot de IA que responde automáticamente a los clientes y clasifica las conversaciones."
+    },
+    "TABS": {
+      "SEATS": "Acentos",
+      "CONFIG": "Configuración",
+      "DOCUMENTS": "Documentos"
+    },
+    "SEATS": {
+      "TITLE": "Acentos Disponibles",
+      "DESCRIPTION": "Los acentos son personalidades del bot de IA configuradas por el administrador del sistema. Seleccione uno en la pestaña de Configuración.",
+      "EMPTY": "No hay acentos activos disponibles. Contacte a su administrador del sistema.",
+      "ACTIVE": "Activo",
+      "INACTIVE": "Inactivo"
+    },
+    "CONFIG": {
+      "TITLE": "Configuración del Bot",
+      "LIST_DESCRIPTION": "Cada bandeja puede tener una configuración de bot. Crea una configuración por bandeja que quieras automatizar.",
+      "NEW": "Nueva configuración",
+      "EMPTY": "Sin configuraciones. Crea una para empezar a automatizar respuestas.",
+      "NO_SEAT": "Sin acento seleccionado",
+      "ENABLED": "Activado",
+      "DISABLED": "Desactivado",
+      "DELETE": "Eliminar",
+      "DELETE_CONFIRM": "¿Eliminar la configuración de \"{name}\"? Esta acción no se puede deshacer.",
+      "CANCEL": "Cancelar",
+      "INBOX_REQUIRED": "Debes seleccionar una bandeja.",
+      "SEAT_LABEL": "Acento",
+      "SEAT_PLACEHOLDER": "Seleccione un acento...",
+      "INBOX_LABEL": "Bandeja",
+      "INBOX_PLACEHOLDER": "Seleccione una bandeja...",
+      "ENABLED_LABEL": "Activar bot",
+      "ENABLED_HINT": "Cuando esté activado, el bot responderá a todos los mensajes entrantes en esta bandeja.",
+      "LABELS_TITLE": "Etiquetas de Clasificación Activas",
+      "LABELS_HINT": "El bot clasificará las conversaciones usando las etiquetas activadas. Desactive las etiquetas que su negocio no utilice.",
+      "MODEL_LABEL": "Modelo de IA de Texto",
+      "MODEL_PLACEHOLDER": "Seleccione un modelo (o use el predeterminado)...",
+      "MODEL_HINT": "Usado para clasificación de conversaciones y respuestas. Utiliza el modelo predeterminado de Chat IA si no se selecciona ninguno.",
+      "MODEL_DEFAULT": "predeterminado",
+      "AUDIO_MODEL_LABEL": "Modelo de Transcripción de Audio",
+      "AUDIO_MODEL_PLACEHOLDER": "Seleccione un modelo (o use el modelo de texto)...",
+      "AUDIO_MODEL_HINT": "Usado para transcribir mensajes de voz mediante Whisper. Utiliza el modelo de texto si no se selecciona ninguno.",
+      "SETUP_LABELS": "Crear Etiquetas en Chatwoot",
+      "SETUP_LABELS_HINT": "Crea las etiquetas seleccionadas en su cuenta de Chatwoot si no existen.",
+      "SETUP_SUCCESS": "Etiquetas creadas correctamente.",
+      "SAVE": "Guardar Configuración",
+      "SAVE_SUCCESS": "Configuración guardada.",
+      "LABEL_NAMES": {
+        "proceso_venta": "proceso_venta",
+        "proceso_pago": "proceso_pago",
+        "quejas_y_reclamos": "quejas_y_reclamos",
+        "soporte": "soporte"
+      },
+      "LABEL_DESCRIPTIONS": {
+        "proceso_venta": "El cliente está consultando, cotizando o realizando un pedido",
+        "proceso_pago": "El cliente realizó un pedido y está a punto de pagar o ya pagó",
+        "quejas_y_reclamos": "El cliente está molesto, presentando una queja o reclamo",
+        "soporte": "El cliente necesita ayuda técnica o soporte"
+      }
+    },
+    "DOCUMENTS": {
+      "TITLE": "Documentos",
+      "DESCRIPTION": "Suba documentos al bucket de Minio (mismo que Chat IA), luego sincronícelos aquí. Asigne cada documento a una categoría para que el bot lo use como contexto al responder.",
+      "BUCKET_WARNING": "El bucket de Minio no está configurado. Vaya a Configuración del Chat IA para configurar la conexión al bucket.",
+      "SYNC": "Sincronizar desde Bucket",
+      "SYNCING": "Sincronizando...",
+      "SYNC_SUCCESS": "{count} documentos sincronizados.",
+      "EMPTY": "No hay documentos aún. Configure su bucket en los ajustes del Chat IA y haga clic en Sincronizar.",
+      "CATEGORY_LABEL": "Categoría",
+      "CATEGORY_UNASSIGNED": "Sin categoría",
+      "ENABLED_LABEL": "Usar en contexto",
+      "DELETE_CONFIRM": "¿Eliminar este documento de la lista?",
+      "DELETE_SUCCESS": "Documento eliminado.",
+      "UPDATE_SUCCESS": "Documento actualizado.",
+      "CATEGORIES": {
+        "proceso_venta": "Proceso de Venta",
+        "proceso_pago": "Proceso de Pago",
+        "quejas_y_reclamos": "Quejas y Reclamos",
+        "soporte": "Soporte"
+      },
+      "ALL_DOCS": "Todos los Documentos",
+      "SELECTED_DOCS": "Documentos seleccionados para responder",
+      "FILE_LABEL": "Archivo"
+    },
+    "ERROR": "Ocurrió un error. Por favor, intente de nuevo.",
+    "LOADING": "Cargando..."
+  }
+}

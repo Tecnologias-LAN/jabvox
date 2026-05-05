@@ -1,5 +1,6 @@
 class DashboardController < ActionController::Base
   include SwitchLocale
+  include JabvoxIpWhitelistCheck
 
   GLOBAL_CONFIG_KEYS = %w[
     LOGO
@@ -26,6 +27,7 @@ class DashboardController < ActionController::Base
     INSTALLATION_PRICING_PLAN
   ].freeze
 
+  before_action :check_jabvox_ip_for_account_page
   before_action :set_application_pack
   before_action :set_global_config
   before_action :set_dashboard_scripts

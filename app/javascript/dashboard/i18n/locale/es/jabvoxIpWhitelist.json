@@ -1,0 +1,33 @@
+{
+  "JABVOX_IP_WHITELIST": {
+    "TITLE": "Lista Blanca de IP",
+    "LOADING": "Cargando...",
+    "DESCRIPTION": "Restrinja el acceso a esta cuenta a direcciones IP específicas. Agregue 0.0.0.0 para permitir todas las IPs.",
+    "ADD_IP": "Agregar IP",
+    "TABLE": {
+      "IP": "Dirección IP",
+      "COMMENT": "Comentario",
+      "STATUS": "Estado",
+      "ADDED": "Agregado",
+      "ACTIONS": "Acciones"
+    },
+    "FORM": {
+      "IP_PLACEHOLDER": "Ej: 192.168.1.100",
+      "IP_HINT": "Use 0.0.0.0 para permitir todas las direcciones IP.",
+      "COMMENT_PLACEHOLDER": "Ej: Red de la oficina",
+      "ACTIVE_LABEL": "Activo"
+    },
+    "STATUS": {
+      "ACTIVE": "Activo",
+      "INACTIVE": "Inactivo"
+    },
+    "EMPTY": "No hay IPs configuradas. Actualmente se permiten todas las direcciones IP.",
+    "CREATE_SUCCESS": "Dirección IP agregada correctamente.",
+    "UPDATE_SUCCESS": "Dirección IP actualizada correctamente.",
+    "DELETE_SUCCESS": "Dirección IP eliminada correctamente.",
+    "ERROR": "Ocurrió un error. Por favor, intente de nuevo.",
+    "TOGGLE": "Activar/Desactivar",
+    "DELETE": "Eliminar",
+    "CONFIRM_DELETE": "¿Está seguro de que desea eliminar esta IP?"
+  }
+}

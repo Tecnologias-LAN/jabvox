@@ -1,0 +1,59 @@
+{
+  "JABVOX_VOIP": {
+    "TITLE": "VoIP / Asterisk",
+    "DESCRIPTION": "Configure the connection to your Asterisk telephony server.",
+    "SAVE": "Save configuration",
+    "SAVE_SUCCESS": "VoIP configuration saved successfully.",
+    "ERROR": "An error occurred. Please try again.",
+    "FORM": {
+      "TITLE": "Asterisk Configuration",
+      "HOST": "Host",
+      "HOST_PLACEHOLDER": "pbx07.t-lan.co",
+      "PORT": "Port",
+      "USERNAME": "Username",
+      "PASSWORD": "Password",
+      "PASSWORD_HINT": "(leave blank to keep current)",
+      "CONTEXT": "Manual Call Context",
+      "CONTEXT_HELP": "Asterisk context for manual calls (click-to-call).",
+      "DIALER_CONTEXT": "Dialer Context",
+      "DIALER_CONTEXT_HELP": "Asterisk context for automatic dialer calls.",
+      "DIALER_TRUNK": "Dialer Trunk",
+      "DIALER_TRUNK_PLACEHOLDER": "Claro-SIP",
+      "DIALER_TRUNK_HELP": "SIP trunk for outbound dialer calls. Channel: SIP/{phone}@{trunk}.",
+      "DIALER_CALLER_ID": "Dialer Caller ID (DID)",
+      "DIALER_CALLER_ID_PLACEHOLDER": "+573001234567",
+      "DIALER_CALLER_ID_HELP": "Default outbound caller ID shown to leads. Overridden per campaign if set."
+    },
+    "STATUS": {
+      "TITLE": "Connection Status",
+      "REFRESH": "Refresh",
+      "LOADING": "Checking connection...",
+      "CONNECTED": "Connected",
+      "DISCONNECTED": "Disconnected"
+    },
+    "EXTENSIONS": {
+      "TITLE": "Extensiones de usuarios",
+      "USER": "Usuario",
+      "SELECT_USER": "Seleccionar usuario...",
+      "EXTENSION": "Extensión",
+      "PLACEHOLDER": "Ej: 101",
+      "ADD": "Asignar",
+      "REMOVE": "Quitar",
+      "EMPTY": "Ningún usuario tiene extensión asignada.",
+      "COL_USER": "Usuario",
+      "COL_EMAIL": "Email",
+      "COL_EXT": "Extensión"
+    },
+    "CALL_BUTTON": {
+      "TITLE": "Click to call",
+      "CALL_TO": "Call {phone}",
+      "EXTENSION_PLACEHOLDER": "Your extension (e.g. 1001)",
+      "EXTENSION_FROM_PROFILE": "Tu extensión.",
+      "NO_EXTENSION": "No tienes una extensión activa. Pide al administrador que te asigne una.",
+      "CALL": "Llamar",
+      "CALLING": "Calling...",
+      "SUCCESS": "Call initiated successfully",
+      "ERROR": "Failed to initiate call"
+    }
+  }
+}

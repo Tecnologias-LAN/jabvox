@@ -1,0 +1,92 @@
+{
+  "JABVOX_RESPONSE_BOT": {
+    "SIDEBAR_LABEL": "Response Bot",
+    "SETTINGS": {
+      "TITLE": "Response Bot",
+      "SUBTITLE": "Configure the AI bot that automatically responds to customers and classifies conversations."
+    },
+    "TABS": {
+      "SEATS": "Acentos",
+      "CONFIG": "Configuration",
+      "DOCUMENTS": "Documents"
+    },
+    "SEATS": {
+      "TITLE": "Available Acentos",
+      "DESCRIPTION": "Acentos are AI bot personas configured by the system administrator. Select one in the Configuration tab.",
+      "EMPTY": "No active acentos available. Contact your system administrator.",
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive"
+    },
+    "CONFIG": {
+      "TITLE": "Bot Configuration",
+      "LIST_DESCRIPTION": "Each inbox can have one bot configuration. Create a configuration per inbox you want to automate.",
+      "NEW": "New configuration",
+      "EMPTY": "No configurations yet. Create one to start automating responses.",
+      "NO_SEAT": "No acento selected",
+      "ENABLED": "Enabled",
+      "DISABLED": "Disabled",
+      "DELETE": "Delete",
+      "DELETE_CONFIRM": "Delete the configuration for \"{name}\"? This cannot be undone.",
+      "CANCEL": "Cancel",
+      "INBOX_REQUIRED": "You must select an inbox.",
+      "SEAT_LABEL": "Acento",
+      "SEAT_PLACEHOLDER": "Select an acento...",
+      "INBOX_LABEL": "Inbox",
+      "INBOX_PLACEHOLDER": "Select an inbox...",
+      "ENABLED_LABEL": "Enable bot",
+      "ENABLED_HINT": "When enabled, the bot will respond to all incoming messages in this inbox.",
+      "LABELS_TITLE": "Active Classification Labels",
+      "LABELS_HINT": "The bot will classify conversations using the enabled labels. Disable labels your business does not use.",
+      "MODEL_LABEL": "Text AI Model",
+      "MODEL_PLACEHOLDER": "Select a model (or use default)...",
+      "MODEL_HINT": "Used for conversation classification and replies. Falls back to the default AI Chat model if not selected.",
+      "MODEL_DEFAULT": "default",
+      "AUDIO_MODEL_LABEL": "Audio Transcription Model",
+      "AUDIO_MODEL_PLACEHOLDER": "Select a model (or use text model)...",
+      "AUDIO_MODEL_HINT": "Used to transcribe voice messages via Whisper. Falls back to the text model if not selected.",
+      "SETUP_LABELS": "Create Chatwoot Labels",
+      "SETUP_LABELS_HINT": "Creates the selected labels in your Chatwoot account if they do not exist.",
+      "SETUP_SUCCESS": "Labels created successfully.",
+      "SAVE": "Save Configuration",
+      "SAVE_SUCCESS": "Configuration saved.",
+      "LABEL_NAMES": {
+        "proceso_venta": "proceso_venta",
+        "proceso_pago": "proceso_pago",
+        "quejas_y_reclamos": "quejas_y_reclamos",
+        "soporte": "soporte"
+      },
+      "LABEL_DESCRIPTIONS": {
+        "proceso_venta": "Customer is asking, quoting or placing an order",
+        "proceso_pago": "Customer made an order and is about to pay or already paid",
+        "quejas_y_reclamos": "Customer is upset, filing a complaint or claim",
+        "soporte": "Customer needs technical help or support"
+      }
+    },
+    "DOCUMENTS": {
+      "TITLE": "Documents",
+      "DESCRIPTION": "Upload documents to the Minio bucket (same as AI Chat), then sync them here. Assign each document to a category so the bot uses it as context when responding.",
+      "BUCKET_WARNING": "The Minio bucket is not configured. Go to AI Chat Settings to configure the bucket connection.",
+      "SYNC": "Sync from Bucket",
+      "SYNCING": "Syncing...",
+      "SYNC_SUCCESS": "Synced {count} documents.",
+      "EMPTY": "No documents yet. Configure your bucket in AI Chat settings and click Sync.",
+      "CATEGORY_LABEL": "Category",
+      "CATEGORY_UNASSIGNED": "Unassigned",
+      "ENABLED_LABEL": "Use in context",
+      "DELETE_CONFIRM": "Remove this document from the list?",
+      "DELETE_SUCCESS": "Document removed.",
+      "UPDATE_SUCCESS": "Document updated.",
+      "CATEGORIES": {
+        "proceso_venta": "Sale Process",
+        "proceso_pago": "Payment Process",
+        "quejas_y_reclamos": "Complaints & Claims",
+        "soporte": "Support"
+      },
+      "ALL_DOCS": "All Documents",
+      "SELECTED_DOCS": "Selected for responses",
+      "FILE_LABEL": "File"
+    },
+    "ERROR": "An error occurred. Please try again.",
+    "LOADING": "Loading..."
+  }
+}

@@ -17,6 +17,7 @@ import {
   useCamelCase,
   useSnakeCase,
 } from 'dashboard/composables/useTransformKeys';
+import leadsAPI from 'dashboard/api/jabvox/leads';
 
 import ContactsHeader from 'dashboard/components-next/Contacts/ContactsHeader/ContactHeader.vue';
 import CreateNewContactDialog from 'dashboard/components-next/Contacts/ContactsForm/CreateNewContactDialog.vue';
@@ -81,8 +82,14 @@ const openDeleteSegmentDialog = () =>
   deleteSegmentDialogRef.value?.dialogRef.open();
 
 const onCreate = async contact => {
+  const { jabvoxCampaignName, ...contactData } = contact;
   try {
-    await store.dispatch('contacts/create', contact);
+    const newContact = await store.dispatch('contacts/create', contactData);
+    if (jabvoxCampaignName && newContact?.id) {
+      leadsAPI
+        .updateContactLead(newContact.id, jabvoxCampaignName)
+        .catch(() => {});
+    }
     createNewContactDialogRef.value?.onSuccess();
     useAlert(
       t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.SUCCESS_MESSAGE')

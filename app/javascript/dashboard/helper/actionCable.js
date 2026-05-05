@@ -34,6 +34,10 @@ class ActionCableConnector extends BaseActionCableConnector {
       'conversation.updated': this.onConversationUpdated,
       'account.cache_invalidated': this.onCacheInvalidate,
       'copilot.message.created': this.onCopilotMessageCreated,
+      'jabvox.leads_assigned': this.onLeadsAssigned,
+      'jabvox.agent_state_changed': this.onAgentStateChanged,
+      'jabvox.dialer.call_assigned': this.onDialerCallAssigned,
+      'jabvox.dialer.call_ended': this.onDialerCallEnded,
     };
   }
 
@@ -192,6 +196,26 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   onCopilotMessageCreated = data => {
     this.app.$store.dispatch('copilotMessages/upsert', data);
+  };
+
+  // eslint-disable-next-line class-methods-use-this
+  onLeadsAssigned = data => {
+    emitter.emit('jabvox.leads_assigned', data);
+  };
+
+  // eslint-disable-next-line class-methods-use-this
+  onAgentStateChanged = () => {
+    emitter.emit('jabvox.agent_state_changed');
+  };
+
+  // eslint-disable-next-line class-methods-use-this
+  onDialerCallAssigned = data => {
+    emitter.emit('jabvox.dialer.call_assigned', data);
+  };
+
+  // eslint-disable-next-line class-methods-use-this
+  onDialerCallEnded = data => {
+    emitter.emit('jabvox.dialer.call_ended', data);
   };
 
   onCacheInvalidate = data => {

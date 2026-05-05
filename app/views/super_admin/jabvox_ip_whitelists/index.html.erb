@@ -1,0 +1,78 @@
+<% content_for(:title) { "IP Whitelist – #{@account.name}" } %>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title">
+    IP Whitelist — <%= @account.name %>
+  </h1>
+  <%= link_to 'Back to Account', super_admin_account_path(@account), class: 'button' %>
+</header>
+
+<section class="main-content__body">
+  <% if notice %>
+    <p class="flash flash--notice"><%= notice %></p>
+  <% end %>
+
+  <div style="margin-bottom:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+    <h3 style="margin-bottom:12px; font-weight:600;">Add IP Address</h3>
+    <%= form_with url: super_admin_account_jabvox_ip_whitelists_path(@account), method: :post do |f| %>
+      <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+        <div>
+          <%= f.label :ip, 'IP Address', style: 'display:block; font-size:12px; font-weight:500; margin-bottom:4px;' %>
+          <%= f.text_field 'jabvox_ip_whitelist[ip]', placeholder: '0.0.0.0 = allow all', style: 'border:1px solid #d1d5db; border-radius:6px; padding:8px 12px; font-size:14px;' %>
+        </div>
+        <div>
+          <%= f.label :comment, 'Comment (optional)', style: 'display:block; font-size:12px; font-weight:500; margin-bottom:4px;' %>
+          <%= f.text_field 'jabvox_ip_whitelist[comment]', placeholder: 'e.g. Office IP', style: 'border:1px solid #d1d5db; border-radius:6px; padding:8px 12px; font-size:14px;' %>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <%= f.label 'jabvox_ip_whitelist[is_active]', 'Active', style: 'font-size:12px; font-weight:500;' %>
+          <%= f.check_box 'jabvox_ip_whitelist[is_active]', { checked: true }, '1', '0' %>
+        </div>
+        <%= f.submit 'Add IP', class: 'button', style: 'cursor:pointer;' %>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @entries.empty? %>
+    <p style="color:#6b7280;">No IPs configured. All IPs are allowed by default.</p>
+  <% else %>
+    <table style="width:100%; border-collapse:collapse; font-size:14px;">
+      <thead>
+        <tr style="background:#f3f4f6; text-align:left;">
+          <th style="padding:10px 14px; border-bottom:1px solid #e5e7eb;">IP</th>
+          <th style="padding:10px 14px; border-bottom:1px solid #e5e7eb;">Comment</th>
+          <th style="padding:10px 14px; border-bottom:1px solid #e5e7eb;">Status</th>
+          <th style="padding:10px 14px; border-bottom:1px solid #e5e7eb;">Added</th>
+          <th style="padding:10px 14px; border-bottom:1px solid #e5e7eb;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @entries.each do |entry| %>
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:10px 14px; font-family:monospace;"><%= entry.ip %></td>
+            <td style="padding:10px 14px; color:#6b7280;"><%= entry.comment.presence || '—' %></td>
+            <td style="padding:10px 14px;">
+              <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500;
+                           background:<%= entry.is_active ? '#dcfce7' : '#fee2e2' %>;
+                           color:<%= entry.is_active ? '#166534' : '#991b1b' %>;">
+                <%= entry.is_active ? 'Active' : 'Inactive' %>
+              </span>
+            </td>
+            <td style="padding:10px 14px; color:#6b7280;"><%= entry.created_at.strftime('%Y-%m-%d') %></td>
+            <td style="padding:10px 14px;">
+              <%= button_to entry.is_active ? 'Deactivate' : 'Activate',
+                    toggle_super_admin_account_jabvox_ip_whitelist_path(@account, entry),
+                    method: :patch,
+                    style: "margin-right:8px; cursor:pointer; padding:4px 10px; border-radius:4px; font-size:12px; border:1px solid #d1d5db; background:white;" %>
+              <%= button_to 'Remove',
+                    super_admin_account_jabvox_ip_whitelist_path(@account, entry),
+                    method: :delete,
+                    data: { confirm: "Remove IP #{entry.ip}?" },
+                    style: "cursor:pointer; padding:4px 10px; border-radius:4px; font-size:12px; border:1px solid #fca5a5; background:#fee2e2; color:#991b1b;" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>

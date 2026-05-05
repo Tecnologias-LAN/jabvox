@@ -49,6 +49,19 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
     head :ok, message: I18n.t('errors.contacts.export.success')
   end
 
+  def sample_import
+    package = Axlsx::Package.new
+    package.workbook.add_worksheet(name: 'Contacts') do |sheet|
+      sheet.add_row %w[name email phone_number identifier company location campaign]
+      sheet.add_row ['John Doe', 'john@example.com', '+15417543010', 'abc123', 'Acme Corp', 'New York', 'Spring 2026']
+      sheet.add_row ['Jane Smith', 'jane@example.com', '+15417543011', 'def456', 'Widget Co', 'Los Angeles', '']
+    end
+    send_data package.to_stream.read,
+              filename: 'import-contacts-sample.xlsx',
+              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              disposition: 'attachment'
+  end
+
   # returns online contacts
   def active
     contacts = Current.account.contacts.where(id: ::OnlineStatusTracker

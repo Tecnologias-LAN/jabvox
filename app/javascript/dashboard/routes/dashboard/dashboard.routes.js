@@ -9,6 +9,14 @@ import { frontendURL } from '../../helper/URLHelper';
 import helpcenterRoutes from './helpcenter/helpcenter.routes';
 import campaignsRoutes from './campaigns/campaigns.routes';
 import { routes as captainRoutes } from './captain/captain.routes';
+import { routes as jabvoxKanbanRoutes } from './jabvox-kanban/routes';
+import { routes as jabvoxProductsRoutes } from './jabvox-products/routes';
+import { routes as jabvoxSmsRoutes } from './jabvox-sms/routes';
+import { routes as jabvoxAiChatRoutes } from './jabvox-ai-chat/routes';
+import { routes as jabvoxDialerRoutes } from './jabvox-dialer/routes';
+import { routes as jabvoxCalendarRoutes } from './jabvox-calendar/routes';
+import { routes as jabvoxInternalChatRoutes } from './jabvox-internal-chat/routes';
+import { routes as jabvoxReportsRoutes } from './jabvox-reports/routes';
 import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
 import NoAccounts from './noAccounts/Index.vue';
@@ -29,6 +37,14 @@ export default {
         ...notificationRoutes,
         ...helpcenterRoutes.routes,
         ...campaignsRoutes.routes,
+        ...jabvoxKanbanRoutes,
+        ...jabvoxProductsRoutes,
+        ...jabvoxSmsRoutes,
+        ...jabvoxAiChatRoutes,
+        ...jabvoxDialerRoutes,
+        ...jabvoxCalendarRoutes,
+        ...jabvoxInternalChatRoutes,
+        ...jabvoxReportsRoutes,
       ],
     },
     {

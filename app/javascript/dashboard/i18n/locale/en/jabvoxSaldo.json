@@ -1,0 +1,31 @@
+{
+  "JABVOX_SALDO": {
+    "TITLE": "Saldo VoIP",
+    "DESCRIPTION": "Configure the balance integration for this account.",
+    "SAVE": "Save configuration",
+    "SAVE_SUCCESS": "Saldo configuration saved successfully.",
+    "ERROR": "An error occurred. Please try again.",
+    "HEADER": {
+      "LABEL": "Saldo"
+    },
+    "FORM": {
+      "TITLE": "Saldo Configuration",
+      "REQUIRED": "*",
+      "NAME": "Name",
+      "API_KEY": "API Key",
+      "API_SECRET": "API Secret",
+      "API_SECRET_HINT": "(leave blank to keep current)",
+      "PROXY_URL": "Proxy URL",
+      "PROXY_URL_PLACEHOLDER": "http://voip.t-lan.co/mb-proxy.php",
+      "ACTIVE": "Active"
+    },
+    "STATUS": {
+      "TITLE": "Connection Status",
+      "REFRESH": "Refresh",
+      "LOADING": "Checking connection...",
+      "CONNECTED": "Connected",
+      "DISCONNECTED": "Disconnected",
+      "BALANCE": "Current balance"
+    }
+  }
+}

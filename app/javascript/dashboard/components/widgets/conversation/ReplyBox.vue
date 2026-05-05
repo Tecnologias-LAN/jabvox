@@ -135,6 +135,7 @@ export default {
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
       copilotAcceptedMessages: {},
+      jabvoxManagementStateId: null,
     };
   },
   computed: {
@@ -214,9 +215,22 @@ export default {
     charactersRemaining() {
       return this.maxLength - this.message.length;
     },
+    jabvoxManagementStates() {
+      return (
+        this.$store.getters['jabvoxManagementStates/getActiveStates'] || []
+      );
+    },
+    jabvoxManagementStatesEnabled() {
+      return this.jabvoxManagementStates.length > 0;
+    },
+    jabvoxManagementStateRequired() {
+      return this.isOnPrivateNote && this.jabvoxManagementStatesEnabled;
+    },
     isReplyButtonDisabled() {
       if (this.isEditorDisabled) return true;
       if (this.isATwitterInbox) return true;
+      if (this.jabvoxManagementStateRequired && !this.jabvoxManagementStateId)
+        return true;
       if (this.hasAttachments || this.hasRecordedAudio) return false;
 
       return (
@@ -490,6 +504,7 @@ export default {
   },
 
   mounted() {
+    this.$store.dispatch('jabvoxManagementStates/fetchStates');
     this.getFromDraft();
     // Don't use the keyboard listener mixin here as the events here are supposed to be
     // working even if the editor is focussed.
@@ -952,6 +967,7 @@ export default {
       }
       this.attachedFiles = [];
       this.isRecordingAudio = false;
+      this.jabvoxManagementStateId = null;
       this.resetReplyToMessage();
       this.resetAudioRecorderInput();
     },
@@ -1112,6 +1128,17 @@ export default {
         private: this.isPrivate,
         sender: this.sender,
       };
+
+      if (this.isOnPrivateNote && this.jabvoxManagementStateId) {
+        const stateObj = this.jabvoxManagementStates.find(
+          s => s.id === this.jabvoxManagementStateId
+        );
+        messagePayload.contentAttributes = {
+          jabvox_management_state_id: this.jabvoxManagementStateId,
+          jabvox_management_state_name: stateObj?.name_jabvox || '',
+          jabvox_management_state_color: stateObj?.color_jabvox || '',
+        };
+      }
       messagePayload = this.setReplyToInPayload(messagePayload);
 
       if (this.attachedFiles && this.attachedFiles.length) {
@@ -1356,6 +1383,37 @@ export default {
           "
           class="mb-2"
         />
+
+        <div
+          v-if="isOnPrivateNote && jabvoxManagementStatesEnabled"
+          class="flex items-center gap-2 px-1 pb-1"
+        >
+          <label
+            class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap flex-shrink-0"
+          >
+            {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.LABEL') }}
+          </label>
+          <select
+            v-model="jabvoxManagementStateId"
+            class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+            :class="
+              jabvoxManagementStateId
+                ? 'border-slate-200 dark:border-slate-600'
+                : 'border-amber-400 dark:border-amber-500'
+            "
+          >
+            <option :value="null" disabled>
+              {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.PLACEHOLDER') }}
+            </option>
+            <option
+              v-for="s in jabvoxManagementStates"
+              :key="s.id"
+              :value="s.id"
+            >
+              {{ s.name_jabvox }}
+            </option>
+          </select>
+        </div>
       </div>
     </Transition>
 

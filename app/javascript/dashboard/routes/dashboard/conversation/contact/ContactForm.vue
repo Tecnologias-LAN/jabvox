@@ -53,6 +53,8 @@ export default {
         name: '',
       },
       city: '',
+      jabvoxContactType: '',
+      jabvoxIdentificationNumber: '',
       socialProfileUserNames: {
         facebook: '',
         twitter: '',
@@ -173,6 +175,9 @@ export default {
       };
       this.city = additionalAttributes.city || '';
       this.description = additionalAttributes.description || '';
+      this.jabvoxContactType = additionalAttributes.jabvox_contact_type || '';
+      this.jabvoxIdentificationNumber =
+        additionalAttributes.jabvox_identification_number || '';
       this.avatarUrl = this.contact.thumbnail || '';
       const {
         social_profiles: socialProfiles = {},
@@ -212,6 +217,8 @@ export default {
               ? ''
               : this.country.name,
           city: this.city,
+          jabvox_contact_type: this.jabvoxContactType,
+          jabvox_identification_number: this.jabvoxIdentificationNumber,
           social_profiles: this.socialProfileUserNames,
         },
       };
@@ -375,6 +382,54 @@ export default {
       :label="$t('CONTACT_FORM.FORM.COMPANY_NAME.LABEL')"
       :placeholder="$t('CONTACT_FORM.FORM.COMPANY_NAME.PLACEHOLDER')"
     />
+    <!-- Jabvox: Tipo de contacto -->
+    <div class="w-full mb-4">
+      <label class="text-sm font-medium text-n-slate-12 mb-1 block">
+        {{ $t('CONTACT_FORM.FORM.JABVOX_CONTACT_TYPE.LABEL') }}
+      </label>
+      <div class="flex gap-3">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input
+            v-model="jabvoxContactType"
+            type="radio"
+            value="persona"
+            class="h-4 w-4 border-slate-300 text-woot-600 focus:ring-woot-500"
+          />
+          <span class="text-sm text-n-slate-12">
+            {{ $t('CONTACT_FORM.FORM.JABVOX_CONTACT_TYPE.PERSONA') }}
+          </span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input
+            v-model="jabvoxContactType"
+            type="radio"
+            value="empresa"
+            class="h-4 w-4 border-slate-300 text-woot-600 focus:ring-woot-500"
+          />
+          <span class="text-sm text-n-slate-12">
+            {{ $t('CONTACT_FORM.FORM.JABVOX_CONTACT_TYPE.EMPRESA') }}
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Jabvox: Cédula / NIT -->
+    <woot-input
+      v-if="jabvoxContactType"
+      v-model="jabvoxIdentificationNumber"
+      class="w-full"
+      :label="
+        jabvoxContactType === 'empresa'
+          ? $t('CONTACT_FORM.FORM.JABVOX_IDENTIFICATION.NIT_LABEL')
+          : $t('CONTACT_FORM.FORM.JABVOX_IDENTIFICATION.CEDULA_LABEL')
+      "
+      :placeholder="
+        jabvoxContactType === 'empresa'
+          ? $t('CONTACT_FORM.FORM.JABVOX_IDENTIFICATION.NIT_PLACEHOLDER')
+          : $t('CONTACT_FORM.FORM.JABVOX_IDENTIFICATION.CEDULA_PLACEHOLDER')
+      "
+    />
+
     <div class="w-full mb-4">
       <label>
         {{ $t('CONTACT_FORM.FORM.COUNTRY.LABEL') }}

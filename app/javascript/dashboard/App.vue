@@ -83,11 +83,13 @@ export default {
     this.setLocale(
       this.uiSettings?.locale || window.chatwootConfig.selectedLocale
     );
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
   },
   unmounted() {
     if (this.reconnectService) {
       this.reconnectService.disconnect();
     }
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
   },
   methods: {
     initializeColorTheme() {
@@ -100,6 +102,11 @@ export default {
     setLocale(locale) {
       if (locale) {
         this.$root.$i18n.locale = locale;
+      }
+    },
+    onVisibilityChange() {
+      if (document.visibilityState === 'visible' && this.currentAccountId) {
+        this.$store.dispatch('accounts/get');
       }
     },
     async initializeAccount() {

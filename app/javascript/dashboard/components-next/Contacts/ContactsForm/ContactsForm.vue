@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { required, email } from '@vuelidate/validators';
 import { useVuelidate } from '@vuelidate/core';
@@ -9,6 +9,8 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import PhoneNumberInput from 'dashboard/components-next/phonenumberinput/PhoneNumberInput.vue';
+import leadsAPI from 'dashboard/api/jabvox/leads';
+import { campaignsAPI } from 'dashboard/api/jabvox/campaigns';
 
 const props = defineProps({
   contactData: {
@@ -28,6 +30,29 @@ const props = defineProps({
 const emit = defineEmits(['update']);
 
 const { t } = useI18n();
+
+const currentCampaignName = ref('');
+const leadsModuleEnabled = ref(false);
+const campaigns = ref([]);
+
+const loadCampaigns = async () => {
+  try {
+    const { data } = await campaignsAPI.getAll();
+    campaigns.value = data;
+    leadsModuleEnabled.value = true;
+  } catch {
+    // feature not enabled or unavailable
+  }
+};
+
+const loadLeadCampaign = async contactId => {
+  try {
+    const res = await leadsAPI.forContact(contactId);
+    currentCampaignName.value = res.data?.campaign_name || '';
+  } catch {
+    // silently ignore
+  }
+};
 
 const FORM_CONFIG = {
   FIRST_NAME: { field: 'firstName' },
@@ -63,6 +88,8 @@ const defaultState = {
     countryCode: '',
     country: '',
     city: '',
+    jabvoxContactType: '',
+    jabvoxIdentificationNumber: '',
     socialProfiles: {
       facebook: '',
       github: '',
@@ -77,6 +104,19 @@ const defaultState = {
 
 const state = reactive({ ...defaultState });
 
+const onCampaignBlur = async () => {
+  const contactId = state.id;
+  if (!contactId) return;
+  try {
+    await leadsAPI.updateContactLead(
+      contactId,
+      currentCampaignName.value || null
+    );
+  } catch {
+    // silently ignore
+  }
+};
+
 const validationRules = {
   firstName: { required },
   email: { email },
@@ -85,6 +125,8 @@ const validationRules = {
 const v$ = useVuelidate(validationRules, state);
 
 const isFormInvalid = computed(() => v$.value.$invalid);
+
+const cm = v => (v === '***' ? '' : (v ?? ''));
 
 const prepareStateBasedOnProps = () => {
   if (props.isNewContact) {
@@ -105,6 +147,8 @@ const prepareStateBasedOnProps = () => {
     countryCode = '',
     country = '',
     city = '',
+    jabvox_contact_type: jabvoxContactType = '',
+    jabvox_identification_number: jabvoxIdentificationNumber = '',
     socialTelegramUserName = '',
     socialProfiles = {},
   } = additionalAttributes || {};
@@ -112,22 +156,28 @@ const prepareStateBasedOnProps = () => {
   const telegramUsername =
     socialProfiles?.telegram || socialTelegramUserName || '';
 
+  const cleanedSocialProfiles = Object.fromEntries(
+    Object.entries({ ...socialProfiles }).map(([k, v]) => [k, cm(v)])
+  );
+
   Object.assign(state, {
     id,
-    name,
-    firstName,
-    lastName,
-    email: emailAddress,
-    phoneNumber,
+    name: cm(name),
+    firstName: cm(firstName),
+    lastName: cm(lastName),
+    email: cm(emailAddress),
+    phoneNumber: cm(phoneNumber),
     additionalAttributes: {
-      description,
-      companyName,
-      countryCode,
-      country,
-      city,
+      description: cm(description),
+      companyName: cm(companyName),
+      countryCode: cm(countryCode),
+      country: cm(country),
+      city: cm(city),
+      jabvoxContactType: cm(jabvoxContactType),
+      jabvoxIdentificationNumber: cm(jabvoxIdentificationNumber),
       socialProfiles: {
-        ...socialProfiles,
-        telegram: telegramUsername,
+        ...cleanedSocialProfiles,
+        telegram: cm(telegramUsername),
       },
     },
   });
@@ -229,10 +279,15 @@ const resetForm = () => {
   Object.assign(state, defaultState);
 };
 
+onMounted(loadCampaigns);
+
 watch(
   () => props.contactData?.id,
   id => {
-    if (id) prepareStateBasedOnProps();
+    if (id) {
+      prepareStateBasedOnProps();
+      loadLeadCampaign(id);
+    }
   },
   { immediate: true }
 );
@@ -240,6 +295,9 @@ watch(
 // Expose state to parent component for avatar upload
 defineExpose({
   state,
+  currentCampaignName,
+  leadsModuleEnabled,
+  campaigns,
   resetValidation,
   isFormInvalid,
   resetForm,
@@ -296,6 +354,70 @@ defineExpose({
         </template>
       </div>
     </div>
+    <!-- Jabvox: contact type + identification -->
+    <div class="flex flex-col items-start gap-3">
+      <span class="py-1 text-sm font-medium text-n-slate-12">
+        {{ t('CONTACT_FORM.FORM.JABVOX_CONTACT_TYPE.LABEL') }}
+      </span>
+      <div class="flex items-center gap-4">
+        <label
+          class="flex items-center gap-1.5 cursor-pointer text-sm text-n-slate-12"
+        >
+          <input
+            v-model="state.additionalAttributes.jabvoxContactType"
+            type="radio"
+            value="persona"
+            class="accent-n-brand"
+            @change="emit('update', state)"
+          />
+          {{ t('CONTACT_FORM.FORM.JABVOX_CONTACT_TYPE.PERSONA') }}
+        </label>
+        <label
+          class="flex items-center gap-1.5 cursor-pointer text-sm text-n-slate-12"
+        >
+          <input
+            v-model="state.additionalAttributes.jabvoxContactType"
+            type="radio"
+            value="empresa"
+            class="accent-n-brand"
+            @change="emit('update', state)"
+          />
+          {{ t('CONTACT_FORM.FORM.JABVOX_CONTACT_TYPE.EMPRESA') }}
+        </label>
+      </div>
+      <Input
+        v-if="state.additionalAttributes.jabvoxContactType"
+        v-model="state.additionalAttributes.jabvoxIdentificationNumber"
+        :placeholder="
+          state.additionalAttributes.jabvoxContactType === 'empresa'
+            ? t('CONTACT_FORM.FORM.JABVOX_IDENTIFICATION.NIT_PLACEHOLDER')
+            : t('CONTACT_FORM.FORM.JABVOX_IDENTIFICATION.CEDULA_PLACEHOLDER')
+        "
+        :custom-input-class="`h-8 !pt-1 !pb-1 ${!isDetailsView ? '[&:not(.error,.focus)]:!outline-transparent' : ''}`"
+        class="w-full"
+        @input="emit('update', state)"
+      />
+    </div>
+
+    <!-- Jabvox: campaign -->
+    <div v-if="leadsModuleEnabled" class="flex flex-col items-start gap-2">
+      <span class="py-1 text-sm font-medium text-n-slate-12">
+        {{ t('CONTACT_FORM.FORM.JABVOX_CAMPAIGN.LABEL') }}
+      </span>
+      <select
+        v-model="currentCampaignName"
+        class="w-full h-8 rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 pl-3 pr-7 focus:outline-none focus:ring-1 focus:ring-n-brand"
+        @change="onCampaignBlur"
+      >
+        <option value="">
+          {{ t('CONTACT_FORM.FORM.JABVOX_CAMPAIGN.NONE') }}
+        </option>
+        <option v-for="c in campaigns" :key="c.id" :value="c.name">
+          {{ c.name }}
+        </option>
+      </select>
+    </div>
+
     <div class="flex flex-col items-start gap-2">
       <span class="py-1 text-sm font-medium text-n-slate-12">
         {{ t('CONTACTS_LAYOUT.CARD.SOCIAL_MEDIA.TITLE') }}

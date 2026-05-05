@@ -23,6 +23,23 @@ import inbox from './inbox.json';
 import inboxMgmt from './inboxMgmt.json';
 import integrationApps from './integrationApps.json';
 import integrations from './integrations.json';
+import jabvoxAffiliatePortal from './jabvoxAffiliatePortal.json';
+import jabvoxAffiliates from './jabvoxAffiliates.json';
+import jabvoxAiChat from './jabvoxAiChat.json';
+import jabvoxCalendar from './jabvoxCalendar.json';
+import jabvoxDialer from './jabvoxDialer.json';
+import jabvoxFieldSecurity from './jabvoxFieldSecurity.json';
+import jabvoxInternalChat from './jabvoxInternalChat.json';
+import jabvoxIpWhitelist from './jabvoxIpWhitelist.json';
+import jabvoxKanban from './jabvoxKanban.json';
+import jabvoxLeads from './jabvoxLeads.json';
+import jabvoxManagementStates from './jabvoxManagementStates.json';
+import jabvoxProducts from './jabvoxProducts.json';
+import jabvoxReports from './jabvoxReports.json';
+import jabvoxResponseBot from './jabvoxResponseBot.json';
+import jabvoxSaldo from './jabvoxSaldo.json';
+import jabvoxSms from './jabvoxSms.json';
+import jabvoxVoip from './jabvoxVoip.json';
 import labelsMgmt from './labelsMgmt.json';
 import login from './login.json';
 import macros from './macros.json';
@@ -62,6 +79,23 @@ export default {
   ...inboxMgmt,
   ...integrationApps,
   ...integrations,
+  ...jabvoxAffiliatePortal,
+  ...jabvoxAffiliates,
+  ...jabvoxAiChat,
+  ...jabvoxCalendar,
+  ...jabvoxDialer,
+  ...jabvoxFieldSecurity,
+  ...jabvoxInternalChat,
+  ...jabvoxIpWhitelist,
+  ...jabvoxKanban,
+  ...jabvoxLeads,
+  ...jabvoxManagementStates,
+  ...jabvoxProducts,
+  ...jabvoxReports,
+  ...jabvoxResponseBot,
+  ...jabvoxSaldo,
+  ...jabvoxSms,
+  ...jabvoxVoip,
   ...labelsMgmt,
   ...login,
   ...macros,

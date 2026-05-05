@@ -96,3 +96,65 @@ as well as a link to its edit page.
   <%= render partial: "seed_data", locals: { page: page } %>
 
   <%= render partial: "reset_cache", locals: { page: page } %>
+
+  <div style="margin-top:24px; display:flex; gap:16px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:220px; padding:16px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
+      <h3 style="font-weight:600; font-size:14px; margin-bottom:8px;">IP Whitelist</h3>
+      <p style="font-size:13px; color:#374151; margin-bottom:10px;">
+        Manage which IP addresses can access this account.
+      </p>
+      <%= link_to 'Manage IP Whitelist',
+            super_admin_account_jabvox_ip_whitelists_path(page.resource),
+            class: 'button' %>
+    </div>
+
+    <div style="flex:1; min-width:220px; padding:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
+      <h3 style="font-weight:600; font-size:14px; margin-bottom:8px;">Extensions</h3>
+      <%
+        _ext_count = page.resource.jabvox_user_extensions.count
+      %>
+      <p style="font-size:13px; color:#374151; margin-bottom:10px;">
+        <%= _ext_count > 0 ? "#{_ext_count} user(s) with extension assigned." : "No extensions assigned. Users are prompted on each call." %>
+      </p>
+      <%= link_to 'Manage Extensions',
+            super_admin_account_jabvox_user_extensions_path(page.resource),
+            class: 'button' %>
+    </div>
+  </div>
+
+  <%
+    _saldo_config = page.resource.jabvox_saldo_config
+    _saldo_status = _saldo_config ? (Jabvox::SaldoService.new(_saldo_config).fetch_balance rescue { connected: false, balance: _saldo_config.cached_balance_jabvox.to_f, currency: 'COP', message: 'Error al conectar' }) : nil
+    if _saldo_status
+      _bal = _saldo_status[:balance].to_f
+      _saldo_color  = _bal <= 10_000 ? '#ef4444' : (_bal < 50_000 ? '#f97316' : '#2563eb')
+      _saldo_bg     = _bal <= 10_000 ? '#fef2f2' : (_bal < 50_000 ? '#fff7ed' : '#eff6ff')
+      _saldo_border = _bal <= 10_000 ? '#fecaca' : (_bal < 50_000 ? '#fed7aa' : '#bfdbfe')
+    end
+  %>
+  <div style="margin-top:24px; padding:16px; background:<%= _saldo_status ? _saldo_bg : '#eff6ff' %>; border:1px solid <%= _saldo_status ? _saldo_border : '#bfdbfe' %>; border-radius:8px; display:flex; align-items:center; justify-content:space-between; gap:16px;">
+    <div>
+      <h3 style="font-weight:600; font-size:14px; margin-bottom:4px;">Saldo</h3>
+      <% if _saldo_status %>
+        <p style="font-size:12px; color:#6b7280; margin:0;">
+          <%= _saldo_status[:connected] ? 'Conectado' : 'Sin conexión (último valor)' %>
+          &nbsp;·&nbsp; <%= _saldo_status[:message] %>
+        </p>
+      <% else %>
+        <p style="font-size:12px; color:#6b7280; margin:0;">Sin configuración de saldo.</p>
+      <% end %>
+      <div style="margin-top:10px;">
+        <%= link_to 'Configurar Saldo',
+              super_admin_account_jabvox_saldo_config_path(page.resource),
+              class: 'button' %>
+      </div>
+    </div>
+    <% if _saldo_status %>
+      <div style="text-align:right; flex-shrink:0;">
+        <span style="font-size:32px; font-weight:800; color:<%= _saldo_color %>;">
+          $<%= number_with_delimiter(_bal.round(0)) %>
+        </span>
+        <span style="font-size:13px; color:<%= _saldo_color %>;"><%= _saldo_status[:currency] %></span>
+      </div>
+    <% end %>
+  </div>

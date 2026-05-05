@@ -1,0 +1,62 @@
+{
+  "JABVOX_AFFILIATES": {
+    "TITLE": "Gestión de Afiliados",
+    "DESCRIPTION": "Administre el acceso de los afiliados al portal de afiliados.",
+    "LOGIN_URL": "URL del Portal de Afiliados:",
+    "COPY": "Copiar",
+    "COPIED": "Copiado al portapapeles",
+    "NEW_AFFILIATE": "Nuevo Afiliado",
+    "LOADING": "Cargando...",
+    "EMPTY": "No hay afiliados aún. Cree uno para comenzar.",
+    "CREATED": "Afiliado creado correctamente.",
+    "UPDATED": "Afiliado actualizado.",
+    "DELETED": "Afiliado eliminado.",
+    "TOKEN_REGENERATED": "Token regenerado.",
+    "CODE_REGENERATED": "Código de cuenta regenerado.",
+    "ERROR": "Ocurrió un error. Por favor, intente de nuevo.",
+    "REGENERATE_TOKEN": "Regenerar token",
+    "REGENERATE_CODE": "Regenerar código de cuenta",
+    "REGENERATE_SLUG": "Generar nueva URL",
+    "SLUG_REGENERATED": "Nueva URL generada.",
+    "CONFIRM_DELETE": "¿Eliminar?",
+    "YES": "Sí",
+    "NO": "No",
+    "FORM": {
+      "TITLE": "Nuevo Afiliado",
+      "SUBTITLE": "Cree credenciales de acceso al portal para el afiliado.",
+      "NAME_LABEL": "Nombre",
+      "NAME_PLACEHOLDER": "Nombre del afiliado",
+      "ACCOUNT_CODE": "ID de Cuenta",
+      "TOKEN": "Token",
+      "CANCEL": "Cancelar",
+      "SUBMIT": "Crear",
+      "DONE": "Listo"
+    },
+    "TABLE": {
+      "NAME": "Nombre",
+      "PORTAL_URL": "URL del Portal",
+      "ACCOUNT_CODE": "ID de Cuenta",
+      "TOKEN": "Token",
+      "STATUS": "Estado",
+      "CREATED_AT": "Creado",
+      "ACTIONS": "Acciones",
+      "ACTIVE": "Activo",
+      "INACTIVE": "Inactivo"
+    },
+    "IP": {
+      "BUTTON": "IPs",
+      "TITLE": "IPs permitidas para {name}",
+      "HINT": "Se requiere al menos una IP activa para permitir el acceso. Use 0.0.0.0 para permitir cualquier IP.",
+      "EMPTY": "No hay IPs configuradas — el acceso al portal está bloqueado para este afiliado.",
+      "ADD_PLACEHOLDER": "Ej: 192.168.1.10",
+      "COMMENT_PLACEHOLDER": "Comentario (opcional)",
+      "ADD": "Agregar IP",
+      "ADDING": "Agregando...",
+      "INVALID": "Ingrese una dirección IPv4 válida.",
+      "CONFIRM_DELETE": "¿Eliminar esta IP?",
+      "CREATE_SUCCESS": "IP agregada.",
+      "DELETE_SUCCESS": "IP eliminada.",
+      "ERROR": "Ocurrió un error."
+    }
+  }
+}

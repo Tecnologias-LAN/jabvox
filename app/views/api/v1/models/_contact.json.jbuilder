@@ -1,9 +1,9 @@
-json.additional_attributes resource.additional_attributes
+json.additional_attributes jabvox_mask_attrs(resource.additional_attributes)
 json.availability_status resource.availability_status
-json.email resource.email
+json.email jabvox_mask('email', resource.email)
 json.id resource.id
-json.name resource.name
-json.phone_number resource.phone_number
+json.name jabvox_mask('name', resource.name)
+json.phone_number jabvox_mask('phone', resource.phone_number)
 json.blocked resource.blocked
 json.identifier resource.identifier
 json.thumbnail resource.avatar_url

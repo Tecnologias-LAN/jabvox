@@ -1,0 +1,86 @@
+<%= form_with model: [:super_admin, seat], local: true do |f| %>
+  <% if seat.errors.any? %>
+    <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:12px;margin-bottom:16px;">
+      <ul style="margin:0;padding-left:16px;">
+        <% seat.errors.full_messages.each do |msg| %>
+          <li style="color:#b91c1c;font-size:14px;"><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <% unless seat.persisted? %>
+    <div style="margin-bottom:24px;">
+      <p style="font-size:13px;font-weight:600;color:#374151;margin:0 0 10px;">Ejemplos de acentos</p>
+      <p style="font-size:12px;color:#6b7280;margin:0 0 10px;">Haz click en uno para usarlo como punto de partida.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">
+
+        <% [
+          {
+            name: 'Atención al Cliente',
+            prompt: "Eres el asistente virtual de atención al cliente. Tu objetivo es resolver dudas, gestionar quejas y brindar soporte de forma rápida y empática.\n\nResponde siempre en español, con tono amable y profesional. Si no sabes la respuesta, indica que un agente humano se comunicará pronto.\n\nNo inventes información ni precios. Mantén respuestas cortas y claras."
+          },
+          {
+            name: 'Tienda Online',
+            prompt: "Eres el asistente virtual de una tienda online. Ayudas a los clientes con consultas sobre productos, precios, disponibilidad, envíos y devoluciones.\n\nResponde en español con tono cercano y comercial. Guía al cliente hacia la compra cuando sea oportuno.\n\nSi el cliente pregunta por un producto específico que no conoces, dile que lo consultará con el equipo."
+          },
+          {
+            name: 'Soporte Técnico',
+            prompt: "Eres el asistente de soporte técnico. Tu función es ayudar a los usuarios a resolver problemas técnicos paso a paso.\n\nResponde en español con tono claro y paciente. Solicita información adicional cuando sea necesario para diagnosticar el problema.\n\nEscala al soporte humano si el problema es complejo o requiere acceso interno."
+          },
+          {
+            name: 'Restaurante / Delivery',
+            prompt: "Eres el asistente virtual de un restaurante. Atiendes consultas sobre el menú, horarios, precios y pedidos a domicilio.\n\nResponde en español con tono cálido y eficiente. Ayuda al cliente a hacer su pedido o a resolver dudas sobre ingredientes y alérgenos.\n\nSi el cliente quiere reservar mesa, solicita fecha, hora y número de personas."
+          }
+        ].each do |example| %>
+          <button
+            type="button"
+            onclick="fillExample(this)"
+            data-name="<%= example[:name] %>"
+            data-prompt="<%= example[:prompt] %>"
+            style="text-align:left;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='#eff6ff';this.style.borderColor='#93c5fd';"
+            onmouseout="this.style.background='#f9fafb';this.style.borderColor='#e5e7eb';"
+          >
+            <p style="font-size:13px;font-weight:600;color:#1d4ed8;margin:0 0 3px;"><%= example[:name] %></p>
+            <p style="font-size:11px;color:#6b7280;margin:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"><%= example[:prompt].split("\n").first %></p>
+          </button>
+        <% end %>
+      </div>
+    </div>
+    <script>
+      function fillExample(btn) {
+        document.getElementById('seat_name').value = btn.dataset.name;
+        document.getElementById('seat_prompt').value = btn.dataset.prompt;
+      }
+    </script>
+  <% end %>
+
+  <div style="margin-bottom:16px;">
+    <%= f.label :name_jabvox, 'Nombre', style: 'display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:4px;' %>
+    <%= f.text_field :name_jabvox, id: 'seat_name', placeholder: 'ej. Atención al cliente',
+        style: 'width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;' %>
+  </div>
+
+  <div style="margin-bottom:16px;">
+    <%= f.label :prompt_jabvox, 'System Prompt', style: 'display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:4px;' %>
+    <p style="font-size:12px;color:#6b7280;margin:0 0 6px;">
+      Instrucciones del asistente. Define el tono, la empresa, el producto y cómo debe comportarse el bot.
+    </p>
+    <%= f.text_area :prompt_jabvox, id: 'seat_prompt', rows: 10,
+        placeholder: 'Eres el asistente virtual de Empresa X. Responde siempre en español de forma amable y profesional...',
+        style: 'width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:monospace;resize:vertical;' %>
+  </div>
+
+  <div style="margin-bottom:24px;display:flex;align-items:center;gap:8px;">
+    <%= f.check_box :active_jabvox, style: 'width:16px;height:16px;' %>
+    <%= f.label :active_jabvox, 'Activo (disponible para las cuentas)', style: 'font-size:14px;color:#374151;' %>
+  </div>
+
+  <div style="display:flex;gap:8px;">
+    <%= f.submit seat.persisted? ? 'Actualizar Acento' : 'Crear Acento',
+        style: 'background:#1f64e7;color:white;border:none;border-radius:6px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;' %>
+    <%= link_to 'Cancelar', super_admin_jabvox_response_bot_seats_path,
+        style: 'background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:10px 20px;font-size:14px;font-weight:600;text-decoration:none;' %>
+  </div>
+<% end %>

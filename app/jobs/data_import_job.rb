@@ -20,9 +20,10 @@ class DataImportJob < ApplicationJob
 
   def process_import_file
     @data_import.update!(status: :processing)
-    contacts, rejected_contacts = parse_csv_and_build_contacts
+    contacts, rejected_contacts, campaign_names = parse_csv_and_build_contacts
 
     import_contacts(contacts)
+    create_jabvox_leads(contacts, campaign_names) if @data_import.account.jabvox_leads_enabled_jabvox?
     update_data_import_status(contacts.length, rejected_contacts.length)
     save_failed_records_csv(rejected_contacts)
   end
@@ -30,19 +31,21 @@ class DataImportJob < ApplicationJob
   def parse_csv_and_build_contacts
     contacts = []
     rejected_contacts = []
+    campaign_names = []
 
     with_import_file do |file|
       csv_reader(file).each do |row|
         current_contact = @contact_manager.build_contact(row.to_h.with_indifferent_access)
         if current_contact.valid?
           contacts << current_contact
+          campaign_names << row['campaign'].presence
         else
           append_rejected_contact(row, current_contact, rejected_contacts)
         end
       end
     end
 
-    [contacts, rejected_contacts]
+    [contacts, rejected_contacts, campaign_names]
   end
 
   def append_rejected_contact(row, contact, rejected_contacts)
@@ -78,6 +81,20 @@ class DataImportJob < ApplicationJob
         csv << record
       end
     end
+  end
+
+  def create_jabvox_leads(contacts, campaign_names)
+    contacts.each_with_index do |contact, idx|
+      next if contact.id.blank?
+
+      campaign_name = campaign_names[idx]
+      campaign = JabvoxCampaign.find_or_create_by!(account: @data_import.account, name_jabvox: campaign_name) if campaign_name.present?
+      JabvoxLead.find_or_create_by!(account: @data_import.account, contact: contact) do |lead|
+        lead.jabvox_campaign = campaign
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.error("Jabvox leads creation failed: #{e.message}")
   end
 
   def handle_csv_error(error) # rubocop:disable Lint/UnusedMethodArgument

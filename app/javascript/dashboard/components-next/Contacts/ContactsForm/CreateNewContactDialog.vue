@@ -24,7 +24,8 @@ const createNewContact = contactItem => {
 
 const handleDialogConfirm = async () => {
   if (!contact.value) return;
-  emit('create', contact.value);
+  const jabvoxCampaignName = contactsFormRef.value?.currentCampaignName || null;
+  emit('create', { ...contact.value, jabvoxCampaignName });
 };
 
 const onSuccess = () => {

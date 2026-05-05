@@ -1,0 +1,59 @@
+{
+  "JABVOX_VOIP": {
+    "TITLE": "VoIP / Asterisk",
+    "DESCRIPTION": "Configure la conexión con su servidor de telefonía Asterisk.",
+    "SAVE": "Guardar configuración",
+    "SAVE_SUCCESS": "Configuración VoIP guardada correctamente.",
+    "ERROR": "Ocurrió un error. Por favor, intente de nuevo.",
+    "FORM": {
+      "TITLE": "Configuración de Asterisk",
+      "HOST": "Host",
+      "HOST_PLACEHOLDER": "pbx07.t-lan.co",
+      "PORT": "Puerto",
+      "USERNAME": "Usuario",
+      "PASSWORD": "Contraseña",
+      "PASSWORD_HINT": "(deje en blanco para mantener la actual)",
+      "CONTEXT": "Contexto de Llamada Manual",
+      "CONTEXT_HELP": "Contexto de Asterisk para llamadas manuales (click-to-call).",
+      "DIALER_CONTEXT": "Contexto del Marcador",
+      "DIALER_CONTEXT_HELP": "Contexto de Asterisk para llamadas del marcador automático.",
+      "DIALER_TRUNK": "Troncal del Marcador",
+      "DIALER_TRUNK_PLACEHOLDER": "Claro-SIP",
+      "DIALER_TRUNK_HELP": "Troncal SIP para llamadas salientes del marcador. Canal: SIP/{phone}@{trunk}.",
+      "DIALER_CALLER_ID": "Caller ID del Marcador (DID)",
+      "DIALER_CALLER_ID_PLACEHOLDER": "+573001234567",
+      "DIALER_CALLER_ID_HELP": "Número que ven los leads al recibir la llamada. Se puede sobreescribir por campaña."
+    },
+    "STATUS": {
+      "TITLE": "Estado de la Conexión",
+      "REFRESH": "Actualizar",
+      "LOADING": "Verificando conexión...",
+      "CONNECTED": "Conectado",
+      "DISCONNECTED": "Desconectado"
+    },
+    "EXTENSIONS": {
+      "TITLE": "Extensiones de usuarios",
+      "USER": "Usuario",
+      "SELECT_USER": "Seleccionar usuario...",
+      "EXTENSION": "Extensión",
+      "PLACEHOLDER": "Ej: 101",
+      "ADD": "Asignar",
+      "REMOVE": "Quitar",
+      "EMPTY": "Ningún usuario tiene extensión asignada.",
+      "COL_USER": "Usuario",
+      "COL_EMAIL": "Email",
+      "COL_EXT": "Extensión"
+    },
+    "CALL_BUTTON": {
+      "TITLE": "Click para llamar",
+      "CALL_TO": "Llamar a {phone}",
+      "EXTENSION_PLACEHOLDER": "Su extensión (ej. 1001)",
+      "EXTENSION_FROM_PROFILE": "Tu extensión.",
+      "NO_EXTENSION": "No tienes una extensión activa. Pide al administrador que te asigne una.",
+      "CALL": "Llamar",
+      "CALLING": "Llamando...",
+      "SUCCESS": "Llamada iniciada correctamente",
+      "ERROR": "No se pudo iniciar la llamada"
+    }
+  }
+}

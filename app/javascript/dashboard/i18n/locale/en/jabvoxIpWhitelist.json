@@ -1,0 +1,33 @@
+{
+  "JABVOX_IP_WHITELIST": {
+    "TITLE": "IP Whitelist",
+    "LOADING": "Loading...",
+    "DESCRIPTION": "Restrict access to this account to specific IP addresses. Add 0.0.0.0 to allow all IPs.",
+    "ADD_IP": "Add IP",
+    "TABLE": {
+      "IP": "IP Address",
+      "COMMENT": "Comment",
+      "STATUS": "Status",
+      "ADDED": "Added",
+      "ACTIONS": "Actions"
+    },
+    "FORM": {
+      "IP_PLACEHOLDER": "e.g. 192.168.1.100",
+      "IP_HINT": "Use 0.0.0.0 to allow all IP addresses.",
+      "COMMENT_PLACEHOLDER": "e.g. Office network",
+      "ACTIVE_LABEL": "Active"
+    },
+    "STATUS": {
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive"
+    },
+    "EMPTY": "No IPs configured. All IP addresses are currently allowed.",
+    "CREATE_SUCCESS": "IP address added successfully.",
+    "UPDATE_SUCCESS": "IP address updated successfully.",
+    "DELETE_SUCCESS": "IP address removed successfully.",
+    "ERROR": "An error occurred. Please try again.",
+    "TOGGLE": "Toggle",
+    "DELETE": "Remove",
+    "CONFIRM_DELETE": "Are you sure you want to remove this IP?"
+  }
+}

@@ -8,11 +8,13 @@ import InboxName from '../InboxName.vue';
 import MoreActions from './MoreActions.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
+import JabvoxCallButton from './jabvox/JabvoxCallButton.vue';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
 import { useInbox } from 'dashboard/composables/useInbox';
 import { useI18n } from 'vue-i18n';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 const props = defineProps({
   chat: {
@@ -91,6 +93,15 @@ const hasMultipleInboxes = computed(
 );
 
 const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
+
+const isVoipEnabled = computed(() =>
+  store.getters['accounts/isFeatureEnabledonAccount'](
+    store.getters.getCurrentAccountId,
+    FEATURE_FLAGS.JABVOX_VOIP
+  )
+);
+
+const contactPhone = computed(() => currentContact.value?.phone_number);
 </script>
 
 <template>
@@ -151,6 +162,12 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         show-extended-info
         :parent-width="width"
         class="hidden md:flex"
+      />
+      <JabvoxCallButton
+        v-if="isVoipEnabled && (contactPhone || currentContact.id)"
+        :phone="contactPhone || ''"
+        :contact-id="currentContact.id"
+        :contact-name="currentContact.name"
       />
       <MoreActions :conversation-id="currentChat.id" />
     </div>

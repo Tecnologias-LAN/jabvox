@@ -45,6 +45,19 @@ export const FEATURE_FLAGS = {
   COMPANIES: 'companies',
   ADVANCED_SEARCH: 'advanced_search',
   CONVERSATION_REQUIRED_ATTRIBUTES: 'conversation_required_attributes',
+  JABVOX_KANBAN: 'jabvox_kanban',
+  JABVOX_PRODUCTS: 'jabvox_products',
+  JABVOX_VOIP: 'jabvox_voip',
+  JABVOX_SALDO: 'jabvox_saldo',
+  JABVOX_SMS: 'jabvox_sms',
+  JABVOX_AI_CHAT: 'jabvox_ai_chat',
+  JABVOX_MANAGEMENT_STATES: 'jabvox_management_states',
+  JABVOX_DIALER: 'jabvox_dialer',
+  JABVOX_LEADS: 'jabvox_leads',
+  JABVOX_AFFILIATES: 'jabvox_affiliates',
+  JABVOX_CALENDAR: 'jabvox_calendar',
+  JABVOX_INTERNAL_CHAT: 'jabvox_internal_chat',
+  JABVOX_RESPONSE_BOT: 'jabvox_response_bot',
 };
 
 export const PREMIUM_FEATURES = [

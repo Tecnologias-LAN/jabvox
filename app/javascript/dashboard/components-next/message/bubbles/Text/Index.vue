@@ -8,8 +8,16 @@ import { MESSAGE_TYPES } from '../../constants';
 import { useMessageContext } from '../../provider.js';
 import { useTranslations } from 'dashboard/composables/useTranslations';
 
-const { content, attachments, contentAttributes, messageType } =
+const { content, attachments, contentAttributes, messageType, isPrivate } =
   useMessageContext();
+
+const managementState = computed(() => {
+  if (!isPrivate?.value) return null;
+  const name = contentAttributes.value?.jabvoxManagementStateName;
+  const color = contentAttributes.value?.jabvoxManagementStateColor;
+  if (!name) return null;
+  return { name, color: color || '#6366f1' };
+});
 
 const { hasTranslations, translationContent } =
   useTranslations(contentAttributes);
@@ -44,6 +52,21 @@ const handleSeeOriginal = () => {
 <template>
   <BaseBubble class="px-4 py-3" data-bubble-name="text">
     <div class="gap-3 flex flex-col">
+      <span
+        v-if="managementState"
+        class="inline-flex items-center gap-1.5 self-start text-xs font-semibold px-2 py-0.5 rounded-full"
+        :style="{
+          backgroundColor: managementState.color + '22',
+          color: managementState.color,
+          border: '1px solid ' + managementState.color + '55',
+        }"
+      >
+        <span
+          class="w-2 h-2 rounded-full flex-shrink-0"
+          :style="{ backgroundColor: managementState.color }"
+        />
+        {{ managementState.name }}
+      </span>
       <span v-if="isEmpty" class="text-n-slate-11">
         {{ $t('CONVERSATION.NO_CONTENT') }}
       </span>

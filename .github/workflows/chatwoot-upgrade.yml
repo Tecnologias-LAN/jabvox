@@ -1,0 +1,83 @@
+name: Chatwoot Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: '"propio" = tus cambios | "oficial" = upgrade base de Chatwoot (sobreescribe cambios propios)'
+        required: true
+        type: choice
+        options:
+          - propio
+          - oficial
+      confirm:
+        description: 'Type "yes" to confirm'
+        required: true
+        default: 'no'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-propio:
+    name: Deploy version propia
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'yes' &&
+      inputs.deploy_target == 'propio'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: ${{ secrets.VM_SSH_PORT }}
+          script_stop: true
+          script: |
+            set -e
+            cd /home/chatwoot/chatwoot
+
+            echo "Actualizando codigo..."
+            git fetch origin develop
+            git reset --hard origin/develop
+
+            echo "Instalando dependencias..."
+            bundle install --without development test
+            pnpm install --frozen-lockfile
+
+            echo "Compilando assets..."
+            RAILS_ENV=production bundle exec rails assets:precompile
+
+            echo "Migrando base de datos..."
+            RAILS_ENV=production bundle exec rails db:migrate
+
+            echo "Reiniciando servicio..."
+            sudo systemctl restart chatwoot.target
+
+            echo "Despliegue completado!"
+
+  upgrade-oficial:
+    name: Upgrade oficial Chatwoot
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'yes' &&
+      inputs.deploy_target == 'oficial'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Upgrade via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: ${{ secrets.VM_SSH_PORT }}
+          script_stop: true
+          script: |
+            echo "Iniciando upgrade oficial de Chatwoot..."
+            sudo -i -u chatwoot cwctl --upgrade
+            sudo -i -u chatwoot cwctl --upgrade
+            echo "Upgrade completado! Recuerda correr 'propio' para restaurar tus cambios."

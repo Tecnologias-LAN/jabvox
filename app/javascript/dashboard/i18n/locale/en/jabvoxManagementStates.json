@@ -1,0 +1,81 @@
+{
+  "JABVOX_MANAGEMENT_STATES": {
+    "TITLE": "Estados de Gestión",
+    "DESCRIPTION": "Configura los estados que los agentes deben seleccionar al crear una nota privada.",
+    "SIDEBAR_LABEL": "Estados de Gestión",
+    "TABS": {
+      "MANAGEMENT": "Estados de Gestión",
+      "APP": "Estados de la App",
+      "CAMPAIGNS": "Campañas"
+    },
+    "CAMPAIGNS": {
+      "DESCRIPTION": "Configura las campañas para clasificar y segmentar tus leads.",
+      "NEW": "Nueva Campaña",
+      "EDIT": "Editar Campaña",
+      "SAVE": "Guardar",
+      "SAVING": "Guardando...",
+      "CANCEL": "Cancelar",
+      "LOADING": "Cargando...",
+      "EMPTY": "No hay campañas configuradas. Crea la primera.",
+      "CREATED": "Campaña creada.",
+      "UPDATED": "Campaña actualizada.",
+      "DELETED": "Campaña eliminada.",
+      "ERROR": "Ocurrió un error. Intenta de nuevo.",
+      "DELETE_CONFIRM": "¿Eliminar la campaña \"{name}\"?",
+      "FORM": {
+        "NAME": "Nombre",
+        "NAME_PLACEHOLDER": "Ej: Facebook Ads, Google, WhatsApp..."
+      }
+    },
+    "APP_STATES": {
+      "DESCRIPTION": "Configura los estados de presencia que los usuarios pueden seleccionar.",
+      "NEW": "Nuevo Estado",
+      "EDIT": "Editar Estado",
+      "SAVE": "Guardar",
+      "SAVING": "Guardando...",
+      "CANCEL": "Cancelar",
+      "LOADING": "Cargando...",
+      "EMPTY": "No hay estados configurados. Crea el primero.",
+      "INACTIVE": "Inactivo",
+      "CREATED": "Estado creado.",
+      "UPDATED": "Estado actualizado.",
+      "DELETED": "Estado eliminado.",
+      "ERROR": "Ocurrió un error. Intenta de nuevo.",
+      "DELETE_CONFIRM": "¿Eliminar el estado \"{name}\"?",
+      "ACTIVE_DEFAULT": "Activo",
+      "ACTIVE_RETURN": "Volver a Activo",
+      "FORM": {
+        "NAME": "Nombre",
+        "NAME_PLACEHOLDER": "Ej: Baño, Almuerzo, Desayuno...",
+        "COLOR": "Color",
+        "PREVIEW": "Vista previa",
+        "ACTIVE": "Activo"
+      }
+    },
+    "NEW": "Nuevo Estado",
+    "EDIT": "Editar Estado",
+    "SAVE": "Guardar",
+    "SAVING": "Guardando...",
+    "CANCEL": "Cancelar",
+    "LOADING": "Cargando...",
+    "EMPTY": "No hay estados configurados. Crea el primero.",
+    "INACTIVE": "Inactivo",
+    "CREATED": "Estado creado correctamente.",
+    "UPDATED": "Estado actualizado correctamente.",
+    "DELETED": "Estado eliminado.",
+    "ERROR": "Ocurrió un error. Intenta de nuevo.",
+    "DELETE_CONFIRM": "¿Eliminar el estado \"{name}\"?",
+    "FORM": {
+      "NAME": "Nombre",
+      "NAME_PLACEHOLDER": "Ej: No contesta, Interesado, Cita agendada...",
+      "COLOR": "Color",
+      "PREVIEW": "Vista previa",
+      "ACTIVE": "Activo"
+    },
+    "REPLY_BOX": {
+      "LABEL": "Estado de gestión",
+      "PLACEHOLDER": "Selecciona un estado...",
+      "REQUIRED": "Debes seleccionar un estado de gestión para la nota privada."
+    }
+  }
+}

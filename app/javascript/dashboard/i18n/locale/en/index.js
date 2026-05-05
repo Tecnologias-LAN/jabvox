@@ -40,6 +40,23 @@ import whatsappTemplates from './whatsappTemplates.json';
 import contentTemplates from './contentTemplates.json';
 import mfa from './mfa.json';
 import yearInReview from './yearInReview.json';
+import jabvoxKanban from './jabvoxKanban.json';
+import jabvoxProducts from './jabvoxProducts.json';
+import jabvoxVoip from './jabvoxVoip.json';
+import jabvoxSaldo from './jabvoxSaldo.json';
+import jabvoxSms from './jabvoxSms.json';
+import jabvoxIpWhitelist from './jabvoxIpWhitelist.json';
+import jabvoxAiChat from './jabvoxAiChat.json';
+import jabvoxManagementStates from './jabvoxManagementStates.json';
+import jabvoxDialer from './jabvoxDialer.json';
+import jabvoxFieldSecurity from './jabvoxFieldSecurity.json';
+import jabvoxLeads from './jabvoxLeads.json';
+import jabvoxAffiliates from './jabvoxAffiliates.json';
+import jabvoxAffiliatePortal from './jabvoxAffiliatePortal.json';
+import jabvoxCalendar from './jabvoxCalendar.json';
+import jabvoxInternalChat from './jabvoxInternalChat.json';
+import jabvoxReports from './jabvoxReports.json';
+import jabvoxResponseBot from './jabvoxResponseBot.json';
 
 export default {
   ...advancedFilters,
@@ -84,4 +101,21 @@ export default {
   ...contentTemplates,
   ...mfa,
   ...yearInReview,
+  ...jabvoxKanban,
+  ...jabvoxProducts,
+  ...jabvoxVoip,
+  ...jabvoxSaldo,
+  ...jabvoxSms,
+  ...jabvoxIpWhitelist,
+  ...jabvoxAiChat,
+  ...jabvoxManagementStates,
+  ...jabvoxDialer,
+  ...jabvoxFieldSecurity,
+  ...jabvoxLeads,
+  ...jabvoxAffiliates,
+  ...jabvoxAffiliatePortal,
+  ...jabvoxCalendar,
+  ...jabvoxInternalChat,
+  ...jabvoxReports,
+  ...jabvoxResponseBot,
 };

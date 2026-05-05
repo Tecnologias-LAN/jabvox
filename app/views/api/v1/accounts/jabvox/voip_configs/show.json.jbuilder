@@ -1,0 +1,9 @@
+json.id @config.id
+json.host @config.host
+json.port @config.port
+json.username @config.username
+json.context @config.context
+json.dialer_context @config.dialer_context
+json.dialer_trunk @config.dialer_trunk
+json.has_password @config.password.present?
+json.updated_at @config.updated_at

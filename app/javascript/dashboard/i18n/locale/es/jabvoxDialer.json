@@ -1,0 +1,213 @@
+{
+  "JABVOX_DIALER": {
+    "TITLE": "Marcador Predictivo",
+    "SUBTITLE": "Gestiona campañas de marcación automática",
+    "SELECT_CAMPAIGN": "Selecciona una campaña para ver sus detalles",
+    "ERROR": "Ocurrió un error. Intenta de nuevo.",
+    "CONNECT": "Conectar al dialer",
+    "DISCONNECT": "Desconectar",
+    "DISCONNECTED": "Desconectado",
+    "CONNECTED_STATUS": "Disponible",
+    "AVAILABLE": "Disponible",
+    "NOT_AVAILABLE": "No disponible para llamadas",
+    "WAITING_CALL": "Esperando llamada entrante...",
+    "MY_CAMPAIGNS_HINT": "Selecciona una campaña activa para conectarte al dialer.",
+    "NO_ASSIGNED_CAMPAIGNS": "No tienes campañas activas asignadas. Pide al administrador que te asigne a una.",
+    "DIALING": "Marcando...",
+    "WRAPUP": {
+      "TITLE": "Tiempo de gestión",
+      "HINT": "Agrega una nota o gestión antes de la siguiente llamada.",
+      "NEXT": "Siguiente",
+      "NOTE_PLACEHOLDER": "Agrega una nota de gestión...",
+      "NO_CONVERSATION": "Sin conversación activa — la nota no se guardará."
+    },
+
+    "HISTORY": {
+      "TITLE": "Historial de gestiones"
+    },
+
+    "SETTINGS": {
+      "TITLE": "Configuración del Marcador",
+      "DESCRIPTION": "Configura campañas, estados y permisos del marcador predictivo.",
+      "TABS": {
+        "CAMPAIGNS": "Campañas",
+        "STATES": "Estados",
+        "PERMISSIONS": "Permisos"
+      }
+    },
+
+    "STATUS": {
+      "DRAFT": "Borrador",
+      "ACTIVE": "Activa",
+      "PAUSED": "Pausada",
+      "COMPLETED": "Completada"
+    },
+
+    "TABS": {
+      "CONTACTS": "Contactos",
+      "LOGS": "Registros de llamadas"
+    },
+
+    "CAMPAIGN": {
+      "NEW": "Nueva campaña",
+      "EDIT": "Editar campaña",
+      "CREATE": "Crear Campaña",
+      "EMPTY": "No hay campañas. Crea la primera.",
+      "SAVE_SUCCESS": "Campaña guardada correctamente.",
+      "DELETED": "Campaña eliminada.",
+      "DELETE_CONFIRM": "¿Eliminar esta campaña? Esta acción no se puede deshacer.",
+      "FORM_SUBTITLE": "Configura los filtros de leads y parámetros de la campaña",
+      "START": "Activar",
+      "PAUSE": "Pausar",
+      "STOP": "Detener",
+      "STARTED": "Campaña activada.",
+      "PAUSED": "Campaña pausada.",
+      "STOPPED": "Campaña detenida.",
+      "STOP_CONFIRM": "¿Detener la campaña? Los contactos pendientes quedarán como fallidos.",
+      "DIALED": "marcados",
+      "HOURS": "{start} – {end}",
+      "RETRIES": "{count} reintentos",
+      "AGENTS_LABEL": "agentes"
+    },
+
+    "FORM": {
+      "NAME": "Nombre de la campaña",
+      "NAME_PLACEHOLDER": "Ej: Dialer México Q1",
+      "DESCRIPTION": "Descripción",
+      "CALLER_ID": "Caller ID",
+      "CALLER_ID_PLACEHOLDER": "Ej: +573001234567",
+      "MAX_CONCURRENT": "Llamadas simultáneas",
+      "RETRY_COUNT": "Reintentos",
+      "RETRY_INTERVAL": "Intervalo (min)",
+      "HOURS_START": "Hora inicio",
+      "HOURS_END": "Hora fin",
+      "LEAD_CAMPAIGN": "Campaña del Lead",
+      "LEAD_CAMPAIGN_PLACEHOLDER": "Selecciona una campaña",
+      "COUNTRIES": "Países (opcional)",
+      "COUNTRIES_HINT": "Vacío = todos los países",
+      "COUNTRIES_PLACEHOLDER": "Selecciona países...",
+      "COUNTRIES_SEARCH": "Buscar país",
+      "WRAPUP_TIME": "Tiempo de wrap-up (segundos)",
+      "WRAPUP_TIME_HINT": "Tiempo que el agente tiene para dejar un comentario tras la llamada",
+      "LINES_PER_AGENT": "Líneas por agente",
+      "LINES_PER_AGENT_HINT": "Líneas simultáneas por agente disponible. Ej: 6 agentes × 2 = 12 llamadas",
+      "MANAGEMENT_STATES": "Gestiones a incluir (opcional)",
+      "MANAGEMENT_STATES_HINT": "Vacío = todos los leads. \"Sin gestión\" incluye leads sin ninguna gestión asignada.",
+      "NO_MANAGEMENT_STATE": "Sin gestión",
+      "AGENTS": "Agentes",
+      "AGENTS_HINT": "Agentes asignados a esta campaña",
+      "AFFILIATES": "Afiliados",
+      "AFFILIATES_HINT": "Solo leads de estos afiliados. Vacío = todos.",
+      "AFFILIATES_PLACEHOLDER": "Selecciona afiliados...",
+      "AFFILIATES_SEARCH": "Buscar afiliado",
+      "INBOXES": "Bandejas",
+      "INBOXES_HINT": "Solo contactos con conversaciones en estas bandejas. Vacío = todas.",
+      "INBOXES_PLACEHOLDER": "Selecciona bandejas...",
+      "INBOXES_SEARCH": "Buscar bandeja",
+      "LEAD_COUNT_LABEL": "Leads que coinciden con estos filtros",
+      "LEAD_COUNT_UNIT": "leads"
+    },
+
+    "CONTACTS": {
+      "EMPTY": "No hay contactos en esta campaña. Importa contactos desde la configuración.",
+      "NAME": "Nombre",
+      "PHONE": "Teléfono",
+      "STATUS": "Estado",
+      "ATTEMPTS": "Intentos",
+      "LAST_ATTEMPT": "Último intento"
+    },
+
+    "CONTACT_STATUS": {
+      "PENDING": "Pendiente",
+      "CALLING": "Llamando",
+      "COMPLETED": "Completado",
+      "ANSWERED": "Contestado",
+      "FAILED": "Fallido",
+      "BUSY": "Ocupado",
+      "NO_ANSWER": "Sin respuesta"
+    },
+
+    "STATS": {
+      "TOTAL": "Total",
+      "LEADS": "leads",
+      "ANSWERED": "Contestadas",
+      "FAILED": "Fallidas"
+    },
+
+    "LOGS": {
+      "EMPTY": "No hay registros de llamadas aún.",
+      "PHONE": "Teléfono",
+      "STATUS": "Estado",
+      "DURATION": "Duración",
+      "STARTED_AT": "Inicio",
+      "NOTES": "Notas"
+    },
+
+    "CALL_STATUS": {
+      "INITIATED": "Iniciada",
+      "ANSWERED": "Contestada",
+      "BUSY": "Ocupado",
+      "NO_ANSWER": "Sin respuesta",
+      "FAILED": "Fallida"
+    },
+
+    "CALL": {
+      "CALL": "Llamar",
+      "MODAL_TITLE": "Originar llamada",
+      "CONTACT": "Contacto",
+      "EXTENSION": "Extensión del agente",
+      "EXTENSION_PLACEHOLDER": "Ej: 1001",
+      "EXTENSION_FROM_PROFILE": "Tu extensión.",
+      "NO_EXTENSION": "No tienes una extensión activa. Pide al administrador que te asigne una.",
+      "INITIATED": "Llamada iniciada correctamente.",
+      "IN_CALL": "En llamada",
+      "OPEN_CONVERSATION": "Abrir conversación",
+      "END": "Colgar",
+      "LAST_GESTION": "Última gestión"
+    },
+
+    "IMPORT": {
+      "BUTTON": "Importar contactos",
+      "TITLE": "Importar contactos",
+      "HINT": "Pega los contactos en formato CSV: teléfono,nombre (un contacto por línea).",
+      "CSV_LABEL": "Datos CSV",
+      "CSV_PLACEHOLDER": "+573001234567,Juan Pérez\n+573009876543,María López",
+      "PARSED": "{count} contacto(s) detectado(s)",
+      "SUCCESS": "{count} contacto(s) importado(s) correctamente."
+    },
+
+    "DIALER_STATES": {
+      "DESCRIPTION": "Define los estados en que puede estar un agente durante el dialer (ej: Conectado, Esperando, En comentarios).",
+      "NEW": "Nuevo estado",
+      "EDIT": "Editar estado",
+      "EMPTY": "No hay estados definidos.",
+      "SAVE_SUCCESS": "Estado guardado correctamente.",
+      "DELETED": "Estado eliminado.",
+      "DELETE_CONFIRM": "¿Eliminar este estado?",
+      "INACTIVE": "Inactivo",
+      "ERROR": "Ocurrió un error al guardar.",
+      "FORM": {
+        "NAME": "Nombre",
+        "NAME_PLACEHOLDER": "Ej: En comentarios",
+        "COLOR": "Color",
+        "ACTIVE": "Activo"
+      }
+    },
+
+    "PERMISSIONS": {
+      "TITLE": "Permisos de acceso al Dialer",
+      "DESCRIPTION": "Activa el acceso al módulo del Dialer para cada agente. Los administradores siempre tienen acceso.",
+      "NO_AGENTS": "No hay agentes registrados.",
+      "COLS": {
+        "AGENT": "Agente",
+        "EMAIL": "Email",
+        "ACCESS": "Acceso"
+      }
+    },
+
+    "ACCESS_DENIED": {
+      "TITLE": "Acceso restringido",
+      "DESCRIPTION": "No tienes permiso para acceder al Marcador Predictivo. Contacta al administrador."
+    }
+  }
+}

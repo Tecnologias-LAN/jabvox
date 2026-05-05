@@ -1,0 +1,216 @@
+{
+  "JABVOX_PRODUCTS": {
+    "TITLE": "Products",
+    "LOADING": "Loading...",
+    "ACTIVE": "Active",
+    "INACTIVE": "Inactive",
+    "SAVE": "Save",
+    "CREATE": "Create",
+    "EDIT": "Edit",
+    "NEW": "New",
+    "CANCEL": "Cancelar",
+    "DELETE": "Eliminar",
+    "SAVE_SUCCESS": "Saved successfully",
+    "DELETE_SUCCESS": "Deleted successfully",
+    "DELETE_CONFIRM": "Are you sure you want to delete \"{name}\"?",
+    "ERROR": "An error occurred. Please try again.",
+    "PAGE_INFO": "Page {page} of {total}",
+    "TABS": {
+      "PRODUCTS": "Products",
+      "DISCOUNTS": "Discounts",
+      "STATUSES": "Statuses",
+      "INTEGRATION": "Integration",
+      "CONFIG": "Configuration",
+      "PDF": "PDF",
+      "SALES_REPORTS": "Sales Reports",
+      "REPORT_ACCESS": "Report Access"
+    },
+    "COLS": {
+      "NAME": "Name",
+      "STATUS": "Status",
+      "ACTIONS": "Actions",
+      "DESCRIPTION": "Description"
+    },
+    "PRODUCTS": {
+      "TITLE": "Products",
+      "NEW_BUTTON": "New product",
+      "EMPTY": "No products yet. Create your first product.",
+      "CREATE_SUCCESS": "Product created successfully",
+      "UPDATE_SUCCESS": "Product updated successfully",
+      "DELETE_CONFIRM": "Are you sure you want to delete \"{name}\"?",
+      "IMPORT_BUTTON": "Import from accounting app",
+      "IMPORT_SUCCESS": "Products imported successfully",
+      "IMPORT_ERROR": "Failed to import products. Check your integration settings.",
+      "COLS": {
+        "NAME": "Name",
+        "TYPE": "Type",
+        "PRICE": "Price",
+        "CURRENCY": "Currency",
+        "STATUS": "Status",
+        "ACTIONS": "Actions"
+      },
+      "FORM": {
+        "NEW": "New product",
+        "EDIT": "Edit product",
+        "NAME": "Name",
+        "NAME_REQUIRED": "Name is required",
+        "DESCRIPTION": "Description",
+        "PRICE": "Price",
+        "TAX": "Tax (%)",
+        "TYPE": "Type",
+        "TYPE_PRODUCT": "Product",
+        "TYPE_SERVICE": "Service",
+        "CURRENCY": "Currency",
+        "ITEM_TYPE": "Item type",
+        "UNIT": "Unit of measure"
+      }
+    },
+    "DISCOUNTS": {
+      "TITLE": "Discounts",
+      "EMPTY": "No discounts yet. Create your first discount.",
+      "COLS": {
+        "PERCENTAGE": "Percentage"
+      },
+      "FORM": {
+        "NAME_REQUIRED": "Name is required"
+      }
+    },
+    "STATUSES": {
+      "TITLE": "Order statuses",
+      "EMPTY": "No statuses yet. Create your first status.",
+      "COLS": {
+        "KEY": "Key",
+        "LABEL": "Label",
+        "COLOR": "Color",
+        "ORDER": "Order"
+      },
+      "FORM": {
+        "REQUIRED": "Key and label are required",
+        "KEY_PLACEHOLDER": "PENDING"
+      }
+    },
+    "INTEGRATION": {
+      "TITLE": "Accounting integration",
+      "DESCRIPTION": "Connect your accounting system to sync products and invoices.",
+      "SYSTEM": "Accounting system",
+      "EMAIL": "Account email",
+      "TOKEN": "API token",
+      "TOKEN_HINT": "Leave blank to keep the current token.",
+      "CONNECT": "Connect",
+      "CONNECTED_LABEL": "Connected",
+      "NOT_CONNECTED_LABEL": "Not connected",
+      "CONNECTED_DESC": "Syncing with {system} using account {email}",
+      "EDIT_CONNECTION": "Edit",
+      "DISCONNECT": "Disconnect",
+      "DISCONNECT_CONFIRM": "Are you sure you want to disconnect the integration? This will not delete your products.",
+      "DISCONNECT_SUCCESS": "Integration disconnected successfully.",
+      "CANCEL": "Cancel"
+    },
+    "CONFIG": {
+      "TITLE": "Configuration",
+      "CURRENCIES": "Currencies",
+      "ITEM_TYPES": "Item types",
+      "UNITS": "Units of measure",
+      "TAX_RATES": "Tax rates",
+      "SYMBOL": "Symbol",
+      "SYMBOL_PLACEHOLDER": "COP",
+      "ABBREVIATION": "Abbreviation",
+      "ABBREVIATION_PLACEHOLDER": "kg",
+      "PERCENTAGE": "Percentage (%)",
+      "EMPTY": "No items yet."
+    },
+    "PDF": {
+      "TITLE": "PDF configuration",
+      "DESCRIPTION": "These details appear in the header of all generated quotes and invoices. The configuration is exclusive to this account.",
+      "LOGO": "Company logo",
+      "CHANGE_LOGO": "Change logo",
+      "LOGO_TOO_LARGE": "Logo file must be under 2 MB",
+      "LOGO_FORMATS": "PNG, JPG, SVG — max 2 MB",
+      "COMPANY_NAME": "Company name",
+      "NIT": "NIT / Tax ID",
+      "NIT_PREFIX": "NIT",
+      "ADDRESS": "Address",
+      "PHONE": "Phone",
+      "WEBSITE": "Website",
+      "EMAIL": "Email",
+      "PREVIEW": "Header preview",
+      "QUOTE_LABEL": "Quote",
+      "QUOTE_NUMBER_PREVIEW": "No. 1"
+    },
+    "REPORTS": {
+      "TITLE": "Sales reports",
+      "PERMISSIONS_TAB": "Access permissions",
+      "PERMISSIONS_TITLE": "Report access",
+      "PERMISSIONS_DESC": "Select which agents can view the sales reports.",
+      "NO_AGENTS": "No agents found for this account.",
+      "COLS": {
+        "AGENT": "Agent",
+        "EMAIL": "Email",
+        "ACCESS": "Access"
+      }
+    },
+    "CONVERSATION": {
+      "TAB_CHAT": "Chat",
+      "TAB_PRODUCTS": "Products",
+      "TAB_HISTORY": "History",
+      "PRODUCTS_TITLE": "Quotes & Sales",
+      "PRODUCTS_EMPTY": "No quotes or sales yet.",
+      "NEW_QUOTE": "New Quote",
+      "NEW_SALE": "New Sale",
+      "QUANTITY": "Qty",
+      "UNIT_PRICE": "Price",
+      "DISCOUNT": "Disc. %",
+      "TAX": "Tax %",
+      "NOTES": "Notes",
+      "ADD_ITEM": "Add product",
+      "ORDER_SAVED": "Order saved successfully.",
+      "ORDER_DELETE_CONFIRM": "Delete this order? This cannot be undone.",
+      "ITEMS_REQUIRED": "Add at least one product before saving.",
+      "DOWNLOAD_PDF": "Download PDF",
+      "SEND_TO_ALEGRA": "Send to accounting app",
+      "SENT_TO_ALEGRA": "Sent to Alegra successfully.",
+      "ALREADY_SENT": "Already sent to Alegra",
+      "HISTORY_TITLE": "Contact History",
+      "HISTORY_EMPTY": "No history available for this contact."
+    },
+    "SALES_REPORTS": {
+      "TITLE": "Sales Reports",
+      "FILTER_FROM": "From",
+      "FILTER_TO": "To",
+      "FILTER_PRODUCT": "Product",
+      "FILTER_AGENT": "Agent",
+      "FILTER_TYPE": "Type",
+      "FILTER_ALL": "All",
+      "FILTER_QUOTES": "Quotes",
+      "FILTER_SALES": "Sales",
+      "APPLY": "Apply",
+      "TABS": {
+        "SUMMARY": "Summary",
+        "QUOTES": "Quotes",
+        "SALES": "Sales"
+      },
+      "STATS": {
+        "TOTAL_QUOTES": "Total Quotes",
+        "TOTAL_SALES": "Total Sales",
+        "TOTAL_REVENUE": "Total Revenue",
+        "CONVERSION": "Conversion Rate"
+      },
+      "COLS": {
+        "ID": "#",
+        "TYPE": "Type",
+        "DATE": "Date",
+        "CONTACT": "Contact",
+        "AGENT": "Agent",
+        "PRODUCTS": "Products",
+        "STATUS": "Status",
+        "TOTAL": "Total",
+        "PDF": "PDF"
+      },
+      "BY_PRODUCT": "By Product",
+      "BY_AGENT": "By Agent",
+      "BY_STATUS": "By Status",
+      "EMPTY": "No records for the selected period.",
+      "LOADING": "Loading report..."
+    }
+  }
+}

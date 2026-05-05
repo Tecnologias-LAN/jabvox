@@ -26,6 +26,16 @@ import profile from './profile/profile.routes';
 import security from './security/security.routes';
 import conversationWorkflow from './conversationWorkflow/conversationWorkflow.routes';
 import captain from './captain/captain.routes';
+import { routes as jabvoxKanbanSettingsRoutes } from './jabvox-kanban/routes';
+import { routes as jabvoxVoipRoutes } from './jabvox-voip/routes';
+import { routes as jabvoxSaldoRoutes } from './jabvox-saldo/routes';
+import { routes as jabvoxIpWhitelistRoutes } from './jabvox-ip-whitelist/routes';
+import { routes as jabvoxAiChatSettingsRoutes } from './jabvox-ai-chat/routes';
+import { routes as jabvoxManagementStatesRoutes } from './jabvox-management-states/routes';
+import { routes as jabvoxDialerSettingsRoutes } from './jabvox-dialer/routes';
+import { routes as jabvoxFieldSecurityRoutes } from './jabvox-field-security/routes';
+import { routes as jabvoxAffiliatesRoutes } from './jabvox-affiliates/routes';
+import { routes as jabvoxResponseBotRoutes } from './jabvox-response-bot/routes';
 
 export default {
   routes: [
@@ -67,5 +77,15 @@ export default {
     ...security.routes,
     ...conversationWorkflow.routes,
     ...captain.routes,
+    ...jabvoxFieldSecurityRoutes,
+    ...jabvoxKanbanSettingsRoutes,
+    ...jabvoxVoipRoutes,
+    ...jabvoxSaldoRoutes,
+    ...jabvoxIpWhitelistRoutes,
+    ...jabvoxAiChatSettingsRoutes,
+    ...jabvoxManagementStatesRoutes,
+    ...jabvoxDialerSettingsRoutes,
+    ...jabvoxAffiliatesRoutes,
+    ...jabvoxResponseBotRoutes,
   ],
 };

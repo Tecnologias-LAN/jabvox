@@ -1,0 +1,30 @@
+{
+  "JABVOX_FIELD_SECURITY": {
+    "TITLE": "Seguridad de Información",
+    "DESCRIPTION": "Controla qué campos pueden ver los agentes. Los campos desactivados se mostrarán como asteriscos (***) y no serán enviados al cliente.",
+    "SIDEBAR_LABEL": "Seguridad de Información",
+    "LOADING": "Cargando usuarios...",
+    "SAVED": "Permiso actualizado.",
+    "ERROR": "Error al actualizar el permiso.",
+    "EMPTY": "No hay usuarios en esta cuenta.",
+    "GROUP_CONTACT": "Contacto",
+    "GROUP_PROFILE": "Perfil",
+    "GROUP_SOCIAL": "Redes Sociales",
+    "FIELDS": {
+      "name": "Nombre",
+      "phone": "Teléfono",
+      "email": "Correo",
+      "identification": "NIT / Cédula",
+      "company": "Empresa",
+      "contact_type": "Tipo",
+      "country": "País",
+      "city": "Ciudad",
+      "social_facebook": "Facebook",
+      "social_twitter": "Twitter",
+      "social_linkedin": "LinkedIn",
+      "social_github": "GitHub",
+      "social_telegram": "Telegram",
+      "social_tiktok": "TikTok"
+    }
+  }
+}

@@ -1,0 +1,65 @@
+<% content_for(:title) { "Agregar Saldo" } %>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title">Agregar Saldo</h1>
+  <p style="color:#6b7280; margin-bottom:4px;">Configura la conexión para consultar el saldo VoIP del tenant.</p>
+  <%= link_to '← Volver', super_admin_jabvox_saldo_configs_path, style: 'color:#2563eb; font-size:14px;' %>
+</header>
+
+<section class="main-content__body">
+  <% if @config.errors.any? %>
+    <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px 16px; margin-bottom:20px; max-width:700px;">
+      <% @config.errors.full_messages.each do |msg| %>
+        <p style="color:#dc2626; font-size:14px; margin:2px 0;"><%= msg %></p>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div style="max-width:700px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:24px;">
+    <%= form_with model: @config, url: super_admin_jabvox_saldo_configs_path, method: :post do |f| %>
+      <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:16px;">
+        <div style="grid-column:1/-1;">
+          <label style="display:block; font-size:12px; font-weight:500; margin-bottom:4px;">Tenant</label>
+          <select name="jabvox_saldo_config[account_id]" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 12px; font-size:14px; background:white;">
+            <option value="">Selecciona un tenant</option>
+            <% @accounts.each do |account| %>
+              <option value="<%= account.id %>"><%= account.name %> (<%= account.id %>)</option>
+            <% end %>
+          </select>
+        </div>
+
+        <div>
+          <%= f.label :name_jabvox, 'Nombre', style: 'display:block; font-size:12px; font-weight:500; margin-bottom:4px;' %>
+          <%= f.text_field :name_jabvox, placeholder: 'Saldo VoIP Principal', style: 'width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 12px; font-size:14px;' %>
+        </div>
+
+        <div>
+          <%= f.label :proxy_url_jabvox, 'URL del Proxy', style: 'display:block; font-size:12px; font-weight:500; margin-bottom:4px;' %>
+          <%= f.text_field :proxy_url_jabvox, placeholder: 'http://voip.t-lan.co/mb-proxy.php', style: 'width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 12px; font-size:14px;' %>
+        </div>
+
+        <div>
+          <%= f.label :api_key_jabvox, 'API Key', style: 'display:block; font-size:12px; font-weight:500; margin-bottom:4px;' %>
+          <%= f.text_field :api_key_jabvox, placeholder: 'Tu API Key', style: 'width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 12px; font-size:14px;' %>
+        </div>
+
+        <div>
+          <%= f.label :api_secret_jabvox, 'API Secret', style: 'display:block; font-size:12px; font-weight:500; margin-bottom:4px;' %>
+          <%= f.password_field :api_secret_jabvox, placeholder: 'Tu API Secret', style: 'width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 12px; font-size:14px;' %>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:18px; margin-top:16px; align-items:center;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <%= f.check_box :is_active_jabvox, { checked: true }, '1', '0' %>
+          <%= f.label :is_active_jabvox, 'Activo', style: 'font-size:13px; font-weight:500;' %>
+        </div>
+      </div>
+
+      <div style="margin-top:24px; display:flex; gap:12px;">
+        <%= link_to 'Cancelar', super_admin_jabvox_saldo_configs_path, class: 'button button--secondary' %>
+        <%= f.submit 'Guardar', class: 'button', style: 'cursor:pointer;' %>
+      </div>
+    <% end %>
+  </div>
+</section>

@@ -18,6 +18,9 @@ Rails.application.routes.draw do
 
     get '/app', to: 'dashboard#index'
     get '/app/*params', to: 'dashboard#index'
+    get '/:portal_account_id/affiliate-portal/login/:affiliate_slug', to: 'affiliate_portal#index'
+    get '/:portal_account_id/affiliate-portal/:affiliate_slug', to: 'affiliate_portal#index'
+    get '/:portal_account_id/affiliate-portal/:affiliate_slug/*rest', to: 'affiliate_portal#index'
     get '/app/accounts/:account_id/settings/inboxes/new/twitter', to: 'dashboard#index', as: 'app_new_twitter_inbox'
     get '/app/accounts/:account_id/settings/inboxes/new/microsoft', to: 'dashboard#index', as: 'app_new_microsoft_inbox'
     get '/app/accounts/:account_id/settings/inboxes/new/instagram', to: 'dashboard#index', as: 'app_new_instagram_inbox'
@@ -183,6 +186,7 @@ Rails.application.routes.draw do
               post :filter
               post :import
               post :export
+              get :sample_import
             end
             member do
               get :contactable_inboxes
@@ -364,10 +368,178 @@ Rails.application.routes.draw do
           end
 
           resources :upload, only: [:create]
+
+          namespace :jabvox do
+            resources :kanban_funnels do
+              resources :kanban_stages, only: [:index, :create, :update, :destroy]
+              resource :kanban_board, only: [:show], controller: 'kanban_board'
+              resource :kanban_conversation_stages, only: [:update], controller: 'kanban_conversation_stages'
+            end
+            resources :products do
+              collection do
+                post :import
+              end
+            end
+            resources :orders do
+              member { post :send_to_alegra }
+            end
+            resources :discounts
+            resources :order_status_configs
+            resources :management_states
+            resources :app_states, only: [:index, :create, :update, :destroy] do
+              collection { patch :set_presence }
+            end
+            resources :internal_chats, only: [:index, :create] do
+              collection do
+                get :unread_count
+                get :account_users
+              end
+              member do
+                get :messages
+                post :send_message
+                patch :mark_read
+              end
+            end
+            resources :leads, only: [:index, :show] do
+              collection do
+                post :sync_contacts
+                patch :bulk_assign
+                patch :bulk_unassign
+                get 'for_contact/:contact_id', action: :for_contact, as: :for_contact
+                patch 'for_contact/:contact_id', action: :update_contact_lead, as: :update_contact_lead
+              end
+            end
+            resources :lead_campaigns, controller: 'campaigns'
+            resources :field_visibilities, only: [:index] do
+              collection do
+                get :me
+                patch :update
+              end
+            end
+            resources :currencies
+            resources :item_types
+            resources :units_of_measure
+            resources :tax_rates
+            resource :integration_config, only: [:show, :update, :destroy]
+            resources :sales_report_accesses, only: [:index, :update] do
+              collection { get :me }
+            end
+            resource :sales_reports, only: [:show]
+            resource :voip_config, only: [:show, :update]
+            get :voip_status, to: 'voip_configs#status'
+            post :voip_originate, to: 'voip_configs#originate'
+            resource :saldo_config, only: [:show, :update]
+            get :saldo_balance, to: 'saldo_configs#status'
+            resources :sms_providers do
+              member { get :check_connection }
+            end
+            resources :sms_campaigns do
+              member { post :send_bulk }
+              collection do
+                get :contacts
+                get :lead_count
+              end
+            end
+            resources :sms_messages, only: [:index] do
+              collection { get :stats }
+            end
+            resources :ip_whitelists, only: [:index, :create, :update, :destroy]
+            resources :dialer_campaigns do
+              collection { get :lead_count }
+              member do
+                patch :start
+                patch :pause
+                patch :stop
+                patch :retry_contacts
+                get :contacts
+                get :call_logs
+                post :import_contacts
+                post :originate
+              end
+            end
+            resources :dialer_call_logs, only: [:index, :create]
+            resources :dialer_states, only: [:index, :create, :update, :destroy]
+            resources :dialer_accesses, only: [:index, :update] do
+              collection do
+                get :me
+                post :connect
+                delete :connect, action: :disconnect
+                patch :state, action: :update_state
+                post :heartbeat
+                get :available_agents
+                post :request_call
+                patch :end_call
+              end
+            end
+            resources :dialer_events, only: [:create]
+            resource :user_extension, only: [:show], controller: 'user_extensions'
+            resources :user_extensions, only: [:index, :create, :destroy], controller: 'user_extensions'
+            resources :ai_chat_models, only: [:index, :create, :update, :destroy] do
+              member do
+                patch :set_default
+                post :test_connection
+              end
+            end
+            resources :ai_chat_configs, only: [] do
+              collection do
+                get '/', action: :show
+                patch '/', action: :update
+                post :sync_documents
+              end
+            end
+            resources :ai_chat_messages, only: [:index, :create, :destroy] do
+              collection do
+                get :my_access
+                get :sessions
+              end
+            end
+            resources :ai_chat_permissions, only: [:index, :update] do
+              collection do
+                patch :bulk_update
+              end
+            end
+            resources :ai_chat_documents, only: [:index, :update, :destroy]
+            resources :response_bot_seats, only: [:index]
+            resources :response_bot_configs, only: [:index, :create, :update, :destroy] do
+              collection { post :setup_labels }
+            end
+            resources :response_bot_documents, only: [:index, :update, :destroy] do
+              collection { post :sync }
+            end
+            resources :affiliates do
+              collection { get :portal_login_url }
+              member do
+                patch :regenerate_token
+                patch :regenerate_code
+              end
+              resources :affiliate_ip_whitelists, only: [:index, :create, :update, :destroy]
+            end
+            resources :calendar_events, only: [:index, :show, :create, :update, :destroy]
+            resource :reports, only: [], controller: 'reports' do
+              collection do
+                get :products
+                get :agents
+                get :dialer
+                get :agent_status
+                patch :set_dialer_state
+              end
+            end
+          end
         end
       end
       # end of account scoped api routes
       # ----------------------------------
+
+      namespace :jabvox do
+        namespace :affiliate_portal do
+          post 'auth/login', to: 'auth#login'
+          resources :contacts, only: [:create]
+          resources :imports, only: [:create]
+          resources :leads, only: [:index] do
+            collection { get :history }
+          end
+        end
+      end
 
       namespace :integrations do
         resources :webhooks, only: [:create]
@@ -630,9 +802,17 @@ Rails.application.routes.draw do
       end
 
       # order of resources affect the order of sidebar navigation in super admin
+      resources :jabvox_saldo_configs, only: [:index, :new, :create, :destroy]
+      resources :jabvox_response_bot_seats
+
       resources :accounts, only: [:index, :new, :create, :show, :edit, :update, :destroy] do
         post :seed, on: :member
         post :reset_cache, on: :member
+        resource :jabvox_saldo_config, only: [:show, :update]
+        resources :jabvox_ip_whitelists, only: [:index, :create, :destroy] do
+          patch :toggle, on: :member
+        end
+        resources :jabvox_user_extensions, only: [:index, :create, :destroy]
       end
       resources :users, only: [:index, :new, :create, :show, :edit, :update, :destroy] do
         delete :avatar, on: :member, action: :destroy_avatar

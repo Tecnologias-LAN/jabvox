@@ -1,5 +1,6 @@
 <script setup>
-import { h, ref, computed, onMounted } from 'vue';
+import { h, ref, computed, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { provideSidebarContext, useSidebarResize } from './provider';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
@@ -9,6 +10,7 @@ import { useI18n } from 'vue-i18n';
 import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
 import { vOnClickOutside } from '@vueuse/components';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useWindowSize, useEventListener } from '@vueuse/core';
 
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -37,7 +39,9 @@ const emit = defineEmits([
 ]);
 
 const { accountScopedRoute, isOnChatwootCloud } = useAccount();
+const { isAdmin } = useAdmin();
 const store = useStore();
+const route = useRoute();
 const searchShortcut = useKbd([`$mod`, 'k']);
 const { t } = useI18n();
 
@@ -53,6 +57,28 @@ const accountId = useMapGetter('getCurrentAccountId');
 const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
+const saldoStatus = useMapGetter('jabvoxSaldo/getStatus');
+
+const myReportAccess = useMapGetter('jabvoxProducts/getMyReportAccess');
+const canViewJabvoxReports = computed(() => myReportAccess.value === true);
+
+const isSaldoEnabled = computed(() =>
+  isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.JABVOX_SALDO)
+);
+
+const appStatesForPresence = useMapGetter('jabvoxAppStates/getActiveStates');
+const currentAppState = useMapGetter('jabvoxAppStates/getCurrentUserAppState');
+const presenceDropdownOpen = ref(false);
+const presenceColor = computed(() => currentAppState.value?.color || '#22c55e');
+const presenceName = computed(
+  () =>
+    currentAppState.value?.name ||
+    t('JABVOX_MANAGEMENT_STATES.APP_STATES.ACTIVE_DEFAULT')
+);
+const setPresence = async stateId => {
+  await store.dispatch('jabvoxAppStates/setPresence', stateId);
+  presenceDropdownOpen.value = false;
+};
 
 const hasAdvancedAssignment = computed(() => {
   return isFeatureEnabledonAccount.value(
@@ -171,7 +197,35 @@ onMounted(() => {
   store.dispatch('attributes/get');
   store.dispatch('customViews/get', 'conversation');
   store.dispatch('customViews/get', 'contact');
+  if (isSaldoEnabled.value) {
+    store.dispatch('jabvoxSaldo/fetchStatus');
+  }
+  if (
+    isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_PRODUCTS
+    )
+  ) {
+    store.dispatch('jabvoxProducts/fetchMyReportAccess');
+  }
+  store.dispatch('jabvoxFieldVisibilities/fetchMyVisibilities');
+  store.dispatch('jabvoxAppStates/fetchStates');
 });
+
+watch(
+  () => route.name,
+  () => {
+    if (
+      isFeatureEnabledonAccount.value(
+        accountId.value,
+        FEATURE_FLAGS.JABVOX_PRODUCTS
+      ) &&
+      !isAdmin.value
+    ) {
+      store.dispatch('jabvoxProducts/fetchMyReportAccess');
+    }
+  }
+);
 
 const sortedInboxes = computed(() =>
   inboxes.value.slice().sort((a, b) => a.name.localeCompare(b.name))
@@ -209,6 +263,27 @@ const newReportRoutes = () => [
 ];
 
 const reportRoutes = computed(() => newReportRoutes());
+
+const saldoLabel = computed(() => {
+  if (!saldoStatus.value) {
+    return '...';
+  }
+
+  const balance = Number(saldoStatus.value.balance || 0);
+  const formatted = balance.toLocaleString('es-CO', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  return `$${formatted} COP`;
+});
+
+const saldoBalanceColor = computed(() => {
+  if (!saldoStatus.value) return 'text-n-slate-11';
+  const balance = Number(saldoStatus.value.balance || 0);
+  if (balance > 0) return 'text-green-500';
+  if (balance < 0) return 'text-red-500';
+  return 'text-amber-500';
+});
 
 const menuItems = computed(() => {
   return [
@@ -310,6 +385,91 @@ const menuItems = computed(() => {
         },
       ],
     },
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_KANBAN
+    )
+      ? [
+          {
+            name: 'Jabvox Kanban',
+            label: t('SIDEBAR.JABVOX_KANBAN'),
+            icon: 'i-lucide-kanban',
+            to: accountScopedRoute('jabvox_kanban_index'),
+            activeOn: ['jabvox_kanban_index'],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_LEADS
+    )
+      ? [
+          {
+            name: 'Leads',
+            label: t('SIDEBAR.JABVOX_LEADS'),
+            icon: 'i-lucide-users',
+            to: accountScopedRoute('jabvox_leads_index'),
+            activeOn: ['jabvox_leads_index'],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_AI_CHAT
+    )
+      ? [
+          {
+            name: 'Jabvox AI Chat',
+            label: t('JABVOX_AI_CHAT.SIDEBAR_LABEL'),
+            icon: 'i-ri-robot-2-line',
+            to: accountScopedRoute('jabvox_ai_chat_index'),
+            activeOn: ['jabvox_ai_chat_index'],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_CALENDAR
+    )
+      ? [
+          {
+            name: 'Jabvox Calendar',
+            label: t('JABVOX_CALENDAR.SIDEBAR_LABEL'),
+            icon: 'i-lucide-calendar-days',
+            to: accountScopedRoute('jabvox_calendar_index'),
+            activeOn: ['jabvox_calendar_index'],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_INTERNAL_CHAT
+    )
+      ? [
+          {
+            name: 'Jabvox Internal Chat',
+            label: t('JABVOX_INTERNAL_CHAT.SIDEBAR_LABEL'),
+            icon: 'i-lucide-message-circle',
+            to: accountScopedRoute('jabvox_internal_chat_index'),
+            activeOn: ['jabvox_internal_chat_index'],
+            getterKeys: { count: 'jabvoxInternalChat/getUnreadTotal' },
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_PRODUCTS
+    ) && canViewJabvoxReports.value
+      ? [
+          {
+            name: 'Jabvox Reports',
+            label: t('JABVOX_REPORTS.SIDEBAR_LABEL'),
+            icon: 'i-lucide-bar-chart-2',
+            to: accountScopedRoute('jabvox_reports_index'),
+            activeOn: ['jabvox_reports_index'],
+          },
+        ]
+      : []),
     {
       name: 'Captain',
       icon: 'i-woot-captain',
@@ -516,6 +676,20 @@ const menuItems = computed(() => {
         },
       ],
     },
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_DIALER
+    )
+      ? [
+          {
+            name: 'Jabvox Dialer',
+            label: t('JABVOX_DIALER.TITLE'),
+            icon: 'i-lucide-phone-call',
+            to: accountScopedRoute('jabvox_dialer_index'),
+            activeOn: ['jabvox_dialer_index'],
+          },
+        ]
+      : []),
     {
       name: 'Portals',
       label: t('SIDEBAR.HELP_CENTER.TITLE'),
@@ -713,6 +887,176 @@ const menuItems = computed(() => {
           icon: 'i-lucide-credit-card',
           to: accountScopedRoute('billing_settings_index'),
         },
+        ...(isAdmin.value
+          ? [
+              {
+                name: 'Settings Jabvox Field Security',
+                label: t('JABVOX_FIELD_SECURITY.SIDEBAR_LABEL'),
+                icon: 'i-lucide-shield-check',
+                to: accountScopedRoute('jabvox_field_security_index'),
+                activeOn: ['jabvox_field_security_index'],
+              },
+            ]
+          : []),
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_KANBAN
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Kanban',
+                label: t('SIDEBAR.JABVOX_KANBAN'),
+                icon: 'i-lucide-kanban',
+                activeOn: [
+                  'jabvox_kanban_funnels_index',
+                  'jabvox_kanban_funnels_new',
+                  'jabvox_kanban_funnels_edit',
+                  'jabvox_kanban_stages',
+                ],
+                to: accountScopedRoute('jabvox_kanban_funnels_index'),
+              },
+            ]
+          : []),
+        ...(isAdmin.value &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_PRODUCTS
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Products',
+                label: t('SIDEBAR.JABVOX_PRODUCTS'),
+                icon: 'i-lucide-shopping-cart',
+                to: accountScopedRoute('jabvox_products_index'),
+                activeOn: ['jabvox_products_index'],
+              },
+            ]
+          : []),
+        ...(isAdmin.value &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_VOIP
+        )
+          ? [
+              {
+                name: 'Settings Jabvox VoIP',
+                label: t('SIDEBAR.JABVOX_VOIP'),
+                icon: 'i-lucide-phone',
+                to: accountScopedRoute('jabvox_voip_index'),
+                activeOn: ['jabvox_voip_index'],
+              },
+            ]
+          : []),
+        ...(isAdmin.value &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_SALDO
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Saldo',
+                label: t('SIDEBAR.JABVOX_SALDO'),
+                icon: 'i-lucide-wallet',
+                to: accountScopedRoute('jabvox_saldo_index'),
+                activeOn: ['jabvox_saldo_index'],
+              },
+            ]
+          : []),
+        ...(isAdmin.value &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_SMS
+        )
+          ? [
+              {
+                name: 'Settings Jabvox SMS',
+                label: t('SIDEBAR.JABVOX_SMS'),
+                icon: 'i-lucide-message-square',
+                to: accountScopedRoute('jabvox_sms_index'),
+                activeOn: ['jabvox_sms_index'],
+              },
+            ]
+          : []),
+        ...(isAdmin.value
+          ? [
+              {
+                name: 'Settings Jabvox IP Whitelist',
+                label: t('SIDEBAR.JABVOX_IP_WHITELIST'),
+                icon: 'i-lucide-shield',
+                to: accountScopedRoute('jabvox_ip_whitelist_index'),
+                activeOn: ['jabvox_ip_whitelist_index'],
+              },
+            ]
+          : []),
+        ...(isAdmin.value &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_AI_CHAT
+        )
+          ? [
+              {
+                name: 'Settings Jabvox AI Chat',
+                label: t('JABVOX_AI_CHAT.CONFIG_SIDEBAR_LABEL'),
+                icon: 'i-ri-robot-2-line',
+                to: accountScopedRoute('jabvox_ai_chat_settings_index'),
+                activeOn: ['jabvox_ai_chat_settings_index'],
+              },
+            ]
+          : []),
+        ...(isAdmin.value
+          ? [
+              {
+                name: 'Settings Jabvox Management States',
+                label: t('JABVOX_MANAGEMENT_STATES.SIDEBAR_LABEL'),
+                icon: 'i-lucide-tag',
+                to: accountScopedRoute('jabvox_management_states_index'),
+                activeOn: ['jabvox_management_states_index'],
+              },
+            ]
+          : []),
+        ...(isAdmin.value &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_DIALER
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Dialer',
+                label: t('JABVOX_DIALER.SETTINGS.TITLE'),
+                icon: 'i-lucide-phone-call',
+                to: accountScopedRoute('jabvox_dialer_settings'),
+                activeOn: ['jabvox_dialer_settings'],
+              },
+            ]
+          : []),
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_AFFILIATES
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Affiliates',
+                label: t('JABVOX_AFFILIATES.TITLE'),
+                icon: 'i-lucide-users-round',
+                to: accountScopedRoute('jabvox_affiliates_index'),
+                activeOn: ['jabvox_affiliates_index'],
+              },
+            ]
+          : []),
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_RESPONSE_BOT
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Response Bot',
+                label: t('JABVOX_RESPONSE_BOT.SIDEBAR_LABEL'),
+                icon: 'i-lucide-bot-message-square',
+                to: accountScopedRoute('jabvox_response_bot_settings'),
+                activeOn: ['jabvox_response_bot_settings'],
+              },
+            ]
+          : []),
       ],
     },
   ];
@@ -769,6 +1113,77 @@ const menuItems = computed(() => {
             @show-create-account-modal="emit('showCreateAccountModal')"
           />
         </template>
+      </div>
+      <div v-if="!isEffectivelyCollapsed && isSaldoEnabled" class="px-2">
+        <div
+          class="px-2 py-1 rounded-lg bg-n-alpha-2 flex items-center justify-between text-xs"
+        >
+          <span class="text-n-slate-11">{{
+            t('JABVOX_SALDO.HEADER.LABEL')
+          }}</span>
+          <span class="font-medium" :class="saldoBalanceColor">{{
+            saldoLabel
+          }}</span>
+        </div>
+      </div>
+      <div
+        v-if="!isEffectivelyCollapsed"
+        v-on-click-outside="() => (presenceDropdownOpen = false)"
+        class="px-2 relative"
+      >
+        <button
+          class="w-full px-2 py-1 rounded-lg bg-n-alpha-2 flex items-center gap-2 text-xs hover:bg-n-alpha-3 transition-colors"
+          @click="presenceDropdownOpen = !presenceDropdownOpen"
+        >
+          <span
+            class="w-2 h-2 rounded-full flex-shrink-0"
+            :style="{ backgroundColor: presenceColor }"
+          />
+          <span class="flex-1 text-left text-n-slate-11">{{
+            presenceName
+          }}</span>
+          <span
+            class="i-lucide-chevrons-up-down w-3 h-3 text-n-slate-9 flex-shrink-0"
+          />
+        </button>
+        <div
+          v-if="presenceDropdownOpen"
+          class="absolute top-full left-0 right-0 mt-1 bg-n-surface-2 border border-n-weak rounded-xl shadow-lg overflow-hidden z-50"
+        >
+          <button
+            class="w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-n-alpha-2"
+            :class="
+              !currentAppState
+                ? 'font-semibold text-n-slate-12'
+                : 'text-n-slate-11'
+            "
+            @click="setPresence(null)"
+          >
+            <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+            {{
+              currentAppState
+                ? t('JABVOX_MANAGEMENT_STATES.APP_STATES.ACTIVE_RETURN')
+                : t('JABVOX_MANAGEMENT_STATES.APP_STATES.ACTIVE_DEFAULT')
+            }}
+          </button>
+          <button
+            v-for="state in appStatesForPresence"
+            :key="state.id"
+            class="w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-n-alpha-2"
+            :class="
+              currentAppState?.id === state.id
+                ? 'font-semibold text-n-slate-12'
+                : 'text-n-slate-11'
+            "
+            @click="setPresence(state.id)"
+          >
+            <span
+              class="w-2 h-2 rounded-full flex-shrink-0"
+              :style="{ backgroundColor: state.color }"
+            />
+            {{ state.name }}
+          </button>
+        </div>
       </div>
       <div
         class="flex gap-2"

@@ -1,6 +1,8 @@
 import { frontendURL } from '../../../helper/URLHelper';
 import ContactsIndex from './pages/ContactsIndex.vue';
 import ContactManageView from './pages/ContactManageView.vue';
+import JabvoxLeadsPage from './pages/JabvoxLeadsPage.vue';
+import JabvoxLeadDetail from './pages/JabvoxLeadDetail.vue';
 import { FEATURE_FLAGS } from '../../../featureFlags';
 
 const commonMeta = {
@@ -39,6 +41,24 @@ export const routes = [
         meta: commonMeta,
       },
     ],
+  },
+  {
+    path: frontendURL('accounts/:accountId/contacts/jabvox/leads'),
+    name: 'jabvox_leads_index',
+    component: JabvoxLeadsPage,
+    meta: {
+      featureFlag: FEATURE_FLAGS.JABVOX_LEADS,
+      permissions: ['administrator', 'agent', 'contact_manage'],
+    },
+  },
+  {
+    path: frontendURL('accounts/:accountId/contacts/jabvox/leads/:leadId'),
+    name: 'jabvox_lead_detail',
+    component: JabvoxLeadDetail,
+    meta: {
+      featureFlag: FEATURE_FLAGS.JABVOX_LEADS,
+      permissions: ['administrator', 'agent', 'contact_manage'],
+    },
   },
   {
     path: frontendURL('accounts/:accountId/contacts/:contactId'),

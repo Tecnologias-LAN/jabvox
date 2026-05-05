@@ -34,7 +34,21 @@ class AccountDashboard < Administrate::BaseDashboard
     locale: Field::Select.with_options(collection: LANGUAGES_CONFIG.map { |_x, y| y[:iso_639_1_code] }),
     status: Field::Select.with_options(collection: [%w[Active active], %w[Suspended suspended]]),
     account_users: Field::HasMany,
-    custom_attributes: Field::String
+    custom_attributes: Field::String,
+    jabvox_kanban_enabled_jabvox: Field::Boolean,
+    jabvox_products_enabled_jabvox: Field::Boolean,
+    jabvox_voip_enabled_jabvox: Field::Boolean,
+    jabvox_saldo_enabled_jabvox: Field::Boolean,
+    jabvox_sms_enabled_jabvox: Field::Boolean,
+    jabvox_ai_chat_enabled_jabvox: Field::Boolean,
+    jabvox_ai_chat_max_documents_jabvox: Field::Number,
+    jabvox_ai_chat_max_open_chats_jabvox: Field::Number,
+    jabvox_dialer_enabled_jabvox: Field::Boolean,
+    jabvox_leads_enabled_jabvox: Field::Boolean,
+    jabvox_affiliates_enabled_jabvox: Field::Boolean,
+    jabvox_calendar_enabled_jabvox: Field::Boolean,
+    jabvox_internal_chat_enabled_jabvox: Field::Boolean,
+    jabvox_response_bot_enabled_jabvox: Field::Boolean
   }.merge(enterprise_attribute_types).freeze
 
   # COLLECTION_ATTRIBUTES
@@ -70,6 +84,20 @@ class AccountDashboard < Administrate::BaseDashboard
     status
     conversations
     account_users
+    jabvox_kanban_enabled_jabvox
+    jabvox_products_enabled_jabvox
+    jabvox_voip_enabled_jabvox
+    jabvox_saldo_enabled_jabvox
+    jabvox_sms_enabled_jabvox
+    jabvox_ai_chat_enabled_jabvox
+    jabvox_ai_chat_max_documents_jabvox
+    jabvox_ai_chat_max_open_chats_jabvox
+    jabvox_dialer_enabled_jabvox
+    jabvox_leads_enabled_jabvox
+    jabvox_affiliates_enabled_jabvox
+    jabvox_calendar_enabled_jabvox
+    jabvox_internal_chat_enabled_jabvox
+    jabvox_response_bot_enabled_jabvox
   ] + enterprise_show_page_attributes).freeze
 
   # FORM_ATTRIBUTES
@@ -87,6 +115,20 @@ class AccountDashboard < Administrate::BaseDashboard
     name
     locale
     status
+    jabvox_kanban_enabled_jabvox
+    jabvox_products_enabled_jabvox
+    jabvox_voip_enabled_jabvox
+    jabvox_saldo_enabled_jabvox
+    jabvox_sms_enabled_jabvox
+    jabvox_ai_chat_enabled_jabvox
+    jabvox_ai_chat_max_documents_jabvox
+    jabvox_ai_chat_max_open_chats_jabvox
+    jabvox_dialer_enabled_jabvox
+    jabvox_leads_enabled_jabvox
+    jabvox_affiliates_enabled_jabvox
+    jabvox_calendar_enabled_jabvox
+    jabvox_internal_chat_enabled_jabvox
+    jabvox_response_bot_enabled_jabvox
   ] + enterprise_form_attributes).freeze
 
   # COLLECTION_FILTERS
@@ -118,6 +160,20 @@ class AccountDashboard < Administrate::BaseDashboard
   # Reference: https://github.com/thoughtbot/administrate/pull/2356/files#diff-4e220b661b88f9a19ac527c50d6f1577ef6ab7b0bed2bfdf048e22e6bfa74a05R204
   def permitted_attributes(action)
     attrs = super + [limits: {}]
+    attrs << :jabvox_kanban_enabled_jabvox
+    attrs << :jabvox_products_enabled_jabvox
+    attrs << :jabvox_voip_enabled_jabvox
+    attrs << :jabvox_saldo_enabled_jabvox
+    attrs << :jabvox_sms_enabled_jabvox
+    attrs << :jabvox_ai_chat_enabled_jabvox
+    attrs << :jabvox_ai_chat_max_documents_jabvox
+    attrs << :jabvox_ai_chat_max_open_chats_jabvox
+    attrs << :jabvox_dialer_enabled_jabvox
+    attrs << :jabvox_leads_enabled_jabvox
+    attrs << :jabvox_affiliates_enabled_jabvox
+    attrs << :jabvox_calendar_enabled_jabvox
+    attrs << :jabvox_internal_chat_enabled_jabvox
+    attrs << :jabvox_response_bot_enabled_jabvox
 
     # Add manually_managed_features to permitted attributes only for Chatwoot Cloud
     attrs << { manually_managed_features: [] } if ChatwootApp.chatwoot_cloud?

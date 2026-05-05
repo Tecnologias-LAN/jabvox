@@ -1,0 +1,109 @@
+{
+  "JABVOX_REPORTS": {
+    "SIDEBAR_LABEL": "Reportes",
+    "TITLE": "Reportes",
+    "TABS": {
+      "PRODUCTS": "Reporte de Productos",
+      "AGENTS": "Reporte de Agentes",
+      "DIALER": "Reportes Dialer",
+      "AGENT_STATUS": "Estado del Agente"
+    },
+    "COMMON": {
+      "LOADING": "Cargando...",
+      "EMPTY": "Sin datos para el período seleccionado.",
+      "FILTER_FROM": "Desde",
+      "FILTER_TO": "Hasta",
+      "APPLY": "Buscar",
+      "AGENT": "Agente",
+      "TOTAL": "Total"
+    },
+    "PRODUCTS": {
+      "FILTER_TYPE": "Tipo",
+      "FILTER_STATUS": "Estado",
+      "FILTER_ALL": "Todos",
+      "FILTER_QUOTES": "Cotizaciones",
+      "FILTER_SALES": "Ventas",
+      "STATS": {
+        "TOTAL_ORDERS": "Total pedidos",
+        "TOTAL_QUOTES": "Cotizaciones",
+        "TOTAL_SALES": "Ventas",
+        "TOTAL_REVENUE": "Ingresos totales"
+      },
+      "COLS": {
+        "ID": "ID",
+        "DATE": "Fecha",
+        "TYPE": "Tipo",
+        "CONTACT": "Contacto",
+        "PHONE": "Teléfono",
+        "ASSIGNEE": "Agente",
+        "STATUS": "Estado",
+        "SUBTOTAL": "Subtotal",
+        "TAX": "Impuesto",
+        "TOTAL": "Total",
+        "ALEGRA": "# Alegra"
+      },
+      "BADGE": {
+        "QUOTE": "Cotización",
+        "SALE": "Venta"
+      }
+    },
+    "AGENTS": {
+      "COLS": {
+        "AGENT": "Agente",
+        "MESSAGES": "Mensajes",
+        "NOTES": "Notas",
+        "ORDERS": "Pedidos",
+        "CALLS": "Llamadas"
+      },
+      "STATE_TIMES_TITLE": "Tiempo por estado de app",
+      "STATE_TIMES_EMPTY": "Sin registros de estado en el período seleccionado.",
+      "ACTIVE_STATE": "Activo"
+    },
+    "DIALER": {
+      "STATS": {
+        "TOTAL_CALLS": "Total llamadas",
+        "TOTAL_ANSWERED": "Contestadas",
+        "TOTAL_DURATION": "Duración total llamadas",
+        "BY_STATUS": "Por estado de llamada"
+      },
+      "COLS": {
+        "AGENT": "Agente",
+        "CALLS": "Llamadas",
+        "ANSWERED": "Contestadas",
+        "DURATION": "Duración",
+        "NOTES": "Notas"
+      },
+      "STATE_TIMES_TITLE": "Tiempo por estado del dialer",
+      "TIME_CONNECTED": "Tiempo conectado",
+      "STATUS": {
+        "initiated": "Iniciada",
+        "answered": "Contestada",
+        "no_answer": "Sin respuesta",
+        "busy": "Ocupado",
+        "failed": "Fallida",
+        "completed": "Completada"
+      }
+    },
+    "AGENT_STATUS": {
+      "AVAILABILITY": {
+        "online": "En línea",
+        "offline": "Fuera de línea",
+        "busy": "Ocupado"
+      },
+      "DIALER": {
+        "inactive": "Inactivo",
+        "connected": "Conectado",
+        "waiting": "Esperando llamada",
+        "in_call": "En llamada",
+        "in_comments": "En comentarios"
+      },
+      "APP_STATE": "Estado",
+      "DIALER_STATE": "Dialer",
+      "AVAILABILITY_LABEL": "Disponibilidad",
+      "TIME_IN_STATE": "Tiempo en estado",
+      "TIME_IN_DIALER": "Tiempo en dialer",
+      "ACTIVE": "Activo",
+      "LIVE_NOTE": "Contadores en tiempo real · Datos del servidor cada 30s"
+    }
+  }
+}

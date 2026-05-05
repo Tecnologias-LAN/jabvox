@@ -2,18 +2,22 @@
 #
 # Table name: account_users
 #
-#  id                       :bigint           not null, primary key
-#  active_at                :datetime
-#  auto_offline             :boolean          default(TRUE), not null
-#  availability             :integer          default("online"), not null
-#  role                     :integer          default("agent")
-#  created_at               :datetime         not null
-#  updated_at               :datetime         not null
-#  account_id               :bigint
-#  agent_capacity_policy_id :bigint
-#  custom_role_id           :bigint
-#  inviter_id               :bigint
-#  user_id                  :bigint
+#  id                             :bigint           not null, primary key
+#  active_at                      :datetime
+#  auto_offline                   :boolean          default(TRUE), not null
+#  availability                   :integer          default("online"), not null
+#  jabvox_app_state_changed_at    :datetime
+#  jabvox_dialer_state            :string           default("inactive")
+#  jabvox_dialer_state_changed_at :datetime
+#  role                           :integer          default("agent")
+#  created_at                     :datetime         not null
+#  updated_at                     :datetime         not null
+#  account_id                     :bigint
+#  agent_capacity_policy_id       :bigint
+#  custom_role_id                 :bigint
+#  inviter_id                     :bigint
+#  jabvox_app_state_id            :integer
+#  user_id                        :bigint
 #
 # Indexes
 #
@@ -22,6 +26,10 @@
 #  index_account_users_on_custom_role_id            (custom_role_id)
 #  index_account_users_on_user_id                   (user_id)
 #  uniq_user_id_per_account_id                      (account_id,user_id) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (jabvox_app_state_id => jabvox_app_states.id) ON DELETE => nullify
 #
 
 class AccountUser < ApplicationRecord

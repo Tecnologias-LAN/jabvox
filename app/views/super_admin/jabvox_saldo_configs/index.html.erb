@@ -1,0 +1,118 @@
+<% content_for(:title) { "Saldo VoIP" } %>
+
+<%
+  def saldo_color(balance)
+    b = balance.to_f
+    return '#ef4444' if b <= 10_000
+    return '#f97316' if b < 50_000
+    '#2563eb'
+  end
+
+  def saldo_bg(balance)
+    b = balance.to_f
+    return '#fef2f2' if b <= 10_000
+    return '#fff7ed' if b < 50_000
+    '#eff6ff'
+  end
+
+  def saldo_border(balance)
+    b = balance.to_f
+    return '#fecaca' if b <= 10_000
+    return '#fed7aa' if b < 50_000
+    '#bfdbfe'
+  end
+%>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title">Saldo VoIP</h1>
+  <p style="color:#6b7280; margin-bottom:16px;">Saldo por tenant en tiempo real</p>
+  <%= link_to 'Agregar', new_super_admin_jabvox_saldo_config_path, class: 'button' %>
+</header>
+
+<section class="main-content__body">
+  <% if notice %>
+    <p class="flash flash--notice"><%= notice %></p>
+  <% end %>
+
+  <table style="width:100%; border-collapse:collapse; font-size:14px;">
+    <thead>
+      <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
+        <th style="padding:10px 14px; text-align:left; font-weight:600;">#</th>
+        <th style="padding:10px 14px; text-align:left; font-weight:600;">Tenant</th>
+        <th style="padding:10px 14px; text-align:left; font-weight:600;">Nombre</th>
+        <th style="padding:10px 14px; text-align:left; font-weight:600;">Proxy URL</th>
+        <th style="padding:10px 14px; text-align:right; font-weight:600;">Saldo</th>
+        <th style="padding:10px 14px; text-align:left; font-weight:600;">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @configs.each_with_index do |config, i| %>
+        <% status = @statuses[config.id] || {} %>
+        <% balance = status[:connected] ? status[:balance].to_f : config.cached_balance_jabvox.to_f %>
+        <% connected = status[:connected] %>
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:12px 14px; color:#9ca3af;"><%= i + 1 %></td>
+          <td style="padding:12px 14px; font-weight:600;"><%= config.account.name %></td>
+          <td style="padding:12px 14px; color:#6b7280;"><%= config.name_jabvox %></td>
+          <td style="padding:12px 14px; color:#9ca3af; font-size:12px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            <%= config.proxy_url_jabvox %>
+          </td>
+          <td style="padding:12px 14px; text-align:right;">
+            <% if connected %>
+              <span style="
+                display:inline-block;
+                padding:4px 14px;
+                border-radius:9999px;
+                font-weight:700;
+                font-size:15px;
+                background:<%= saldo_bg(balance) %>;
+                color:<%= saldo_color(balance) %>;
+                border:1px solid <%= saldo_border(balance) %>;
+                letter-spacing:0.01em;
+              ">
+                $<%= number_with_delimiter(balance.round(0)) %>
+              </span>
+            <% else %>
+              <span style="display:inline-flex; align-items:center; gap:5px; color:#dc2626; font-size:13px;">
+                <span style="width:7px; height:7px; border-radius:50%; background:#dc2626; flex-shrink:0;"></span>
+                Sin conexión
+                <% if config.cached_balance_jabvox.present? %>
+                  <span style="
+                    margin-left:4px;
+                    padding:2px 10px;
+                    border-radius:9999px;
+                    font-size:13px;
+                    font-weight:600;
+                    background:<%= saldo_bg(config.cached_balance_jabvox) %>;
+                    color:<%= saldo_color(config.cached_balance_jabvox) %>;
+                    border:1px solid <%= saldo_border(config.cached_balance_jabvox) %>;
+                    opacity:0.7;
+                  ">
+                    $<%= number_with_delimiter(config.cached_balance_jabvox.to_f.round(0)) %>
+                  </span>
+                <% end %>
+              </span>
+            <% end %>
+          </td>
+          <td style="padding:12px 14px;">
+            <div style="display:flex; gap:10px; align-items:center;">
+              <%= link_to 'Editar', super_admin_account_jabvox_saldo_config_path(config.account), style: 'color:#2563eb; font-size:13px;' %>
+              <%= button_to 'Eliminar',
+                  super_admin_jabvox_saldo_config_path(config),
+                  method: :delete,
+                  data: { confirm: '¿Eliminar esta configuración?' },
+                  style: 'background:none; border:none; color:#dc2626; cursor:pointer; padding:0; font-size:13px;' %>
+            </div>
+          </td>
+        </tr>
+      <% end %>
+      <% if @configs.empty? %>
+        <tr>
+          <td colspan="6" style="padding:40px 14px; text-align:center; color:#9ca3af;">
+            No hay configuraciones. <%= link_to 'Agregar la primera', new_super_admin_jabvox_saldo_config_path, style: 'color:#2563eb;' %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</section>

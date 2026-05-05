@@ -1,0 +1,77 @@
+{
+  "JABVOX_CALENDAR": {
+    "SIDEBAR_LABEL": "Calendario",
+    "TITLE": "Calendario",
+    "NEW_EVENT": "Nuevo evento",
+    "EDIT_EVENT": "Editar evento",
+    "DELETE_EVENT": "Eliminar evento",
+    "DELETE_CONFIRM": "¿Eliminar este evento?",
+    "SAVE": "Guardar",
+    "CANCEL": "Cancelar",
+    "TODAY": "Hoy",
+    "MONTH": "Mes",
+    "WEEK": "Semana",
+    "DAY": "Día",
+    "LOADING": "Cargando...",
+    "EMPTY": "No hay eventos este período",
+    "VIEWS": {
+      "MONTH": "Mes",
+      "WEEK": "Semana",
+      "DAY": "Día"
+    },
+    "DAYS": {
+      "SUN": "Dom",
+      "MON": "Lun",
+      "TUE": "Mar",
+      "WED": "Mié",
+      "THU": "Jue",
+      "FRI": "Vie",
+      "SAT": "Sáb"
+    },
+    "MONTHS": {
+      "JAN": "Enero",
+      "FEB": "Febrero",
+      "MAR": "Marzo",
+      "APR": "Abril",
+      "MAY": "Mayo",
+      "JUN": "Junio",
+      "JUL": "Julio",
+      "AUG": "Agosto",
+      "SEP": "Septiembre",
+      "OCT": "Octubre",
+      "NOV": "Noviembre",
+      "DEC": "Diciembre"
+    },
+    "FORM": {
+      "TITLE_LABEL": "Título",
+      "TITLE_PLACEHOLDER": "Nombre del evento",
+      "DESCRIPTION_LABEL": "Descripción",
+      "DESCRIPTION_PLACEHOLDER": "Detalles opcionales...",
+      "DATE_LABEL": "Fecha",
+      "TIME_LABEL": "Hora",
+      "ALL_DAY": "Todo el día",
+      "TYPE_LABEL": "Tipo",
+      "COLOR_LABEL": "Color",
+      "STATUS_LABEL": "Estado"
+    },
+    "TYPES": {
+      "reminder": "Recordatorio",
+      "appointment": "Cita",
+      "task": "Tarea pendiente"
+    },
+    "STATUS": {
+      "pending": "Pendiente",
+      "done": "Completado",
+      "cancelled": "Cancelado"
+    },
+    "UPCOMING": "Próximos eventos",
+    "MORE": "+{count} más",
+    "ADD": "Agregar",
+    "TIME_START": "Inicio",
+    "TIME_END": "Fin",
+    "ERRORS": {
+      "TITLE_REQUIRED": "El título es requerido",
+      "SAVE_FAILED": "No se pudo guardar el evento"
+    }
+  }
+}

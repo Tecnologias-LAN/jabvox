@@ -43,6 +43,7 @@ class Message < ApplicationRecord
 
   include MessageFilterHelpers
   include Liquidable
+  include JabvoxResponseBotTrigger
   NUMBER_OF_PERMITTED_ATTACHMENTS = 15
 
   TEMPLATE_PARAMS_SCHEMA = {
@@ -330,10 +331,25 @@ class Message < ApplicationRecord
     send_reply
     execute_message_template_hooks
     update_contact_activity
+    complete_jabvox_dialer_contact_on_gestion
   end
 
   def update_contact_activity
     sender.update(last_activity_at: DateTime.now) if sender.is_a?(Contact)
+  end
+
+  def complete_jabvox_dialer_contact_on_gestion
+    return unless private?
+    return if content_attributes['jabvox_management_state_name'].blank?
+
+    contact_id = conversation.contact_id
+    # rubocop:disable Rails/SkipsModelValidations
+    JabvoxDialerCampaignContact
+      .joins(:jabvox_dialer_campaign)
+      .where(contact_id: contact_id, status_jabvox: 'calling')
+      .where(jabvox_dialer_campaigns: { account_id: account_id, status_jabvox: 'active' })
+      .update_all(status_jabvox: 'completed')
+    # rubocop:enable Rails/SkipsModelValidations
   end
 
   def update_waiting_since

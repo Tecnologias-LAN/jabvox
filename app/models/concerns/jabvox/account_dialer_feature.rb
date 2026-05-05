@@ -1,0 +1,13 @@
+module Jabvox::AccountDialerFeature
+  extend ActiveSupport::Concern
+
+  def feature_enabled?(name)
+    return jabvox_dialer_enabled_jabvox? if name.to_s == 'jabvox_dialer'
+
+    super
+  end
+
+  def enabled_features
+    super.merge('jabvox_dialer' => jabvox_dialer_enabled_jabvox?)
+  end
+end

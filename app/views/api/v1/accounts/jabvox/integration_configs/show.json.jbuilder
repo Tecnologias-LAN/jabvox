@@ -1,0 +1,12 @@
+json.id @config.id
+json.connected @config.integration_email_jabvox.present?
+json.integration_type_jabvox @config.integration_type_jabvox
+json.integration_email_jabvox @config.integration_email_jabvox
+json.company_name_jabvox @config.company_name_jabvox
+json.company_nit_jabvox @config.company_nit_jabvox
+json.company_address_jabvox @config.company_address_jabvox
+json.company_phone_jabvox @config.company_phone_jabvox
+json.company_email_jabvox @config.company_email_jabvox
+json.company_website_jabvox @config.company_website_jabvox
+json.company_logo_jabvox @config.company_logo_jabvox
+json.updated_at @config.updated_at

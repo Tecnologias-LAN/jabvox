@@ -1,0 +1,9 @@
+json.id stage.id
+json.name_jabvox stage.name_jabvox
+json.description_jabvox stage.description_jabvox
+json.position_jabvox stage.position_jabvox
+json.color_jabvox stage.color_jabvox
+json.jabvox_kanban_funnel_id stage.jabvox_kanban_funnel_id
+json.account_id stage.account_id
+json.created_at stage.created_at
+json.updated_at stage.updated_at

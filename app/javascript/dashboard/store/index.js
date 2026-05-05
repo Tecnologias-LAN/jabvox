@@ -58,6 +58,24 @@ import copilotMessages from './captain/copilotMessages';
 import captainScenarios from './captain/scenarios';
 import captainTools from './captain/tools';
 import captainCustomTools from './captain/customTools';
+import jabvoxKanban from './modules/jabvox/kanban';
+import jabvoxProducts from './modules/jabvox/products';
+import jabvoxVoip from './modules/jabvox/voip';
+import jabvoxSaldo from './modules/jabvox/saldo';
+import jabvoxSms from './modules/jabvox/sms';
+import jabvoxIpWhitelist from './modules/jabvox/ipWhitelist';
+import jabvoxAiChat from './modules/jabvox/aiChat';
+import jabvoxManagementStates from './modules/jabvox/managementStates';
+import jabvoxDialer from './modules/jabvox/dialer';
+import jabvoxOrders from './modules/jabvox/orders';
+import jabvoxFieldVisibilities from './modules/jabvox/fieldVisibilities';
+import jabvoxLeads from './modules/jabvox/leads';
+import jabvoxAffiliates from './modules/jabvox/affiliates';
+import jabvoxCalendar from './modules/jabvox/calendar';
+import jabvoxInternalChat from './modules/jabvox/internalChat';
+import jabvoxAppStates from './modules/jabvox/appStates';
+import jabvoxCampaigns from './modules/jabvox/campaigns';
+import jabvoxResponseBot from './modules/jabvox/responseBot';
 
 const plugins = [];
 
@@ -121,6 +139,24 @@ export default createStore({
     captainScenarios,
     captainTools,
     captainCustomTools,
+    jabvoxKanban,
+    jabvoxProducts,
+    jabvoxVoip,
+    jabvoxSaldo,
+    jabvoxSms,
+    jabvoxIpWhitelist,
+    jabvoxAiChat,
+    jabvoxManagementStates,
+    jabvoxDialer,
+    jabvoxOrders,
+    jabvoxFieldVisibilities,
+    jabvoxLeads,
+    jabvoxAffiliates,
+    jabvoxCalendar,
+    jabvoxInternalChat,
+    jabvoxAppStates,
+    jabvoxCampaigns,
+    jabvoxResponseBot,
   },
   plugins,
 });

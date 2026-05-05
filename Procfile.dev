@@ -1,4 +1,5 @@
 backend: bin/rails s -p 3000
 # https://github.com/mperham/sidekiq/issues/3090#issuecomment-389748695
 worker: dotenv bundle exec sidekiq -C config/sidekiq.yml
-vite: bin/vite dev
+vite: NODE_OPTIONS=--max-old-space-size=4096 bin/vite dev
+ami_listener: bundle exec rails runner "Jabvox::AmiListenerRunner.start"

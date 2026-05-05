@@ -127,6 +127,22 @@
         "PLACEHOLDER": "Enter the city name",
         "LABEL": "City Name"
       },
+      "JABVOX_CONTACT_TYPE": {
+        "LABEL": "Tipo de contacto",
+        "PERSONA": "Persona",
+        "EMPRESA": "Empresa"
+      },
+      "JABVOX_IDENTIFICATION": {
+        "CEDULA_LABEL": "Cédula",
+        "CEDULA_PLACEHOLDER": "Ej: 1234567890",
+        "NIT_LABEL": "NIT",
+        "NIT_PLACEHOLDER": "Ej: 900123456-7"
+      },
+      "JABVOX_CAMPAIGN": {
+        "LABEL": "Campaña",
+        "PLACEHOLDER": "Seleccione una campaña",
+        "NONE": "Sin campaña"
+      },
       "SOCIAL_PROFILES": {
         "FACEBOOK": {
           "PLACEHOLDER": "Enter the Facebook username",
@@ -319,13 +335,33 @@
         "UNBLOCK_ERROR_MESSAGE": "Unable to unblock contact. Please try again later.",
         "IMPORT_CONTACT": {
           "TITLE": "Import contacts",
-          "DESCRIPTION": "Import contacts through a CSV file.",
-          "DOWNLOAD_LABEL": "Download a sample csv.",
-          "LABEL": "CSV File:",
+          "DESCRIPTION": "Import contacts via an Excel or CSV file.",
+          "DOWNLOAD_LABEL": "Download sample Excel file.",
+          "LABEL": "File:",
           "CHOOSE_FILE": "Choose file",
           "CHANGE": "Change",
           "CANCEL": "Cancel",
           "IMPORT": "Import",
+          "NEXT": "Next",
+          "BACK": "Back",
+          "FILE_HINT": "Accepts .xlsx, .xls and .csv files.",
+          "MAPPING_HINT": "Match each column to a contact field.",
+          "COL_FILE": "Your file column",
+          "COL_FIELD": "Contact field",
+          "FIELD_SKIP": "— Skip —",
+          "FIELD_NAME": "Name",
+          "FIELD_FIRST_NAME": "First name",
+          "FIELD_LAST_NAME": "Last name",
+          "FIELD_EMAIL": "Email",
+          "FIELD_PHONE": "Phone",
+          "FIELD_IDENTIFIER": "Identifier",
+          "FIELD_COMPANY": "Company",
+          "FIELD_LOCATION": "Location / City",
+          "FIELD_CAMPAIGN": "Campaign (Jabvox)",
+          "COUNTRY_LABEL": "País de los contactos (requerido)",
+          "COUNTRY_PLACEHOLDER": "Selecciona un país...",
+          "CAMPAIGN_LABEL": "Campaña (opcional)",
+          "CAMPAIGN_PLACEHOLDER": "Selecciona una campaña...",
           "SUCCESS_MESSAGE": "You will be notified via email when the import is complete.",
           "ERROR_MESSAGE": "There was an error, please try again"
         },

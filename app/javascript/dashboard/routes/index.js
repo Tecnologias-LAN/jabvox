@@ -5,8 +5,9 @@ import dashboard from './dashboard/dashboard.routes';
 import store from 'dashboard/store';
 import { validateLoggedInRoutes } from '../helper/routeHelpers';
 import AnalyticsHelper from '../helper/AnalyticsHelper';
+import { routes as affiliatePortalRoutes } from './affiliate-portal/index';
 
-const routes = [...dashboard.routes];
+const routes = [...affiliatePortalRoutes, ...dashboard.routes];
 
 export const router = createRouter({ history: createWebHistory(), routes });
 
@@ -43,6 +44,10 @@ export const initalizeRouter = () => {
       path: to.path,
       name: to.name,
     });
+
+    if (to.meta?.public) {
+      return next();
+    }
 
     userAuthentication.then(() => {
       return validateAuthenticateRoutePermission(to, next, store);
