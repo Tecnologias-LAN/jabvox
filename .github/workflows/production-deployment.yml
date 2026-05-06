@@ -101,6 +101,6 @@ jobs:
 
             # --- STEP 5: RESTART APPLICATION ---
             echo "Restarting services..."
-            sudo systemctl restart chatwoot-web.1.service chatwoot-worker.1.service
+            sudo -n /usr/bin/systemctl restart chatwoot-web.1.service chatwoot-worker.1.service
 
             echo "🚀 Deployment Complete!"
