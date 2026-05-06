@@ -65,7 +65,9 @@ jobs:
               echo "Starting Database Backup..."
               mkdir -p "$BACKUP_DIR"
 
-              export $(grep -v "^#" .env | xargs)
+              set -a
+              source <(grep -E "^(POSTGRES_|DATABASE_URL=)" .env)
+              set +a
 
               FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
               PGPASSWORD=$POSTGRES_PASSWORD pg_dump \
