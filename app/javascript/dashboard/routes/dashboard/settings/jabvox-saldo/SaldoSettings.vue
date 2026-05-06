@@ -132,6 +132,7 @@ const balanceColor = computed(() => {
             <input
               v-model="form.api_key_jabvox"
               type="password"
+              autocomplete="new-password"
               :placeholder="
                 hasApiKey ? '••••••••••••' : $t('JABVOX_SALDO.FORM.API_KEY')
               "
@@ -151,6 +152,7 @@ const balanceColor = computed(() => {
             <input
               v-model="form.api_secret_jabvox"
               type="password"
+              autocomplete="new-password"
               placeholder="••••••••••••"
               class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100"
             />

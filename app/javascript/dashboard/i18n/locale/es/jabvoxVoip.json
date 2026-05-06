@@ -19,7 +19,7 @@
       "DIALER_CONTEXT_HELP": "Contexto de Asterisk para llamadas del marcador automático.",
       "DIALER_TRUNK": "Troncal del Marcador",
       "DIALER_TRUNK_PLACEHOLDER": "Claro-SIP",
-      "DIALER_TRUNK_HELP": "Troncal SIP para llamadas salientes del marcador. Canal: SIP/{phone}@{trunk}.",
+      "DIALER_TRUNK_HELP": "Troncal SIP para llamadas salientes del marcador. Canal: SIP/[phone]{'@'}[trunk].",
       "DIALER_CALLER_ID": "Caller ID del Marcador (DID)",
       "DIALER_CALLER_ID_PLACEHOLDER": "+573001234567",
       "DIALER_CALLER_ID_HELP": "Número que ven los leads al recibir la llamada. Se puede sobreescribir por campaña."

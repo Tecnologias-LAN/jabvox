@@ -41,7 +41,7 @@ class Api::V1::Accounts::Jabvox::AiChatPermissionsController < Api::V1::Accounts
   private
 
   def authorize_permissions
-    authorize JabvoxAiChatUserPermission
+    authorize JabvoxAiChatUserPermission, policy_class: JabvoxAiChatPermissionPolicy
   end
 
   def permission_params

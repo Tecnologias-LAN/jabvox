@@ -108,7 +108,7 @@ class Account < ApplicationRecord
   has_many :jabvox_order_status_configs, dependent: :destroy_async
   has_many :jabvox_currencies, dependent: :destroy_async
   has_many :jabvox_item_types, dependent: :destroy_async
-  has_many :jabvox_units_of_measure, dependent: :destroy_async
+  has_many :jabvox_units_of_measure, class_name: 'JabvoxUnitOfMeasure', dependent: :destroy_async
   has_many :jabvox_tax_rates, dependent: :destroy_async
   has_many :jabvox_sales_report_accesses, dependent: :destroy_async
   has_one :jabvox_integration_config, dependent: :destroy

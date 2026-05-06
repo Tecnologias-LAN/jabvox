@@ -19,7 +19,7 @@
       "DIALER_CONTEXT_HELP": "Asterisk context for automatic dialer calls.",
       "DIALER_TRUNK": "Dialer Trunk",
       "DIALER_TRUNK_PLACEHOLDER": "Claro-SIP",
-      "DIALER_TRUNK_HELP": "SIP trunk for outbound dialer calls. Channel: SIP/{phone}@{trunk}.",
+      "DIALER_TRUNK_HELP": "SIP trunk for outbound dialer calls. Channel: SIP/[phone]{'@'}[trunk].",
       "DIALER_CALLER_ID": "Dialer Caller ID (DID)",
       "DIALER_CALLER_ID_PLACEHOLDER": "+573001234567",
       "DIALER_CALLER_ID_HELP": "Default outbound caller ID shown to leads. Overridden per campaign if set."
