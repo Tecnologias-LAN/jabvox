@@ -8,6 +8,7 @@
 #  domain                               :string(100)
 #  feature_flags                        :bigint           default(0), not null
 #  internal_attributes                  :jsonb            not null
+#  jabvox_acento_jabvox                 :string
 #  jabvox_affiliates_enabled_jabvox     :boolean          default(FALSE), not null
 #  jabvox_ai_chat_enabled_jabvox        :boolean          default(FALSE), not null
 #  jabvox_ai_chat_max_documents_jabvox  :integer          default(0), not null

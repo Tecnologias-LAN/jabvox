@@ -7,6 +7,7 @@ import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 import messageAPI from 'dashboard/api/inbox/message';
 import Button from 'dashboard/components-next/button/Button.vue';
+import contactNotesAPI from 'dashboard/api/contactNotes';
 import JabvoxConversationProducts from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationProducts.vue';
 import JabvoxConversationHistory from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationHistory.vue';
 import JabvoxCallButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxCallButton.vue';
@@ -31,6 +32,7 @@ const isNoteMode = ref(false);
 const managementStateId = ref(null);
 const chatContainer = ref(null);
 const notesContainer = ref(null);
+const contactNotesList = ref([]);
 
 const selectedInboxId = ref(null);
 const initialMessage = ref('');
@@ -110,9 +112,41 @@ const loadMessages = async () => {
   }
 };
 
+const loadContactNotes = async () => {
+  if (!lead.value?.contact?.id) return;
+  try {
+    const { data } = await contactNotesAPI.get(lead.value.contact.id);
+    contactNotesList.value = [...(data || [])].sort(
+      (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    );
+  } catch {
+    // ignore
+  }
+};
+
 const sendMessage = async (privateFlag = false) => {
   const content = newMessage.value.trim();
-  if (!content || isSending.value || !lead.value?.conversation_id) return;
+  if (!content || isSending.value) return;
+
+  if (privateFlag && !lead.value?.conversation_id) {
+    isSending.value = true;
+    try {
+      const { data } = await contactNotesAPI.create(
+        lead.value.contact.id,
+        content
+      );
+      contactNotesList.value.push(data);
+      newMessage.value = '';
+      scrollToBottom(notesContainer);
+    } catch {
+      useAlert(t('JABVOX_LEADS.DETAIL.SEND_ERROR'));
+    } finally {
+      isSending.value = false;
+    }
+    return;
+  }
+
+  if (!lead.value?.conversation_id) return;
   if (
     privateFlag &&
     managementStates.value.length > 0 &&
@@ -219,9 +253,11 @@ const startConversation = async () => {
 const loadLead = async () => {
   await store.dispatch('jabvoxLeads/fetchLead', leadId.value);
   messages.value = [];
+  contactNotesList.value = [];
   newMessage.value = '';
   managementStateId.value = null;
   loadMessages();
+  loadContactNotes();
 };
 
 watch(leadId, loadLead);
@@ -652,13 +688,7 @@ onMounted(() => {
 
         <!-- ── NOTES TAB (private notes only) ── -->
         <template v-else-if="activeTab === 'notes'">
-          <div
-            v-if="!lead.conversation_id"
-            class="flex-1 flex items-center justify-center text-sm text-slate-400"
-          >
-            {{ t('JABVOX_LEADS.DETAIL.NO_CONVERSATION') }}
-          </div>
-          <template v-else>
+          <template>
             <div
               ref="notesContainer"
               class="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0"
@@ -670,46 +700,73 @@ onMounted(() => {
                 {{ t('JABVOX_LEADS.DETAIL.LOADING_MESSAGES') }}
               </div>
               <template v-else>
-                <div
-                  v-for="note in privateNotes"
-                  :key="note.id"
-                  class="flex flex-col gap-1 items-start"
-                >
+                <template v-if="lead.conversation_id">
                   <div
-                    v-if="note.content"
-                    class="max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap break-words bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 text-slate-700 dark:text-slate-200"
+                    v-for="note in privateNotes"
+                    :key="note.id"
+                    class="flex flex-col gap-1 items-start"
                   >
                     <div
-                      v-if="
-                        note.content_attributes?.jabvox_management_state_name
-                      "
-                      class="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-full text-[11px] font-semibold text-white"
-                      :style="{
-                        backgroundColor:
-                          note.content_attributes
-                            .jabvox_management_state_color || '#6b7280',
-                      }"
+                      v-if="note.content"
+                      class="max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap break-words bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 text-slate-700 dark:text-slate-200"
                     >
-                      {{ note.content_attributes.jabvox_management_state_name }}
+                      <div
+                        v-if="
+                          note.content_attributes?.jabvox_management_state_name
+                        "
+                        class="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-full text-[11px] font-semibold text-white"
+                        :style="{
+                          backgroundColor:
+                            note.content_attributes
+                              .jabvox_management_state_color || '#6b7280',
+                        }"
+                      >
+                        {{
+                          note.content_attributes.jabvox_management_state_name
+                        }}
+                      </div>
+                      {{ note.content }}
                     </div>
-                    {{ note.content }}
+                    <span class="text-xs text-slate-400 px-1">
+                      {{ formatTime(note.created_at) }}
+                    </span>
                   </div>
-                  <span class="text-xs text-slate-400 px-1">
-                    {{ formatTime(note.created_at) }}
-                  </span>
-                </div>
-                <div
-                  v-if="privateNotes.length === 0"
-                  class="flex items-center justify-center py-8 text-sm text-slate-400"
-                >
-                  {{ t('JABVOX_LEADS.DETAIL.NO_NOTES') }}
-                </div>
+                  <div
+                    v-if="privateNotes.length === 0"
+                    class="flex items-center justify-center py-8 text-sm text-slate-400"
+                  >
+                    {{ t('JABVOX_LEADS.DETAIL.NO_NOTES') }}
+                  </div>
+                </template>
+                <template v-else>
+                  <div
+                    v-for="note in contactNotesList"
+                    :key="note.id"
+                    class="flex flex-col gap-1 items-start"
+                  >
+                    <div
+                      v-if="note.content"
+                      class="max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap break-words bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 text-slate-700 dark:text-slate-200"
+                    >
+                      {{ note.content }}
+                    </div>
+                    <span class="text-xs text-slate-400 px-1">
+                      {{ formatTime(note.created_at) }}
+                    </span>
+                  </div>
+                  <div
+                    v-if="contactNotesList.length === 0"
+                    class="flex items-center justify-center py-8 text-sm text-slate-400"
+                  >
+                    {{ t('JABVOX_LEADS.DETAIL.NO_NOTES') }}
+                  </div>
+                </template>
               </template>
             </div>
 
             <div class="shrink-0 border-t border-n-weak p-3 space-y-2">
               <div
-                v-if="managementStates.length > 0"
+                v-if="lead.conversation_id && managementStates.length > 0"
                 class="flex items-center gap-2"
               >
                 <label

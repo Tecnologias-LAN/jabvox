@@ -21,15 +21,17 @@ const currentUserRole = useMapGetter('getCurrentRole');
 const isAdmin = computed(() => currentUserRole.value === 'administrator');
 const isConnected = computed(() => status.value?.connected === true);
 
-const form = ref({
-  host: '',
-  port: 5038,
-  username: '',
+const buildForm = cfg => ({
+  host: cfg?.host || '',
+  port: cfg?.port || 5038,
+  username: cfg?.username || '',
   password: '',
-  context: 'clicktocall',
-  dialer_context: '',
-  dialer_trunk: '',
+  context: cfg?.context || 'clicktocall',
+  dialer_context: cfg?.dialer_context || '',
+  dialer_trunk: cfg?.dialer_trunk || '',
 });
+
+const form = ref(buildForm(config.value?.id ? config.value : null));
 
 const isNew = computed(() => !config.value?.id);
 
@@ -54,17 +56,9 @@ const loadExtensions = async () => {
 };
 
 onMounted(async () => {
-  await store.dispatch('jabvoxVoip/fetchConfig');
-  if (config.value?.id) {
-    form.value = {
-      host: config.value.host || '',
-      port: config.value.port || 5038,
-      username: config.value.username || '',
-      password: '',
-      context: config.value.context || 'clicktocall',
-      dialer_context: config.value.dialer_context || '',
-      dialer_trunk: config.value.dialer_trunk || '',
-    };
+  if (!config.value?.id) {
+    await store.dispatch('jabvoxVoip/fetchConfig');
+    if (config.value?.id) form.value = buildForm(config.value);
   }
   store.dispatch('jabvoxVoip/fetchStatus');
   if (isAdmin.value) {
@@ -250,6 +244,7 @@ const onRemoveExtension = async ext => {
             <input
               v-model="form.password"
               type="password"
+              autocomplete="new-password"
               class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
             />
           </div>
@@ -371,7 +366,7 @@ const onRemoveExtension = async ext => {
 
         <div
           v-if="extensions.length"
-          class="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700"
+          class="overflow-x-auto overflow-y-auto max-h-64 rounded-xl border border-slate-100 dark:border-slate-700"
         >
           <table class="w-full text-sm">
             <thead>
