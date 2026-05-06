@@ -55,8 +55,8 @@ jobs:
           script_stop: true
           script: |
             # --- CONFIGURATION ---
-            PROJECT_DIR="/home/chatwoot/chatwoot"
-            BACKUP_DIR="$PROJECT_DIR/backups"
+            export PROJECT_DIR="/home/chatwoot/chatwoot"
+            export BACKUP_DIR="$PROJECT_DIR/backups"
 
             sudo -u chatwoot bash -lc '
               set -e
