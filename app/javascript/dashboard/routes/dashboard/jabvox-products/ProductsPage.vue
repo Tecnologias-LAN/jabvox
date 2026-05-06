@@ -46,43 +46,41 @@ const TABS = [
 </script>
 
 <template>
-  <div class="flex flex-col h-full overflow-hidden bg-white dark:bg-slate-900">
-    <div
-      class="flex items-center gap-3 px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0"
-    >
-      <i class="i-lucide-package text-slate-600 dark:text-slate-300 text-xl" />
-      <h1 class="text-lg font-semibold text-slate-800 dark:text-slate-100">
-        {{ $t('JABVOX_PRODUCTS.TITLE') }}
-      </h1>
+  <div class="flex flex-col h-full w-full overflow-hidden bg-n-surface-1">
+    <div class="shrink-0 border-b border-n-weak bg-n-surface-1">
+      <div class="max-w-3xl mx-auto px-6 sm:px-8 pt-6 pb-0">
+        <h1 class="text-heading-1 text-n-slate-12">
+          {{ $t('JABVOX_PRODUCTS.TITLE') }}
+        </h1>
+      </div>
+      <div class="flex px-6 sm:px-8 gap-1 max-w-3xl mx-auto mt-4 overflow-x-auto">
+        <button
+          v-for="tab in TABS"
+          :key="tab.key"
+          class="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap"
+          :class="[
+            activeTab === tab.key
+              ? 'border-woot-500 text-woot-600'
+              : 'border-transparent text-n-slate-10 hover:text-n-slate-12 hover:border-n-weak',
+          ]"
+          @click="activeTab = tab.key"
+        >
+          <i :class="tab.icon" />
+          {{ $t(tab.label) }}
+        </button>
+      </div>
     </div>
 
-    <div
-      class="flex border-b border-slate-200 dark:border-slate-700 shrink-0 overflow-x-auto"
-    >
-      <button
-        v-for="tab in TABS"
-        :key="tab.key"
-        class="flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors"
-        :class="[
-          activeTab === tab.key
-            ? 'border-woot-600 text-woot-600'
-            : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300',
-        ]"
-        @click="activeTab = tab.key"
-      >
-        <i :class="tab.icon" />
-        {{ $t(tab.label) }}
-      </button>
-    </div>
-
-    <div class="flex-1 overflow-y-auto px-6 py-5">
-      <ProductsTab v-if="activeTab === 'products'" />
-      <DiscountsTab v-else-if="activeTab === 'discounts'" />
-      <StatusesTab v-else-if="activeTab === 'statuses'" />
-      <IntegrationTab v-else-if="activeTab === 'integration'" />
-      <ConfigTab v-else-if="activeTab === 'config'" />
-      <PdfTab v-else-if="activeTab === 'pdf'" />
-      <SalesReportAccessTab v-else-if="activeTab === 'sales_reports'" />
+    <div class="flex-1 overflow-y-auto">
+      <div class="max-w-3xl mx-auto px-6 sm:px-8 py-8">
+        <ProductsTab v-if="activeTab === 'products'" />
+        <DiscountsTab v-else-if="activeTab === 'discounts'" />
+        <StatusesTab v-else-if="activeTab === 'statuses'" />
+        <IntegrationTab v-else-if="activeTab === 'integration'" />
+        <ConfigTab v-else-if="activeTab === 'config'" />
+        <PdfTab v-else-if="activeTab === 'pdf'" />
+        <SalesReportAccessTab v-else-if="activeTab === 'sales_reports'" />
+      </div>
     </div>
   </div>
 </template>

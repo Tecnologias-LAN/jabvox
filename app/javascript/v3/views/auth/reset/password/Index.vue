@@ -63,48 +63,142 @@ export default {
 </script>
 
 <template>
-  <div
-    class="flex flex-col justify-center w-full min-h-screen py-12 bg-n-brand/5 dark:bg-n-background sm:px-6 lg:px-8"
-  >
-    <form
-      class="bg-white shadow sm:mx-auto sm:w-full sm:max-w-lg dark:bg-n-solid-2 p-11 sm:shadow-lg sm:rounded-lg"
-      @submit.prevent="submit"
-    >
-      <h1
-        class="mb-1 text-2xl font-medium tracking-tight text-left text-n-slate-12"
-      >
-        {{ $t('RESET_PASSWORD.TITLE') }}
-      </h1>
-      <p
-        class="mb-4 text-sm font-normal leading-6 tracking-normal text-n-slate-11"
-      >
-        {{ replaceInstallationName($t('RESET_PASSWORD.DESCRIPTION')) }}
-      </p>
-      <div class="space-y-5">
-        <FormInput
-          v-model="credentials.email"
-          name="email_address"
-          :has-error="v$.credentials.email.$error"
-          :error-message="$t('RESET_PASSWORD.EMAIL.ERROR')"
-          :placeholder="$t('RESET_PASSWORD.EMAIL.PLACEHOLDER')"
-          @input="v$.credentials.email.$touch"
-        />
-        <NextButton
-          lg
-          type="submit"
-          data-testid="submit_button"
-          class="w-full"
-          :label="$t('RESET_PASSWORD.SUBMIT')"
-          :disabled="v$.credentials.email.$invalid || resetPassword.showLoading"
-          :is-loading="resetPassword.showLoading"
-        />
+  <div class="jabvox-reset-layout">
+    <div class="jabvox-reset-bg" />
+    <div class="jabvox-reset-center">
+      <div class="jabvox-reset-box">
+        <img :src="'/jabvox/public/logo.png'" alt="Jabvox" class="jabvox-reset-logo" />
+        <h1 class="jabvox-reset-title">¿Olvidaste tu contraseña?</h1>
+        <p class="jabvox-reset-subtitle">Ingresa tu correo y te enviaremos instrucciones para restablecerla</p>
+        <form @submit.prevent="submit">
+          <div class="jabvox-reset-field">
+            <label class="jabvox-reset-label">Correo electrónico</label>
+            <input
+              v-model="credentials.email"
+              type="email"
+              name="email_address"
+              class="jabvox-reset-input"
+              :placeholder="$t('RESET_PASSWORD.EMAIL.PLACEHOLDER')"
+              @input="v$.credentials.email.$touch"
+            />
+          </div>
+          <button
+            type="submit"
+            class="jabvox-reset-btn"
+            :disabled="v$.credentials.email.$invalid || resetPassword.showLoading"
+          >
+            <span v-if="!resetPassword.showLoading">Enviar instrucciones</span>
+            <span v-else>Enviando...</span>
+          </button>
+        </form>
+        <p class="jabvox-reset-back">
+          <router-link to="/auth/login">← Volver al inicio de sesión</router-link>
+        </p>
       </div>
-      <p class="mt-4 -mb-1 text-sm text-n-slate-11">
-        {{ $t('RESET_PASSWORD.GO_BACK_TO_LOGIN') }}
-        <router-link to="/auth/login" class="text-link text-n-brand">
-          {{ $t('COMMON.CLICK_HERE') }}.
-        </router-link>
-      </p>
-    </form>
+    </div>
   </div>
 </template>
+
+<style>
+.jabvox-reset-layout {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Comfortaa', sans-serif;
+}
+.jabvox-reset-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('/jabvox/public/login-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+}
+.jabvox-reset-center {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.jabvox-reset-box {
+  background: #FFFFFF;
+  border-radius: 1rem;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+.jabvox-reset-logo {
+  height: 4rem;
+  width: auto;
+  display: block;
+  margin: 0 auto 1.75rem;
+}
+.jabvox-reset-title {
+  font-size: 1.4rem;
+  font-weight: 300;
+  color: #15605A;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+.jabvox-reset-subtitle {
+  font-size: 0.8rem;
+  color: #40B5B4;
+  text-align: center;
+  margin-bottom: 1.75rem;
+  line-height: 1.5;
+}
+.jabvox-reset-field { margin-bottom: 1.25rem; }
+.jabvox-reset-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #24292D;
+  margin-bottom: 0.4rem;
+}
+.jabvox-reset-input {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1px solid #DAEBDB;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #24292D;
+  background: #FFFFFF;
+  outline: none;
+  font-family: 'Comfortaa', sans-serif;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+.jabvox-reset-input:focus {
+  border-color: #40B5B4;
+  box-shadow: 0 0 0 3px rgba(64,181,180,0.15);
+}
+.jabvox-reset-btn {
+  width: 100%;
+  padding: 0.8rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: #15605A;
+  color: #FFFFFF;
+  font-size: 0.875rem;
+  font-weight: 300;
+  cursor: pointer;
+  font-family: 'Comfortaa', sans-serif;
+  transition: background 0.2s;
+  margin-top: 0.25rem;
+}
+.jabvox-reset-btn:hover:not(:disabled) { background: #40B5B4; }
+.jabvox-reset-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.jabvox-reset-back {
+  text-align: center;
+  margin-top: 1.25rem;
+  font-size: 0.75rem;
+}
+.jabvox-reset-back a { color: #59B995; text-decoration: none; }
+.jabvox-reset-back a:hover { color: #40B5B4; }
+</style>

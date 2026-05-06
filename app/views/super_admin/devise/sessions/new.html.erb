@@ -1,49 +1,235 @@
 <!DOCTYPE html>
-<html>
+<html style="height:100%; margin:0; padding:0;">
   <head>
-    <title>SuperAdmin | Chatwoot</title>
+    <title>Panel de SuperAdmin | Jabvox</title>
     <%= vite_client_tag %>
     <%= vite_javascript_tag 'superadmin' %>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      @font-face {
+        font-family: 'Comfortaa';
+        src: url('/jabvox/public/fonts/Comfortaa-Light.ttf') format('truetype');
+        font-weight: 300;
+      }
+      *, *::before, *::after {
+        box-sizing: border-box;
+        font-family: 'Comfortaa', sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      html, body {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        background: none !important;
+        margin: 0;
+        padding: 0;
+      }
+      .layout {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+        background-image: url('/jabvox/public/login-bg.jpg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+      .left-panel {
+        display: none;
+        width: 50%;
+        height: 100%;
+        position: relative;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 4rem;
+      }
+      @media (min-width: 1024px) {
+        .left-panel { display: flex; }
+      }
+      .left-bg { display: none; }
+      .left-content {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+      }
+      .left-title {
+        font-size: 3rem;
+        font-weight: 300;
+        line-height: 1.2;
+        color: #24292D;
+        margin-bottom: 1.5rem;
+      }
+      .left-title span { color: #15605A; }
+      .left-subtitle {
+        font-size: 1rem;
+        font-weight: 300;
+        color: #24292D;
+      }
+      .right-panel {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+      }
+      .form-box {
+        background: #FFFFFF;
+        border-radius: 1rem;
+        padding: 2rem 2.5rem;
+        width: 100%;
+        max-width: 420px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      }
+      .logo { height: 4rem; width: auto; margin-bottom: 2rem; display: block; margin-left: auto; margin-right: auto; }
+      .form-title {
+        font-size: 1.5rem;
+        font-weight: 300;
+        color: #15605A;
+        margin-bottom: 0.25rem;
+      }
+      .form-subtitle {
+        font-size: 0.8rem;
+        color: #40B5B4;
+        margin-bottom: 2.5rem;
+      }
+      .field { margin-bottom: 1.25rem; }
+      .field label {
+        display: block;
+        font-size: 0.75rem;
+        color: #24292D;
+        margin-bottom: 0.5rem;
+      }
+      .field input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #DAEBDB;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        color: #24292D;
+        background: #FFFFFF;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        font-family: 'Comfortaa', sans-serif;
+      }
+      .field input:focus {
+        border-color: #40B5B4;
+        box-shadow: 0 0 0 3px rgba(64,181,180,0.15);
+      }
+      .pass-wrap { position: relative; }
+      .pass-wrap input { padding-right: 3rem; }
+      .eye-btn {
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #59B995;
+        display: flex;
+        align-items: center;
+        padding: 0.25rem;
+      }
+      .submit-btn {
+        width: 100%;
+        padding: 0.875rem;
+        border: none;
+        border-radius: 0.5rem;
+        background: #15605A;
+        color: #FFFFFF;
+        font-size: 0.875rem;
+        font-weight: 300;
+        cursor: pointer;
+        margin-top: 0.75rem;
+        font-family: 'Comfortaa', sans-serif;
+        transition: background 0.2s;
+      }
+      .submit-btn:hover { background: #40B5B4; }
+      .footer-text {
+        text-align: center;
+        font-size: 0.75rem;
+        color: #59B995;
+        margin-top: 1.5rem;
+      }
+      .alert {
+        background: #15605A;
+        color: #FFFFFF;
+        padding: 0.875rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.8rem;
+        margin-bottom: 1.5rem;
+      }
+    </style>
   </head>
   <body>
-    <div class="h-full w-full antialiased">
-      <main class="flex flex-col bg-woot-25 min-h-screen w-full py-20 sm:px-6 lg:px-8 dark:bg-slate-900">
-        <section class="max-w-5xl mx-auto">
-          <img src="/brand-assets/logo.svg" alt="Chatwoot" class="mx-auto h-8 w-auto block dark:hidden">
-          <img src="/brand-assets/logo_dark.svg" alt="Chatwoot" class="mx-auto h-8 w-auto hidden dark:block">
-          <h2 class="mt-6 text-center text-3xl font-medium text-slate-900 dark:text-woot-50">
-            Howdy, admin 👋
-          </h2>
-        </section>
-        <section class="bg-white shadow sm:mx-auto mt-11 sm:w-full sm:max-w-lg dark:bg-slate-800 p-11 sm:shadow-lg sm:rounded-lg mb-8 mt-15">
-          <div>
-            <%= form_for(resource, as: resource_name, url: '/super_admin/sign_in') do |f| %>
-              <% if flash[:error].present? %>
-                <div data-alert class="rounded-md bg-red-500 p-4 text-white text-sm mb-5"><%= flash[:error] %></div>
-              <% end %>
-              <div class="mb-5">
-                <label for="email_address" class="flex justify-between text-sm font-medium leading-6 text-slate-900 dark:text-white">
-                Email Address
-                </label>
-                <div class="mt-1">
-                  <%= f.email_field :email, autofocus: true, autocomplete: "email", placeholder: "Email eg: someone@example.com", class: "block w-full rounded-md border-0 px-3 py-3 appearance-none shadow-sm ring-1 ring-inset text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-woot-500 sm:text-sm sm:leading-6 outline-none dark:bg-slate-700 dark:ring-slate-600 dark:focus:ring-woot-500 ring-slate-200" %>
-                </div>
-              </div>
-              <div class="mb-5">
-                <label for="password" class="flex justify-between text-sm font-medium leading-6 text-slate-900 dark:text-white">
-                  Password
-                </label>
-                <div class="mt-1">
-                  <%= f.password_field :password, autocomplete: "current-password",  placeholder: "Password", class: "block w-full rounded-md border-0 px-3 py-3 appearance-none shadow-sm ring-1 ring-inset text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-woot-500 sm:text-sm sm:leading-6 outline-none dark:bg-slate-700 dark:ring-slate-600 dark:focus:ring-woot-500 ring-slate-200" %>
-                </div>
-              </div>
-              <button type="submit" class="flex items-center w-full justify-center rounded-md bg-woot-500 py-3 px-3 text-base font-medium text-white shadow-sm hover:bg-woot-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-woot-500 cursor-pointer">
-                <span>Login</span>
-              </button>
+    <div class="layout">
+
+      <div class="left-panel">
+        <div class="left-bg"></div>
+        <div class="left-content">
+          <p class="left-title">Gestión Total<br><span>de tu ecosistema.</span></p>
+          <p class="left-subtitle">Control centralizado de todos tus cuentas y configuraciones</p>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="form-box">
+          <img src="/jabvox/public/logo.png" alt="Jabvox" class="logo">
+          <h1 class="form-title">Panel de SuperAdmin</h1>
+          <p class="form-subtitle">Control central · Gestión de cuentas</p>
+
+          <%= form_for(resource, as: resource_name, url: '/super_admin/sign_in') do |f| %>
+            <% if flash[:error].present? %>
+              <div class="alert"><%= flash[:error] %></div>
             <% end %>
-          </div>
-        </section>
-      </main>
+
+            <div class="field">
+              <label>Correo electrónico</label>
+              <%= f.email_field :email, autofocus: true, autocomplete: "email", placeholder: "Correo electrónico" %>
+            </div>
+
+            <div class="field">
+              <label>Contraseña</label>
+              <div class="pass-wrap">
+                <%= f.password_field :password, autocomplete: "current-password", placeholder: "••••••••", id: "sadmin_pass" %>
+                <button type="button" class="eye-btn" onclick="togglePass()">
+                  <svg id="eye-on" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                  <svg id="eye-off" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" class="submit-btn">Iniciar sesión</button>
+          <% end %>
+
+          <p class="footer-text">Acceso restringido al sistema</p>
+        </div>
+      </div>
+
     </div>
+    <script>
+      function togglePass() {
+        var f = document.getElementById('sadmin_pass');
+        var on = document.getElementById('eye-on');
+        var off = document.getElementById('eye-off');
+        if (f.type === 'password') {
+          f.type = 'text';
+          on.style.display = 'none';
+          off.style.display = 'block';
+        } else {
+          f.type = 'password';
+          on.style.display = 'block';
+          off.style.display = 'none';
+        }
+      }
+    </script>
   </body>
 </html>

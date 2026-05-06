@@ -53,8 +53,6 @@ export default {
   },
   data() {
     return {
-      // We need to initialize the component with any
-      // properties that will be used in it
       credentials: {
         email: '',
         password: '',
@@ -67,6 +65,7 @@ export default {
       error: '',
       mfaRequired: false,
       mfaToken: null,
+      showPassword: false,
     };
   },
   validations() {
@@ -219,123 +218,246 @@ export default {
 </script>
 
 <template>
-  <main
-    class="flex flex-col w-full min-h-screen py-20 bg-n-brand/5 dark:bg-n-background sm:px-6 lg:px-8"
-  >
-    <section class="max-w-5xl mx-auto">
-      <img
-        :src="globalConfig.logo"
-        :alt="globalConfig.installationName"
-        class="block w-auto h-8 mx-auto dark:hidden"
-      />
-      <img
-        v-if="globalConfig.logoDark"
-        :src="globalConfig.logoDark"
-        :alt="globalConfig.installationName"
-        class="hidden w-auto h-8 mx-auto dark:block"
-      />
-      <h2 class="mt-6 text-3xl font-medium text-center text-n-slate-12">
-        {{ replaceInstallationName($t('LOGIN.TITLE')) }}
-      </h2>
-      <p v-if="showSignupLink" class="mt-3 text-sm text-center text-n-slate-11">
-        {{ $t('COMMON.OR') }}
-        <router-link to="auth/signup" class="lowercase text-link text-n-brand">
-          {{ $t('LOGIN.CREATE_NEW_ACCOUNT') }}
-        </router-link>
-      </p>
-    </section>
+  <div class="jabvox-login-layout">
 
-    <!-- MFA Verification Section -->
-    <section v-if="mfaRequired" class="mt-11">
-      <MfaVerification
-        :mfa-token="mfaToken"
-        @verified="handleMfaVerified"
-        @cancel="handleMfaCancel"
-      />
-    </section>
+    <!-- LEFT PANEL -->
+    <div class="jabvox-left">
+      <div class="jabvox-left-bg" />
+      <div class="jabvox-left-content">
+        <p class="jabvox-left-title">
+          Conecta<br>
+          <span>tu comunidad</span><br>
+          en un solo lugar con jabvox
+        </p>
+      </div>
+    </div>
 
-    <!-- Regular Login Section -->
-    <section
-      v-else
-      class="bg-white shadow sm:mx-auto mt-11 sm:w-full sm:max-w-lg dark:bg-n-solid-2 p-11 sm:shadow-lg sm:rounded-lg"
-      :class="{
-        'mb-8 mt-15': !showGoogleOAuth,
-        'animate-wiggle': loginApi.hasErrored,
-      }"
-    >
-      <div v-if="!email">
-        <div class="flex flex-col gap-4">
-          <GoogleOAuthButton v-if="showGoogleOAuth" />
-          <div v-if="showSamlLogin" class="text-center">
-            <router-link
-              to="/app/login/sso"
-              class="inline-flex justify-center w-full px-4 py-3 items-center bg-n-background dark:bg-n-solid-3 rounded-md shadow-sm ring-1 ring-inset ring-n-container dark:ring-n-container focus:outline-offset-0 hover:bg-n-alpha-2 dark:hover:bg-n-alpha-2"
-            >
-              <Icon
-                icon="i-lucide-lock-keyhole"
-                class="size-5 text-n-slate-11"
+    <!-- RIGHT PANEL -->
+    <div class="jabvox-right">
+
+      <!-- MFA -->
+      <div v-if="mfaRequired" class="jabvox-form-box">
+        <MfaVerification
+          :mfa-token="mfaToken"
+          @verified="handleMfaVerified"
+          @cancel="handleMfaCancel"
+        />
+      </div>
+
+      <!-- Login form -->
+      <div v-else class="jabvox-form-box" :class="{ 'animate-wiggle': loginApi.hasErrored }">
+        <img :src="'/jabvox/public/logo.png'" alt="Jabvox" class="jabvox-logo" />
+        <h1 class="jabvox-form-title">Bienvenido a Jabvox</h1>
+        <p class="jabvox-form-subtitle">Inicia sesión para continuar</p>
+
+        <div v-if="!email">
+          <GoogleOAuthButton v-if="showGoogleOAuth" class="mb-4" />
+
+          <form @submit.prevent="submitFormLogin">
+            <div class="jabvox-field">
+              <label class="jabvox-label">Usuario</label>
+              <input
+                v-model="credentials.email"
+                type="text"
+                name="email_address"
+                data-testid="email_input"
+                placeholder="Usuario"
+                class="jabvox-input"
+                :tabindex="1"
+                required
+                @input="v$.credentials.email.$touch"
               />
-              <span class="ml-2 text-base font-medium text-n-slate-12">
-                {{ $t('LOGIN.SAML.LABEL') }}
-              </span>
+            </div>
+
+            <div class="jabvox-field">
+              <label class="jabvox-label">Contraseña</label>
+              <div class="jabvox-pass-wrap">
+                <input
+                  v-model="credentials.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  name="password"
+                  data-testid="password_input"
+                  placeholder="••••••••"
+                  class="jabvox-input jabvox-input-pass"
+                  :tabindex="2"
+                  required
+                  @input="v$.credentials.password.$touch"
+                />
+                <button type="button" class="jabvox-eye" @click="showPassword = !showPassword">
+                  <svg v-if="!showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              data-testid="submit_button"
+              class="jabvox-btn"
+              :tabindex="3"
+              :disabled="loginApi.showLoading"
+            >
+              <Spinner v-if="loginApi.showLoading" size="small" />
+              <span v-else>Iniciar sesión</span>
+            </button>
+          </form>
+
+          <p v-if="!globalConfig.disableUserProfileUpdate" class="jabvox-forgot">
+            <router-link to="auth/reset/password" tabindex="4">
+              ¿Olvidaste tu contraseña?
             </router-link>
-          </div>
-          <SimpleDivider
-            v-if="showGoogleOAuth || showSamlLogin"
-            :label="$t('COMMON.OR')"
-            class="uppercase"
-          />
+          </p>
         </div>
-        <form class="space-y-5" @submit.prevent="submitFormLogin">
-          <FormInput
-            v-model="credentials.email"
-            name="email_address"
-            type="text"
-            data-testid="email_input"
-            :tabindex="1"
-            required
-            :label="$t('LOGIN.EMAIL.LABEL')"
-            :placeholder="$t('LOGIN.EMAIL.PLACEHOLDER')"
-            :has-error="v$.credentials.email.$error"
-            @input="v$.credentials.email.$touch"
-          />
-          <FormInput
-            v-model="credentials.password"
-            type="password"
-            name="password"
-            data-testid="password_input"
-            required
-            :tabindex="2"
-            :label="$t('LOGIN.PASSWORD.LABEL')"
-            :placeholder="$t('LOGIN.PASSWORD.PLACEHOLDER')"
-            :has-error="v$.credentials.password.$error"
-            @input="v$.credentials.password.$touch"
-          >
-            <p v-if="!globalConfig.disableUserProfileUpdate">
-              <router-link
-                to="auth/reset/password"
-                class="text-sm text-link"
-                tabindex="4"
-              >
-                {{ $t('LOGIN.FORGOT_PASSWORD') }}
-              </router-link>
-            </p>
-          </FormInput>
-          <NextButton
-            lg
-            type="submit"
-            data-testid="submit_button"
-            class="w-full"
-            :tabindex="3"
-            :label="$t('LOGIN.SUBMIT')"
-            :disabled="loginApi.showLoading"
-            :is-loading="loginApi.showLoading"
-          />
-        </form>
+
+        <div v-else class="flex items-center justify-center py-8">
+          <Spinner color-scheme="primary" size="" />
+        </div>
       </div>
-      <div v-else class="flex items-center justify-center">
-        <Spinner color-scheme="primary" size="" />
-      </div>
-    </section>
-  </main>
+    </div>
+  </div>
 </template>
+
+<style>
+@font-face {
+  font-family: 'Comfortaa';
+  src: url('/jabvox/public/fonts/Comfortaa-Light.ttf') format('truetype');
+  font-weight: 300;
+}
+.jabvox-login-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-image: url('/jabvox/public/login-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  font-family: 'Comfortaa', sans-serif;
+}
+.jabvox-left {
+  display: none;
+  width: 50%;
+  height: 100%;
+  position: relative;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 4rem;
+}
+@media (min-width: 1024px) { .jabvox-left { display: flex; } }
+.jabvox-left-bg { display: none; }
+.jabvox-left-content { position: relative; z-index: 1; text-align: center; }
+.jabvox-left-title {
+  font-size: 2.75rem;
+  font-weight: 300;
+  line-height: 1.25;
+  color: #24292D;
+  font-family: 'Comfortaa', sans-serif;
+}
+.jabvox-left-title span { color: #15605A; }
+.jabvox-right {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.jabvox-form-box {
+  background: #FFFFFF;
+  border-radius: 1rem;
+  padding: 2rem 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  font-family: 'Comfortaa', sans-serif;
+}
+.jabvox-logo {
+  height: 4rem;
+  width: auto;
+  display: block;
+  margin: 0 auto 1.5rem;
+}
+.jabvox-form-title {
+  font-size: 1.4rem;
+  font-weight: 300;
+  color: #15605A;
+  margin-bottom: 0.25rem;
+  text-align: center;
+}
+.jabvox-form-subtitle {
+  font-size: 0.8rem;
+  color: #40B5B4;
+  margin-bottom: 1.75rem;
+  text-align: center;
+}
+.jabvox-field { margin-bottom: 1.1rem; }
+.jabvox-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #24292D;
+  margin-bottom: 0.4rem;
+  font-family: 'Comfortaa', sans-serif;
+}
+.jabvox-input {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1px solid #DAEBDB;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #24292D;
+  background: #FFFFFF;
+  outline: none;
+  font-family: 'Comfortaa', sans-serif;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+.jabvox-input:focus {
+  border-color: #40B5B4;
+  box-shadow: 0 0 0 3px rgba(64,181,180,0.15);
+}
+.jabvox-pass-wrap { position: relative; }
+.jabvox-input-pass { padding-right: 3rem; }
+.jabvox-eye {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #59B995;
+  display: flex;
+  align-items: center;
+  padding: 0.2rem;
+}
+.jabvox-btn {
+  width: 100%;
+  padding: 0.8rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: #15605A;
+  color: #FFFFFF;
+  font-size: 0.875rem;
+  font-weight: 300;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  font-family: 'Comfortaa', sans-serif;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.jabvox-btn:hover { background: #40B5B4; }
+.jabvox-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.jabvox-forgot {
+  text-align: right;
+  margin-top: 1rem;
+  font-size: 0.75rem;
+}
+.jabvox-forgot a { color: #59B995; text-decoration: none; }
+.jabvox-forgot a:hover { color: #40B5B4; }
+</style>

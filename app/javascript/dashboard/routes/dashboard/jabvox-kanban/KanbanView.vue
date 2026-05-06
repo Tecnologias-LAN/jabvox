@@ -85,7 +85,7 @@ const onMoveConversation = async ({ conversationId, stageId }) => {
 
 <template>
   <div
-    class="flex flex-col h-full w-full overflow-hidden bg-white dark:bg-slate-900"
+    class="flex flex-col h-full w-full overflow-hidden bg-n-background"
   >
     <div
       class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-700 shrink-0"

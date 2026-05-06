@@ -3,8 +3,75 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+@font-face {
+  font-family: 'Comfortaa';
+  src: url('/jabvox/public/fonts/Comfortaa-Light.ttf') format('truetype');
+  font-weight: 300 700;
+  font-display: swap;
+}
+
 body {
-  font-family: Inter, -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  font-family: 'Comfortaa', Inter, -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  background-color: #F0F8F0 !important;
+}
+
+/* ── Administrate table ── */
+table {
+  border-collapse: collapse !important;
+  width: 100%;
+}
+
+thead tr th {
+  background-color: #E8F5E9 !important;
+  color: #15605A !important;
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.03em !important;
+  text-transform: uppercase !important;
+  padding: 10px 16px !important;
+  border-bottom: 2px solid #A8D5D3 !important;
+}
+
+tbody tr.js-table-row {
+  background: #ffffff !important;
+  border-bottom: 1px solid #E8F5E9 !important;
+  transition: background 0.12s ease !important;
+  cursor: pointer;
+}
+
+tbody tr.js-table-row:nth-child(even) {
+  background: #F7FCF7 !important;
+}
+
+tbody tr.js-table-row:hover {
+  background: #EBF7EB !important;
+}
+
+tbody tr.js-table-row td {
+  padding: 12px 16px !important;
+  font-size: 0.875rem !important;
+  color: #24292D !important;
+  vertical-align: middle !important;
+}
+
+tbody tr.js-table-row a.action-show {
+  color: #24292D !important;
+  text-decoration: none !important;
+  display: block;
+}
+
+tbody tr.js-table-row a.action-edit {
+  color: #15605A !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+
+.main-content__page-title {
+  color: #15605A !important;
+  font-weight: 600 !important;
 }
 
 @layer base {

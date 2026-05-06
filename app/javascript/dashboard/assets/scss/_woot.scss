@@ -15,9 +15,17 @@
 // Plugins
 @import 'plugins/date-picker';
 
+@font-face {
+  font-family: 'Comfortaa';
+  src: url('/jabvox/public/fonts/Comfortaa-Light.ttf') format('truetype');
+  font-weight: 300 700;
+  font-display: swap;
+}
+
 html,
 body {
   font-family:
+    'Comfortaa',
     'Inter',
     -apple-system,
     system-ui,
@@ -30,6 +38,8 @@ body {
     sans-serif !important;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
+  font-weight: 400;
+  letter-spacing: 0.01em;
   height: 100%;
   margin: 0;
   padding: 0;
