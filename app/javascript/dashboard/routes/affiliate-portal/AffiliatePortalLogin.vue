@@ -4,6 +4,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import affiliatePortalAPI from '../../api/jabvox/affiliatePortal';
 
+const JABVOX_LOGO_URL = '/jabvox/public/logo.png';
+
 const router = useRouter();
 const route = useRoute();
 const { t } = useI18n();
@@ -76,7 +78,7 @@ const onLogin = async () => {
     <!-- RIGHT PANEL -->
     <div class="af-right">
       <div class="af-form-box">
-        <img src="/jabvox/public/logo.png" alt="Jabvox" class="af-logo" />
+        <img :src="JABVOX_LOGO_URL" alt="Jabvox" class="af-logo" />
         <h1 class="af-form-title">Portal de Afiliados</h1>
         <p class="af-form-subtitle">Ingresa tus credenciales para continuar</p>
 

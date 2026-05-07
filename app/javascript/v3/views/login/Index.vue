@@ -55,6 +55,7 @@ export default {
   },
   data() {
     return {
+      jabvoxLogoUrl: '/jabvox/public/logo.png',
       credentials: {
         email: '',
         password: '',
@@ -251,7 +252,7 @@ export default {
         class="jabvox-form-box"
         :class="{ 'animate-wiggle': loginApi.hasErrored }"
       >
-        <img src="/jabvox/public/logo.png" alt="Jabvox" class="jabvox-logo" />
+        <img :src="jabvoxLogoUrl" alt="Jabvox" class="jabvox-logo" />
         <h1 class="jabvox-form-title">Bienvenido a Jabvox</h1>
         <p class="jabvox-form-subtitle">Inicia sesión para continuar</p>
 

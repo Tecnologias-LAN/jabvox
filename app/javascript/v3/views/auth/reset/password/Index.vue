@@ -17,6 +17,7 @@ export default {
   },
   data() {
     return {
+      jabvoxLogoUrl: '/jabvox/public/logo.png',
       credentials: { email: '' },
       resetPassword: {
         message: '',
@@ -70,11 +71,7 @@ export default {
     <div class="jabvox-reset-bg" />
     <div class="jabvox-reset-center">
       <div class="jabvox-reset-box">
-        <img
-          src="/jabvox/public/logo.png"
-          alt="Jabvox"
-          class="jabvox-reset-logo"
-        />
+        <img :src="jabvoxLogoUrl" alt="Jabvox" class="jabvox-reset-logo" />
         <h1 class="jabvox-reset-title">¿Olvidaste tu contraseña?</h1>
         <p class="jabvox-reset-subtitle">
           Ingresa tu correo y te enviaremos instrucciones para restablecerla
