@@ -13,16 +13,6 @@ import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useWindowSize, useEventListener } from '@vueuse/core';
 
-import Button from 'dashboard/components-next/button/Button.vue';
-import SidebarGroup from './SidebarGroup.vue';
-import SidebarProfileMenu from './SidebarProfileMenu.vue';
-import SidebarChangelogCard from './SidebarChangelogCard.vue';
-import SidebarChangelogButton from './SidebarChangelogButton.vue';
-import ChannelLeaf from './ChannelLeaf.vue';
-import ChannelIcon from 'next/icon/ChannelIcon.vue';
-import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
-import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
-
 const props = defineProps({
   isMobileSidebarOpen: {
     type: Boolean,
@@ -36,6 +26,18 @@ const emit = defineEmits([
   'showCreateAccountModal',
   'closeMobileSidebar',
 ]);
+
+const JABVOX_LOGO_URL = '/jabvox/public/logo.png';
+
+import Button from 'dashboard/components-next/button/Button.vue';
+import SidebarGroup from './SidebarGroup.vue';
+import SidebarProfileMenu from './SidebarProfileMenu.vue';
+import SidebarChangelogCard from './SidebarChangelogCard.vue';
+import SidebarChangelogButton from './SidebarChangelogButton.vue';
+import ChannelLeaf from './ChannelLeaf.vue';
+import ChannelIcon from 'next/icon/ChannelIcon.vue';
+import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
+import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 
 const { accountScopedRoute, isOnChatwootCloud } = useAccount();
 const { isAdmin } = useAdmin();
@@ -1105,7 +1107,7 @@ const menuItems = computed(() => {
         <template v-else>
           <div class="flex-shrink-0 flex items-center">
             <img
-              src="/jabvox/public/logo.png"
+              :src="JABVOX_LOGO_URL"
               alt="Jabvox"
               class="h-5 w-auto object-contain"
             />
