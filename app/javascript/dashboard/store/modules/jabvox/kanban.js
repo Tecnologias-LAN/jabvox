@@ -153,6 +153,18 @@ export const actions = {
       commit('SET_UI_FLAG', { isMovingConversation: false });
     }
   },
+
+  moveLead: async ({ commit }, { funnelId, leadId, stageId }) => {
+    commit('SET_UI_FLAG', { isMovingConversation: true });
+    try {
+      await kanbanAPI.moveLead(funnelId, leadId, stageId);
+      commit('MOVE_LEAD_IN_BOARD', { leadId, stageId });
+    } catch (error) {
+      throw new Error(error?.response?.data?.message || error.message);
+    } finally {
+      commit('SET_UI_FLAG', { isMovingConversation: false });
+    }
+  },
 };
 
 export const mutations = {
@@ -210,6 +222,23 @@ export const mutations = {
     if (!conversation) return;
     const targetStage = _state.currentBoard.stages.find(s => s.id === stageId);
     if (targetStage) targetStage.conversations.push(conversation);
+  },
+
+  MOVE_LEAD_IN_BOARD(_state, { leadId, stageId }) {
+    if (!_state.currentBoard) return;
+    let card = null;
+    _state.currentBoard.stages.forEach(s => {
+      const idx = (s.lead_cards || []).findIndex(c => c.lead_id === leadId);
+      if (idx !== -1) {
+        [card] = s.lead_cards.splice(idx, 1);
+      }
+    });
+    if (!card) return;
+    const targetStage = _state.currentBoard.stages.find(s => s.id === stageId);
+    if (targetStage) {
+      targetStage.lead_cards = targetStage.lead_cards || [];
+      targetStage.lead_cards.push(card);
+    }
   },
 };
 

@@ -39,7 +39,7 @@ class Api::V1::Accounts::Jabvox::KanbanFunnelsController < Api::V1::Accounts::Ja
   end
 
   def funnel_params
-    params.require(:funnel).permit(:name_jabvox, :description_jabvox, :position_jabvox, :active_jabvox)
+    params.require(:funnel).permit(:name_jabvox, :description_jabvox, :position_jabvox, :active_jabvox, :include_own_leads_jabvox)
   end
 
   def update_inbox_associations

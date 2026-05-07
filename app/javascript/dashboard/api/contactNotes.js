@@ -15,9 +15,9 @@ class ContactNotes extends ApiClient {
     return super.get();
   }
 
-  create(contactId, content) {
+  create(contactId, content, contentAttributes = {}) {
     this.contactId = contactId;
-    return super.create({ content });
+    return super.create({ content, content_attributes: contentAttributes });
   }
 
   delete(contactId, id) {

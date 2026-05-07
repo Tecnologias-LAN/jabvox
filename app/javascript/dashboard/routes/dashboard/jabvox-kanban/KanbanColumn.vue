@@ -11,6 +11,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  leadCards: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const emit = defineEmits(['card-click', 'drop']);
@@ -27,14 +31,17 @@ watch(
   }
 );
 
-const cardCount = computed(() => props.conversations.length);
-const visibleConversations = computed(() =>
-  showAll.value
-    ? props.conversations
-    : props.conversations.slice(0, pageSize.value)
+const allCards = computed(() => [
+  ...props.conversations.map(c => ({ ...c, type: 'conversation' })),
+  ...props.leadCards,
+]);
+
+const cardCount = computed(() => allCards.value.length);
+const visibleCards = computed(() =>
+  showAll.value ? allCards.value : allCards.value.slice(0, pageSize.value)
 );
 const hiddenCount = computed(() =>
-  Math.max(0, props.conversations.length - pageSize.value)
+  Math.max(0, allCards.value.length - pageSize.value)
 );
 
 const onDragOver = event => {
@@ -50,9 +57,14 @@ const onDragLeave = () => {
 const onDrop = event => {
   event.preventDefault();
   isDragOver.value = false;
-  const conversationId = parseInt(event.dataTransfer.getData('text/plain'), 10);
-  if (conversationId) {
-    emit('drop', { conversationId, stageId: props.stage.id });
+  const raw = event.dataTransfer.getData('text/plain');
+  if (raw.startsWith('lead_')) {
+    const leadId = parseInt(raw.replace('lead_', ''), 10);
+    if (leadId) emit('drop', { leadId, stageId: props.stage.id });
+  } else {
+    const conversationId = parseInt(raw, 10);
+    if (conversationId)
+      emit('drop', { conversationId, stageId: props.stage.id });
   }
 };
 </script>
@@ -101,14 +113,14 @@ const onDrop = event => {
       @drop="onDrop"
     >
       <KanbanCard
-        v-for="conv in visibleConversations"
-        :key="conv.id"
-        :conversation="conv"
+        v-for="card in visibleCards"
+        :key="card.type === 'lead' ? `lead_${card.lead_id}` : card.id"
+        :card="card"
         @click="emit('card-click', $event)"
       />
 
       <div
-        v-if="conversations.length === 0"
+        v-if="allCards.length === 0"
         class="flex items-center justify-center py-8 text-slate-400 dark:text-slate-600 text-sm"
       >
         {{ $t('JABVOX_KANBAN.EMPTY_COLUMN') }}

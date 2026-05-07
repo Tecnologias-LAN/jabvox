@@ -47,23 +47,35 @@ const elapsedSecs = computed(() =>
   fetchedAt.value ? Math.floor((now.value - fetchedAt.value) / 1000) : 0
 );
 
-const ACTIVE_DIALER_STATES = new Set(['connected', 'waiting', 'in_call', 'in_comments']);
+const ACTIVE_DIALER_STATES = new Set([
+  'connected',
+  'waiting',
+  'in_call',
+  'in_comments',
+]);
 
 const liveSecs = (agent, stateKey) => {
   const base = agent.state_times?.[stateKey] || 0;
-  return agent.current_dialer_state_key === stateKey ? base + elapsedSecs.value : base;
+  return agent.current_dialer_state_key === stateKey
+    ? base + elapsedSecs.value
+    : base;
 };
 
 const liveConnectedSecs = agent => {
   const base = Object.entries(agent.state_times || {})
     .filter(([k]) => ACTIVE_DIALER_STATES.has(k))
     .reduce((s, [, v]) => s + (v || 0), 0);
-  const isActive = agent.current_dialer_state_key && ACTIVE_DIALER_STATES.has(agent.current_dialer_state_key);
+  const isActive =
+    agent.current_dialer_state_key &&
+    ACTIVE_DIALER_STATES.has(agent.current_dialer_state_key);
   return base + (isActive ? elapsedSecs.value : 0);
 };
 
 const liveTotalSecs = agent => {
-  const base = Object.values(agent.state_times || {}).reduce((s, v) => s + (v || 0), 0);
+  const base = Object.values(agent.state_times || {}).reduce(
+    (s, v) => s + (v || 0),
+    0
+  );
   return base + (agent.current_dialer_state_key ? elapsedSecs.value : 0);
 };
 
@@ -74,7 +86,8 @@ const formatDuration = (seconds, live = false) => {
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
   if (live) {
-    if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`;
+    if (h > 0)
+      return `${h}h ${String(m).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`;
     if (m > 0) return `${m}m ${String(sec).padStart(2, '0')}s`;
     return `${sec}s`;
   }
@@ -84,7 +97,9 @@ const formatDuration = (seconds, live = false) => {
 
 onMounted(() => {
   fetch();
-  ticker = setInterval(() => { now.value = Date.now(); }, 1000);
+  ticker = setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
 });
 onUnmounted(() => clearInterval(ticker));
 </script>
@@ -241,7 +256,9 @@ onUnmounted(() => clearInterval(ticker));
                     }}</span>
                   </span>
                   <div>
-                    <p class="font-medium text-slate-900 dark:text-slate-50 leading-tight">
+                    <p
+                      class="font-medium text-slate-900 dark:text-slate-50 leading-tight"
+                    >
                       {{ agent.name }}
                     </p>
                     <p class="text-xs text-slate-400">{{ agent.email }}</p>
@@ -249,29 +266,45 @@ onUnmounted(() => clearInterval(ticker));
                 </div>
               </td>
               <td class="py-3 px-4 text-right">
-                <span class="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold">
-                  <span class="i-lucide-phone-call w-3.5 h-3.5 text-slate-400" />
+                <span
+                  class="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold"
+                >
+                  <span
+                    class="i-lucide-phone-call w-3.5 h-3.5 text-slate-400"
+                  />
                   {{ agent.total_calls || '—' }}
                 </span>
               </td>
               <td class="py-3 px-4 text-right">
                 <span
                   class="inline-flex items-center gap-1 font-semibold"
-                  :class="agent.answered_calls ? 'text-green-600 dark:text-green-400' : 'text-slate-300 dark:text-slate-600'"
+                  :class="
+                    agent.answered_calls
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-slate-300 dark:text-slate-600'
+                  "
                 >
                   <span class="i-lucide-phone-incoming w-3.5 h-3.5" />
                   {{ agent.answered_calls || '—' }}
                 </span>
               </td>
-              <td class="py-3 px-4 text-right font-semibold text-slate-700 dark:text-slate-300">
+              <td
+                class="py-3 px-4 text-right font-semibold text-slate-700 dark:text-slate-300"
+              >
                 {{ formatDuration(agent.total_duration) }}
               </td>
               <td class="py-3 px-4 text-right">
                 <span
                   class="inline-flex items-center gap-1 font-semibold"
-                  :class="agent.notes_in_calls ? 'text-slate-700 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600'"
+                  :class="
+                    agent.notes_in_calls
+                      ? 'text-slate-700 dark:text-slate-300'
+                      : 'text-slate-300 dark:text-slate-600'
+                  "
                 >
-                  <span class="i-lucide-sticky-note w-3.5 h-3.5 text-slate-400" />
+                  <span
+                    class="i-lucide-sticky-note w-3.5 h-3.5 text-slate-400"
+                  />
                   {{ agent.notes_in_calls || '—' }}
                 </span>
               </td>
@@ -284,7 +317,15 @@ onUnmounted(() => clearInterval(ticker));
                       : 'text-slate-300 dark:text-slate-600'
                   "
                 >
-                  {{ formatDuration(liveConnectedSecs(agent), !!(agent.current_dialer_state_key && ACTIVE_DIALER_STATES.has(agent.current_dialer_state_key))) }}
+                  {{
+                    formatDuration(
+                      liveConnectedSecs(agent),
+                      !!(
+                        agent.current_dialer_state_key &&
+                        ACTIVE_DIALER_STATES.has(agent.current_dialer_state_key)
+                      )
+                    )
+                  }}
                 </span>
               </td>
             </tr>
@@ -353,7 +394,9 @@ onUnmounted(() => clearInterval(ticker));
                         agent.name?.charAt(0)
                       }}</span>
                     </span>
-                    <span class="font-medium text-slate-800 dark:text-slate-100 text-xs truncate max-w-[120px]">
+                    <span
+                      class="font-medium text-slate-800 dark:text-slate-100 text-xs truncate max-w-[120px]"
+                    >
                       {{ agent.name }}
                     </span>
                   </div>
@@ -371,7 +414,12 @@ onUnmounted(() => clearInterval(ticker));
                         : 'text-slate-300 dark:text-slate-600'
                     "
                   >
-                    {{ formatDuration(liveSecs(agent, state.key), agent.current_dialer_state_key === state.key) }}
+                    {{
+                      formatDuration(
+                        liveSecs(agent, state.key),
+                        agent.current_dialer_state_key === state.key
+                      )
+                    }}
                   </span>
                 </td>
                 <td class="py-3 px-4 text-right">
@@ -383,7 +431,12 @@ onUnmounted(() => clearInterval(ticker));
                         : 'text-slate-300 dark:text-slate-600'
                     "
                   >
-                    {{ formatDuration(liveTotalSecs(agent), !!agent.current_dialer_state_key) }}
+                    {{
+                      formatDuration(
+                        liveTotalSecs(agent),
+                        !!agent.current_dialer_state_key
+                      )
+                    }}
                   </span>
                 </td>
               </tr>

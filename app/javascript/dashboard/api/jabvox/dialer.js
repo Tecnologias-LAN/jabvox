@@ -18,7 +18,8 @@ export const dialerCampaignsAPI = {
   start: id => axios.patch(`${campaignsClient.url}/${id}/start`),
   pause: id => axios.patch(`${campaignsClient.url}/${id}/pause`),
   stop: id => axios.patch(`${campaignsClient.url}/${id}/stop`),
-  retryContacts: id => axios.patch(`${campaignsClient.url}/${id}/retry_contacts`),
+  retryContacts: id =>
+    axios.patch(`${campaignsClient.url}/${id}/retry_contacts`),
   getContacts: id => axios.get(`${campaignsClient.url}/${id}/contacts`),
   getCallLogs: id => axios.get(`${campaignsClient.url}/${id}/call_logs`),
   importContacts: (id, contacts) =>

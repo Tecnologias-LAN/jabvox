@@ -28,8 +28,7 @@ const fetch = async () => {
 const isOnline = agent => agentAvailability(agent) !== 'offline';
 const agentAppStateName = agent =>
   isOnline(agent) ? agent.app_state_name : null;
-const agentAppStateId = agent =>
-  isOnline(agent) ? agent.app_state_id : null;
+const agentAppStateId = agent => (isOnline(agent) ? agent.app_state_id : null);
 const agentAppStateSince = agent =>
   isOnline(agent) ? agent.app_state_since : null;
 

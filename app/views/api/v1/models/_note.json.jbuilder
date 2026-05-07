@@ -7,5 +7,6 @@ if resource.user.present?
     json.partial! 'api/v1/models/agent', formats: [:json], resource: resource.user
   end
 end
+json.content_attributes resource.content_attributes || {}
 json.created_at resource.created_at.to_i
 json.updated_at resource.updated_at.to_i

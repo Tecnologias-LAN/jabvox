@@ -21,6 +21,25 @@ class Api::V1::Accounts::Jabvox::KanbanConversationStagesController < Api::V1::A
     render json: { conversation_id: conversation.id, stage_id: stage.id }, status: :ok
   end
 
+  def update_lead
+    stage = @funnel.jabvox_kanban_stages.find(params[:stage_id])
+    lead = Current.account.jabvox_leads.find(params[:lead_id])
+
+    placement = JabvoxKanbanConversationStage.find_or_initialize_by(
+      jabvox_lead_id: lead.id,
+      jabvox_kanban_funnel_id: @funnel.id
+    )
+
+    placement.assign_attributes(
+      jabvox_kanban_stage_id: stage.id,
+      account_id: Current.account.id,
+      moved_by_id: current_user.id
+    )
+    placement.save!
+
+    render json: { lead_id: lead.id, stage_id: stage.id }, status: :ok
+  end
+
   private
 
   def fetch_funnel

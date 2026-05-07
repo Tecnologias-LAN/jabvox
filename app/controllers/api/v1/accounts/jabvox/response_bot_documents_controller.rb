@@ -13,7 +13,7 @@ class Api::V1::Accounts::Jabvox::ResponseBotDocumentsController < Api::V1::Accou
     return render json: { error: 'Bucket not configured' }, status: :unprocessable_entity if bucket_config&.bucket_url_jabvox.blank?
 
     bucket_service = Jabvox::AiChatBucketService.new(bucket_config)
-    objects = bucket_service.list_objects('')
+    objects = bucket_service.list_objects
     synced = 0
 
     objects.each do |obj|

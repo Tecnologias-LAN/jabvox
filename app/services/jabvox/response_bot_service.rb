@@ -26,6 +26,7 @@ class Jabvox::ResponseBotService
 
     audio_model = config.jabvox_audio_model || model_record
     seat = config.jabvox_response_bot_seat
+    role = config.jabvox_response_bot_role
     active_labels = (config.active_labels_jabvox.presence || JabvoxResponseBotConfig::LABEL_CATEGORIES)
 
     message_text = transcribe_audio_if_needed(audio_model) || @message.content
@@ -33,7 +34,7 @@ class Jabvox::ResponseBotService
 
     history = build_history
     context = build_documents_context(active_labels)
-    result = call_ai(seat, model_record, active_labels, history, context, message_text)
+    result = call_ai(seat, role, model_record, active_labels, history, context, message_text)
     return unless result
 
     apply_label(result[:label], active_labels)
@@ -119,14 +120,14 @@ class Jabvox::ResponseBotService
     parts.join("\n\n---\n\n")
   end
 
-  def call_ai(seat, model_record, active_labels, history, context, message_text) # rubocop:disable Metrics/ParameterLists
+  def call_ai(seat, role, model_record, active_labels, history, context, message_text) # rubocop:disable Metrics/ParameterLists
     require 'openai'
     options = { access_token: model_record.api_key_jabvox.to_s }
     base = model_record.base_url_jabvox.presence
     options[:uri_base] = base if base
     client = OpenAI::Client.new(**options)
 
-    messages = build_ai_messages(seat, active_labels, history, context, message_text)
+    messages = build_ai_messages(seat, role, active_labels, history, context, message_text)
     response = client.chat(
       parameters: {
         model: model_record.model_jabvox,
@@ -142,22 +143,23 @@ class Jabvox::ResponseBotService
     nil
   end
 
-  def build_ai_messages(seat, active_labels, history, context, message_text)
-    system_content = build_system_prompt(seat, active_labels, context)
+  def build_ai_messages(seat, role, active_labels, history, context, message_text)
+    system_content = build_system_prompt(seat, role, active_labels, context)
     msgs = [{ role: 'system', content: system_content }]
     history.each { |h| msgs << h }
     msgs << { role: 'user', content: message_text }
     msgs
   end
 
-  def build_system_prompt(seat, active_labels, context)
+  def build_system_prompt(seat, role, active_labels, context)
     label_rules = active_labels.map { |l| "- #{l}: #{LABEL_DESCRIPTIONS[l] || l}" }.join("\n")
     label_list = active_labels.join(', ')
     context_section = context.present? ? "\nDocumentos de referencia:\n#{context}\n" : ''
+    role_section = role&.prompt_jabvox.present? ? "\n#{role.prompt_jabvox.to_s.strip}\n" : ''
 
     <<~PROMPT
       #{seat.prompt_jabvox.to_s.strip}
-
+      #{role_section}
       #{context_section}
       IMPORTANTE: Debes responder SIEMPRE en formato JSON con exactamente dos campos:
       {"label": "categoria", "reply": "tu respuesta al cliente"}

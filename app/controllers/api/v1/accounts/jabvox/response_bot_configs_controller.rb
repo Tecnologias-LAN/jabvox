@@ -47,8 +47,9 @@ class Api::V1::Accounts::Jabvox::ResponseBotConfigsController < Api::V1::Account
 
   def config_params
     params.require(:config).permit(
-      :inbox_id, :jabvox_response_bot_seat_id, :enabled_jabvox,
-      :jabvox_ai_chat_model_id, :jabvox_audio_model_id,
+      :inbox_id, :jabvox_response_bot_seat_id, :jabvox_response_bot_role_id,
+      :enabled_jabvox, :jabvox_ai_chat_model_id, :jabvox_audio_model_id,
+      :name_jabvox, :description_jabvox,
       active_labels_jabvox: []
     )
   end
@@ -57,7 +58,10 @@ class Api::V1::Accounts::Jabvox::ResponseBotConfigsController < Api::V1::Account
     {
       id: config.id,
       inbox_id: config.inbox_id,
+      name_jabvox: config.name_jabvox,
+      description_jabvox: config.description_jabvox,
       jabvox_response_bot_seat_id: config.jabvox_response_bot_seat_id,
+      jabvox_response_bot_role_id: config.jabvox_response_bot_role_id,
       enabled_jabvox: config.enabled_jabvox,
       active_labels_jabvox: config.active_labels_jabvox || JabvoxResponseBotConfig::LABEL_CATEGORIES,
       jabvox_ai_chat_model_id: config.jabvox_ai_chat_model_id,

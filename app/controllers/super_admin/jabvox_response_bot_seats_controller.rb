@@ -3,6 +3,7 @@ class SuperAdmin::JabvoxResponseBotSeatsController < SuperAdmin::ApplicationCont
 
   def index
     @seats = JabvoxResponseBotSeat.ordered
+    @roles = JabvoxResponseBotRole.ordered
   end
 
   def new

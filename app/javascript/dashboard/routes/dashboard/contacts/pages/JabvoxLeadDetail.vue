@@ -7,7 +7,6 @@ import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 import messageAPI from 'dashboard/api/inbox/message';
 import Button from 'dashboard/components-next/button/Button.vue';
-import contactNotesAPI from 'dashboard/api/contactNotes';
 import JabvoxConversationProducts from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationProducts.vue';
 import JabvoxConversationHistory from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationHistory.vue';
 import JabvoxCallButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxCallButton.vue';
@@ -22,6 +21,9 @@ const leads = useMapGetter('jabvoxLeads/getLeads');
 const uiFlags = useMapGetter('jabvoxLeads/getUIFlags');
 const managementStates = useMapGetter('jabvoxManagementStates/getActiveStates');
 const inboxes = useMapGetter('inboxes/getInboxes');
+const contactNotesGetterFn = useMapGetter(
+  'contactNotes/getAllNotesByContactId'
+);
 
 const activeTab = ref(route.query.tab || 'chat');
 const messages = ref([]);
@@ -32,7 +34,12 @@ const isNoteMode = ref(false);
 const managementStateId = ref(null);
 const chatContainer = ref(null);
 const notesContainer = ref(null);
-const contactNotesList = ref([]);
+
+const contactNotesList = computed(() =>
+  lead.value?.contact?.id
+    ? contactNotesGetterFn.value(lead.value.contact.id)
+    : []
+);
 
 const selectedInboxId = ref(null);
 const initialMessage = ref('');
@@ -77,13 +84,15 @@ const msgBubbleClass = m => {
 const msgAlignClass = m =>
   isPrivateNote(m) || isIncoming(m) ? 'items-start' : 'items-end';
 
-const formatTime = dateStr =>
-  new Date(dateStr).toLocaleString('es-CO', {
+const formatTime = dateVal => {
+  const ms = typeof dateVal === 'number' ? dateVal * 1000 : dateVal;
+  return new Date(ms).toLocaleString('es-CO', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
+};
 
 const scrollToBottom = container => {
   setTimeout(() => {
@@ -112,16 +121,9 @@ const loadMessages = async () => {
   }
 };
 
-const loadContactNotes = async () => {
+const loadContactNotes = () => {
   if (!lead.value?.contact?.id) return;
-  try {
-    const { data } = await contactNotesAPI.get(lead.value.contact.id);
-    contactNotesList.value = [...(data || [])].sort(
-      (a, b) => new Date(a.created_at) - new Date(b.created_at)
-    );
-  } catch {
-    // ignore
-  }
+  store.dispatch('contactNotes/get', { contactId: lead.value.contact.id });
 };
 
 const sendMessage = async (privateFlag = false) => {
@@ -129,14 +131,27 @@ const sendMessage = async (privateFlag = false) => {
   if (!content || isSending.value) return;
 
   if (privateFlag && !lead.value?.conversation_id) {
+    if (managementStates.value.length > 0 && !managementStateId.value) return;
     isSending.value = true;
     try {
-      const { data } = await contactNotesAPI.create(
-        lead.value.contact.id,
-        content
-      );
-      contactNotesList.value.push(data);
+      const contentAttributes = {};
+      if (managementStateId.value) {
+        const stateObj = managementStates.value.find(
+          s => s.id === managementStateId.value
+        );
+        contentAttributes.jabvox_management_state_id = managementStateId.value;
+        contentAttributes.jabvox_management_state_name =
+          stateObj?.name_jabvox || '';
+        contentAttributes.jabvox_management_state_color =
+          stateObj?.color_jabvox || '';
+      }
+      await store.dispatch('contactNotes/create', {
+        contactId: lead.value.contact.id,
+        content,
+        contentAttributes,
+      });
       newMessage.value = '';
+      managementStateId.value = null;
       scrollToBottom(notesContainer);
     } catch {
       useAlert(t('JABVOX_LEADS.DETAIL.SEND_ERROR'));
@@ -253,7 +268,6 @@ const startConversation = async () => {
 const loadLead = async () => {
   await store.dispatch('jabvoxLeads/fetchLead', leadId.value);
   messages.value = [];
-  contactNotesList.value = [];
   newMessage.value = '';
   managementStateId.value = null;
   loadMessages();
@@ -367,11 +381,17 @@ onMounted(() => {
             {{ lead.contact.name?.charAt(0)?.toUpperCase() || '?' }}
           </div>
           <div class="min-w-0">
-            <p
-              class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate"
+            <button
+              class="text-sm font-semibold text-woot-600 hover:underline truncate text-left"
+              @click="
+                router.push({
+                  name: 'contacts_edit',
+                  params: { accountId: accountId, contactId: lead.contact.id },
+                })
+              "
             >
               {{ lead.contact.name || '—' }}
-            </p>
+            </button>
             <p class="text-xs text-slate-400 font-mono">
               #{{ lead.lead_number }}
             </p>
@@ -688,7 +708,7 @@ onMounted(() => {
 
         <!-- ── NOTES TAB (private notes only) ── -->
         <template v-else-if="activeTab === 'notes'">
-          <template>
+          <div class="flex flex-col flex-1 min-h-0 overflow-hidden">
             <div
               ref="notesContainer"
               class="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0"
@@ -748,10 +768,21 @@ onMounted(() => {
                       v-if="note.content"
                       class="max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap break-words bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 text-slate-700 dark:text-slate-200"
                     >
+                      <div
+                        v-if="note.contentAttributes?.jabvoxManagementStateName"
+                        class="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-full text-[11px] font-semibold text-white"
+                        :style="{
+                          backgroundColor:
+                            note.contentAttributes.jabvoxManagementStateColor ||
+                            '#6b7280',
+                        }"
+                      >
+                        {{ note.contentAttributes.jabvoxManagementStateName }}
+                      </div>
                       {{ note.content }}
                     </div>
                     <span class="text-xs text-slate-400 px-1">
-                      {{ formatTime(note.created_at) }}
+                      {{ formatTime(note.createdAt) }}
                     </span>
                   </div>
                   <div
@@ -766,7 +797,7 @@ onMounted(() => {
 
             <div class="shrink-0 border-t border-n-weak p-3 space-y-2">
               <div
-                v-if="lead.conversation_id && managementStates.length > 0"
+                v-if="managementStates.length > 0"
                 class="flex items-center gap-2"
               >
                 <label
@@ -812,7 +843,7 @@ onMounted(() => {
                 />
               </div>
             </div>
-          </template>
+          </div>
         </template>
 
         <!-- ── PRODUCTS TAB ── -->

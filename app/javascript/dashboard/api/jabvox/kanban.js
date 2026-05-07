@@ -55,6 +55,13 @@ class JabvoxKanbanFunnelsAPI extends ApiClient {
       stage_id: stageId,
     });
   }
+
+  moveLead(funnelId, leadId, stageId) {
+    return axios.put(
+      `${this.url}/${funnelId}/kanban_conversation_stages/update_lead`,
+      { lead_id: leadId, stage_id: stageId }
+    );
+  }
 }
 
 export default new JabvoxKanbanFunnelsAPI();

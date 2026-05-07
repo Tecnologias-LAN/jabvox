@@ -1104,7 +1104,11 @@ const menuItems = computed(() => {
         </template>
         <template v-else>
           <div class="flex-shrink-0 flex items-center">
-            <img :src="'/jabvox/public/logo.png'" alt="Jabvox" class="h-5 w-auto object-contain" />
+            <img
+              src="/jabvox/public/logo.png"
+              alt="Jabvox"
+              class="h-5 w-auto object-contain"
+            />
           </div>
           <div class="flex-shrink-0 w-px h-3 bg-n-strong" />
           <SidebarAccountSwitcher

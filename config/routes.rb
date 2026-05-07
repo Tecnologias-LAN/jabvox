@@ -373,7 +373,11 @@ Rails.application.routes.draw do
             resources :kanban_funnels do
               resources :kanban_stages, only: [:index, :create, :update, :destroy]
               resource :kanban_board, only: [:show], controller: 'kanban_board'
-              resource :kanban_conversation_stages, only: [:update], controller: 'kanban_conversation_stages'
+              resource :kanban_conversation_stages, only: [:update], controller: 'kanban_conversation_stages' do
+                collection do
+                  put :update_lead
+                end
+              end
             end
             resources :products do
               collection do
@@ -500,6 +504,7 @@ Rails.application.routes.draw do
             end
             resources :ai_chat_documents, only: [:index, :update, :destroy]
             resources :response_bot_seats, only: [:index]
+            resources :response_bot_roles, only: [:index]
             resources :response_bot_configs, only: [:index, :create, :update, :destroy] do
               collection { post :setup_labels }
             end
@@ -804,6 +809,7 @@ Rails.application.routes.draw do
       # order of resources affect the order of sidebar navigation in super admin
       resources :jabvox_saldo_configs, only: [:index, :new, :create, :destroy]
       resources :jabvox_response_bot_seats
+      resources :jabvox_response_bot_roles
 
       resources :accounts, only: [:index, :new, :create, :show, :edit, :update, :destroy] do
         post :seed, on: :member

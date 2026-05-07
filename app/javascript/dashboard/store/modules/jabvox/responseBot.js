@@ -1,5 +1,6 @@
 import {
   responseBotSeatsAPI,
+  responseBotRolesAPI,
   responseBotConfigsAPI,
   responseBotDocumentsAPI,
 } from 'dashboard/api/jabvox/responseBot';
@@ -7,11 +8,13 @@ import { aiChatModelsAPI } from 'dashboard/api/jabvox/aiChat';
 
 const state = {
   seats: [],
+  roles: [],
   configs: [],
   documents: [],
   aiModels: [],
   uiFlags: {
     isFetchingSeats: false,
+    isFetchingRoles: false,
     isFetchingConfigs: false,
     isFetchingDocuments: false,
     isFetchingModels: false,
@@ -23,6 +26,9 @@ const state = {
 const getters = {
   getSeats($state) {
     return $state.seats;
+  },
+  getRoles($state) {
+    return $state.roles;
   },
   getConfigs($state) {
     return $state.configs;
@@ -41,6 +47,9 @@ const getters = {
 const mutations = {
   SET_SEATS($state, seats) {
     $state.seats = seats;
+  },
+  SET_ROLES($state, roles) {
+    $state.roles = roles;
   },
   SET_CONFIGS($state, configs) {
     $state.configs = configs;
@@ -81,6 +90,16 @@ const actions = {
       commit('SET_SEATS', data);
     } finally {
       commit('SET_UI_FLAG', { isFetchingSeats: false });
+    }
+  },
+
+  async fetchRoles({ commit }) {
+    commit('SET_UI_FLAG', { isFetchingRoles: true });
+    try {
+      const { data } = await responseBotRolesAPI.getAll();
+      commit('SET_ROLES', data);
+    } finally {
+      commit('SET_UI_FLAG', { isFetchingRoles: false });
     }
   },
 

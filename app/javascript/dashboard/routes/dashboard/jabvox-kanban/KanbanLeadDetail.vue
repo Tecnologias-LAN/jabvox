@@ -234,10 +234,7 @@ const onKeydown = event => {
           >
             {{ contactEmail }}
           </p>
-          <div
-            v-if="contactPhone"
-            class="flex items-center gap-1"
-          >
+          <div v-if="contactPhone" class="flex items-center gap-1">
             <p class="text-xs text-slate-500 dark:text-slate-400">
               {{ contactPhone }}
             </p>

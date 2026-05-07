@@ -83,12 +83,14 @@ const campaignForm = ref(emptyForm());
 const openCreateCampaign = () => {
   editingCampaignId.value = null;
   campaignForm.value = emptyForm();
+  // eslint-disable-next-line no-use-before-define
   leadCount.value = null;
   showCampaignForm.value = true;
 };
 
 const openEditCampaign = c => {
   editingCampaignId.value = c.id;
+  // eslint-disable-next-line no-use-before-define
   leadCount.value = null;
   campaignForm.value = {
     name_jabvox: c.name_jabvox,
@@ -102,6 +104,7 @@ const openEditCampaign = c => {
     inbox_ids_jabvox: [...(c.inbox_ids_jabvox || [])],
   };
   showCampaignForm.value = true;
+  // eslint-disable-next-line no-use-before-define
   if (c.jabvox_campaign_id) debouncedFetchLeadCount();
 };
 
@@ -749,7 +752,9 @@ onMounted(async () => {
             v-model="campaignForm.jabvox_campaign_id"
             :options="leadCampaignOptions"
             :placeholder="t('JABVOX_DIALER.FORM.LEAD_CAMPAIGN_PLACEHOLDER')"
-            :search-placeholder="t('JABVOX_DIALER.FORM.LEAD_CAMPAIGN_PLACEHOLDER')"
+            :search-placeholder="
+              t('JABVOX_DIALER.FORM.LEAD_CAMPAIGN_PLACEHOLDER')
+            "
           />
         </div>
 

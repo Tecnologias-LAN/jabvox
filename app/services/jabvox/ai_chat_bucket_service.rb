@@ -35,13 +35,15 @@ module Jabvox
     private
 
     def client
-      @client ||= Aws::S3::Client.new(
+      options = {
         region: @config.bucket_region_jabvox.presence || 'us-east-1',
         access_key_id: @config.bucket_access_key_jabvox,
         secret_access_key: @config.bucket_secret_key_jabvox,
         endpoint: custom_endpoint,
         force_path_style: custom_endpoint.present?
-      )
+      }
+      options[:ssl_verify_peer] = false if custom_endpoint.present?
+      @client ||= Aws::S3::Client.new(**options)
     end
 
     def custom_endpoint

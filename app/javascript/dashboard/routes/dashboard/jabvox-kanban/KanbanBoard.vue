@@ -9,12 +9,16 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['card-click', 'moveConversation']);
+const emit = defineEmits(['card-click', 'moveConversation', 'moveLead']);
 
 const stages = computed(() => props.board?.stages || []);
 
-const onDrop = ({ conversationId, stageId }) => {
-  emit('moveConversation', { conversationId, stageId });
+const onDrop = ({ conversationId, leadId, stageId }) => {
+  if (leadId) {
+    emit('moveLead', { leadId, stageId });
+  } else {
+    emit('moveConversation', { conversationId, stageId });
+  }
 };
 </script>
 
@@ -25,6 +29,7 @@ const onDrop = ({ conversationId, stageId }) => {
       :key="stageData.id"
       :stage="stageData"
       :conversations="stageData.conversations"
+      :lead-cards="stageData.lead_cards || []"
       @card-click="emit('card-click', $event)"
       @drop="onDrop"
     />

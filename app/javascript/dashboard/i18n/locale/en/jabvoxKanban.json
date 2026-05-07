@@ -10,6 +10,7 @@
     "INACTIVE": "Inactive",
     "UNASSIGNED": "Unassigned",
     "UNKNOWN_CONTACT": "Unknown",
+    "NO_CONVERSATION": "Sin contactar",
     "PER_PAGE": "Per column:",
     "SHOW_MORE": "Show {count} more",
     "SHOW_LESS": "Show less",

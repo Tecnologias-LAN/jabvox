@@ -44,7 +44,10 @@ const liveSeconds = (agent, stateKey) => {
 };
 
 const liveTotalSeconds = agent => {
-  const base = Object.values(agent.state_times || {}).reduce((s, v) => s + (v || 0), 0);
+  const base = Object.values(agent.state_times || {}).reduce(
+    (s, v) => s + (v || 0),
+    0
+  );
   return agent.current_state_key ? base + elapsedSecs.value : base;
 };
 
@@ -55,7 +58,8 @@ const formatDuration = (seconds, live = false) => {
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
   if (live) {
-    if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`;
+    if (h > 0)
+      return `${h}h ${String(m).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`;
     if (m > 0) return `${m}m ${String(sec).padStart(2, '0')}s`;
     return `${sec}s`;
   }
@@ -65,7 +69,9 @@ const formatDuration = (seconds, live = false) => {
 
 onMounted(() => {
   fetch();
-  ticker = setInterval(() => { now.value = Date.now(); }, 1000);
+  ticker = setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
 });
 
 onUnmounted(() => clearInterval(ticker));
@@ -182,7 +188,9 @@ onUnmounted(() => clearInterval(ticker));
                 <span
                   class="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold"
                 >
-                  <span class="i-lucide-message-square w-3.5 h-3.5 text-slate-400" />
+                  <span
+                    class="i-lucide-message-square w-3.5 h-3.5 text-slate-400"
+                  />
                   {{ agent.messages_sent }}
                 </span>
               </td>
@@ -190,7 +198,9 @@ onUnmounted(() => clearInterval(ticker));
                 <span
                   class="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold"
                 >
-                  <span class="i-lucide-sticky-note w-3.5 h-3.5 text-slate-400" />
+                  <span
+                    class="i-lucide-sticky-note w-3.5 h-3.5 text-slate-400"
+                  />
                   {{ agent.notes_added }}
                 </span>
               </td>
@@ -297,7 +307,12 @@ onUnmounted(() => clearInterval(ticker));
                         : 'text-slate-300 dark:text-slate-600'
                     "
                   >
-                    {{ formatDuration(liveSeconds(agent, state.key), agent.current_state_key === state.key) }}
+                    {{
+                      formatDuration(
+                        liveSeconds(agent, state.key),
+                        agent.current_state_key === state.key
+                      )
+                    }}
                   </span>
                 </td>
                 <td class="py-3 px-4 text-right">
@@ -309,7 +324,12 @@ onUnmounted(() => clearInterval(ticker));
                         : 'text-slate-300 dark:text-slate-600'
                     "
                   >
-                    {{ formatDuration(liveTotalSeconds(agent), !!agent.current_state_key) }}
+                    {{
+                      formatDuration(
+                        liveTotalSeconds(agent),
+                        !!agent.current_state_key
+                      )
+                    }}
                   </span>
                 </td>
               </tr>

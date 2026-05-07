@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_06_000006) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1321,17 +1321,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000006) do
   end
 
   create_table "jabvox_kanban_conversation_stages", force: :cascade do |t|
-    t.bigint "conversation_id", null: false
+    t.bigint "conversation_id"
     t.bigint "jabvox_kanban_funnel_id", null: false
     t.bigint "jabvox_kanban_stage_id", null: false
     t.bigint "account_id", null: false
     t.bigint "moved_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "jabvox_lead_id"
     t.index ["account_id"], name: "index_jabvox_conv_stages_account"
     t.index ["conversation_id", "jabvox_kanban_funnel_id"], name: "index_jabvox_conv_stages_unique", unique: true
     t.index ["jabvox_kanban_funnel_id"], name: "index_jabvox_conv_stages_funnel"
     t.index ["jabvox_kanban_stage_id"], name: "index_jabvox_conv_stages_stage"
+    t.index ["jabvox_lead_id", "jabvox_kanban_funnel_id"], name: "index_jabvox_conv_stages_lead_funnel", unique: true, where: "(jabvox_lead_id IS NOT NULL)"
   end
 
   create_table "jabvox_kanban_funnel_affiliates", force: :cascade do |t|
@@ -1368,6 +1370,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000006) do
     t.boolean "active_jabvox", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "include_own_leads_jabvox", default: false, null: false
     t.index ["account_id", "name_jabvox"], name: "index_jabvox_kanban_funnels_on_account_id_and_name_jabvox", unique: true
     t.index ["account_id"], name: "index_jabvox_kanban_funnels_on_account_id"
   end
@@ -1498,10 +1501,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000006) do
     t.datetime "updated_at", null: false
     t.bigint "jabvox_ai_chat_model_id"
     t.bigint "jabvox_audio_model_id"
+    t.bigint "jabvox_response_bot_role_id"
+    t.string "name_jabvox"
+    t.text "description_jabvox"
     t.index ["account_id", "inbox_id"], name: "idx_response_bot_configs_account_inbox", unique: true
     t.index ["inbox_id"], name: "index_jabvox_response_bot_configs_on_inbox_id"
     t.index ["jabvox_ai_chat_model_id"], name: "index_jabvox_response_bot_configs_on_jabvox_ai_chat_model_id"
     t.index ["jabvox_audio_model_id"], name: "idx_response_bot_configs_audio_model"
+    t.index ["jabvox_response_bot_role_id"], name: "idx_response_bot_configs_role"
     t.index ["jabvox_response_bot_seat_id"], name: "idx_on_jabvox_response_bot_seat_id_b150b81444"
   end
 
@@ -1518,6 +1525,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000006) do
     t.index ["account_id", "label_category_jabvox"], name: "idx_on_account_id_label_category_jabvox_d9404a8152"
     t.index ["account_id", "s3_key_jabvox"], name: "idx_on_account_id_s3_key_jabvox_1dc58f075a", unique: true
     t.index ["account_id"], name: "index_jabvox_response_bot_documents_on_account_id"
+  end
+
+  create_table "jabvox_response_bot_roles", force: :cascade do |t|
+    t.string "name_jabvox", null: false
+    t.text "prompt_jabvox"
+    t.boolean "active_jabvox", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name_jabvox"], name: "index_jabvox_response_bot_roles_on_name_jabvox", unique: true
   end
 
   create_table "jabvox_response_bot_seats", force: :cascade do |t|
@@ -1750,6 +1766,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000006) do
     t.bigint "user_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "content_attributes", default: {}
     t.index ["account_id"], name: "index_notes_on_account_id"
     t.index ["contact_id"], name: "index_notes_on_contact_id"
     t.index ["user_id"], name: "index_notes_on_user_id"
@@ -2081,6 +2098,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000006) do
   add_foreign_key "jabvox_kanban_conversation_stages", "conversations"
   add_foreign_key "jabvox_kanban_conversation_stages", "jabvox_kanban_funnels"
   add_foreign_key "jabvox_kanban_conversation_stages", "jabvox_kanban_stages"
+  add_foreign_key "jabvox_kanban_conversation_stages", "jabvox_leads"
   add_foreign_key "jabvox_kanban_funnel_affiliates", "jabvox_affiliates"
   add_foreign_key "jabvox_kanban_funnel_affiliates", "jabvox_kanban_funnels"
   add_foreign_key "jabvox_kanban_funnel_campaigns", "jabvox_campaigns"
@@ -2107,6 +2125,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000006) do
   add_foreign_key "jabvox_response_bot_configs", "inboxes"
   add_foreign_key "jabvox_response_bot_configs", "jabvox_ai_chat_models"
   add_foreign_key "jabvox_response_bot_configs", "jabvox_ai_chat_models", column: "jabvox_audio_model_id"
+  add_foreign_key "jabvox_response_bot_configs", "jabvox_response_bot_roles"
   add_foreign_key "jabvox_response_bot_configs", "jabvox_response_bot_seats"
   add_foreign_key "jabvox_response_bot_documents", "accounts"
   add_foreign_key "jabvox_saldo_configs", "accounts"

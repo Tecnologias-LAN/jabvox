@@ -2,13 +2,14 @@
 #
 # Table name: notes
 #
-#  id         :bigint           not null, primary key
-#  content    :text             not null
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  account_id :bigint           not null
-#  contact_id :bigint           not null
-#  user_id    :bigint
+#  id                 :bigint           not null, primary key
+#  content            :text             not null
+#  content_attributes :jsonb
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  account_id         :bigint           not null
+#  contact_id         :bigint           not null
+#  user_id            :bigint
 #
 # Indexes
 #

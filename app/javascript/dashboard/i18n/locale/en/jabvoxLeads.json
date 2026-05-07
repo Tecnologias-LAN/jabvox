@@ -5,6 +5,7 @@
     "SIDEBAR_LABEL": "Leads",
     "LOADING": "Cargando leads...",
     "EMPTY": "No hay leads registrados para esta cuenta.",
+    "GO_TO_CONTACTS": "Contactos",
     "SYNC_CONTACTS": "Sincronizar contactos",
     "SYNCING": "Sincronizando...",
     "FILTERS": {

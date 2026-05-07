@@ -1,56 +1,158 @@
 <div style="max-width:900px;margin:0 auto;padding:24px;">
+
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
     <div>
-      <h1 style="font-size:22px;font-weight:700;color:#111827;margin:0;">Response Bot — Acentos</h1>
+      <h1 style="font-size:22px;font-weight:700;color:#111827;margin:0;">Response Bot</h1>
       <p style="font-size:14px;color:#6b7280;margin:4px 0 0;">
-        Manage AI bot acentos available to all accounts. Each acento has a system prompt that defines the bot's behavior.
+        Manage AI bot acentos and roles available to all accounts.
       </p>
     </div>
-    <%= link_to '+ New Acento', new_super_admin_jabvox_response_bot_seat_path,
-        style: 'background:#1f64e7;color:white;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:600;text-decoration:none;' %>
   </div>
 
-  <% if @seats.empty? %>
-    <div style="text-align:center;padding:48px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
-      <p style="color:#6b7280;font-size:14px;">No acentos yet. Create the first one.</p>
+  <%# Tabs %>
+  <div style="display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:24px;">
+    <a href="#acentos" id="tab-acentos"
+       onclick="showTab('acentos')"
+       style="padding:10px 20px;font-size:14px;font-weight:600;text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:#6b7280;cursor:pointer;">
+      🎙 Acentos
+    </a>
+    <a href="#roles" id="tab-roles"
+       onclick="showTab('roles')"
+       style="padding:10px 20px;font-size:14px;font-weight:600;text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:#6b7280;cursor:pointer;">
+      🤖 Roles
+    </a>
+  </div>
+
+  <%# ── Acentos Tab ── %>
+  <div id="panel-acentos">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <p style="font-size:14px;color:#6b7280;margin:0;">Acentos fonéticos disponibles para el bot. Ejemplos: Paisa, Rolo, Santandereano.</p>
+      <%= link_to '+ New Acento', new_super_admin_jabvox_response_bot_seat_path,
+          style: 'background:#1f64e7;color:white;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:600;text-decoration:none;' %>
     </div>
-  <% else %>
-    <table style="width:100%;border-collapse:collapse;background:white;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
-      <thead>
-        <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
-          <th style="text-align:left;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Name</th>
-          <th style="text-align:left;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Prompt (preview)</th>
-          <th style="text-align:center;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Status</th>
-          <th style="text-align:right;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @seats.each do |seat| %>
-          <tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:14px 16px;font-size:14px;font-weight:600;color:#111827;"><%= seat.name_jabvox %></td>
-            <td style="padding:14px 16px;font-size:13px;color:#4b5563;max-width:360px;">
-              <%= truncate(seat.prompt_jabvox.to_s, length: 100) %>
-            </td>
-            <td style="padding:14px 16px;text-align:center;">
-              <% if seat.active_jabvox %>
-                <span style="background:#d1fae5;color:#065f46;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">Active</span>
-              <% else %>
-                <span style="background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">Inactive</span>
-              <% end %>
-            </td>
-            <td style="padding:14px 16px;text-align:right;">
-              <div style="display:flex;gap:8px;justify-content:flex-end;">
-                <%= link_to 'Edit', edit_super_admin_jabvox_response_bot_seat_path(seat),
-                    style: 'font-size:13px;color:#1f64e7;text-decoration:none;font-weight:500;' %>
-                <%= button_to 'Delete', super_admin_jabvox_response_bot_seat_path(seat),
-                    method: :delete,
-                    data: { confirm: "Delete acento '#{seat.name_jabvox}'? This cannot be undone." },
-                    style: 'background:none;border:none;color:#ef4444;font-size:13px;cursor:pointer;font-weight:500;' %>
-              </div>
-            </td>
+
+    <% if @seats.empty? %>
+      <div style="text-align:center;padding:48px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
+        <p style="color:#6b7280;font-size:14px;">No acentos yet. Create the first one.</p>
+      </div>
+    <% else %>
+      <table style="width:100%;border-collapse:collapse;background:white;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+        <thead>
+          <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+            <th style="text-align:left;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Nombre</th>
+            <th style="text-align:left;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Prompt (preview)</th>
+            <th style="text-align:center;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Estado</th>
+            <th style="text-align:right;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Acciones</th>
           </tr>
-        <% end %>
-      </tbody>
-    </table>
-  <% end %>
+        </thead>
+        <tbody>
+          <% @seats.each do |seat| %>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:14px 16px;font-size:14px;font-weight:600;color:#111827;"><%= seat.name_jabvox %></td>
+              <td style="padding:14px 16px;font-size:13px;color:#4b5563;max-width:360px;">
+                <%= truncate(seat.prompt_jabvox.to_s, length: 100) %>
+              </td>
+              <td style="padding:14px 16px;text-align:center;">
+                <% if seat.active_jabvox %>
+                  <span style="background:#d1fae5;color:#065f46;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">Activo</span>
+                <% else %>
+                  <span style="background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">Inactivo</span>
+                <% end %>
+              </td>
+              <td style="padding:14px 16px;text-align:right;">
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                  <%= link_to 'Editar', edit_super_admin_jabvox_response_bot_seat_path(seat),
+                      style: 'font-size:13px;color:#1f64e7;text-decoration:none;font-weight:500;' %>
+                  <%= button_to 'Eliminar', super_admin_jabvox_response_bot_seat_path(seat),
+                      method: :delete,
+                      data: { confirm: "¿Eliminar acento '#{seat.name_jabvox}'?" },
+                      style: 'background:none;border:none;color:#ef4444;font-size:13px;cursor:pointer;font-weight:500;' %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </div>
+
+  <%# ── Roles Tab ── %>
+  <div id="panel-roles" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <p style="font-size:14px;color:#6b7280;margin:0;">Roles del agente IA. Ejemplos: Atención al cliente, Soporte técnico, Ventas.</p>
+      <%= link_to '+ New Rol', new_super_admin_jabvox_response_bot_role_path,
+          style: 'background:#1f64e7;color:white;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:600;text-decoration:none;' %>
+    </div>
+
+    <% if @roles.empty? %>
+      <div style="text-align:center;padding:48px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
+        <p style="color:#6b7280;font-size:14px;">No roles yet. Create the first one.</p>
+      </div>
+    <% else %>
+      <table style="width:100%;border-collapse:collapse;background:white;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+        <thead>
+          <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+            <th style="text-align:left;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Nombre</th>
+            <th style="text-align:left;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Prompt (preview)</th>
+            <th style="text-align:center;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Estado</th>
+            <th style="text-align:right;padding:12px 16px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @roles.each do |role| %>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:14px 16px;font-size:14px;font-weight:600;color:#111827;"><%= role.name_jabvox %></td>
+              <td style="padding:14px 16px;font-size:13px;color:#4b5563;max-width:360px;">
+                <%= truncate(role.prompt_jabvox.to_s, length: 100) %>
+              </td>
+              <td style="padding:14px 16px;text-align:center;">
+                <% if role.active_jabvox %>
+                  <span style="background:#d1fae5;color:#065f46;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">Activo</span>
+                <% else %>
+                  <span style="background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">Inactivo</span>
+                <% end %>
+              </td>
+              <td style="padding:14px 16px;text-align:right;">
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                  <%= link_to 'Editar', edit_super_admin_jabvox_response_bot_role_path(role),
+                      style: 'font-size:13px;color:#1f64e7;text-decoration:none;font-weight:500;' %>
+                  <%= button_to 'Eliminar', super_admin_jabvox_response_bot_role_path(role),
+                      method: :delete,
+                      data: { confirm: "¿Eliminar rol '#{role.name_jabvox}'?" },
+                      style: 'background:none;border:none;color:#ef4444;font-size:13px;cursor:pointer;font-weight:500;' %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </div>
 </div>
+
+<script>
+  var ACTIVE_TAB_STYLE = 'border-bottom:2px solid #1f64e7;color:#1f64e7;';
+  var INACTIVE_TAB_STYLE = 'border-bottom:2px solid transparent;color:#6b7280;';
+
+  function showTab(name) {
+    ['acentos', 'roles'].forEach(function(t) {
+      var tab = document.getElementById('tab-' + t);
+      var panel = document.getElementById('panel-' + t);
+      if (t === name) {
+        tab.style.cssText = tab.style.cssText.replace(/border-bottom:[^;]+/, '') + ACTIVE_TAB_STYLE;
+        panel.style.display = 'block';
+        sessionStorage.setItem('responsebot_tab', name);
+      } else {
+        tab.style.cssText = tab.style.cssText.replace(/border-bottom:[^;]+/, '') + 'border-bottom:2px solid transparent;';
+        tab.style.color = '#6b7280';
+        panel.style.display = 'none';
+      }
+    });
+    return false;
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var saved = sessionStorage.getItem('responsebot_tab') || 'acentos';
+    showTab(saved);
+  });
+</script>

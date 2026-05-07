@@ -2,14 +2,15 @@
 #
 # Table name: jabvox_kanban_funnels
 #
-#  id                 :bigint           not null, primary key
-#  active_jabvox      :boolean          default(TRUE), not null
-#  description_jabvox :text
-#  name_jabvox        :string           not null
-#  position_jabvox    :integer          default(0), not null
-#  created_at         :datetime         not null
-#  updated_at         :datetime         not null
-#  account_id         :bigint           not null
+#  id                       :bigint           not null, primary key
+#  active_jabvox            :boolean          default(TRUE), not null
+#  description_jabvox       :text
+#  include_own_leads_jabvox :boolean          default(FALSE), not null
+#  name_jabvox              :string           not null
+#  position_jabvox          :integer          default(0), not null
+#  created_at               :datetime         not null
+#  updated_at               :datetime         not null
+#  account_id               :bigint           not null
 #
 # Indexes
 #

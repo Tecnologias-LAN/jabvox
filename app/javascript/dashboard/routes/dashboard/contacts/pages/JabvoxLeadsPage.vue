@@ -304,11 +304,23 @@ onUnmounted(() => {
   <div class="flex flex-col h-full w-full overflow-hidden bg-n-surface-1">
     <!-- Header -->
     <div
-      class="shrink-0 border-b border-n-weak bg-n-surface-1 px-6 sm:px-8 py-5"
+      class="shrink-0 border-b border-n-weak bg-n-surface-1 px-6 sm:px-8 py-5 flex items-center justify-between"
     >
       <h1 class="text-heading-1 text-n-slate-12">
         {{ t('JABVOX_LEADS.TITLE') }}
       </h1>
+      <button
+        class="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+        @click="
+          router.push({
+            name: 'contacts_dashboard_index',
+            params: { accountId: accountId },
+          })
+        "
+      >
+        <span class="i-lucide-users w-4 h-4" />
+        {{ t('JABVOX_LEADS.GO_TO_CONTACTS') }}
+      </button>
     </div>
 
     <!-- Content -->

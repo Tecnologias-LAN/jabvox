@@ -50,4 +50,20 @@ json.stages @board[:stages] do |stage_data|
 
     json.labels conversation.labels
   end
+
+  json.lead_cards stage_data[:lead_cards] do |card|
+    json.type 'lead'
+    json.lead_stage_id card[:lead_stage_id]
+    json.lead_id card[:lead_id]
+    json.lead_number card[:lead_number]
+    json.created_at card[:created_at]
+    json.contact do
+      c = card[:contact]
+      json.id c[:id]
+      json.name c[:name]
+      json.email c[:email]
+      json.phone_number c[:phone_number]
+      json.avatar_url c[:avatar_url]
+    end
+  end
 end

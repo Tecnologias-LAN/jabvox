@@ -10,8 +10,14 @@ import {
 const store = useStore();
 const { t } = useI18n();
 
-const activeTab = ref('models');
+const ACTIVE_TAB_KEY = 'jabvox_ai_chat_active_tab';
+const BUCKET_FORM_KEY = 'jabvox_ai_chat_bucket_form';
+const activeTab = ref(sessionStorage.getItem(ACTIVE_TAB_KEY) || 'models');
 const tabs = ['models', 'documents', 'config', 'permissions'];
+
+watch(activeTab, val => sessionStorage.setItem(ACTIVE_TAB_KEY, val), {
+  flush: 'sync',
+});
 
 // Models
 const showModelModal = ref(false);
@@ -28,14 +34,40 @@ const testResults = ref({});
 const testingId = ref(null);
 
 // Documents
+function loadBucketFormFromStorage() {
+  try {
+    const saved = sessionStorage.getItem(BUCKET_FORM_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+}
+
+const savedBucket = loadBucketFormFromStorage();
 const bucketForm = ref({
-  bucket_url_jabvox: '',
-  bucket_access_key_jabvox: '',
+  bucket_url_jabvox: savedBucket?.bucket_url_jabvox || '',
+  bucket_access_key_jabvox: savedBucket?.bucket_access_key_jabvox || '',
   bucket_secret_key_jabvox: '',
-  bucket_region_jabvox: 'us-east-1',
-  bucket_name_jabvox: '',
+  bucket_region_jabvox: savedBucket?.bucket_region_jabvox || 'us-east-1',
+  bucket_name_jabvox: savedBucket?.bucket_name_jabvox || '',
 });
 const showSecretKey = ref(false);
+
+watch(
+  bucketForm,
+  val => {
+    sessionStorage.setItem(
+      BUCKET_FORM_KEY,
+      JSON.stringify({
+        bucket_url_jabvox: val.bucket_url_jabvox,
+        bucket_access_key_jabvox: val.bucket_access_key_jabvox,
+        bucket_region_jabvox: val.bucket_region_jabvox,
+        bucket_name_jabvox: val.bucket_name_jabvox,
+      })
+    );
+  },
+  { deep: true, flush: 'sync' }
+);
 
 // Config
 const configForm = ref({ web_search_enabled_jabvox: false });
@@ -52,23 +84,23 @@ const permissions = computed(
 const uiFlags = computed(() => store.getters['jabvoxAiChat/getUIFlags']);
 
 onMounted(async () => {
-  await Promise.allSettled([
-    store.dispatch('jabvoxAiChat/fetchModels'),
-    store.dispatch('jabvoxAiChat/fetchConfig'),
-    store.dispatch('jabvoxAiChat/fetchDocuments'),
-    store.dispatch('jabvoxAiChat/fetchPermissions'),
-  ]);
-  if (config.value) {
-    bucketForm.value = {
-      bucket_url_jabvox: config.value.bucket_url_jabvox || '',
-      bucket_access_key_jabvox: config.value.bucket_access_key_jabvox || '',
-      bucket_secret_key_jabvox: '',
-      bucket_region_jabvox: config.value.bucket_region_jabvox || 'us-east-1',
-      bucket_name_jabvox: config.value.bucket_name_jabvox || '',
-    };
-    configForm.value.web_search_enabled_jabvox =
-      config.value.web_search_enabled_jabvox;
+  store.dispatch('jabvoxAiChat/fetchModels');
+  store.dispatch('jabvoxAiChat/fetchDocuments');
+  store.dispatch('jabvoxAiChat/fetchPermissions');
+  await store.dispatch('jabvoxAiChat/fetchConfig');
+  if (!config.value) return;
+  // Only fill from API when sessionStorage has no draft for this field
+  const hasDraft = !!savedBucket;
+  if (!hasDraft) {
+    bucketForm.value.bucket_url_jabvox = config.value.bucket_url_jabvox || '';
+    bucketForm.value.bucket_access_key_jabvox =
+      config.value.bucket_access_key_jabvox || '';
+    bucketForm.value.bucket_name_jabvox = config.value.bucket_name_jabvox || '';
+    bucketForm.value.bucket_region_jabvox =
+      config.value.bucket_region_jabvox || 'us-east-1';
   }
+  configForm.value.web_search_enabled_jabvox =
+    config.value.web_search_enabled_jabvox;
 });
 
 watch(
@@ -159,6 +191,7 @@ async function saveBucketConfig() {
   if (!payload.bucket_secret_key_jabvox)
     delete payload.bucket_secret_key_jabvox;
   await store.dispatch('jabvoxAiChat/updateConfig', payload);
+  sessionStorage.removeItem(BUCKET_FORM_KEY);
 }
 
 async function syncDocuments() {
@@ -223,7 +256,7 @@ function formatBytes(bytes) {
       </div>
 
       <!-- MODELS TAB -->
-      <div v-if="activeTab === 'models'">
+      <div v-show="activeTab === 'models'">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold text-slate-700">
             {{ t('JABVOX_AI_CHAT.MODELS.TITLE') }}
@@ -319,7 +352,7 @@ function formatBytes(bytes) {
       </div>
 
       <!-- DOCUMENTS TAB -->
-      <div v-if="activeTab === 'documents'" class="space-y-8">
+      <div v-show="activeTab === 'documents'" class="space-y-8">
         <!-- Bucket config -->
         <div class="bg-white border border-slate-200 rounded-xl p-6">
           <h2 class="text-base font-semibold text-slate-700 mb-4">
@@ -481,7 +514,7 @@ function formatBytes(bytes) {
       </div>
 
       <!-- CONFIG TAB -->
-      <div v-if="activeTab === 'config'" class="max-w-lg">
+      <div v-show="activeTab === 'config'" class="max-w-lg">
         <div class="bg-white border border-slate-200 rounded-xl p-6">
           <h2 class="text-base font-semibold text-slate-700 mb-4">
             {{ t('JABVOX_AI_CHAT.CONFIG.TITLE') }}
@@ -530,7 +563,7 @@ function formatBytes(bytes) {
       </div>
 
       <!-- PERMISSIONS TAB -->
-      <div v-if="activeTab === 'permissions'">
+      <div v-show="activeTab === 'permissions'">
         <div class="flex items-center justify-between mb-4">
           <div>
             <h2 class="text-lg font-semibold text-slate-700">

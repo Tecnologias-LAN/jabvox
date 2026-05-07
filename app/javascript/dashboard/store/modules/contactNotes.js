@@ -22,7 +22,7 @@ export const getters = {
   getAllNotesByContactId: _state => contactId => {
     const records = _state.records[contactId] || [];
     const contactNotes = records.sort((r1, r2) => r2.id - r1.id);
-    return camelcaseKeys(contactNotes);
+    return camelcaseKeys(contactNotes, { deep: true });
   },
 };
 
@@ -39,10 +39,14 @@ export const actions = {
     }
   },
 
-  async create({ commit }, { contactId, content }) {
+  async create({ commit }, { contactId, content, contentAttributes = {} }) {
     commit(types.SET_CONTACT_NOTES_UI_FLAG, { isCreating: true });
     try {
-      const { data } = await ContactNotesAPI.create(contactId, content);
+      const { data } = await ContactNotesAPI.create(
+        contactId,
+        content,
+        contentAttributes
+      );
       commit(types.ADD_CONTACT_NOTE, { contactId, data });
     } catch (error) {
       throw new Error(error);

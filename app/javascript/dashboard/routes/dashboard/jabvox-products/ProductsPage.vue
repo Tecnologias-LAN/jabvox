@@ -53,7 +53,9 @@ const TABS = [
           {{ $t('JABVOX_PRODUCTS.TITLE') }}
         </h1>
       </div>
-      <div class="flex px-6 sm:px-8 gap-1 max-w-3xl mx-auto mt-4 overflow-x-auto">
+      <div
+        class="flex px-6 sm:px-8 gap-1 max-w-3xl mx-auto mt-4 overflow-x-auto"
+      >
         <button
           v-for="tab in TABS"
           :key="tab.key"

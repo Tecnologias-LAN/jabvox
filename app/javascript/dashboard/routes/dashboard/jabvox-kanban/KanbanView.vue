@@ -59,8 +59,9 @@ const onSelectFunnel = id => {
   selectedConversation.value = null;
 };
 
-const onCardClick = conversation => {
-  selectedConversation.value = conversation;
+const onCardClick = card => {
+  if (card.type === 'lead') return; // lead cards don't have a conversation to open
+  selectedConversation.value = card;
   isDetailOpen.value = true;
 };
 
@@ -81,12 +82,23 @@ const onMoveConversation = async ({ conversationId, stageId }) => {
     useAlert(t('JABVOX_KANBAN.MOVE_ERROR'));
   }
 };
+
+const onMoveLead = async ({ leadId, stageId }) => {
+  if (!selectedFunnelId.value) return;
+  try {
+    await store.dispatch('jabvoxKanban/moveLead', {
+      funnelId: selectedFunnelId.value,
+      leadId,
+      stageId,
+    });
+  } catch (error) {
+    useAlert(t('JABVOX_KANBAN.MOVE_ERROR'));
+  }
+};
 </script>
 
 <template>
-  <div
-    class="flex flex-col h-full w-full overflow-hidden bg-n-background"
-  >
+  <div class="flex flex-col h-full w-full overflow-hidden bg-n-background">
     <div
       class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-700 shrink-0"
     >
@@ -152,6 +164,7 @@ const onMoveConversation = async ({ conversationId, stageId }) => {
           :board="currentBoard"
           @card-click="onCardClick"
           @move-conversation="onMoveConversation"
+          @move-lead="onMoveLead"
         />
       </div>
 

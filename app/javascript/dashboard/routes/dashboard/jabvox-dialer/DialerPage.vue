@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/no-bare-strings-in-template -->
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
@@ -74,8 +75,12 @@ const statusLabel = computed(() => {
 const onCallAssigned = data => {
   const pendingId = dialingCall.value?.dialer_contact_id;
   dialingCall.value = null;
-  activeCall.value = { ...data, dialer_contact_id: data.dialer_contact_id || pendingId };
+  activeCall.value = {
+    ...data,
+    dialer_contact_id: data.dialer_contact_id || pendingId,
+  };
   inWrapup.value = false;
+  // eslint-disable-next-line no-use-before-define
   clearWrapupTimer();
 };
 
@@ -96,13 +101,16 @@ const endWrapup = () => {
   if (connected.value && activeDialerState.value === null) {
     // Unpause agent in Asterisk queue before requesting next call
     dialerAccessesAPI.updateState(null).catch(() => {});
+    // eslint-disable-next-line no-use-before-define
     startRequestCallPolling();
   }
 };
 
 const saveWrapupNote = async () => {
   const convId = lastCall.value?.conversation_id;
-  const stateObj = managementStates.value.find(s => s.id === wrapupStateId.value);
+  const stateObj = managementStates.value.find(
+    s => s.id === wrapupStateId.value
+  );
   const note = wrapupNote.value.trim() || stateObj?.name_jabvox || '';
   if (!convId || !note || isSavingNote.value) return;
   const payload = {
@@ -129,6 +137,7 @@ const saveWrapupNote = async () => {
 };
 
 const startWrapup = () => {
+  // eslint-disable-next-line no-use-before-define
   stopRequestCallPolling();
   lastCall.value = activeCall.value || dialingCall.value || lastCall.value;
   inWrapup.value = true;
@@ -144,25 +153,32 @@ const startWrapup = () => {
 const openConversation = () => {
   const convId = activeCall.value?.conversation_id;
   if (!convId) return;
-  router.push({ name: 'inbox_conversation', params: { conversation_id: convId } });
+  router.push({
+    name: 'inbox_conversation',
+    params: { conversation_id: convId },
+  });
 };
 
 const onEndCall = () => {
-  const dialerContactId = activeCall.value?.dialer_contact_id || dialingCall.value?.dialer_contact_id;
+  const dialerContactId =
+    activeCall.value?.dialer_contact_id || dialingCall.value?.dialer_contact_id;
   lastCall.value = activeCall.value || dialingCall.value || lastCall.value;
   activeCall.value = null;
   dialingCall.value = null;
-  if (dialerContactId) dialerAccessesAPI.endCall(dialerContactId).catch(() => {});
+  if (dialerContactId)
+    dialerAccessesAPI.endCall(dialerContactId).catch(() => {});
   startWrapup();
 };
 
 const onCallEnded = () => {
   if (!activeCall.value && !dialingCall.value) return;
-  const dialerContactId = activeCall.value?.dialer_contact_id || dialingCall.value?.dialer_contact_id;
+  const dialerContactId =
+    activeCall.value?.dialer_contact_id || dialingCall.value?.dialer_contact_id;
   lastCall.value = activeCall.value || dialingCall.value || lastCall.value;
   activeCall.value = null;
   dialingCall.value = null;
-  if (dialerContactId) dialerAccessesAPI.endCall(dialerContactId).catch(() => {});
+  if (dialerContactId)
+    dialerAccessesAPI.endCall(dialerContactId).catch(() => {});
   startWrapup();
 };
 
@@ -191,7 +207,13 @@ const stopRequestCallPolling = () => {
 };
 
 const doRequestCall = async () => {
-  if (!connected.value || activeDialerState.value !== null || activeCall.value || dialingCall.value || inWrapup.value)
+  if (
+    !connected.value ||
+    activeDialerState.value !== null ||
+    activeCall.value ||
+    dialingCall.value ||
+    inWrapup.value
+  )
     return;
   try {
     const { data } = await dialerAccessesAPI.requestCall();
@@ -337,6 +359,7 @@ const setDialerState = async state => {
 </script>
 
 <template>
+  <!-- eslint-disable vue/no-bare-strings-in-template -->
   <div class="flex flex-col h-full w-full overflow-hidden bg-n-surface-1">
     <!-- Loading -->
     <div
@@ -460,12 +483,16 @@ const setDialerState = async state => {
         class="shrink-0 mx-6 mt-4 rounded-xl bg-n-surface-2 border border-n-weak px-4 py-3"
       >
         <div class="flex items-center gap-3">
-          <span class="i-lucide-phone-outgoing w-5 h-5 text-n-slate-10 shrink-0 animate-pulse" />
+          <span
+            class="i-lucide-phone-outgoing w-5 h-5 text-n-slate-10 shrink-0 animate-pulse"
+          />
           <div class="min-w-0 flex-1">
             <p class="text-sm font-semibold text-n-slate-12 truncate">
               {{ t('JABVOX_DIALER.DIALING') }}
             </p>
-            <p class="text-xs text-n-slate-10">{{ t('JABVOX_DIALER.DIALING_HINT') }}</p>
+            <p class="text-xs text-n-slate-10">
+              {{ t('JABVOX_DIALER.DIALING_HINT') }}
+            </p>
           </div>
         </div>
       </div>
@@ -477,11 +504,17 @@ const setDialerState = async state => {
       >
         <!-- Header row: name + actions -->
         <div class="flex items-start gap-3">
-          <span class="i-lucide-phone-call w-5 h-5 text-woot-600 dark:text-woot-400 shrink-0 animate-pulse mt-0.5" />
+          <span
+            class="i-lucide-phone-call w-5 h-5 text-woot-600 dark:text-woot-400 shrink-0 animate-pulse mt-0.5"
+          />
           <div class="min-w-0 flex-1">
             <p class="text-sm font-semibold text-n-slate-12 truncate">
               {{ activeCall.contact_name || activeCall.contact_phone }}
-              <span v-if="activeCall.lead_number" class="ml-1.5 text-xs font-normal text-n-slate-8">#{{ activeCall.lead_number }}</span>
+              <span
+                v-if="activeCall.lead_number"
+                class="ml-1.5 text-xs font-normal text-n-slate-8"
+                >#{{ activeCall.lead_number }}</span
+              >
             </p>
           </div>
           <div class="shrink-0 flex gap-1.5">
@@ -509,19 +542,31 @@ const setDialerState = async state => {
             <i class="i-lucide-phone w-3 h-3 shrink-0 text-n-slate-8" />
             {{ activeCall.contact_phone }}
           </p>
-          <p v-if="activeCall.contact_email" class="text-xs text-n-slate-10 truncate flex items-center gap-1">
+          <p
+            v-if="activeCall.contact_email"
+            class="text-xs text-n-slate-10 truncate flex items-center gap-1"
+          >
             <i class="i-lucide-mail w-3 h-3 shrink-0 text-n-slate-8" />
             {{ activeCall.contact_email }}
           </p>
-          <p v-if="activeCall.contact_country" class="text-xs text-n-slate-10 truncate flex items-center gap-1">
+          <p
+            v-if="activeCall.contact_country"
+            class="text-xs text-n-slate-10 truncate flex items-center gap-1"
+          >
             <i class="i-lucide-globe w-3 h-3 shrink-0 text-n-slate-8" />
             {{ activeCall.contact_country }}
           </p>
-          <p v-if="activeCall.affiliate_name" class="text-xs text-n-slate-10 truncate flex items-center gap-1">
+          <p
+            v-if="activeCall.affiliate_name"
+            class="text-xs text-n-slate-10 truncate flex items-center gap-1"
+          >
             <i class="i-lucide-users w-3 h-3 shrink-0 text-n-slate-8" />
             {{ activeCall.affiliate_name }}
           </p>
-          <p v-if="activeCall.campaign_name" class="text-xs text-n-slate-10 truncate flex items-center gap-1">
+          <p
+            v-if="activeCall.campaign_name"
+            class="text-xs text-n-slate-10 truncate flex items-center gap-1"
+          >
             <i class="i-lucide-tag w-3 h-3 shrink-0 text-n-slate-8" />
             {{ activeCall.campaign_name }}
           </p>
@@ -532,7 +577,9 @@ const setDialerState = async state => {
           v-if="activeCall.management_history?.length"
           class="pl-8 pt-2 mt-1 border-t border-woot-100 dark:border-woot-800 space-y-1"
         >
-          <p class="text-xs font-medium text-n-slate-9">{{ t('JABVOX_DIALER.HISTORY.TITLE') }}</p>
+          <p class="text-xs font-medium text-n-slate-9">
+            {{ t('JABVOX_DIALER.HISTORY.TITLE') }}
+          </p>
           <div class="space-y-0.5 max-h-20 overflow-y-auto pr-1">
             <div
               v-for="(g, i) in activeCall.management_history"
@@ -544,8 +591,13 @@ const setDialerState = async state => {
                 :style="{ backgroundColor: g.state_color || '#6b7280' }"
               />
               <div class="min-w-0 text-xs leading-tight">
-                <span class="font-medium text-n-slate-11">{{ g.state_name }}</span>
-                <span v-if="g.note" class="text-n-slate-8 ml-1">— {{ g.note }}</span>
+                <span class="font-medium text-n-slate-11">{{
+                  g.state_name
+                }}</span>
+                <!-- eslint-disable-next-line vue/max-attributes-per-line -->
+                <span v-if="g.note" class="text-n-slate-8 ml-1"
+                  >— {{ g.note }}</span
+                >
                 <span class="text-n-slate-7 ml-1">{{ g.created_at }}</span>
               </div>
             </div>
@@ -553,14 +605,30 @@ const setDialerState = async state => {
         </div>
 
         <!-- Gestión note (fill during call, persists into wrapup) -->
-        <div class="pl-8 pt-2 mt-1 border-t border-woot-100 dark:border-woot-800 space-y-2">
-          <div v-if="managementStates.length > 0" class="flex flex-wrap gap-1.5">
+        <div
+          class="pl-8 pt-2 mt-1 border-t border-woot-100 dark:border-woot-800 space-y-2"
+        >
+          <div
+            v-if="managementStates.length > 0"
+            class="flex flex-wrap gap-1.5"
+          >
             <button
               v-for="s in managementStates"
               :key="s.id"
               class="text-xs px-2.5 py-1 rounded-full border transition-colors"
-              :class="wrapupStateId === s.id ? 'text-white border-transparent' : 'border-n-weak text-n-slate-11 hover:bg-n-surface-2'"
-              :style="wrapupStateId === s.id ? { backgroundColor: s.color_jabvox || '#6b7280', borderColor: s.color_jabvox || '#6b7280' } : {}"
+              :class="
+                wrapupStateId === s.id
+                  ? 'text-white border-transparent'
+                  : 'border-n-weak text-n-slate-11 hover:bg-n-surface-2'
+              "
+              :style="
+                wrapupStateId === s.id
+                  ? {
+                      backgroundColor: s.color_jabvox || '#6b7280',
+                      borderColor: s.color_jabvox || '#6b7280',
+                    }
+                  : {}
+              "
               @click="wrapupStateId = wrapupStateId === s.id ? null : s.id"
             >
               {{ s.name_jabvox }}
@@ -586,11 +654,17 @@ const setDialerState = async state => {
         <!-- Timer row -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <i class="i-lucide-clock w-4 h-4 text-amber-600 dark:text-amber-400" />
-            <span class="text-sm font-medium text-amber-800 dark:text-amber-200">
+            <i
+              class="i-lucide-clock w-4 h-4 text-amber-600 dark:text-amber-400"
+            />
+            <span
+              class="text-sm font-medium text-amber-800 dark:text-amber-200"
+            >
               {{ t('JABVOX_DIALER.WRAPUP.TITLE') }}
             </span>
-            <span class="text-sm font-bold text-amber-700 dark:text-amber-300 tabular-nums">
+            <span
+              class="text-sm font-bold text-amber-700 dark:text-amber-300 tabular-nums"
+            >
               {{ wrapupRemaining }}s
             </span>
           </div>
@@ -605,10 +679,14 @@ const setDialerState = async state => {
         </div>
 
         <!-- Progress bar -->
-        <div class="w-full h-1 bg-amber-200 dark:bg-amber-800 rounded-full overflow-hidden">
+        <div
+          class="w-full h-1 bg-amber-200 dark:bg-amber-800 rounded-full overflow-hidden"
+        >
           <div
             class="h-full bg-amber-500 rounded-full transition-all duration-1000 ease-linear"
-            :style="{ width: `${(wrapupRemaining / (activeCampaign?.wrapup_time_jabvox || 30)) * 100}%` }"
+            :style="{
+              width: `${(wrapupRemaining / (activeCampaign?.wrapup_time_jabvox || 30)) * 100}%`,
+            }"
           />
         </div>
 
@@ -616,19 +694,32 @@ const setDialerState = async state => {
         <div v-if="lastCall" class="space-y-0.5">
           <p class="text-xs font-semibold text-n-slate-12 truncate">
             {{ lastCall.contact_name || lastCall.contact_phone }}
-            <span v-if="lastCall.lead_number" class="ml-1 font-normal text-n-slate-8">#{{ lastCall.lead_number }}</span>
+            <span
+              v-if="lastCall.lead_number"
+              class="ml-1 font-normal text-n-slate-8"
+              >#{{ lastCall.lead_number }}</span
+            >
           </p>
           <div class="flex flex-wrap gap-x-3 gap-y-0.5">
             <span class="text-xs text-n-slate-10 flex items-center gap-0.5">
               <i class="i-lucide-phone w-3 h-3" />{{ lastCall.contact_phone }}
             </span>
-            <span v-if="lastCall.contact_email" class="text-xs text-n-slate-10 flex items-center gap-0.5">
+            <span
+              v-if="lastCall.contact_email"
+              class="text-xs text-n-slate-10 flex items-center gap-0.5"
+            >
               <i class="i-lucide-mail w-3 h-3" />{{ lastCall.contact_email }}
             </span>
-            <span v-if="lastCall.affiliate_name" class="text-xs text-n-slate-10 flex items-center gap-0.5">
+            <span
+              v-if="lastCall.affiliate_name"
+              class="text-xs text-n-slate-10 flex items-center gap-0.5"
+            >
               <i class="i-lucide-users w-3 h-3" />{{ lastCall.affiliate_name }}
             </span>
-            <span v-if="lastCall.campaign_name" class="text-xs text-n-slate-10 flex items-center gap-0.5">
+            <span
+              v-if="lastCall.campaign_name"
+              class="text-xs text-n-slate-10 flex items-center gap-0.5"
+            >
               <i class="i-lucide-tag w-3 h-3" />{{ lastCall.campaign_name }}
             </span>
           </div>
@@ -636,8 +727,12 @@ const setDialerState = async state => {
 
         <!-- Gestión history in wrapup -->
         <div v-if="lastCall?.management_history?.length" class="space-y-1">
-          <p class="text-xs font-medium text-n-slate-9">{{ t('JABVOX_DIALER.HISTORY.TITLE') }}</p>
-          <div class="space-y-0.5 max-h-24 overflow-y-auto rounded-lg bg-white dark:bg-n-surface-3 px-2 py-1.5 border border-n-weak">
+          <p class="text-xs font-medium text-n-slate-9">
+            {{ t('JABVOX_DIALER.HISTORY.TITLE') }}
+          </p>
+          <div
+            class="space-y-0.5 max-h-24 overflow-y-auto rounded-lg bg-white dark:bg-n-surface-3 px-2 py-1.5 border border-n-weak"
+          >
             <div
               v-for="(g, i) in lastCall.management_history"
               :key="i"
@@ -648,8 +743,13 @@ const setDialerState = async state => {
                 :style="{ backgroundColor: g.state_color || '#6b7280' }"
               />
               <div class="min-w-0 flex-1 text-xs leading-tight">
-                <span class="font-medium text-n-slate-11">{{ g.state_name }}</span>
-                <span v-if="g.note" class="text-n-slate-8 ml-1">— {{ g.note }}</span>
+                <span class="font-medium text-n-slate-11">{{
+                  g.state_name
+                }}</span>
+                <!-- eslint-disable-next-line vue/max-attributes-per-line -->
+                <span v-if="g.note" class="text-n-slate-8 ml-1"
+                  >— {{ g.note }}</span
+                >
                 <span class="text-n-slate-7 ml-1">{{ g.created_at }}</span>
               </div>
             </div>
@@ -659,15 +759,27 @@ const setDialerState = async state => {
         <!-- Gestión note form -->
         <div class="space-y-2">
           <!-- Management state selector -->
-          <div v-if="managementStates.length > 0" class="flex flex-wrap gap-1.5">
+          <div
+            v-if="managementStates.length > 0"
+            class="flex flex-wrap gap-1.5"
+          >
             <button
               v-for="s in managementStates"
               :key="s.id"
               class="text-xs px-2.5 py-1 rounded-full border transition-colors"
-              :class="wrapupStateId === s.id
-                ? 'text-white border-transparent'
-                : 'border-n-weak text-n-slate-11 hover:bg-n-surface-2'"
-              :style="wrapupStateId === s.id ? { backgroundColor: s.color_jabvox || '#6b7280', borderColor: s.color_jabvox || '#6b7280' } : {}"
+              :class="
+                wrapupStateId === s.id
+                  ? 'text-white border-transparent'
+                  : 'border-n-weak text-n-slate-11 hover:bg-n-surface-2'
+              "
+              :style="
+                wrapupStateId === s.id
+                  ? {
+                      backgroundColor: s.color_jabvox || '#6b7280',
+                      borderColor: s.color_jabvox || '#6b7280',
+                    }
+                  : {}
+              "
               @click="wrapupStateId = wrapupStateId === s.id ? null : s.id"
             >
               {{ s.name_jabvox }}
@@ -694,19 +806,25 @@ const setDialerState = async state => {
             v-if="isAvailable"
             class="w-24 h-24 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto"
           >
-            <span class="i-lucide-phone-incoming w-10 h-10 text-green-500 animate-pulse" />
+            <span
+              class="i-lucide-phone-incoming w-10 h-10 text-green-500 animate-pulse"
+            />
           </div>
           <div
             v-else-if="dialingCall && !activeCall"
             class="w-24 h-24 rounded-full bg-n-surface-2 flex items-center justify-center mx-auto"
           >
-            <span class="i-lucide-phone-outgoing w-10 h-10 text-n-slate-10 animate-pulse" />
+            <span
+              class="i-lucide-phone-outgoing w-10 h-10 text-n-slate-10 animate-pulse"
+            />
           </div>
           <div
             v-else-if="activeCall"
             class="w-24 h-24 rounded-full bg-woot-100 dark:bg-woot-900/30 flex items-center justify-center mx-auto"
           >
-            <span class="i-lucide-phone-call w-10 h-10 text-woot-500 animate-pulse" />
+            <span
+              class="i-lucide-phone-call w-10 h-10 text-woot-500 animate-pulse"
+            />
           </div>
           <div
             v-else-if="inWrapup"
@@ -719,7 +837,10 @@ const setDialerState = async state => {
             class="w-24 h-24 rounded-full flex items-center justify-center mx-auto"
             :style="{ backgroundColor: `${statusColor}1a` }"
           >
-            <span class="i-lucide-pause-circle w-10 h-10" :style="{ color: statusColor }" />
+            <span
+              class="i-lucide-pause-circle w-10 h-10"
+              :style="{ color: statusColor }"
+            />
           </div>
 
           <div class="space-y-1.5">

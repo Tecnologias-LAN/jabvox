@@ -39,19 +39,26 @@ const form = ref({
   inbox_ids: [],
   campaign_ids: [],
   affiliate_ids: [],
+  include_own_leads: false,
 });
 
 onMounted(async () => {
-  const [, , campaignsRes, affiliatesRes] = await Promise.all([
+  const [, , campaignsResult, affiliatesResult] = await Promise.allSettled([
     store.dispatch('jabvoxKanban/fetchFunnels'),
     store.dispatch('inboxes/get'),
     leadCampaignsAPI.getAll(),
     affiliatesAPI.getAll(),
   ]);
-  campaigns.value = Array.isArray(campaignsRes?.data) ? campaignsRes.data : [];
-  affiliates.value = Array.isArray(affiliatesRes?.data)
-    ? affiliatesRes.data
-    : [];
+  campaigns.value =
+    campaignsResult.status === 'fulfilled' &&
+    Array.isArray(campaignsResult.value?.data)
+      ? campaignsResult.value.data
+      : [];
+  affiliates.value =
+    affiliatesResult.status === 'fulfilled' &&
+    Array.isArray(affiliatesResult.value?.data)
+      ? affiliatesResult.value.data
+      : [];
 
   if (existingFunnel.value) {
     form.value = {
@@ -61,6 +68,7 @@ onMounted(async () => {
       inbox_ids: existingFunnel.value.inbox_ids || [],
       campaign_ids: existingFunnel.value.campaign_ids || [],
       affiliate_ids: existingFunnel.value.affiliate_ids || [],
+      include_own_leads: existingFunnel.value.include_own_leads ?? false,
     };
   }
 });
@@ -108,6 +116,7 @@ const onSubmit = async () => {
         name_jabvox: form.value.name_jabvox.trim(),
         description_jabvox: form.value.description_jabvox,
         active_jabvox: form.value.active_jabvox,
+        include_own_leads_jabvox: form.value.include_own_leads,
       },
       inbox_ids: form.value.inbox_ids,
       campaign_ids: form.value.campaign_ids,
@@ -278,12 +287,21 @@ const onCancel = () => router.push({ name: 'jabvox_kanban_funnels_index' });
             <div
               class="space-y-2 max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg p-3"
             >
-              <p
-                v-if="!affiliates.length"
-                class="text-xs text-slate-400 text-center py-2"
+              <!-- Propio: leads without affiliate -->
+              <label
+                class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
               >
-                {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.AFFILIATES_EMPTY') }}
-              </p>
+                <input
+                  v-model="form.include_own_leads"
+                  type="checkbox"
+                  class="rounded text-woot-500 focus:ring-woot-500"
+                />
+                <span
+                  class="text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  {{ $t('JABVOX_LEADS.TABLE.AFFILIATE_OWN') }}
+                </span>
+              </label>
               <label
                 v-for="affiliate in affiliates"
                 :key="affiliate.id"

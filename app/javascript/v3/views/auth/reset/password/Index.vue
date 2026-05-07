@@ -1,4 +1,6 @@
+<!-- eslint-disable vue/no-bare-strings-in-template -->
 <script>
+/* eslint-disable vue/no-unused-components */
 import { useVuelidate } from '@vuelidate/core';
 import { useAlert } from 'dashboard/composables';
 import { required, minLength, email } from '@vuelidate/validators';
@@ -63,13 +65,20 @@ export default {
 </script>
 
 <template>
+  <!-- eslint-disable vue/no-bare-strings-in-template -->
   <div class="jabvox-reset-layout">
     <div class="jabvox-reset-bg" />
     <div class="jabvox-reset-center">
       <div class="jabvox-reset-box">
-        <img :src="'/jabvox/public/logo.png'" alt="Jabvox" class="jabvox-reset-logo" />
+        <img
+          src="/jabvox/public/logo.png"
+          alt="Jabvox"
+          class="jabvox-reset-logo"
+        />
         <h1 class="jabvox-reset-title">¿Olvidaste tu contraseña?</h1>
-        <p class="jabvox-reset-subtitle">Ingresa tu correo y te enviaremos instrucciones para restablecerla</p>
+        <p class="jabvox-reset-subtitle">
+          Ingresa tu correo y te enviaremos instrucciones para restablecerla
+        </p>
         <form @submit.prevent="submit">
           <div class="jabvox-reset-field">
             <label class="jabvox-reset-label">Correo electrónico</label>
@@ -85,14 +94,18 @@ export default {
           <button
             type="submit"
             class="jabvox-reset-btn"
-            :disabled="v$.credentials.email.$invalid || resetPassword.showLoading"
+            :disabled="
+              v$.credentials.email.$invalid || resetPassword.showLoading
+            "
           >
             <span v-if="!resetPassword.showLoading">Enviar instrucciones</span>
             <span v-else>Enviando...</span>
           </button>
         </form>
         <p class="jabvox-reset-back">
-          <router-link to="/auth/login">← Volver al inicio de sesión</router-link>
+          <router-link to="/auth/login">
+            ← Volver al inicio de sesión
+          </router-link>
         </p>
       </div>
     </div>
@@ -127,12 +140,12 @@ export default {
   padding: 1rem;
 }
 .jabvox-reset-box {
-  background: #FFFFFF;
+  background: #ffffff;
   border-radius: 1rem;
   padding: 2.5rem;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
 .jabvox-reset-logo {
   height: 4rem;
@@ -143,48 +156,52 @@ export default {
 .jabvox-reset-title {
   font-size: 1.4rem;
   font-weight: 300;
-  color: #15605A;
+  color: #15605a;
   text-align: center;
   margin-bottom: 0.5rem;
 }
 .jabvox-reset-subtitle {
   font-size: 0.8rem;
-  color: #40B5B4;
+  color: #40b5b4;
   text-align: center;
   margin-bottom: 1.75rem;
   line-height: 1.5;
 }
-.jabvox-reset-field { margin-bottom: 1.25rem; }
+.jabvox-reset-field {
+  margin-bottom: 1.25rem;
+}
 .jabvox-reset-label {
   display: block;
   font-size: 0.75rem;
-  color: #24292D;
+  color: #24292d;
   margin-bottom: 0.4rem;
 }
 .jabvox-reset-input {
   width: 100%;
   padding: 0.7rem 1rem;
-  border: 1px solid #DAEBDB;
+  border: 1px solid #daebdb;
   border-radius: 0.5rem;
   font-size: 0.875rem;
-  color: #24292D;
-  background: #FFFFFF;
+  color: #24292d;
+  background: #ffffff;
   outline: none;
   font-family: 'Comfortaa', sans-serif;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
   box-sizing: border-box;
 }
 .jabvox-reset-input:focus {
-  border-color: #40B5B4;
-  box-shadow: 0 0 0 3px rgba(64,181,180,0.15);
+  border-color: #40b5b4;
+  box-shadow: 0 0 0 3px rgba(64, 181, 180, 0.15);
 }
 .jabvox-reset-btn {
   width: 100%;
   padding: 0.8rem;
   border: none;
   border-radius: 0.5rem;
-  background: #15605A;
-  color: #FFFFFF;
+  background: #15605a;
+  color: #ffffff;
   font-size: 0.875rem;
   font-weight: 300;
   cursor: pointer;
@@ -192,13 +209,23 @@ export default {
   transition: background 0.2s;
   margin-top: 0.25rem;
 }
-.jabvox-reset-btn:hover:not(:disabled) { background: #40B5B4; }
-.jabvox-reset-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.jabvox-reset-btn:hover:not(:disabled) {
+  background: #40b5b4;
+}
+.jabvox-reset-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .jabvox-reset-back {
   text-align: center;
   margin-top: 1.25rem;
   font-size: 0.75rem;
 }
-.jabvox-reset-back a { color: #59B995; text-decoration: none; }
-.jabvox-reset-back a:hover { color: #40B5B4; }
+.jabvox-reset-back a {
+  color: #59b995;
+  text-decoration: none;
+}
+.jabvox-reset-back a:hover {
+  color: #40b5b4;
+}
 </style>

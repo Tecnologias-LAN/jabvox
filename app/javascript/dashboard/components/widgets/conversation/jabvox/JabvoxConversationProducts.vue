@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/no-bare-strings-in-template -->
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
@@ -179,6 +180,7 @@ const onDownloadPdf = order => {
     )
     .join('');
 
+  /* eslint-disable no-useless-escape */
   const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -252,6 +254,7 @@ const onDownloadPdf = order => {
   <script>window.onload = function() { window.print(); }<\/script>
 </body>
 </html>`;
+  /* eslint-enable no-useless-escape */
 
   const win = window.open('', '_blank', 'width=800,height=900');
   win.document.write(html);
@@ -265,6 +268,7 @@ const docLabel = type =>
 </script>
 
 <template>
+  <!-- eslint-disable vue/no-bare-strings-in-template -->
   <div class="flex flex-col h-full overflow-y-auto">
     <!-- Header -->
     <div
@@ -332,13 +336,20 @@ const docLabel = type =>
             >
               #{{ order.alegra_number }}
             </span>
-            <span
-v-else class="text-xs text-slate-400 font-mono"
-              >#{{ order.id }}</span>
-            <div v-if="orderStatusConfigs.length" class="relative inline-flex items-center">
+            <!-- eslint-disable-next-line vue/max-attributes-per-line -->
+            <span v-else class="text-xs text-slate-400 font-mono"
+              >#{{ order.id }}</span
+            >
+            <div
+              v-if="orderStatusConfigs.length"
+              class="relative inline-flex items-center"
+            >
               <span
                 class="absolute left-2.5 w-2 h-2 rounded-full shrink-0 pointer-events-none"
-                :style="{ backgroundColor: getStatusConfig(order.status)?.color_jabvox || '#94a3b8' }"
+                :style="{
+                  backgroundColor:
+                    getStatusConfig(order.status)?.color_jabvox || '#94a3b8',
+                }"
               />
               <select
                 :value="order.status"
@@ -354,7 +365,9 @@ v-else class="text-xs text-slate-400 font-mono"
                   {{ s.label_jabvox }}
                 </option>
               </select>
-              <span class="pointer-events-none absolute right-2 i-lucide-chevron-down w-3 h-3 text-slate-400" />
+              <span
+                class="pointer-events-none absolute right-2 i-lucide-chevron-down w-3 h-3 text-slate-400"
+              />
             </div>
           </div>
           <div class="flex items-center gap-2">
@@ -419,15 +432,23 @@ v-else class="text-xs text-slate-400 font-mono"
           >
             <span
               class="col-span-5 font-medium text-slate-800 dark:text-slate-100 truncate"
-              >{{ item.name_snapshot }}</span>
-            <span class="col-span-2 text-center text-slate-400">×{{ formatQty(item.quantity) }}</span>
-            <span class="col-span-2 text-center text-slate-400">${{ formatCurrency(item.unit_price) }}</span>
+              >{{ item.name_snapshot }}</span
+            >
+            <span class="col-span-2 text-center text-slate-400"
+              >×{{ formatQty(item.quantity) }}</span
+            >
+            <span class="col-span-2 text-center text-slate-400"
+              >${{ formatCurrency(item.unit_price) }}</span
+            >
             <span
               v-if="item.discount_pct > 0"
               class="col-span-1 text-center text-amber-500"
-              >-{{ item.discount_pct }}%</span>
+              >-{{ item.discount_pct }}%</span
+            >
             <span v-else class="col-span-1" />
-            <span class="col-span-2 text-right font-semibold">${{ formatCurrency(item.line_total) }}</span>
+            <span class="col-span-2 text-right font-semibold"
+              >${{ formatCurrency(item.line_total) }}</span
+            >
           </div>
         </div>
 
