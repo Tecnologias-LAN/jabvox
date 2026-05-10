@@ -16,7 +16,9 @@ class Conversations::PermissionFilterService
   private
 
   def accessible_conversations
-    conversations.where(inbox: user.inboxes.where(account_id: account.id))
+    user_inboxes = user.inboxes.where(account_id: account.id)
+    conversations.where(inbox: user_inboxes)
+                 .or(conversations.where(assignee_id: user.id))
   end
 
   def account_user
