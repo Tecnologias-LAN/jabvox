@@ -97,7 +97,10 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
 
   def create
     ActiveRecord::Base.transaction do
-      @contact = Current.account.contacts.new(permitted_params.except(:avatar_url))
+      @contact = find_existing_contact || Current.account.contacts.new
+      attrs = permitted_params.except(:avatar_url).to_h
+      attrs['name'] = @contact.name if @contact.persisted? && better_name?(@contact.name, attrs['name'])
+      @contact.assign_attributes(attrs)
       @contact.save!
       @contact_inbox = build_contact_inbox
       process_avatar_from_url
@@ -181,6 +184,26 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
       inbox: inbox,
       source_id: params[:source_id]
     ).perform
+  end
+
+  def find_existing_contact
+    identifier = permitted_params[:identifier].presence
+    phone = permitted_params[:phone_number].presence
+
+    contact = Current.account.contacts.find_by(identifier: identifier) if identifier.present?
+    contact ||= Current.account.contacts.find_by(phone_number: phone) if phone.present?
+    contact
+  end
+
+  # Returns true if existing_name is better than new_name (prefer human names over numeric IDs)
+  def better_name?(existing_name, new_name)
+    return false if existing_name.blank?
+    return true if new_name.blank?
+
+    existing_looks_human = existing_name !~ /\A[\d\s\+\-\.@]+\z/
+    new_looks_numeric = new_name =~ /\A[\d\s\+\-\.@]+\z/
+
+    existing_looks_human && new_looks_numeric
   end
 
   def permitted_params
