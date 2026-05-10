@@ -129,16 +129,42 @@ class Messages::MessageBuilder
     AgentBot.where(account_id: [nil, @conversation.account.id]).find_by(id: @params[:sender_id])
   end
 
+  GROUP_MESSAGE_PATTERN = /\A\[(.+?) \| (.+?)\]: (.*)\z/m
+
+  def parse_group_message(raw_content)
+    return nil if raw_content.blank?
+
+    match = raw_content.match(GROUP_MESSAGE_PATTERN)
+    return nil unless match
+
+    { name: match[1].strip, phone: match[2].strip, content: match[3] }
+  end
+
+  def resolved_content
+    group = parse_group_message(@params[:content])
+    group ? group[:content] : @params[:content]
+  end
+
+  def resolved_content_attributes
+    group = parse_group_message(@params[:content])
+    return content_attributes unless group
+
+    content_attributes.merge(
+      'group_sender_name' => group[:name],
+      'group_sender_phone' => group[:phone]
+    )
+  end
+
   def message_params
     {
       account_id: @conversation.account_id,
       inbox_id: @conversation.inbox_id,
       message_type: message_type,
-      content: @params[:content],
+      content: resolved_content,
       private: @private,
       sender: sender,
       content_type: @params[:content_type],
-      content_attributes: content_attributes.presence,
+      content_attributes: resolved_content_attributes.presence,
       items: @items,
       in_reply_to: @in_reply_to,
       echo_id: @params[:echo_id],

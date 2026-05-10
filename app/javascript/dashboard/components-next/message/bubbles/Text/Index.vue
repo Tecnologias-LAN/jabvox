@@ -11,6 +11,10 @@ import { useTranslations } from 'dashboard/composables/useTranslations';
 const { content, attachments, contentAttributes, messageType, isPrivate } =
   useMessageContext();
 
+const groupSenderName = computed(
+  () => contentAttributes.value?.group_sender_name || null
+);
+
 const managementState = computed(() => {
   if (!isPrivate?.value) return null;
   const name = contentAttributes.value?.jabvoxManagementStateName;
@@ -52,6 +56,9 @@ const handleSeeOriginal = () => {
 <template>
   <BaseBubble class="px-4 py-3" data-bubble-name="text">
     <div class="gap-3 flex flex-col">
+      <span v-if="groupSenderName" class="text-xs font-semibold text-woot-500">
+        {{ groupSenderName }}
+      </span>
       <span
         v-if="managementState"
         class="inline-flex items-center gap-1.5 self-start text-xs font-semibold px-2 py-0.5 rounded-full"
