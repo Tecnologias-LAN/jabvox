@@ -59,10 +59,15 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
 
   def destroy
     account = Account.find(params[:id])
+    return unless account.present?
 
-    DeleteObjectJob.perform_later(account) if account.present?
+    DeleteObjectJob.perform_now(account)
     # rubocop:disable Rails/I18nLocaleTexts
-    redirect_back(fallback_location: [namespace, requested_resource], notice: 'Account deletion is in progress.')
+    redirect_back(fallback_location: [namespace, requested_resource], notice: 'Account deleted successfully.')
+    # rubocop:enable Rails/I18nLocaleTexts
+  rescue StandardError => e
+    # rubocop:disable Rails/I18nLocaleTexts
+    redirect_back(fallback_location: [namespace, requested_resource], alert: "Error deleting account: #{e.message}")
     # rubocop:enable Rails/I18nLocaleTexts
   end
 end
