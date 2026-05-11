@@ -56,7 +56,10 @@ const handleSeeOriginal = () => {
 <template>
   <BaseBubble class="px-4 py-3" data-bubble-name="text">
     <div class="gap-3 flex flex-col">
-      <span v-if="groupSenderName" class="text-xs font-semibold text-woot-500">
+      <span
+        v-if="groupSenderName"
+        class="text-xs font-semibold text-woot-500 border-l-2 border-woot-400 pl-2 -ml-1"
+      >
         {{ groupSenderName }}
       </span>
       <span

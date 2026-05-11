@@ -129,7 +129,7 @@ class Messages::MessageBuilder
     AgentBot.where(account_id: [nil, @conversation.account.id]).find_by(id: @params[:sender_id])
   end
 
-  GROUP_MESSAGE_PATTERN = /\A\[(.+?) \| (.+?)\]: (.*)\z/m
+  GROUP_MESSAGE_PATTERN = /\A\[(.+?)(?:\s*\|\s*([^\]]+))?\]: (.*)\z/m
 
   def parse_group_message(raw_content)
     return nil if raw_content.blank?
@@ -137,7 +137,7 @@ class Messages::MessageBuilder
     match = raw_content.match(GROUP_MESSAGE_PATTERN)
     return nil unless match
 
-    { name: match[1].strip, phone: match[2].strip, content: match[3] }
+    { name: match[1].strip, phone: match[2]&.strip, content: match[3] }
   end
 
   def resolved_content

@@ -9,6 +9,7 @@ class ContactMergeAction
 
     ActiveRecord::Base.transaction do
       validate_contacts
+      merge_leads
       merge_conversations
       merge_messages
       merge_contact_inboxes
@@ -28,6 +29,12 @@ class ContactMergeAction
 
   def belongs_to_account?(contact)
     @account.id == contact.account_id
+  end
+
+  def merge_leads
+    return unless defined?(JabvoxLead)
+
+    JabvoxLead.where(contact_id: @mergee_contact.id).update_all(contact_id: @base_contact.id)
   end
 
   def merge_conversations
