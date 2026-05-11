@@ -63,11 +63,11 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
 
     DeleteObjectJob.perform_now(account)
     # rubocop:disable Rails/I18nLocaleTexts
-    redirect_back(fallback_location: [namespace, requested_resource], notice: 'Account deleted successfully.')
+    redirect_to [:super_admin, Account], notice: 'Account deleted successfully.'
     # rubocop:enable Rails/I18nLocaleTexts
   rescue StandardError => e
     # rubocop:disable Rails/I18nLocaleTexts
-    redirect_back(fallback_location: [namespace, requested_resource], alert: "Error deleting account: #{e.message}")
+    redirect_to [:super_admin, Account], alert: "Error deleting account: #{e.message}"
     # rubocop:enable Rails/I18nLocaleTexts
   end
 end
