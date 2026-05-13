@@ -9,6 +9,8 @@ import MoreActions from './MoreActions.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import JabvoxCallButton from './jabvox/JabvoxCallButton.vue';
+import JabvoxSmsButton from './jabvox/JabvoxSmsButton.vue';
+import JabvoxEmailButton from './jabvox/JabvoxEmailButton.vue';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
@@ -102,6 +104,7 @@ const isVoipEnabled = computed(() =>
 );
 
 const contactPhone = computed(() => currentContact.value?.phone_number);
+const contactEmail = computed(() => currentContact.value?.email);
 </script>
 
 <template>
@@ -168,6 +171,16 @@ const contactPhone = computed(() => currentContact.value?.phone_number);
         :phone="contactPhone || ''"
         :contact-id="currentContact.id"
         :contact-name="currentContact.name"
+      />
+      <JabvoxSmsButton
+        v-if="contactPhone && currentContact.id"
+        :phone="contactPhone"
+        :contact-id="currentContact.id"
+      />
+      <JabvoxEmailButton
+        v-if="contactEmail && currentContact.id"
+        :email="contactEmail"
+        :contact-id="currentContact.id"
       />
       <MoreActions :conversation-id="currentChat.id" />
     </div>

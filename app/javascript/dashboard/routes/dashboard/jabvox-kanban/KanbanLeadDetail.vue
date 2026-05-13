@@ -256,12 +256,12 @@ const onKeydown = event => {
             :contact-name="contactName"
           />
           <JabvoxSmsButton
-            v-if="contactPhone && contactPhone !== '***' && contactId"
+            v-if="contactPhone && contactId"
             :phone="contactPhone"
             :contact-id="contactId"
           />
           <JabvoxEmailButton
-            v-if="contactEmail && contactEmail !== '***' && contactId"
+            v-if="contactEmail && contactId"
             :email="contactEmail"
             :contact-id="contactId"
           />

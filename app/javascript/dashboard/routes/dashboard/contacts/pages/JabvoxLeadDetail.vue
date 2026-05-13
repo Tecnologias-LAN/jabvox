@@ -10,6 +10,8 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import JabvoxConversationProducts from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationProducts.vue';
 import JabvoxConversationHistory from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationHistory.vue';
 import JabvoxCallButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxCallButton.vue';
+import JabvoxSmsButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxSmsButton.vue';
+import JabvoxEmailButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxEmailButton.vue';
 
 const store = useStore();
 const router = useRouter();
@@ -506,6 +508,18 @@ onMounted(() => {
             :phone="lead.contact.phone_number || ''"
             :contact-id="lead.contact.id"
             :contact-name="lead.contact.name"
+            show-label
+          />
+          <JabvoxSmsButton
+            v-if="lead.contact.phone_number && lead.contact.id"
+            :phone="lead.contact.phone_number"
+            :contact-id="lead.contact.id"
+            show-label
+          />
+          <JabvoxEmailButton
+            v-if="lead.contact.email && lead.contact.id"
+            :email="lead.contact.email"
+            :contact-id="lead.contact.id"
             show-label
           />
         </div>
