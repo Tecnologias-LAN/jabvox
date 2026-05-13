@@ -45,4 +45,8 @@ class JabvoxFormConfig < ApplicationRecord
   def provisioning_locked?
     ssl_status == 'provisioning' && updated_at > 10.minutes.ago
   end
+
+  def ssl_recently_attempted?
+    ssl_provisioned_at.present? && ssl_provisioned_at > 1.hour.ago
+  end
 end

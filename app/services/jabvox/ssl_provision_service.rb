@@ -49,10 +49,12 @@ module Jabvox
       raw.to_s.sub(%r{^https?://}, '').split('/').first.to_s.strip
     end
 
+    VALID_DOMAIN_RE = /\A[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?)+\z/i
+
     def validate!
       raise 'No se ha configurado un dominio personalizado' if @domain.blank?
+      raise 'Dominio inválido' unless @domain.match?(VALID_DOMAIN_RE)
       raise 'El dominio no puede ser una dirección IP' if @domain.match?(/\A\d{1,3}(\.\d{1,3}){3}\z/)
-      raise 'Dominio inválido' unless @domain.include?('.')
       raise 'Hay una provisión en curso, espera unos minutos' if @config.provisioning_locked?
     end
 
