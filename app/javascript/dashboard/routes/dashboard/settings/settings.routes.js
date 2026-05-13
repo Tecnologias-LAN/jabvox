@@ -37,6 +37,7 @@ import { routes as jabvoxFieldSecurityRoutes } from './jabvox-field-security/rou
 import { routes as jabvoxAffiliatesRoutes } from './jabvox-affiliates/routes';
 import { routes as jabvoxResponseBotRoutes } from './jabvox-response-bot/routes';
 import { routes as jabvoxEmailSettingsRoutes } from './jabvox-email/routes';
+import { routes as jabvoxFormsSettingsRoutes } from './jabvox-forms/routes';
 
 export default {
   routes: [
@@ -89,5 +90,6 @@ export default {
     ...jabvoxAffiliatesRoutes,
     ...jabvoxResponseBotRoutes,
     ...jabvoxEmailSettingsRoutes,
+    ...jabvoxFormsSettingsRoutes,
   ],
 };

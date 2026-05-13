@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_12_000007) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_13_000010) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -93,6 +93,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_000007) do
     t.boolean "jabvox_response_bot_enabled_jabvox", default: false, null: false
     t.string "jabvox_acento_jabvox"
     t.boolean "jabvox_email_enabled_jabvox", default: false, null: false
+    t.boolean "jabvox_forms_enabled_jabvox", default: false, null: false
     t.index ["status"], name: "index_accounts_on_status"
   end
 
@@ -1276,6 +1277,43 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_000007) do
     t.index ["user_id"], name: "index_jabvox_field_visibilities_on_user_id"
   end
 
+  create_table "jabvox_form_configs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "base_url_jabvox", default: ""
+    t.integer "max_forms_jabvox", default: 10, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_form_configs_on_account_id", unique: true
+  end
+
+  create_table "jabvox_form_submissions", force: :cascade do |t|
+    t.bigint "jabvox_form_id", null: false
+    t.bigint "account_id", null: false
+    t.jsonb "data_jabvox", default: {}
+    t.string "ip_address_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_form_submissions_on_account_id"
+    t.index ["created_at"], name: "index_jabvox_form_submissions_on_created_at"
+    t.index ["jabvox_form_id"], name: "index_jabvox_form_submissions_on_jabvox_form_id"
+  end
+
+  create_table "jabvox_forms", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name_jabvox", null: false
+    t.string "slug_jabvox", null: false
+    t.jsonb "header_jabvox", default: {}
+    t.jsonb "footer_jabvox", default: {}
+    t.jsonb "fields_jabvox", default: []
+    t.jsonb "submit_actions_jabvox", default: {}
+    t.string "submit_button_text_jabvox", default: "Enviar"
+    t.boolean "active_jabvox", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_forms_on_account_id"
+    t.index ["slug_jabvox"], name: "index_jabvox_forms_on_slug_jabvox", unique: true
+  end
+
   create_table "jabvox_integration_configs", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "integration_type_jabvox", default: "alegra"
@@ -2160,6 +2198,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_000007) do
   add_foreign_key "jabvox_email_templates", "accounts"
   add_foreign_key "jabvox_field_visibilities", "accounts"
   add_foreign_key "jabvox_field_visibilities", "users"
+  add_foreign_key "jabvox_form_configs", "accounts"
+  add_foreign_key "jabvox_form_submissions", "accounts"
+  add_foreign_key "jabvox_form_submissions", "jabvox_forms"
+  add_foreign_key "jabvox_forms", "accounts"
   add_foreign_key "jabvox_integration_configs", "accounts"
   add_foreign_key "jabvox_internal_chat_members", "jabvox_internal_chats", column: "chat_id"
   add_foreign_key "jabvox_internal_chat_members", "users"

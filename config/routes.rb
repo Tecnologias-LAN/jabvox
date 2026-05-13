@@ -34,6 +34,8 @@ Rails.application.routes.draw do
     get '/app/accounts/:account_id/settings/inboxes/:inbox_id', to: 'dashboard#index', as: 'app_email_inbox_settings'
 
     resource :widget, only: [:show]
+    get '/f/:account_id/:slug', to: 'jabvox_forms#show', as: 'jabvox_public_form'
+    post '/f/:account_id/:slug', to: 'jabvox_forms#submit'
     namespace :survey do
       resources :responses, only: [:show]
     end
@@ -535,6 +537,8 @@ Rails.application.routes.draw do
               resources :affiliate_ip_whitelists, only: [:index, :create, :update, :destroy]
             end
             resources :calendar_events, only: [:index, :show, :create, :update, :destroy]
+            resources :forms, only: [:index, :show, :create, :update, :destroy]
+            resource :form_config, only: [:show, :update]
             resource :reports, only: [], controller: 'reports' do
               collection do
                 get :products

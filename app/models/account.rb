@@ -16,6 +16,7 @@
 #  jabvox_calendar_enabled_jabvox       :boolean          default(FALSE), not null
 #  jabvox_dialer_enabled_jabvox         :boolean          default(FALSE), not null
 #  jabvox_email_enabled_jabvox          :boolean          default(FALSE), not null
+#  jabvox_forms_enabled_jabvox          :boolean          default(FALSE), not null
 #  jabvox_internal_chat_enabled_jabvox  :boolean          default(FALSE), not null
 #  jabvox_kanban_enabled_jabvox         :boolean          default(FALSE), not null
 #  jabvox_leads_enabled_jabvox          :boolean          default(FALSE), not null
@@ -141,6 +142,19 @@ class Account < ApplicationRecord
   has_many :jabvox_affiliates, dependent: :destroy_async
   has_many :jabvox_affiliate_imports, dependent: :destroy_async
   has_many :jabvox_calendar_events, dependent: :destroy_async
+  has_one :jabvox_form_config, dependent: :destroy
+  has_many :jabvox_forms, dependent: :destroy_async
+
+  def max_forms_jabvox
+    jabvox_form_config&.max_forms_jabvox || 10
+  end
+
+  def max_forms_jabvox=(value)
+    config = jabvox_form_config || build_jabvox_form_config
+    config.max_forms_jabvox = value.to_i
+    config.save if persisted?
+  end
+  has_many :jabvox_form_submissions, dependent: :destroy_async
   has_many :jabvox_app_states, dependent: :destroy_async
   has_many :jabvox_dialer_states, dependent: :destroy_async
   has_many :jabvox_dialer_accesses, dependent: :destroy_async

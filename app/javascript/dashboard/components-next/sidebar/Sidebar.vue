@@ -1073,6 +1073,21 @@ const menuItems = computed(() => {
               },
             ]
           : []),
+        ...(isAdmin.value &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_FORMS
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Forms',
+                label: t('JABVOX_FORMS.SIDEBAR_LABEL'),
+                icon: 'i-lucide-file-text',
+                to: accountScopedRoute('jabvox_forms_settings'),
+                activeOn: ['jabvox_forms_settings'],
+              },
+            ]
+          : []),
       ],
     },
   ];

@@ -13,6 +13,7 @@ Rails.application.config.to_prepare do
   Account.prepend Jabvox::AccountInternalChatFeature
   Account.prepend Jabvox::AccountResponseBotFeature
   Account.prepend Jabvox::AccountEmailFeature
+  Account.prepend Jabvox::AccountFormsFeature
   Contact.include Jabvox::ContactLeadsIntegration
   Api::V1::Accounts::ContactsController.include Jabvox::ContactFieldProtection
 end

@@ -59,6 +59,7 @@ export const FEATURE_FLAGS = {
   JABVOX_INTERNAL_CHAT: 'jabvox_internal_chat',
   JABVOX_RESPONSE_BOT: 'jabvox_response_bot',
   JABVOX_EMAIL: 'jabvox_email',
+  JABVOX_FORMS: 'jabvox_forms',
 };
 
 export const PREMIUM_FEATURES = [

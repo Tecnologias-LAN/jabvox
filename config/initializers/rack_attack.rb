@@ -247,6 +247,11 @@ class Rack::Attack
     "#{user_identifier}:#{match_data[:account_id]}" if user_identifier.present?
   end
 
+  ## Jabvox public form submissions: 2 per minute per IP
+  throttle('jabvox_forms/submit/ip', limit: 2, period: 1.minute) do |req|
+    req.ip if req.path.match?(%r{/f/\d+/[^/]+\z}) && req.post?
+  end
+
   ## ----------------------------------------------- ##
 end
 

@@ -89,6 +89,8 @@
       "ITALIC": "Italic",
       "UNDERLINE": "Underline",
       "STRIKETHROUGH": "Strikethrough",
+      "FONT_DECREASE": "Decrease font size",
+      "FONT_INCREASE": "Increase font size",
       "ALIGN_LEFT": "Align left",
       "ALIGN_CENTER": "Align center",
       "ALIGN_RIGHT": "Align right",
@@ -98,7 +100,16 @@
       "BG_COLOR": "Background color",
       "LINK": "Link",
       "HORIZONTAL_RULE": "Divider line",
-      "INSERT_IMAGE": "Insert image"
+      "INSERT_IMAGE": "Insert image",
+      "FONT_SIZE_LETTER": "A",
+      "IMG_FLOAT_LEFT": "Float left",
+      "IMG_CENTER": "Center",
+      "IMG_FLOAT_RIGHT": "Float right",
+      "IMG_FULL_WIDTH": "Full width",
+      "IMG_BEHIND_TITLE": "Background image with text on top",
+      "IMG_BEHIND_LABEL": "Background",
+      "IMG_REDUCE": "Reduce",
+      "IMG_EXPAND": "Expand"
     },
     "TEST": {
       "TITLE": "Send test email",

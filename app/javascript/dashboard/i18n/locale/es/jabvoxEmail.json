@@ -117,6 +117,8 @@
       "ITALIC": "Cursiva",
       "UNDERLINE": "Subrayado",
       "STRIKETHROUGH": "Tachado",
+      "FONT_DECREASE": "Reducir tamaño de letra",
+      "FONT_INCREASE": "Aumentar tamaño de letra",
       "ALIGN_LEFT": "Izquierda",
       "ALIGN_CENTER": "Centro",
       "ALIGN_RIGHT": "Derecha",
@@ -126,7 +128,16 @@
       "BG_COLOR": "Color de fondo",
       "LINK": "Enlace",
       "HORIZONTAL_RULE": "Línea divisoria",
-      "INSERT_IMAGE": "Insertar imagen"
+      "INSERT_IMAGE": "Insertar imagen",
+      "FONT_SIZE_LETTER": "A",
+      "IMG_FLOAT_LEFT": "Flotar izquierda",
+      "IMG_CENTER": "Centrar",
+      "IMG_FLOAT_RIGHT": "Flotar derecha",
+      "IMG_FULL_WIDTH": "Ancho completo",
+      "IMG_BEHIND_TITLE": "Imagen de fondo con texto encima",
+      "IMG_BEHIND_LABEL": "Fondo",
+      "IMG_REDUCE": "Reducir",
+      "IMG_EXPAND": "Ampliar"
     }
   }
 }

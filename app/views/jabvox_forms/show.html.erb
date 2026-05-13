@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <% bg_color     = @form.header_jabvox&.dig('bg_color').presence %>
+  <% button_color = @form.header_jabvox&.dig('button_color').presence || '#6c63ff' %>
+  <%
+    _sa            = @form.submit_actions_jabvox || {}
+    _success       = _sa['success'] || {}
+    success_msg    = _success['message'].presence   || 'Gracias por tu respuesta. Nos pondremos en contacto contigo pronto.'
+    success_label  = _success['button_label'].presence
+    success_url    = _success['button_url'].presence
+    _priv          = _sa['privacy'] || {}
+    show_privacy   = _priv['enabled']
+    priv_title     = _priv['title'].presence      || 'Tratamiento de datos personales'
+    priv_body      = _priv['body'].presence       || "Autorizo a JABVOX a recolectar y tratar mis datos personales con la finalidad de contactarme, presentar soluciones comerciales y hacer seguimiento a mi solicitud.\n\nMis datos no serán compartidos con terceros no autorizados y serán tratados conforme a la normativa aplicable de protección de datos."
+    priv_link_text = _priv['link_text'].presence  || 'Consulta la política completa aquí'
+    priv_link_url  = _priv['link_url'].presence   || ''
+    priv_accept    = _priv['accept_text'].presence || 'Entendido'
+    body_html_after = @form.header_jabvox&.dig('body_html').to_s.strip
+  %>
+  <title><%= h(@form.header_jabvox&.dig('title').presence || @form.name_jabvox) %></title>
+  <meta name="robots" content="noindex">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand: #6c63ff;
+      --brand-dark: #5a52d5;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --border: #e2e8f0;
+      --bg: #f8fafc;
+      --white: #ffffff;
+      --error: #ef4444;
+      --success: #22c55e;
+      --radius: 0.75rem;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: <%= bg_color ? h(bg_color) : 'var(--bg)' %>;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .form-wrap {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+    .form-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 540px;
+      overflow: hidden;
+    }
+    .header-cover { position: relative; }
+    .header-cover img {
+      width: 100%;
+      max-height: 220px;
+      object-fit: cover;
+      display: block;
+    }
+    .header-content {
+      padding: 1.5rem 1.75rem 1.25rem;
+    }
+    .header-content.layout-center { text-align: center; }
+    .header-content h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .header-content p {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-light);
+      line-height: 1.6;
+    }
+    .form-rich-header {
+      padding: 1.5rem 1.75rem 1rem;
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.7;
+    }
+    .form-rich-header img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0.5rem auto;
+      border-radius: 0.5rem;
+    }
+    /* Behind-mode hero: text on top of image */
+    .form-rich-header [data-img-mode="behind"] {
+      position: relative;
+      overflow: hidden;
+      min-height: 220px;
+      margin: 4px 0;
+      border-radius: 8px;
+    }
+    .form-rich-header [data-img-mode="behind"] img {
+      position: absolute !important;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover;
+      z-index: 0;
+      pointer-events: none;
+      margin: 0 !important;
+      float: none;
+      border-radius: 0 !important;
+      display: block;
+    }
+    [data-img-text="true"] {
+      position: relative;
+      z-index: 1;
+      padding: 32px 24px;
+      min-height: 220px;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,.6);
+    }
+    .form-rich-header h1 { font-size: 1.6em; font-weight: 700; margin: 0.4em 0; }
+    .form-rich-header h2 { font-size: 1.3em; font-weight: 700; margin: 0.4em 0; }
+    .form-rich-header h3 { font-size: 1.1em; font-weight: 600; margin: 0.4em 0; }
+    .form-rich-header p  { margin: 0 0 0.6em; }
+    .form-rich-header ul { list-style: disc; padding-left: 1.5em; margin: 0.4em 0; }
+    .form-rich-header ol { list-style: decimal; padding-left: 1.5em; margin: 0.4em 0; }
+    .form-rich-header a  { color: var(--brand); text-decoration: underline; }
+    .form-rich-header hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
+    .form-body { padding: 0 1.75rem 1.75rem; }
+    .field-group { margin-bottom: 1.1rem; }
+    .field-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.35rem;
+    }
+    .field-group label .req { color: var(--error); margin-left: 2px; }
+    .field-group label .req-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 5px;
+      background: #fef2f2;
+      color: var(--error);
+      border: 1px solid #fecaca;
+      border-radius: 3px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+    }
+    .field-group input,
+    .field-group textarea,
+    .field-group select {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.6rem 0.85rem;
+      font-size: 0.9rem;
+      color: var(--text);
+      background: var(--white);
+      transition: border-color 0.15s;
+      outline: none;
+      font-family: inherit;
+    }
+    .field-group input:focus,
+    .field-group textarea:focus,
+    .field-group select:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(108,99,255,0.12);
+    }
+    .field-group textarea { resize: vertical; min-height: 80px; }
+    .field-group .field-error {
+      font-size: 0.75rem;
+      color: var(--error);
+      margin-top: 0.3rem;
+      display: none;
+    }
+    .field-group.has-error input,
+    .field-group.has-error textarea,
+    .field-group.has-error select {
+      border-color: var(--error);
+    }
+    .field-group.has-error .field-error { display: block; }
+    .submit-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: <%= h(button_color) %>;
+      color: #fff;
+      border: none;
+      border-radius: 0.6rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 0.5rem;
+    }
+    .submit-btn:hover:not(:disabled) { filter: brightness(0.9); }
+    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .form-message {
+      margin-bottom: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      display: none;
+    }
+    .form-message.success {
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+    .form-message.error {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+    .form-message.visible { display: block; }
+    footer.form-footer {
+      background: #f1f5f9;
+      border-top: 1px solid var(--border);
+      padding: 1rem 1.75rem;
+    }
+    .footer-socials {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .footer-socials a {
+      color: var(--text-light);
+      font-size: 0.8rem;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: color 0.15s;
+    }
+    .footer-socials a:hover { color: var(--brand); }
+    .footer-copyright {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--text-light);
+    }
+    .success-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.65);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 1.5rem;
+    }
+    .success-overlay.visible { display: flex; }
+    .success-card {
+      background: var(--white);
+      border-radius: 1.25rem;
+      padding: 2.5rem 2rem;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.35);
+      animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes popIn {
+      from { transform: scale(0.82); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+    .success-card svg { margin: 0 auto 1.25rem; display: block; }
+    .success-card h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.6rem;
+    }
+    .success-card .success-msg {
+      font-size: 0.9rem;
+      color: var(--text-light);
+      line-height: 1.65;
+      white-space: pre-line;
+      margin-bottom: 1.75rem;
+    }
+    .success-action-btn {
+      display: inline-block;
+      padding: 0.7rem 2.25rem;
+      border-radius: 0.6rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #fff;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      background: <%= h(button_color) %>;
+      transition: filter 0.15s;
+    }
+    .success-action-btn:hover { filter: brightness(0.9); }
+    /* Privacy checkbox */
+    .privacy-group {
+      margin-bottom: 1rem;
+      padding: 0.75rem 1rem;
+      background: #f8fafc;
+      border: 1.5px solid var(--border);
+      border-radius: 0.5rem;
+    }
+    .privacy-group label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      cursor: pointer;
+      margin: 0;
+      font-weight: normal;
+      font-size: 0.8rem;
+    }
+    .privacy-group label input[type="checkbox"] {
+      width: 16px;
+      min-width: 16px;
+      height: 16px;
+      margin-top: 1px;
+      cursor: pointer;
+      accent-color: var(--brand);
+      flex-shrink: 0;
+    }
+    .privacy-open-link { color: var(--brand); text-decoration: underline; cursor: pointer; }
+    .privacy-group.has-error { border-color: var(--error); }
+    /* Privacy modal */
+    .privacy-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.65);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9998;
+      padding: 1.5rem;
+    }
+    .privacy-overlay.visible { display: flex; }
+    .privacy-card {
+      background: var(--white);
+      border-radius: 1.25rem;
+      padding: 2rem 1.75rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+      animation: popIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .privacy-card h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 0.85rem; }
+    .privacy-card .privacy-body-txt {
+      font-size: 0.85rem;
+      color: var(--text-light);
+      line-height: 1.7;
+      white-space: pre-line;
+      max-height: 220px;
+      overflow-y: auto;
+      margin-bottom: 0.6rem;
+    }
+    .privacy-card .privacy-policy-link {
+      display: inline-block;
+      font-size: 0.82rem;
+      color: var(--brand);
+      text-decoration: underline;
+      margin-bottom: 1.5rem;
+    }
+    .privacy-accept-btn {
+      width: 100%;
+      padding: 0.7rem;
+      background: <%= h(button_color) %>;
+      color: #fff;
+      border: none;
+      border-radius: 0.6rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    .privacy-accept-btn:hover { filter: brightness(0.9); }
+    /* After-fields rich content */
+    .form-rich-body {
+      padding: 0 1.75rem 1.25rem;
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.7;
+    }
+    .form-rich-body img { max-width: 100%; height: auto; display: block; margin: 0.5rem auto; border-radius: 0.5rem; }
+    .form-rich-body h1 { font-size: 1.6em; font-weight: 700; margin: 0.4em 0; }
+    .form-rich-body h2 { font-size: 1.3em; font-weight: 700; margin: 0.4em 0; }
+    .form-rich-body h3 { font-size: 1.1em; font-weight: 600; margin: 0.4em 0; }
+    .form-rich-body p  { margin: 0 0 0.6em; }
+    .form-rich-body [data-img-mode="behind"] { position: relative; overflow: hidden; min-height: 220px; margin: 4px 0; border-radius: 8px; }
+    .form-rich-body [data-img-mode="behind"] img { position: absolute !important; top:0;left:0;right:0;bottom:0; width:100% !important; height:100% !important; object-fit:cover; z-index:0; pointer-events:none; margin:0 !important; float:none; border-radius:0 !important; }
+    .form-rich-body [data-img-text="true"] { position: relative; z-index: 1; padding: 32px 24px; min-height: 220px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+  </style>
+</head>
+<body>
+  <div class="form-wrap">
+    <div class="form-card" id="form-card">
+
+      <!-- Header: rich HTML (new editor) or legacy title/description -->
+      <% rich_html = @form.header_jabvox&.dig('html').to_s.strip %>
+      <% if rich_html.present? %>
+        <div class="form-rich-header">
+          <%= sanitize(rich_html,
+                tags: %w[h1 h2 h3 h4 p b strong i em u s strike ul ol li a img hr span div br font],
+                attributes: %w[href src alt style width height class target rel data-img-mode data-img-text]) %>
+        </div>
+      <% else %>
+        <% if @form.header_jabvox&.dig('image_url').present? %>
+          <div class="header-cover">
+            <img src="<%= h(@form.header_jabvox['image_url']) %>" alt="">
+          </div>
+        <% end %>
+        <% header_title  = @form.header_jabvox&.dig('title').presence || @form.name_jabvox %>
+        <% header_desc   = @form.header_jabvox&.dig('description') %>
+        <% header_layout = @form.header_jabvox&.dig('layout') || 'left' %>
+        <div class="header-content layout-<%= h(header_layout) %>">
+          <h1><%= h(header_title) %></h1>
+          <% if header_desc.present? %>
+            <p><%= h(header_desc) %></p>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- Form body -->
+      <form class="form-body" id="jf-form" novalidate>
+        <div id="jf-message" class="form-message"></div>
+
+        <% fields = Array(@form.fields_jabvox) %>
+        <% fields.each do |field| %>
+          <% fid = h(field['id']) %>
+          <% flabel = h(field['label']) %>
+          <% ftype  = h(field['type']) %>
+          <% freq   = field['required'] %>
+          <div
+            class="field-group"
+            data-field-id="<%= fid %>"
+            data-type="<%= ftype %>"
+            data-required="<%= freq ? 'true' : 'false' %>"
+          >
+            <label for="jf-<%= fid %>">
+              <%= flabel %><% if freq %><span class="req">*</span><span class="req-badge">Obligatorio</span><% end %>
+            </label>
+
+            <% if ftype == 'textarea' %>
+              <textarea
+                id="jf-<%= fid %>"
+                name="<%= fid %>"
+                maxlength="2000"
+                rows="3"
+              ></textarea>
+            <% elsif ftype == 'select' %>
+              <select id="jf-<%= fid %>" name="<%= fid %>">
+                <option value="">Seleccionar...</option>
+                <% Array(field['options']).each do |opt| %>
+                  <option value="<%= h(opt) %>"><%= h(opt) %></option>
+                <% end %>
+              </select>
+            <% elsif ftype == 'email' %>
+              <input type="email" id="jf-<%= fid %>" name="<%= fid %>" autocomplete="email" />
+            <% elsif ftype == 'phone' %>
+              <input type="tel" id="jf-<%= fid %>" name="<%= fid %>" autocomplete="tel" />
+            <% elsif ftype == 'cedula' %>
+              <input type="text" inputmode="numeric" pattern="\d*" id="jf-<%= fid %>" name="<%= fid %>" maxlength="15" autocomplete="off" />
+            <% elsif ftype == 'pais' %>
+              <%
+                countries = [
+                  'Afganistán','Albania','Alemania','Andorra','Angola','Arabia Saudita','Argelia',
+                  'Argentina','Armenia','Australia','Austria','Azerbaiyán','Bangladés','Bélgica',
+                  'Bolivia','Bosnia y Herzegovina','Brasil','Bulgaria','Camerún','Canadá','Chile',
+                  'China','Colombia','Congo','Corea del Sur','Costa Rica','Cuba','Dinamarca',
+                  'Ecuador','Egipto','El Salvador','Emiratos Árabes Unidos','España','Estados Unidos',
+                  'Etiopía','Filipinas','Finlandia','Francia','Ghana','Grecia','Guatemala','Honduras',
+                  'Hungría','India','Indonesia','Irak','Irán','Irlanda','Israel','Italia','Jamaica',
+                  'Japón','Jordania','Kazajistán','Kenia','Kuwait','Letonia','Líbano','Libia',
+                  'Lituania','Luxemburgo','Malasia','Mali','Marruecos','México','Nicaragua',
+                  'Nigeria','Noruega','Nueva Zelanda','Países Bajos','Pakistán','Palestina',
+                  'Panamá','Paraguay','Perú','Polonia','Portugal','Puerto Rico','Reino Unido',
+                  'República Checa','República Dominicana','Rumania','Rusia','Senegal','Serbia',
+                  'Singapur','Siria','Sudáfrica','Suecia','Suiza','Tailandia','Tanzania',
+                  'Trinidad y Tobago','Túnez','Turquía','Ucrania','Uruguay','Venezuela',
+                  'Vietnam','Yemen','Zambia','Zimbabue'
+                ]
+              %>
+              <select id="jf-<%= fid %>" name="<%= fid %>">
+                <option value="">Seleccionar país...</option>
+                <% countries.each do |country| %>
+                  <option value="<%= h(country) %>"><%= h(country) %></option>
+                <% end %>
+              </select>
+            <% else %>
+              <input type="text" id="jf-<%= fid %>" name="<%= fid %>" maxlength="40" />
+            <% end %>
+
+            <div class="field-error" role="alert"></div>
+          </div>
+        <% end %>
+
+        <% if show_privacy %>
+          <div class="privacy-group" id="jf-privacy-group">
+            <label>
+              <input type="checkbox" id="jf-privacy-check" />
+              <span>Acepto la <span class="privacy-open-link" id="jf-privacy-opener">política de tratamiento de datos personales</span></span>
+            </label>
+            <div class="field-error" role="alert"></div>
+          </div>
+        <% end %>
+
+        <button type="submit" class="submit-btn" id="jf-submit">
+          <%= h(@form.submit_button_text_jabvox.presence || 'Enviar') %>
+        </button>
+      </form>
+
+      <% if body_html_after.present? %>
+        <div class="form-rich-body">
+          <%= sanitize(body_html_after,
+                tags: %w[h1 h2 h3 h4 p b strong i em u s strike ul ol li a img hr span div br font],
+                attributes: %w[href src alt style width height class target rel data-img-mode data-img-text]) %>
+        </div>
+      <% end %>
+
+      <!-- Footer -->
+      <% footer = @form.footer_jabvox || {} %>
+      <% has_footer = footer['whatsapp'].present? || footer['facebook'].present? || footer['instagram'].present? || footer['website'].present? || footer['copyright'].present? %>
+      <% if has_footer %>
+        <footer class="form-footer">
+          <% if footer['whatsapp'].present? || footer['facebook'].present? || footer['instagram'].present? || footer['website'].present? %>
+            <div class="footer-socials">
+              <% if footer['whatsapp'].present? %>
+                <a href="https://wa.me/<%= h(footer['whatsapp'].gsub(/\D/, '')) %>" target="_blank" rel="noopener noreferrer">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  WhatsApp
+                </a>
+              <% end %>
+              <% if footer['facebook'].present? %>
+                <a href="<%= h(footer['facebook']) %>" target="_blank" rel="noopener noreferrer">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  Facebook
+                </a>
+              <% end %>
+              <% if footer['instagram'].present? %>
+                <a href="<%= h(footer['instagram']) %>" target="_blank" rel="noopener noreferrer">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                  Instagram
+                </a>
+              <% end %>
+              <% if footer['website'].present? %>
+                <a href="<%= h(footer['website']) %>" target="_blank" rel="noopener noreferrer">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  Sitio web
+                </a>
+              <% end %>
+            </div>
+          <% end %>
+          <% if footer['copyright'].present? %>
+            <p class="footer-copyright"><%= h(footer['copyright']) %></p>
+          <% end %>
+        </footer>
+      <% end %>
+
+    </div>
+  </div>
+
+  <% if show_privacy %>
+  <!-- Privacy modal -->
+  <div class="privacy-overlay" id="jf-privacy-overlay">
+    <div class="privacy-card">
+      <h3><%= h(priv_title) %></h3>
+      <p class="privacy-body-txt"><%= h(priv_body) %></p>
+      <% if priv_link_url.present? %>
+        <a class="privacy-policy-link" href="<%= h(priv_link_url) %>" target="_blank" rel="noopener noreferrer"><%= h(priv_link_text) %></a>
+      <% elsif priv_link_text.present? %>
+        <span class="privacy-policy-link"><%= h(priv_link_text) %></span>
+      <% end %>
+      <button class="privacy-accept-btn" id="jf-privacy-accept"><%= h(priv_accept) %></button>
+    </div>
+  </div>
+  <% end %>
+
+  <!-- Success modal (fixed overlay, blocks return to form) -->
+  <div class="success-overlay" id="jf-success-overlay">
+    <div class="success-card">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+        <circle cx="32" cy="32" r="32" fill="#f0fdf4"/>
+        <path d="M20 32.5L28.5 41L44 25" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h2>¡Enviado con éxito!</h2>
+      <p class="success-msg"><%= h(success_msg) %></p>
+      <% if success_label.present? && success_url.present? %>
+        <button class="success-action-btn" onclick="window.location.replace('<%= j(success_url) %>')"><%= h(success_label) %></button>
+      <% end %>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var EMAIL_RE  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      var PHONE_RE  = /^[\+\d\s\-()/.]{7,25}$/;
+      var CEDULA_RE = /^\d{5,15}$/;
+      var form = document.getElementById('jf-form');
+      var submitBtn = document.getElementById('jf-submit');
+      var msgEl          = document.getElementById('jf-message');
+      var successOverlay = document.getElementById('jf-success-overlay');
+      var privacyOverlay = document.getElementById('jf-privacy-overlay');
+      var privacyAccept  = document.getElementById('jf-privacy-accept');
+      var privacyCheck   = document.getElementById('jf-privacy-check');
+      var privacyGroup   = document.getElementById('jf-privacy-group');
+      var privacyOpener  = document.getElementById('jf-privacy-opener');
+
+      if (privacyCheck) {
+        var openPrivacy = function () { privacyOverlay.classList.add('visible'); };
+
+        privacyCheck.addEventListener('click', function () {
+          if (this.checked) { this.checked = false; openPrivacy(); }
+        });
+        if (privacyOpener) privacyOpener.addEventListener('click', openPrivacy);
+
+        privacyAccept.addEventListener('click', function () {
+          privacyCheck.checked = true;
+          privacyOverlay.classList.remove('visible');
+          privacyGroup.classList.remove('has-error');
+          privacyGroup.querySelector('.field-error').textContent = '';
+        });
+      }
+
+      function setMessage(text, type) {
+        msgEl.className = 'form-message ' + type + ' visible';
+        msgEl.textContent = text;
+      }
+
+      function clearMessage() {
+        msgEl.className = 'form-message';
+        msgEl.textContent = '';
+      }
+
+      function validateField(group, isLive) {
+        var type     = group.dataset.type;
+        var required = group.dataset.required === 'true';
+        var input    = group.querySelector('input, textarea, select');
+        var errEl    = group.querySelector('.field-error');
+        var value    = input ? input.value.trim() : '';
+
+        if (!value) {
+          if (!isLive && required) {
+            errEl.textContent = 'Este campo es requerido';
+            group.classList.add('has-error');
+            return false;
+          }
+          group.classList.remove('has-error');
+          errEl.textContent = '';
+          return true;
+        }
+
+        var err = null;
+        if (type === 'email' && (!isLive || value.length >= 6)) {
+          if (!EMAIL_RE.test(value)) err = 'Ingresa un correo electrónico válido';
+        } else if (type === 'phone' && (!isLive || value.length >= 4)) {
+          if (!PHONE_RE.test(value)) err = 'Ingresa un número de teléfono válido';
+        } else if (type === 'cedula') {
+          if (!CEDULA_RE.test(value)) err = 'Solo se permiten números (5–15 dígitos)';
+        } else if (type !== 'email' && type !== 'phone' && type !== 'pais' && type !== 'textarea' && value.length > 40) {
+          err = 'Máximo 40 caracteres';
+        }
+
+        if (err) {
+          errEl.textContent = err;
+          group.classList.add('has-error');
+          return false;
+        }
+        group.classList.remove('has-error');
+        errEl.textContent = '';
+        return true;
+      }
+
+      // Real-time validation on input
+      form.querySelectorAll('.field-group').forEach(function (group) {
+        var input = group.querySelector('input, textarea, select');
+        if (input) input.addEventListener('input', function () { validateField(group, true); });
+      });
+
+      function buildPayload() {
+        var data = {};
+        var groups = form.querySelectorAll('.field-group');
+        groups.forEach(function (group) {
+          var id = group.dataset.fieldId;
+          var input = group.querySelector('input, textarea, select');
+          data[id] = input ? input.value.trim() : '';
+        });
+        return data;
+      }
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        clearMessage();
+
+        var groups = form.querySelectorAll('.field-group');
+        var valid = true;
+        groups.forEach(function (g) { if (!validateField(g, false)) valid = false; });
+
+        if (privacyCheck && !privacyCheck.checked) {
+          privacyGroup.classList.add('has-error');
+          privacyGroup.querySelector('.field-error').textContent = 'Debes aceptar la política de tratamiento de datos';
+          valid = false;
+        }
+
+        if (!valid) return;
+
+        submitBtn.disabled = true;
+        var originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Enviando...';
+
+        var payload = buildPayload();
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', window.location.href, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState !== 4) return;
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+
+          if (xhr.status === 200) {
+            successOverlay.classList.add('visible');
+          } else if (xhr.status === 429) {
+            setMessage('Has enviado demasiadas solicitudes. Espera un momento e intenta nuevamente.', 'error');
+          } else {
+            try {
+              var res = JSON.parse(xhr.responseText);
+              var errs = res.errors;
+              if (Array.isArray(errs) && errs.length) {
+                setMessage(errs.join(' · '), 'error');
+              } else {
+                setMessage('Ha ocurrido un error. Por favor intenta nuevamente.', 'error');
+              }
+            } catch (_) {
+              setMessage('Ha ocurrido un error. Por favor intenta nuevamente.', 'error');
+            }
+          }
+        };
+        xhr.send(JSON.stringify({ form_data: payload }));
+      });
+    })();
+  </script>
+</body>
+</html>
