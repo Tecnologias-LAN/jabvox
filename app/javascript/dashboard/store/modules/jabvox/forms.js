@@ -9,6 +9,7 @@ const state = {
     isDeleting: false,
     isFetchingConfig: false,
     isSavingConfig: false,
+    isProvisioningSsl: false,
   },
 };
 
@@ -101,6 +102,23 @@ const actions = {
     } finally {
       commit('SET_UI_FLAG', { flag: 'isSavingConfig', value: false });
     }
+  },
+
+  async provisionSsl({ commit }) {
+    commit('SET_UI_FLAG', { flag: 'isProvisioningSsl', value: true });
+    try {
+      const { data } = await formConfigAPI.provisionSsl();
+      commit('SET_FORM_CONFIG', data);
+      return data;
+    } finally {
+      commit('SET_UI_FLAG', { flag: 'isProvisioningSsl', value: false });
+    }
+  },
+
+  async refreshFormConfig({ commit }) {
+    const { data } = await formConfigAPI.get();
+    commit('SET_FORM_CONFIG', data);
+    return data;
   },
 };
 

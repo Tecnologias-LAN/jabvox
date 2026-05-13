@@ -17,4 +17,5 @@ export const formsAPI = {
 export const formConfigAPI = {
   get: () => axios.get(formConfigClient.url),
   update: data => axios.patch(formConfigClient.url, { form_config: data }),
+  provisionSsl: () => axios.post(`${formConfigClient.url}/provision_ssl`),
 };

@@ -67,6 +67,7 @@ gem 'groupdate'
 gem 'pg'
 gem 'redis'
 gem 'redis-namespace'
+gem 'acme-client', '~> 2.0'
 # super fast record imports in bulk
 gem 'activerecord-import'
 

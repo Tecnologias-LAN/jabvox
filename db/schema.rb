@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_13_000010) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_13_200000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1283,6 +1283,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_13_000010) do
     t.integer "max_forms_jabvox", default: 10, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "ssl_status", default: "none", null: false
+    t.text "ssl_cert"
+    t.text "ssl_key"
+    t.datetime "ssl_expires_at"
+    t.string "ssl_error", limit: 500
+    t.datetime "ssl_provisioned_at"
+    t.text "acme_account_key"
     t.index ["account_id"], name: "index_jabvox_form_configs_on_account_id", unique: true
   end
 

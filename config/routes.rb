@@ -36,6 +36,7 @@ Rails.application.routes.draw do
     resource :widget, only: [:show]
     get '/f/:account_id/:slug', to: 'jabvox_forms#show', as: 'jabvox_public_form'
     post '/f/:account_id/:slug', to: 'jabvox_forms#submit'
+    get '/.well-known/acme-challenge/:token', to: 'jabvox/acme_challenges#show'
     namespace :survey do
       resources :responses, only: [:show]
     end
@@ -538,7 +539,9 @@ Rails.application.routes.draw do
             end
             resources :calendar_events, only: [:index, :show, :create, :update, :destroy]
             resources :forms, only: [:index, :show, :create, :update, :destroy]
-            resource :form_config, only: [:show, :update]
+            resource :form_config, only: [:show, :update] do
+              post :provision_ssl, on: :member
+            end
             resource :reports, only: [], controller: 'reports' do
               collection do
                 get :products
