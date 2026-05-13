@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
@@ -51,15 +51,10 @@ const onSave = async () => {
   }
 };
 
-// ── SSL ───────────────────────────────────────────────────────────────────────
+// ── SSL (read-only, managed from Super Admin) ─────────────────────────────────
 const sslStatus = computed(() => formConfig.value?.ssl_status || 'none');
-const sslError = computed(() => formConfig.value?.ssl_error || '');
 const sslExpiresAt = computed(() => {
   const d = formConfig.value?.ssl_expires_at;
-  return d ? new Date(d).toLocaleDateString() : null;
-});
-const sslProvisionedAt = computed(() => {
-  const d = formConfig.value?.ssl_provisioned_at;
   return d ? new Date(d).toLocaleDateString() : null;
 });
 
@@ -84,54 +79,6 @@ const sslStatusClass = computed(() => {
   };
   return map[sslStatus.value] || map.none;
 });
-
-const canRequestSsl = computed(
-  () =>
-    domainHostname.value &&
-    sslStatus.value !== 'provisioning' &&
-    !uiFlags.value.isProvisioningSsl
-);
-
-let pollTimer = null;
-
-const stopPolling = () => {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
-  }
-};
-
-const startPolling = () => {
-  stopPolling();
-  pollTimer = setInterval(async () => {
-    await store.dispatch('jabvoxForms/refreshFormConfig');
-    const status = store.getters['jabvoxForms/getFormConfig']?.ssl_status;
-    if (status !== 'provisioning') {
-      stopPolling();
-      if (status === 'active') useAlert(t('JABVOX_FORMS.SSL_SUCCESS'));
-    }
-  }, 5000);
-};
-
-const onProvisionSsl = async () => {
-  try {
-    await store.dispatch('jabvoxForms/provisionSsl');
-    startPolling();
-  } catch (e) {
-    useAlert(e?.response?.data?.error || t('JABVOX_FORMS.CONFIG_ERROR'));
-  }
-};
-
-watch(
-  sslStatus,
-  status => {
-    if (status === 'provisioning') startPolling();
-    else stopPolling();
-  },
-  { immediate: true }
-);
-
-onUnmounted(stopPolling);
 </script>
 
 <template>
@@ -245,17 +192,17 @@ onUnmounted(stopPolling);
         </p>
       </div>
 
-      <!-- SSL Certificate section -->
+      <!-- SSL Certificate status (read-only) -->
       <div
-        class="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3"
+        class="rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-between gap-3"
       >
-        <div class="flex items-center justify-between">
-          <p
-            class="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5"
-          >
-            <span class="i-lucide-lock size-3.5" />
-            {{ $t('JABVOX_FORMS.SSL_SECTION_TITLE') }}
-          </p>
+        <p
+          class="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5"
+        >
+          <span class="i-lucide-lock size-3.5" />
+          {{ $t('JABVOX_FORMS.SSL_SECTION_TITLE') }}
+        </p>
+        <div class="flex flex-col items-end gap-0.5">
           <span
             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
             :class="sslStatusClass"
@@ -268,79 +215,15 @@ onUnmounted(stopPolling);
               v-else-if="sslStatus === 'active'"
               class="i-lucide-shield-check size-3"
             />
-            <span
-              v-else-if="sslStatus === 'failed'"
-              class="i-lucide-shield-x size-3"
-            />
             {{ sslStatusLabel }}
           </span>
-        </div>
-
-        <!-- Active cert info -->
-        <div
-          v-if="sslStatus === 'active'"
-          class="text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5"
-        >
-          <p v-if="sslProvisionedAt">
-            {{ $t('JABVOX_FORMS.SSL_PROVISIONED') }}: {{ sslProvisionedAt }}
-          </p>
-          <p v-if="sslExpiresAt">
-            {{ $t('JABVOX_FORMS.SSL_EXPIRES') }}: {{ sslExpiresAt }}
-          </p>
-        </div>
-
-        <!-- Error message -->
-        <div
-          v-if="sslStatus === 'failed' && sslError"
-          class="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-2 text-[11px] text-red-600 dark:text-red-400"
-        >
-          <p class="font-semibold mb-0.5">
-            {{ $t('JABVOX_FORMS.SSL_ERROR_TITLE') }}
-          </p>
-          <p>{{ sslError }}</p>
-        </div>
-
-        <!-- Provisioning hint -->
-        <p
-          v-if="sslStatus === 'provisioning'"
-          class="text-[11px] text-amber-600 dark:text-amber-400"
-        >
-          {{ $t('JABVOX_FORMS.SSL_POLLING_HINT') }}
-        </p>
-
-        <!-- Nginx config hint (shown when active and nginx not configured) -->
-        <p
-          v-if="sslStatus === 'active'"
-          class="text-[11px] text-slate-400 dark:text-slate-500"
-        >
-          {{ $t('JABVOX_FORMS.SSL_NGINX_HINT') }}
-        </p>
-
-        <!-- CTA button -->
-        <button
-          :disabled="!canRequestSsl"
-          class="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          :class="
-            sslStatus === 'active'
-              ? 'border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-              : 'bg-woot-500 hover:bg-woot-600 text-white'
-          "
-          :title="!domainHostname ? $t('JABVOX_FORMS.SSL_REQUIRES_DOMAIN') : ''"
-          @click="onProvisionSsl"
-        >
           <span
-            v-if="sslStatus === 'provisioning'"
-            class="i-lucide-loader-circle size-4 animate-spin"
-          />
-          <span v-else class="i-lucide-shield-plus size-4" />
-          {{
-            sslStatus === 'active'
-              ? $t('JABVOX_FORMS.SSL_RENEW_BTN')
-              : sslStatus === 'failed'
-                ? $t('JABVOX_FORMS.SSL_RETRY_BTN')
-                : $t('JABVOX_FORMS.SSL_REQUEST_BTN')
-          }}
-        </button>
+            v-if="sslStatus === 'active' && sslExpiresAt"
+            class="text-[10px] text-slate-400 dark:text-slate-500"
+          >
+            {{ $t('JABVOX_FORMS.SSL_EXPIRES') }}: {{ sslExpiresAt }}
+          </span>
+        </div>
       </div>
 
       <!-- Always-available server URL -->

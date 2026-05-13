@@ -539,9 +539,7 @@ Rails.application.routes.draw do
             end
             resources :calendar_events, only: [:index, :show, :create, :update, :destroy]
             resources :forms, only: [:index, :show, :create, :update, :destroy]
-            resource :form_config, only: [:show, :update] do
-              post :provision_ssl, on: :member
-            end
+            resource :form_config, only: [:show, :update]
             resource :reports, only: [], controller: 'reports' do
               collection do
                 get :products
@@ -836,6 +834,8 @@ Rails.application.routes.draw do
       resources :accounts, only: [:index, :new, :create, :show, :edit, :update, :destroy] do
         post :seed, on: :member
         post :reset_cache, on: :member
+        post :provision_ssl_form_config, on: :member
+        delete :revoke_domain_form_config, on: :member
         resource :jabvox_saldo_config, only: [:show, :update]
         resources :jabvox_ip_whitelists, only: [:index, :create, :destroy] do
           patch :toggle, on: :member

@@ -57,6 +57,37 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
     # rubocop:enable Rails/I18nLocaleTexts
   end
 
+  def provision_ssl_form_config
+    config = requested_resource.jabvox_form_config || requested_resource.build_jabvox_form_config
+    config.save! unless config.persisted?
+    # rubocop:disable Rails/I18nLocaleTexts
+    if config.provisioning_locked?
+      redirect_back(fallback_location: [namespace, requested_resource], alert: 'Provisión en curso, espera unos minutos.')
+      return
+    end
+    unless config.base_url_jabvox.present?
+      redirect_back(fallback_location: [namespace, requested_resource], alert: 'La cuenta no tiene dominio personalizado configurado.')
+      return
+    end
+    Jabvox::SslProvisionJob.perform_later(config.id)
+    redirect_back(fallback_location: [namespace, requested_resource], notice: 'Generación de certificado SSL iniciada. Recarga la página en unos minutos.')
+    # rubocop:enable Rails/I18nLocaleTexts
+  end
+
+  def revoke_domain_form_config
+    config = requested_resource.jabvox_form_config
+    # rubocop:disable Rails/I18nLocaleTexts
+    if config.nil?
+      redirect_back(fallback_location: [namespace, requested_resource], alert: 'Esta cuenta no tiene configuración de dominio.')
+      return
+    end
+    Jabvox::SslRevokeService.new(config).call
+    redirect_back(fallback_location: [namespace, requested_resource], notice: 'Dominio y certificado eliminados correctamente.')
+    # rubocop:enable Rails/I18nLocaleTexts
+  rescue StandardError => e
+    redirect_back(fallback_location: [namespace, requested_resource], alert: "Error: #{e.message}") # rubocop:disable Rails/I18nLocaleTexts
+  end
+
   def destroy
     account = Account.find(params[:id])
     return unless account.present?

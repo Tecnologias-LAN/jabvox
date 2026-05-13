@@ -97,6 +97,8 @@ as well as a link to its edit page.
 
   <%= render partial: "reset_cache", locals: { page: page } %>
 
+  <%= render partial: "ssl_form_config", locals: { page: page } %>
+
   <div style="margin-top:24px; display:flex; gap:16px; flex-wrap:wrap;">
     <div style="flex:1; min-width:220px; padding:16px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
       <h3 style="font-weight:600; font-size:14px; margin-bottom:8px;">IP Whitelist</h3>

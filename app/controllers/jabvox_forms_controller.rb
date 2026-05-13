@@ -2,6 +2,7 @@ class JabvoxFormsController < ApplicationController
   layout false
 
   before_action :set_form
+  before_action :set_security_headers
 
   def show; end
 
@@ -28,6 +29,23 @@ class JabvoxFormsController < ApplicationController
   end
 
   private
+
+  def set_security_headers
+    response.headers['X-Frame-Options']          = 'DENY'
+    response.headers['X-Content-Type-Options']   = 'nosniff'
+    response.headers['Referrer-Policy']          = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy']       = 'camera=(), microphone=(), geolocation=()'
+    response.headers['Content-Security-Policy']  = [
+      "default-src 'none'",
+      "script-src 'unsafe-inline'",
+      "style-src 'unsafe-inline'",
+      "img-src * data: blob:",
+      "connect-src 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "base-uri 'none'"
+    ].join('; ')
+  end
 
   def set_form
     @form = JabvoxForm.active.find_by!(

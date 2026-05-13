@@ -31,8 +31,15 @@ class JabvoxFormConfig < ApplicationRecord
 
   belongs_to :account
 
+  encrypts :ssl_key        if Chatwoot.encryption_configured?
+  encrypts :ssl_cert       if Chatwoot.encryption_configured?
+  encrypts :acme_account_key if Chatwoot.encryption_configured?
+
+  VALID_DOMAIN_RE = /\A[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?)+\z/i
+
   validates :max_forms_jabvox, numericality: { only_integer: true, greater_than: 0 }
   validates :ssl_status, inclusion: { in: SSL_STATUSES }
+  validate  :validate_base_url_domain, if: -> { base_url_jabvox.present? }
 
   def ssl_active?
     ssl_status == 'active' && ssl_expires_at&.future?
@@ -48,5 +55,18 @@ class JabvoxFormConfig < ApplicationRecord
 
   def ssl_recently_attempted?
     ssl_provisioned_at.present? && ssl_provisioned_at > 1.hour.ago
+  end
+
+  private
+
+  def validate_base_url_domain
+    domain = begin
+      URI.parse(base_url_jabvox.strip).hostname.presence || base_url_jabvox.strip
+    rescue URI::InvalidURIError
+      base_url_jabvox.to_s.sub(%r{^https?://}, '').split('/').first.to_s.strip
+    end
+    return if domain.match?(VALID_DOMAIN_RE)
+
+    errors.add(:base_url_jabvox, 'debe ser un dominio válido (ej: forms.tuempresa.com)')
   end
 end

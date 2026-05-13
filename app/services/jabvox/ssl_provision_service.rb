@@ -61,7 +61,7 @@ module Jabvox
       key_pem = @config.acme_account_key
       if key_pem.blank?
         account_key = OpenSSL::PKey::RSA.new(4096)
-        @config.update_column(:acme_account_key, account_key.to_pem)
+        @config.update!(acme_account_key: account_key.to_pem)
       else
         account_key = OpenSSL::PKey::RSA.new(key_pem)
       end

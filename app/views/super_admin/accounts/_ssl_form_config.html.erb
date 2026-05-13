@@ -1,0 +1,82 @@
+<%
+  _ssl_config = page.resource.jabvox_form_config
+  _ssl_status = _ssl_config&.ssl_status || 'none'
+  _ssl_domain = _ssl_config&.base_url_jabvox.presence
+  _ssl_expires = _ssl_config&.ssl_expires_at
+  _ssl_error   = _ssl_config&.ssl_error
+  _ssl_issued  = _ssl_config&.ssl_provisioned_at
+
+  _status_colors = {
+    'none'         => { bg: '#f8fafc', border: '#e2e8f0', badge_bg: '#f1f5f9', badge_color: '#64748b', label: 'Sin certificado' },
+    'provisioning' => { bg: '#fffbeb', border: '#fde68a', badge_bg: '#fef3c7', badge_color: '#d97706', label: 'Generando…' },
+    'active'       => { bg: '#f0fdf4', border: '#bbf7d0', badge_bg: '#dcfce7', badge_color: '#16a34a', label: 'Activo' },
+    'failed'       => { bg: '#fef2f2', border: '#fecaca', badge_bg: '#fee2e2', badge_color: '#dc2626', label: 'Error' },
+  }
+  _colors = _status_colors[_ssl_status] || _status_colors['none']
+%>
+
+<section class="main-content__body" style="margin-top: 24px;">
+  <hr style="margin-bottom: 24px;">
+  <div style="padding: 20px; background: <%= _colors[:bg] %>; border: 1px solid <%= _colors[:border] %>; border-radius: 8px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+      <h3 style="font-weight: 700; font-size: 15px; margin: 0;">🔒 SSL / Dominio personalizado</h3>
+      <span style="padding: 3px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; background: <%= _colors[:badge_bg] %>; color: <%= _colors[:badge_color] %>;">
+        <%= _colors[:label] %>
+      </span>
+    </div>
+
+    <% if _ssl_domain.present? %>
+      <p style="font-size: 13px; color: #374151; margin-bottom: 6px;">
+        <strong>Dominio:</strong> <%= _ssl_domain %>
+      </p>
+    <% else %>
+      <p style="font-size: 13px; color: #6b7280; margin-bottom: 6px;">Sin dominio personalizado configurado.</p>
+    <% end %>
+
+    <% if _ssl_issued.present? %>
+      <p style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
+        <strong>Emitido:</strong> <%= _ssl_issued.strftime('%d/%m/%Y %H:%M UTC') %>
+      </p>
+    <% end %>
+
+    <% if _ssl_expires.present? %>
+      <%
+        days_left = ((_ssl_expires - Time.current) / 86_400).to_i
+        exp_color = days_left < 15 ? '#dc2626' : (days_left < 30 ? '#d97706' : '#16a34a')
+      %>
+      <p style="font-size: 12px; color: <%= exp_color %>; margin-bottom: 4px;">
+        <strong>Vence:</strong> <%= _ssl_expires.strftime('%d/%m/%Y') %> (<%= days_left %> días)
+      </p>
+    <% end %>
+
+    <% if _ssl_error.present? %>
+      <div style="margin-top: 10px; padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; font-size: 12px; color: #b91c1c;">
+        <strong>Error:</strong> <%= _ssl_error %>
+      </div>
+    <% end %>
+
+    <div style="margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap;">
+      <% if _ssl_domain.present? %>
+        <%= form_tag(provision_ssl_form_config_super_admin_account_path(page.resource), method: :post, style: 'margin: 0;') do %>
+          <%= submit_tag(
+            _ssl_status == 'active' ? 'Renovar certificado' : (_ssl_status == 'failed' ? 'Reintentar SSL' : 'Generar certificado SSL'),
+            class: 'button',
+            onclick: "return confirm('¿Iniciar generación del certificado SSL para #{_ssl_domain}?')",
+            style: 'background: #2563eb; color: #fff;'
+          ) %>
+        <% end %>
+      <% end %>
+
+      <% if _ssl_status != 'none' %>
+        <%= form_tag(revoke_domain_form_config_super_admin_account_path(page.resource), method: :delete, style: 'margin: 0;') do %>
+          <%= submit_tag(
+            'Eliminar dominio y cert.',
+            class: 'button',
+            onclick: "return confirm('Esto eliminará el certificado y el dominio personalizado. ¿Estás seguro?')",
+            style: 'background: #dc2626; color: #fff;'
+          ) %>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+</section>
