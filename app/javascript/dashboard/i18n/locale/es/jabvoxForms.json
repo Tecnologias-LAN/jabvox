@@ -111,7 +111,7 @@
     "DNS_ROW_TYPE": "Type",
     "DNS_ROW_TYPE_VAL": "A",
     "DNS_ROW_NAME": "Name",
-    "DNS_ROW_NAME_VAL": "@ (dominio raíz) o subdominio",
+    "DNS_ROW_NAME_VAL": "{'@'} (dominio raíz) o subdominio",
     "DNS_ROW_POINTS_TO": "Points to",
     "DNS_ROW_TTL": "TTL",
     "DNS_NOTE": "Los cambios de DNS pueden tardar 24–48 horas en propagarse.",

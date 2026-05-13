@@ -111,7 +111,7 @@
     "DNS_ROW_TYPE": "Type",
     "DNS_ROW_TYPE_VAL": "A",
     "DNS_ROW_NAME": "Name",
-    "DNS_ROW_NAME_VAL": "@ (root domain) or subdomain",
+    "DNS_ROW_NAME_VAL": "{'@'} (root domain) or subdomain",
     "DNS_ROW_POINTS_TO": "Points to",
     "DNS_ROW_TTL": "TTL",
     "DNS_NOTE": "DNS propagation can take 24–48 hours.",
