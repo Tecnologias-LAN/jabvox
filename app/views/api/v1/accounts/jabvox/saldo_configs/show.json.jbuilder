@@ -1,7 +1,7 @@
 json.id @config.id
 json.name_jabvox @config.name_jabvox
 json.base_url_jabvox @config.base_url_jabvox
-json.api_key_jabvox @config.api_key_jabvox
+json.has_api_key @config.api_key_jabvox.present?
 json.saldo_username_jabvox @config.saldo_username_jabvox
 json.proxy_url_jabvox @config.proxy_url_jabvox
 json.use_proxy_jabvox @config.use_proxy_jabvox

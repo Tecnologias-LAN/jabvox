@@ -69,6 +69,7 @@
       }
     </script>
     <% end %>
+    <script>window.litIssuedWarnings = new Set(['dev-mode', 'multiple-versions']);</script>
     <%= vite_client_tag %>
     <%= vite_javascript_tag @application_pack %>
   </head>

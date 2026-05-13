@@ -23,7 +23,7 @@ const form = ref({
   is_active_jabvox: true,
 });
 
-const hasApiKey = computed(() => !!config.value?.api_key_jabvox);
+const hasApiKey = computed(() => !!config.value?.has_api_key);
 
 const fillForm = data => {
   form.value = {

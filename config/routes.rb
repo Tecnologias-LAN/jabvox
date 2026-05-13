@@ -371,12 +371,24 @@ Rails.application.routes.draw do
 
           namespace :jabvox do
             resources :kanban_funnels do
-              resources :kanban_stages, only: [:index, :create, :update, :destroy]
+              resources :kanban_stages, only: [:index, :create, :update, :destroy] do
+                resources :kanban_stage_automations, only: [:index, :create, :show, :update, :destroy]
+              end
               resource :kanban_board, only: [:show], controller: 'kanban_board'
               resource :kanban_conversation_stages, only: [:update], controller: 'kanban_conversation_stages' do
                 collection do
                   put :update_lead
                 end
+              end
+            end
+            resource :smtp_config, only: [:show, :create, :update, :destroy] do
+              post :test, on: :member
+            end
+            resource :calendar_setting, only: [:show, :update]
+            resources :email_templates do
+              member do
+                post :test_send
+                post :send_to_contact
               end
             end
             resources :products do
@@ -445,7 +457,10 @@ Rails.application.routes.draw do
               end
             end
             resources :sms_messages, only: [:index] do
-              collection { get :stats }
+              collection do
+                get :stats
+                post :send_to_contact
+              end
             end
             resources :ip_whitelists, only: [:index, :create, :update, :destroy]
             resources :dialer_campaigns do

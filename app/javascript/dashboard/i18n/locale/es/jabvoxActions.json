@@ -1,0 +1,27 @@
+{
+  "JABVOX_ACTIONS": {
+    "EMAIL_BUTTON": {
+      "TITLE": "Enviar correo",
+      "LABEL": "Correo",
+      "LOADING": "Cargando plantillas...",
+      "NO_TEMPLATES": "No hay plantillas de correo activas configuradas.",
+      "SELECT_TEMPLATE": "Selecciona una plantilla",
+      "SEND": "Enviar correo",
+      "SENDING": "Enviando...",
+      "SUCCESS": "Correo enviado correctamente",
+      "ERROR": "No se pudo enviar el correo"
+    },
+    "SMS_BUTTON": {
+      "TITLE": "Enviar SMS",
+      "LABEL": "SMS",
+      "LOADING": "Cargando proveedores...",
+      "NO_PROVIDERS": "No hay proveedores SMS activos configurados.",
+      "SELECT_PROVIDER": "Selecciona un proveedor",
+      "MESSAGE_PLACEHOLDER": "Escribe tu mensaje...",
+      "SEND": "Enviar SMS",
+      "SENDING": "Enviando...",
+      "SUCCESS": "SMS enviado correctamente",
+      "ERROR": "No se pudo enviar el SMS"
+    }
+  }
+}

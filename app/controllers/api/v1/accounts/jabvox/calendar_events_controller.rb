@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Jabvox::CalendarEventsController < Api::V1::Accounts::BaseController
-  before_action :check_calendar_enabled
+  before_action :check_calendar_access
   before_action :set_event, only: %i[show update destroy]
 
   def index
@@ -39,8 +39,9 @@ class Api::V1::Accounts::Jabvox::CalendarEventsController < Api::V1::Accounts::B
 
   private
 
-  def check_calendar_enabled
+  def check_calendar_access
     return if Current.account.jabvox_calendar_enabled_jabvox?
+    return if Current.account.jabvox_smtp_config.present?
 
     render json: { error: 'Calendar module not enabled' }, status: :forbidden
   end
@@ -52,7 +53,11 @@ class Api::V1::Accounts::Jabvox::CalendarEventsController < Api::V1::Accounts::B
   end
 
   def event_params
-    params.permit(:title, :description, :start_at, :end_at, :all_day, :event_type, :status, :color)
+    params.permit(
+      :title, :description, :start_at, :end_at, :all_day,
+      :event_type, :status, :color, :contact_id,
+      :remind_before_day, :remind_before_hour
+    )
   end
 
   def serialize(event)
@@ -66,6 +71,11 @@ class Api::V1::Accounts::Jabvox::CalendarEventsController < Api::V1::Accounts::B
       event_type: event.event_type,
       status: event.status,
       color: event.color,
+      contact_id: event.contact_id,
+      contact_name: event.contact&.name,
+      contact_email: event.contact&.email,
+      remind_before_day: event.remind_before_day,
+      remind_before_hour: event.remind_before_hour,
       user_id: event.user_id,
       created_at: event.created_at
     }

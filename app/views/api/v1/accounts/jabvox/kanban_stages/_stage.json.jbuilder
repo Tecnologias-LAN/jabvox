@@ -5,5 +5,8 @@ json.position_jabvox stage.position_jabvox
 json.color_jabvox stage.color_jabvox
 json.jabvox_kanban_funnel_id stage.jabvox_kanban_funnel_id
 json.account_id stage.account_id
+json.auto_advance_enabled stage.auto_advance_enabled
+json.auto_advance_hours stage.auto_advance_hours
+json.auto_advance_target_stage_id stage.auto_advance_target_stage_id
 json.created_at stage.created_at
 json.updated_at stage.updated_at

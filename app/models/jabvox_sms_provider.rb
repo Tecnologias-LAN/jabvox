@@ -27,6 +27,8 @@ class JabvoxSmsProvider < ApplicationRecord
   has_many :jabvox_sms_campaigns, foreign_key: :jabvox_sms_provider_id, dependent: :nullify
   has_many :jabvox_sms_messages, foreign_key: :jabvox_sms_provider_id, dependent: :nullify
 
+  encrypts :api_password if Chatwoot.encryption_configured?
+
   validates :name, presence: true
   validates :base_url, presence: true
   validates :api_user, presence: true

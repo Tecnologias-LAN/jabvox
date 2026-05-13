@@ -1,11 +1,16 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import KanbanCard from './KanbanCard.vue';
+import KanbanStageAutomationPanel from './KanbanStageAutomationPanel.vue';
 
 const props = defineProps({
   stage: {
     type: Object,
     required: true,
+  },
+  funnelId: {
+    type: Number,
+    default: null,
   },
   conversations: {
     type: Array,
@@ -18,6 +23,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['card-click', 'drop']);
+
+const showAutomations = ref(false);
 
 const isDragOver = ref(false);
 const showAll = ref(false);
@@ -97,6 +104,13 @@ const onDrop = event => {
             {{ size }}
           </option>
         </select>
+        <button
+          class="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+          :title="$t('JABVOX_KANBAN.AUTOMATIONS.CONFIGURE')"
+          @click="showAutomations = true"
+        >
+          <span class="i-lucide-settings-2 w-3.5 h-3.5" />
+        </button>
         <span
           class="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-700 rounded-full px-2 py-0.5"
         >
@@ -143,4 +157,11 @@ const onDrop = event => {
       </button>
     </div>
   </div>
+
+  <KanbanStageAutomationPanel
+    v-if="showAutomations"
+    :stage="stage"
+    :funnel-id="funnelId"
+    @close="showAutomations = false"
+  />
 </template>

@@ -11,15 +11,17 @@ const portalAccountId = computed(() => route.params.portalAccountId);
 const affiliateSlug = computed(() => route.params.affiliateSlug);
 
 const clearSession = () => {
-  localStorage.removeItem('jabvox_affiliate_token');
-  localStorage.removeItem('jabvox_affiliate_name');
-  localStorage.removeItem('jabvox_affiliate_expires');
-  localStorage.removeItem('jabvox_affiliate_slug');
+  sessionStorage.removeItem('jabvox_affiliate_token');
+  sessionStorage.removeItem('jabvox_affiliate_name');
+  sessionStorage.removeItem('jabvox_affiliate_expires');
+  sessionStorage.removeItem('jabvox_affiliate_slug');
 };
 
 onMounted(() => {
-  const token = localStorage.getItem('jabvox_affiliate_token');
-  const expires = Number(localStorage.getItem('jabvox_affiliate_expires') ?? 0);
+  const token = sessionStorage.getItem('jabvox_affiliate_token');
+  const expires = Number(
+    sessionStorage.getItem('jabvox_affiliate_expires') ?? 0
+  );
   if (!token || Date.now() > expires) {
     clearSession();
     router.replace({
@@ -33,7 +35,7 @@ onMounted(() => {
 });
 
 const affiliateName = computed(
-  () => localStorage.getItem('jabvox_affiliate_name') ?? 'Afiliado'
+  () => sessionStorage.getItem('jabvox_affiliate_name') ?? 'Afiliado'
 );
 
 const navItems = computed(() => [

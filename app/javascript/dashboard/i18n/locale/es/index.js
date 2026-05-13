@@ -37,6 +37,8 @@ import jabvoxManagementStates from './jabvoxManagementStates.json';
 import jabvoxProducts from './jabvoxProducts.json';
 import jabvoxReports from './jabvoxReports.json';
 import jabvoxResponseBot from './jabvoxResponseBot.json';
+import jabvoxEmail from './jabvoxEmail.json';
+import jabvoxActions from './jabvoxActions.json';
 import jabvoxSaldo from './jabvoxSaldo.json';
 import jabvoxSms from './jabvoxSms.json';
 import jabvoxVoip from './jabvoxVoip.json';
@@ -93,6 +95,8 @@ export default {
   ...jabvoxProducts,
   ...jabvoxReports,
   ...jabvoxResponseBot,
+  ...jabvoxEmail,
+  ...jabvoxActions,
   ...jabvoxSaldo,
   ...jabvoxSms,
   ...jabvoxVoip,

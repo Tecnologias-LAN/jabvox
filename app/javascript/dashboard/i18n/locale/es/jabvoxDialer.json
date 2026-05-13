@@ -13,6 +13,7 @@
     "WAITING_CALL": "Esperando llamada entrante...",
     "MY_CAMPAIGNS_HINT": "Selecciona una campaña activa para conectarte al dialer.",
     "NO_ASSIGNED_CAMPAIGNS": "No tienes campañas activas asignadas. Pide al administrador que te asigne a una.",
+    "DIALING_HINT": "Esperando que el cliente conteste",
     "DIALING": "Marcando...",
     "WRAPUP": {
       "TITLE": "Tiempo de gestión",

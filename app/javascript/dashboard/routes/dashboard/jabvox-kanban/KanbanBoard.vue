@@ -7,6 +7,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  funnelId: {
+    type: Number,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['card-click', 'moveConversation', 'moveLead']);
@@ -28,6 +32,7 @@ const onDrop = ({ conversationId, leadId, stageId }) => {
       v-for="stageData in stages"
       :key="stageData.id"
       :stage="stageData"
+      :funnel-id="funnelId || board?.id"
       :conversations="stageData.conversations"
       :lead-cards="stageData.lead_cards || []"
       @card-click="emit('card-click', $event)"

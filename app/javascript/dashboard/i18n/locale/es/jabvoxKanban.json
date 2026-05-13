@@ -10,9 +10,55 @@
     "INACTIVE": "Inactivo",
     "UNASSIGNED": "Sin asignar",
     "UNKNOWN_CONTACT": "Desconocido",
+    "NO_CONVERSATION": "Sin contactar",
     "PER_PAGE": "Por columna:",
     "SHOW_MORE": "Mostrar {count} más",
     "SHOW_LESS": "Mostrar menos",
+    "AUTOMATIONS": {
+      "CONFIGURE": "Configurar automatizaciones"
+    },
+    "AUTOMATIONS_PANEL": {
+      "TITLE": "Automatizaciones",
+      "STAGE_LABEL": "Al entrar a:",
+      "CLOSE": "Cerrar",
+      "NEW": "+ Nueva automatización",
+      "LOADING": "Cargando...",
+      "EMPTY": "No hay automatizaciones configuradas para esta etapa.",
+      "INACTIVE": "inactiva",
+      "EDIT": "Editar",
+      "DELETE": "Eliminar",
+      "BACK": "Volver",
+      "SAVE": "Guardar",
+      "SAVING": "Guardando...",
+      "CANCEL": "Cancelar",
+      "FORM": {
+        "NAME_LABEL": "Nombre",
+        "NAME_PLACEHOLDER": "Ej: Bienvenida por WhatsApp",
+        "AUTOMATION_TYPE_LABEL": "Tipo de automatización",
+        "TYPE_SEND_MESSAGE": "Enviar mensaje al entrar a la etapa",
+        "TYPE_MOVE_AFTER_HOURS": "Mover a otra columna después de X horas",
+        "TYPE_MOVE_IF_INACTIVE": "Mover si no tiene notas en X horas",
+        "TRIGGER_HOURS_LABEL": "Horas",
+        "TARGET_STAGE_LABEL": "Mover a la columna",
+        "TARGET_STAGE_PLACEHOLDER": "Seleccionar columna destino...",
+        "CHANNEL_LABEL": "Enviar por",
+        "CHANNEL_PLACEHOLDER": "Seleccionar bandeja, plantilla de correo o proveedor SMS...",
+        "CHANNEL_GROUP_INBOXES": "Bandejas",
+        "CHANNEL_GROUP_EMAIL": "Plantillas de correo",
+        "CHANNEL_GROUP_SMS": "SMS",
+        "CHANNEL_EMPTY": "Sin configurar",
+        "INBOX_LABEL": "Bandeja",
+        "MESSAGE_LABEL": "Mensaje",
+        "MESSAGE_PLACEHOLDER": "Hola {{contact_name}}, tu lead pasó a: {{stage_name}}",
+        "VARIABLES_HINT": "Variables:",
+        "VARIABLES_LIST": "{{contact_name}}, {{stage_name}}",
+        "EMAIL_TEMPLATE_LABEL": "Plantilla de correo",
+        "EMAIL_TEMPLATE_FORMAT": " — ",
+        "SMS_PROVIDER_LABEL": "Proveedor SMS",
+        "ACTIVE_LABEL": "Activa"
+      }
+    },
+    "DISPLAY_INACTIVE": "→ {target} (sin notas {hours}h)",
     "MOVE_ERROR": "No se pudo mover la conversación. Por favor, intente de nuevo.",
     "LOAD_MESSAGES_ERROR": "No se pudieron cargar los mensajes.",
     "SEND_MESSAGE_ERROR": "No se pudo enviar el mensaje. Por favor, intente de nuevo.",
@@ -84,6 +130,8 @@
         "DELETE_CONFIRM": "¿Eliminar la etapa \"{name}\"? Las conversaciones en esta etapa serán movidas a la primera etapa.",
         "DELETE_SUCCESS": "Etapa eliminada.",
         "DELETE_ERROR": "No se pudo eliminar la etapa.",
+        "AUTOMATIONS_BUTTON": "Automatizaciones",
+        "AUTO_ADVANCE_INDICATOR": "→ {hours}h",
         "FORM": {
           "NEW_TITLE": "Nueva Etapa",
           "EDIT_TITLE": "Editar Etapa",
@@ -91,11 +139,19 @@
           "NAME_REQUIRED": "El nombre de la etapa es requerido.",
           "COLOR_LABEL": "Color",
           "DESCRIPTION_LABEL": "Descripción",
+          "NAME_LABEL_REQUIRED": "Nombre de la Etapa *",
           "CREATE_BUTTON": "Agregar Etapa",
           "UPDATE_BUTTON": "Guardar",
           "CREATE_SUCCESS": "Etapa creada.",
           "UPDATE_SUCCESS": "Etapa actualizada.",
-          "ERROR": "Ocurrió un error."
+          "ERROR": "Ocurrió un error.",
+          "AUTO_ADVANCE": {
+            "TITLE": "Avance automático",
+            "ENABLED_LABEL": "Mover leads automáticamente después de un tiempo",
+            "HOURS_LABEL": "Horas en la columna antes de avanzar",
+            "TARGET_LABEL": "Mover a la columna",
+            "TARGET_PLACEHOLDER": "Seleccionar columna destino..."
+          }
         }
       }
     }

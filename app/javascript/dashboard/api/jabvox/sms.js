@@ -38,4 +38,6 @@ export const smsCampaignsAPI = {
 export const smsMessagesAPI = {
   getAll: (params = {}) => axios.get(messagesClient.url, { params }),
   getStats: () => axios.get(`${messagesClient.url}/stats`),
+  sendToContact: payload =>
+    axios.post(`${messagesClient.url}/send_to_contact`, payload),
 };

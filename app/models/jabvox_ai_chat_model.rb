@@ -26,6 +26,8 @@ class JabvoxAiChatModel < ApplicationRecord
 
   belongs_to :account
 
+  encrypts :api_key_jabvox if Chatwoot.encryption_configured?
+
   validates :name_jabvox, presence: true, length: { maximum: 150 }
   validates :provider_jabvox, length: { maximum: 50 }, allow_blank: true
   validates :model_jabvox, presence: true, length: { maximum: 200 }

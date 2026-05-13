@@ -11,6 +11,7 @@
       "DOCUMENTS": "Documentos"
     },
     "SEATS": {
+      "SECTION_TITLE": "Acentos",
       "TITLE": "Acentos Disponibles",
       "DESCRIPTION": "Los acentos son personalidades del bot de IA configuradas por el administrador del sistema. Seleccione uno en la pestaña de Configuración.",
       "EMPTY": "No hay acentos activos disponibles. Contacte a su administrador del sistema.",
@@ -23,6 +24,13 @@
       "NEW": "Nueva configuración",
       "EMPTY": "Sin configuraciones. Crea una para empezar a automatizar respuestas.",
       "NO_SEAT": "Sin acento seleccionado",
+      "NAME_LABEL": "Nombre",
+      "NAME_PLACEHOLDER": "ej. Bot ventas WhatsApp",
+      "DESCRIPTION_LABEL": "Descripción",
+      "DESCRIPTION_PLACEHOLDER": "ej. Bot para bandeja de ventas",
+      "ROLE_LABEL": "Rol del Agente",
+      "ROLE_PLACEHOLDER": "Selecciona un rol...",
+      "NO_ROLE": "Sin rol seleccionado",
       "ENABLED": "Activado",
       "DISABLED": "Desactivado",
       "DELETE": "Eliminar",
@@ -85,6 +93,11 @@
       "ALL_DOCS": "Todos los Documentos",
       "SELECTED_DOCS": "Documentos seleccionados para responder",
       "FILE_LABEL": "Archivo"
+    },
+    "ROLES": {
+      "SECTION_TITLE": "Roles del Agente",
+      "DESCRIPTION": "Roles que definen el comportamiento y propósito del agente IA.",
+      "EMPTY": "No hay roles activos. Contacta al administrador del sistema."
     },
     "ERROR": "Ocurrió un error. Por favor, intente de nuevo.",
     "LOADING": "Cargando..."

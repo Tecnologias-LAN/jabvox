@@ -15,6 +15,7 @@
 #  jabvox_ai_chat_max_open_chats_jabvox :integer          default(0), not null
 #  jabvox_calendar_enabled_jabvox       :boolean          default(FALSE), not null
 #  jabvox_dialer_enabled_jabvox         :boolean          default(FALSE), not null
+#  jabvox_email_enabled_jabvox          :boolean          default(FALSE), not null
 #  jabvox_internal_chat_enabled_jabvox  :boolean          default(FALSE), not null
 #  jabvox_kanban_enabled_jabvox         :boolean          default(FALSE), not null
 #  jabvox_leads_enabled_jabvox          :boolean          default(FALSE), not null
@@ -118,6 +119,9 @@ class Account < ApplicationRecord
   has_many :jabvox_sms_providers, dependent: :destroy_async
   has_many :jabvox_sms_campaigns, dependent: :destroy_async
   has_many :jabvox_sms_messages, dependent: :destroy_async
+  has_one :jabvox_smtp_config, dependent: :destroy
+  has_many :jabvox_email_templates, dependent: :destroy_async
+  has_many :jabvox_kanban_stage_automations, dependent: :destroy_async
   has_many :jabvox_ip_whitelists, dependent: :destroy_async
   has_many :jabvox_user_extensions, dependent: :destroy_async
   has_one :jabvox_ai_chat_config, dependent: :destroy

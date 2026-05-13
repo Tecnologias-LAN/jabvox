@@ -48,7 +48,8 @@ class AccountDashboard < Administrate::BaseDashboard
     jabvox_affiliates_enabled_jabvox: Field::Boolean,
     jabvox_calendar_enabled_jabvox: Field::Boolean,
     jabvox_internal_chat_enabled_jabvox: Field::Boolean,
-    jabvox_response_bot_enabled_jabvox: Field::Boolean
+    jabvox_response_bot_enabled_jabvox: Field::Boolean,
+    jabvox_email_enabled_jabvox: Field::Boolean
   }.merge(enterprise_attribute_types).freeze
 
   # COLLECTION_ATTRIBUTES
@@ -98,6 +99,7 @@ class AccountDashboard < Administrate::BaseDashboard
     jabvox_calendar_enabled_jabvox
     jabvox_internal_chat_enabled_jabvox
     jabvox_response_bot_enabled_jabvox
+    jabvox_email_enabled_jabvox
   ] + enterprise_show_page_attributes).freeze
 
   # FORM_ATTRIBUTES
@@ -129,6 +131,7 @@ class AccountDashboard < Administrate::BaseDashboard
     jabvox_calendar_enabled_jabvox
     jabvox_internal_chat_enabled_jabvox
     jabvox_response_bot_enabled_jabvox
+    jabvox_email_enabled_jabvox
   ] + enterprise_form_attributes).freeze
 
   # COLLECTION_FILTERS
@@ -174,6 +177,7 @@ class AccountDashboard < Administrate::BaseDashboard
     attrs << :jabvox_calendar_enabled_jabvox
     attrs << :jabvox_internal_chat_enabled_jabvox
     attrs << :jabvox_response_bot_enabled_jabvox
+    attrs << :jabvox_email_enabled_jabvox
 
     # Add manually_managed_features to permitted attributes only for Chatwoot Cloud
     attrs << { manually_managed_features: [] } if ChatwootApp.chatwoot_cloud?

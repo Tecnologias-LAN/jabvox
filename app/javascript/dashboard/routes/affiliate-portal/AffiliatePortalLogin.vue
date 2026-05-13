@@ -38,10 +38,10 @@ const onLogin = async () => {
       accountCode.value.trim(),
       authToken.value.trim()
     );
-    localStorage.setItem('jabvox_affiliate_token', data.token);
-    localStorage.setItem('jabvox_affiliate_name', data.affiliate.name);
-    localStorage.setItem('jabvox_affiliate_slug', affiliateSlug);
-    localStorage.setItem(
+    sessionStorage.setItem('jabvox_affiliate_token', data.token);
+    sessionStorage.setItem('jabvox_affiliate_name', data.affiliate.name);
+    sessionStorage.setItem('jabvox_affiliate_slug', affiliateSlug);
+    sessionStorage.setItem(
       'jabvox_affiliate_expires',
       String(Date.now() + data.expires_in * 1000)
     );

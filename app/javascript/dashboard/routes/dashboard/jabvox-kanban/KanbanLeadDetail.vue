@@ -6,6 +6,8 @@ import { useStore, useMapGetter } from 'dashboard/composables/store';
 import messageAPI from 'dashboard/api/inbox/message';
 import Button from 'dashboard/components-next/button/Button.vue';
 import JabvoxCallButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxCallButton.vue';
+import JabvoxEmailButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxEmailButton.vue';
+import JabvoxSmsButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxSmsButton.vue';
 import JabvoxConversationProducts from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationProducts.vue';
 import JabvoxConversationHistory from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationHistory.vue';
 
@@ -246,12 +248,24 @@ const onKeydown = event => {
             {{ contactIdentification }}
           </p>
         </div>
-        <JabvoxCallButton
-          v-if="contactPhone || contactId"
-          :phone="contactPhone"
-          :contact-id="contactId"
-          :contact-name="contactName"
-        />
+        <div class="flex items-center gap-1">
+          <JabvoxCallButton
+            v-if="contactPhone || contactId"
+            :phone="contactPhone"
+            :contact-id="contactId"
+            :contact-name="contactName"
+          />
+          <JabvoxSmsButton
+            v-if="contactPhone && contactPhone !== '***' && contactId"
+            :phone="contactPhone"
+            :contact-id="contactId"
+          />
+          <JabvoxEmailButton
+            v-if="contactEmail && contactEmail !== '***' && contactId"
+            :email="contactEmail"
+            :contact-id="contactId"
+          />
+        </div>
       </div>
       <div
         class="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400"

@@ -57,6 +57,8 @@ import jabvoxCalendar from './jabvoxCalendar.json';
 import jabvoxInternalChat from './jabvoxInternalChat.json';
 import jabvoxReports from './jabvoxReports.json';
 import jabvoxResponseBot from './jabvoxResponseBot.json';
+import jabvoxEmail from './jabvoxEmail.json';
+import jabvoxActions from './jabvoxActions.json';
 
 export default {
   ...advancedFilters,
@@ -118,4 +120,6 @@ export default {
   ...jabvoxInternalChat,
   ...jabvoxReports,
   ...jabvoxResponseBot,
+  ...jabvoxEmail,
+  ...jabvoxActions,
 };

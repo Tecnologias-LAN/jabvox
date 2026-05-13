@@ -4,36 +4,43 @@
 #
 # Table name: jabvox_calendar_events
 #
-#  id          :bigint           not null, primary key
-#  all_day     :boolean          default(FALSE), not null
-#  color       :string           default("#3B82F6")
-#  description :text
-#  end_at      :datetime         not null
-#  event_type  :integer          default("reminder"), not null
-#  start_at    :datetime         not null
-#  status      :integer          default("pending"), not null
-#  title       :string           not null
-#  created_at  :datetime         not null
-#  updated_at  :datetime         not null
-#  account_id  :bigint           not null
-#  user_id     :bigint           not null
+#  id                 :bigint           not null, primary key
+#  all_day            :boolean          default(FALSE), not null
+#  color              :string           default("#3B82F6")
+#  description        :text
+#  end_at             :datetime         not null
+#  event_type         :integer          default("reminder"), not null
+#  remind_before_day  :boolean          default(FALSE), not null
+#  remind_before_hour :boolean          default(FALSE), not null
+#  start_at           :datetime         not null
+#  status             :integer          default("pending"), not null
+#  title              :string           not null
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  account_id         :bigint           not null
+#  contact_id         :bigint
+#  user_id            :bigint           not null
 #
 # Indexes
 #
 #  index_jabvox_calendar_events_on_account_id               (account_id)
 #  index_jabvox_calendar_events_on_account_id_and_start_at  (account_id,start_at)
 #  index_jabvox_calendar_events_on_account_id_and_user_id   (account_id,user_id)
+#  index_jabvox_calendar_events_on_contact_id               (contact_id)
 #  index_jabvox_calendar_events_on_user_id                  (user_id)
 #
 # Foreign Keys
 #
-#  fk_rails_...  (account_id => accounts.id)
-#  fk_rails_...  (user_id => users.id)
+#  fk_jabvox_calendar_events_contact  (contact_id => contacts.id)
+#  fk_rails_...                       (account_id => accounts.id)
+#  fk_rails_...                       (user_id => users.id)
 #
 
 class JabvoxCalendarEvent < ApplicationRecord
   belongs_to :account
   belongs_to :user
+  belongs_to :contact, optional: true
+  has_many :jabvox_calendar_event_reminders, dependent: :destroy
 
   enum :event_type, { reminder: 0, appointment: 1, task: 2 }
   enum :status, { pending: 0, done: 1, cancelled: 2 }

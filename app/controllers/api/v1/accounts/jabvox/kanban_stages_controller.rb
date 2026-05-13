@@ -41,7 +41,10 @@ class Api::V1::Accounts::Jabvox::KanbanStagesController < Api::V1::Accounts::Jab
   end
 
   def stage_params
-    params.require(:stage).permit(:name_jabvox, :description_jabvox, :position_jabvox, :color_jabvox)
+    params.require(:stage).permit(
+      :name_jabvox, :description_jabvox, :position_jabvox, :color_jabvox,
+      :auto_advance_enabled, :auto_advance_hours, :auto_advance_target_stage_id
+    )
   end
 
   def reorder_stages

@@ -28,9 +28,21 @@ export const setUser = user => {
 export const getHeaderExpiry = response =>
   fromUnixTime(response.headers.expiry);
 
+const AUTH_HEADER_KEYS = [
+  'access-token',
+  'token-type',
+  'client',
+  'expiry',
+  'uid',
+];
+
 export const setAuthCredentials = response => {
   const expiryDate = getHeaderExpiry(response);
-  Cookies.set('cw_d_session_info', JSON.stringify(response.headers), {
+  const authHeaders = AUTH_HEADER_KEYS.reduce((acc, key) => {
+    if (response.headers[key] !== undefined) acc[key] = response.headers[key];
+    return acc;
+  }, {});
+  Cookies.set('cw_d_session_info', JSON.stringify(authHeaders), {
     expires: differenceInDays(expiryDate, new Date()),
   });
   setUser(response.data.data, expiryDate);
@@ -62,15 +74,8 @@ export const deleteIndexedDBOnLogout = async () => {
   dbs.forEach(dbName => {
     const deleteRequest = window.indexedDB.deleteDatabase(dbName);
 
-    deleteRequest.onerror = event => {
-      // eslint-disable-next-line no-console
-      console.error(`Error deleting database ${dbName}.`, event);
-    };
-
-    deleteRequest.onsuccess = () => {
-      // eslint-disable-next-line no-console
-      console.log(`Database ${dbName} deleted successfully.`);
-    };
+    deleteRequest.onerror = () => {};
+    deleteRequest.onsuccess = () => {};
   });
 
   localStorage.removeItem('cw-idb-names');

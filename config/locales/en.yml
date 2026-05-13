@@ -55,6 +55,7 @@ en:
         invalid: is not a valid email address
     validations:
       presence: must not be blank
+      same_funnel: must belong to the same funnel
     webhook:
       invalid: Invalid events
     signup:
@@ -496,6 +497,20 @@ en:
       subject: 'Finish setting up %{custom_domain}'
     ssl_status:
       custom_domain_not_configured: 'Custom domain is not configured'
+  jabvox:
+    calendar:
+      reminder_subject: "Reminder"
+      reminder_greeting: "Hello %{name}"
+      reminder_time: "Time"
+      reminder_n_minutes:
+        one: "This event starts in %{count} minute."
+        other: "This event starts in %{count} minutes."
+      reminder_n_hours:
+        one: "This event starts in %{count} hour."
+        other: "This event starts in %{count} hours."
+      reminder_n_days:
+        one: "This event is tomorrow."
+        other: "This event starts in %{count} days."
   super_admin:
     push_diagnostics:
       user_not_found: 'User not found.'

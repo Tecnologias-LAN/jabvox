@@ -24,5 +24,8 @@
 class JabvoxAiChatConfig < ApplicationRecord
   belongs_to :account
 
+  encrypts :bucket_access_key_jabvox if Chatwoot.encryption_configured?
+  encrypts :bucket_secret_key_jabvox if Chatwoot.encryption_configured?
+
   validates :bucket_region_jabvox, length: { maximum: 50 }, allow_blank: true
 end

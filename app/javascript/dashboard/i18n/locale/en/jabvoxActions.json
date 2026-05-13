@@ -1,0 +1,27 @@
+{
+  "JABVOX_ACTIONS": {
+    "EMAIL_BUTTON": {
+      "TITLE": "Send email",
+      "LABEL": "Email",
+      "LOADING": "Loading templates...",
+      "NO_TEMPLATES": "No active email templates configured.",
+      "SELECT_TEMPLATE": "Select a template",
+      "SEND": "Send email",
+      "SENDING": "Sending...",
+      "SUCCESS": "Email sent successfully",
+      "ERROR": "Failed to send email"
+    },
+    "SMS_BUTTON": {
+      "TITLE": "Send SMS",
+      "LABEL": "SMS",
+      "LOADING": "Loading providers...",
+      "NO_PROVIDERS": "No active SMS providers configured.",
+      "SELECT_PROVIDER": "Select a provider",
+      "MESSAGE_PLACEHOLDER": "Write your message...",
+      "SEND": "Send SMS",
+      "SENDING": "Sending...",
+      "SUCCESS": "SMS sent successfully",
+      "ERROR": "Failed to send SMS"
+    }
+  }
+}

@@ -14,6 +14,51 @@
     "PER_PAGE": "Per column:",
     "SHOW_MORE": "Show {count} more",
     "SHOW_LESS": "Show less",
+    "AUTOMATIONS": {
+      "CONFIGURE": "Configure automations"
+    },
+    "AUTOMATIONS_PANEL": {
+      "TITLE": "Automations",
+      "STAGE_LABEL": "On entry to:",
+      "CLOSE": "Close",
+      "NEW": "+ New automation",
+      "LOADING": "Loading...",
+      "EMPTY": "No automations configured for this stage.",
+      "INACTIVE": "inactive",
+      "EDIT": "Edit",
+      "DELETE": "Delete",
+      "BACK": "Back",
+      "SAVE": "Save",
+      "SAVING": "Saving...",
+      "CANCEL": "Cancel",
+      "FORM": {
+        "NAME_LABEL": "Name",
+        "NAME_PLACEHOLDER": "Eg: Welcome via WhatsApp",
+        "AUTOMATION_TYPE_LABEL": "Automation type",
+        "TYPE_SEND_MESSAGE": "Send message on stage entry",
+        "TYPE_MOVE_AFTER_HOURS": "Move to column after X hours",
+        "TYPE_MOVE_IF_INACTIVE": "Move if no notes for X hours",
+        "TRIGGER_HOURS_LABEL": "Hours",
+        "TARGET_STAGE_LABEL": "Move to column",
+        "TARGET_STAGE_PLACEHOLDER": "Select target column...",
+        "CHANNEL_LABEL": "Send via",
+        "CHANNEL_PLACEHOLDER": "Select inbox, email template or SMS provider...",
+        "CHANNEL_GROUP_INBOXES": "Inboxes",
+        "CHANNEL_GROUP_EMAIL": "Email Templates",
+        "CHANNEL_GROUP_SMS": "SMS",
+        "CHANNEL_EMPTY": "None configured",
+        "INBOX_LABEL": "Inbox",
+        "MESSAGE_LABEL": "Message",
+        "MESSAGE_PLACEHOLDER": "Hello {{contact_name}}, your lead moved to: {{stage_name}}",
+        "VARIABLES_HINT": "Variables:",
+        "VARIABLES_LIST": "{{contact_name}}, {{stage_name}}",
+        "EMAIL_TEMPLATE_LABEL": "Email template",
+        "EMAIL_TEMPLATE_FORMAT": " — ",
+        "SMS_PROVIDER_LABEL": "SMS Provider",
+        "ACTIVE_LABEL": "Active"
+      }
+    },
+    "DISPLAY_INACTIVE": "→ {target} (no notes {hours}h)",
     "MOVE_ERROR": "Failed to move conversation. Please try again.",
     "LOAD_MESSAGES_ERROR": "Failed to load messages.",
     "SEND_MESSAGE_ERROR": "Failed to send message. Please try again.",
@@ -85,6 +130,8 @@
         "DELETE_CONFIRM": "Delete stage \"{name}\"? Conversations in this stage will be moved to the first stage.",
         "DELETE_SUCCESS": "Stage deleted.",
         "DELETE_ERROR": "Failed to delete stage.",
+        "AUTOMATIONS_BUTTON": "Automations",
+        "AUTO_ADVANCE_INDICATOR": "→ {hours}h",
         "FORM": {
           "NEW_TITLE": "New Stage",
           "EDIT_TITLE": "Edit Stage",
@@ -92,11 +139,19 @@
           "NAME_REQUIRED": "Stage name is required.",
           "COLOR_LABEL": "Color",
           "DESCRIPTION_LABEL": "Description",
+          "NAME_LABEL_REQUIRED": "Stage Name *",
           "CREATE_BUTTON": "Add Stage",
           "UPDATE_BUTTON": "Save",
           "CREATE_SUCCESS": "Stage created.",
           "UPDATE_SUCCESS": "Stage updated.",
-          "ERROR": "An error occurred."
+          "ERROR": "An error occurred.",
+          "AUTO_ADVANCE": {
+            "TITLE": "Auto-advance",
+            "ENABLED_LABEL": "Automatically move leads after a delay",
+            "HOURS_LABEL": "Hours in stage before moving",
+            "TARGET_LABEL": "Move to stage",
+            "TARGET_PLACEHOLDER": "Select target stage..."
+          }
         }
       }
     }

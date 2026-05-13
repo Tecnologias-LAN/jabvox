@@ -1058,6 +1058,21 @@ const menuItems = computed(() => {
               },
             ]
           : []),
+        ...(isAdmin.value &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_EMAIL
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Email',
+                label: t('JABVOX_EMAIL.SIDEBAR_LABEL'),
+                icon: 'i-lucide-mail',
+                to: accountScopedRoute('jabvox_email_settings'),
+                activeOn: ['jabvox_email_settings'],
+              },
+            ]
+          : []),
       ],
     },
   ];

@@ -8,6 +8,7 @@ import { useAlert } from 'dashboard/composables';
 import SettingsLayout from '../SettingsLayout.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import KanbanStageAutomationPanel from '../../jabvox-kanban/KanbanStageAutomationPanel.vue';
 
 const store = useStore();
 const route = useRoute();
@@ -29,11 +30,15 @@ const stages = computed(
 const showForm = ref(false);
 const editingStage = ref(null);
 const deletingId = ref(null);
+const automationStage = ref(null);
 
 const defaultForm = () => ({
   name_jabvox: '',
   description_jabvox: '',
   color_jabvox: '#6B7280',
+  auto_advance_enabled: false,
+  auto_advance_hours: null,
+  auto_advance_target_stage_id: null,
 });
 const form = ref(defaultForm());
 
@@ -51,6 +56,9 @@ const openEdit = stage => {
     name_jabvox: stage.name_jabvox,
     description_jabvox: stage.description_jabvox || '',
     color_jabvox: stage.color_jabvox,
+    auto_advance_enabled: stage.auto_advance_enabled ?? false,
+    auto_advance_hours: stage.auto_advance_hours ?? null,
+    auto_advance_target_stage_id: stage.auto_advance_target_stage_id ?? null,
   };
   showForm.value = true;
 };
@@ -65,10 +73,20 @@ const isSubmitting = computed(
   () => uiFlags.value.isCreatingStage || uiFlags.value.isUpdatingStage
 );
 
+const otherStages = computed(() =>
+  stages.value.filter(s => s.id !== editingStage.value?.id)
+);
+
 const onSubmit = async () => {
   if (!form.value.name_jabvox.trim()) {
     useAlert(t('JABVOX_KANBAN.SETTINGS.STAGES.FORM.NAME_REQUIRED'));
     return;
+  }
+
+  const payload = { ...form.value };
+  if (!payload.auto_advance_enabled) {
+    payload.auto_advance_hours = null;
+    payload.auto_advance_target_stage_id = null;
   }
 
   try {
@@ -76,13 +94,13 @@ const onSubmit = async () => {
       await store.dispatch('jabvoxKanban/updateStage', {
         funnelId: funnelId.value,
         stageId: editingStage.value.id,
-        ...form.value,
+        ...payload,
       });
       useAlert(t('JABVOX_KANBAN.SETTINGS.STAGES.FORM.UPDATE_SUCCESS'));
     } else {
       await store.dispatch('jabvoxKanban/createStage', {
         funnelId: funnelId.value,
-        ...form.value,
+        ...payload,
       });
       useAlert(t('JABVOX_KANBAN.SETTINGS.STAGES.FORM.CREATE_SUCCESS'));
     }
@@ -166,7 +184,7 @@ const backToFunnels = () =>
             <label
               class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
             >
-              {{ $t('JABVOX_KANBAN.SETTINGS.STAGES.FORM.NAME_LABEL') }} *
+              {{ $t('JABVOX_KANBAN.SETTINGS.STAGES.FORM.NAME_LABEL_REQUIRED') }}
             </label>
             <input
               v-model="form.name_jabvox"
@@ -204,6 +222,80 @@ const backToFunnels = () =>
               type="text"
               class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500 text-slate-700 dark:text-slate-200"
             />
+          </div>
+
+          <!-- Auto-advance section (edit only) -->
+          <div
+            v-if="editingStage && otherStages.length > 0"
+            class="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3"
+          >
+            <p
+              class="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide"
+            >
+              {{ $t('JABVOX_KANBAN.SETTINGS.STAGES.FORM.AUTO_ADVANCE.TITLE') }}
+            </p>
+
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input
+                v-model="form.auto_advance_enabled"
+                type="checkbox"
+                class="rounded"
+              />
+              <span class="text-sm text-slate-700 dark:text-slate-300">
+                {{
+                  $t(
+                    'JABVOX_KANBAN.SETTINGS.STAGES.FORM.AUTO_ADVANCE.ENABLED_LABEL'
+                  )
+                }}
+              </span>
+            </label>
+
+            <template v-if="form.auto_advance_enabled">
+              <div>
+                <label
+                  class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
+                >
+                  {{
+                    $t(
+                      'JABVOX_KANBAN.SETTINGS.STAGES.FORM.AUTO_ADVANCE.HOURS_LABEL'
+                    )
+                  }}
+                </label>
+                <input
+                  v-model.number="form.auto_advance_hours"
+                  type="number"
+                  min="1"
+                  class="w-32 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500 text-slate-700 dark:text-slate-200"
+                />
+              </div>
+
+              <div>
+                <label
+                  class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
+                >
+                  {{
+                    $t(
+                      'JABVOX_KANBAN.SETTINGS.STAGES.FORM.AUTO_ADVANCE.TARGET_LABEL'
+                    )
+                  }}
+                </label>
+                <select
+                  v-model.number="form.auto_advance_target_stage_id"
+                  class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500 text-slate-700 dark:text-slate-200"
+                >
+                  <option value="" disabled>
+                    {{
+                      $t(
+                        'JABVOX_KANBAN.SETTINGS.STAGES.FORM.AUTO_ADVANCE.TARGET_PLACEHOLDER'
+                      )
+                    }}
+                  </option>
+                  <option v-for="s in otherStages" :key="s.id" :value="s.id">
+                    {{ s.name_jabvox }}
+                  </option>
+                </select>
+              </div>
+            </template>
           </div>
 
           <div class="flex flex-wrap gap-2">
@@ -249,9 +341,26 @@ const backToFunnels = () =>
                 >
                   {{ stage.description_jabvox }}
                 </p>
+                <p
+                  v-if="stage.auto_advance_enabled && stage.auto_advance_hours"
+                  class="text-xs text-woot-500 mt-0.5"
+                >
+                  {{
+                    $t('JABVOX_KANBAN.SETTINGS.STAGES.AUTO_ADVANCE_INDICATOR', {
+                      hours: stage.auto_advance_hours,
+                    })
+                  }}
+                </p>
               </div>
             </div>
             <div class="flex items-center gap-1">
+              <Button
+                size="small"
+                variant="ghost"
+                icon="i-lucide-zap"
+                :label="$t('JABVOX_KANBAN.SETTINGS.STAGES.AUTOMATIONS_BUTTON')"
+                @click="automationStage = stage"
+              />
               <Button
                 size="small"
                 variant="ghost"
@@ -279,4 +388,11 @@ const backToFunnels = () =>
       </div>
     </div>
   </SettingsLayout>
+
+  <KanbanStageAutomationPanel
+    v-if="automationStage"
+    :stage="automationStage"
+    :funnel-id="funnelId"
+    @close="automationStage = null"
+  />
 </template>

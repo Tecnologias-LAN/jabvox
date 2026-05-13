@@ -144,8 +144,6 @@ export default {
           if (response.status === 'connected') {
             this.fetchPages(response.authResponse.accessToken);
           } else if (response.status === 'not_authorized') {
-            // eslint-disable-next-line no-console
-            console.error('FACEBOOK AUTH ERROR', response);
             this.hasError = true;
             // The person is logged into Facebook, but not your app.
             this.errorStateMessage = this.$t(
@@ -155,8 +153,6 @@ export default {
               'INBOX_MGMT.DETAILS.ERROR_FB_UNAUTHORIZED_HELP'
             );
           } else {
-            // eslint-disable-next-line no-console
-            console.error('FACEBOOK AUTH ERROR', response);
             this.hasError = true;
             // The person is not logged into Facebook, so we're not sure if
             // they are logged into this app or not.

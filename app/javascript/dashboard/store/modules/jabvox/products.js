@@ -236,8 +236,7 @@ export const actions = {
       const canView = data && data.can_view === true;
       commit('SET_MY_REPORT_ACCESS', canView);
       return canView;
-    } catch (error) {
-      console.error('Error fetching report access:', error);
+    } catch {
       commit('SET_MY_REPORT_ACCESS', false);
       return false;
     }

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_12_000007) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -92,6 +92,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
     t.boolean "jabvox_internal_chat_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_response_bot_enabled_jabvox", default: false, null: false
     t.string "jabvox_acento_jabvox"
+    t.boolean "jabvox_email_enabled_jabvox", default: false, null: false
     t.index ["status"], name: "index_accounts_on_status"
   end
 
@@ -1086,6 +1087,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
     t.index ["account_id"], name: "index_jabvox_app_states_on_account_id"
   end
 
+  create_table "jabvox_calendar_event_reminders", force: :cascade do |t|
+    t.bigint "jabvox_calendar_event_id", null: false
+    t.integer "minutes_before", null: false
+    t.datetime "sent_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["jabvox_calendar_event_id", "minutes_before"], name: "index_calendar_reminders_event_minutes", unique: true
+    t.index ["jabvox_calendar_event_id"], name: "idx_on_jabvox_calendar_event_id_8c61b31913"
+  end
+
   create_table "jabvox_calendar_events", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "user_id", null: false
@@ -1099,9 +1110,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
     t.string "color", default: "#3B82F6"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "contact_id"
+    t.boolean "remind_before_day", default: false, null: false
+    t.boolean "remind_before_hour", default: false, null: false
     t.index ["account_id", "start_at"], name: "index_jabvox_calendar_events_on_account_id_and_start_at"
     t.index ["account_id", "user_id"], name: "index_jabvox_calendar_events_on_account_id_and_user_id"
     t.index ["account_id"], name: "index_jabvox_calendar_events_on_account_id"
+    t.index ["contact_id"], name: "index_jabvox_calendar_events_on_contact_id"
     t.index ["user_id"], name: "index_jabvox_calendar_events_on_user_id"
   end
 
@@ -1235,6 +1250,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
     t.datetime "updated_at", null: false
     t.index ["account_id", "name_jabvox"], name: "index_jabvox_discounts_account_name", unique: true
     t.index ["account_id"], name: "index_jabvox_discounts_on_account_id"
+  end
+
+  create_table "jabvox_email_templates", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.string "subject"
+    t.text "body"
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "name"], name: "index_jabvox_email_templates_on_account_id_and_name", unique: true
+    t.index ["account_id"], name: "index_jabvox_email_templates_on_account_id"
   end
 
   create_table "jabvox_field_visibilities", force: :cascade do |t|
@@ -1375,6 +1402,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
     t.index ["account_id"], name: "index_jabvox_kanban_funnels_on_account_id"
   end
 
+  create_table "jabvox_kanban_stage_automations", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "jabvox_kanban_stage_id", null: false
+    t.string "name", null: false
+    t.string "channel_type"
+    t.bigint "inbox_id"
+    t.bigint "jabvox_email_template_id"
+    t.bigint "jabvox_sms_provider_id"
+    t.text "message_body"
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "automation_type", default: "send_message", null: false
+    t.integer "trigger_hours"
+    t.bigint "target_stage_id"
+    t.index ["account_id"], name: "index_jabvox_kanban_stage_automations_on_account_id"
+    t.index ["inbox_id"], name: "index_jabvox_kanban_stage_automations_on_inbox_id"
+    t.index ["jabvox_kanban_stage_id"], name: "index_jabvox_kanban_stage_automations_on_jabvox_kanban_stage_id"
+    t.index ["target_stage_id"], name: "index_jabvox_stage_automations_on_target_stage"
+  end
+
   create_table "jabvox_kanban_stages", force: :cascade do |t|
     t.bigint "jabvox_kanban_funnel_id", null: false
     t.bigint "account_id", null: false
@@ -1384,7 +1432,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
     t.string "color_jabvox", default: "#6B7280", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "auto_advance_enabled", default: false, null: false
+    t.integer "auto_advance_hours"
+    t.bigint "auto_advance_target_stage_id"
     t.index ["account_id"], name: "index_jabvox_kanban_stages_on_account_id"
+    t.index ["auto_advance_target_stage_id"], name: "index_jabvox_kanban_stages_on_auto_advance_target"
     t.index ["jabvox_kanban_funnel_id", "position_jabvox"], name: "index_jabvox_stages_funnel_position"
     t.index ["jabvox_kanban_funnel_id"], name: "index_jabvox_kanban_stages_on_jabvox_kanban_funnel_id"
   end
@@ -1620,6 +1672,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_jabvox_sms_providers_on_account_id"
+  end
+
+  create_table "jabvox_smtp_configs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "from_name"
+    t.string "from_email"
+    t.string "address"
+    t.integer "port", default: 587
+    t.string "domain"
+    t.string "username"
+    t.text "password"
+    t.string "authentication", default: "login"
+    t.boolean "enable_starttls_auto", default: true
+    t.boolean "enable_ssl_tls", default: false
+    t.boolean "verified", default: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "calendar_reminders_enabled", default: false, null: false
+    t.text "calendar_reminder_minutes"
+    t.index ["account_id"], name: "index_jabvox_smtp_configs_on_account_id", unique: true
   end
 
   create_table "jabvox_tax_rates", force: :cascade do |t|
@@ -2070,7 +2142,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
   add_foreign_key "jabvox_ai_chat_user_permissions", "users"
   add_foreign_key "jabvox_app_state_logs", "accounts"
   add_foreign_key "jabvox_app_states", "accounts"
+  add_foreign_key "jabvox_calendar_event_reminders", "jabvox_calendar_events"
   add_foreign_key "jabvox_calendar_events", "accounts"
+  add_foreign_key "jabvox_calendar_events", "contacts", name: "fk_jabvox_calendar_events_contact"
   add_foreign_key "jabvox_calendar_events", "users"
   add_foreign_key "jabvox_campaigns", "accounts"
   add_foreign_key "jabvox_currencies", "accounts"
@@ -2083,6 +2157,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
   add_foreign_key "jabvox_dialer_campaigns", "jabvox_campaigns", on_delete: :nullify
   add_foreign_key "jabvox_dialer_state_logs", "accounts"
   add_foreign_key "jabvox_discounts", "accounts"
+  add_foreign_key "jabvox_email_templates", "accounts"
   add_foreign_key "jabvox_field_visibilities", "accounts"
   add_foreign_key "jabvox_field_visibilities", "users"
   add_foreign_key "jabvox_integration_configs", "accounts"
@@ -2106,8 +2181,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
   add_foreign_key "jabvox_kanban_funnel_inboxes", "inboxes"
   add_foreign_key "jabvox_kanban_funnel_inboxes", "jabvox_kanban_funnels"
   add_foreign_key "jabvox_kanban_funnels", "accounts"
+  add_foreign_key "jabvox_kanban_stage_automations", "accounts"
+  add_foreign_key "jabvox_kanban_stage_automations", "inboxes"
+  add_foreign_key "jabvox_kanban_stage_automations", "jabvox_email_templates"
+  add_foreign_key "jabvox_kanban_stage_automations", "jabvox_kanban_stages"
+  add_foreign_key "jabvox_kanban_stage_automations", "jabvox_kanban_stages", column: "target_stage_id", name: "fk_jabvox_stage_automations_target_stage"
+  add_foreign_key "jabvox_kanban_stage_automations", "jabvox_sms_providers"
   add_foreign_key "jabvox_kanban_stages", "accounts"
   add_foreign_key "jabvox_kanban_stages", "jabvox_kanban_funnels"
+  add_foreign_key "jabvox_kanban_stages", "jabvox_kanban_stages", column: "auto_advance_target_stage_id", name: "fk_jabvox_kanban_stages_auto_advance_target"
   add_foreign_key "jabvox_leads", "accounts"
   add_foreign_key "jabvox_leads", "contacts"
   add_foreign_key "jabvox_leads", "jabvox_affiliates"
@@ -2139,6 +2221,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_000011) do
   add_foreign_key "jabvox_sms_messages", "jabvox_sms_campaigns"
   add_foreign_key "jabvox_sms_messages", "jabvox_sms_providers"
   add_foreign_key "jabvox_sms_providers", "accounts"
+  add_foreign_key "jabvox_smtp_configs", "accounts"
   add_foreign_key "jabvox_tax_rates", "accounts"
   add_foreign_key "jabvox_units_of_measure", "accounts"
   add_foreign_key "jabvox_user_extensions", "accounts"

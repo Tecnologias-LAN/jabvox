@@ -44,6 +44,8 @@ class JabvoxKanbanConversationStage < ApplicationRecord
   validate :conversation_belongs_to_account
   validate :has_conversation_or_lead
 
+  after_commit :fire_stage_automations, on: [:create, :update]
+
   private
 
   def has_conversation_or_lead
@@ -62,5 +64,9 @@ class JabvoxKanbanConversationStage < ApplicationRecord
     return if conversation.nil? || conversation.account_id == account_id
 
     errors.add(:conversation, 'must belong to the same account')
+  end
+
+  def fire_stage_automations
+    JabvoxKanbanAutomationJob.perform_later(id)
   end
 end

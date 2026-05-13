@@ -3,7 +3,7 @@
 const BASE = '/api/v1/jabvox/affiliate_portal';
 
 function authHeaders() {
-  const token = localStorage.getItem('jabvox_affiliate_token');
+  const token = sessionStorage.getItem('jabvox_affiliate_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

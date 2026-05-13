@@ -1,0 +1,13 @@
+json.id @automation.id
+json.name @automation.name
+json.automation_type @automation.automation_type
+json.channel_type @automation.channel_type
+json.inbox_id @automation.inbox_id
+json.jabvox_email_template_id @automation.jabvox_email_template_id
+json.jabvox_sms_provider_id @automation.jabvox_sms_provider_id
+json.message_body @automation.message_body
+json.trigger_hours @automation.trigger_hours
+json.target_stage_id @automation.target_stage_id
+json.active @automation.active
+json.created_at @automation.created_at
+json.updated_at @automation.updated_at

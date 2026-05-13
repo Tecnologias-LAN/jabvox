@@ -19,6 +19,12 @@ class TriggerScheduledItemsJob < ApplicationJob
 
     # Job to sync whatsapp templates
     Channels::Whatsapp::TemplatesSyncSchedulerJob.perform_later
+
+    # Job to auto-advance Kanban leads
+    Jabvox::KanbanAutoAdvanceJob.perform_later
+
+    # Job to send calendar reminders
+    Jabvox::CalendarReminderJob.perform_later
   end
 end
 

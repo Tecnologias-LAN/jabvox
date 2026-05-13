@@ -162,6 +162,7 @@ const onMoveLead = async ({ leadId, stageId }) => {
         <KanbanBoard
           v-if="currentBoard"
           :board="currentBoard"
+          :funnel-id="selectedFunnelId"
           @card-click="onCardClick"
           @move-conversation="onMoveConversation"
           @move-lead="onMoveLead"
