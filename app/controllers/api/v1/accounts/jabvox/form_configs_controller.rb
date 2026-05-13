@@ -24,7 +24,6 @@ class Api::V1::Accounts::Jabvox::FormConfigsController < Api::V1::Accounts::Base
       return
     end
     Jabvox::SslProvisionJob.perform_later(@config.id)
-    @config.update_columns(ssl_status: 'provisioning', ssl_error: nil, updated_at: Time.current)
     render :show
   end
 

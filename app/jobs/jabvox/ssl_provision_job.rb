@@ -5,8 +5,6 @@ module Jabvox
 
     def perform(form_config_id)
       config = JabvoxFormConfig.find(form_config_id)
-      return if config.provisioning_locked?
-
       config.update_columns(ssl_status: 'provisioning', ssl_error: nil, updated_at: Time.current)
       Jabvox::SslProvisionService.new(config).call
     rescue ActiveRecord::RecordNotFound
