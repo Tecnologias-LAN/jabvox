@@ -70,14 +70,14 @@ const copyUrl = form => {
   <div class="w-full h-full">
     <!-- Full-page form editor -->
     <JabvoxFormEditor
-      v-if="showEditor"
+      v-show="showEditor"
       :form="editingForm"
       @saved="onSaved"
       @close="showEditor = false"
     />
 
     <!-- List view -->
-    <div v-else class="w-full h-full overflow-auto p-6">
+    <div v-show="!showEditor" class="w-full h-full overflow-auto p-6">
       <div class="max-w-5xl mx-auto space-y-6">
         <div class="flex items-center justify-between">
           <h1 class="text-xl font-semibold text-slate-800 dark:text-slate-100">

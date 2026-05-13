@@ -88,9 +88,45 @@ const draft = reactive({
   },
 });
 
+// ── draft persistence ─────────────────────────────────────────────────────────
+const draftKey = () =>
+  props.form?.id ? `jabvox_draft_${props.form.id}` : 'jabvox_draft_new';
+
+const saveDraft = () => {
+  try {
+    localStorage.setItem(draftKey(), JSON.stringify(draft));
+  } catch (_e) {
+    // storage unavailable
+  }
+};
+
+const clearDraft = () => {
+  try {
+    localStorage.removeItem(draftKey());
+  } catch (_e) {
+    // storage unavailable
+  }
+};
+
+const loadDraft = () => {
+  try {
+    const raw = localStorage.getItem(draftKey());
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+watch(draft, saveDraft, { deep: true });
+
 watch(
   () => props.form,
   form => {
+    const saved = loadDraft();
+    if (saved) {
+      Object.assign(draft, saved);
+      return;
+    }
     if (!form) return;
     draft.name_jabvox = form.name_jabvox || '';
     draft.slug_jabvox = form.slug_jabvox || '';
@@ -230,6 +266,7 @@ const onSave = async () => {
       await store.dispatch('jabvoxForms/createForm', payload);
       useAlert(t('JABVOX_FORMS.CREATE_SUCCESS'));
     }
+    clearDraft();
     emit('saved');
   } catch (e) {
     useAlert(e?.response?.data?.error || t('JABVOX_FORMS.SAVE_ERROR'));
@@ -249,7 +286,10 @@ const onSave = async () => {
     >
       <button
         class="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors shrink-0"
-        @click="emit('close')"
+        @click="
+          clearDraft();
+          emit('close');
+        "
       >
         <span class="i-lucide-arrow-left size-4" />
         {{ $t('JABVOX_FORMS.BACK') }}
@@ -345,7 +385,7 @@ const onSave = async () => {
                     v-if="field.required"
                     class="text-red-500 text-sm font-bold shrink-0"
                   >
-                    *
+                    {{ $t('JABVOX_FORMS.REQUIRED_MARK') }}
                   </span>
 
                   <!-- Hover controls -->
@@ -791,7 +831,9 @@ const onSave = async () => {
                     class="block text-xs font-medium text-slate-600 dark:text-slate-300"
                   >
                     {{ $t('JABVOX_FORMS.ACTION_EMAIL_TEMPLATE') }}
-                    <span class="text-red-500">*</span>
+                    <span class="text-red-500">{{
+                      $t('JABVOX_FORMS.REQUIRED_MARK')
+                    }}</span>
                   </label>
                   <select
                     v-model="draft.submit_actions_jabvox.email.template_id"

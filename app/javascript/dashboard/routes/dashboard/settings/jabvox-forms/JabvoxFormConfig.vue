@@ -31,12 +31,12 @@ const domainHostname = computed(() => {
   }
 });
 
-const serverIp = window.location.hostname;
+const serverHost = window.location.hostname;
 const dnsRecordTtl = '3600';
 const serverFormPath = '/f/…';
 
-const copyServerIp = () => {
-  navigator.clipboard.writeText(serverIp);
+const copyServerHost = () => {
+  navigator.clipboard.writeText(serverHost);
 };
 
 const onSave = async () => {
@@ -139,10 +139,10 @@ const onSave = async () => {
               $t('JABVOX_FORMS.DNS_ROW_POINTS_TO')
             }}</span>
             <div class="flex items-center gap-1.5">
-              <span>{{ serverIp }}</span>
+              <span>{{ serverHost }}</span>
               <button
                 class="text-slate-400 hover:text-woot-500 transition-colors"
-                @click="copyServerIp"
+                @click="copyServerHost"
               >
                 <span class="i-lucide-copy size-3" />
               </button>
