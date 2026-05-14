@@ -129,23 +129,15 @@ class Messages::MessageBuilder
     AgentBot.where(account_id: [nil, @conversation.account.id]).find_by(id: @params[:sender_id])
   end
 
-  # [Name | phone]: content  (square bracket format)
   GROUP_MESSAGE_PATTERN = /\A\[(.+?)(?:\s*\|\s*([^\]]+))?\]: (.*)\z/m
-  # {Name}: content  (curly brace format used by Evolution API)
-  GROUP_MESSAGE_PATTERN_CURLY = /\A\{(.+?)\}: (.*)\z/m
 
   def parse_group_message(raw_content)
     return nil if raw_content.blank?
 
-    if (match = raw_content.match(GROUP_MESSAGE_PATTERN))
-      return { name: match[1].strip, phone: match[2]&.strip, content: match[3] }
-    end
+    match = raw_content.match(GROUP_MESSAGE_PATTERN)
+    return nil unless match
 
-    if (match = raw_content.match(GROUP_MESSAGE_PATTERN_CURLY))
-      return { name: match[1].strip, phone: nil, content: match[2] }
-    end
-
-    nil
+    { name: match[1].strip, phone: match[2]&.strip, content: match[3] }
   end
 
   def resolved_content
