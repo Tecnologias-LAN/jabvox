@@ -61,7 +61,12 @@ class ContactMergeAction
     # attributes in base contact are given preference
     merged_attributes = mergee_contact_attributes.deep_merge(base_contact_attributes)
 
-    @mergee_contact.reload.destroy!
+    contact = @mergee_contact.reload
+    JabvoxKanbanConversationStage.where(conversation_id: contact.conversations.select(:id)).delete_all
+    JabvoxCalendarEvent.where(contact_id: contact.id).delete_all
+    JabvoxLead.where(contact_id: contact.id).delete_all
+    JabvoxSmsMessage.where(contact_id: contact.id).delete_all
+    contact.destroy!
     Rails.configuration.dispatcher.dispatch(CONTACT_MERGED, Time.zone.now, contact: @base_contact,
                                                                            tokens: [@base_contact.contact_inboxes.filter_map(&:pubsub_token)])
     @base_contact.update!(merged_attributes)
