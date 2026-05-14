@@ -7,11 +7,13 @@ class DeleteObjectJob < ApplicationJob
   def perform(object, user = nil, ip = nil, delete_mode = nil, target_inbox_id = nil)
     if object.is_a?(Inbox)
       purge_inbox_associations(object, delete_mode, target_inbox_id)
-      object.destroy!
+    elsif object.is_a?(Conversation)
+      JabvoxKanbanConversationStage.where(conversation_id: object.id).delete_all
+      purge_heavy_associations(object)
     else
       purge_heavy_associations(object)
-      object.destroy!
     end
+    object.destroy!
     process_post_deletion_tasks(object, user, ip)
   end
 
