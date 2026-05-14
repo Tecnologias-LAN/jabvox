@@ -120,6 +120,10 @@ class DeleteObjectJob < ApplicationJob
     klass = heavy_associations.keys.find { |k| object.is_a?(k) }
     return unless klass
 
+    if object.respond_to?(:conversations)
+      JabvoxKanbanConversationStage.where(conversation_id: object.conversations.select(:id)).delete_all
+    end
+
     heavy_associations[klass].each do |assoc|
       next unless object.respond_to?(assoc)
 
