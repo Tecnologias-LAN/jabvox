@@ -105,8 +105,23 @@ class DeleteObjectJob < ApplicationJob
     contact_ids = inbox.contact_inboxes.pluck(:contact_id)
     return if contact_ids.empty?
 
-    inbox.account.jabvox_leads.where(contact_id: contact_ids).find_in_batches(batch_size: BATCH_SIZE) do |batch|
-      batch.each(&:destroy!)
+    lead_ids = inbox.account.jabvox_leads.where(contact_id: contact_ids).pluck(:id)
+    return if lead_ids.empty?
+
+    JabvoxKanbanConversationStage.where(jabvox_lead_id: lead_ids).delete_all
+    inbox.account.jabvox_leads.where(id: lead_ids).delete_all
+
+    contact_ids.each_slice(BATCH_SIZE) do |slice|
+      slice.each do |contact_id|
+        contact = inbox.account.contacts.find_by(id: contact_id)
+        next unless contact
+
+        conv_ids = contact.conversations.select(:id)
+        JabvoxKanbanConversationStage.where(conversation_id: conv_ids).delete_all
+        JabvoxCalendarEvent.where(contact_id: contact_id).delete_all
+        JabvoxSmsMessage.where(contact_id: contact_id).delete_all
+        contact.destroy!
+      end
     end
   end
 

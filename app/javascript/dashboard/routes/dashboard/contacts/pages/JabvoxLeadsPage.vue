@@ -65,7 +65,8 @@ const selectedIds = ref(new Set());
 const bulkAssigneeId = ref('');
 const isBulkAssigning = ref(false);
 const isBulkUnassigning = ref(false);
-const pendingBulkAction = ref(null); // null | 'assign' | 'unassign'
+const isBulkDeleting = ref(false);
+const pendingBulkAction = ref(null); // null | 'assign' | 'unassign' | 'delete'
 
 const selectedCount = computed(() => selectedIds.value.size);
 const hasSelection = computed(() => selectedIds.value.size > 0);
@@ -155,6 +156,11 @@ const requestBulkUnassign = () => {
   pendingBulkAction.value = 'unassign';
 };
 
+const requestBulkDelete = () => {
+  if (!hasSelection.value) return;
+  pendingBulkAction.value = 'delete';
+};
+
 const cancelPendingAction = () => {
   pendingBulkAction.value = null;
 };
@@ -211,6 +217,26 @@ const confirmBulkUnassign = async () => {
     useAlert('Error al desasignar');
   } finally {
     isBulkUnassigning.value = false;
+  }
+};
+
+const confirmBulkDelete = async () => {
+  isBulkDeleting.value = true;
+  const ids = [...selectedIds.value];
+  try {
+    await leadsAPI.bulkDestroy(ids);
+    store.commit(
+      'jabvoxLeads/SET_LEADS',
+      leads.value.filter(lead => !selectedIds.value.has(lead.id))
+    );
+    clearSelection();
+    pendingBulkAction.value = null;
+    useAlert(t('JABVOX_LEADS.BULK.DELETE_SUCCESS', { n: ids.length }));
+    fetchLeads();
+  } catch {
+    useAlert(t('JABVOX_LEADS.ERROR'));
+  } finally {
+    isBulkDeleting.value = false;
   }
 };
 
@@ -636,6 +662,12 @@ onUnmounted(() => {
             >
               {{ t('JABVOX_LEADS.BULK.UNASSIGN_BUTTON') }}
             </button>
+            <button
+              class="h-8 px-3 rounded-lg border border-red-300 dark:border-red-700 bg-white dark:bg-slate-800 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors whitespace-nowrap"
+              @click="requestBulkDelete"
+            >
+              {{ t('JABVOX_LEADS.BULK.DELETE_BUTTON') }}
+            </button>
           </template>
           <template v-else>
             <!-- Confirmation text -->
@@ -653,23 +685,34 @@ onUnmounted(() => {
                   })
                 }}
               </template>
-              <template v-else>
+              <template v-else-if="pendingBulkAction === 'unassign'">
                 {{
                   t('JABVOX_LEADS.BULK.CONFIRM_UNASSIGN', { n: selectedCount })
                 }}
               </template>
+              <template v-else>
+                {{
+                  t('JABVOX_LEADS.BULK.CONFIRM_DELETE', { n: selectedCount })
+                }}
+              </template>
             </span>
             <button
-              :disabled="isBulkAssigning || isBulkUnassigning"
-              class="h-8 px-4 rounded-lg bg-n-brand text-white text-sm font-semibold disabled:opacity-40 hover:brightness-110 transition-all flex items-center gap-1.5 whitespace-nowrap"
+              :disabled="isBulkAssigning || isBulkUnassigning || isBulkDeleting"
+              :class="
+                pendingBulkAction === 'delete'
+                  ? 'h-8 px-4 rounded-lg bg-red-600 text-white text-sm font-semibold disabled:opacity-40 hover:brightness-110 transition-all flex items-center gap-1.5 whitespace-nowrap'
+                  : 'h-8 px-4 rounded-lg bg-n-brand text-white text-sm font-semibold disabled:opacity-40 hover:brightness-110 transition-all flex items-center gap-1.5 whitespace-nowrap'
+              "
               @click="
                 pendingBulkAction === 'assign'
                   ? confirmBulkAssign()
-                  : confirmBulkUnassign()
+                  : pendingBulkAction === 'delete'
+                    ? confirmBulkDelete()
+                    : confirmBulkUnassign()
               "
             >
               <span
-                v-if="isBulkAssigning || isBulkUnassigning"
+                v-if="isBulkAssigning || isBulkUnassigning || isBulkDeleting"
                 class="i-lucide-loader-2 w-3.5 h-3.5 animate-spin"
               />
               <template v-else>

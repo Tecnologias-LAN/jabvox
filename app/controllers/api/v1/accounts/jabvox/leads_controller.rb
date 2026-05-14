@@ -82,6 +82,29 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     render json: { unassigned: count }
   end
 
+  def bulk_destroy
+    leads = Current.account.jabvox_leads.where(id: params[:lead_ids])
+    contact_ids = leads.pluck(:contact_id).compact
+    count = leads.count
+    return render json: { deleted: 0 } if count.zero?
+
+    lead_ids = leads.pluck(:id)
+    JabvoxKanbanConversationStage.where(jabvox_lead_id: lead_ids).delete_all
+
+    contact_ids.each do |contact_id|
+      contact = Current.account.contacts.find_by(id: contact_id)
+      next unless contact
+
+      conv_ids = contact.conversations.select(:id)
+      JabvoxKanbanConversationStage.where(conversation_id: conv_ids).delete_all
+      JabvoxCalendarEvent.where(contact_id: contact_id).delete_all
+      JabvoxSmsMessage.where(contact_id: contact_id).delete_all
+      contact.destroy!
+    end
+
+    render json: { deleted: count }
+  end
+
   private
 
   def check_leads_enabled

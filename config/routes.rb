@@ -424,6 +424,7 @@ Rails.application.routes.draw do
                 post :sync_contacts
                 patch :bulk_assign
                 patch :bulk_unassign
+                delete :bulk_destroy
                 get 'for_contact/:contact_id', action: :for_contact, as: :for_contact
                 patch 'for_contact/:contact_id', action: :update_contact_lead, as: :update_contact_lead
               end

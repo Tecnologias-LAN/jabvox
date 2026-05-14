@@ -14,6 +14,8 @@ export default {
     }),
   bulkUnassign: leadIds =>
     axios.patch(`${client.url}/bulk_unassign`, { lead_ids: leadIds }),
+  bulkDestroy: leadIds =>
+    axios.delete(`${client.url}/bulk_destroy`, { data: { lead_ids: leadIds } }),
   forContact: contactId => axios.get(`${client.url}/for_contact/${contactId}`),
   updateContactLead: (contactId, campaignName) =>
     axios.patch(`${client.url}/for_contact/${contactId}`, {

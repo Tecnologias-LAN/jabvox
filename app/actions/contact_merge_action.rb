@@ -62,9 +62,12 @@ class ContactMergeAction
     merged_attributes = mergee_contact_attributes.deep_merge(base_contact_attributes)
 
     contact = @mergee_contact.reload
-    JabvoxKanbanConversationStage.where(conversation_id: contact.conversations.select(:id)).delete_all
+    lead_ids = JabvoxLead.where(contact_id: contact.id).pluck(:id)
+    JabvoxKanbanConversationStage.where(conversation_id: contact.conversations.select(:id)).or(
+      JabvoxKanbanConversationStage.where(jabvox_lead_id: lead_ids)
+    ).delete_all
     JabvoxCalendarEvent.where(contact_id: contact.id).delete_all
-    JabvoxLead.where(contact_id: contact.id).delete_all
+    JabvoxLead.where(id: lead_ids).delete_all
     JabvoxSmsMessage.where(contact_id: contact.id).delete_all
     contact.destroy!
     Rails.configuration.dispatcher.dispatch(CONTACT_MERGED, Time.zone.now, contact: @base_contact,

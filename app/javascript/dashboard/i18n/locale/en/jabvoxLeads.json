@@ -65,7 +65,11 @@
       "CONFIRM_ASSIGN": "¿Asignar {n} leads a {name}?",
       "CONFIRM_UNASSIGN": "¿Desasignar {n} leads seleccionados?",
       "CONFIRM": "Confirmar",
-      "CANCEL": "Cancelar"
+      "CANCEL": "Cancelar",
+      "DELETE_BUTTON": "Eliminar",
+      "CONFIRM_DELETE": "¿Eliminar {n} leads y sus contactos permanentemente? Esta acción no se puede deshacer.",
+      "DELETING": "Eliminando...",
+      "DELETE_SUCCESS": "{n} leads y contactos eliminados."
     },
     "PAGINATION": {
       "TOTAL": "{count} leads en total",
