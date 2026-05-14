@@ -23,6 +23,7 @@
 #  retry_interval_jabvox       :integer          default(60), not null
 #  status_jabvox               :string           default("draft"), not null
 #  total_contacts_jabvox       :integer          default(0), not null
+#  wait_in_queue_jabvox        :boolean          default(TRUE), not null
 #  wrapup_time_jabvox          :integer          default(30)
 #  created_at                  :datetime         not null
 #  updated_at                  :datetime         not null

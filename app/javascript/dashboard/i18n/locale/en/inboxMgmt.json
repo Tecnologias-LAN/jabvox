@@ -619,6 +619,17 @@
         "YES": "Yes, Delete ",
         "NO": "No, Keep "
       },
+      "MODE": {
+        "TITLE": "What would you like to delete?",
+        "INBOX_ONLY": "Delete inbox only (move conversations)",
+        "INBOX_ONLY_DESC": "The inbox will be removed and all conversations will be moved to another inbox you choose. No history will be lost.",
+        "INBOX_ONLY_TARGET_LABEL": "Move conversations to",
+        "INBOX_ONLY_TARGET_AUTO": "Create archive inbox automatically",
+        "INBOX_CONVERSATIONS": "Delete inbox and conversations",
+        "INBOX_CONVERSATIONS_DESC": "The inbox and all its conversations will be permanently deleted.",
+        "INBOX_LEADS_CONVERSATIONS": "Delete inbox, conversations and leads",
+        "INBOX_LEADS_CONVERSATIONS_DESC": "The inbox, all its conversations, and the leads associated with its contacts will be permanently deleted."
+      },
       "API": {
         "SUCCESS_MESSAGE": "Inbox deleted successfully",
         "ERROR_MESSAGE": "Could not delete inbox. Please try again later.",

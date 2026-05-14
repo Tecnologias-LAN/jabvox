@@ -52,6 +52,12 @@ class Inboxes extends CacheEnabledApiClient {
   resetSecret(inboxId) {
     return axios.post(`${this.url}/${inboxId}/reset_secret`);
   }
+
+  delete(inboxId, deleteMode, targetInboxId) {
+    const params = { delete_mode: deleteMode };
+    if (targetInboxId) params.target_inbox_id = targetInboxId;
+    return axios.delete(`${this.url}/${inboxId}`, { params });
+  }
 }
 
 export default new Inboxes();

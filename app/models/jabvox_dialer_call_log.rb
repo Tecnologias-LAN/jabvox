@@ -6,6 +6,7 @@
 #  agent_id_jabvox                   :bigint
 #  duration_jabvox                   :integer          default(0)
 #  ended_at_jabvox                   :datetime
+#  lead_answered_jabvox              :boolean          default(FALSE), not null
 #  notes_jabvox                      :text
 #  phone_jabvox                      :string           default(""), not null
 #  started_at_jabvox                 :datetime

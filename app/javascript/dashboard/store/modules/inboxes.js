@@ -318,11 +318,14 @@ export const actions = {
       throwErrorMessage(error);
     }
   },
-  delete: async ({ commit }, inboxId) => {
+  delete: async (
+    { commit },
+    { id, deleteMode = 'inbox_conversations', targetInboxId = null }
+  ) => {
     commit(types.default.SET_INBOXES_UI_FLAG, { isDeleting: true });
     try {
-      await InboxesAPI.delete(inboxId);
-      commit(types.default.DELETE_INBOXES, inboxId);
+      await InboxesAPI.delete(id, deleteMode, targetInboxId);
+      commit(types.default.DELETE_INBOXES, id);
       commit(types.default.SET_INBOXES_UI_FLAG, { isDeleting: false });
     } catch (error) {
       commit(types.default.SET_INBOXES_UI_FLAG, { isDeleting: false });

@@ -1164,6 +1164,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_13_200000) do
     t.text "notes_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "lead_answered_jabvox", default: false, null: false
     t.index ["account_id"], name: "index_jabvox_dialer_call_logs_on_account_id"
     t.index ["jabvox_dialer_campaign_contact_id"], name: "idx_dialer_logs_on_contact_id"
     t.index ["jabvox_dialer_campaign_id"], name: "idx_dialer_logs_on_campaign_id"
@@ -1213,6 +1214,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_13_200000) do
     t.jsonb "affiliate_ids_jabvox", default: []
     t.jsonb "inbox_ids_jabvox", default: []
     t.integer "leads_count_jabvox", default: 0, null: false
+    t.boolean "wait_in_queue_jabvox", default: true, null: false
     t.index ["account_id"], name: "index_jabvox_dialer_campaigns_on_account_id"
     t.index ["jabvox_campaign_id"], name: "index_jabvox_dialer_campaigns_on_jabvox_campaign_id"
   end

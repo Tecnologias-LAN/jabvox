@@ -475,6 +475,7 @@ Rails.application.routes.draw do
                 patch :retry_contacts
                 get :contacts
                 get :call_logs
+                get :report
                 post :import_contacts
                 post :originate
               end

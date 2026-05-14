@@ -1,6 +1,6 @@
 class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::Jabvox::BaseController # rubocop:disable Metrics/ClassLength
   before_action :check_authorization
-  before_action :set_campaign, only: [:show, :update, :destroy, :start, :pause, :stop, :contacts, :call_logs, :retry_contacts]
+  before_action :set_campaign, only: [:show, :update, :destroy, :start, :pause, :stop, :contacts, :call_logs, :retry_contacts, :report]
 
   def lead_count # rubocop:disable Metrics/AbcSize
     filters = {
@@ -81,6 +81,45 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     render json: @logs.map { |l| call_log_json(l) }
   end
 
+  def report # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
+    tz         = 'America/Bogota'
+    from_date  = parse_report_date(params[:from], 7.days.ago.beginning_of_day).beginning_of_day
+    to_date    = parse_report_date(params[:to], Time.current.end_of_day).end_of_day + 1.second
+    group_by   = params[:group_by] == 'hour' ? 'hour' : 'day'
+    period_sql = "DATE_TRUNC('#{group_by}', started_at_jabvox AT TIME ZONE '#{tz}')"
+
+    base = @campaign.jabvox_dialer_call_logs
+                    .where.not(started_at_jabvox: nil)
+                    .where(started_at_jabvox: from_date...to_date)
+
+    if params[:from_hour].present? && params[:to_hour].present?
+      from_h = params[:from_hour].to_i.clamp(0, 23)
+      to_h   = params[:to_hour].to_i.clamp(0, 23)
+      base   = base.where(
+        "EXTRACT(HOUR FROM started_at_jabvox AT TIME ZONE ?) >= ? AND " \
+        "EXTRACT(HOUR FROM started_at_jabvox AT TIME ZONE ?) <= ?",
+        tz, from_h, tz, to_h
+      )
+    end
+
+    select_cols = [
+      Arel.sql(period_sql),
+      Arel.sql('COUNT(*)'),
+      Arel.sql("COUNT(*) FILTER (WHERE status_jabvox = 'answered')"),
+      Arel.sql("COUNT(*) FILTER (WHERE status_jabvox != 'answered' AND NOT COALESCE(lead_answered_jabvox, false))"),
+      Arel.sql("COUNT(*) FILTER (WHERE status_jabvox != 'answered' AND COALESCE(lead_answered_jabvox, false))"),
+      Arel.sql('COUNT(DISTINCT agent_id_jabvox) FILTER (WHERE agent_id_jabvox IS NOT NULL)')
+    ]
+
+    rows    = base.group(Arel.sql(period_sql)).order(Arel.sql(period_sql)).pluck(*select_cols)
+    tot_row = base.pluck(*select_cols.drop(1)).first || Array.new(5, 0)
+
+    render json: {
+      rows: rows.map { |r| { period: r[0], total: r[1], answered: r[2], no_answer: r[3], no_agent: r[4], agents: r[5] } },
+      totals: { total: tot_row[0], answered: tot_row[1], no_answer: tot_row[2], no_agent: tot_row[3], agents: tot_row[4] }
+    }
+  end
+
   def import_contacts # rubocop:disable Metrics/AbcSize
     @campaign = Current.account.jabvox_dialer_campaigns.find(params[:id])
     authorize @campaign
@@ -128,9 +167,18 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     config = Current.account.jabvox_voip_config
     return unless config&.host.present?
 
-    Jabvox::DialerService.new(config).ensure_queue_exists("dialer_camp_#{campaign.id}")
+    Jabvox::DialerService.new(config).ensure_queue_exists(
+      "dialer_camp_#{campaign.id}",
+      wait_in_queue: campaign.wait_in_queue_jabvox
+    )
   rescue StandardError => e
     Rails.logger.warn "⚠️ [Dialer] provision_asterisk_queue failed | campaign=#{campaign.id} error=#{e.message}"
+  end
+
+  def parse_report_date(value, fallback)
+    value.present? ? Time.zone.parse(value) : fallback
+  rescue StandardError
+    fallback
   end
 
   def set_campaign
@@ -218,6 +266,7 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
       :retry_count_jabvox, :retry_interval_jabvox,
       :calling_hours_start_jabvox, :calling_hours_end_jabvox,
       :jabvox_campaign_id, :wrapup_time_jabvox, :lines_per_agent_jabvox, :leads_count_jabvox,
+      :wait_in_queue_jabvox,
       countries_jabvox: [], management_state_ids_jabvox: [], agent_ids_jabvox: [],
       affiliate_ids_jabvox: [], inbox_ids_jabvox: []
     )

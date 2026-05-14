@@ -10,6 +10,7 @@ class JabvoxDialerCampaignPolicy < ApplicationPolicy
   def stop?         = @account_user.administrator?
   def contacts?     = @account_user.administrator? || @account_user.agent?
   def call_logs?    = @account_user.administrator? || @account_user.agent?
+  def report?       = @account_user.administrator? || @account_user.agent?
   def import_contacts? = @account_user.administrator?
   def originate?    = @account_user.administrator? || @account_user.agent?
 

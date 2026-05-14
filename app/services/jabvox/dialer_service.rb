@@ -33,13 +33,16 @@ class Jabvox::DialerService
     { success: false, message: e.message }
   end
 
-  # Creates or replaces the queue in queues.conf and reloads app_queue.so.
+  # Creates or replaces the queue in queues_custom.conf and reloads app_queue.so.
   # Uses DelCat+NewCat so it is idempotent — safe to call on every campaign save.
-  def ensure_queue_exists(queue_name)
+  # wait_in_queue: true  → joinempty=yes / leavewhenempty=no  (leads wait in queue)
+  # wait_in_queue: false → joinempty=no  / leavewhenempty=yes (leads hang up if no agent)
+  def ensure_queue_exists(queue_name, wait_in_queue: true)
     Timeout.timeout(AMI_TIMEOUT) do
       with_ami_connection do |socket|
-        resp = write_queue_config(socket, queue_name)
-        Rails.logger.info "📡 [Dialer] Queue ensured | queue=#{queue_name} response=#{resp['response']} message=#{resp['message']}"
+        resp = write_queue_config(socket, queue_name, wait_in_queue: wait_in_queue)
+        Rails.logger.info "📡 [Dialer] Queue ensured | queue=#{queue_name} wait_in_queue=#{wait_in_queue} " \
+                          "response=#{resp['response']} message=#{resp['message']}"
       end
     end
   rescue StandardError => e
@@ -162,7 +165,20 @@ class Jabvox::DialerService
   # Writes queue config using UpdateConfig (no Command/queue show needed).
   # DelCat removes existing section (no-op if absent), NewCat creates fresh.
   # reload: app_queue.so applies the change immediately.
-  def write_queue_config(socket, queue_name) # rubocop:disable Metrics/MethodLength
+  # Dialplan for this queue expects:
+  #   [dialer-answered]
+  #   exten => s,1,Answer()
+  #    same => n,Set(CDR(dst)=${DIALER_PHONE})
+  #    same => n,Set(CDR(src)=${CALLERID(num)})
+  #    same => n,Queue(${DIALER_QUEUE},tb(dialer-autoanswer^s^1),,,90)
+  #    same => n,Hangup()
+  #   [dialer-autoanswer]
+  #   exten => s,1,Set(SIPADDHEADER=Alert-Info: info=auto-answer)
+  #    same => n,Return()
+  def write_queue_config(socket, queue_name, wait_in_queue: true) # rubocop:disable Metrics/MethodLength
+    joinempty      = wait_in_queue ? 'yes' : 'no'
+    leavewhenempty = wait_in_queue ? 'no'  : 'yes'
+
     # Step 1: try to delete existing category — ignore error if it doesn't exist yet
     socket.write("Action: UpdateConfig\r\n" \
                  "srcfilename: queues_custom.conf\r\n" \
@@ -195,7 +211,11 @@ class Jabvox::DialerService
                  "Action-000004: Append\r\n" \
                  "Cat-000004: #{queue_name}\r\n" \
                  "Var-000004: joinempty\r\n" \
-                 "Value-000004: yes\r\n" \
+                 "Value-000004: #{joinempty}\r\n" \
+                 "Action-000005: Append\r\n" \
+                 "Cat-000005: #{queue_name}\r\n" \
+                 "Var-000005: leavewhenempty\r\n" \
+                 "Value-000005: #{leavewhenempty}\r\n" \
                  "\r\n")
     read_response(socket)
   end
@@ -214,6 +234,7 @@ class Jabvox::DialerService
       timeout: 30_000,
       async: 'true',
       variable: "DIALER_QUEUE=#{queue}," \
+                "DIALER_PHONE=#{phone}," \
                 "__JABVOX_CONTACT_ID=#{contact.id}," \
                 "__JABVOX_ACCOUNT_ID=#{campaign.account_id}," \
                 "__JABVOX_AGENT_USER_ID=#{user_id}," \

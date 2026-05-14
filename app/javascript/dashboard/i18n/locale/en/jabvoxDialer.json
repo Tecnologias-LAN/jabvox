@@ -106,7 +106,9 @@
       "INBOXES_PLACEHOLDER": "Selecciona bandejas...",
       "INBOXES_SEARCH": "Buscar bandeja",
       "LEAD_COUNT_LABEL": "Leads que coinciden con estos filtros",
-      "LEAD_COUNT_UNIT": "leads"
+      "LEAD_COUNT_UNIT": "leads",
+      "WAIT_IN_QUEUE": "Esperar en cola si no hay agente disponible",
+      "WAIT_IN_QUEUE_HINT": "Activo: el lead espera en cola hasta que un agente se libere. Inactivo: la llamada cuelga si no hay agentes disponibles."
     },
 
     "CONTACTS": {
@@ -204,6 +206,24 @@
         "EMAIL": "Email",
         "ACCESS": "Acceso"
       }
+    },
+
+    "REPORT": {
+      "BUTTON": "Reporte",
+      "TITLE": "Reporte de llamadas",
+      "FROM": "Desde",
+      "TO": "Hasta",
+      "FROM_HOUR": "Desde hora",
+      "TO_HOUR": "Hasta hora",
+      "SEARCH": "Buscar",
+      "BACK_TO_DAILY": "← Ver por días",
+      "EMPTY": "No hay llamadas en el período seleccionado.",
+      "TOTAL": "Total",
+      "ANSWERED": "Contestadas",
+      "NO_ANSWER": "No contestó",
+      "NO_AGENT": "Sin agente",
+      "AGENTS": "Agentes",
+      "COL_PERIOD": "Período"
     },
 
     "ACCESS_DENIED": {

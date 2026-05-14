@@ -72,6 +72,7 @@ const emptyForm = () => ({
   countries_jabvox: [],
   wrapup_time_jabvox: 30,
   lines_per_agent_jabvox: 1,
+  wait_in_queue_jabvox: true,
   management_state_ids_jabvox: [],
   agent_ids_jabvox: [],
   affiliate_ids_jabvox: [],
@@ -98,6 +99,7 @@ const openEditCampaign = c => {
     countries_jabvox: [...(c.countries_jabvox || [])],
     wrapup_time_jabvox: c.wrapup_time_jabvox ?? 30,
     lines_per_agent_jabvox: c.lines_per_agent_jabvox ?? 1,
+    wait_in_queue_jabvox: c.wait_in_queue_jabvox ?? true,
     management_state_ids_jabvox: [...(c.management_state_ids_jabvox || [])],
     agent_ids_jabvox: [...(c.agent_ids_jabvox || [])],
     affiliate_ids_jabvox: [...(c.affiliate_ids_jabvox || [])],
@@ -224,6 +226,114 @@ const onDeleteCampaign = async c => {
 };
 
 const togglingCampaignId = ref(null);
+
+// ─── Report modal ────────────────────────────────────────────────────────────
+const showReportModal = ref(false);
+const reportCampaign = ref(null);
+const reportFrom = ref('');
+const reportTo = ref('');
+const reportGroupBy = ref('day');
+const reportFromHour = ref(0);
+const reportToHour = ref(23);
+const reportRows = ref([]);
+const reportTotals = ref({
+  total: 0,
+  answered: 0,
+  no_answer: 0,
+  no_agent: 0,
+  agents: 0,
+});
+const reportLoading = ref(false);
+const reportDrillDay = ref(null);
+
+const isSingleDay = computed(
+  () =>
+    reportFrom.value && reportTo.value && reportFrom.value === reportTo.value
+);
+
+const fetchReport = async (groupBy = null, day = null) => {
+  if (!reportCampaign.value) return;
+  reportLoading.value = true;
+  try {
+    const params = {
+      from: day || reportFrom.value,
+      to: day || reportTo.value,
+      group_by: groupBy || reportGroupBy.value,
+    };
+    if (isSingleDay.value || day) {
+      params.from_hour = reportFromHour.value;
+      params.to_hour = reportToHour.value;
+    }
+    const { data } = await dialerCampaignsAPI.getReport(
+      reportCampaign.value.id,
+      params
+    );
+    reportRows.value = data.rows || [];
+    reportTotals.value = data.totals || {
+      total: 0,
+      answered: 0,
+      no_answer: 0,
+      no_agent: 0,
+      agents: 0,
+    };
+  } catch {
+    reportRows.value = [];
+  } finally {
+    reportLoading.value = false;
+  }
+};
+
+const openReport = c => {
+  reportCampaign.value = c;
+  const today = new Date().toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() - 6 * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  reportFrom.value = weekAgo;
+  reportTo.value = today;
+  reportGroupBy.value = 'day';
+  reportDrillDay.value = null;
+  reportRows.value = [];
+  reportTotals.value = {
+    total: 0,
+    answered: 0,
+    no_answer: 0,
+    no_agent: 0,
+    agents: 0,
+  };
+  showReportModal.value = true;
+  fetchReport();
+};
+
+const drillIntoDay = day => {
+  const dayStr =
+    typeof day === 'string'
+      ? day.slice(0, 10)
+      : new Date(day).toISOString().slice(0, 10);
+  reportDrillDay.value = dayStr;
+  fetchReport('hour', dayStr);
+};
+
+const backToDaily = () => {
+  reportDrillDay.value = null;
+  fetchReport('day');
+};
+
+watch([reportFrom, reportTo], () => {
+  if (reportFrom.value && reportTo.value && showReportModal.value) {
+    reportDrillDay.value = null;
+    fetchReport(isSingleDay.value ? 'hour' : 'day');
+  }
+});
+
+const formatPeriod = (period, groupBy) => {
+  if (!period) return '—';
+  const d = new Date(period);
+  if (groupBy === 'hour' || reportDrillDay.value) {
+    return `${String(d.getUTCHours()).padStart(2, '0')}:00`;
+  }
+  return d.toISOString().slice(0, 10);
+};
 
 const onToggleCampaign = async c => {
   togglingCampaignId.value = c.id;
@@ -501,6 +611,13 @@ onMounted(async () => {
                         : 'translate-x-1'
                     "
                   />
+                </button>
+                <button
+                  class="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  @click="openReport(campaign)"
+                >
+                  <i class="i-lucide-bar-chart-2" />
+                  {{ t('JABVOX_DIALER.REPORT.BUTTON') }}
                 </button>
                 <button
                   v-if="canEdit(campaign)"
@@ -815,6 +932,27 @@ onMounted(async () => {
           </div>
         </div>
 
+        <!-- Espera en cola -->
+        <label
+          class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/30"
+        >
+          <input
+            v-model="campaignForm.wait_in_queue_jabvox"
+            type="checkbox"
+            class="mt-0.5 rounded"
+          />
+          <div class="flex flex-col gap-0.5">
+            <span
+              class="text-sm font-medium text-slate-700 dark:text-slate-200"
+            >
+              {{ t('JABVOX_DIALER.FORM.WAIT_IN_QUEUE') }}
+            </span>
+            <span class="text-xs text-slate-400">
+              {{ t('JABVOX_DIALER.FORM.WAIT_IN_QUEUE_HINT') }}
+            </span>
+          </div>
+        </label>
+
         <!-- Gestiones -->
         <div class="space-y-2">
           <div>
@@ -982,6 +1120,229 @@ onMounted(async () => {
                 : t('JABVOX_DIALER.CAMPAIGN.CREATE')
           }}
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Report modal ── -->
+  <div
+    v-if="showReportModal && reportCampaign"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    @click.self="showReportModal = false"
+  >
+    <div
+      class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl mx-4 flex flex-col max-h-[92vh] overflow-hidden"
+    >
+      <!-- Header -->
+      <div
+        class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0"
+      >
+        <div>
+          <h3
+            class="text-base font-semibold text-slate-800 dark:text-slate-100"
+          >
+            {{ t('JABVOX_DIALER.REPORT.TITLE') }} —
+            {{ reportCampaign.name_jabvox }}
+          </h3>
+          <p v-if="reportDrillDay" class="text-xs text-slate-400 mt-0.5">
+            {{ reportDrillDay }}
+            <button
+              class="ml-2 text-woot-500 hover:underline"
+              @click="backToDaily"
+            >
+              {{ t('JABVOX_DIALER.REPORT.BACK_TO_DAILY') }}
+            </button>
+          </p>
+        </div>
+        <button
+          class="text-slate-400 hover:text-slate-600 text-lg"
+          @click="showReportModal = false"
+        >
+          <i class="i-lucide-x" />
+        </button>
+      </div>
+
+      <!-- Filters -->
+      <div
+        v-if="!reportDrillDay"
+        class="px-6 py-3 border-b border-slate-100 dark:border-slate-700 shrink-0 flex flex-wrap gap-3 items-end"
+      >
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-slate-500">{{
+            t('JABVOX_DIALER.REPORT.FROM')
+          }}</label>
+          <input
+            v-model="reportFrom"
+            type="date"
+            class="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-woot-500"
+          />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-slate-500">{{
+            t('JABVOX_DIALER.REPORT.TO')
+          }}</label>
+          <input
+            v-model="reportTo"
+            type="date"
+            class="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-woot-500"
+          />
+        </div>
+        <template v-if="isSingleDay">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium text-slate-500">{{
+              t('JABVOX_DIALER.REPORT.FROM_HOUR')
+            }}</label>
+            <select
+              v-model.number="reportFromHour"
+              class="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-woot-500"
+            >
+              <option v-for="h in 24" :key="h - 1" :value="h - 1">
+                {{ `${String(h - 1).padStart(2, '0')}:00` }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium text-slate-500">{{
+              t('JABVOX_DIALER.REPORT.TO_HOUR')
+            }}</label>
+            <select
+              v-model.number="reportToHour"
+              class="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-woot-500"
+            >
+              <option v-for="h in 24" :key="h - 1" :value="h - 1">
+                {{ `${String(h - 1).padStart(2, '0')}:00` }}
+              </option>
+            </select>
+          </div>
+        </template>
+        <button
+          class="rounded-lg bg-woot-500 text-white text-sm px-4 py-1.5 font-medium hover:bg-woot-600 disabled:opacity-50"
+          :disabled="reportLoading"
+          @click="fetchReport(isSingleDay ? 'hour' : 'day')"
+        >
+          {{
+            reportLoading
+              ? t('JABVOX_PRODUCTS.LOADING')
+              : t('JABVOX_DIALER.REPORT.SEARCH')
+          }}
+        </button>
+      </div>
+
+      <!-- Totals cards -->
+      <div
+        class="px-6 py-4 grid grid-cols-5 gap-3 shrink-0 border-b border-slate-100 dark:border-slate-700"
+      >
+        <div
+          v-for="card in [
+            {
+              key: 'total',
+              label: 'JABVOX_DIALER.REPORT.TOTAL',
+              cls: 'text-slate-700',
+            },
+            {
+              key: 'answered',
+              label: 'JABVOX_DIALER.REPORT.ANSWERED',
+              cls: 'text-green-600',
+            },
+            {
+              key: 'no_answer',
+              label: 'JABVOX_DIALER.REPORT.NO_ANSWER',
+              cls: 'text-orange-500',
+            },
+            {
+              key: 'no_agent',
+              label: 'JABVOX_DIALER.REPORT.NO_AGENT',
+              cls: 'text-red-500',
+            },
+            {
+              key: 'agents',
+              label: 'JABVOX_DIALER.REPORT.AGENTS',
+              cls: 'text-slate-500',
+            },
+          ]"
+          :key="card.key"
+          class="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3 text-center"
+        >
+          <div class="text-xl font-bold" :class="card.cls">
+            {{ reportTotals[card.key] ?? 0 }}
+          </div>
+          <div class="text-xs text-slate-500 mt-0.5">{{ t(card.label) }}</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="flex-1 overflow-y-auto px-6 pb-6">
+        <div
+          v-if="reportLoading"
+          class="py-10 text-center text-sm text-slate-400 animate-pulse"
+        >
+          {{ t('JABVOX_PRODUCTS.LOADING') }}
+        </div>
+        <div
+          v-else-if="!reportRows.length"
+          class="py-10 text-center text-sm text-slate-400"
+        >
+          {{ t('JABVOX_DIALER.REPORT.EMPTY') }}
+        </div>
+        <table
+          v-else
+          class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm mt-4"
+        >
+          <thead class="sticky top-0 bg-white dark:bg-slate-800">
+            <tr
+              class="text-left text-xs font-medium text-slate-500 uppercase tracking-wide"
+            >
+              <th class="pb-2 pr-4">
+                {{ t('JABVOX_DIALER.REPORT.COL_PERIOD') }}
+              </th>
+              <th class="pb-2 pr-4 text-right">
+                {{ t('JABVOX_DIALER.REPORT.TOTAL') }}
+              </th>
+              <th class="pb-2 pr-4 text-right text-green-600">
+                {{ t('JABVOX_DIALER.REPORT.ANSWERED') }}
+              </th>
+              <th class="pb-2 pr-4 text-right text-orange-500">
+                {{ t('JABVOX_DIALER.REPORT.NO_ANSWER') }}
+              </th>
+              <th class="pb-2 pr-4 text-right text-red-500">
+                {{ t('JABVOX_DIALER.REPORT.NO_AGENT') }}
+              </th>
+              <th class="pb-2 text-right">
+                {{ t('JABVOX_DIALER.REPORT.AGENTS') }}
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+            <tr
+              v-for="row in reportRows"
+              :key="row.period"
+              class="hover:bg-slate-50 dark:hover:bg-slate-800/40"
+              :class="{ 'cursor-pointer': !reportDrillDay }"
+              @click="!reportDrillDay && drillIntoDay(row.period)"
+            >
+              <td
+                class="py-2 pr-4 font-mono text-xs text-slate-700 dark:text-slate-200"
+              >
+                {{ formatPeriod(row.period, reportDrillDay ? 'hour' : 'day') }}
+                <i
+                  v-if="!reportDrillDay"
+                  class="i-lucide-chevron-right text-slate-300 ml-1"
+                />
+              </td>
+              <td class="py-2 pr-4 text-right font-medium">{{ row.total }}</td>
+              <td class="py-2 pr-4 text-right text-green-600">
+                {{ row.answered }}
+              </td>
+              <td class="py-2 pr-4 text-right text-orange-500">
+                {{ row.no_answer }}
+              </td>
+              <td class="py-2 pr-4 text-right text-red-500">
+                {{ row.no_agent }}
+              </td>
+              <td class="py-2 text-right text-slate-500">{{ row.agents }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

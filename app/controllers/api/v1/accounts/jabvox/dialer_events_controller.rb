@@ -11,10 +11,13 @@ class Api::V1::Accounts::Jabvox::DialerEventsController < Api::V1::Accounts::Jab
 
     case event
     when 'call_assigned'
+      mark_call_log_lead_answered(data[:dialer_contact_id])
       broadcast_to_agent(:call_assigned, enrich_call_assigned(data))
     when 'call_ended'
       mark_contact_ended(data[:dialer_contact_id])
       broadcast_to_agent(:call_ended, data)
+    when 'lead_answered'
+      mark_call_log_lead_answered_by_contact(data[:contact_id], data[:campaign_id])
     end
 
     head :ok
@@ -74,6 +77,35 @@ class Api::V1::Accounts::Jabvox::DialerEventsController < Api::V1::Accounts::Jab
       'state_color' => msg.content_attributes['jabvox_management_state_color'],
       'note' => msg.content
     }
+  rescue StandardError
+    nil
+  end
+
+  # Called when call_assigned fires — the lead must have answered to reach the agent.
+  def mark_call_log_lead_answered(dialer_contact_id)
+    return if dialer_contact_id.blank?
+
+    log = Current.account.jabvox_dialer_call_logs
+                 .where(jabvox_dialer_campaign_contact_id: dialer_contact_id.to_i)
+                 .order(started_at_jabvox: :desc)
+                 .first
+    log&.update_columns(lead_answered_jabvox: true)
+  rescue StandardError
+    nil
+  end
+
+  # Called from the dialplan via CURL when the lead picks up and enters the queue.
+  # Requires JABVOX_CONTACT_ID and JABVOX_CAMPAIGN_ID channel variables to be set.
+  def mark_call_log_lead_answered_by_contact(contact_id, campaign_id)
+    return if contact_id.blank? || campaign_id.blank?
+
+    log = Current.account.jabvox_dialer_call_logs
+                 .where(jabvox_dialer_campaign_id: campaign_id.to_i)
+                 .joins(:jabvox_dialer_campaign_contact)
+                 .where(jabvox_dialer_campaign_contacts: { contact_id: contact_id.to_i })
+                 .order(started_at_jabvox: :desc)
+                 .first
+    log&.update_columns(lead_answered_jabvox: true)
   rescue StandardError
     nil
   end
