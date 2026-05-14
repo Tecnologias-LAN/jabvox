@@ -32,6 +32,7 @@ class DeleteObjectJob < ApplicationJob
     case mode
     when 'inbox_leads_conversations'
       purge_inbox_leads(inbox)
+      purge_conversation_jabvox_associations(inbox)
       batch_destroy(inbox.conversations)
       batch_destroy(inbox.contact_inboxes)
       batch_destroy(inbox.reporting_events)
@@ -40,6 +41,7 @@ class DeleteObjectJob < ApplicationJob
       batch_destroy(inbox.contact_inboxes)
       batch_destroy(inbox.reporting_events)
     else
+      purge_conversation_jabvox_associations(inbox)
       batch_destroy(inbox.conversations)
       batch_destroy(inbox.contact_inboxes)
       batch_destroy(inbox.reporting_events)
@@ -92,6 +94,11 @@ class DeleteObjectJob < ApplicationJob
     # rubocop:disable Rails/SkipsModelValidations
     inbox.messages.in_batches(of: BATCH_SIZE).update_all(inbox_id: target_id)
     # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  def purge_conversation_jabvox_associations(inbox)
+    conversation_ids = inbox.conversations.select(:id)
+    JabvoxKanbanConversationStage.where(conversation_id: conversation_ids).delete_all
   end
 
   def purge_inbox_leads(inbox)
