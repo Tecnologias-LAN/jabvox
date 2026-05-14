@@ -20,6 +20,11 @@ class DeleteObjectJob < ApplicationJob
   private
 
   def purge_inbox_associations(inbox, delete_mode, target_inbox_id = nil)
+    # Remove records with real FK constraints before inbox deletion
+    JabvoxKanbanFunnelInbox.where(inbox_id: inbox.id).delete_all
+    JabvoxKanbanStageAutomation.where(inbox_id: inbox.id).delete_all
+    JabvoxResponseBotConfig.where(inbox_id: inbox.id).delete_all
+
     mode = DELETE_MODES.include?(delete_mode) ? delete_mode : 'inbox_conversations'
 
     case mode
