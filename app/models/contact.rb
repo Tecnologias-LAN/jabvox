@@ -44,6 +44,8 @@
 class Contact < ApplicationRecord
   include Avatarable
   include AvailabilityStatusable
+
+  def avatar_url = ''
   include Labelable
   include LlmFormattable
 
