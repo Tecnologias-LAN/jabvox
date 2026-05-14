@@ -90,6 +90,7 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
 
     lead_ids = leads.pluck(:id)
     JabvoxKanbanConversationStage.where(jabvox_lead_id: lead_ids).delete_all
+    Current.account.jabvox_leads.where(id: lead_ids).delete_all
 
     contact_ids.each do |contact_id|
       contact = Current.account.contacts.find_by(id: contact_id)
