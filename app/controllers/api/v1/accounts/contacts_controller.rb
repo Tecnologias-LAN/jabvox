@@ -114,6 +114,9 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   end
 
   def destroy
+    JabvoxCalendarEvent.where(contact_id: @contact.id).delete_all
+    JabvoxLead.where(contact_id: @contact.id).delete_all
+    JabvoxSmsMessage.where(contact_id: @contact.id).delete_all
     @contact.destroy!
     head :ok
   end
