@@ -10,6 +10,11 @@ import JabvoxEmailButton from 'dashboard/components/widgets/conversation/jabvox/
 import JabvoxSmsButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxSmsButton.vue';
 import JabvoxConversationProducts from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationProducts.vue';
 import JabvoxConversationHistory from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationHistory.vue';
+import ManagementQuestionsForm from 'dashboard/components/jabvox/managementStates/ManagementQuestionsForm.vue';
+import {
+  isManagementValid,
+  buildManagementContentAttributes,
+} from 'dashboard/composables/jabvox/useManagementState';
 
 const props = defineProps({
   conversation: { type: Object, required: true },
@@ -33,7 +38,12 @@ const newMessage = ref('');
 const isNote = ref(false);
 const isSending = ref(false);
 const managementStateId = ref(null);
+const managementAnswers = ref({});
 const messagesContainer = ref(null);
+
+const selectedManagementState = computed(() =>
+  managementStates.value.find(s => s.id === managementStateId.value)
+);
 
 const contactName = computed(
   () => props.conversation.contact?.name || t('JABVOX_KANBAN.UNKNOWN_CONTACT')
@@ -117,6 +127,7 @@ watch(
   () => {
     activeTab.value = 'chat';
     managementStateId.value = null;
+    managementAnswers.value = {};
     loadMessages();
   }
 );
@@ -152,6 +163,18 @@ const sendMessage = async () => {
     !managementStateId.value
   )
     return;
+  if (
+    isNote.value &&
+    selectedManagementState.value &&
+    !isManagementValid(
+      selectedManagementState.value,
+      managementAnswers.value,
+      content
+    )
+  ) {
+    useAlert(t('JABVOX_MANAGEMENT_STATES.QUESTIONS.INCOMPLETE'));
+    return;
+  }
   isSending.value = true;
   try {
     const payload = {
@@ -161,19 +184,16 @@ const sendMessage = async () => {
       echo_id: `jabvox_${Date.now()}`,
     };
     if (isNote.value && managementStateId.value) {
-      const stateObj = managementStates.value.find(
-        s => s.id === managementStateId.value
+      payload.contentAttributes = buildManagementContentAttributes(
+        selectedManagementState.value,
+        managementAnswers.value
       );
-      payload.contentAttributes = {
-        jabvox_management_state_id: managementStateId.value,
-        jabvox_management_state_name: stateObj?.name_jabvox || '',
-        jabvox_management_state_color: stateObj?.color_jabvox || '',
-      };
     }
     const response = await messageAPI.create(payload);
     messages.value.push(response.data);
     newMessage.value = '';
     managementStateId.value = null;
+    managementAnswers.value = {};
     scrollToBottom();
   } catch {
     useAlert(t('JABVOX_KANBAN.SEND_MESSAGE_ERROR'));
@@ -418,6 +438,12 @@ const onKeydown = event => {
             </option>
           </select>
         </div>
+        <ManagementQuestionsForm
+          v-if="isNote && selectedManagementState"
+          v-model="managementAnswers"
+          :state="selectedManagementState"
+          class="mb-2"
+        />
         <div class="flex gap-2 items-end">
           <textarea
             v-model="newMessage"

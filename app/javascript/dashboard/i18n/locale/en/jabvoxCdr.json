@@ -1,0 +1,117 @@
+{
+  "JABVOX_CDR": {
+    "SIDEBAR_LABEL": "CDR Reports",
+    "REPORTS": {
+      "TITLE": "CDR Reports",
+      "VIEW_SUMMARY": "Agent summary",
+      "VIEW_RECORDS": "Call detail",
+      "NOT_CONFIGURED": "CDR is not configured yet. Ask an administrator to set up the PBX connection.",
+      "LOADING": "Loading…",
+      "LOAD_ERROR": "Could not load CDR data.",
+      "EMPTY": "No calls found for the selected filters.",
+      "ANALYZE": "Analyze with AI",
+      "PREV": "Previous",
+      "NEXT": "Next",
+      "PAGE_OF": "{page} / {total}",
+      "NO_SCORE": "—",
+      "FILTERS": {
+        "FROM": "From",
+        "TO": "To",
+        "EXTENSION": "Extension",
+        "DISPOSITION": "Status",
+        "ALL": "All",
+        "APPLY": "Apply"
+      },
+      "KPI": {
+        "TOTAL": "Total",
+        "ANSWERED": "Answered",
+        "NO_ANSWER": "No answer",
+        "TALK_TIME": "Talk time",
+        "ANSWER_RATE": "Answer rate"
+      },
+      "TABLE": {
+        "AGENT": "Agent",
+        "BUSY": "Busy",
+        "FAILED": "Failed",
+        "DATE": "Date",
+        "SRC": "From",
+        "DST": "To",
+        "ORIGIN": "Origin",
+        "DESTINATION": "Destination",
+        "MEDIUM": "Channel",
+        "STATUS": "Status",
+        "TYPIFICATION": "Typification",
+        "DURATION": "Duration",
+        "SCORE": "AI score"
+      },
+      "MEDIUM_TYPES": {
+        "CLICK_TO_CALL": "Click-to-Call",
+        "DIALER": "Dialer",
+        "MANUAL": "Manual"
+      }
+    },
+    "ANALYSIS": {
+      "TITLE": "Call analysis",
+      "RUNNING": "Analyzing the call with AI…",
+      "ERROR": "The analysis could not be completed.",
+      "RETRY": "Retry",
+      "FINAL_SCORE": "Final score",
+      "TRANSCRIPT": "Transcript",
+      "REANALYZE": "Re-analyze"
+    },
+    "SETTINGS": {
+      "TITLE": "CDR Settings",
+      "SUBTITLE": "Configure the PBX connection, recording server, AI analysis pipelines and access.",
+      "TABS": {
+        "CONNECTION": "Connection",
+        "PIPELINES": "AI Pipelines",
+        "PERMISSIONS": "Permissions"
+      },
+      "MYSQL": "PBX connection (MySQL)",
+      "SSH": "Recordings connection (SSH/SFTP)",
+      "STATUS_OK": "Connected",
+      "STATUS_ERROR": "Failed",
+      "ANALYSIS": "Analysis",
+      "HOST": "Host",
+      "USER": "User",
+      "PASSWORD": "Password (leave blank to keep current)",
+      "DATABASE": "Database",
+      "TABLE": "CDR table",
+      "RECORDINGS_PATH": "Recordings base path",
+      "MODE_MANUAL": "Manual analysis",
+      "MODE_AUTO_ALL": "Auto: every call",
+      "MODE_AUTO_MIN": "Auto: calls over min duration",
+      "MIN_DURATION": "Min duration (s)",
+      "NO_DEFAULT_PIPELINE": "No default pipeline",
+      "SAVE": "Save",
+      "CANCEL": "Cancel",
+      "EDIT": "Edit",
+      "DELETE": "Delete",
+      "TEST": "Test connection",
+      "SAVED": "Saved successfully.",
+      "SAVE_ERROR": "Could not save. Please check the values.",
+      "TEST_ERROR": "Connection test failed.",
+      "PIPELINE": {
+        "NEW": "New pipeline",
+        "EMPTY": "No pipelines yet.",
+        "NAME": "Pipeline name",
+        "NAME_REQUIRED": "A pipeline name is required.",
+        "SET_DEFAULT": "Use as default pipeline",
+        "TRANSCRIPTION_MODEL": "Transcription model",
+        "NO_TRANSCRIPTION": "No transcription",
+        "TYPIFICATION": "Typification",
+        "NO_TYPIFICATION": "No typification",
+        "LLM_MODEL": "Validation model",
+        "DEFAULT_MODEL": "Use default model",
+        "DEFAULT": "Default",
+        "STAGES": "stages",
+        "STAGES_REQUIRED": "Add at least one stage.",
+        "ADD_STAGE": "Add stage",
+        "STAGE_NAME": "Stage name",
+        "MIN_SCORE": "Min score",
+        "PROMPT": "Analysis prompt for the LLM",
+        "CONFIRM_DELETE": "Delete this pipeline?"
+      }
+    }
+  }
+}

@@ -33,10 +33,10 @@ export const FEATURE_FLAGS = {
   LINEAR: 'linear_integration',
   CAPTAIN: 'captain_integration',
   CUSTOM_ROLES: 'custom_roles',
-  CHATWOOT_V4: 'chatwoot_v4',
+  JABVOX_V4: 'jabvox_v4',
   CHANNEL_INSTAGRAM: 'channel_instagram',
   CHANNEL_TIKTOK: 'channel_tiktok',
-  CONTACT_CHATWOOT_SUPPORT_TEAM: 'contact_chatwoot_support_team',
+  CONTACT_JABVOX_SUPPORT_TEAM: 'contact_jabvox_support_team',
   CAPTAIN_CUSTOM_TOOLS: 'custom_tools',
   CAPTAIN_V2: 'captain_integration_v2',
   CAPTAIN_TASKS: 'captain_tasks',
@@ -60,6 +60,12 @@ export const FEATURE_FLAGS = {
   JABVOX_RESPONSE_BOT: 'jabvox_response_bot',
   JABVOX_EMAIL: 'jabvox_email',
   JABVOX_FORMS: 'jabvox_forms',
+  JABVOX_CDR: 'jabvox_cdr',
+  JABVOX_WHATSAPP_TEMPLATES: 'jabvox_whatsapp_templates',
+  JABVOX_AUDIO_ANALYSIS: 'jabvox_audio_analysis',
+  JABVOX_CUSTOMIZATION: 'jabvox_customization',
+  JABVOX_CLICK_TO_CALL: 'jabvox_click_to_call',
+  JABVOX_ANALYTICS: 'jabvox_analytics',
 };
 
 export const PREMIUM_FEATURES = [

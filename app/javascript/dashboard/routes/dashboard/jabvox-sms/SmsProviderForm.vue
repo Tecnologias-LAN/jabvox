@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import Button from 'dashboard/components-next/button/Button.vue';
 
 const props = defineProps({
@@ -9,6 +10,7 @@ const props = defineProps({
 const emit = defineEmits(['save', 'cancel']);
 
 const uiFlags = useMapGetter('jabvoxSms/getUIFlags');
+const { markDirty, markClean } = useUnsavedChanges();
 
 const isEdit = computed(() => !!props.provider);
 
@@ -20,7 +22,9 @@ const form = ref({
   active: true,
 });
 
-onMounted(() => {
+watch(form, () => markDirty(), { deep: true });
+
+onMounted(async () => {
   if (props.provider) {
     form.value = {
       name: props.provider.name || '',
@@ -30,9 +34,21 @@ onMounted(() => {
       active: props.provider.active ?? true,
     };
   }
+  await nextTick();
+  markClean();
 });
 
-const onSave = () => emit('save', { ...form.value });
+const onSave = async () => {
+  emit('save', { ...form.value });
+  await nextTick();
+  markClean();
+};
+
+const onCancel = async () => {
+  emit('cancel');
+  await nextTick();
+  markClean();
+};
 </script>
 
 <template>
@@ -126,7 +142,7 @@ const onSave = () => emit('save', { ...form.value });
       <Button
         variant="clear"
         :label="$t('JABVOX_SMS.CANCEL')"
-        @click="emit('cancel')"
+        @click="onCancel"
       />
       <Button
         :label="

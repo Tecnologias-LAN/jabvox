@@ -26,6 +26,8 @@ import integrations from './integrations.json';
 import jabvoxAffiliatePortal from './jabvoxAffiliatePortal.json';
 import jabvoxAffiliates from './jabvoxAffiliates.json';
 import jabvoxAiChat from './jabvoxAiChat.json';
+import jabvoxAudioAnalysis from './jabvoxAudioAnalysis.json';
+import jabvoxCdr from './jabvoxCdr.json';
 import jabvoxCalendar from './jabvoxCalendar.json';
 import jabvoxDialer from './jabvoxDialer.json';
 import jabvoxFieldSecurity from './jabvoxFieldSecurity.json';
@@ -40,6 +42,9 @@ import jabvoxResponseBot from './jabvoxResponseBot.json';
 import jabvoxEmail from './jabvoxEmail.json';
 import jabvoxActions from './jabvoxActions.json';
 import jabvoxForms from './jabvoxForms.json';
+import jabvoxClickToCall from './jabvoxClickToCall.json';
+import jabvoxCustomization from './jabvoxCustomization.json';
+import jabvoxWhatsappTemplates from './jabvoxWhatsappTemplates.json';
 import jabvoxSaldo from './jabvoxSaldo.json';
 import jabvoxSms from './jabvoxSms.json';
 import jabvoxVoip from './jabvoxVoip.json';
@@ -85,6 +90,8 @@ export default {
   ...jabvoxAffiliatePortal,
   ...jabvoxAffiliates,
   ...jabvoxAiChat,
+  ...jabvoxAudioAnalysis,
+  ...jabvoxCdr,
   ...jabvoxCalendar,
   ...jabvoxDialer,
   ...jabvoxFieldSecurity,
@@ -99,6 +106,9 @@ export default {
   ...jabvoxEmail,
   ...jabvoxActions,
   ...jabvoxForms,
+  ...jabvoxClickToCall,
+  ...jabvoxCustomization,
+  ...jabvoxWhatsappTemplates,
   ...jabvoxSaldo,
   ...jabvoxSms,
   ...jabvoxVoip,

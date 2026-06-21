@@ -37,7 +37,7 @@ class JabvoxSmtpConfig < ApplicationRecord
   validates :port, numericality: { only_integer: true, greater_than: 0, less_than: 65_536 }, allow_nil: true
   validates :authentication, inclusion: { in: %w[plain login cram_md5] }
 
-  encrypts :password if Chatwoot.encryption_configured?
+  encrypts :password if Jabvox.encryption_configured?
 
   def delivery_settings
     {

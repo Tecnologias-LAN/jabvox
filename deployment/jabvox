@@ -1,0 +1,6 @@
+# give jabvox user permission to start/stop/restart jabvox systemd service
+
+%jabvox ALL=NOPASSWD: /bin/systemctl start jabvox.target
+%jabvox ALL=NOPASSWD: /bin/systemctl stop jabvox.target
+%jabvox ALL=NOPASSWD: /bin/systemctl restart jabvox.target
+%jabvox ALL=NOPASSWD: /usr/local/bin/cwctl

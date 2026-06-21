@@ -1,4 +1,6 @@
 <script setup>
+/* eslint-disable no-underscore-dangle */
+// _destroy is the Rails accepts_nested_attributes_for convention.
 import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
@@ -83,6 +85,8 @@ const form = ref({
   name_jabvox: '',
   color_jabvox: '#6366f1',
   is_active_jabvox: true,
+  note_mode: 'optional',
+  questions: [],
 });
 
 const openNew = () => {
@@ -91,6 +95,8 @@ const openNew = () => {
     name_jabvox: '',
     color_jabvox: '#6366f1',
     is_active_jabvox: true,
+    note_mode: 'optional',
+    questions: [],
   };
   showForm.value = true;
 };
@@ -100,13 +106,58 @@ const openEdit = state => {
     name_jabvox: state.name_jabvox,
     color_jabvox: state.color_jabvox,
     is_active_jabvox: state.is_active_jabvox,
+    note_mode: state.note_mode || 'optional',
+    questions: (state.questions || []).map(q => ({
+      id: q.id,
+      label: q.label,
+      question_type: q.question_type,
+      required: q.required,
+      options: [...(q.options || [])],
+    })),
   };
   showForm.value = true;
+};
+
+const addQuestion = () => {
+  form.value.questions.push({
+    label: '',
+    question_type: 'text',
+    required: false,
+    options: [],
+  });
+};
+const removeQuestion = index => {
+  const question = form.value.questions[index];
+  if (question.id) question._destroy = true;
+  else form.value.questions.splice(index, 1);
+};
+const optionsText = question => (question.options || []).join('\n');
+const setOptions = (question, text) => {
+  question.options = text
+    .split('\n')
+    .map(o => o.trim())
+    .filter(Boolean);
 };
 const cancelForm = () => {
   showForm.value = false;
   editingState.value = null;
 };
+
+const buildPayload = () => ({
+  name_jabvox: form.value.name_jabvox,
+  color_jabvox: form.value.color_jabvox,
+  is_active_jabvox: form.value.is_active_jabvox,
+  note_mode: form.value.note_mode,
+  questions_attributes: form.value.questions.map((q, index) => ({
+    id: q.id,
+    label: q.label,
+    question_type: q.question_type,
+    required: q.required,
+    options: q.options || [],
+    position: index,
+    _destroy: q._destroy,
+  })),
+});
 
 const onSubmit = async () => {
   if (!form.value.name_jabvox.trim()) return;
@@ -114,11 +165,14 @@ const onSubmit = async () => {
     if (editingState.value) {
       await store.dispatch('jabvoxManagementStates/updateState', {
         id: editingState.value.id,
-        ...form.value,
+        ...buildPayload(),
       });
       useAlert(t('JABVOX_MANAGEMENT_STATES.UPDATED'));
     } else {
-      await store.dispatch('jabvoxManagementStates/createState', form.value);
+      await store.dispatch(
+        'jabvoxManagementStates/createState',
+        buildPayload()
+      );
       useAlert(t('JABVOX_MANAGEMENT_STATES.CREATED'));
     }
     cancelForm();
@@ -333,7 +387,8 @@ onMounted(() => {
               <div class="space-y-1.5">
                 <label
                   class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >{{ $t('JABVOX_MANAGEMENT_STATES.FORM.COLOR') }}</label>
+                  >{{ $t('JABVOX_MANAGEMENT_STATES.FORM.COLOR') }}</label
+                >
                 <div class="flex items-center gap-3">
                   <input
                     v-model="form.color_jabvox"
@@ -348,7 +403,8 @@ onMounted(() => {
               <div class="space-y-1.5">
                 <label
                   class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >{{ $t('JABVOX_MANAGEMENT_STATES.FORM.PREVIEW') }}</label>
+                  >{{ $t('JABVOX_MANAGEMENT_STATES.FORM.PREVIEW') }}</label
+                >
                 <div class="flex items-center h-10">
                   <span
                     class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full"
@@ -382,6 +438,95 @@ onMounted(() => {
                 $t('JABVOX_MANAGEMENT_STATES.FORM.ACTIVE')
               }}</span>
             </label>
+
+            <!-- Note rule -->
+            <div class="flex flex-col gap-1 w-full max-w-xs">
+              <label
+                class="text-sm font-medium text-slate-700 dark:text-slate-200"
+              >
+                {{ $t('JABVOX_MANAGEMENT_STATES.FORM.NOTE_MODE') }}
+              </label>
+              <select v-model="form.note_mode" class="reset-base text-sm">
+                <option value="optional">
+                  {{ $t('JABVOX_MANAGEMENT_STATES.FORM.NOTE_OPTIONAL') }}
+                </option>
+                <option value="required">
+                  {{ $t('JABVOX_MANAGEMENT_STATES.FORM.NOTE_REQUIRED') }}
+                </option>
+                <option value="hidden">
+                  {{ $t('JABVOX_MANAGEMENT_STATES.FORM.NOTE_HIDDEN') }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Dynamic questions -->
+            <div class="flex flex-col gap-2 w-full">
+              <span
+                class="text-sm font-medium text-slate-700 dark:text-slate-200"
+              >
+                {{ $t('JABVOX_MANAGEMENT_STATES.QUESTIONS.TITLE') }}
+              </span>
+              <div
+                v-for="(question, index) in form.questions"
+                v-show="!question._destroy"
+                :key="index"
+                class="p-3 rounded-lg bg-n-alpha-1 space-y-2"
+              >
+                <div class="flex items-center gap-2">
+                  <input
+                    v-model="question.label"
+                    class="reset-base text-sm flex-1"
+                    :placeholder="
+                      $t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LABEL')
+                    "
+                  />
+                  <select
+                    v-model="question.question_type"
+                    class="reset-base text-sm w-32"
+                  >
+                    <option value="text">
+                      {{ $t('JABVOX_MANAGEMENT_STATES.QUESTIONS.TYPE_TEXT') }}
+                    </option>
+                    <option value="number">
+                      {{ $t('JABVOX_MANAGEMENT_STATES.QUESTIONS.TYPE_NUMBER') }}
+                    </option>
+                    <option value="date">
+                      {{ $t('JABVOX_MANAGEMENT_STATES.QUESTIONS.TYPE_DATE') }}
+                    </option>
+                    <option value="boolean">
+                      {{
+                        $t('JABVOX_MANAGEMENT_STATES.QUESTIONS.TYPE_BOOLEAN')
+                      }}
+                    </option>
+                    <option value="list">
+                      {{ $t('JABVOX_MANAGEMENT_STATES.QUESTIONS.TYPE_LIST') }}
+                    </option>
+                  </select>
+                  <label
+                    class="flex items-center gap-1 text-xs text-n-slate-11"
+                  >
+                    <input v-model="question.required" type="checkbox" />
+                    {{ $t('JABVOX_MANAGEMENT_STATES.QUESTIONS.REQUIRED') }}
+                  </label>
+                  <button class="text-n-ruby-11" @click="removeQuestion(index)">
+                    <span class="i-lucide-trash-2" />
+                  </button>
+                </div>
+                <textarea
+                  v-if="question.question_type === 'list'"
+                  :value="optionsText(question)"
+                  rows="3"
+                  class="reset-base text-sm w-full"
+                  :placeholder="
+                    $t('JABVOX_MANAGEMENT_STATES.QUESTIONS.OPTIONS_PLACEHOLDER')
+                  "
+                  @input="setOptions(question, $event.target.value)"
+                />
+              </div>
+              <button class="text-sm text-n-brand w-fit" @click="addQuestion">
+                + {{ $t('JABVOX_MANAGEMENT_STATES.QUESTIONS.ADD') }}
+              </button>
+            </div>
           </div>
           <div
             class="px-6 py-4 border-t border-slate-100 dark:border-slate-700 flex gap-2"
@@ -431,9 +576,9 @@ onMounted(() => {
         <div v-else-if="states.length" class="space-y-3">
           <p class="text-xs text-slate-400">
             {{ states.length }} {{ states.length === 1 ? 'estado' : 'estados' }}
-            <span v-if="activeCount"
-class="ml-1"
-              >· {{ activeCount }} activos</span>
+            <span v-if="activeCount" class="ml-1"
+              >· {{ activeCount }} activos</span
+            >
           </p>
           <div
             class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700 overflow-hidden shadow-sm"
@@ -553,7 +698,8 @@ class="ml-1"
                   class="block text-xs font-medium text-slate-600 dark:text-slate-300"
                   >{{
                     $t('JABVOX_MANAGEMENT_STATES.APP_STATES.FORM.COLOR')
-                  }}</label>
+                  }}</label
+                >
                 <div class="flex items-center gap-3">
                   <input
                     v-model="appForm.color"
@@ -570,7 +716,8 @@ class="ml-1"
                   class="block text-xs font-medium text-slate-600 dark:text-slate-300"
                   >{{
                     $t('JABVOX_MANAGEMENT_STATES.APP_STATES.FORM.PREVIEW')
-                  }}</label>
+                  }}</label
+                >
                 <div class="flex items-center h-10">
                   <span
                     class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full"
@@ -656,9 +803,9 @@ class="ml-1"
           <p class="text-xs text-slate-400">
             {{ appStates.length }}
             {{ appStates.length === 1 ? 'estado' : 'estados' }}
-            <span v-if="appActiveCount"
-class="ml-1"
-              >· {{ appActiveCount }} activos</span>
+            <span v-if="appActiveCount" class="ml-1"
+              >· {{ appActiveCount }} activos</span
+            >
           </p>
           <div
             class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700 overflow-hidden shadow-sm"

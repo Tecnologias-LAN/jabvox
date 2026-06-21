@@ -164,7 +164,7 @@ Rails.application.routes.draw do
               post :custom_attributes
               get :attachments
               get :inbox_assistant
-              get :reporting_events if ChatwootApp.enterprise?
+              get :reporting_events if JabvoxApp.enterprise?
             end
           end
 
@@ -201,7 +201,7 @@ Rails.application.routes.draw do
               resources :contact_inboxes, only: [:create]
               resources :labels, only: [:create, :index]
               resources :notes
-              post :call, on: :member, to: 'calls#create' if ChatwootApp.enterprise?
+              post :call, on: :member, to: 'calls#create' if JabvoxApp.enterprise?
             end
           end
           resources :csat_survey_responses, only: [:index] do
@@ -210,7 +210,7 @@ Rails.application.routes.draw do
               get :download
             end
             member do
-              patch :update if ChatwootApp.enterprise?
+              patch :update if JabvoxApp.enterprise?
             end
           end
           resources :applied_slas, only: [:index] do
@@ -219,7 +219,7 @@ Rails.application.routes.draw do
               get :download
             end
           end
-          resources :reporting_events, only: [:index] if ChatwootApp.enterprise?
+          resources :reporting_events, only: [:index] if JabvoxApp.enterprise?
           resources :custom_attribute_definitions, only: [:index, :show, :create, :update, :destroy]
           resources :custom_filters, only: [:index, :show, :create, :update, :destroy]
           resources :inboxes, only: [:index, :show, :create, :update, :destroy] do
@@ -232,7 +232,7 @@ Rails.application.routes.draw do
             get :health, on: :member
             post :register_webhook, on: :member
             post :reset_secret, on: :member
-            if ChatwootApp.enterprise?
+            if JabvoxApp.enterprise?
               resource :conference, only: %i[create destroy], controller: 'conference' do
                 get :token, on: :member
               end
@@ -428,6 +428,11 @@ Rails.application.routes.draw do
                 get 'for_contact/:contact_id', action: :for_contact, as: :for_contact
                 patch 'for_contact/:contact_id', action: :update_contact_lead, as: :update_contact_lead
               end
+              resources :custom_table_rows, only: [:index, :update], controller: 'custom_table_rows'
+              member do
+                patch :custom_fields
+                patch :update_details
+              end
             end
             resources :lead_campaigns, controller: 'campaigns'
             resources :field_visibilities, only: [:index] do
@@ -448,6 +453,61 @@ Rails.application.routes.draw do
             resource :voip_config, only: [:show, :update]
             get :voip_status, to: 'voip_configs#status'
             post :voip_originate, to: 'voip_configs#originate'
+            namespace :whatsapp_templates do
+              get :inboxes, to: 'inboxes#index'
+              post 'inboxes/:inbox_id/sync', to: 'inboxes#sync'
+              get :metrics, to: 'inboxes#metrics'
+              resources :permissions, only: [:index] do
+                patch :bulk, on: :collection
+              end
+              resources :templates do
+                member do
+                  post :duplicate
+                  post :sync
+                  get :history
+                  get :versions
+                  post :restore_version
+                end
+              end
+              get 'export.json', to: 'export#json'
+              get 'export.csv', to: 'export#csv'
+              post :import, to: 'import#create'
+            end
+            namespace :cdr do
+              resource :config, only: [:show, :update], controller: 'configs'
+              post 'config/test', to: 'configs#test'
+              post 'config/test_ssh', to: 'configs#test_ssh'
+              resources :pipelines
+              resources :permissions, only: [:index] do
+                patch :bulk, on: :collection
+              end
+              get :my_access, to: 'reports#my_access'
+              get :records, to: 'reports#records'
+              get :summary, to: 'reports#summary'
+              post :analyze, to: 'reports#analyze'
+              post :analyses_batch, to: 'reports#analyses_batch'
+              get 'analysis/:uniqueid', to: 'reports#analysis', constraints: { uniqueid: %r{[^/]+} }
+            end
+            resources :typifications, only: [:index, :create, :update, :destroy]
+            namespace :click_to_call do
+              resources :calls, only: [:create, :destroy]
+              resources :call_logs, only: [:index, :show, :update]
+            end
+            namespace :audio_analysis do
+              resources :storages, only: [:index, :create, :update, :destroy] do
+                collection { post :test }
+                member { get :objects }
+              end
+              resources :pipelines
+              resources :jobs, only: [:index, :show, :create] do
+                member { get :results }
+              end
+              get 'reports/daily', to: 'reports#daily'
+              get 'reports/filter_options', to: 'reports#filter_options'
+              get 'access/my', to: 'reports#my_access'
+              get 'access/users', to: 'access#users'
+              post 'access/users', to: 'access#update_users'
+            end
             resource :saldo_config, only: [:show, :update]
             get :saldo_balance, to: 'saldo_configs#status'
             resources :sms_providers do
@@ -481,7 +541,10 @@ Rails.application.routes.draw do
                 post :originate
               end
             end
-            resources :dialer_call_logs, only: [:index, :create]
+            resources :dialer_call_logs, only: [:index, :create] do
+              collection { patch :typify }
+              member { patch :typify }
+            end
             resources :dialer_states, only: [:index, :create, :update, :destroy]
             resources :dialer_accesses, only: [:index, :update] do
               collection do
@@ -540,6 +603,7 @@ Rails.application.routes.draw do
               resources :affiliate_ip_whitelists, only: [:index, :create, :update, :destroy]
             end
             resources :calendar_events, only: [:index, :show, :create, :update, :destroy]
+            resources :calendar_external_people, only: [:index, :show, :create, :update, :destroy]
             resources :forms, only: [:index, :show, :create, :update, :destroy]
             resource :form_config, only: [:show, :update]
             resource :reports, only: [], controller: 'reports' do
@@ -550,6 +614,50 @@ Rails.application.routes.draw do
                 get :agent_status
                 patch :set_dialer_state
               end
+            end
+            resources :custom_tables, only: [:index, :show, :create, :update, :destroy] do
+              resources :custom_columns, only: [:index, :create, :update, :destroy]
+            end
+            resources :quick_buttons, only: [:index, :create, :update, :destroy]
+
+            # Analytics & Dashboards (BI) module
+            namespace :analytics do
+              resources :data_sources do
+                member do
+                  post :test_connection
+                  get :schema
+                  get :preview
+                  post :query
+                  post :custom_sql
+                  post :validate_sql
+                  post :sync
+                end
+                collection { post :test_connection, action: :test_connection_unsaved }
+                resources :data_source_permissions, only: [:index, :create, :update, :destroy]
+              end
+
+              resources :folders
+              resources :dashboards do
+                member do
+                  put :layout
+                  post :duplicate
+                end
+                resources :widgets, controller: 'dashboard_widgets' do
+                  member { post :execute }
+                end
+                resources :shares, only: [:index, :create, :update, :destroy]
+              end
+
+              resources :exports, only: [:index, :show, :create, :destroy]
+
+              # RBAC / permissions (admin-only)
+              resources :roles
+              resources :role_permissions, only: [:index, :update]
+              resources :user_permissions, only: [:index, :create, :update, :destroy] do
+                patch :bulk, on: :collection
+              end
+              get :my_capabilities, to: 'capabilities#show'
+              resources :audit_logs, only: [:index, :show]
             end
           end
         end
@@ -671,7 +779,7 @@ Rails.application.routes.draw do
     end
   end
 
-  if ChatwootApp.enterprise?
+  if JabvoxApp.enterprise?
     namespace :enterprise, defaults: { format: 'json' } do
       namespace :api do
         namespace :v1 do
@@ -793,7 +901,7 @@ Rails.application.routes.draw do
     resources :callback, only: [:create]
     resources :delivery_status, only: [:create]
 
-    if ChatwootApp.enterprise?
+    if JabvoxApp.enterprise?
       post 'voice/call/:phone', to: 'voice#call_twiml', as: :voice_call
       post 'voice/status/:phone', to: 'voice#status', as: :voice_status
       post 'voice/conference_status/:phone', to: 'voice#conference_status', as: :voice_conference_status

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import JabvoxQuickButtons from 'dashboard/components/widgets/conversation/jabvox/JabvoxQuickButtons.vue';
 
 const props = defineProps({
   card: {
@@ -132,6 +133,14 @@ const onDragStart = event => {
       </span>
     </div>
 
+    <JabvoxQuickButtons
+      v-if="card.contact"
+      :lead="isLead ? card : null"
+      :contact="card.contact"
+      size="sm"
+      class="mb-2"
+      @click.stop
+    />
     <div class="flex items-center justify-between">
       <span
         v-if="assigneeName"

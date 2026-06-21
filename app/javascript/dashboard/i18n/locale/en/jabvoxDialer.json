@@ -20,7 +20,8 @@
       "HINT": "Agrega una nota o gestión antes de la siguiente llamada.",
       "NEXT": "Siguiente",
       "NOTE_PLACEHOLDER": "Agrega una nota de gestión...",
-      "NO_CONVERSATION": "Sin conversación activa — la nota no se guardará."
+      "NO_CONVERSATION": "Sin conversación activa — la nota no se guardará.",
+      "TYPIFICATION_PLACEHOLDER": "Seleccionar tipificación..."
     },
 
     "HISTORY": {

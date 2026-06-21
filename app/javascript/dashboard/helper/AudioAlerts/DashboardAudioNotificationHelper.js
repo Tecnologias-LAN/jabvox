@@ -66,6 +66,20 @@ export class DashboardAudioNotificationHelper {
     }
   };
 
+  // Plays the configured tone unconditionally (for internal chat, AI chat, etc.)
+  // Initializes audio on demand if set() hasn't been called yet.
+  playSimpleAlert = async () => {
+    if (!this.audioConfig.audio) {
+      this.intializeAudio();
+    }
+    try {
+      this.audioConfig.audio.currentTime = 0;
+      await this.audioConfig.audio.play();
+    } catch {
+      // Ignore NotAllowedError — browser requires a user gesture before autoplay
+    }
+  };
+
   set = ({
     currentUser,
     alwaysPlayAudioAlert,
@@ -88,7 +102,7 @@ export class DashboardAudioNotificationHelper {
       tone: audioAlertTone,
     };
 
-    if (previousAudioTone !== audioAlertTone) {
+    if (previousAudioTone !== audioAlertTone || !this.audioConfig.audio) {
       this.intializeAudio();
     }
 

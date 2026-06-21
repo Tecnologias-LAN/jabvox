@@ -2,16 +2,17 @@
 #
 # Table name: jabvox_leads
 #
-#  id                  :bigint           not null, primary key
-#  is_sold_jabvox      :boolean          default(FALSE), not null
-#  lead_number         :integer          not null
-#  created_at          :datetime         not null
-#  updated_at          :datetime         not null
-#  account_id          :bigint           not null
-#  assignee_id         :bigint
-#  contact_id          :bigint           not null
-#  jabvox_affiliate_id :bigint
-#  jabvox_campaign_id  :bigint
+#  id                   :bigint           not null, primary key
+#  custom_fields_jabvox :jsonb            not null
+#  is_sold_jabvox       :boolean          default(FALSE), not null
+#  lead_number          :integer          not null
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  account_id           :bigint           not null
+#  assignee_id          :bigint
+#  contact_id           :bigint           not null
+#  jabvox_affiliate_id  :bigint
+#  jabvox_campaign_id   :bigint
 #
 # Indexes
 #
@@ -39,6 +40,7 @@ class JabvoxLead < ApplicationRecord
   belongs_to :jabvox_campaign, optional: true
   belongs_to :jabvox_affiliate, optional: true
   belongs_to :assignee, class_name: 'User', optional: true
+  has_many :jabvox_custom_table_rows, dependent: :destroy
 
   validates :contact_id, uniqueness: { scope: :account_id }
   validates :lead_number, presence: true, uniqueness: { scope: :account_id }

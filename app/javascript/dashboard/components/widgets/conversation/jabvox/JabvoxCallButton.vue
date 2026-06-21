@@ -1,17 +1,44 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useMapGetter } from 'dashboard/composables/store';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import { useClickToCall } from 'dashboard/composables/jabvox/useClickToCall';
 import { voipConfigAPI } from 'dashboard/api/jabvox/products';
 import userExtensionAPI from 'dashboard/api/jabvox/userExtension';
 
 const props = defineProps({
-  phone: { type: String, required: true },
+  phone: { type: String, default: '' },
   contactId: { type: Number, default: null },
+  leadId: { type: Number, default: null },
+  conversationId: { type: Number, default: null },
   contactName: { type: String, default: '' },
   showLabel: { type: Boolean, default: false },
 });
 
 const { t } = useI18n();
+const { phase, initiateCall } = useClickToCall();
+
+const accountId = useMapGetter('getCurrentAccountId');
+const isFeatureEnabledonAccount = useMapGetter(
+  'accounts/isFeatureEnabledonAccount'
+);
+
+// Click-to-call drives the overlay + typification flow; plain VoIP is the fallback.
+const isClickToCallEnabled = computed(() =>
+  isFeatureEnabledonAccount.value(
+    accountId.value,
+    FEATURE_FLAGS.JABVOX_CLICK_TO_CALL
+  )
+);
+const isVoipEnabled = computed(() =>
+  isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.JABVOX_VOIP)
+);
+const isEnabled = computed(
+  () => isClickToCallEnabled.value || isVoipEnabled.value
+);
+
+// --- Plain VoIP fallback state (only used when click-to-call is off) ---
 const open = ref(false);
 const calling = ref(false);
 const callResult = ref(null);
@@ -19,6 +46,7 @@ const userExtension = ref('');
 const extension = ref('');
 
 onMounted(async () => {
+  if (isClickToCallEnabled.value || !isVoipEnabled.value) return;
   try {
     const { data } = await userExtensionAPI.getMine();
     if (data.extension) {
@@ -26,21 +54,34 @@ onMounted(async () => {
       extension.value = data.extension;
     }
   } catch {
-    // sin extensión
+    // no extension assigned
   }
 });
 
-function toggle() {
+// Click-to-call: one active call at a time across the app.
+const isBusy = computed(() => phase.value !== null);
+
+// Entry point. Click-to-call → overlay flow; otherwise toggle the VoIP popover.
+const onClick = () => {
+  if (isClickToCallEnabled.value) {
+    initiateCall({
+      contactId: props.contactId,
+      leadId: props.leadId,
+      conversationId: props.conversationId,
+      name: props.contactName,
+      phone: props.phone,
+    });
+    return;
+  }
   open.value = !open.value;
   callResult.value = null;
-}
+};
 
-async function call() {
+// Plain VoIP originate (no overlay, no typification) — legacy behaviour.
+const voipCall = async () => {
   const ext = userExtension.value || extension.value.trim();
   if (!ext) return;
-  if (!userExtension.value) {
-    localStorage.setItem('jabvox_voip_ext', ext);
-  }
+  if (!userExtension.value) localStorage.setItem('jabvox_voip_ext', ext);
   calling.value = true;
   callResult.value = null;
   try {
@@ -62,31 +103,34 @@ async function call() {
   } finally {
     calling.value = false;
   }
-}
+};
 </script>
 
 <template>
-  <div class="relative">
+  <div v-show="isEnabled" class="relative inline-flex">
     <button
       v-if="showLabel"
-      class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-woot-500 hover:bg-woot-600 text-white text-sm font-medium transition-colors"
+      class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-woot-500 hover:bg-woot-600 text-white text-sm font-medium transition-colors disabled:opacity-50"
       :title="t('JABVOX_VOIP.CALL_BUTTON.TITLE')"
-      @click="toggle"
+      :disabled="isClickToCallEnabled && isBusy"
+      @click="onClick"
     >
       <fluent-icon icon="call" size="16" />
       <span>{{ t('JABVOX_VOIP.CALL_BUTTON.CALL') }}</span>
     </button>
     <button
       v-else
-      class="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-n-alpha-2 text-n-slate-11 hover:text-woot-600 transition-colors"
+      class="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-n-alpha-2 text-n-slate-11 hover:text-woot-600 transition-colors disabled:opacity-50"
       :title="t('JABVOX_VOIP.CALL_BUTTON.TITLE')"
-      @click="toggle"
+      :disabled="isClickToCallEnabled && isBusy"
+      @click="onClick"
     >
       <fluent-icon icon="call" size="16" />
     </button>
 
+    <!-- VoIP fallback popover (only when click-to-call is disabled) -->
     <div
-      v-if="open"
+      v-if="open && !isClickToCallEnabled"
       class="absolute right-0 top-10 z-50 w-60 bg-white dark:bg-n-solid-3 border border-n-weak rounded-lg shadow-lg p-3"
     >
       <p class="text-xs font-medium text-n-slate-12 mb-2">
@@ -114,7 +158,7 @@ async function call() {
         <button
           :disabled="calling"
           class="w-full py-1.5 rounded bg-woot-600 text-white text-sm font-medium disabled:opacity-50 hover:bg-woot-700 transition-colors"
-          @click="call"
+          @click="voipCall"
         >
           {{
             calling

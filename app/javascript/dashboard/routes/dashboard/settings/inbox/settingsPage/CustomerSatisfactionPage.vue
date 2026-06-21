@@ -1,7 +1,16 @@
 <script setup>
-import { reactive, onMounted, ref, defineProps, watch, computed } from 'vue';
+import {
+  reactive,
+  onMounted,
+  ref,
+  defineProps,
+  watch,
+  nextTick,
+  computed,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useInbox } from 'dashboard/composables/useInbox';
 import { useCaptain } from 'dashboard/composables/useCaptain';
@@ -26,6 +35,7 @@ const props = defineProps({
 
 const { t } = useI18n();
 const store = useStore();
+const { markDirty, markClean } = useUnsavedChanges();
 const labels = useMapGetter('labels/getLabels');
 const { captainEnabled } = useCaptain();
 
@@ -175,6 +185,8 @@ const initializeState = () => {
       templateLanguage: state.templateLanguage,
     };
   }
+
+  nextTick().then(markClean);
 };
 
 const checkTemplateStatus = async () => {
@@ -212,6 +224,9 @@ onMounted(() => {
 });
 
 watch(() => props.inbox, initializeState, { immediate: true });
+
+// Flag unsaved edits to the CSAT form fields
+watch([state, selectedLabelValues], () => markDirty(), { deep: true });
 
 const handleLabelSelect = value => {
   if (!value || selectedLabelValues.value.includes(value)) {
@@ -467,6 +482,8 @@ const performSave = async () => {
       csat_config: csatConfig,
     });
 
+    await nextTick();
+    markClean();
     useAlert(t('INBOX_MGMT.CSAT.API.SUCCESS_MESSAGE'));
     checkTemplateStatus();
   } catch (error) {

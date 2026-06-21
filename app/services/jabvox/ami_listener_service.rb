@@ -157,7 +157,10 @@ module Jabvox
 
     def handle_hangup(event)
       channel = event['channel'].to_s
-      info    = @active_channels.delete(channel)
+      handle_click_to_call_hangup(channel, event)
+      handle_dialer_hangup(channel, event)
+
+      info = @active_channels.delete(channel)
       return unless info
 
       @active_channels.delete(info[:caller_channel])
@@ -165,6 +168,57 @@ module Jabvox
       broadcast_call_ended_for(info[:user_id], info[:contact_id], info[:campaign_id], info[:extension])
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] handle_hangup failed | #{e.message}"
+    end
+
+    # Dialer legs carry a __JABVOX_DIALER_LOG_ID variable. On hangup, record the recording
+    # uniqueid on the dialer call log so it links to CDR reports + analysis pipelines.
+    def handle_dialer_hangup(channel, event)
+      return if channel.blank?
+
+      log_id = getvar_on_existing(channel, 'JABVOX_DIALER_LOG_ID')
+      uniqueid = event['uniqueid'].presence
+      return if log_id.blank? || uniqueid.blank?
+      # Defence in depth: ignore events whose channel was originated by another account,
+      # even when several accounts share one Asterisk server (the lookup is account-scoped too).
+      return unless channel_belongs_to_account?(channel, 'JABVOX_ACCOUNT_ID')
+
+      record_dialer_uniqueid(log_id.to_i, uniqueid)
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] dialer hangup failed | #{e.message}"
+    end
+
+    def record_dialer_uniqueid(log_id, uniqueid)
+      log = JabvoxDialerCallLog.find_by(id: log_id, account_id: @account_id)
+      return if log.nil? || log.uniqueid_jabvox.present?
+
+      log.update_columns(uniqueid_jabvox: uniqueid) # rubocop:disable Rails/SkipsModelValidations
+    end
+
+    # Click-to-call legs carry a __CTCALL_ID variable. When such a channel hangs up,
+    # record the recording uniqueid and notify the agent so the typify dialog opens.
+    def handle_click_to_call_hangup(channel, event)
+      return if channel.blank?
+
+      call_log_id = getvar_on_existing(channel, 'CTCALL_ID')
+      return if call_log_id.blank?
+      # Defence in depth: only act on channels this account originated (CTCALL_ACCOUNT),
+      # so a shared PBX with colliding extensions can't cross accounts.
+      return unless channel_belongs_to_account?(channel, 'CTCALL_ACCOUNT')
+
+      uniqueid = event['uniqueid'].presence
+      Jabvox::ClickToCallHangupService.new(@account_id, call_log_id.to_i, uniqueid).call
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] click_to_call hangup failed | #{e.message}"
+    end
+
+    # True when the channel's account-marker variable matches this listener's account.
+    # If the variable is absent (older channels), we don't block — the account-scoped DB
+    # lookup downstream is still the backstop.
+    def channel_belongs_to_account?(channel, account_var)
+      value = getvar_on_existing(channel, account_var)
+      return true if value.blank?
+
+      value.to_s == @account_id.to_s
     end
 
     def broadcast_call_ended_for(user_id, contact_id, campaign_id, extension, state = nil) # rubocop:disable Metrics/MethodLength

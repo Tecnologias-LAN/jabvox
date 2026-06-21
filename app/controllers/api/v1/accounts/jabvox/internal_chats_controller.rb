@@ -30,6 +30,7 @@ class Api::V1::Accounts::Jabvox::InternalChatsController < Api::V1::Accounts::Ba
     return render json: { error: 'content required' }, status: :unprocessable_entity if content.blank?
 
     msg = @chat.messages.create!(sender: current_user, content: content)
+    broadcast_new_message(msg)
     render json: serialize_message(msg)
   end
 
@@ -54,6 +55,24 @@ class Api::V1::Accounts::Jabvox::InternalChatsController < Api::V1::Accounts::Ba
   end
 
   private
+
+  def broadcast_new_message(msg)
+    recipient_ids = @chat.members.where.not(user_id: current_user.id).pluck(:user_id)
+    recipient_ids.each do |uid|
+      token = User.find_by(id: uid)&.pubsub_token
+      next unless token
+
+      ActionCable.server.broadcast(token, {
+        event: 'jabvox.internal_chat.message_created',
+        account_id: Current.account.id,
+        data: {
+          chat_id: @chat.id,
+          sender_id: current_user.id,
+          message: serialize_message(msg)
+        }
+      })
+    end
+  end
 
   def check_enabled
     render json: { error: 'Internal chat not enabled' }, status: :forbidden unless Current.account.jabvox_internal_chat_enabled_jabvox?

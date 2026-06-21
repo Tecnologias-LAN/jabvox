@@ -14,7 +14,36 @@ class Api::V1::Accounts::Jabvox::DialerCallLogsController < Api::V1::Accounts::J
     render json: log_json(log), status: :created
   end
 
+  # Saves the typification + note chosen by the agent at wrap-up. Targets a specific
+  # call log by id, or the most recent log of a contact when only contact_id is given.
+  def typify
+    log = resolve_log_for_typify
+    return render json: { error: 'No se encontró la llamada' }, status: :not_found unless log
+
+    log.update!(
+      typification_id: typification_param,
+      notes_jabvox: params[:notes_jabvox].presence || log.notes_jabvox,
+      uniqueid_jabvox: params[:uniqueid].presence || log.uniqueid_jabvox
+    )
+    render json: log_json(log)
+  end
+
   private
+
+  def resolve_log_for_typify
+    return Current.account.jabvox_dialer_call_logs.find_by(id: params[:id]) if params[:id].present?
+
+    Current.account.jabvox_dialer_call_logs
+           .where(jabvox_dialer_campaign_contact_id: params[:contact_id])
+           .ordered.first
+  end
+
+  # Only accept a typification that belongs to this account (or nil to clear).
+  def typification_param
+    return nil if params[:typification_id].blank?
+
+    Current.account.jabvox_typifications.where(id: params[:typification_id]).pick(:id)
+  end
 
   def check_authorization
     authorize :jabvox_dialer_call_log
@@ -62,6 +91,8 @@ class Api::V1::Accounts::Jabvox::DialerCallLogsController < Api::V1::Accounts::J
       ended_at_jabvox: log.ended_at_jabvox,
       notes_jabvox: log.notes_jabvox,
       agent_id_jabvox: log.agent_id_jabvox,
+      typification_id: log.typification_id,
+      uniqueid_jabvox: log.uniqueid_jabvox,
       created_at: log.created_at
     }
   end

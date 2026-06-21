@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Auth from '../../../../api/auth';
 import wootConstants from 'dashboard/constants/globals';
@@ -47,10 +48,14 @@ const { AVAILABILITY_STATUS_KEYS } = wootConstants;
 const store = useStore();
 const { t } = useI18n();
 
+const { markDirty, markClean } = useUnsavedChanges();
+
 const agentName = ref(props.name);
 const agentAvailability = ref(props.availability);
 const selectedRoleId = ref(props.customRoleId || props.type);
 const agentCredentials = ref({ email: props.email });
+
+watch([agentName, agentAvailability, selectedRoleId], () => markDirty());
 
 const rules = {
   agentName: { required, minLength: minLength(1) },
@@ -137,10 +142,17 @@ const editAgent = async () => {
 
     await store.dispatch('agents/update', payload);
     useAlert(t('AGENT_MGMT.EDIT.API.SUCCESS_MESSAGE'));
+    await nextTick();
+    markClean();
     emit('close');
   } catch (error) {
     useAlert(t('AGENT_MGMT.EDIT.API.ERROR_MESSAGE'));
   }
+};
+
+const onClose = () => {
+  markClean();
+  emit('close');
 };
 
 const resetPassword = async () => {
@@ -222,7 +234,7 @@ const resetPassword = async () => {
             slate
             type="reset"
             :label="$t('AGENT_MGMT.EDIT.CANCEL_BUTTON_TEXT')"
-            @click.prevent="emit('close')"
+            @click.prevent="onClose"
           />
           <Button
             type="submit"

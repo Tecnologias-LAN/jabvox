@@ -18,11 +18,13 @@ Metrics/ClassLength:
   Exclude:
     - 'app/models/message.rb'
     - 'app/models/conversation.rb'
+    - 'db/migrate/**/*'
 
 Metrics/MethodLength:
   Max: 19
   Exclude:
     - 'enterprise/lib/captain/agent.rb'
+    - 'db/migrate/**/*'
 
 RSpec/ExampleLength:
   Max: 50
@@ -42,7 +44,7 @@ Style/SymbolArray:
 Style/OpenStructUse:
   Enabled: false
 
-Chatwoot/AttachmentDownload:
+Jabvox/AttachmentDownload:
   Enabled: true
   Exclude:
     - 'spec/**/*'
@@ -181,6 +183,7 @@ Metrics/AbcSize:
     - 'app/models/integrations/hook.rb'
     - 'app/models/canned_response.rb'
     - 'app/models/telegram_bot.rb'
+    - 'db/migrate/**/*'
 
 Rails/RenderInline:
   Exclude:

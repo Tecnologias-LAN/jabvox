@@ -62,6 +62,9 @@ const actions = {
       commit('SET_UI_FLAGS', { isFetchingOne: false });
     }
   },
+  async updateLeadDetails(_, { id, ...payload }) {
+    await leadsAPI.updateDetails(id, payload);
+  },
 };
 
 export default {

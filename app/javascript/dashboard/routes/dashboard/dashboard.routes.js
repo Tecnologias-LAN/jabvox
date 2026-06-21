@@ -17,6 +17,9 @@ import { routes as jabvoxDialerRoutes } from './jabvox-dialer/routes';
 import { routes as jabvoxCalendarRoutes } from './jabvox-calendar/routes';
 import { routes as jabvoxInternalChatRoutes } from './jabvox-internal-chat/routes';
 import { routes as jabvoxReportsRoutes } from './jabvox-reports/routes';
+import { routes as jabvoxCdrRoutes } from './jabvox-cdr/routes';
+import { routes as jabvoxAudioAnalysisRoutes } from './jabvox-audio-analysis/routes';
+import { routes as jabvoxAnalyticsRoutes } from './jabvox-analytics/routes';
 import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
 import NoAccounts from './noAccounts/Index.vue';
@@ -45,6 +48,9 @@ export default {
         ...jabvoxCalendarRoutes,
         ...jabvoxInternalChatRoutes,
         ...jabvoxReportsRoutes,
+        ...jabvoxCdrRoutes,
+        ...jabvoxAudioAnalysisRoutes,
+        ...jabvoxAnalyticsRoutes,
       ],
     },
     {

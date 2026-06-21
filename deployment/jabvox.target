@@ -1,0 +1,5 @@
+[Unit]
+Wants=jabvox-web.1.service jabvox-worker.1.service
+
+[Install]
+WantedBy=multi-user.target

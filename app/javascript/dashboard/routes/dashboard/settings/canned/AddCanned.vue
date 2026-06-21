@@ -2,6 +2,7 @@
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import Modal from '../../../../components/Modal.vue';
@@ -25,7 +26,8 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -47,7 +49,18 @@ export default {
       required,
     },
   },
+  mounted() {
+    this.$watch(
+      () => [this.shortCode, this.content],
+      () => this.markDirty(),
+      { deep: true }
+    );
+  },
   methods: {
+    handleClose() {
+      this.markClean();
+      this.onClose();
+    },
     resetForm() {
       this.shortCode = '';
       this.content = '';
@@ -68,6 +81,7 @@ export default {
           this.addCanned.showLoading = false;
           useAlert(this.$t('CANNED_MGMT.ADD.API.SUCCESS_MESSAGE'));
           this.resetForm();
+          this.$nextTick(() => this.markClean());
           this.onClose();
         })
         .catch(error => {
@@ -82,7 +96,7 @@ export default {
 </script>
 
 <template>
-  <Modal v-model:show="show" :on-close="onClose">
+  <Modal v-model:show="show" :on-close="handleClose">
     <div class="flex flex-col h-auto overflow-auto">
       <woot-modal-header
         :header-title="$t('CANNED_MGMT.ADD.TITLE')"
@@ -124,7 +138,7 @@ export default {
             slate
             type="reset"
             :label="$t('CANNED_MGMT.ADD.CANCEL_BUTTON_TEXT')"
-            @click.prevent="onClose"
+            @click.prevent="handleClose"
           />
           <NextButton
             type="submit"

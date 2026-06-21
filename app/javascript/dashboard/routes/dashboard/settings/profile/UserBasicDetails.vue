@@ -3,6 +3,7 @@ import { useAlert } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength, email } from '@vuelidate/validators';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 export default {
   components: {
     NextButton,
@@ -27,7 +28,8 @@ export default {
   },
   emits: ['updateUser'],
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -57,21 +59,29 @@ export default {
     name: {
       handler(value) {
         this.userName = value;
+        this.$nextTick(() => this.markClean());
       },
       immediate: true,
     },
     displayName: {
       handler(value) {
         this.userDisplayName = value;
+        this.$nextTick(() => this.markClean());
       },
       immediate: true,
     },
     email: {
       handler(value) {
         this.userEmail = value;
+        this.$nextTick(() => this.markClean());
       },
       immediate: true,
     },
+  },
+  created() {
+    this.$watch('userName', () => this.markDirty());
+    this.$watch('userDisplayName', () => this.markDirty());
+    this.$watch('userEmail', () => this.markDirty());
   },
   methods: {
     async updateUser() {
@@ -85,6 +95,7 @@ export default {
         displayName: this.userDisplayName,
         email: this.userEmail,
       });
+      this.markClean();
     },
   },
 };

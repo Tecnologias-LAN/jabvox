@@ -1,0 +1,84 @@
+{
+  "JABVOX_CUSTOMIZATION": {
+    "SIDEBAR_LABEL": "Personalización",
+    "SETTINGS": {
+      "TITLE": "Personalización",
+      "SUBTITLE": "Crea tablas personalizadas, define sus columnas y configura botones de acceso rápido para leads y conversaciones."
+    },
+    "TABS": {
+      "TABLES": "Tablas",
+      "COLUMNS": "Columnas",
+      "BUTTONS": "Botones"
+    },
+    "TABLES": {
+      "TITLE": "Tablas personalizadas",
+      "DESCRIPTION": "Define tablas para organizar información adicional de tus leads y contactos.",
+      "NEW": "Nueva tabla",
+      "EMPTY": "No hay tablas creadas aún. Crea una para comenzar.",
+      "NAME_LABEL": "Nombre de la tabla",
+      "NAME_PLACEHOLDER": "ej. Pedidos especiales",
+      "DESCRIPTION_LABEL": "Descripción",
+      "DESCRIPTION_PLACEHOLDER": "ej. Registro de pedidos personalizados de clientes",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar",
+      "DELETE_CONFIRM": "¿Eliminar la tabla \"{name}\" y todas sus columnas? Esta acción no se puede deshacer.",
+      "SAVE_SUCCESS": "Tabla guardada.",
+      "DELETE_SUCCESS": "Tabla eliminada.",
+      "COLUMNS_COUNT": "Sin columnas | 1 columna | {count} columnas"
+    },
+    "COLUMNS": {
+      "TITLE": "Columnas",
+      "DESCRIPTION": "Selecciona una tabla y agrega o edita sus columnas.",
+      "SELECT_TABLE": "Selecciona una tabla",
+      "SELECT_TABLE_PLACEHOLDER": "Elige una tabla...",
+      "NEW": "Nueva columna",
+      "EMPTY": "Esta tabla no tiene columnas. Agrega la primera.",
+      "NO_TABLE_SELECTED": "Selecciona una tabla para gestionar sus columnas.",
+      "INTERNAL_NAME_LABEL": "Nombre interno",
+      "INTERNAL_NAME_PLACEHOLDER": "ej. fecha_entrega (sin espacios)",
+      "INTERNAL_NAME_HINT": "Identificador único en la base de datos. Solo letras, números y guiones bajos.",
+      "DISPLAY_LABEL": "Etiqueta visible",
+      "DISPLAY_PLACEHOLDER": "ej. Fecha de entrega",
+      "TYPE_LABEL": "Tipo de dato",
+      "REQUIRED_LABEL": "Campo obligatorio",
+      "OPTIONS_LABEL": "Opciones (separadas por coma)",
+      "OPTIONS_PLACEHOLDER": "ej. Pequeño, Mediano, Grande",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar",
+      "DELETE_CONFIRM": "¿Eliminar la columna \"{name}\"?",
+      "SAVE_SUCCESS": "Columna guardada.",
+      "DELETE_SUCCESS": "Columna eliminada.",
+      "TYPES": {
+        "text": "Texto",
+        "integer": "Número entero",
+        "float": "Número decimal",
+        "boolean": "Verdadero / Falso",
+        "date": "Fecha",
+        "select": "Lista de opciones"
+      }
+    },
+    "BUTTONS": {
+      "TITLE": "Botones de acceso rápido",
+      "DESCRIPTION": "Botones que aparecen en el detalle del lead, conversaciones y kanban. Puedes usar variables dinámicas en la URL: {id}, {phone}, {email}, {firstName}.",
+      "NEW": "Nuevo botón",
+      "EMPTY": "No hay botones configurados aún.",
+      "NAME_LABEL": "Nombre del botón",
+      "NAME_PLACEHOLDER": "ej. Ver en sistema externo",
+      "URL_LABEL": "URL",
+      "URL_PLACEHOLDER": "ej. https://mi-sistema.com/cliente/{phone}",
+      "URL_HINT": "Variables disponibles: {id}, {phone}, {email}, {firstName}",
+      "COLOR_LABEL": "Color",
+      "ACTIVE_LABEL": "Activo",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar",
+      "DELETE_CONFIRM": "¿Eliminar el botón \"{name}\"?",
+      "SAVE_SUCCESS": "Botón guardado.",
+      "DELETE_SUCCESS": "Botón eliminado."
+    },
+    "ERROR": "Ocurrió un error. Intenta de nuevo.",
+    "LOADING": "Cargando..."
+  }
+}

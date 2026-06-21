@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
 import { vOnClickOutside } from '@vueuse/components';
@@ -15,6 +15,7 @@ import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.v
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import TagInput from 'dashboard/components-next/taginput/TagInput.vue';
 import assignmentPoliciesAPI from 'dashboard/api/assignmentPolicies';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -29,6 +30,7 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const { isEnterprise } = useConfig();
+const { markDirty, markClean } = useUnsavedChanges();
 
 const selectedAgentIds = ref([]);
 const isAgentListUpdating = ref(false);
@@ -153,6 +155,8 @@ const fetchAttachedAgents = async () => {
       data: { payload: inboxMembers },
     } = response;
     selectedAgentIds.value = inboxMembers.map(m => m.id);
+    await nextTick();
+    markClean();
   } catch (error) {
     //  Handle error
   }
@@ -268,6 +272,8 @@ const updateAgents = async () => {
       inboxId: props.inbox.id,
       agentList: selectedAgentIds.value,
     });
+    await nextTick();
+    markClean();
     useAlert(t('AGENT_MGMT.EDIT.API.SUCCESS_MESSAGE'));
   } catch (error) {
     useAlert(t('AGENT_MGMT.EDIT.API.ERROR_MESSAGE'));
@@ -286,6 +292,8 @@ const updateInbox = async () => {
       },
     };
     await store.dispatch('inboxes/updateInbox', payload);
+    await nextTick();
+    markClean();
     useAlert(t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
   } catch (error) {
     useAlert(t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
@@ -350,10 +358,16 @@ const setDefaults = () => {
     fetchAssignmentPolicy();
     fetchAvailablePolicies();
   }
+  nextTick().then(markClean);
 };
 
 // Watch only inbox.id to avoid unnecessary refetches when other properties change
 watch(() => props.inbox.id, setDefaults);
+
+// Flag unsaved edits to the agent list and the max assignment limit
+watch([selectedAgentIds, maxAssignmentLimit], () => markDirty(), {
+  deep: true,
+});
 
 onMounted(() => {
   setDefaults();

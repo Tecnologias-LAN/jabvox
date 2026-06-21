@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'dashboard/composables/store';
 import { useAutomation } from 'dashboard/composables/useAutomation';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import AutomationRuleForm from './AutomationRuleForm.vue';
 
 const emit = defineEmits(['saveAutomation']);
@@ -44,14 +45,24 @@ const {
   manifestCustomAttributes,
 } = useAutomation(START_VALUE);
 
-const open = () => {
+const { markDirty, markClean } = useUnsavedChanges();
+
+watch(automation, () => markDirty(), { deep: true });
+
+const open = async () => {
   automation.value = structuredClone(START_VALUE);
   manifestCustomAttributes();
   formRef.value?.open();
+  await nextTick();
+  markClean();
 };
-const close = () => formRef.value?.close();
+const close = () => {
+  markClean();
+  formRef.value?.close();
+};
 
 const onSave = (payload, mode) => {
+  markClean();
   emit('saveAutomation', payload, mode);
 };
 
@@ -82,5 +93,6 @@ defineExpose({ open, close });
     :reset-action="resetAction"
     :on-event-change="onEventChange"
     @save="onSave"
+    @close="markClean"
   />
 </template>

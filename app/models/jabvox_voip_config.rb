@@ -28,7 +28,7 @@ class JabvoxVoipConfig < ApplicationRecord
 
   belongs_to :account
 
-  encrypts :password if Chatwoot.encryption_configured?
+  encrypts :password if Jabvox.encryption_configured?
 
   validates :host, presence: true
   validates :username, presence: true

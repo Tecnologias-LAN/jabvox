@@ -35,6 +35,8 @@ export const dialerCampaignsAPI = {
 export const dialerCallLogsAPI = {
   getAll: () => axios.get(logsClient.url),
   create: data => axios.post(logsClient.url, data),
+  // Save the agent's wrap-up typification + note for a contact's most recent call.
+  typify: data => axios.patch(`${logsClient.url}/typify`, data),
 };
 
 const dialerStatesClient = new ApiClient('jabvox/dialer_states', {

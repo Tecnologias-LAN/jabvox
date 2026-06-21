@@ -25,6 +25,10 @@ module Jabvox
       nil
     end
 
+    def public_url(s3_key)
+      "#{custom_endpoint.to_s.chomp('/')}/#{bucket_name}/#{s3_key}"
+    end
+
     def object_exists?(s3_key)
       client.head_object(bucket: bucket_name, key: s3_key)
       true

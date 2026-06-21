@@ -3,6 +3,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import { convertToAttributeSlug } from 'dashboard/helper/commons.js';
 import { ATTRIBUTE_MODELS, ATTRIBUTE_TYPES } from './constants';
 
@@ -27,7 +28,8 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -127,7 +129,29 @@ export default {
     },
   },
 
+  mounted() {
+    this.$watch(
+      () => [
+        this.displayName,
+        this.description,
+        this.attributeModel,
+        this.attributeType,
+        this.attributeKey,
+        this.regexPattern,
+        this.regexCue,
+        this.regexEnabled,
+        this.values,
+      ],
+      () => this.markDirty(),
+      { deep: true }
+    );
+  },
+
   methods: {
+    handleClose() {
+      this.markClean();
+      this.onClose();
+    },
     onDisplayNameChange() {
       this.attributeKey = convertToAttributeSlug(this.displayName);
     },
@@ -157,6 +181,7 @@ export default {
           regex_cue: this.regexCue,
         });
         this.alertMessage = this.$t('ATTRIBUTES_MGMT.ADD.API.SUCCESS_MESSAGE');
+        this.$nextTick(() => this.markClean());
         this.onClose();
       } catch (error) {
         const errorMessage = error?.message;
@@ -171,7 +196,7 @@ export default {
 </script>
 
 <template>
-  <woot-modal v-model:show="show" :on-close="onClose">
+  <woot-modal v-model:show="show" :on-close="handleClose">
     <div class="flex flex-col h-auto overflow-auto">
       <woot-modal-header :header-title="$t('ATTRIBUTES_MGMT.ADD.TITLE')" />
 
@@ -289,7 +314,7 @@ export default {
               slate
               type="reset"
               :label="$t('ATTRIBUTES_MGMT.ADD.CANCEL_BUTTON_TEXT')"
-              @click.prevent="onClose"
+              @click.prevent="handleClose"
             />
             <NextButton
               type="submit"

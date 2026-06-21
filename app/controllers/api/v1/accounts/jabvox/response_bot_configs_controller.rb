@@ -48,8 +48,9 @@ class Api::V1::Accounts::Jabvox::ResponseBotConfigsController < Api::V1::Account
   def config_params
     params.require(:config).permit(
       :inbox_id, :jabvox_response_bot_seat_id, :jabvox_response_bot_role_id,
-      :enabled_jabvox, :jabvox_ai_chat_model_id, :jabvox_audio_model_id,
+      :enabled_jabvox, :jabvox_ai_chat_model_id, :jabvox_audio_model_id, :jabvox_image_model_id,
       :name_jabvox, :description_jabvox,
+      :google_maps_api_key_jabvox, :company_address_jabvox, :price_per_km_jabvox,
       active_labels_jabvox: []
     )
   end
@@ -65,7 +66,11 @@ class Api::V1::Accounts::Jabvox::ResponseBotConfigsController < Api::V1::Account
       enabled_jabvox: config.enabled_jabvox,
       active_labels_jabvox: config.active_labels_jabvox || JabvoxResponseBotConfig::LABEL_CATEGORIES,
       jabvox_ai_chat_model_id: config.jabvox_ai_chat_model_id,
-      jabvox_audio_model_id: config.jabvox_audio_model_id
+      jabvox_audio_model_id: config.jabvox_audio_model_id,
+      jabvox_image_model_id: config.jabvox_image_model_id,
+      google_maps_api_key_jabvox: config.google_maps_api_key_jabvox,
+      company_address_jabvox: config.company_address_jabvox,
+      price_per_km_jabvox: config.price_per_km_jabvox
     }
   end
 

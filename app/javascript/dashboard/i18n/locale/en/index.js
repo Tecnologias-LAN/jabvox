@@ -43,6 +43,9 @@ import yearInReview from './yearInReview.json';
 import jabvoxKanban from './jabvoxKanban.json';
 import jabvoxProducts from './jabvoxProducts.json';
 import jabvoxVoip from './jabvoxVoip.json';
+import jabvoxCdr from './jabvoxCdr.json';
+import jabvoxAudioAnalysis from './jabvoxAudioAnalysis.json';
+import jabvoxAnalytics from './jabvoxAnalytics.json';
 import jabvoxSaldo from './jabvoxSaldo.json';
 import jabvoxSms from './jabvoxSms.json';
 import jabvoxIpWhitelist from './jabvoxIpWhitelist.json';
@@ -60,6 +63,9 @@ import jabvoxResponseBot from './jabvoxResponseBot.json';
 import jabvoxEmail from './jabvoxEmail.json';
 import jabvoxActions from './jabvoxActions.json';
 import jabvoxForms from './jabvoxForms.json';
+import jabvoxCustomization from './jabvoxCustomization.json';
+import jabvoxClickToCall from './jabvoxClickToCall.json';
+import jabvoxWhatsappTemplates from './jabvoxWhatsappTemplates.json';
 
 export default {
   ...advancedFilters,
@@ -107,6 +113,9 @@ export default {
   ...jabvoxKanban,
   ...jabvoxProducts,
   ...jabvoxVoip,
+  ...jabvoxCdr,
+  ...jabvoxAudioAnalysis,
+  ...jabvoxAnalytics,
   ...jabvoxSaldo,
   ...jabvoxSms,
   ...jabvoxIpWhitelist,
@@ -124,4 +133,7 @@ export default {
   ...jabvoxEmail,
   ...jabvoxActions,
   ...jabvoxForms,
+  ...jabvoxCustomization,
+  ...jabvoxClickToCall,
+  ...jabvoxWhatsappTemplates,
 };

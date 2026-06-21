@@ -28,6 +28,9 @@ import conversationWorkflow from './conversationWorkflow/conversationWorkflow.ro
 import captain from './captain/captain.routes';
 import { routes as jabvoxKanbanSettingsRoutes } from './jabvox-kanban/routes';
 import { routes as jabvoxVoipRoutes } from './jabvox-voip/routes';
+import { routes as jabvoxCdrSettingsRoutes } from './jabvox-cdr/routes';
+import { routes as jabvoxAudioAnalysisSettingsRoutes } from './jabvox-audio-analysis/routes';
+import { routes as jabvoxTypificationsSettingsRoutes } from './jabvox-typifications/routes';
 import { routes as jabvoxSaldoRoutes } from './jabvox-saldo/routes';
 import { routes as jabvoxIpWhitelistRoutes } from './jabvox-ip-whitelist/routes';
 import { routes as jabvoxAiChatSettingsRoutes } from './jabvox-ai-chat/routes';
@@ -38,6 +41,8 @@ import { routes as jabvoxAffiliatesRoutes } from './jabvox-affiliates/routes';
 import { routes as jabvoxResponseBotRoutes } from './jabvox-response-bot/routes';
 import { routes as jabvoxEmailSettingsRoutes } from './jabvox-email/routes';
 import { routes as jabvoxFormsSettingsRoutes } from './jabvox-forms/routes';
+import { routes as jabvoxCustomizationRoutes } from './jabvox-customization/routes';
+import { routes as jabvoxWhatsappTemplatesRoutes } from './jabvox-whatsapp-templates/routes';
 
 export default {
   routes: [
@@ -82,6 +87,9 @@ export default {
     ...jabvoxFieldSecurityRoutes,
     ...jabvoxKanbanSettingsRoutes,
     ...jabvoxVoipRoutes,
+    ...jabvoxCdrSettingsRoutes,
+    ...jabvoxAudioAnalysisSettingsRoutes,
+    ...jabvoxTypificationsSettingsRoutes,
     ...jabvoxSaldoRoutes,
     ...jabvoxIpWhitelistRoutes,
     ...jabvoxAiChatSettingsRoutes,
@@ -91,5 +99,7 @@ export default {
     ...jabvoxResponseBotRoutes,
     ...jabvoxEmailSettingsRoutes,
     ...jabvoxFormsSettingsRoutes,
+    ...jabvoxCustomizationRoutes,
+    ...jabvoxWhatsappTemplatesRoutes,
   ],
 };

@@ -3,7 +3,7 @@ module WebhookSecretable
 
   included do
     has_secure_token :secret
-    encrypts :secret if Chatwoot.encryption_configured?
+    encrypts :secret if Jabvox.encryption_configured?
   end
 
   def reset_secret!

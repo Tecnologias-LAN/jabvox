@@ -26,7 +26,7 @@ const allMessages = ref({});
 const isLoadingMessages = ref(false);
 const expandedDays = ref(new Set());
 
-// Normalize Chatwoot's seconds-based timestamps and ISO strings to Date
+// Normalize Jabvox's seconds-based timestamps and ISO strings to Date
 const toDate = val => {
   if (!val) return new Date(0);
   const num = Number(val);

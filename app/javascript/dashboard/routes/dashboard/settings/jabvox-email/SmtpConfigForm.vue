@@ -1,11 +1,20 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import {
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+} from 'vue';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 
 const store = useStore();
 const { t } = useI18n();
+const { markDirty, markClean } = useUnsavedChanges();
 
 const config = computed(() => store.getters['jabvoxEmail/getSmtpConfig']);
 const uiFlags = computed(() => store.getters['jabvoxEmail/getUIFlags']);
@@ -47,7 +56,7 @@ const statusClasses = computed(() => {
 
 watch(
   config,
-  val => {
+  async val => {
     if (val?.id) {
       form.value = {
         from_name: val.from_name || '',
@@ -60,10 +69,14 @@ watch(
         enable_starttls_auto: val.enable_starttls_auto ?? true,
         enable_ssl_tls: val.enable_ssl_tls ?? false,
       };
+      await nextTick();
+      markClean();
     }
   },
   { immediate: true }
 );
+
+watch(form, () => markDirty(), { deep: true });
 
 const onSave = async () => {
   try {
@@ -73,6 +86,8 @@ const onSave = async () => {
     }
     if (!payload.password) delete payload.password;
     await store.dispatch('jabvoxEmail/saveSmtpConfig', payload);
+    await nextTick();
+    markClean();
     useAlert(t('JABVOX_EMAIL.SMTP.SAVE_SUCCESS'));
   } catch (e) {
     useAlert(e?.response?.data?.error || t('JABVOX_EMAIL.SMTP.SAVE_ERROR'));

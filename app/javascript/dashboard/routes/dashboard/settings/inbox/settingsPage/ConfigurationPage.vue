@@ -12,6 +12,7 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 import TextArea from 'next/textarea/TextArea.vue';
 import WhatsappReauthorize from '../channels/whatsapp/Reauthorize.vue';
 import { sanitizeAllowedDomains } from 'dashboard/helper/URLHelper';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 
 export default {
   components: {
@@ -32,7 +33,8 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -54,7 +56,7 @@ export default {
       return this.inbox.provider_config?.source === 'embedded_signup';
     },
     whatsappAppId() {
-      return window.chatwootConfig?.whatsappAppId;
+      return window.jabvoxConfig?.whatsappAppId;
     },
     isForwardingEnabled() {
       return !!this.inbox.forwarding_enabled;
@@ -74,6 +76,12 @@ export default {
   },
   mounted() {
     this.setDefaults();
+    this.$watch(
+      () => [this.allowedDomains, this.whatsAppInboxAPIKey],
+      () => {
+        if (!this.isSettingDefaults) this.markDirty();
+      }
+    );
   },
   methods: {
     setDefaults() {
@@ -85,6 +93,7 @@ export default {
       this.allowedDomains = this.inbox.allowed_domains || '';
       this.$nextTick(() => {
         this.isSettingDefaults = false;
+        this.markClean();
       });
     },
     handleHmacFlag() {
@@ -140,6 +149,7 @@ export default {
         };
         await this.$store.dispatch('inboxes/updateInbox', payload);
         this.allowedDomains = sanitizedAllowedDomains;
+        this.$nextTick(() => this.markClean());
         useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
       } catch (error) {
         useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
@@ -161,6 +171,7 @@ export default {
         };
 
         await this.$store.dispatch('inboxes/updateInbox', payload);
+        this.$nextTick(() => this.markClean());
         useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
       } catch (error) {
         useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
@@ -290,16 +301,6 @@ export default {
           <woot-code :script="inbox.hmac_token" />
           <p class="mt-1.5 text-label-small text-n-slate-11">
             {{ $t('INBOX_MGMT.SETTINGS_POPUP.HMAC_DESCRIPTION') }}
-            <a
-              target="_blank"
-              rel="noopener noreferrer"
-              href="https://www.chatwoot.com/docs/product/channels/live-chat/sdk/identity-validation/"
-              class="text-n-blue-11 hover:underline text-label-small"
-            >
-              {{
-                $t('INBOX_MGMT.SETTINGS_POPUP.IDENTITY_VALIDATION.VIEW_DOCS')
-              }}
-            </a>
           </p>
         </template>
       </SettingsToggleSection>

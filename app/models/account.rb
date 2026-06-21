@@ -2,37 +2,43 @@
 #
 # Table name: accounts
 #
-#  id                                   :integer          not null, primary key
-#  auto_resolve_duration                :integer
-#  custom_attributes                    :jsonb
-#  domain                               :string(100)
-#  feature_flags                        :bigint           default(0), not null
-#  internal_attributes                  :jsonb            not null
-#  jabvox_acento_jabvox                 :string
-#  jabvox_affiliates_enabled_jabvox     :boolean          default(FALSE), not null
-#  jabvox_ai_chat_enabled_jabvox        :boolean          default(FALSE), not null
-#  jabvox_ai_chat_max_documents_jabvox  :integer          default(0), not null
-#  jabvox_ai_chat_max_open_chats_jabvox :integer          default(0), not null
-#  jabvox_calendar_enabled_jabvox       :boolean          default(FALSE), not null
-#  jabvox_dialer_enabled_jabvox         :boolean          default(FALSE), not null
-#  jabvox_email_enabled_jabvox          :boolean          default(FALSE), not null
-#  jabvox_forms_enabled_jabvox          :boolean          default(FALSE), not null
-#  jabvox_internal_chat_enabled_jabvox  :boolean          default(FALSE), not null
-#  jabvox_kanban_enabled_jabvox         :boolean          default(FALSE), not null
-#  jabvox_leads_enabled_jabvox          :boolean          default(FALSE), not null
-#  jabvox_products_enabled_jabvox       :boolean          default(FALSE), not null
-#  jabvox_response_bot_enabled_jabvox   :boolean          default(FALSE), not null
-#  jabvox_saldo_enabled_jabvox          :boolean          default(FALSE), not null
-#  jabvox_sms_enabled_jabvox            :boolean          default(FALSE), not null
-#  jabvox_voip_enabled_jabvox           :boolean          default(FALSE), not null
-#  limits                               :jsonb
-#  locale                               :integer          default("en")
-#  name                                 :string           not null
-#  settings                             :jsonb
-#  status                               :integer          default("active")
-#  support_email                        :string(100)
-#  created_at                           :datetime         not null
-#  updated_at                           :datetime         not null
+#  id                                       :integer          not null, primary key
+#  auto_resolve_duration                    :integer
+#  custom_attributes                        :jsonb
+#  domain                                   :string(100)
+#  feature_flags                            :bigint           default(0), not null
+#  internal_attributes                      :jsonb            not null
+#  jabvox_acento_jabvox                     :string
+#  jabvox_affiliates_enabled_jabvox         :boolean          default(FALSE), not null
+#  jabvox_ai_chat_enabled_jabvox            :boolean          default(FALSE), not null
+#  jabvox_ai_chat_max_documents_jabvox      :integer          default(0), not null
+#  jabvox_ai_chat_max_open_chats_jabvox     :integer          default(0), not null
+#  jabvox_analytics_enabled_jabvox          :boolean          default(FALSE), not null
+#  jabvox_audio_analysis_enabled_jabvox     :boolean          default(FALSE), not null
+#  jabvox_calendar_enabled_jabvox           :boolean          default(FALSE), not null
+#  jabvox_cdr_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_click_to_call_enabled_jabvox      :boolean          default(FALSE), not null
+#  jabvox_customization_enabled_jabvox      :boolean          default(FALSE), not null
+#  jabvox_dialer_enabled_jabvox             :boolean          default(FALSE), not null
+#  jabvox_email_enabled_jabvox              :boolean          default(FALSE), not null
+#  jabvox_forms_enabled_jabvox              :boolean          default(FALSE), not null
+#  jabvox_internal_chat_enabled_jabvox      :boolean          default(FALSE), not null
+#  jabvox_kanban_enabled_jabvox             :boolean          default(FALSE), not null
+#  jabvox_leads_enabled_jabvox              :boolean          default(FALSE), not null
+#  jabvox_products_enabled_jabvox           :boolean          default(FALSE), not null
+#  jabvox_response_bot_enabled_jabvox       :boolean          default(FALSE), not null
+#  jabvox_saldo_enabled_jabvox              :boolean          default(FALSE), not null
+#  jabvox_sms_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_voip_enabled_jabvox               :boolean          default(FALSE), not null
+#  jabvox_whatsapp_templates_enabled_jabvox :boolean          default(FALSE), not null
+#  limits                                   :jsonb
+#  locale                                   :integer          default("en")
+#  name                                     :string           not null
+#  settings                                 :jsonb
+#  status                                   :integer          default("active")
+#  support_email                            :string(100)
+#  created_at                               :datetime         not null
+#  updated_at                               :datetime         not null
 #
 # Indexes
 #
@@ -115,6 +121,21 @@ class Account < ApplicationRecord
   has_many :jabvox_tax_rates, dependent: :destroy_async
   has_many :jabvox_sales_report_accesses, dependent: :destroy_async
   has_one :jabvox_integration_config, dependent: :destroy
+  has_one :jabvox_cdr_config, dependent: :destroy
+  has_many :jabvox_cdr_pipelines, dependent: :destroy_async
+  has_many :jabvox_cdr_call_analyses, dependent: :destroy_async
+  has_many :jabvox_cdr_report_permissions, dependent: :destroy_async
+  has_many :jabvox_whatsapp_template_permissions, dependent: :destroy_async
+  has_many :jabvox_whatsapp_templates, dependent: :destroy_async
+  has_many :jabvox_whatsapp_template_logs, dependent: :destroy_async
+  has_many :jabvox_cdr_extension_mappings, dependent: :destroy_async
+  has_many :jabvox_audio_storages, dependent: :destroy_async
+  has_many :jabvox_audio_pipelines, dependent: :destroy_async
+  has_many :jabvox_audio_jobs, dependent: :destroy_async
+  has_many :jabvox_audio_results, dependent: :destroy_async
+  has_many :jabvox_audio_permissions, dependent: :destroy_async
+  has_many :jabvox_typifications, dependent: :destroy_async
+  has_many :jabvox_call_logs, dependent: :destroy_async
   has_one :jabvox_voip_config, dependent: :destroy
   has_one :jabvox_saldo_config, dependent: :destroy
   has_many :jabvox_sms_providers, dependent: :destroy_async
@@ -133,6 +154,8 @@ class Account < ApplicationRecord
   has_many :jabvox_response_bot_configs, dependent: :destroy_async
   has_many :jabvox_response_bot_documents, dependent: :destroy_async
   has_many :jabvox_management_states, dependent: :destroy_async
+  has_many :jabvox_management_questions, dependent: :destroy_async
+  has_many :jabvox_management_answers, dependent: :destroy_async
   has_many :jabvox_dialer_campaigns, dependent: :destroy_async
   has_many :jabvox_dialer_campaign_contacts, dependent: :destroy_async
   has_many :jabvox_dialer_call_logs, dependent: :destroy_async
@@ -142,6 +165,7 @@ class Account < ApplicationRecord
   has_many :jabvox_affiliates, dependent: :destroy_async
   has_many :jabvox_affiliate_imports, dependent: :destroy_async
   has_many :jabvox_calendar_events, dependent: :destroy_async
+  has_many :jabvox_calendar_external_people, dependent: :destroy_async
   has_one :jabvox_form_config, dependent: :destroy
   has_many :jabvox_forms, dependent: :destroy_async
 
@@ -159,6 +183,16 @@ class Account < ApplicationRecord
   has_many :jabvox_dialer_states, dependent: :destroy_async
   has_many :jabvox_dialer_accesses, dependent: :destroy_async
   has_many :jabvox_internal_chats, dependent: :destroy_async
+  has_many :jabvox_custom_tables, dependent: :destroy
+  has_many :jabvox_quick_buttons, dependent: :destroy
+  has_many :jabvox_custom_table_rows, through: :jabvox_custom_tables
+  # Jabvox Analytics & Dashboards (BI) module
+  has_many :jabvox_analytics_data_sources, dependent: :destroy
+  has_many :jabvox_analytics_roles, dependent: :destroy
+  has_many :jabvox_analytics_folders, dependent: :destroy
+  has_many :jabvox_analytics_dashboards, dependent: :destroy
+  has_many :jabvox_analytics_exports, dependent: :destroy
+  has_many :jabvox_analytics_audit_logs, dependent: :delete_all
   has_many :portals, dependent: :destroy_async, class_name: '::Portal'
   has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
   has_many :teams, dependent: :destroy_async
@@ -218,8 +252,8 @@ class Account < ApplicationRecord
 
   def usage_limits
     {
-      agents: ChatwootApp.max_limit.to_i,
-      inboxes: ChatwootApp.max_limit.to_i
+      agents: JabvoxApp.max_limit.to_i,
+      inboxes: JabvoxApp.max_limit.to_i
     }
   end
 

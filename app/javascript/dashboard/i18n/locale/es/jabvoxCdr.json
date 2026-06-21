@@ -1,0 +1,107 @@
+{
+  "JABVOX_CDR": {
+    "SIDEBAR_LABEL": "Reportes CDR",
+    "REPORTS": {
+      "TITLE": "Reportes CDR",
+      "VIEW_SUMMARY": "Resumen por agente",
+      "VIEW_RECORDS": "Detalle de llamadas",
+      "NOT_CONFIGURED": "CDR aún no está configurado. Pide a un administrador que configure la conexión PBX.",
+      "LOADING": "Cargando…",
+      "LOAD_ERROR": "No se pudieron cargar los datos CDR.",
+      "EMPTY": "No se encontraron llamadas con los filtros seleccionados.",
+      "ANALYZE": "Analizar con IA",
+      "PREV": "Anterior",
+      "NEXT": "Siguiente",
+      "FILTERS": {
+        "FROM": "Desde",
+        "TO": "Hasta",
+        "EXTENSION": "Extensión",
+        "DISPOSITION": "Estado",
+        "ALL": "Todas",
+        "APPLY": "Aplicar"
+      },
+      "KPI": {
+        "TOTAL": "Total",
+        "ANSWERED": "Contestadas",
+        "NO_ANSWER": "No contestadas",
+        "TALK_TIME": "Tiempo de conversación",
+        "ANSWER_RATE": "Tasa de respuesta"
+      },
+      "TABLE": {
+        "AGENT": "Agente",
+        "BUSY": "Ocupado",
+        "FAILED": "Fallida",
+        "DATE": "Fecha",
+        "SRC": "Origen",
+        "DST": "Destino",
+        "STATUS": "Estado",
+        "DURATION": "Duración",
+        "SCORE": "Puntaje IA"
+      }
+    },
+    "ANALYSIS": {
+      "TITLE": "Análisis de llamada",
+      "RUNNING": "Analizando la llamada con IA…",
+      "ERROR": "No se pudo completar el análisis.",
+      "RETRY": "Reintentar",
+      "FINAL_SCORE": "Puntaje final",
+      "TRANSCRIPT": "Transcripción",
+      "REANALYZE": "Re-analizar"
+    },
+    "SETTINGS": {
+      "TITLE": "Configuración CDR",
+      "SUBTITLE": "Configura la conexión al PBX, los pipelines de análisis con IA y el acceso.",
+      "TABS": {
+        "CONNECTION": "Conexión",
+        "PIPELINES": "Pipelines de IA",
+        "PERMISSIONS": "Permisos"
+      },
+      "MYSQL": "Base de datos PBX (MySQL)",
+      "SSH": "Acceso a grabaciones (SSH/SFTP)",
+      "STATUS_OK": "Conectado",
+      "STATUS_ERROR": "Falló",
+      "ANALYSIS": "Análisis",
+      "HOST": "Host",
+      "USER": "Usuario",
+      "PASSWORD": "Contraseña (deja en blanco para conservar la actual)",
+      "DATABASE": "Base de datos",
+      "TABLE": "Tabla CDR",
+      "RECORDINGS_PATH": "Ruta base de grabaciones",
+      "MODE_MANUAL": "Análisis manual",
+      "MODE_AUTO_ALL": "Auto: todas las llamadas",
+      "MODE_AUTO_MIN": "Auto: llamadas con duración mínima",
+      "MIN_DURATION": "Duración mínima (s)",
+      "NO_DEFAULT_PIPELINE": "Sin pipeline por defecto",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "EDIT": "Editar",
+      "DELETE": "Eliminar",
+      "TEST": "Probar conexión",
+      "SAVED": "Guardado correctamente.",
+      "SAVE_ERROR": "No se pudo guardar. Revisa los valores.",
+      "TEST_ERROR": "La prueba de conexión falló.",
+      "PIPELINE": {
+        "NEW": "Nuevo pipeline",
+        "EMPTY": "Aún no hay pipelines.",
+        "NAME": "Nombre del pipeline",
+        "NAME_REQUIRED": "El nombre del pipeline es obligatorio.",
+        "SET_DEFAULT": "Pipeline por defecto",
+        "TRANSCRIPTION_MODEL": "Modelo de transcripción",
+        "NO_TRANSCRIPTION": "Sin transcripción",
+        "TYPIFICATION": "Tipificación",
+        "NO_TYPIFICATION": "Sin tipificación",
+        "LLM_MODEL": "Modelo de validación",
+        "DEFAULT_MODEL": "Usar modelo por defecto",
+        "DEFAULT": "Por defecto",
+        "STAGES_TITLE": "Etapas de validación",
+        "STAGES": "etapas",
+        "STAGES_REQUIRED": "Sin etapas — agrega al menos una para validar.",
+        "ADD_STAGE": "Agregar etapa",
+        "STAGE_NAME": "Nombre de la etapa",
+        "MIN_SCORE": "Puntaje mínimo",
+        "PROMPT": "Prompt de análisis para el LLM",
+        "CONFIRM_DELETE": "¿Eliminar este pipeline?"
+      }
+    }
+  }
+}

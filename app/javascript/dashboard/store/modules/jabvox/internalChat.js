@@ -74,6 +74,14 @@ const actions = {
   setCurrentChat: ({ commit }, chatId) => {
     commit('SET_CURRENT_CHAT_ID', chatId);
   },
+  receiveMessage: ({ commit, state: s }, { chat_id: chatId, message }) => {
+    if (s.currentChatId === chatId) {
+      commit('ADD_MESSAGE', message);
+    }
+    commit('INCREMENT_UNREAD', chatId);
+    commit('UPDATE_CHAT_LAST_MESSAGE', { chatId, message });
+    commit('REFRESH_UNREAD_TOTAL');
+  },
 };
 
 const mutations = {
@@ -110,6 +118,11 @@ const mutations = {
   RESET_UNREAD: (s, chatId) => {
     s.chats = s.chats.map(c =>
       c.id === chatId ? { ...c, unread_count: 0 } : c
+    );
+  },
+  INCREMENT_UNREAD: (s, chatId) => {
+    s.chats = s.chats.map(c =>
+      c.id === chatId ? { ...c, unread_count: (c.unread_count || 0) + 1 } : c
     );
   },
   REFRESH_UNREAD_TOTAL: s => {

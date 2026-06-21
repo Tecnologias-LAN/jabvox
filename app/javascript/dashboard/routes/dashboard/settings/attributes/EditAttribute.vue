@@ -1,6 +1,7 @@
 <script>
 import { useVuelidate } from '@vuelidate/core';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import { required, minLength } from '@vuelidate/validators';
 import { getRegexp } from 'shared/helpers/Validators';
 import { ATTRIBUTE_TYPES } from './constants';
@@ -24,7 +25,8 @@ export default {
   },
   emits: ['onClose'],
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -111,9 +113,25 @@ export default {
   },
   mounted() {
     this.setFormValues();
+    this.$nextTick(() => this.markClean());
+    this.$watch(
+      () => [
+        this.displayName,
+        this.description,
+        this.attributeType,
+        this.attributeKey,
+        this.regexPattern,
+        this.regexCue,
+        this.regexEnabled,
+        this.values,
+      ],
+      () => this.markDirty(),
+      { deep: true }
+    );
   },
   methods: {
     onClose() {
+      this.markClean();
       this.$emit('onClose');
     },
     setFormValues() {
@@ -150,6 +168,7 @@ export default {
           regex_cue: this.regexCue,
         });
         this.alertMessage = this.$t('ATTRIBUTES_MGMT.EDIT.API.SUCCESS_MESSAGE');
+        this.markClean();
         this.onClose();
       } catch (error) {
         const errorMessage = error?.message;

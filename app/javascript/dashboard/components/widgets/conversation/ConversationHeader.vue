@@ -11,6 +11,7 @@ import SLACardLabel from './components/SLACardLabel.vue';
 import JabvoxCallButton from './jabvox/JabvoxCallButton.vue';
 import JabvoxSmsButton from './jabvox/JabvoxSmsButton.vue';
 import JabvoxEmailButton from './jabvox/JabvoxEmailButton.vue';
+import JabvoxQuickButtons from './jabvox/JabvoxQuickButtons.vue';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
@@ -103,6 +104,13 @@ const isVoipEnabled = computed(() =>
   )
 );
 
+const isCustomizationEnabled = computed(() =>
+  store.getters['accounts/isFeatureEnabledonAccount'](
+    store.getters.getCurrentAccountId,
+    FEATURE_FLAGS.JABVOX_CUSTOMIZATION
+  )
+);
+
 const contactPhone = computed(() => currentContact.value?.phone_number);
 const contactEmail = computed(() => currentContact.value?.email);
 </script>
@@ -181,6 +189,11 @@ const contactEmail = computed(() => currentContact.value?.email);
         v-if="contactEmail && currentContact.id"
         :email="contactEmail"
         :contact-id="currentContact.id"
+      />
+      <JabvoxQuickButtons
+        v-if="isCustomizationEnabled && currentContact.id"
+        :contact="currentContact"
+        size="sm"
       />
       <MoreActions :conversation-id="currentChat.id" />
     </div>

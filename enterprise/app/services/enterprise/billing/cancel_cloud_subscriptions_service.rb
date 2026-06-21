@@ -3,7 +3,7 @@ class Enterprise::Billing::CancelCloudSubscriptionsService
 
   def perform
     return if stripe_customer_id.blank?
-    return unless ChatwootApp.chatwoot_cloud?
+    return unless JabvoxApp.jabvox_cloud?
 
     subscriptions.each do |subscription|
       next if subscription.cancel_at_period_end

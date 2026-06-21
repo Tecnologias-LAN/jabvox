@@ -18,6 +18,12 @@ import CopilotEditorSection from './CopilotEditorSection.vue';
 import MessageSignatureMissingAlert from './MessageSignatureMissingAlert.vue';
 import ReplyBoxBanner from './ReplyBoxBanner.vue';
 import QuotedEmailPreview from './QuotedEmailPreview.vue';
+import ManagementQuestionsForm from 'dashboard/components/jabvox/managementStates/ManagementQuestionsForm.vue';
+import {
+  noteRule,
+  isManagementValid,
+  buildManagementContentAttributes,
+} from 'dashboard/composables/jabvox/useManagementState';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
 import AudioRecorder from 'dashboard/components/widgets/WootWriter/AudioRecorder.vue';
@@ -79,6 +85,7 @@ export default {
     QuotedEmailPreview,
     CopilotEditorSection,
     CopilotReplyBottomPanel,
+    ManagementQuestionsForm,
   },
   mixins: [inboxMixin, fileUploadMixin, keyboardEventListenerMixins],
   emits: ['toggleEditorSize'],
@@ -136,6 +143,7 @@ export default {
       hasRecordedAudio: false,
       copilotAcceptedMessages: {},
       jabvoxManagementStateId: null,
+      jabvoxManagementAnswers: {},
     };
   },
   computed: {
@@ -226,11 +234,27 @@ export default {
     jabvoxManagementStateRequired() {
       return this.isOnPrivateNote && this.jabvoxManagementStatesEnabled;
     },
+    jabvoxSelectedState() {
+      return this.jabvoxManagementStates.find(
+        s => s.id === this.jabvoxManagementStateId
+      );
+    },
+    jabvoxNoteRule() {
+      return noteRule(this.jabvoxSelectedState);
+    },
+    jabvoxManagementInvalid() {
+      // Block sending a private note when the selected state's required
+      // questions or required note aren't satisfied.
+      if (!this.isOnPrivateNote || !this.jabvoxSelectedState) return false;
+      return !isManagementValid(
+        this.jabvoxSelectedState,
+        this.jabvoxManagementAnswers,
+        this.message
+      );
+    },
     isReplyButtonDisabled() {
       if (this.isEditorDisabled) return true;
       if (this.isATwitterInbox) return true;
-      if (this.jabvoxManagementStateRequired && !this.jabvoxManagementStateId)
-        return true;
       if (this.hasAttachments || this.hasRecordedAudio) return false;
 
       return (
@@ -865,6 +889,20 @@ export default {
           });
     },
     async onSendReply() {
+      // Management state validation: surface a clear message instead of a
+      // disabled button so the agent can fix and retry.
+      if (
+        this.isOnPrivateNote &&
+        this.jabvoxManagementStateRequired &&
+        !this.jabvoxManagementStateId
+      ) {
+        useAlert(this.$t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.REQUIRED'));
+        return;
+      }
+      if (this.jabvoxManagementInvalid) {
+        useAlert(this.$t('JABVOX_MANAGEMENT_STATES.QUESTIONS.INCOMPLETE'));
+        return;
+      }
       const undefinedVariables = getUndefinedVariablesInMessage({
         message: this.message,
         variables: this.messageVariables,
@@ -968,6 +1006,7 @@ export default {
       this.attachedFiles = [];
       this.isRecordingAudio = false;
       this.jabvoxManagementStateId = null;
+      this.jabvoxManagementAnswers = {};
       this.resetReplyToMessage();
       this.resetAudioRecorderInput();
     },
@@ -1130,14 +1169,10 @@ export default {
       };
 
       if (this.isOnPrivateNote && this.jabvoxManagementStateId) {
-        const stateObj = this.jabvoxManagementStates.find(
-          s => s.id === this.jabvoxManagementStateId
+        messagePayload.contentAttributes = buildManagementContentAttributes(
+          this.jabvoxSelectedState,
+          this.jabvoxManagementAnswers
         );
-        messagePayload.contentAttributes = {
-          jabvox_management_state_id: this.jabvoxManagementStateId,
-          jabvox_management_state_name: stateObj?.name_jabvox || '',
-          jabvox_management_state_color: stateObj?.color_jabvox || '',
-        };
       }
       messagePayload = this.setReplyToInPayload(messagePayload);
 
@@ -1414,6 +1449,13 @@ export default {
             </option>
           </select>
         </div>
+
+        <ManagementQuestionsForm
+          v-if="isOnPrivateNote && jabvoxSelectedState"
+          v-model="jabvoxManagementAnswers"
+          :state="jabvoxSelectedState"
+          class="px-1 pb-1"
+        />
       </div>
     </Transition>
 

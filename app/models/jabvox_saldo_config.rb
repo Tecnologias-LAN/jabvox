@@ -30,8 +30,8 @@ class JabvoxSaldoConfig < ApplicationRecord
 
   belongs_to :account
 
-  encrypts :api_key_jabvox if Chatwoot.encryption_configured?
-  encrypts :api_secret_jabvox if Chatwoot.encryption_configured?
+  encrypts :api_key_jabvox if Jabvox.encryption_configured?
+  encrypts :api_secret_jabvox if Jabvox.encryption_configured?
 
   validates :proxy_url_jabvox, presence: true
   validates :api_key_jabvox, presence: true

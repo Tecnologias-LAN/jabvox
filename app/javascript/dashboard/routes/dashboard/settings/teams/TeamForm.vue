@@ -5,6 +5,7 @@ import { reactive } from 'vue';
 import { useVuelidate } from '@vuelidate/core';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 
 export default {
   components: {
@@ -45,7 +46,20 @@ export default {
 
     const rules = validations;
     const v$ = useVuelidate(rules, state);
-    return { state, v$ };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { state, v$, markDirty, markClean };
+  },
+  mounted() {
+    this.$watch(
+      () => [
+        this.state.title,
+        this.state.description,
+        this.state.allowAutoAssign,
+      ],
+      () => this.markDirty(),
+      { deep: true }
+    );
+    this.$nextTick(() => this.markClean());
   },
   methods: {
     handleSubmit() {
@@ -58,6 +72,7 @@ export default {
         name: this.state.title,
         allow_auto_assign: this.state.allowAutoAssign,
       });
+      this.markClean();
     },
   },
 };

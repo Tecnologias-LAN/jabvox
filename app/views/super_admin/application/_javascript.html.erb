@@ -21,7 +21,7 @@ by providing a `content_for(:javascript)` block.
 <% end %>
 
 <script>
-window.chatwootSettings = {
+window.jabvoxSettings = {
   hideMessageBubble: true,
 };
 
@@ -32,16 +32,16 @@ window.chatwootSettings = {
   g.async = true;
   s.parentNode.insertBefore(g,s);
   g.onload=function(){
-    window.chatwootSDK.run({
-      websiteToken: '<%= ChatwootHub.support_config[:support_website_token] %>',
-      baseUrl: '<%= ChatwootHub.support_config[:support_script_url] %>'
+    window.jabvoxSDK.run({
+      websiteToken: '<%= JabvoxHub.support_config[:support_website_token] %>',
+      baseUrl: '<%= JabvoxHub.support_config[:support_script_url] %>'
     })
   }
 })(document,"script");
 
-window.addEventListener('chatwoot:ready', function() {
-  window.$chatwoot.setUser('<%= ChatwootHub.installation_identifier %>', {
-    identifier_hash: '<%= ChatwootHub.support_config[:support_identifier_hash] %>',
+window.addEventListener('jabvox:ready', function() {
+  window.$jabvox.setUser('<%= JabvoxHub.installation_identifier %>', {
+    identifier_hash: '<%= JabvoxHub.support_config[:support_identifier_hash] %>',
     email: '<%= SuperAdmin.first.email %>',
     name: '<%= SuperAdmin.first.name %>'
   });

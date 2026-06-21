@@ -9,7 +9,7 @@ import { hasAnUpdateAvailable } from './versionCheckHelper';
 export default {
   components: { Banner },
   props: {
-    latestChatwootVersion: { type: String, default: '' },
+    latestJabvoxVersion: { type: String, default: '' },
   },
   setup() {
     const { isAdmin } = useAdmin();
@@ -24,23 +24,18 @@ export default {
     ...mapGetters({ globalConfig: 'globalConfig/get' }),
     updateAvailable() {
       return hasAnUpdateAvailable(
-        this.latestChatwootVersion,
+        this.latestJabvoxVersion,
         this.globalConfig.appVersion
       );
     },
     bannerMessage() {
-      return this.$t('GENERAL_SETTINGS.UPDATE_CHATWOOT', {
-        latestChatwootVersion: this.latestChatwootVersion,
+      return this.$t('GENERAL_SETTINGS.UPDATE_JABVOX', {
+        latestJabvoxVersion: this.latestJabvoxVersion,
       });
     },
     shouldShowBanner() {
-      return (
-        !this.userDismissedBanner &&
-        this.globalConfig.displayManifest &&
-        this.updateAvailable &&
-        !this.isVersionNotificationDismissed(this.latestChatwootVersion) &&
-        this.isAdmin
-      );
+      // Telemetry disabled: the update/version banner is never shown.
+      return false;
     },
   },
   methods: {
@@ -53,9 +48,9 @@ export default {
       let updatedDismissedItems =
         LocalStorage.get(LOCAL_STORAGE_KEYS.DISMISSED_UPDATES) || [];
       if (updatedDismissedItems instanceof Array) {
-        updatedDismissedItems.push(this.latestChatwootVersion);
+        updatedDismissedItems.push(this.latestJabvoxVersion);
       } else {
-        updatedDismissedItems = [this.latestChatwootVersion];
+        updatedDismissedItems = [this.latestJabvoxVersion];
       }
       LocalStorage.set(
         LOCAL_STORAGE_KEYS.DISMISSED_UPDATES,
@@ -73,7 +68,7 @@ export default {
     v-if="shouldShowBanner"
     color-scheme="primary"
     :banner-message="bannerMessage"
-    href-link="https://github.com/chatwoot/chatwoot/releases"
+    href-link=""
     :href-link-text="$t('GENERAL_SETTINGS.LEARN_MORE')"
     has-close-button
     @close="dismissUpdateBanner"

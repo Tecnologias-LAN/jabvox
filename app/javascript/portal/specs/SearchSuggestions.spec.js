@@ -19,13 +19,13 @@ describe('SearchSuggestions', () => {
         items: [
           {
             id: 1,
-            title: 'Chatwoot Glossary',
+            title: 'Jabvox Glossary',
             content: 'Access Token',
-            link: '/hc/user-guide/articles/1677141565-chatwoot-glossary',
+            link: '/hc/user-guide/articles/1677141565-jabvox-glossary',
           },
         ],
         isLoading: false,
-        searchTerm: 'chatwoot',
+        searchTerm: 'jabvox',
       },
       global: {
         directives: {
@@ -37,7 +37,7 @@ describe('SearchSuggestions', () => {
     });
 
     expect(wrapper.find('a').attributes('href')).toBe(
-      '/hc/user-guide/articles/1677141565-chatwoot-glossary'
+      '/hc/user-guide/articles/1677141565-jabvox-glossary'
     );
   });
 });

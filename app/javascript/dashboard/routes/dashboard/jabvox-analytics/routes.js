@@ -1,0 +1,83 @@
+import { frontendURL } from 'dashboard/helper/URLHelper.js';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+
+const AnalyticsLayout = () => import('./AnalyticsLayout.vue');
+const DataSourcesIndex = () => import('./data-sources/DataSourcesIndex.vue');
+const SchemaExplorer = () => import('./data-sources/SchemaExplorer.vue');
+const DataViewerPage = () => import('./data-sources/DataViewerPage.vue');
+const QueryBuilderPage = () => import('./query-builder/QueryBuilderPage.vue');
+const SqlEditorPage = () => import('./sql/SqlEditorPage.vue');
+const DashboardsIndex = () => import('./dashboards/DashboardsIndex.vue');
+const DashboardBuilder = () => import('./dashboards/DashboardBuilder.vue');
+const PermissionsIndex = () => import('./permissions/PermissionsIndex.vue');
+
+const meta = {
+  featureFlag: FEATURE_FLAGS.JABVOX_ANALYTICS,
+  permissions: ['administrator', 'agent'],
+};
+
+export const routes = [
+  {
+    path: frontendURL('accounts/:accountId/jabvox/analytics'),
+    component: AnalyticsLayout,
+    children: [
+      {
+        path: '',
+        name: 'jabvox_analytics_index',
+        meta,
+        redirect: to => ({
+          name: 'jabvox_analytics_data_sources',
+          params: { accountId: to.params.accountId },
+        }),
+      },
+      {
+        path: 'data-sources',
+        name: 'jabvox_analytics_data_sources',
+        meta,
+        component: DataSourcesIndex,
+      },
+      {
+        path: 'data-sources/:dataSourceId/tables',
+        name: 'jabvox_analytics_ds_tables',
+        meta,
+        component: SchemaExplorer,
+      },
+      {
+        path: 'data-sources/:dataSourceId/data',
+        name: 'jabvox_analytics_ds_viewer',
+        meta,
+        component: DataViewerPage,
+      },
+      {
+        path: 'query-builder',
+        name: 'jabvox_analytics_query_builder',
+        meta,
+        component: QueryBuilderPage,
+      },
+      {
+        path: 'sql',
+        name: 'jabvox_analytics_sql',
+        meta,
+        component: SqlEditorPage,
+      },
+      {
+        path: 'dashboards',
+        name: 'jabvox_analytics_dashboards',
+        meta,
+        component: DashboardsIndex,
+      },
+      {
+        path: 'dashboards/:dashboardId',
+        name: 'jabvox_analytics_dashboard_show',
+        meta,
+        component: DashboardBuilder,
+      },
+      {
+        path: 'permissions',
+        name: 'jabvox_analytics_permissions',
+        meta,
+        component: PermissionsIndex,
+      },
+    ],
+  },
+];

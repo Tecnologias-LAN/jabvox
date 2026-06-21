@@ -35,6 +35,9 @@ class Api::V1::Accounts::Jabvox::ManagementStatesController < Api::V1::Accounts:
   end
 
   def state_params
-    params.require(:state).permit(:name_jabvox, :color_jabvox, :is_active_jabvox, :position_jabvox)
+    params.require(:state).permit(
+      :name_jabvox, :color_jabvox, :is_active_jabvox, :position_jabvox, :note_mode,
+      questions_attributes: [:id, :label, :question_type, :required, :position, :_destroy, { options: [] }]
+    )
   end
 end

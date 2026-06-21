@@ -6,10 +6,7 @@ export const isEmptyObject = obj => {
 };
 
 export const sendMessage = msg => {
-  window.parent.postMessage(
-    `chatwoot-widget:${JSON.stringify({ ...msg })}`,
-    '*'
-  );
+  window.parent.postMessage(`jabvox-widget:${JSON.stringify({ ...msg })}`, '*');
 };
 
 export const IFrameHelper = {
@@ -25,7 +22,7 @@ export const RNHelper = {
   isRNWebView: () => window.ReactNativeWebView,
   sendMessage: msg => {
     window.ReactNativeWebView.postMessage(
-      `chatwoot-widget:${JSON.stringify({ ...msg })}`
+      `jabvox-widget:${JSON.stringify({ ...msg })}`
     );
   },
 };

@@ -72,6 +72,12 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
       metadata_jabvox: { mode: mode, model: model_record.model_jabvox }
     )
 
+    ActionCable.server.broadcast(current_user.pubsub_token, {
+      event: 'jabvox.ai_chat.response_created',
+      account_id: Current.account.id,
+      data: { session_id: session_id, message: message_json(assistant_msg) }
+    })
+
     render json: { session_id: session_id, message: message_json(assistant_msg) }, status: :created
   rescue StandardError => e
     render json: { error: e.message }, status: :unprocessable_entity

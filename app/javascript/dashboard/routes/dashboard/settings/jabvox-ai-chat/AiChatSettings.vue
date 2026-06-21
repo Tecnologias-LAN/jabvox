@@ -1,14 +1,16 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import {
   aiChatModelsAPI,
   aiChatDocumentsAPI,
 } from 'dashboard/api/jabvox/aiChat';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 
 const store = useStore();
 const { t } = useI18n();
+const { markDirty, markClean } = useUnsavedChanges();
 
 const ACTIVE_TAB_KEY = 'jabvox_ai_chat_active_tab';
 const BUCKET_FORM_KEY = 'jabvox_ai_chat_bucket_form';
@@ -33,6 +35,8 @@ const modelForm = ref({
 const testResults = ref({});
 const testingId = ref(null);
 
+watch(modelForm, () => markDirty(), { deep: true });
+
 // Documents
 function loadBucketFormFromStorage() {
   try {
@@ -56,6 +60,7 @@ const showSecretKey = ref(false);
 watch(
   bucketForm,
   val => {
+    markDirty();
     sessionStorage.setItem(
       BUCKET_FORM_KEY,
       JSON.stringify({
@@ -71,6 +76,8 @@ watch(
 
 // Config
 const configForm = ref({ web_search_enabled_jabvox: false });
+
+watch(configForm, () => markDirty(), { deep: true });
 
 // Permissions - local copy for editing
 const localPermissions = ref([]);
@@ -101,15 +108,21 @@ onMounted(async () => {
   }
   configForm.value.web_search_enabled_jabvox =
     config.value.web_search_enabled_jabvox;
+  await nextTick();
+  markClean();
 });
 
 watch(
   permissions,
-  val => {
+  async val => {
     localPermissions.value = val.map(p => ({ ...p }));
+    await nextTick();
+    markClean();
   },
   { immediate: true }
 );
+
+watch(localPermissions, () => markDirty(), { deep: true });
 
 function openAddModel() {
   editingModel.value = null;
@@ -137,8 +150,10 @@ function openEditModel(model) {
   showModelModal.value = true;
 }
 
-function closeModelModal() {
+async function closeModelModal() {
   showModelModal.value = false;
+  await nextTick();
+  markClean();
 }
 
 async function saveModel() {
@@ -153,7 +168,7 @@ async function saveModel() {
   } else {
     await store.dispatch('jabvoxAiChat/createModel', payload);
   }
-  closeModelModal();
+  await closeModelModal();
 }
 
 async function deleteModel(id) {
@@ -192,6 +207,8 @@ async function saveBucketConfig() {
     delete payload.bucket_secret_key_jabvox;
   await store.dispatch('jabvoxAiChat/updateConfig', payload);
   sessionStorage.removeItem(BUCKET_FORM_KEY);
+  await nextTick();
+  markClean();
 }
 
 async function syncDocuments() {
@@ -213,10 +230,14 @@ async function deleteDocument(id) {
 
 async function saveConfig() {
   await store.dispatch('jabvoxAiChat/updateConfig', configForm.value);
+  await nextTick();
+  markClean();
 }
 
 async function savePermissions() {
   await store.dispatch('jabvoxAiChat/savePermissions', localPermissions.value);
+  await nextTick();
+  markClean();
 }
 
 function formatBytes(bytes) {

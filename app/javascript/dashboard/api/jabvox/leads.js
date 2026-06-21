@@ -21,4 +21,7 @@ export default {
     axios.patch(`${client.url}/for_contact/${contactId}`, {
       campaign_name: campaignName,
     }),
+  // Unified edit of the lead detail panel.
+  updateDetails: (id, payload) =>
+    axios.patch(`${client.url}/${id}/update_details`, payload),
 };

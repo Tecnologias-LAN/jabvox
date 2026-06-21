@@ -1,0 +1,161 @@
+{
+  "JABVOX_WA_TEMPLATES": {
+    "SIDEBAR_LABEL": "WA Templates",
+    "SETTINGS": {
+      "TITLE": "WhatsApp Templates",
+      "SUBTITLE": "Enterprise management of WhatsApp Business API templates."
+    },
+    "TABS": {
+      "OVERVIEW": "Overview",
+      "TEMPLATES": "Templates",
+      "PERMISSIONS": "Permissions"
+    },
+    "METRICS": {
+      "TOTAL": "Total",
+      "APPROVED": "Approved",
+      "PENDING": "Pending",
+      "REJECTED": "Rejected",
+      "PAUSED": "Paused",
+      "DISABLED": "Disabled",
+      "QUALITY_HIGH": "High quality",
+      "QUALITY_MEDIUM": "Med quality",
+      "QUALITY_LOW": "Low quality"
+    },
+    "INBOX": {
+      "ALL": "All inboxes",
+      "LABEL": "Inbox / WABA",
+      "NONE": "No WhatsApp Cloud API inboxes found.",
+      "LAST_SYNCED": "Last synced",
+      "SYNC": "Sync all",
+      "SYNCING": "Syncing…",
+      "TEMPLATES": "templates"
+    },
+    "FILTERS": {
+      "SEARCH": "Search by name or content…",
+      "STATUS": "Status",
+      "CATEGORY": "Category",
+      "LANGUAGE": "Language",
+      "DATE_FROM": "From",
+      "DATE_TO": "To",
+      "ALL": "All",
+      "CLEAR": "Clear filters",
+      "APPLY": "Apply"
+    },
+    "TABLE": {
+      "NAME": "Name",
+      "META_ID": "Meta ID",
+      "INBOX": "Inbox",
+      "LANGUAGE": "Language",
+      "CATEGORY": "Category",
+      "STATUS": "Status",
+      "QUALITY": "Quality",
+      "CREATED": "Created",
+      "UPDATED": "Updated",
+      "ACTIONS": ""
+    },
+    "STATUS": {
+      "APPROVED": "Approved",
+      "PENDING": "Pending",
+      "REJECTED": "Rejected",
+      "PAUSED": "Paused",
+      "DISABLED": "Disabled"
+    },
+    "QUALITY": {
+      "GREEN": "High",
+      "YELLOW": "Medium",
+      "RED": "Low",
+      "UNKNOWN": "—"
+    },
+    "CATEGORIES": {
+      "MARKETING": "Marketing",
+      "UTILITY": "Utility",
+      "AUTHENTICATION": "Authentication"
+    },
+    "ACTIONS": {
+      "VIEW": "View",
+      "EDIT": "Edit",
+      "DUPLICATE": "Duplicate",
+      "EXPORT_JSON": "Export JSON",
+      "DELETE": "Delete",
+      "SYNC": "Sync from Meta",
+      "HISTORY": "History"
+    },
+    "CREATE": {
+      "TITLE": "New template",
+      "EDIT_TITLE": "Edit template",
+      "SECTION_BASIC": "Basic info",
+      "SECTION_CONTENT": "Content",
+      "SECTION_BUTTONS": "Buttons",
+      "NAME_LABEL": "Internal name",
+      "NAME_PLACEHOLDER": "e.g. order_confirmation",
+      "NAME_HINT": "Lowercase letters, numbers and underscores only.",
+      "CATEGORY_LABEL": "Category",
+      "LANGUAGE_LABEL": "Language",
+      "INBOX_LABEL": "WhatsApp inbox (WABA)",
+      "HEADER_LABEL": "Header",
+      "HEADER_NONE": "None",
+      "HEADER_TYPE_LABEL": "Header type",
+      "HEADER_TEXT_PH": "Header text (max 60 chars)",
+      "HEADER_MEDIA_NOTE": "Media URL required when sending.",
+      "BODY_LABEL": "Body *",
+      "BODY_PH": "Message body. Use {{1}}, {{2}} for variables.",
+      "FOOTER_LABEL": "Footer",
+      "FOOTER_PH": "Optional footer note",
+      "VARS_TITLE": "Detected variables",
+      "VAR_DESC_PH": "Description (e.g. Customer name)",
+      "BUTTONS_LABEL": "Buttons (max 3)",
+      "ADD_BUTTON": "+ Add button",
+      "BUTTON_TYPE": "Type",
+      "BUTTON_TEXT": "Button text",
+      "BUTTON_URL": "URL",
+      "BUTTON_PHONE": "Phone number",
+      "PREVIEW_TITLE": "Live preview",
+      "SUBMIT": "Send to Meta",
+      "UPDATE": "Update",
+      "CANCEL": "Cancel",
+      "SUBMITTING": "Sending…"
+    },
+    "DETAIL": {
+      "TITLE": "Template detail",
+      "COMPONENTS": "Components",
+      "VARIABLES": "Variables",
+      "META_JSON": "Raw Meta JSON",
+      "HISTORY": "Change history",
+      "VERSIONS": "Versions",
+      "RESTORE": "Restore this version",
+      "RESTORE_CONFIRM": "Restore template to version {v}?",
+      "DUPLICATE_NAME": "New template name (copy)",
+      "CLOSE": "Close"
+    },
+    "IMPORT": {
+      "TITLE": "Import templates",
+      "JSON_LABEL": "Paste Meta JSON array",
+      "JSON_PH": "[ { \"name\": \"template_name\", ... }, ... ]",
+      "SUBMIT": "Import",
+      "SUCCESS": "Imported {count} templates.",
+      "ERRORS": "Some rows had errors:"
+    },
+    "EXPORT": {
+      "JSON": "Export JSON",
+      "CSV": "Export CSV"
+    },
+    "DELETE_CONFIRM": "Delete template \"{name}\"? Cannot be undone.",
+    "DUPLICATE_CONFIRM": "Duplicate \"{name}\"?",
+    "SYNCED": "Synced successfully.",
+    "CREATED": "Template sent to Meta for review.",
+    "UPDATED": "Template updated.",
+    "DELETED": "Template deleted.",
+    "DUPLICATED": "Template duplicated.",
+    "RESTORED": "Version restored.",
+    "PERMISSIONS": {
+      "TITLE": "Access permissions",
+      "DESCRIPTION": "Administrators always have full access. Grant other users the ability to manage templates.",
+      "SAVE": "Save",
+      "SAVED": "Permissions saved."
+    },
+    "ERROR": "An error occurred. Please try again.",
+    "LOADING": "Loading…",
+    "EMPTY": "No templates found.",
+    "NO_INBOXES": "No WhatsApp Cloud API inboxes configured."
+  }
+}

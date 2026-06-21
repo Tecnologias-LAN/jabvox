@@ -70,12 +70,31 @@
       "NAME_PLACEHOLDER": "Ej: No contesta, Interesado, Cita agendada...",
       "COLOR": "Color",
       "PREVIEW": "Vista previa",
-      "ACTIVE": "Activo"
+      "ACTIVE": "Activo",
+      "NOTE_MODE": "Campo de nota",
+      "NOTE_OPTIONAL": "Opcional",
+      "NOTE_REQUIRED": "Obligatoria",
+      "NOTE_HIDDEN": "No mostrar"
     },
     "REPLY_BOX": {
       "LABEL": "Estado de gestión",
       "PLACEHOLDER": "Selecciona un estado...",
       "REQUIRED": "Debes seleccionar un estado de gestión para la nota privada."
+    },
+    "QUESTIONS": {
+      "TITLE": "Preguntas",
+      "ADD": "Agregar pregunta",
+      "LABEL": "Texto de la pregunta",
+      "REQUIRED": "Obligatoria",
+      "TYPE_TEXT": "Texto",
+      "TYPE_NUMBER": "Número",
+      "TYPE_DATE": "Fecha",
+      "TYPE_BOOLEAN": "Sí/No",
+      "TYPE_LIST": "Lista",
+      "OPTIONS_PLACEHOLDER": "Una opción por línea",
+      "SELECT": "Selecciona...",
+      "YES": "Sí",
+      "INCOMPLETE": "Por favor responde las preguntas obligatorias de la gestión."
     }
   }
 }

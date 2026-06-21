@@ -6,6 +6,7 @@ import SlaTimeInput from './SlaTimeInput.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import { useVuelidate } from '@vuelidate/core';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 
 export default {
   components: {
@@ -25,7 +26,8 @@ export default {
   },
   emits: ['close', 'submitSla'],
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -82,9 +84,21 @@ export default {
   },
   mounted() {
     if (this.selectedResponse) this.setFormValues();
+    this.$watch(
+      () => [
+        this.name,
+        this.description,
+        this.slaTimeInputs,
+        this.onlyDuringBusinessHours,
+      ],
+      () => this.markDirty(),
+      { deep: true }
+    );
+    this.$nextTick(() => this.markClean());
   },
   methods: {
     onClose() {
+      this.markClean();
       this.$emit('close');
     },
     setFormValues() {
@@ -131,6 +145,7 @@ export default {
         resolution_time_threshold: this.convertToSeconds(2),
         only_during_business_hours: this.onlyDuringBusinessHours,
       };
+      this.markClean();
       this.$emit('submitSla', payload);
     },
     convertToSeconds(index) {

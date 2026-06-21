@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useStore } from 'vuex';
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -12,6 +13,12 @@ import JabvoxConversationHistory from 'dashboard/components/widgets/conversation
 import JabvoxCallButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxCallButton.vue';
 import JabvoxSmsButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxSmsButton.vue';
 import JabvoxEmailButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxEmailButton.vue';
+import JabvoxQuickButtons from 'dashboard/components/widgets/conversation/jabvox/JabvoxQuickButtons.vue';
+import ManagementQuestionsForm from 'dashboard/components/jabvox/managementStates/ManagementQuestionsForm.vue';
+import {
+  isManagementValid,
+  buildManagementContentAttributes,
+} from 'dashboard/composables/jabvox/useManagementState';
 
 const store = useStore();
 const router = useRouter();
@@ -34,6 +41,7 @@ const newMessage = ref('');
 const isSending = ref(false);
 const isNoteMode = ref(false);
 const managementStateId = ref(null);
+const managementAnswers = ref({});
 const chatContainer = ref(null);
 const notesContainer = ref(null);
 
@@ -43,12 +51,100 @@ const contactNotesList = computed(() =>
     : []
 );
 
+const selectedManagementState = computed(() =>
+  managementStates.value.find(s => s.id === managementStateId.value)
+);
+
 const selectedInboxId = ref(null);
 const initialMessage = ref('');
 const isStarting = ref(false);
 
 const accountId = computed(() => route.params.accountId);
 const leadId = computed(() => route.params.leadId);
+
+const isCustomizationEnabled = computed(() =>
+  store.getters['accounts/isFeatureEnabledonAccount'](
+    accountId.value,
+    FEATURE_FLAGS.JABVOX_CUSTOMIZATION
+  )
+);
+
+const availableTabs = computed(() => ['chat', 'notes', 'products', 'history']);
+
+const leadsTable = computed(() => {
+  try {
+    return store.getters['jabvoxCustomization/getLeadsTable'];
+  } catch {
+    return null;
+  }
+});
+
+const leadsTableColumns = computed(() => leadsTable.value?.columns || []);
+
+// ── Inline edit (contact fields + campaign + assignee + custom fields) ──
+// The whole left panel is read-only until "Editar" is pressed. Then the
+// editable fields turn into inputs and "Guardar"/"Cancelar" appear.
+const isEditing = ref(false);
+const isSavingFields = ref(false);
+const assignees = useMapGetter('agents/getAgents');
+const editForm = ref({
+  phone_number: '',
+  email: '',
+  country: '',
+  campaign_name: '',
+  assignee_id: null,
+  custom: {},
+});
+
+const initEditForm = () => {
+  if (!lead.value) return;
+  const existing = lead.value.custom_fields_jabvox || {};
+  const custom = {};
+  leadsTableColumns.value.forEach(col => {
+    custom[col.name_jabvox] = existing[col.name_jabvox] ?? '';
+  });
+  editForm.value = {
+    phone_number: lead.value.contact?.phone_number || '',
+    email: lead.value.contact?.email || '',
+    country: lead.value.contact?.country || '',
+    campaign_name: lead.value.campaign?.name || '',
+    assignee_id: lead.value.assignee_id ?? null,
+    custom,
+  };
+};
+
+const startEdit = () => {
+  initEditForm();
+  isEditing.value = true;
+};
+const cancelEdit = () => {
+  isEditing.value = false;
+};
+
+const saveAll = async () => {
+  if (!lead.value || isSavingFields.value) return;
+  isSavingFields.value = true;
+  try {
+    await store.dispatch('jabvoxLeads/updateLeadDetails', {
+      id: lead.value.id,
+      contact: {
+        phone_number: editForm.value.phone_number,
+        email: editForm.value.email,
+        country: editForm.value.country,
+      },
+      campaign_name: editForm.value.campaign_name,
+      assignee_id: editForm.value.assignee_id,
+      custom_fields: editForm.value.custom,
+    });
+    await store.dispatch('jabvoxLeads/fetchLead', leadId.value);
+    isEditing.value = false;
+    useAlert(t('JABVOX_LEADS.DETAIL.CUSTOM_FIELDS_SAVED'));
+  } catch {
+    useAlert(t('JABVOX_LEADS.DETAIL.CUSTOM_FIELDS_ERROR'));
+  } finally {
+    isSavingFields.value = false;
+  }
+};
 
 const currentIndex = computed(() =>
   leads.value.findIndex(l => String(l.id) === String(leadId.value))
@@ -132,21 +228,29 @@ const sendMessage = async (privateFlag = false) => {
   const content = newMessage.value.trim();
   if (!content || isSending.value) return;
 
+  if (
+    privateFlag &&
+    selectedManagementState.value &&
+    !isManagementValid(
+      selectedManagementState.value,
+      managementAnswers.value,
+      content
+    )
+  ) {
+    useAlert(t('JABVOX_MANAGEMENT_STATES.QUESTIONS.INCOMPLETE'));
+    return;
+  }
+
   if (privateFlag && !lead.value?.conversation_id) {
     if (managementStates.value.length > 0 && !managementStateId.value) return;
     isSending.value = true;
     try {
-      const contentAttributes = {};
-      if (managementStateId.value) {
-        const stateObj = managementStates.value.find(
-          s => s.id === managementStateId.value
-        );
-        contentAttributes.jabvox_management_state_id = managementStateId.value;
-        contentAttributes.jabvox_management_state_name =
-          stateObj?.name_jabvox || '';
-        contentAttributes.jabvox_management_state_color =
-          stateObj?.color_jabvox || '';
-      }
+      const contentAttributes = managementStateId.value
+        ? buildManagementContentAttributes(
+            selectedManagementState.value,
+            managementAnswers.value
+          )
+        : {};
       await store.dispatch('contactNotes/create', {
         contactId: lead.value.contact.id,
         content,
@@ -154,6 +258,7 @@ const sendMessage = async (privateFlag = false) => {
       });
       newMessage.value = '';
       managementStateId.value = null;
+      managementAnswers.value = {};
       scrollToBottom(notesContainer);
     } catch {
       useAlert(t('JABVOX_LEADS.DETAIL.SEND_ERROR'));
@@ -179,19 +284,16 @@ const sendMessage = async (privateFlag = false) => {
       echo_id: `jabvox_${Date.now()}`,
     };
     if (privateFlag && managementStateId.value) {
-      const stateObj = managementStates.value.find(
-        s => s.id === managementStateId.value
+      payload.contentAttributes = buildManagementContentAttributes(
+        selectedManagementState.value,
+        managementAnswers.value
       );
-      payload.contentAttributes = {
-        jabvox_management_state_id: managementStateId.value,
-        jabvox_management_state_name: stateObj?.name_jabvox || '',
-        jabvox_management_state_color: stateObj?.color_jabvox || '',
-      };
     }
     const response = await messageAPI.create(payload);
     messages.value.push(response.data);
     newMessage.value = '';
     managementStateId.value = null;
+    managementAnswers.value = {};
     scrollToBottom(privateFlag ? notesContainer : chatContainer);
   } catch {
     useAlert(t('JABVOX_LEADS.DETAIL.SEND_ERROR'));
@@ -272,13 +374,21 @@ const loadLead = async () => {
   messages.value = [];
   newMessage.value = '';
   managementStateId.value = null;
+  managementAnswers.value = {};
+  isEditing.value = false;
+  initEditForm();
   loadMessages();
   loadContactNotes();
 };
 
 watch(leadId, loadLead);
-onMounted(() => {
+watch(leadsTableColumns, initEditForm, { deep: true });
+onMounted(async () => {
   store.dispatch('jabvoxManagementStates/fetchStates');
+  store.dispatch('agents/get');
+  if (isCustomizationEnabled.value) {
+    await store.dispatch('jabvoxCustomization/fetchTables');
+  }
   loadLead();
 });
 </script>
@@ -400,42 +510,100 @@ onMounted(() => {
           </div>
         </div>
 
+        <!-- Edit / Save / Cancel -->
+        <div class="flex justify-end gap-2">
+          <template v-if="!isEditing">
+            <Button
+              size="small"
+              variant="ghost"
+              icon="i-lucide-pencil"
+              :label="t('JABVOX_LEADS.DETAIL.EDIT')"
+              @click="startEdit"
+            />
+          </template>
+          <template v-else>
+            <Button
+              size="small"
+              variant="ghost"
+              :label="t('JABVOX_LEADS.DETAIL.CANCEL')"
+              @click="cancelEdit"
+            />
+            <Button
+              size="small"
+              icon="i-lucide-check"
+              :is-loading="isSavingFields"
+              :label="t('JABVOX_LEADS.DETAIL.SAVE')"
+              @click="saveAll"
+            />
+          </template>
+        </div>
+
         <!-- Info rows -->
         <dl class="space-y-2.5">
-          <div v-if="lead.contact.phone_number" class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0">
+          <!-- Phone (editable) -->
+          <div v-if="isEditing || lead.contact.phone_number" class="flex gap-2">
+            <dt class="text-xs text-slate-400 w-24 shrink-0 pt-1">
               {{ t('JABVOX_LEADS.DETAIL.INFO.PHONE') }}
             </dt>
+            <input
+              v-if="isEditing"
+              v-model="editForm.phone_number"
+              class="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+            />
             <dd
+              v-else
               class="text-sm text-slate-700 dark:text-slate-200 font-mono truncate"
             >
               {{ lead.contact.phone_number || '—' }}
             </dd>
           </div>
+          <!-- Email (editable) -->
           <div class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0">
+            <dt class="text-xs text-slate-400 w-24 shrink-0 pt-1">
               {{ t('JABVOX_LEADS.DETAIL.INFO.EMAIL') }}
             </dt>
-            <dd class="text-sm text-slate-700 dark:text-slate-200 truncate">
+            <input
+              v-if="isEditing"
+              v-model="editForm.email"
+              type="email"
+              class="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+            />
+            <dd
+              v-else
+              class="text-sm text-slate-700 dark:text-slate-200 truncate"
+            >
               {{ lead.contact.email || '—' }}
             </dd>
           </div>
-          <div v-if="lead.contact.country" class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0">
+          <!-- Country (editable) -->
+          <div v-if="isEditing || lead.contact.country" class="flex gap-2">
+            <dt class="text-xs text-slate-400 w-24 shrink-0 pt-1">
               {{ t('JABVOX_LEADS.DETAIL.INFO.COUNTRY') }}
             </dt>
-            <dd class="text-sm text-slate-700 dark:text-slate-200">
+            <input
+              v-if="isEditing"
+              v-model="editForm.country"
+              class="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+            />
+            <dd v-else class="text-sm text-slate-700 dark:text-slate-200">
               {{ lead.contact.country }}
             </dd>
           </div>
+          <!-- Campaign (editable) -->
           <div class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0">
+            <dt class="text-xs text-slate-400 w-24 shrink-0 pt-1">
               {{ t('JABVOX_LEADS.DETAIL.INFO.CAMPAIGN') }}
             </dt>
-            <dd class="text-sm text-slate-700 dark:text-slate-200">
+            <input
+              v-if="isEditing"
+              v-model="editForm.campaign_name"
+              class="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+            />
+            <dd v-else class="text-sm text-slate-700 dark:text-slate-200">
               {{ lead.campaign?.name || '—' }}
             </dd>
           </div>
+          <!-- Affiliate (read-only) -->
           <div class="flex gap-2">
             <dt class="text-xs text-slate-400 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.AFFILIATE') }}
@@ -444,6 +612,7 @@ onMounted(() => {
               {{ lead.affiliate_name || t('JABVOX_LEADS.TABLE.AFFILIATE_OWN') }}
             </dd>
           </div>
+          <!-- Inbox (read-only) -->
           <div class="flex gap-2">
             <dt class="text-xs text-slate-400 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.INBOX') }}
@@ -452,14 +621,26 @@ onMounted(() => {
               {{ lead.inbox_name || '—' }}
             </dd>
           </div>
+          <!-- Assignee (editable) -->
           <div class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0">
+            <dt class="text-xs text-slate-400 w-24 shrink-0 pt-1">
               {{ t('JABVOX_LEADS.DETAIL.INFO.ASSIGNEE') }}
             </dt>
-            <dd class="text-sm text-slate-700 dark:text-slate-200">
+            <select
+              v-if="isEditing"
+              v-model="editForm.assignee_id"
+              class="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+            >
+              <option :value="null">—</option>
+              <option v-for="a in assignees" :key="a.id" :value="a.id">
+                {{ a.name }}
+              </option>
+            </select>
+            <dd v-else class="text-sm text-slate-700 dark:text-slate-200">
               {{ lead.assignee_name || '—' }}
             </dd>
           </div>
+          <!-- Last management (read-only, comes from notes) -->
           <div v-if="lead.last_management_state" class="flex gap-2">
             <dt class="text-xs text-slate-400 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.MANAGEMENT_STATE') }}
@@ -472,6 +653,7 @@ onMounted(() => {
               </span>
             </dd>
           </div>
+          <!-- Created at (read-only) -->
           <div class="flex gap-2">
             <dt class="text-xs text-slate-400 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.CREATED_AT') }}
@@ -481,6 +663,91 @@ onMounted(() => {
             </dd>
           </div>
         </dl>
+        <!-- Custom fields inline (tabla vinculada a leads) -->
+        <div
+          v-if="isCustomizationEnabled && leadsTableColumns.length"
+          class="border-t border-slate-100 dark:border-slate-700 pt-3 space-y-2"
+        >
+          <p
+            class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+          >
+            {{ leadsTable.name_jabvox }}
+          </p>
+          <dl class="space-y-2">
+            <div v-for="col in leadsTableColumns" :key="col.id">
+              <dt class="text-xs text-slate-400 mb-0.5">
+                {{ col.label_jabvox }}
+              </dt>
+              <dd>
+                <!-- Read-only view -->
+                <span
+                  v-if="!isEditing"
+                  class="text-sm text-slate-700 dark:text-slate-200"
+                >
+                  <template v-if="col.column_type_jabvox === 'boolean'">
+                    {{
+                      lead.custom_fields_jabvox?.[col.name_jabvox]
+                        ? t('JABVOX_LEADS.DETAIL.YES')
+                        : t('JABVOX_LEADS.DETAIL.NO')
+                    }}
+                  </template>
+                  <template v-else>
+                    {{ lead.custom_fields_jabvox?.[col.name_jabvox] || '—' }}
+                  </template>
+                </span>
+                <!-- boolean -->
+                <input
+                  v-else-if="col.column_type_jabvox === 'boolean'"
+                  v-model="editForm.custom[col.name_jabvox]"
+                  type="checkbox"
+                  class="rounded border-slate-300"
+                />
+                <!-- select -->
+                <select
+                  v-else-if="col.column_type_jabvox === 'select'"
+                  v-model="editForm.custom[col.name_jabvox]"
+                  class="w-full rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+                >
+                  <option value="">—</option>
+                  <option
+                    v-for="opt in col.options_jabvox || []"
+                    :key="opt"
+                    :value="opt"
+                  >
+                    {{ opt }}
+                  </option>
+                </select>
+                <!-- date -->
+                <input
+                  v-else-if="col.column_type_jabvox === 'date'"
+                  v-model="editForm.custom[col.name_jabvox]"
+                  type="date"
+                  class="w-full rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+                />
+                <!-- text / integer / float -->
+                <input
+                  v-else
+                  v-model="editForm.custom[col.name_jabvox]"
+                  :type="
+                    col.column_type_jabvox === 'integer' ||
+                    col.column_type_jabvox === 'float'
+                      ? 'number'
+                      : 'text'
+                  "
+                  :step="col.column_type_jabvox === 'float' ? '0.01' : '1'"
+                  class="w-full rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+                />
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div
+          v-if="lead.contact"
+          class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700"
+        >
+          <JabvoxQuickButtons :lead="lead" :contact="lead.contact" />
+        </div>
       </div>
 
       <!-- Right panel: tabs -->
@@ -490,7 +757,7 @@ onMounted(() => {
           class="shrink-0 border-b border-n-weak flex items-center gap-0 px-4"
         >
           <button
-            v-for="tab in ['chat', 'notes', 'products', 'history']"
+            v-for="tab in availableTabs"
             :key="tab"
             class="px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors"
             :class="
@@ -507,6 +774,7 @@ onMounted(() => {
             v-if="lead.contact.phone_number || lead.contact.id"
             :phone="lead.contact.phone_number || ''"
             :contact-id="lead.contact.id"
+            :lead-id="Number(leadId) || null"
             :contact-name="lead.contact.name"
             show-label
           />
@@ -696,6 +964,12 @@ onMounted(() => {
                   </option>
                 </select>
               </div>
+              <ManagementQuestionsForm
+                v-if="isNoteMode && selectedManagementState"
+                v-model="managementAnswers"
+                :state="selectedManagementState"
+                class="mt-2"
+              />
               <div class="flex gap-2 items-end">
                 <textarea
                   v-model="newMessage"
@@ -840,6 +1114,12 @@ onMounted(() => {
                   </option>
                 </select>
               </div>
+              <ManagementQuestionsForm
+                v-if="selectedManagementState"
+                v-model="managementAnswers"
+                :state="selectedManagementState"
+                class="mt-2"
+              />
               <div class="flex gap-2 items-end">
                 <textarea
                   v-model="newMessage"

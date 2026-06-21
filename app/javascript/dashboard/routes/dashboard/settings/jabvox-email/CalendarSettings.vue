@@ -1,11 +1,13 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 
 const store = useStore();
 const { t } = useI18n();
+const { markDirty, markClean } = useUnsavedChanges();
 
 const calendarSetting = computed(
   () => store.getters['jabvoxEmail/getCalendarSetting']
@@ -32,14 +34,18 @@ const displayToMinutes = (value, unit) => {
 
 watch(
   calendarSetting,
-  setting => {
+  async setting => {
     if (setting) {
       enabled.value = setting.reminders_enabled ?? false;
       intervals.value = (setting.reminder_minutes || []).map(minutesToDisplay);
+      await nextTick();
+      markClean();
     }
   },
   { immediate: true }
 );
+
+watch([enabled, intervals], () => markDirty(), { deep: true });
 
 const newValue = ref(1);
 const newUnit = ref('days');
@@ -79,6 +85,8 @@ const onSave = async () => {
       reminders_enabled: enabled.value,
       reminder_minutes: minutesList,
     });
+    await nextTick();
+    markClean();
     useAlert(t('JABVOX_EMAIL.CALENDAR.SAVE_SUCCESS'));
   } catch {
     useAlert(t('JABVOX_EMAIL.CALENDAR.SAVE_ERROR'));

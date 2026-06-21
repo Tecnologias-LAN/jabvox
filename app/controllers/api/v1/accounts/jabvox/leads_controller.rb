@@ -106,7 +106,61 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     render json: { deleted: count }
   end
 
+  def custom_fields
+    lead = Current.account.jabvox_leads.find(params[:id])
+    merged = (lead.custom_fields_jabvox || {}).merge(params.require(:custom_fields).permit!.to_h)
+    lead.update!(custom_fields_jabvox: merged)
+    render json: { id: lead.id, custom_fields_jabvox: lead.custom_fields_jabvox }
+  end
+
+  # Unified edit for the lead detail panel: contact fields (phone/email/country),
+  # campaign, assignee and custom fields — all in one transaction.
+  def update_details
+    lead = Current.account.jabvox_leads.find(params[:id])
+    ActiveRecord::Base.transaction do
+      update_contact_fields(lead)
+      update_assignee(lead)
+      update_campaign(lead)
+      update_custom_fields(lead)
+    end
+    render json: { id: lead.id }
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.record.errors.full_messages.join(', ') }, status: :unprocessable_entity
+  end
+
   private
+
+  def update_contact_fields(lead)
+    return if params[:contact].blank? || lead.contact.blank?
+
+    attrs = params.require(:contact).permit(:phone_number, :email)
+    country = params.dig(:contact, :country)
+    if country.present? || params[:contact].key?(:country)
+      additional = lead.contact.additional_attributes || {}
+      lead.contact.additional_attributes = additional.merge('country' => country)
+    end
+    lead.contact.update!(attrs) if attrs.present?
+  end
+
+  def update_assignee(lead)
+    return unless params.key?(:assignee_id)
+
+    assignee = params[:assignee_id].present? ? Current.account.users.find(params[:assignee_id]) : nil
+    lead.update!(assignee: assignee)
+  end
+
+  def update_campaign(lead)
+    return unless params.key?(:campaign_name)
+
+    lead.update!(jabvox_campaign: find_or_create_campaign(params[:campaign_name]))
+  end
+
+  def update_custom_fields(lead)
+    return if params[:custom_fields].blank?
+
+    merged = (lead.custom_fields_jabvox || {}).merge(params.require(:custom_fields).permit!.to_h)
+    lead.update!(custom_fields_jabvox: merged)
+  end
 
   def check_leads_enabled
     render json: { error: 'Leads module not enabled' }, status: :forbidden unless Current.account.jabvox_leads_enabled_jabvox?

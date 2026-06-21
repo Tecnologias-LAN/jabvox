@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import SettingsLayout from '../SettingsLayout.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -12,6 +13,7 @@ import agentsAPI from 'dashboard/api/agents';
 
 const store = useStore();
 const { t } = useI18n();
+const { markDirty, markClean } = useUnsavedChanges();
 
 const config = useMapGetter('jabvoxVoip/getConfig');
 const status = useMapGetter('jabvoxVoip/getStatus');
@@ -32,6 +34,8 @@ const buildForm = cfg => ({
 });
 
 const form = ref(buildForm(config.value?.id ? config.value : null));
+
+watch(form, () => markDirty(), { deep: true });
 
 const isNew = computed(() => !config.value?.id);
 
@@ -66,12 +70,16 @@ onMounted(async () => {
     const { data } = await agentsAPI.get();
     agents.value = data;
   }
+  await nextTick();
+  markClean();
 });
 
 const onSave = async () => {
   try {
     await store.dispatch('jabvoxVoip/updateConfig', { ...form.value });
     form.value.password = '';
+    await nextTick();
+    markClean();
     useAlert(t('JABVOX_VOIP.SAVE_SUCCESS'));
     store.dispatch('jabvoxVoip/fetchStatus');
   } catch {

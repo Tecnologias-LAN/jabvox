@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { emitter } from 'shared/helpers/mitt';
 
 const { t } = useI18n();
 const store = useStore();
@@ -236,10 +237,21 @@ onMounted(async () => {
     store.dispatch('jabvoxInternalChat/fetchChats'),
     store.dispatch('jabvoxInternalChat/fetchAccountUsers'),
   ]);
+  emitter.on('jabvox.internal_chat.message_created', onWsMessage);
   startPolling();
 });
 
-onUnmounted(() => clearInterval(pollingTimer.value));
+onUnmounted(() => {
+  clearInterval(pollingTimer.value);
+  emitter.off('jabvox.internal_chat.message_created', onWsMessage);
+});
+
+function onWsMessage({ chat_id: chatId }) {
+  store.dispatch('jabvoxInternalChat/fetchChats');
+  if (currentChatId.value === chatId) {
+    store.dispatch('jabvoxInternalChat/fetchMessages', chatId);
+  }
+}
 </script>
 
 <template>

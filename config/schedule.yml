@@ -68,3 +68,15 @@ remove_orphan_conversations_job:
   cron: '0 */12 * * *'
   class: 'Internal::RemoveOrphanConversationsJob'
   queue: housekeeping
+
+# Jabvox Analytics: sweep expired durable query-cache rows hourly
+jabvox_analytics_cache_sweeper_job:
+  cron: '17 * * * *'
+  class: 'Jabvox::Analytics::CacheSweeperJob'
+  queue: scheduled_jobs
+
+# Jabvox Analytics: prune audit logs older than the retention window, daily
+jabvox_analytics_audit_retention_job:
+  cron: '40 3 * * *'
+  class: 'Jabvox::Analytics::AuditRetentionJob'
+  queue: scheduled_jobs

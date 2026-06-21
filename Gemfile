@@ -198,6 +198,22 @@ gem 'iso-639'
 gem 'ruby-openai'
 gem 'ai-agents', '>= 0.9.1'
 
+# Jabvox CDR module: read call detail records from external Asterisk/Issabel MySQL
+# and fetch call recordings over SSH/SFTP for AI analysis.
+gem 'mysql2', '~> 0.5'
+gem 'net-scp', '~> 4.0'
+gem 'net-ssh', '~> 7.2'
+gem 'ed25519', '>= 1.2'
+gem 'bcrypt_pbkdf', '>= 1.0'
+
+# Jabvox Analytics & Dashboards (BI) module: connect to external customer databases
+# (PostgreSQL via pg, MySQL/MariaDB via mysql2, SQLite via sqlite3) read-only, validate
+# custom SQL is read-only with the real Postgres parser (pg_query), and render exports.
+gem 'sqlite3', '~> 1.7'
+gem 'pg_query', '~> 6.1'
+gem 'prawn', '~> 2.5'
+gem 'prawn-table', '~> 0.2'
+
 # TODO: Move this gem as a dependency of ai-agents
 gem 'ruby_llm', '>= 1.8.2'
 gem 'ruby_llm-schema'

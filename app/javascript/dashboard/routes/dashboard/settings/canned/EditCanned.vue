@@ -3,6 +3,7 @@
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import Modal from '../../../../components/Modal.vue';
@@ -20,7 +21,8 @@ export default {
     onClose: { type: Function, default: () => {} },
   },
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -47,7 +49,19 @@ export default {
       return `${this.$t('CANNED_MGMT.EDIT.TITLE')} - ${this.edshortCode}`;
     },
   },
+  mounted() {
+    this.$nextTick(() => this.markClean());
+    this.$watch(
+      () => [this.shortCode, this.content],
+      () => this.markDirty(),
+      { deep: true }
+    );
+  },
   methods: {
+    handleClose() {
+      this.markClean();
+      this.onClose();
+    },
     setPageName({ name }) {
       this.v$.content.$touch();
       this.content = name;
@@ -73,6 +87,7 @@ export default {
           this.editCanned.showLoading = false;
           useAlert(this.$t('CANNED_MGMT.EDIT.API.SUCCESS_MESSAGE'));
           this.resetForm();
+          this.$nextTick(() => this.markClean());
           setTimeout(() => {
             this.onClose();
           }, 10);
@@ -89,7 +104,7 @@ export default {
 </script>
 
 <template>
-  <Modal v-model:show="show" :on-close="onClose">
+  <Modal v-model:show="show" :on-close="handleClose">
     <div class="flex flex-col h-auto overflow-auto">
       <woot-modal-header :header-title="pageTitle" />
       <form class="flex flex-col w-full" @submit.prevent="editCannedResponse()">
@@ -128,7 +143,7 @@ export default {
             slate
             type="reset"
             :label="$t('CANNED_MGMT.EDIT.CANCEL_BUTTON_TEXT')"
-            @click.prevent="onClose"
+            @click.prevent="handleClose"
           />
           <NextButton
             type="submit"

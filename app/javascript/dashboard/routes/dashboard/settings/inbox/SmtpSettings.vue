@@ -6,6 +6,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import InputRadioGroup from './components/InputRadioGroup.vue';
 import SingleSelectDropdown from './components/SingleSelectDropdown.vue';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
 export default {
@@ -22,7 +23,8 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -77,6 +79,21 @@ export default {
   },
   mounted() {
     this.setDefaults();
+    this.$watch(
+      () => [
+        this.isSMTPEnabled,
+        this.address,
+        this.port,
+        this.login,
+        this.password,
+        this.domain,
+        this.ssl,
+        this.starttls,
+        this.openSSLVerifyMode,
+        this.authMechanism,
+      ],
+      () => this.markDirty()
+    );
   },
   methods: {
     setDefaults() {
@@ -111,6 +128,7 @@ export default {
           checked: smtp_enable_starttls_auto,
         },
       ];
+      this.$nextTick(() => this.markClean());
     },
     handleEncryptionChange(encryption) {
       if (encryption.id === 'ssl') {
@@ -145,6 +163,7 @@ export default {
           },
         };
         await this.$store.dispatch('inboxes/updateInboxSMTP', payload);
+        this.$nextTick(() => this.markClean());
         useAlert(this.$t('INBOX_MGMT.SMTP.EDIT.SUCCESS_MESSAGE'));
       } catch (error) {
         useAlert(

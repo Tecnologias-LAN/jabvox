@@ -40,6 +40,7 @@ import SelectInput from 'dashboard/components-next/select/Select.vue';
 import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
 import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 
 export default {
   components: {
@@ -75,7 +76,8 @@ export default {
   },
   mixins: [inboxMixin],
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -112,7 +114,7 @@ export default {
     ...mapGetters({
       accountId: 'getCurrentAccountId',
       isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
-      isOnChatwootCloud: 'globalConfig/isOnChatwootCloud',
+      isOnJabvoxCloud: 'globalConfig/isOnJabvoxCloud',
       uiFlags: 'inboxes/getUIFlags',
       portals: 'portals/allPortals',
     }),
@@ -124,10 +126,10 @@ export default {
     },
     showContinuityToggle() {
       if (this.isInboundEmailEnabled) return true;
-      return this.isOnChatwootCloud;
+      return this.isOnJabvoxCloud;
     },
     isContinuityDisabled() {
-      return this.isOnChatwootCloud && !this.isInboundEmailEnabled;
+      return this.isOnJabvoxCloud && !this.isInboundEmailEnabled;
     },
     continuityDescription() {
       if (this.isContinuityDisabled) {
@@ -380,6 +382,7 @@ export default {
           });
         } else {
           this.selectedFeatureFlags = newInbox?.selected_feature_flags || [];
+          this.$nextTick(() => this.markClean());
         }
       },
       immediate: true,
@@ -387,6 +390,32 @@ export default {
   },
   mounted() {
     this.fetchSharedData();
+    this.$watch(
+      () => [
+        this.avatarUrl,
+        this.selectedInboxName,
+        this.webhookUrl,
+        this.channelWebsiteUrl,
+        this.channelWelcomeTitle,
+        this.channelWelcomeTagline,
+        this.businessName,
+        this.senderNameType,
+        this.greetingEnabled,
+        this.greetingMessage,
+        this.emailCollectEnabled,
+        this.allowMessagesAfterResolved,
+        this.continuityViaEmail,
+        this.locktoSingleConversation,
+        this.selectedPortalSlug,
+        this.replyTime,
+        this.selectedFeatureFlags,
+        this.widgetBubblePosition,
+        this.widgetBubbleType,
+        this.widgetBubbleLauncherTitle,
+      ],
+      () => this.markDirty(),
+      { deep: true }
+    );
   },
   methods: {
     async copyWebhookSecret(value) {
@@ -459,6 +488,8 @@ export default {
         this.widgetBubbleType = 'standard';
         this.widgetBubbleLauncherTitle = '';
       }
+
+      this.$nextTick(() => this.markClean());
     },
     async fetchHealthData() {
       if (!this.inbox) return;
@@ -574,6 +605,7 @@ export default {
           payload.avatar = this.avatarFile;
         }
         await this.$store.dispatch('inboxes/updateInbox', payload);
+        this.$nextTick(() => this.markClean());
         useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
         this.showBusinessNameInput = false;
       } catch (error) {
@@ -592,6 +624,7 @@ export default {
         );
         this.avatarFile = null;
         this.avatarUrl = '';
+        this.$nextTick(() => this.markClean());
         useAlert(this.$t('INBOX_MGMT.DELETE.API.AVATAR_SUCCESS_MESSAGE'));
       } catch (error) {
         useAlert(

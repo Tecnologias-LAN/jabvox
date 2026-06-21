@@ -1,8 +1,9 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAutomation } from 'dashboard/composables/useAutomation';
 import { useEditableAutomation } from 'dashboard/composables/useEditableAutomation';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import AutomationRuleForm from './AutomationRuleForm.vue';
 import { AUTOMATION_ACTION_TYPES } from './constants';
 
@@ -34,16 +35,24 @@ const {
 
 const { formatAutomation } = useEditableAutomation();
 
+const { markDirty, markClean } = useUnsavedChanges();
+
 const open = () => formRef.value?.open();
-const close = () => formRef.value?.close();
+const close = () => {
+  markClean();
+  formRef.value?.close();
+};
 
 const onSave = (payload, mode) => {
+  markClean();
   emit('saveAutomation', payload, mode);
 };
 
+watch(automation, () => markDirty(), { deep: true });
+
 watch(
   () => props.selectedResponse,
-  value => {
+  async value => {
     if (!value?.conditions) return;
 
     manifestCustomAttributes();
@@ -54,6 +63,8 @@ watch(
       automationTypes,
       AUTOMATION_ACTION_TYPES
     );
+    await nextTick();
+    markClean();
   },
   { immediate: true }
 );
@@ -76,5 +87,6 @@ defineExpose({ open, close });
     :reset-action="resetAction"
     :on-event-change="onEventChange"
     @save="onSave"
+    @close="markClean"
   />
 </template>

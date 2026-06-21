@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, provide } from 'vue';
+import { ref, computed, watch, provide, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useStore, useStoreGetters } from 'dashboard/composables/store';
@@ -8,6 +8,7 @@ import { MACRO_ACTION_TYPES } from './constants';
 import { useAlert } from 'dashboard/composables';
 import actionQueryGenerator from 'dashboard/helper/actionQueryGenerator.js';
 import { useMacros } from 'dashboard/composables/useMacros';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 
 const store = useStore();
 const getters = useStoreGetters();
@@ -18,6 +19,7 @@ const router = useRouter();
 const { t } = useI18n();
 
 const { getMacroDropdownValues } = useMacros();
+const { markDirty, markClean } = useUnsavedChanges();
 
 const macro = ref(null);
 const mode = ref('CREATE');
@@ -75,6 +77,8 @@ const manifestMacro = async () => {
   await store.dispatch('macros/getSingleMacro', macroId.value);
   const singleMacro = store.getters['macros/getMacro'](macroId.value);
   macro.value = formatMacro(singleMacro);
+  await nextTick();
+  markClean();
 };
 
 const fetchMacro = () => {
@@ -82,7 +86,7 @@ const fetchMacro = () => {
   manifestMacro();
 };
 
-const initNewMacro = () => {
+const initNewMacro = async () => {
   mode.value = 'CREATE';
   macro.value = {
     name: '',
@@ -94,7 +98,11 @@ const initNewMacro = () => {
     ],
     visibility: 'global',
   };
+  await nextTick();
+  markClean();
 };
+
+watch(macro, () => markDirty(), { deep: true });
 
 watch(
   () => route,
@@ -119,6 +127,7 @@ const saveMacro = async macroData => {
     let serializedMacro = JSON.parse(JSON.stringify(macroData));
     serializedMacro.actions = actionQueryGenerator(serializedMacro.actions);
     await store.dispatch(action, serializedMacro);
+    markClean();
     useAlert(successMessage);
     router.push({ name: 'macros_wrapper' });
   } catch (error) {

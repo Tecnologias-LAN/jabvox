@@ -9,7 +9,7 @@ RSpec.describe 'Public Help Center Access', type: :request do
   let!(:article) { create(:article, category: category, portal: portal, account: account, author: agent, status: :published) }
 
   around do |example|
-    with_modified_env FRONTEND_URL: 'https://app.chatwoot.com', HELPCENTER_URL: 'https://help.chatwoot.com' do
+    with_modified_env FRONTEND_URL: 'https://app.jabvox.com', HELPCENTER_URL: 'https://help.jabvox.com' do
       previous_deployment_env = InstallationConfig.find_by(name: 'DEPLOYMENT_ENV')&.value
       InstallationConfig.where(name: 'DEPLOYMENT_ENV').first_or_initialize.update!(value: 'cloud')
 
@@ -21,9 +21,9 @@ RSpec.describe 'Public Help Center Access', type: :request do
     end
   end
 
-  it 'blocks chatwoot-hosted portal pages when the help center feature is disabled' do
+  it 'blocks jabvox-hosted portal pages when the help center feature is disabled' do
     account.disable_features!(:help_center)
-    host! 'help.chatwoot.com'
+    host! 'help.jabvox.com'
 
     get "/hc/#{portal.slug}/en"
 

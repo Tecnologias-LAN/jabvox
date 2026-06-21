@@ -4,6 +4,7 @@ import { useAlert } from 'dashboard/composables';
 import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
 export default {
@@ -18,7 +19,8 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -46,6 +48,17 @@ export default {
   },
   mounted() {
     this.setDefaults();
+    this.$watch(
+      () => [
+        this.isIMAPEnabled,
+        this.address,
+        this.port,
+        this.login,
+        this.password,
+        this.isSSLEnabled,
+      ],
+      () => this.markDirty()
+    );
   },
   methods: {
     setDefaults() {
@@ -63,6 +76,7 @@ export default {
       this.login = imap_login;
       this.password = imap_password;
       this.isSSLEnabled = imap_enable_ssl;
+      this.$nextTick(() => this.markClean());
     },
     async updateInbox() {
       try {
@@ -85,6 +99,7 @@ export default {
         }
 
         await this.$store.dispatch('inboxes/updateInboxIMAP', payload);
+        this.$nextTick(() => this.markClean());
         useAlert(this.$t('INBOX_MGMT.IMAP.EDIT.SUCCESS_MESSAGE'));
       } catch (error) {
         useAlert(error.message);

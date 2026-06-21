@@ -9,7 +9,7 @@ const { isImpersonating } = useImpersonation();
 
 class ActionCableConnector extends BaseActionCableConnector {
   constructor(app, pubsubToken) {
-    const { websocketURL = '' } = window.chatwootConfig || {};
+    const { websocketURL = '' } = window.jabvoxConfig || {};
     super(app, pubsubToken, websocketURL);
     this.CancelTyping = [];
     this.events = {
@@ -38,6 +38,9 @@ class ActionCableConnector extends BaseActionCableConnector {
       'jabvox.agent_state_changed': this.onAgentStateChanged,
       'jabvox.dialer.call_assigned': this.onDialerCallAssigned,
       'jabvox.dialer.call_ended': this.onDialerCallEnded,
+      'jabvox.call.ended': this.onClickToCallEnded,
+      'jabvox.internal_chat.message_created': this.onInternalChatMessageCreated,
+      'jabvox.ai_chat.response_created': this.onAiChatResponseCreated,
     };
   }
 
@@ -218,11 +221,27 @@ class ActionCableConnector extends BaseActionCableConnector {
     emitter.emit('jabvox.dialer.call_ended', data);
   };
 
+  // eslint-disable-next-line class-methods-use-this
+  onClickToCallEnded = data => {
+    emitter.emit('jabvox.call.ended', data);
+  };
+
   onCacheInvalidate = data => {
     const keys = data.cache_keys;
     this.app.$store.dispatch('labels/revalidate', { newKey: keys.label });
     this.app.$store.dispatch('inboxes/revalidate', { newKey: keys.inbox });
     this.app.$store.dispatch('teams/revalidate', { newKey: keys.team });
+  };
+
+  onInternalChatMessageCreated = data => {
+    this.app.$store.dispatch('jabvoxInternalChat/receiveMessage', data);
+    DashboardAudioNotificationHelper.playSimpleAlert();
+    emitter.emit('jabvox.internal_chat.message_created', data);
+  };
+
+  onAiChatResponseCreated = data => {
+    DashboardAudioNotificationHelper.playSimpleAlert();
+    emitter.emit('jabvox.ai_chat.response_created', data);
   };
 }
 

@@ -6,8 +6,18 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { emitter } from 'shared/helpers/mitt';
-import { dialerAccessesAPI } from 'dashboard/api/jabvox/dialer';
+import {
+  dialerAccessesAPI,
+  dialerCallLogsAPI,
+} from 'dashboard/api/jabvox/dialer';
+import { typificationsAPI } from 'dashboard/api/jabvox/clickToCall';
 import messageAPI from 'dashboard/api/inbox/message';
+import ManagementQuestionsForm from 'dashboard/components/jabvox/managementStates/ManagementQuestionsForm.vue';
+import {
+  isManagementValid,
+  buildManagementContentAttributes,
+} from 'dashboard/composables/jabvox/useManagementState';
+import { useAlert } from 'dashboard/composables';
 
 const store = useStore();
 const router = useRouter();
@@ -36,7 +46,14 @@ const wrapupRemaining = ref(0);
 const inWrapup = ref(false);
 const wrapupNote = ref('');
 const wrapupStateId = ref(null);
+const managementAnswers = ref({});
 const isSavingNote = ref(false);
+const typifications = ref([]);
+const wrapupTypificationId = ref(null);
+
+const selectedManagementState = computed(() =>
+  (managementStates.value || []).find(s => s.id === wrapupStateId.value)
+);
 let heartbeatTimer = null;
 let requestCallTimer = null;
 let wrapupTimer = null;
@@ -98,6 +115,8 @@ const endWrapup = () => {
   lastCall.value = null;
   wrapupNote.value = '';
   wrapupStateId.value = null;
+  wrapupTypificationId.value = null;
+  managementAnswers.value = {};
   if (connected.value && activeDialerState.value === null) {
     // Unpause agent in Asterisk queue before requesting next call
     dialerAccessesAPI.updateState(null).catch(() => {});
@@ -106,13 +125,32 @@ const endWrapup = () => {
   }
 };
 
+// Persists the chosen typification on the dialer call log (links to CDR + pipelines).
+const saveTypification = async () => {
+  const dialerContactId = lastCall.value?.dialer_contact_id;
+  if (!dialerContactId || !wrapupTypificationId.value) return;
+  try {
+    await dialerCallLogsAPI.typify({
+      contact_id: dialerContactId,
+      typification_id: wrapupTypificationId.value,
+    });
+  } catch {
+    // best-effort — the note already saved
+  }
+};
+
 const saveWrapupNote = async () => {
   const convId = lastCall.value?.conversation_id;
-  const stateObj = managementStates.value.find(
-    s => s.id === wrapupStateId.value
-  );
+  const stateObj = selectedManagementState.value;
   const note = wrapupNote.value.trim() || stateObj?.name_jabvox || '';
   if (!convId || !note || isSavingNote.value) return;
+  if (
+    stateObj &&
+    !isManagementValid(stateObj, managementAnswers.value, wrapupNote.value)
+  ) {
+    useAlert(t('JABVOX_MANAGEMENT_STATES.QUESTIONS.INCOMPLETE'));
+    return;
+  }
   const payload = {
     conversationId: convId,
     message: note,
@@ -120,15 +158,15 @@ const saveWrapupNote = async () => {
     echo_id: `jabvox_dialer_${Date.now()}`,
   };
   if (stateObj) {
-    payload.contentAttributes = {
-      jabvox_management_state_id: stateObj.id,
-      jabvox_management_state_name: stateObj.name_jabvox || '',
-      jabvox_management_state_color: stateObj.color_jabvox || '',
-    };
+    payload.contentAttributes = buildManagementContentAttributes(
+      stateObj,
+      managementAnswers.value
+    );
   }
   isSavingNote.value = true;
   try {
     await messageAPI.create(payload);
+    await saveTypification();
   } catch {
     // best-effort
   } finally {
@@ -272,6 +310,12 @@ onMounted(async () => {
     store.dispatch('jabvoxDialer/fetchDialerStates'),
     store.dispatch('jabvoxManagementStates/fetchStates'),
   ]);
+  try {
+    const { data } = await typificationsAPI.getAll(true);
+    typifications.value = data.typifications || data || [];
+  } catch {
+    typifications.value = [];
+  }
   emitter.on('jabvox.dialer.call_assigned', onCallAssigned);
   emitter.on('jabvox.dialer.call_ended', onCallEnded);
   document.addEventListener('click', closeDropdown);
@@ -343,6 +387,7 @@ const onDisconnect = async () => {
   wrapupRemaining.value = 0;
   wrapupNote.value = '';
   wrapupStateId.value = null;
+  managementAnswers.value = {};
   stateDropdownOpen.value = false;
 };
 
@@ -634,6 +679,23 @@ const setDialerState = async state => {
               {{ s.name_jabvox }}
             </button>
           </div>
+          <ManagementQuestionsForm
+            v-if="selectedManagementState"
+            v-model="managementAnswers"
+            :state="selectedManagementState"
+          />
+          <select
+            v-if="typifications.length"
+            v-model="wrapupTypificationId"
+            class="w-full rounded-lg border border-n-weak bg-white dark:bg-n-surface-2 px-3 py-2 text-xs text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-woot-400"
+          >
+            <option :value="null">
+              {{ t('JABVOX_DIALER.WRAPUP.TYPIFICATION_PLACEHOLDER') }}
+            </option>
+            <option v-for="tp in typifications" :key="tp.id" :value="tp.id">
+              {{ tp.name }}
+            </option>
+          </select>
           <textarea
             v-model="wrapupNote"
             rows="2"
@@ -785,6 +847,12 @@ const setDialerState = async state => {
               {{ s.name_jabvox }}
             </button>
           </div>
+
+          <ManagementQuestionsForm
+            v-if="selectedManagementState"
+            v-model="managementAnswers"
+            :state="selectedManagementState"
+          />
 
           <!-- Note textarea -->
           <textarea

@@ -60,7 +60,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['save']);
+const emit = defineEmits(['save', 'close']);
 const automation = defineModel('automation', { type: Object, default: null });
 
 const INPUT_TYPE_MAP = {
@@ -224,6 +224,7 @@ const open = () => {
 const close = () => {
   resetValidation();
   dialogRef.value?.close();
+  emit('close');
 };
 
 const emitSaveAutomation = () => {

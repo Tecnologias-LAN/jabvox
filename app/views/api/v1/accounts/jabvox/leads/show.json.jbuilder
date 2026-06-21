@@ -33,3 +33,4 @@ json.last_management_state conv[:last_management_state]
 json.last_management_at conv[:last_management_at]
 json.affiliate_id lead.jabvox_affiliate_id
 json.affiliate_name lead.jabvox_affiliate&.name
+json.custom_fields_jabvox lead.custom_fields_jabvox

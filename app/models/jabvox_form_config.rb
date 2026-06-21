@@ -31,9 +31,9 @@ class JabvoxFormConfig < ApplicationRecord
 
   belongs_to :account
 
-  encrypts :ssl_key        if Chatwoot.encryption_configured?
-  encrypts :ssl_cert       if Chatwoot.encryption_configured?
-  encrypts :acme_account_key if Chatwoot.encryption_configured?
+  encrypts :ssl_key        if Jabvox.encryption_configured?
+  encrypts :ssl_cert       if Jabvox.encryption_configured?
+  encrypts :acme_account_key if Jabvox.encryption_configured?
 
   VALID_DOMAIN_RE = /\A[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?)+\z/i
 

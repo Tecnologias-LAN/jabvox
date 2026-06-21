@@ -39,7 +39,7 @@ import ChannelIcon from 'next/icon/ChannelIcon.vue';
 import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 
-const { accountScopedRoute, isOnChatwootCloud } = useAccount();
+const { accountScopedRoute, isOnJabvoxCloud } = useAccount();
 const { isAdmin } = useAdmin();
 const store = useStore();
 const route = useRoute();
@@ -468,6 +468,53 @@ const menuItems = computed(() => {
             icon: 'i-lucide-bar-chart-2',
             to: accountScopedRoute('jabvox_reports_index'),
             activeOn: ['jabvox_reports_index'],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_CDR
+    )
+      ? [
+          {
+            name: 'Jabvox CDR Reports',
+            label: t('JABVOX_CDR.SIDEBAR_LABEL'),
+            icon: 'i-lucide-phone-call',
+            to: accountScopedRoute('jabvox_cdr_reports_index'),
+            activeOn: ['jabvox_cdr_reports_index'],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_AUDIO_ANALYSIS
+    )
+      ? [
+          {
+            name: 'Jabvox Audio Reports',
+            label: t('JABVOX_AUDIO.SIDEBAR_LABEL'),
+            icon: 'i-lucide-audio-lines',
+            to: accountScopedRoute('jabvox_audio_analysis_reports_index'),
+            activeOn: ['jabvox_audio_analysis_reports_index'],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_ANALYTICS
+    )
+      ? [
+          {
+            name: 'Jabvox Analytics',
+            label: t('SIDEBAR.JABVOX_ANALYTICS'),
+            icon: 'i-lucide-chart-no-axes-combined',
+            to: accountScopedRoute('jabvox_analytics_index'),
+            activeOn: [
+              'jabvox_analytics_index',
+              'jabvox_analytics_data_sources',
+              'jabvox_analytics_dashboards',
+              'jabvox_analytics_permissions',
+            ],
           },
         ]
       : []),
@@ -951,6 +998,63 @@ const menuItems = computed(() => {
         ...(isAdmin.value &&
         isFeatureEnabledonAccount.value(
           accountId.value,
+          FEATURE_FLAGS.JABVOX_CDR
+        )
+          ? [
+              {
+                name: 'Settings Jabvox CDR',
+                label: t('SIDEBAR.JABVOX_CDR'),
+                icon: 'i-lucide-phone-call',
+                to: accountScopedRoute('jabvox_cdr_settings_index'),
+                activeOn: ['jabvox_cdr_settings_index'],
+              },
+            ]
+          : []),
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_WHATSAPP_TEMPLATES
+        )
+          ? [
+              {
+                name: 'Settings Jabvox WA Templates',
+                label: t('SIDEBAR.JABVOX_WHATSAPP_TEMPLATES'),
+                icon: 'i-lucide-message-square-text',
+                to: accountScopedRoute('jabvox_whatsapp_templates_settings_index'),
+                activeOn: ['jabvox_whatsapp_templates_settings_index'],
+              },
+            ]
+          : []),
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_AUDIO_ANALYSIS
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Audio Analysis',
+                label: t('SIDEBAR.JABVOX_AUDIO_ANALYSIS'),
+                icon: 'i-lucide-audio-lines',
+                to: accountScopedRoute('jabvox_audio_analysis_settings_index'),
+                activeOn: ['jabvox_audio_analysis_settings_index'],
+              },
+            ]
+          : []),
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_CLICK_TO_CALL
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Typifications',
+                label: t('SIDEBAR.JABVOX_TYPIFICATIONS'),
+                icon: 'i-lucide-tags',
+                to: accountScopedRoute('jabvox_typifications_index'),
+                activeOn: ['jabvox_typifications_index'],
+              },
+            ]
+          : []),
+        ...(isAdmin.value &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
           FEATURE_FLAGS.JABVOX_SALDO
         )
           ? [
@@ -1085,6 +1189,21 @@ const menuItems = computed(() => {
                 icon: 'i-lucide-file-text',
                 to: accountScopedRoute('jabvox_forms_settings'),
                 activeOn: ['jabvox_forms_settings'],
+              },
+            ]
+          : []),
+        ...(isAdmin.value &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_CUSTOMIZATION
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Customization',
+                label: t('JABVOX_CUSTOMIZATION.SIDEBAR_LABEL'),
+                icon: 'i-lucide-sliders-horizontal',
+                to: accountScopedRoute('jabvox_customization_settings'),
+                activeOn: ['jabvox_customization_settings'],
               },
             ]
           : []),
@@ -1288,16 +1407,14 @@ const menuItems = computed(() => {
       />
       <SidebarChangelogCard
         v-if="
-          isOnChatwootCloud &&
+          isOnJabvoxCloud &&
           !isACustomBrandedInstance &&
           !isEffectivelyCollapsed
         "
       />
       <SidebarChangelogButton
         v-if="
-          isOnChatwootCloud &&
-          !isACustomBrandedInstance &&
-          isEffectivelyCollapsed
+          isOnJabvoxCloud && !isACustomBrandedInstance && isEffectivelyCollapsed
         "
       />
       <div

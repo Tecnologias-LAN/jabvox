@@ -24,7 +24,7 @@ module SafeFetch
     effective_max_bytes = max_bytes || default_max_bytes
     uri = parse_and_validate_url!(url)
     filename = filename_for(uri)
-    tempfile = Tempfile.new('chatwoot-safe-fetch', binmode: true)
+    tempfile = Tempfile.new('jabvox-safe-fetch', binmode: true)
 
     response = stream_to_tempfile(url, tempfile, effective_max_bytes, allowed_content_type_prefixes)
     raise HttpError, "#{response.code} #{response.message}" unless response.is_a?(Net::HTTPSuccess)

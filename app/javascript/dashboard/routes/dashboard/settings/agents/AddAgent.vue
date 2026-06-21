@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import { useVuelidate } from '@vuelidate/core';
 import { required, email } from '@vuelidate/validators';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -12,9 +13,13 @@ const emit = defineEmits(['close']);
 const store = useStore();
 const { t } = useI18n();
 
+const { markDirty, markClean } = useUnsavedChanges();
+
 const agentName = ref('');
 const agentEmail = ref('');
 const selectedRoleId = ref('agent');
+
+watch([agentName, agentEmail, selectedRoleId], () => markDirty());
 
 const rules = {
   agentName: { required },
@@ -79,6 +84,8 @@ const addAgent = async () => {
 
     await store.dispatch('agents/create', payload);
     useAlert(t('AGENT_MGMT.ADD.API.SUCCESS_MESSAGE'));
+    await nextTick();
+    markClean();
     emit('close');
   } catch (error) {
     const {
@@ -99,6 +106,11 @@ const addAgent = async () => {
     }
     useAlert(errorResponse || attrError || errorMessage);
   }
+};
+
+const onClose = () => {
+  markClean();
+  emit('close');
 };
 </script>
 
@@ -153,7 +165,7 @@ const addAgent = async () => {
           slate
           type="reset"
           :label="$t('AGENT_MGMT.ADD.CANCEL_BUTTON_TEXT')"
-          @click.prevent="emit('close')"
+          @click.prevent="onClose"
         />
         <Button
           type="submit"

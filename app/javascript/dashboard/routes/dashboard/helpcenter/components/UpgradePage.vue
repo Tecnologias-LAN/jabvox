@@ -49,7 +49,7 @@ export default {
   computed: {
     ...mapGetters({
       accountId: 'getCurrentAccountId',
-      isOnChatwootCloud: 'globalConfig/isOnChatwootCloud', // Pending change text
+      isOnJabvoxCloud: 'globalConfig/isOnJabvoxCloud', // Pending change text
     }),
   },
   methods: {
@@ -60,7 +60,9 @@ export default {
       });
     },
     openHelpCenterDocs() {
-      window.open(this.helpCenterDocsURL, '_blank');
+      if (this.helpCenterDocsURL) {
+        window.open(this.helpCenterDocsURL, '_blank');
+      }
     },
   },
 };
@@ -81,14 +83,14 @@ export default {
           class="max-w-2xl text-base font-normal leading-6 text-left sm:text-center text-n-slate-11"
         >
           {{
-            isOnChatwootCloud
+            isOnJabvoxCloud
               ? $t('HELP_CENTER.UPGRADE_PAGE.DESCRIPTION')
               : $t('HELP_CENTER.UPGRADE_PAGE.SELF_HOSTED_DESCRIPTION')
           }}
         </p>
       </div>
       <div
-        v-if="isOnChatwootCloud"
+        v-if="isOnJabvoxCloud"
         class="flex flex-row gap-3 justify-start items-center sm:justify-center"
       >
         <NextButton

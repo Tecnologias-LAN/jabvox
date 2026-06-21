@@ -1,18 +1,18 @@
 class SuperAdmin::InstanceStatusesController < SuperAdmin::ApplicationController
   def show
     @metrics = {}
-    chatwoot_version
+    jabvox_version
     sha
     postgres_status
     redis_metrics
-    chatwoot_edition
+    jabvox_edition
     instance_meta
   end
 
-  def chatwoot_edition
-    @metrics['Chatwoot edition'] = if ChatwootApp.enterprise?
+  def jabvox_edition
+    @metrics['Jabvox edition'] = if JabvoxApp.enterprise?
                                      'Enterprise'
-                                   elsif ChatwootApp.custom?
+                                   elsif JabvoxApp.custom?
                                      'Custom'
                                    else
                                      'Community'
@@ -23,8 +23,8 @@ class SuperAdmin::InstanceStatusesController < SuperAdmin::ApplicationController
     @metrics['Database Migrations'] = ActiveRecord::Base.connection.migration_context.needs_migration? ? 'pending' : 'completed'
   end
 
-  def chatwoot_version
-    @metrics['Chatwoot version'] = Chatwoot.config[:version]
+  def jabvox_version
+    @metrics['Jabvox version'] = Jabvox.config[:version]
   end
 
   def sha

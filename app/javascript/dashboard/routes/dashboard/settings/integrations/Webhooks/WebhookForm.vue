@@ -6,6 +6,7 @@ import { getI18nKey } from 'dashboard/routes/dashboard/settings/helper/settingsH
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { useAlert } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 
 const { EXAMPLE_WEBHOOK_URL } = wootConstants;
 
@@ -42,7 +43,8 @@ export default {
   },
   emits: ['submit', 'cancel'],
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   validations: {
     url: {
@@ -79,13 +81,26 @@ export default {
       return this.$t('INTEGRATION_SETTINGS.WEBHOOK.FORM.NAME.PLACEHOLDER');
     },
   },
+  mounted() {
+    this.$watch(
+      () => [this.url, this.name, this.subscriptions],
+      () => this.markDirty(),
+      { deep: true }
+    );
+    this.$nextTick(() => this.markClean());
+  },
   methods: {
     onSubmit() {
+      this.markClean();
       this.$emit('submit', {
         url: this.url,
         name: this.name,
         subscriptions: this.subscriptions,
       });
+    },
+    onCancel() {
+      this.markClean();
+      this.$emit('cancel');
     },
     async copySecret() {
       await copyTextToClipboard(this.value.secret);
@@ -187,7 +202,7 @@ export default {
         slate
         type="reset"
         :label="$t('INTEGRATION_SETTINGS.WEBHOOK.FORM.CANCEL')"
-        @click.prevent="$emit('cancel')"
+        @click.prevent="onCancel"
       />
       <NextButton
         type="submit"

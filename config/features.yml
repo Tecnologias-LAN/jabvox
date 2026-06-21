@@ -4,7 +4,7 @@
 # display_name: the name to be used in the UI
 # enabled: whether the feature is enabled by default
 # help_url: the url to the help center article
-# chatwoot_internal: whether the feature is internal to Chatwoot and should not be shown in the UI for other self hosted installations
+# jabvox_internal: whether the feature is internal to Jabvox and should not be shown in the UI for other self hosted installations
 # deprecated: purpose of feature flag is done, no need to show it in the UI anymore
 - name: inbound_emails
   display_name: Inbound Emails
@@ -119,7 +119,7 @@
 - name: inbox_view
   display_name: Inbox View
   enabled: false
-  chatwoot_internal: true
+  jabvox_internal: true
 - name: sla
   display_name: SLA
   enabled: false
@@ -129,7 +129,7 @@
   display_name: Help Center Embedding Search
   enabled: false
   premium: true
-  chatwoot_internal: true
+  jabvox_internal: true
 - name: linear_integration
   display_name: Linear Integration
   enabled: false
@@ -141,25 +141,25 @@
   display_name: Custom Roles
   enabled: false
   premium: true
-- name: chatwoot_v4
-  display_name: Chatwoot V4
+- name: jabvox_v4
+  display_name: Jabvox V4
   enabled: true
 - name: report_v4
   display_name: Report V4
   enabled: false
   deprecated: true
-- name: contact_chatwoot_support_team
-  display_name: Contact Chatwoot Support Team
+- name: contact_jabvox_support_team
+  display_name: Contact Jabvox Support Team
   enabled: true
-  chatwoot_internal: true
+  jabvox_internal: true
 - name: shopify_integration
   display_name: Shopify Integration
   enabled: false
-  chatwoot_internal: true
+  jabvox_internal: true
 - name: search_with_gin
   display_name: Search messages with GIN
   enabled: false
-  chatwoot_internal: true
+  jabvox_internal: true
 - name: channel_instagram
   display_name: Instagram Channel
   enabled: true
@@ -187,7 +187,7 @@
 - name: crm_v2
   display_name: CRM V2
   enabled: false
-  chatwoot_internal: true
+  jabvox_internal: true
 - name: assignment_v2
   display_name: Assignment V2
   enabled: true
@@ -199,7 +199,7 @@
   display_name: Advanced Search
   enabled: false
   premium: true
-  chatwoot_internal: true
+  jabvox_internal: true
 - name: saml
   display_name: SAML
   enabled: false
@@ -208,13 +208,13 @@
   display_name: Advanced Search Indexing
   enabled: false
   premium: true
-  chatwoot_internal: true
+  jabvox_internal: true
 - name: reply_mailer_migration
   # This feature is temporary only to migrate reply mailer to new email builder
   # Once the migration is done, this feature can be removed
   display_name: Reply Mailer Migration
   enabled: false
-  chatwoot_internal: true
+  jabvox_internal: true
 - name: quoted_email_reply
   display_name: Quoted Email Reply
   enabled: false
@@ -222,7 +222,7 @@
   display_name: Companies
   enabled: false
   premium: true
-  chatwoot_internal: true
+  jabvox_internal: true
 - name: channel_tiktok
   display_name: TikTok Channel
   enabled: true

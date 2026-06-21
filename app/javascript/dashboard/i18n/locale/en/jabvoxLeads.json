@@ -77,6 +77,13 @@
     },
     "DETAIL": {
       "BACK": "Volver a leads",
+      "EDIT": "Editar",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "YES": "Sí",
+      "NO": "No",
+      "CUSTOM_FIELDS_SAVED": "Cambios guardados",
+      "CUSTOM_FIELDS_ERROR": "No se pudieron guardar los cambios",
       "LOADING": "Cargando lead...",
       "NOT_FOUND": "Lead no encontrado",
       "PREV": "Lead anterior",
@@ -99,11 +106,15 @@
       "NOTE_PLACEHOLDER": "Escribe una nota privada... (Enter para guardar)",
       "LOAD_MESSAGES_ERROR": "No se pudieron cargar los mensajes",
       "SEND_ERROR": "No se pudo enviar el mensaje",
+      "SAVE_CUSTOM_FIELDS": "Guardar",
+      "CUSTOM_FIELDS_SAVED": "Campos guardados.",
+      "CUSTOM_FIELDS_ERROR": "No se pudieron guardar los campos.",
       "TABS": {
         "CHAT": "Chat",
         "NOTES": "Notas",
         "PRODUCTS": "Productos",
-        "HISTORY": "Historial"
+        "HISTORY": "Historial",
+        "DATA": "Datos"
       },
       "INFO": {
         "LEAD_ID": "ID Lead",

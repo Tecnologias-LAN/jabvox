@@ -5,6 +5,7 @@ import { useAlert } from 'dashboard/composables';
 import { useIntegrationHook } from 'dashboard/composables/useIntegrationHook';
 import { FormKit } from '@formkit/vue';
 import { useBranding } from 'shared/composables/useBranding';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
@@ -25,8 +26,15 @@ export default {
       props.integrationId
     );
     const { replaceInstallationName } = useBranding();
+    const { markDirty, markClean } = useUnsavedChanges();
 
-    return { integration, isHookTypeInbox, replaceInstallationName };
+    return {
+      integration,
+      isHookTypeInbox,
+      replaceInstallationName,
+      markDirty,
+      markClean,
+    };
   },
   data() {
     return {
@@ -64,8 +72,12 @@ export default {
       return this.integration.id === 'dialogflow';
     },
   },
+  mounted() {
+    this.$watch('values', () => this.markDirty(), { deep: true });
+  },
   methods: {
     onClose() {
+      this.markClean();
       this.$emit('close');
     },
     buildHookPayload() {

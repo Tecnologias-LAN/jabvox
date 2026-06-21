@@ -73,6 +73,13 @@
     },
     "DETAIL": {
       "BACK": "Volver a leads",
+      "EDIT": "Editar",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "YES": "Sí",
+      "NO": "No",
+      "CUSTOM_FIELDS_SAVED": "Cambios guardados",
+      "CUSTOM_FIELDS_ERROR": "No se pudieron guardar los cambios",
       "LOADING": "Cargando lead...",
       "NOT_FOUND": "Lead no encontrado",
       "PREV": "Lead anterior",

@@ -1,6 +1,7 @@
 <script>
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import validations, { getLabelTitleErrorMessage } from './validations';
 import { getRandomColor } from 'dashboard/helper/labelColor';
 import { useVuelidate } from '@vuelidate/core';
@@ -19,7 +20,8 @@ export default {
   },
   emits: ['close'],
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -42,9 +44,16 @@ export default {
   mounted() {
     this.color = getRandomColor();
     this.title = this.prefillTitle.toLowerCase();
+    this.$nextTick(() => this.markClean());
+    this.$watch(
+      () => [this.title, this.description, this.color, this.showOnSidebar],
+      () => this.markDirty(),
+      { deep: true }
+    );
   },
   methods: {
     onClose() {
+      this.markClean();
       this.$emit('close');
     },
     async addLabel() {
@@ -56,6 +65,7 @@ export default {
           show_on_sidebar: this.showOnSidebar,
         });
         useAlert(this.$t('LABEL_MGMT.ADD.API.SUCCESS_MESSAGE'));
+        this.markClean();
         this.onClose();
       } catch (error) {
         const errorMessage =

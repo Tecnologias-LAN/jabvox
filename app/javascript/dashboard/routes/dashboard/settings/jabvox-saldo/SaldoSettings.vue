@@ -1,15 +1,17 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import SettingsLayout from '../SettingsLayout.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 
 const store = useStore();
 const { t } = useI18n();
+const { markDirty, markClean } = useUnsavedChanges();
 
 const config = useMapGetter('jabvoxSaldo/getConfig');
 const status = useMapGetter('jabvoxSaldo/getStatus');
@@ -22,6 +24,8 @@ const form = ref({
   api_secret_jabvox: '',
   is_active_jabvox: true,
 });
+
+watch(form, () => markDirty(), { deep: true });
 
 const hasApiKey = computed(() => !!config.value?.has_api_key);
 
@@ -39,6 +43,8 @@ const loadData = async () => {
   await store.dispatch('jabvoxSaldo/fetchConfig');
   fillForm(config.value);
   await store.dispatch('jabvoxSaldo/fetchStatus');
+  await nextTick();
+  markClean();
 };
 
 onMounted(loadData);
@@ -51,6 +57,8 @@ const onSave = async () => {
     await store.dispatch('jabvoxSaldo/updateConfig', payload);
     form.value.api_key_jabvox = '';
     form.value.api_secret_jabvox = '';
+    await nextTick();
+    markClean();
     useAlert(t('JABVOX_SALDO.SAVE_SUCCESS'));
     await loadData();
   } catch {

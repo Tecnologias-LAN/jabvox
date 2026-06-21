@@ -8,13 +8,13 @@ class AccountDashboard < Administrate::BaseDashboard
   # which determines how the attribute is displayed
   # on pages throughout the dashboard.
 
-  enterprise_attribute_types = if ChatwootApp.enterprise?
+  enterprise_attribute_types = if JabvoxApp.enterprise?
                                  attributes = {
                                    limits: AccountLimitsField
                                  }
 
-                                 # Only show manually managed features in Chatwoot Cloud deployment
-                                 attributes[:manually_managed_features] = ManuallyManagedFeaturesField if ChatwootApp.chatwoot_cloud?
+                                 # Only show manually managed features in Jabvox Cloud deployment
+                                 attributes[:manually_managed_features] = ManuallyManagedFeaturesField if JabvoxApp.jabvox_cloud?
 
                                  # Add all_features last so it appears after manually_managed_features
                                  attributes[:all_features] = AccountFeaturesField
@@ -51,7 +51,13 @@ class AccountDashboard < Administrate::BaseDashboard
     jabvox_response_bot_enabled_jabvox: Field::Boolean,
     jabvox_email_enabled_jabvox: Field::Boolean,
     jabvox_forms_enabled_jabvox: Field::Boolean,
-    max_forms_jabvox: Field::Number
+    max_forms_jabvox: Field::Number,
+    jabvox_cdr_enabled_jabvox: Field::Boolean,
+    jabvox_audio_analysis_enabled_jabvox: Field::Boolean,
+    jabvox_click_to_call_enabled_jabvox: Field::Boolean,
+    jabvox_customization_enabled_jabvox: Field::Boolean,
+    jabvox_analytics_enabled_jabvox: Field::Boolean,
+    jabvox_whatsapp_templates_enabled_jabvox: Field::Boolean
   }.merge(enterprise_attribute_types).freeze
 
   # COLLECTION_ATTRIBUTES
@@ -70,9 +76,9 @@ class AccountDashboard < Administrate::BaseDashboard
 
   # SHOW_PAGE_ATTRIBUTES
   # an array of attributes that will be displayed on the model's show page.
-  enterprise_show_page_attributes = if ChatwootApp.enterprise?
+  enterprise_show_page_attributes = if JabvoxApp.enterprise?
                                       attrs = %i[custom_attributes limits]
-                                      attrs << :manually_managed_features if ChatwootApp.chatwoot_cloud?
+                                      attrs << :manually_managed_features if JabvoxApp.jabvox_cloud?
                                       attrs << :all_features
                                       attrs
                                     else
@@ -104,14 +110,20 @@ class AccountDashboard < Administrate::BaseDashboard
     jabvox_email_enabled_jabvox
     jabvox_forms_enabled_jabvox
     max_forms_jabvox
+    jabvox_cdr_enabled_jabvox
+    jabvox_audio_analysis_enabled_jabvox
+    jabvox_click_to_call_enabled_jabvox
+    jabvox_customization_enabled_jabvox
+    jabvox_analytics_enabled_jabvox
+    jabvox_whatsapp_templates_enabled_jabvox
   ] + enterprise_show_page_attributes).freeze
 
   # FORM_ATTRIBUTES
   # an array of attributes that will be displayed
   # on the model's form (`new` and `edit`) pages.
-  enterprise_form_attributes = if ChatwootApp.enterprise?
+  enterprise_form_attributes = if JabvoxApp.enterprise?
                                  attrs = %i[limits]
-                                 attrs << :manually_managed_features if ChatwootApp.chatwoot_cloud?
+                                 attrs << :manually_managed_features if JabvoxApp.jabvox_cloud?
                                  attrs << :all_features
                                  attrs
                                else
@@ -138,6 +150,12 @@ class AccountDashboard < Administrate::BaseDashboard
     jabvox_email_enabled_jabvox
     jabvox_forms_enabled_jabvox
     max_forms_jabvox
+    jabvox_cdr_enabled_jabvox
+    jabvox_audio_analysis_enabled_jabvox
+    jabvox_click_to_call_enabled_jabvox
+    jabvox_customization_enabled_jabvox
+    jabvox_analytics_enabled_jabvox
+    jabvox_whatsapp_templates_enabled_jabvox
   ] + enterprise_form_attributes).freeze
 
   # COLLECTION_FILTERS
@@ -186,9 +204,15 @@ class AccountDashboard < Administrate::BaseDashboard
     attrs << :jabvox_email_enabled_jabvox
     attrs << :jabvox_forms_enabled_jabvox
     attrs << :max_forms_jabvox
+    attrs << :jabvox_cdr_enabled_jabvox
+    attrs << :jabvox_audio_analysis_enabled_jabvox
+    attrs << :jabvox_click_to_call_enabled_jabvox
+    attrs << :jabvox_customization_enabled_jabvox
+    attrs << :jabvox_analytics_enabled_jabvox
+    attrs << :jabvox_whatsapp_templates_enabled_jabvox
 
-    # Add manually_managed_features to permitted attributes only for Chatwoot Cloud
-    attrs << { manually_managed_features: [] } if ChatwootApp.chatwoot_cloud?
+    # Add manually_managed_features to permitted attributes only for Jabvox Cloud
+    attrs << { manually_managed_features: [] } if JabvoxApp.jabvox_cloud?
 
     attrs
   end

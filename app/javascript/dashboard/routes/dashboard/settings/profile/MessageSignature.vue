@@ -1,8 +1,9 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { stripInlineBase64Images } from 'dashboard/helper/editorHelper';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
@@ -16,13 +17,18 @@ const props = defineProps({
 const emit = defineEmits(['updateSignature']);
 
 const { t } = useI18n();
+const { markDirty, markClean } = useUnsavedChanges();
 const signature = ref(props.messageSignature ?? '');
 watch(
   () => props.messageSignature ?? '',
-  newValue => {
+  async newValue => {
     signature.value = newValue;
+    await nextTick();
+    markClean();
   }
 );
+
+watch(signature, () => markDirty());
 
 const updateSignature = () => {
   const { sanitizedContent, hasInlineImages } = stripInlineBase64Images(
@@ -35,6 +41,7 @@ const updateSignature = () => {
     );
   }
   emit('updateSignature', signature.value);
+  markClean();
 };
 </script>
 

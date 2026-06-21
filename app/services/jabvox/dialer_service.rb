@@ -10,10 +10,13 @@ class Jabvox::DialerService
 
   def originate_call(phone:, extension:, campaign:, contact:, account:, caller_id: nil, user_id: nil) # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
     context = @config.dialer_context.presence || @config.context
+    # Create the call log first so its id can ride on the channel (JABVOX_DIALER_LOG_ID),
+    # letting the AMI Hangup handler record the uniqueid back onto this same row.
+    call_log = create_call_log(contact, campaign, account, phone)
     result = { success: false, message: 'Connection error' }
     Timeout.timeout(AMI_TIMEOUT) do
       with_ami_connection do |socket|
-        params = build_originate_params(phone, extension, context, caller_id, campaign, contact, user_id)
+        params = build_originate_params(phone, extension, context, caller_id, campaign, contact, user_id, call_log.id)
         Rails.logger.info "📡 [Dialer] AMI Originate | host=#{@config.host}:#{@config.port} " \
                           "channel=#{params[:channel]} context=#{params[:context]} exten=#{params[:exten]} " \
                           "callerid=#{params[:callerid].inspect} vars=#{params[:variable]}"
@@ -23,13 +26,13 @@ class Jabvox::DialerService
         result = { success: resp['response'] == 'Success', message: resp['message'] || resp['response'] }
       end
     end
-    persist_call(contact, campaign, account, phone, result[:success])
+    finalize_call(contact, call_log, result[:success])
     result
   rescue Timeout::Error
-    persist_call(contact, campaign, account, phone, false)
+    finalize_call(contact, call_log, false)
     { success: false, message: 'Connection timeout' }
   rescue StandardError => e
-    persist_call(contact, campaign, account, phone, false)
+    finalize_call(contact, call_log, false)
     { success: false, message: e.message }
   end
 
@@ -220,7 +223,7 @@ class Jabvox::DialerService
     read_response(socket)
   end
 
-  def build_originate_params(phone, extension, context, caller_id, campaign, contact, user_id) # rubocop:disable Metrics/ParameterLists, Metrics/MethodLength
+  def build_originate_params(phone, extension, context, caller_id, campaign, contact, user_id, call_log_id) # rubocop:disable Metrics/ParameterLists, Metrics/MethodLength
     trunk   = @config.dialer_trunk.presence
     channel = trunk ? "SIP/#{phone}@#{trunk}" : "SIP/#{extension}"
     exten   = trunk ? 's' : phone
@@ -238,25 +241,30 @@ class Jabvox::DialerService
                 "__JABVOX_CONTACT_ID=#{contact.id}," \
                 "__JABVOX_ACCOUNT_ID=#{campaign.account_id}," \
                 "__JABVOX_AGENT_USER_ID=#{user_id}," \
+                "__JABVOX_DIALER_LOG_ID=#{call_log_id}," \
                 "JABVOX_CAMPAIGN_ID=#{campaign.id}"
     }
     params[:callerid] = caller_id.presence || "#{contact.name_jabvox} <0000>"
     params
   end
 
-  def persist_call(contact, campaign, account, phone, success)
+  def create_call_log(contact, campaign, account, phone)
+    account.jabvox_dialer_call_logs.create!(
+      jabvox_dialer_campaign: campaign,
+      jabvox_dialer_campaign_contact: contact,
+      phone_jabvox: phone,
+      status_jabvox: 'initiated',
+      started_at_jabvox: Time.current
+    )
+  end
+
+  def finalize_call(contact, call_log, success)
     contact.update!(
       status_jabvox: success ? 'calling' : 'failed',
       attempts_jabvox: contact.attempts_jabvox + 1,
       last_attempt_at_jabvox: Time.current
     )
-    account.jabvox_dialer_call_logs.create!(
-      jabvox_dialer_campaign: campaign,
-      jabvox_dialer_campaign_contact: contact,
-      phone_jabvox: phone,
-      status_jabvox: success ? 'initiated' : 'failed',
-      started_at_jabvox: Time.current
-    )
+    call_log.update!(status_jabvox: success ? 'initiated' : 'failed')
   end
 
   # Reads channel list from AMI Status and returns the exact channel name

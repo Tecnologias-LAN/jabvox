@@ -1,6 +1,7 @@
 <script>
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
+import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import validations, { getLabelTitleErrorMessage } from './validations';
 import { useVuelidate } from '@vuelidate/core';
 
@@ -18,7 +19,8 @@ export default {
   },
   emits: ['close'],
   setup() {
-    return { v$: useVuelidate() };
+    const { markDirty, markClean } = useUnsavedChanges();
+    return { v$: useVuelidate(), markDirty, markClean };
   },
   data() {
     return {
@@ -45,9 +47,16 @@ export default {
   },
   mounted() {
     this.setFormValues();
+    this.$nextTick(() => this.markClean());
+    this.$watch(
+      () => [this.title, this.description, this.color, this.showOnSidebar],
+      () => this.markDirty(),
+      { deep: true }
+    );
   },
   methods: {
     onClose() {
+      this.markClean();
       this.$emit('close');
     },
     setFormValues() {
@@ -67,6 +76,7 @@ export default {
         })
         .then(() => {
           useAlert(this.$t('LABEL_MGMT.EDIT.API.SUCCESS_MESSAGE'));
+          this.markClean();
           setTimeout(() => this.onClose(), 10);
         })
         .catch(() => {

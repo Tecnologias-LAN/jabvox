@@ -1,0 +1,32 @@
+{
+  "JABVOX_CLICK_TO_CALL": {
+    "CALL": "Call",
+    "IN_CALL": "In call with",
+    "HANG_UP": "Hang up",
+    "TYPIFY_TITLE": "Typify the call",
+    "TYPIFICATION": "Typification",
+    "SELECT_TYPIFICATION": "Select a typification",
+    "NOTE": "Note",
+    "NOTE_PLACEHOLDER": "Optional note about the call…",
+    "ACCEPT": "Accept",
+    "CANCEL": "Cancel",
+    "SETTINGS": {
+      "TITLE": "Typifications",
+      "SUBTITLE": "Call outcomes used to classify calls and route them to analysis pipelines.",
+      "NEW": "New typification",
+      "EMPTY": "No typifications yet.",
+      "NAME": "Name",
+      "NAME_REQUIRED": "A name is required.",
+      "DESCRIPTION": "Description",
+      "ACTIVE": "Active",
+      "INACTIVE": "(inactive)",
+      "SAVE": "Save",
+      "CANCEL": "Cancel",
+      "EDIT": "Edit",
+      "DELETE": "Delete",
+      "SAVED": "Saved successfully.",
+      "SAVE_ERROR": "Could not save.",
+      "CONFIRM_DELETE": "Delete this typification?"
+    }
+  }
+}

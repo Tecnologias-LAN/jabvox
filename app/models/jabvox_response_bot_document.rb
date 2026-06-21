@@ -24,7 +24,7 @@
 #  fk_rails_...  (account_id => accounts.id)
 #
 class JabvoxResponseBotDocument < ApplicationRecord
-  CATEGORIES = JabvoxResponseBotConfig::LABEL_CATEGORIES
+  CATEGORIES = JabvoxResponseBotConfig::DOCUMENT_CATEGORIES
 
   belongs_to :account
 

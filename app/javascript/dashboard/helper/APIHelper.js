@@ -29,7 +29,7 @@ async function handleIpBlock() {
 }
 
 export default axios => {
-  const { apiHost = '' } = window.chatwootConfig || {};
+  const { apiHost = '' } = window.jabvoxConfig || {};
   const wootApi = axios.create({ baseURL: `${apiHost}/` });
   // Add Auth Headers to requests if logged in
   if (Auth.hasAuthCookie()) {

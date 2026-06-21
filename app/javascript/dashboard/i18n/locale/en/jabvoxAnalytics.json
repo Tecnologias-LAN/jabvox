@@ -1,0 +1,296 @@
+{
+  "JABVOX_ANALYTICS": {
+    "TITLE": "Analytics & Dashboards",
+    "NO_ACCESS": "You do not have access to the Analytics module.",
+    "NAV": {
+      "DATA_SOURCES": "Data Sources",
+      "DASHBOARDS": "Dashboards",
+      "PERMISSIONS": "Permissions"
+    },
+    "COMMON": {
+      "CANCEL": "Cancel",
+      "SAVE": "Save",
+      "CREATE": "Create",
+      "EDIT": "Edit",
+      "DELETE": "Delete",
+      "CONFIRM": "Confirm",
+      "LOADING": "Loading…",
+      "SEARCH": "Search",
+      "ACTIONS": "Actions",
+      "NAME": "Name",
+      "STATUS": "Status",
+      "CREATED_AT": "Created",
+      "NONE": "None",
+      "RETRY": "Retry"
+    },
+    "DATA_SOURCES": {
+      "TITLE": "Data Sources",
+      "NEW": "New Data Source",
+      "EMPTY_TITLE": "No data sources yet",
+      "EMPTY_BODY": "Connect an external database to start exploring and building dashboards.",
+      "EMPTY_ACTION": "Add data source",
+      "FORM": {
+        "NAME": "Name",
+        "NAME_PLACEHOLDER": "e.g. CRM Production",
+        "ENGINE": "Engine",
+        "HOST": "Host",
+        "PORT": "Port",
+        "USERNAME": "Username",
+        "PASSWORD": "Password",
+        "PASSWORD_KEEP": "Leave blank to keep the current password",
+        "DATABASE": "Database",
+        "SQLITE_PATH": "SQLite file path",
+        "SSL_MODE": "SSL mode",
+        "ALLOW_PRIVATE": "Allow private network addresses (admin)",
+        "ALLOW_PRIVATE_HELP": "Permits connecting to internal/private IPs. Use with care.",
+        "MAX_ROWS": "Row limit",
+        "TIMEOUT": "Query timeout (ms)",
+        "CREATE": "Create Data Source",
+        "TEST": "Test Connection",
+        "REQUIRED": "This field is required"
+      },
+      "TEST": {
+        "TESTING": "Testing connection…",
+        "CONNECTED": "Connected",
+        "ERROR": "Connection error",
+        "LATENCY": "Response time: {ms} ms"
+      },
+      "LIST": {
+        "ENGINE": "Engine",
+        "HOST": "Host",
+        "LAST_CONNECTION": "Last connection",
+        "VIEW_TABLES": "View Tables",
+        "SYNC": "Sync"
+      },
+      "DELETE": {
+        "CONFIRM_TITLE": "Delete data source",
+        "CONFIRM_BODY": "This will permanently delete \"{name}\" and any widgets that depend on it.",
+        "SUCCESS": "Data source deleted",
+        "ERROR": "Could not delete data source"
+      },
+      "SAVED": "Data source saved",
+      "SAVE_ERROR": "Could not save data source"
+    },
+    "SCHEMA": {
+      "TABLES": "Tables",
+      "VIEWS": "Views",
+      "PROCEDURES": "Procedures",
+      "COLUMNS": "Columns",
+      "TYPE": "Type",
+      "NULLABLE": "Nullable",
+      "PRIMARY_KEY": "PK",
+      "FOREIGN_KEY": "FK",
+      "LENGTH": "Length",
+      "LENGTH_VALUE": "Length: {length}",
+      "EMPTY": "No tables found",
+      "VIEW_DATA": "View records"
+    },
+    "VIEWER": {
+      "TITLE": "Records",
+      "ROWS_PER_PAGE": "Rows per page",
+      "NO_ROWS": "No records",
+      "PAGE": "Page {page}",
+      "PAGE_OF": "Page {page} / {total}"
+    },
+    "QUERY_BUILDER": {
+      "TITLE": "Query Builder",
+      "TABLE": "Table",
+      "COLUMNS": "Columns",
+      "FILTERS": "Filters",
+      "AGGREGATIONS": "Aggregations",
+      "GROUP_BY": "Group by",
+      "DATE_BUCKET": "Date grouping",
+      "RUN": "Run query",
+      "PREVIEW": "Preview",
+      "OPERATORS": {
+        "eq": "equals",
+        "neq": "not equals",
+        "gt": "greater than",
+        "gte": "greater or equal",
+        "lt": "less than",
+        "lte": "less or equal",
+        "contains": "contains",
+        "in": "in list"
+      }
+    },
+    "SQL": {
+      "TITLE": "Custom SQL",
+      "READ_ONLY_NOTICE": "Only read-only SELECT queries are allowed.",
+      "RUN": "Run",
+      "VALIDATE": "Validate",
+      "VALID": "Query is valid",
+      "INVALID": "Query rejected",
+      "NO_PERMISSION": "You are not authorized to run custom SQL."
+    },
+    "DASHBOARDS": {
+      "TITLE": "Dashboards",
+      "NEW": "New Dashboard",
+      "EMPTY_TITLE": "No dashboards yet",
+      "EMPTY_BODY": "Create a dashboard to visualize your data.",
+      "ALL_FOLDERS": "All dashboards",
+      "OPEN": "Open",
+      "BACK": "Back to dashboards",
+      "FORM": {
+        "TITLE": "New Dashboard",
+        "NAME": "Name",
+        "NAME_PLACEHOLDER": "e.g. Sales overview",
+        "DESCRIPTION": "Description",
+        "FOLDER": "Folder",
+        "DATA_SOURCE": "Data source",
+        "NO_FOLDER": "No folder",
+        "REQUIRED": "This field is required"
+      },
+      "DELETE": {
+        "CONFIRM_TITLE": "Delete dashboard",
+        "CONFIRM_BODY": "This will permanently delete \"{name}\".",
+        "SUCCESS": "Dashboard deleted",
+        "ERROR": "Could not delete dashboard"
+      },
+      "SAVED": "Dashboard saved",
+      "SAVE_ERROR": "Could not save dashboard",
+      "EDIT_MODE": "Edit",
+      "VIEW_MODE": "View",
+      "ADD_WIDGET": "Add widget",
+      "EXPORT": "Export",
+      "SHARE": "Share",
+      "REFRESH": "Refresh",
+      "NOT_FOUND": "Dashboard not found",
+      "NO_WIDGETS_TITLE": "No widgets yet",
+      "NO_WIDGETS_BODY": "Add a widget to start visualizing your data."
+    },
+    "WIDGETS": {
+      "TYPES": {
+        "table": "Table",
+        "pivot_table": "Pivot Table",
+        "number": "KPI Card",
+        "indicator": "Indicator",
+        "ranking": "Ranking",
+        "comparative": "Comparative",
+        "line": "Line",
+        "area": "Area",
+        "time_series": "Time Series",
+        "bar": "Bar",
+        "stacked_bar": "Stacked Bar",
+        "pie": "Pie",
+        "donut": "Donut",
+        "scatter": "Scatter",
+        "gauge": "Gauge",
+        "heatmap": "Heatmap",
+        "treemap": "Treemap",
+        "funnel": "Funnel",
+        "map": "Map",
+        "text_markdown": "Text"
+      },
+      "DUPLICATE": "Duplicate",
+      "REMOVE": "Remove",
+      "REFRESH": "Refresh",
+      "CONFIGURE": "Configure",
+      "NO_DATA": "No data",
+      "ERROR": "Failed to load widget",
+      "PICKER": {
+        "TITLE": "Add widget",
+        "SUBTITLE": "Choose a widget type to add to this dashboard."
+      },
+      "CONFIG": {
+        "TITLE": "Configure widget",
+        "WIDGET_TITLE": "Title",
+        "WIDGET_TITLE_PLACEHOLDER": "e.g. Total calls",
+        "DATA_SOURCE": "Data source",
+        "TABLE": "Table",
+        "MEASURE": "Measure column",
+        "GROUP_BY": "Group by",
+        "CUSTOM_SQL": "Use custom SQL",
+        "SQL_PLACEHOLDER": "SELECT ...",
+        "MARKDOWN": "Markdown content",
+        "MARKDOWN_PLACEHOLDER": "Write text using Markdown…"
+      },
+      "MAP_PLACEHOLDER": "Map visualization is not configured.",
+      "DELTA_UP": "vs previous",
+      "DELTA_DOWN": "vs previous"
+    },
+    "FILTERS": {
+      "DATE_FROM": "Date from",
+      "DATE_TO": "Date to",
+      "APPLY": "Apply",
+      "CLEAR": "Clear",
+      "CHIP": "{key}: {value}"
+    },
+    "SHARE": {
+      "TITLE": "Share dashboard",
+      "WITH": "Share with",
+      "SUBJECT_TYPE": "Type",
+      "SUBJECT_ID": "ID",
+      "ACCESS_LEVEL": "Access",
+      "ADD": "Add",
+      "CURRENT": "Current shares",
+      "EMPTY": "Not shared with anyone yet.",
+      "ADDED": "Share added",
+      "ADD_ERROR": "Could not add share",
+      "REMOVED": "Share removed",
+      "REMOVE_ERROR": "Could not remove share",
+      "USER": "User",
+      "ROLE": "Role",
+      "TEAM": "Team",
+      "ACCESS": {
+        "view": "Can view",
+        "edit": "Can edit",
+        "admin": "Can administer"
+      }
+    },
+    "EXPORT": {
+      "TITLE": "Export",
+      "PDF": "Export as PDF",
+      "EXCEL": "Export as Excel",
+      "CSV": "Export as CSV",
+      "PREPARING": "Preparing export…",
+      "READY": "Export ready",
+      "FAILED": "Export failed"
+    },
+    "REFRESH_CONTROL": {
+      "REFRESH": "Refresh",
+      "AUTO": "Auto refresh",
+      "OFF": "Off",
+      "30S": "Every 30s",
+      "60S": "Every 60s"
+    },
+    "PERMISSIONS": {
+      "TITLE": "Analytics Permissions",
+      "TAB_MATRIX": "Users",
+      "TAB_ROLES": "Roles",
+      "ADMIN_NOTICE": "Administrators automatically have full access.",
+      "MATRIX": {
+        "USER": "User",
+        "ROLE": "Role"
+      },
+      "CAPS": {
+        "access": "Access",
+        "create": "Create dashboards",
+        "edit_own": "Edit own",
+        "edit_all": "Edit all",
+        "delete_own": "Delete own",
+        "delete_all": "Delete all",
+        "share": "Share",
+        "export": "Export",
+        "view_all_data": "View all data",
+        "manage_data_sources": "Manage data sources",
+        "use_custom_sql": "Use custom SQL"
+      },
+      "ROLES": {
+        "SYSTEM": "System role",
+        "NEW": "New role",
+        "NAME": "Role name",
+        "DESCRIPTION": "Description"
+      },
+      "SAVED": "Permissions updated",
+      "SAVE_ERROR": "Could not update permissions"
+    },
+    "AUDIT": {
+      "TITLE": "Audit Log",
+      "USER": "User",
+      "DATE": "Date",
+      "IP": "IP",
+      "ACTION": "Action",
+      "RESULT": "Result"
+    }
+  }
+}
