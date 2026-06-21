@@ -88,7 +88,7 @@ jobs:
               export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
               eval "$(rbenv init -)"
               bundle install
-              pnpm install --no-frozen-lockfile
+              pnpm install --no-frozen-lockfile --force
 
               # --- STEP 4: MIGRATIONS & ASSETS ---
               echo "Running DB migrations and assets precompile..."
