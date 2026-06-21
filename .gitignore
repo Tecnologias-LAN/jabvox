@@ -97,6 +97,15 @@ yarn-debug.log*
 .codex/
 .claude/
 CLAUDE.local.md
+CLAUDE.md
+AGENTS.md
+README.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+SECURITY.md
+RUNBOOK_migracion_db_jabvox.md
+.github/PULL_REQUEST_TEMPLATE.md
+.windsurf/rules/chatwoot.md
 
 # Histoire deployment
 .netlify
