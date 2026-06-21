@@ -13,7 +13,6 @@ on:
         required: true
         default: 'no'
 
-# 🔐 PERMISOS PARA GITHUB_TOKEN (OBLIGATORIO)
 permissions:
   contents: read
 
@@ -54,10 +53,9 @@ jobs:
           port: ${{ secrets.VM_SSH_PORT }}
           script_stop: true
           script: |
-            # --- CONFIGURATION ---
-            sudo -u chatwoot bash -lc '
+            sudo -u jabvox bash -lc '
               set -e
-              PROJECT_DIR="/home/chatwoot/chatwoot"
+              PROJECT_DIR="/home/jabvox/jabvox"
               BACKUP_DIR="$PROJECT_DIR/backups"
               cd "$PROJECT_DIR"
 
@@ -73,16 +71,15 @@ jobs:
               PGPASSWORD=$POSTGRES_PASSWORD pg_dump \
                 -h ${POSTGRES_HOST:-127.0.0.1} \
                 -p ${POSTGRES_PORT:-5432} \
-                -U ${POSTGRES_USERNAME:-chatwoot} \
+                -U ${POSTGRES_USERNAME:-jabvox} \
                 ${POSTGRES_DATABASE:-chatwoot_production} > "$BACKUP_DIR/$FILE"
 
               echo "Backup saved: $FILE"
               find "$BACKUP_DIR" -name "backup_*.sql" -mtime +7 -delete
 
               # --- STEP 2: UPDATE CODE ---
-              echo "Pulling latest code from jabvox..."
-              git remote set-url origin git@github.com:Tecnologias-LAN/jabvox.git
               echo "Pulling latest code..."
+              git remote set-url origin git@github.com:Tecnologias-LAN/Jabvox-complete.git
               git fetch origin main
               git reset --hard origin/main
 
@@ -101,7 +98,7 @@ jobs:
 
             # --- STEP 5: RESTART APPLICATION ---
             echo "Restarting services..."
-            sudo -n /usr/bin/systemctl restart chatwoot-web.1.service
-            sudo -n /usr/bin/systemctl restart chatwoot-worker.1.service
+            sudo -n /usr/bin/systemctl restart jabvox-web.1.service
+            sudo -n /usr/bin/systemctl restart jabvox-worker.1.service
 
-            echo "🚀 Deployment Complete!"
+            echo "Deployment Complete!"
