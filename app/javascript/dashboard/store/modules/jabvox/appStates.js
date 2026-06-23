@@ -39,6 +39,7 @@ const actions = {
   deleteState: async ({ commit }, id) => {
     await appStatesAPI.destroy(id);
     commit('REMOVE_STATE', id);
+    return undefined;
   },
   setPresence: async ({ commit }, appStateId) => {
     await appStatesAPI.setPresence(appStateId);
@@ -50,11 +51,13 @@ const mutations = {
   SET_STATES: (s, states) => {
     s.states = states;
   },
-  ADD_STATE: (s, state) => {
-    s.states = [...s.states, state];
+  ADD_STATE: (s, newState) => {
+    s.states = [...s.states, newState];
   },
-  UPDATE_STATE: (s, state) => {
-    s.states = s.states.map(st => (st.id === state.id ? state : st));
+  UPDATE_STATE: (s, updatedState) => {
+    s.states = s.states.map(st =>
+      st.id === updatedState.id ? updatedState : st
+    );
   },
   REMOVE_STATE: (s, id) => {
     s.states = s.states.filter(st => st.id !== id);

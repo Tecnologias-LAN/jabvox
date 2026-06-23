@@ -60,6 +60,7 @@ const onSubmit = async () => {
 };
 </script>
 
+<!-- eslint-disable vue/no-bare-strings-in-template -->
 <template>
   <div class="p-6 sm:p-8 max-w-xl">
     <h2 class="text-lg font-semibold text-n-slate-12 mb-1">

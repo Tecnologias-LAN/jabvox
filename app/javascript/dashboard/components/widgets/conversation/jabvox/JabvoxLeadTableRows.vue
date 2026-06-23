@@ -12,7 +12,9 @@ const store = useStore();
 
 const tableRows = computed(() => {
   try {
-    return store.getters['jabvoxCustomization/getLeadTableRows'](props.leadId) || [];
+    return (
+      store.getters['jabvoxCustomization/getLeadTableRows'](props.leadId) || []
+    );
   } catch {
     return [];
   }
@@ -68,7 +70,12 @@ const resetTable = tableId => {
 };
 
 const getInputType = colType => {
-  const map = { integer: 'number', float: 'number', boolean: 'checkbox', date: 'date' };
+  const map = {
+    integer: 'number',
+    float: 'number',
+    boolean: 'checkbox',
+    date: 'date',
+  };
   return map[colType] || 'text';
 };
 
@@ -77,14 +84,22 @@ onMounted(() => {
 });
 </script>
 
+<!-- eslint-disable vue/no-bare-strings-in-template -->
 <template>
   <div class="flex flex-col gap-4 p-4">
-    <div v-if="uiFlags.isFetchingRows" class="text-sm text-slate-400 py-8 text-center">
+    <div
+      v-if="uiFlags.isFetchingRows"
+      class="text-sm text-slate-400 py-8 text-center"
+    >
       Cargando...
     </div>
 
-    <div v-else-if="!tableRows.length" class="text-sm text-slate-400 py-8 text-center border border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
-      No hay tablas personalizadas configuradas. Crea una en <strong>Configuración → Personalización</strong>.
+    <div
+      v-else-if="!tableRows.length"
+      class="text-sm text-slate-400 py-8 text-center border border-dashed border-slate-200 dark:border-slate-700 rounded-xl"
+    >
+      No hay tablas personalizadas configuradas. Crea una en
+      <strong>Configuración → Personalización</strong>.
     </div>
 
     <div
@@ -93,10 +108,16 @@ onMounted(() => {
       class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"
     >
       <!-- Table header -->
-      <div class="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+      <div
+        class="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700"
+      >
         <div>
-          <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ row.table_name }}</p>
-          <p v-if="row.table_description" class="text-xs text-slate-500">{{ row.table_description }}</p>
+          <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">
+            {{ row.table_name }}
+          </p>
+          <p v-if="row.table_description" class="text-xs text-slate-500">
+            {{ row.table_description }}
+          </p>
         </div>
         <div class="flex items-center gap-2">
           <span
@@ -130,7 +151,11 @@ onMounted(() => {
         <div
           v-for="col in row.columns"
           :key="col.id"
-          :class="col.column_type_jabvox === 'boolean' ? 'col-span-1 flex items-center gap-2' : 'col-span-1'"
+          :class="
+            col.column_type_jabvox === 'boolean'
+              ? 'col-span-1 flex items-center gap-2'
+              : 'col-span-1'
+          "
         >
           <!-- Boolean -->
           <template v-if="col.column_type_jabvox === 'boolean'">
@@ -140,7 +165,10 @@ onMounted(() => {
               type="checkbox"
               class="rounded border-slate-300 text-woot-600 focus:ring-woot-500"
             />
-            <label :for="`col-${col.id}`" class="text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+            <label
+              :for="`col-${col.id}`"
+              class="text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+            >
               {{ col.label_jabvox }}
               <span v-if="col.required_jabvox" class="text-red-500">*</span>
             </label>
@@ -148,7 +176,9 @@ onMounted(() => {
 
           <!-- Select -->
           <template v-else-if="col.column_type_jabvox === 'select'">
-            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+            <label
+              class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1"
+            >
               {{ col.label_jabvox }}
               <span v-if="col.required_jabvox" class="text-red-500">*</span>
             </label>
@@ -157,13 +187,21 @@ onMounted(() => {
               class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-woot-500"
             >
               <option value="">— sin valor —</option>
-              <option v-for="opt in (col.options_jabvox || [])" :key="opt" :value="opt">{{ opt }}</option>
+              <option
+                v-for="opt in col.options_jabvox || []"
+                :key="opt"
+                :value="opt"
+              >
+                {{ opt }}
+              </option>
             </select>
           </template>
 
           <!-- Text / Number / Date -->
           <template v-else>
-            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+            <label
+              class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1"
+            >
               {{ col.label_jabvox }}
               <span v-if="col.required_jabvox" class="text-red-500">*</span>
             </label>

@@ -50,10 +50,16 @@ onMounted(() => {
       rel="noopener noreferrer"
       class="inline-flex items-center gap-1 rounded-lg border text-white font-medium no-underline transition-opacity hover:opacity-80"
       :class="size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-xs'"
-      :style="{ backgroundColor: btn.color_jabvox, borderColor: btn.color_jabvox }"
+      :style="{
+        backgroundColor: btn.color_jabvox,
+        borderColor: btn.color_jabvox,
+      }"
       :title="btn.url_jabvox"
     >
-      <span class="i-lucide-external-link" :class="size === 'sm' ? 'size-3' : 'size-3.5'" />
+      <span
+        class="i-lucide-external-link"
+        :class="size === 'sm' ? 'size-3' : 'size-3.5'"
+      />
       {{ btn.name_jabvox }}
     </a>
   </div>

@@ -1,7 +1,8 @@
 import { frontendURL } from 'dashboard/helper/URLHelper.js';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
-const WhatsappTemplatesSettings = () => import('./WhatsappTemplatesSettings.vue');
+const WhatsappTemplatesSettings = () =>
+  import('./WhatsappTemplatesSettings.vue');
 
 export const routes = [
   {

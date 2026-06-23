@@ -10,8 +10,7 @@ describe('#MessageFormatter', () => {
       );
     });
     it('should format correctly', () => {
-      const message =
-        'Jabvox is an opensource tool. https://www.jabvox.com';
+      const message = 'Jabvox is an opensource tool. https://www.jabvox.com';
       expect(new MessageFormatter(message).formattedMessage).toMatch(
         '<p>Jabvox is an opensource tool. <a href="https://www.jabvox.com" class="link" rel="noreferrer noopener nofollow" target="_blank">https://www.jabvox.com</a></p>'
       );

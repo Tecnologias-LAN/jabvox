@@ -83,7 +83,9 @@ const openEdit = config => {
       jabvox_audio_model_id: config.jabvox_audio_model_id || null,
       jabvox_image_model_id: config.jabvox_image_model_id || null,
       enabled_jabvox: !!config.enabled_jabvox,
-      active_labels_jabvox: config.active_labels_jabvox || [...LABEL_CATEGORIES],
+      active_labels_jabvox: config.active_labels_jabvox || [
+        ...LABEL_CATEGORIES,
+      ],
       google_maps_api_key_jabvox: config.google_maps_api_key_jabvox || '',
       company_address_jabvox: config.company_address_jabvox || '',
       price_per_km_jabvox: config.price_per_km_jabvox || '',
@@ -513,7 +515,9 @@ onMounted(() => {
                   v-model="newForm.name_jabvox"
                   type="text"
                   class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-woot-500"
-                  :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.NAME_PLACEHOLDER')"
+                  :placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.NAME_PLACEHOLDER')
+                  "
                 />
               </div>
               <div class="space-y-1.5">
@@ -526,7 +530,9 @@ onMounted(() => {
                   v-model="newForm.description_jabvox"
                   type="text"
                   class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-woot-500"
-                  :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.DESCRIPTION_PLACEHOLDER')"
+                  :placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.DESCRIPTION_PLACEHOLDER')
+                  "
                 />
               </div>
             </div>
@@ -542,7 +548,9 @@ onMounted(() => {
                 v-model="newForm.inbox_id"
                 :options="availableInboxOptions"
                 :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.INBOX_PLACEHOLDER')"
-                :search-placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.INBOX_PLACEHOLDER')"
+                :search-placeholder="
+                  t('JABVOX_RESPONSE_BOT.CONFIG.INBOX_PLACEHOLDER')
+                "
               />
             </div>
 
@@ -557,8 +565,12 @@ onMounted(() => {
                 <ComboBox
                   v-model="newForm.jabvox_response_bot_seat_id"
                   :options="seatOptions"
-                  :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.SEAT_PLACEHOLDER')"
-                  :search-placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.SEAT_PLACEHOLDER')"
+                  :placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.SEAT_PLACEHOLDER')
+                  "
+                  :search-placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.SEAT_PLACEHOLDER')
+                  "
                 />
               </div>
               <div class="space-y-1.5">
@@ -570,8 +582,12 @@ onMounted(() => {
                 <ComboBox
                   v-model="newForm.jabvox_response_bot_role_id"
                   :options="roleOptions"
-                  :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.ROLE_PLACEHOLDER')"
-                  :search-placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.ROLE_PLACEHOLDER')"
+                  :placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.ROLE_PLACEHOLDER')
+                  "
+                  :search-placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.ROLE_PLACEHOLDER')
+                  "
                 />
               </div>
             </div>
@@ -587,8 +603,12 @@ onMounted(() => {
                 <ComboBox
                   v-model="newForm.jabvox_ai_chat_model_id"
                   :options="modelOptions"
-                  :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.MODEL_PLACEHOLDER')"
-                  :search-placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.MODEL_PLACEHOLDER')"
+                  :placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.MODEL_PLACEHOLDER')
+                  "
+                  :search-placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.MODEL_PLACEHOLDER')
+                  "
                 />
               </div>
               <div class="space-y-1.5">
@@ -600,8 +620,12 @@ onMounted(() => {
                 <ComboBox
                   v-model="newForm.jabvox_audio_model_id"
                   :options="modelOptions"
-                  :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.AUDIO_MODEL_PLACEHOLDER')"
-                  :search-placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.AUDIO_MODEL_PLACEHOLDER')"
+                  :placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.AUDIO_MODEL_PLACEHOLDER')
+                  "
+                  :search-placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.AUDIO_MODEL_PLACEHOLDER')
+                  "
                 />
               </div>
               <div class="space-y-1.5">
@@ -613,8 +637,12 @@ onMounted(() => {
                 <ComboBox
                   v-model="newForm.jabvox_image_model_id"
                   :options="modelOptions"
-                  :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.IMAGE_MODEL_PLACEHOLDER')"
-                  :search-placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.IMAGE_MODEL_PLACEHOLDER')"
+                  :placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.IMAGE_MODEL_PLACEHOLDER')
+                  "
+                  :search-placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.IMAGE_MODEL_PLACEHOLDER')
+                  "
                 />
               </div>
             </div>
@@ -623,7 +651,9 @@ onMounted(() => {
             <div
               class="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3 bg-white dark:bg-slate-800"
             >
-              <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+              <p
+                class="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5"
+              >
                 <i class="i-lucide-map-pin w-3.5 h-3.5" />
                 {{ t('JABVOX_RESPONSE_BOT.CONFIG.MAPS_SECTION') }}
               </p>
@@ -638,7 +668,11 @@ onMounted(() => {
                     v-model="newForm.company_address_jabvox"
                     type="text"
                     class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-woot-500"
-                    :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.COMPANY_ADDRESS_PLACEHOLDER')"
+                    :placeholder="
+                      t(
+                        'JABVOX_RESPONSE_BOT.CONFIG.COMPANY_ADDRESS_PLACEHOLDER'
+                      )
+                    "
                   />
                 </div>
                 <div class="space-y-1.5">
@@ -652,7 +686,9 @@ onMounted(() => {
                     type="number"
                     step="0.01"
                     class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-woot-500"
-                    :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.PRICE_PER_KM_PLACEHOLDER')"
+                    :placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.PRICE_PER_KM_PLACEHOLDER')
+                    "
                   />
                 </div>
               </div>
@@ -666,7 +702,9 @@ onMounted(() => {
                   v-model="newForm.google_maps_api_key_jabvox"
                   type="text"
                   class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-woot-500"
-                  :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.MAPS_API_KEY_PLACEHOLDER')"
+                  :placeholder="
+                    t('JABVOX_RESPONSE_BOT.CONFIG.MAPS_API_KEY_PLACEHOLDER')
+                  "
                 />
               </div>
             </div>
@@ -863,19 +901,25 @@ onMounted(() => {
                     v-model="editForms[config.id].name_jabvox"
                     type="text"
                     class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-woot-500"
-                    :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.NAME_PLACEHOLDER')"
+                    :placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.NAME_PLACEHOLDER')
+                    "
                   />
                 </div>
                 <div class="space-y-1.5">
                   <label
                     class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                    >{{ t('JABVOX_RESPONSE_BOT.CONFIG.DESCRIPTION_LABEL') }}</label
+                    >{{
+                      t('JABVOX_RESPONSE_BOT.CONFIG.DESCRIPTION_LABEL')
+                    }}</label
                   >
                   <input
                     v-model="editForms[config.id].description_jabvox"
                     type="text"
                     class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-woot-500"
-                    :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.DESCRIPTION_PLACEHOLDER')"
+                    :placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.DESCRIPTION_PLACEHOLDER')
+                    "
                   />
                 </div>
               </div>
@@ -890,8 +934,12 @@ onMounted(() => {
                   <ComboBox
                     v-model="editForms[config.id].jabvox_response_bot_seat_id"
                     :options="seatOptions"
-                    :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.SEAT_PLACEHOLDER')"
-                    :search-placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.SEAT_PLACEHOLDER')"
+                    :placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.SEAT_PLACEHOLDER')
+                    "
+                    :search-placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.SEAT_PLACEHOLDER')
+                    "
                   />
                 </div>
                 <div class="space-y-1.5">
@@ -902,8 +950,12 @@ onMounted(() => {
                   <ComboBox
                     v-model="editForms[config.id].jabvox_response_bot_role_id"
                     :options="roleOptions"
-                    :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.ROLE_PLACEHOLDER')"
-                    :search-placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.ROLE_PLACEHOLDER')"
+                    :placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.ROLE_PLACEHOLDER')
+                    "
+                    :search-placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.ROLE_PLACEHOLDER')
+                    "
                   />
                 </div>
               </div>
@@ -918,32 +970,48 @@ onMounted(() => {
                   <ComboBox
                     v-model="editForms[config.id].jabvox_ai_chat_model_id"
                     :options="modelOptions"
-                    :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.MODEL_PLACEHOLDER')"
-                    :search-placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.MODEL_PLACEHOLDER')"
+                    :placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.MODEL_PLACEHOLDER')
+                    "
+                    :search-placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.MODEL_PLACEHOLDER')
+                    "
                   />
                 </div>
                 <div class="space-y-1.5">
                   <label
                     class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                    >{{ t('JABVOX_RESPONSE_BOT.CONFIG.AUDIO_MODEL_LABEL') }}</label
+                    >{{
+                      t('JABVOX_RESPONSE_BOT.CONFIG.AUDIO_MODEL_LABEL')
+                    }}</label
                   >
                   <ComboBox
                     v-model="editForms[config.id].jabvox_audio_model_id"
                     :options="modelOptions"
-                    :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.AUDIO_MODEL_PLACEHOLDER')"
-                    :search-placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.AUDIO_MODEL_PLACEHOLDER')"
+                    :placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.AUDIO_MODEL_PLACEHOLDER')
+                    "
+                    :search-placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.AUDIO_MODEL_PLACEHOLDER')
+                    "
                   />
                 </div>
                 <div class="space-y-1.5">
                   <label
                     class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                    >{{ t('JABVOX_RESPONSE_BOT.CONFIG.IMAGE_MODEL_LABEL') }}</label
+                    >{{
+                      t('JABVOX_RESPONSE_BOT.CONFIG.IMAGE_MODEL_LABEL')
+                    }}</label
                   >
                   <ComboBox
                     v-model="editForms[config.id].jabvox_image_model_id"
                     :options="modelOptions"
-                    :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.IMAGE_MODEL_PLACEHOLDER')"
-                    :search-placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.IMAGE_MODEL_PLACEHOLDER')"
+                    :placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.IMAGE_MODEL_PLACEHOLDER')
+                    "
+                    :search-placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.IMAGE_MODEL_PLACEHOLDER')
+                    "
                   />
                 </div>
               </div>
@@ -952,7 +1020,9 @@ onMounted(() => {
               <div
                 class="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3 bg-slate-50 dark:bg-slate-800/50"
               >
-                <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                <p
+                  class="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5"
+                >
                   <i class="i-lucide-map-pin w-3.5 h-3.5" />
                   {{ t('JABVOX_RESPONSE_BOT.CONFIG.MAPS_SECTION') }}
                 </p>
@@ -960,39 +1030,53 @@ onMounted(() => {
                   <div class="space-y-1.5">
                     <label
                       class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                      >{{ t('JABVOX_RESPONSE_BOT.CONFIG.COMPANY_ADDRESS_LABEL') }}</label
+                      >{{
+                        t('JABVOX_RESPONSE_BOT.CONFIG.COMPANY_ADDRESS_LABEL')
+                      }}</label
                     >
                     <input
                       v-model="editForms[config.id].company_address_jabvox"
                       type="text"
                       class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-woot-500"
-                      :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.COMPANY_ADDRESS_PLACEHOLDER')"
+                      :placeholder="
+                        t(
+                          'JABVOX_RESPONSE_BOT.CONFIG.COMPANY_ADDRESS_PLACEHOLDER'
+                        )
+                      "
                     />
                   </div>
                   <div class="space-y-1.5">
                     <label
                       class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                      >{{ t('JABVOX_RESPONSE_BOT.CONFIG.PRICE_PER_KM_LABEL') }}</label
+                      >{{
+                        t('JABVOX_RESPONSE_BOT.CONFIG.PRICE_PER_KM_LABEL')
+                      }}</label
                     >
                     <input
                       v-model="editForms[config.id].price_per_km_jabvox"
                       type="number"
                       step="0.01"
                       class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-woot-500"
-                      :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.PRICE_PER_KM_PLACEHOLDER')"
+                      :placeholder="
+                        t('JABVOX_RESPONSE_BOT.CONFIG.PRICE_PER_KM_PLACEHOLDER')
+                      "
                     />
                   </div>
                 </div>
                 <div class="space-y-1.5">
                   <label
                     class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                    >{{ t('JABVOX_RESPONSE_BOT.CONFIG.MAPS_API_KEY_LABEL') }}</label
+                    >{{
+                      t('JABVOX_RESPONSE_BOT.CONFIG.MAPS_API_KEY_LABEL')
+                    }}</label
                   >
                   <input
                     v-model="editForms[config.id].google_maps_api_key_jabvox"
                     type="text"
                     class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-woot-500"
-                    :placeholder="t('JABVOX_RESPONSE_BOT.CONFIG.MAPS_API_KEY_PLACEHOLDER')"
+                    :placeholder="
+                      t('JABVOX_RESPONSE_BOT.CONFIG.MAPS_API_KEY_PLACEHOLDER')
+                    "
                   />
                 </div>
               </div>
@@ -1012,7 +1096,9 @@ onMounted(() => {
                   >
                     <input
                       type="checkbox"
-                      :checked="editForms[config.id].active_labels_jabvox.includes(cat)"
+                      :checked="
+                        editForms[config.id].active_labels_jabvox.includes(cat)
+                      "
                       class="w-3.5 h-3.5 rounded text-woot-500"
                       @change="toggleConfigLabel(config.id, cat)"
                     />
@@ -1100,7 +1186,8 @@ onMounted(() => {
             <span
               class="text-xs font-semibold px-2 py-0.5 rounded-full"
               :class="categoryColor(cat)"
-            >{{ t(`JABVOX_RESPONSE_BOT.DOCUMENTS.CATEGORIES.${cat}`) }}</span>
+              >{{ t(`JABVOX_RESPONSE_BOT.DOCUMENTS.CATEGORIES.${cat}`) }}</span
+            >
             <span class="text-xs text-n-slate-10 hidden sm:inline">
               — {{ t(`JABVOX_RESPONSE_BOT.DOCUMENTS.CATEGORIES_HINT.${cat}`) }}
             </span>
@@ -1184,7 +1271,9 @@ onMounted(() => {
                     @change="onChangeCategory(doc, $event.target.value || null)"
                   >
                     <option value="">
-                      {{ t('JABVOX_RESPONSE_BOT.DOCUMENTS.CATEGORY_UNASSIGNED') }}
+                      {{
+                        t('JABVOX_RESPONSE_BOT.DOCUMENTS.CATEGORY_UNASSIGNED')
+                      }}
                     </option>
                     <option
                       v-for="cat in DOCUMENT_CATEGORIES"

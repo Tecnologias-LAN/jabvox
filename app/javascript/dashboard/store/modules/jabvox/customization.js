@@ -14,7 +14,8 @@ const getters = {
   getTables: s => s.tables,
   getButtons: s => s.buttons,
   getActiveButtons: s => s.buttons.filter(b => b.active_jabvox),
-  getLeadsTable: s => s.tables.find(t => t.linked_to_jabvox === 'leads') || null,
+  getLeadsTable: s =>
+    s.tables.find(t => t.linked_to_jabvox === 'leads') || null,
   getUIFlags: s => s.uiFlags,
 };
 

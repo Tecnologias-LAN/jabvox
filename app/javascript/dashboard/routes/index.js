@@ -49,7 +49,7 @@ export const initalizeRouter = () => {
       return next();
     }
 
-    userAuthentication.then(() => {
+    return userAuthentication.then(() => {
       return validateAuthenticateRoutePermission(to, next, store);
     });
   });
