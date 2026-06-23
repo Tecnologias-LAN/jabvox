@@ -163,7 +163,13 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   end
 
   def check_leads_enabled
-    render json: { error: 'Leads module not enabled' }, status: :forbidden unless Current.account.jabvox_leads_enabled_jabvox?
+    return if Current.account.jabvox_leads_enabled_jabvox?
+
+    if action_name == 'for_contact'
+      render json: { id: nil, campaign_id: nil, campaign_name: nil }
+    else
+      render json: { error: 'Leads module not enabled' }, status: :forbidden
+    end
   end
 
   def find_or_create_campaign(name)

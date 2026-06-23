@@ -1,4 +1,5 @@
 class Api::V1::Accounts::Jabvox::ManagementStatesController < Api::V1::Accounts::Jabvox::BaseController
+  skip_before_action :check_feature_enabled
   before_action :fetch_state, only: [:show, :update, :destroy]
   before_action :check_authorization
 

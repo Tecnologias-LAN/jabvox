@@ -14,6 +14,7 @@ const { t } = useI18n();
 
 // ─── Tabs ────────────────────────────────────────────────────────────────────
 const activeTab = ref('templates');
+const stickyHeaderRef = ref(null);
 
 // ─── Inboxes ─────────────────────────────────────────────────────────────────
 const inboxes = ref([]);
@@ -61,6 +62,7 @@ const loadMetrics = async () => {
 // ─── Filters ─────────────────────────────────────────────────────────────────
 const filters = ref({
   q: '',
+  meta_id: '',
   status: '',
   category: '',
   language: '',
@@ -82,6 +84,7 @@ const apiFilters = computed(() => {
 const clearFilters = () => {
   filters.value = {
     q: '',
+    meta_id: '',
     status: '',
     category: '',
     language: '',
@@ -101,6 +104,183 @@ const loadingTemplates = ref(false);
 const totalPages = computed(
   () => Math.ceil(totalTemplates.value / perPage) || 1
 );
+
+const summaryKpis = computed(() => {
+  const m = metrics.value || {};
+  const usage = m.usage_this_month || m.sent_this_month || m.sent || 0;
+  return [
+    {
+      key: 'total',
+      label: t('JABVOX_WA_TEMPLATES.METRICS.TOTAL'),
+      value: m.total ?? 0,
+      icon: 'i-lucide-layout-template',
+      accent: 'text-n-brand',
+    },
+    {
+      key: 'approved',
+      label: t('JABVOX_WA_TEMPLATES.METRICS.APPROVED'),
+      value: m.approved ?? 0,
+      icon: 'i-lucide-badge-check',
+      accent: 'text-emerald-600',
+    },
+    {
+      key: 'pending',
+      label: t('JABVOX_WA_TEMPLATES.METRICS.PENDING'),
+      value: m.pending ?? 0,
+      icon: 'i-lucide-clock-3',
+      accent: 'text-amber-600',
+    },
+    {
+      key: 'rejected',
+      label: t('JABVOX_WA_TEMPLATES.METRICS.REJECTED'),
+      value: m.rejected ?? 0,
+      icon: 'i-lucide-shield-x',
+      accent: 'text-rose-600',
+    },
+    {
+      key: 'disabled',
+      label: t('JABVOX_WA_TEMPLATES.METRICS.DISABLED'),
+      value: m.disabled ?? 0,
+      icon: 'i-lucide-pause-circle',
+      accent: 'text-slate-500',
+    },
+    {
+      key: 'usage_month',
+      label: 'Usage This Month',
+      value: usage,
+      icon: 'i-lucide-chart-column',
+      accent: 'text-indigo-600',
+    },
+  ];
+});
+
+const statusQuickFilters = [
+  'APPROVED',
+  'PENDING',
+  'REJECTED',
+  'DISABLED',
+  'PAUSED',
+];
+
+const categoryQuickFilters = [
+  'MARKETING',
+  'UTILITY',
+  'AUTHENTICATION',
+  'SERVICE',
+];
+
+const selectedTemplateIds = ref([]);
+const allVisibleSelected = computed(
+  () =>
+    templates.value.length > 0 &&
+    selectedTemplateIds.value.length === templates.value.length
+);
+
+const toggleSelectAll = checked => {
+  selectedTemplateIds.value = checked ? templates.value.map(tpl => tpl.id) : [];
+};
+
+const toggleSelectOne = (id, checked) => {
+  if (checked) {
+    if (!selectedTemplateIds.value.includes(id)) {
+      selectedTemplateIds.value = [...selectedTemplateIds.value, id];
+    }
+    return;
+  }
+  selectedTemplateIds.value = selectedTemplateIds.value.filter(v => v !== id);
+};
+
+const selectedTemplates = computed(() =>
+  templates.value.filter(tpl => selectedTemplateIds.value.includes(tpl.id))
+);
+
+const selectedCount = computed(() => selectedTemplateIds.value.length);
+
+const filterChipActive = (kind, value) => {
+  if (kind === 'status') return filters.value.status === value;
+  return filters.value.category === value;
+};
+
+const applyQuickFilter = (kind, value) => {
+  const key = kind === 'status' ? 'status' : 'category';
+  filters.value[key] = filters.value[key] === value ? '' : value;
+  // eslint-disable-next-line no-use-before-define
+  applyFilters();
+};
+
+const bulkSync = async () => {
+  if (!selectedTemplates.value.length) return;
+  try {
+    await Promise.all(
+      selectedTemplates.value.map(tpl => wtTemplatesAPI.sync(tpl.id))
+    );
+    useAlert(t('JABVOX_WA_TEMPLATES.SYNCED'));
+    selectedTemplateIds.value = [];
+    // eslint-disable-next-line no-use-before-define
+    await loadTemplates();
+  } catch {
+    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
+  }
+};
+
+const bulkDuplicate = async () => {
+  if (!selectedTemplates.value.length) return;
+  try {
+    await Promise.all(
+      selectedTemplates.value.map(tpl =>
+        wtTemplatesAPI.duplicate(tpl.id, `${tpl.name}_copy_${Date.now()}`)
+      )
+    );
+    useAlert(t('JABVOX_WA_TEMPLATES.DUPLICATED'));
+    selectedTemplateIds.value = [];
+    // eslint-disable-next-line no-use-before-define
+    await loadTemplates();
+    await loadMetrics();
+  } catch {
+    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
+  }
+};
+
+const bulkDelete = async () => {
+  if (!selectedTemplates.value.length) return;
+  // eslint-disable-next-line no-alert
+  if (!window.confirm(`Delete ${selectedTemplates.value.length} templates?`))
+    return;
+
+  try {
+    await Promise.all(
+      selectedTemplates.value.map(tpl => wtTemplatesAPI.destroy(tpl.id))
+    );
+    useAlert(t('JABVOX_WA_TEMPLATES.DELETED'));
+    selectedTemplateIds.value = [];
+    // eslint-disable-next-line no-use-before-define
+    await loadTemplates();
+    await loadMetrics();
+  } catch {
+    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
+  }
+};
+
+const bulkExportSelected = () => {
+  if (!selectedTemplates.value.length) return;
+  const payload = selectedTemplates.value.map(tpl => ({
+    id: tpl.id,
+    name: tpl.name,
+    category: tpl.category,
+    language: tpl.language,
+    status: tpl.status,
+    meta_template_id: tpl.meta_template_id,
+  }));
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'wa_templates_selected.json';
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 const loadTemplates = async () => {
   loadingTemplates.value = true;
@@ -153,19 +333,6 @@ const qualityClass = q => {
       return 'text-n-slate-10';
   }
 };
-const qualityIcon = q => {
-  switch ((q || '').toUpperCase()) {
-    case 'GREEN':
-      return 'i-lucide-trending-up';
-    case 'YELLOW':
-      return 'i-lucide-minus';
-    case 'RED':
-      return 'i-lucide-trending-down';
-    default:
-      return 'i-lucide-help-circle';
-  }
-};
-
 // ─── Template actions ─────────────────────────────────────────────────────────
 const deleteTemplate = async tpl => {
   // eslint-disable-next-line no-alert
@@ -202,20 +369,6 @@ const exportJson = async () => {
     const a = document.createElement('a');
     a.href = url;
     a.download = 'wa_templates.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch {
-    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
-  }
-};
-
-const exportCsv = async () => {
-  try {
-    const { data } = await wtExportAPI.exportCsv(selectedInboxId.value);
-    const url = URL.createObjectURL(new Blob([data], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'wa_templates.csv';
     a.click();
     URL.revokeObjectURL(url);
   } catch {
@@ -310,6 +463,8 @@ const openCreate = () => {
   editingTemplate.value = null;
   form.value = emptyForm();
   formInboxId.value = selectedInboxId.value || (inboxes.value[0]?.id ?? null);
+  // eslint-disable-next-line no-use-before-define
+  wizardStep.value = 1;
   showForm.value = true;
 };
 
@@ -329,6 +484,8 @@ const openEdit = tpl => {
     ),
   };
   formInboxId.value = tpl.inbox_id;
+  // eslint-disable-next-line no-use-before-define
+  wizardStep.value = 1;
   showForm.value = true;
 };
 
@@ -364,6 +521,37 @@ const submitForm = async () => {
     saving.value = false;
   }
 };
+
+const wizardStep = ref(1);
+const wizardSteps = [
+  { id: 1, label: 'Basic Info' },
+  { id: 2, label: 'Content' },
+  { id: 3, label: 'Variables' },
+  { id: 4, label: 'Buttons' },
+  { id: 5, label: 'Preview' },
+  { id: 6, label: 'Submit' },
+];
+
+const nextWizardStep = () => {
+  if (wizardStep.value < 6) wizardStep.value += 1;
+};
+
+const previousWizardStep = () => {
+  if (wizardStep.value > 1) wizardStep.value -= 1;
+};
+
+const templateAnalytics = computed(() => {
+  // eslint-disable-next-line no-use-before-define
+  const raw = detailTemplate.value?.meta_json?.analytics || {};
+  return {
+    sent: raw.sent || 0,
+    delivered: raw.delivered || 0,
+    read: raw.read || 0,
+    replied: raw.replied || 0,
+    failed: raw.failed || 0,
+    blocked: raw.blocked || 0,
+  };
+});
 
 // ─── Detail / History / Versions ────────────────────────────────────────────
 const detailTemplate = ref(null);
@@ -454,6 +642,9 @@ const switchTab = async key => {
   activeTab.value = key;
   if (key === 'permissions' && !permissions.value.length)
     await loadPermissions();
+  if (key === 'templates') {
+    selectedTemplateIds.value = [];
+  }
 };
 
 watch(selectedInboxId, () => {
@@ -471,69 +662,97 @@ onMounted(async () => {
 <!-- eslint-disable vue/no-bare-strings-in-template -->
 <template>
   <div class="flex flex-col flex-1 h-full overflow-hidden bg-n-bg-1">
-    <!-- Header -->
     <div
-      class="flex items-center justify-between px-6 py-4 border-b border-n-weak bg-n-surface-1 shrink-0"
+      ref="stickyHeaderRef"
+      class="sticky top-0 z-20 border-b border-n-weak bg-n-surface-1/95 backdrop-blur"
     >
-      <div>
-        <h1 class="text-xl font-semibold text-n-slate-12">
-          {{ t('JABVOX_WA_TEMPLATES.SETTINGS.TITLE') }}
-        </h1>
-        <p class="text-xs text-n-slate-10 mt-0.5 max-w-xl">
-          {{ t('JABVOX_WA_TEMPLATES.SETTINGS.SUBTITLE') }}
-        </p>
-      </div>
-      <div class="flex items-center gap-2">
-        <button
-          class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5"
-          @click="exportJson"
+      <div class="flex flex-col gap-4 px-4 sm:px-6 py-4">
+        <div
+          class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
         >
-          <span class="i-lucide-download size-3.5" />{{
-            t('JABVOX_WA_TEMPLATES.EXPORT.JSON')
-          }}
-        </button>
-        <button
-          class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5"
-          @click="exportCsv"
-        >
-          <span class="i-lucide-file-spreadsheet size-3.5" />{{
-            t('JABVOX_WA_TEMPLATES.EXPORT.CSV')
-          }}
-        </button>
-        <button
-          class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5"
-          @click="showImport = true"
-        >
-          <span class="i-lucide-upload size-3.5" />{{
-            t('JABVOX_WA_TEMPLATES.IMPORT.TITLE')
-          }}
-        </button>
-        <button
-          class="px-3 py-2 text-sm rounded-lg bg-n-brand text-white hover:opacity-90 flex items-center gap-1.5"
-          @click="openCreate"
-        >
-          <span class="i-lucide-plus size-4" />{{
-            t('JABVOX_WA_TEMPLATES.CREATE.TITLE')
-          }}
-        </button>
-      </div>
-    </div>
+          <div>
+            <h1 class="text-xl sm:text-2xl font-semibold text-n-slate-12">
+              WhatsApp Templates
+            </h1>
+            <p class="text-xs sm:text-sm text-n-slate-10 mt-1 max-w-2xl">
+              Manage, create and monitor Meta approved message templates.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5"
+              @click="openCreate"
+            >
+              <span class="i-lucide-plus size-3.5" />Create Template
+            </button>
+            <button
+              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5 disabled:opacity-50"
+              :disabled="syncing || !selectedInboxId"
+              @click="syncInbox"
+            >
+              <span
+                :class="
+                  syncing
+                    ? 'i-lucide-loader-2 animate-spin'
+                    : 'i-lucide-refresh-cw'
+                "
+                class="size-3.5"
+              />Sync Templates
+            </button>
+            <button
+              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5"
+              @click="showImport = true"
+            >
+              <span class="i-lucide-upload size-3.5" />Import
+            </button>
+            <button
+              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5"
+              @click="exportJson"
+            >
+              <span class="i-lucide-download size-3.5" />Export
+            </button>
+          </div>
+        </div>
 
-    <!-- Tabs -->
-    <div class="flex gap-0 border-b border-n-weak bg-n-surface-1 px-6 shrink-0">
-      <button
-        v-for="tab in ['overview', 'templates', 'permissions']"
-        :key="tab"
-        class="px-4 py-2.5 text-sm -mb-px border-b-2 transition-colors"
-        :class="
-          activeTab === tab
-            ? 'border-n-brand text-n-brand font-medium'
-            : 'border-transparent text-n-slate-11 hover:text-n-slate-12'
-        "
-        @click="switchTab(tab)"
+        <div
+          class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3"
+        >
+          <div
+            v-for="kpi in summaryKpis"
+            :key="kpi.key"
+            class="group rounded-2xl border border-n-weak bg-n-surface-1 px-3 py-3.5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+          >
+            <div class="flex items-start justify-between">
+              <p class="text-[11px] uppercase tracking-wide text-n-slate-10">
+                {{ kpi.label }}
+              </p>
+              <span :class="[kpi.icon, kpi.accent]" class="size-4" />
+            </div>
+            <p class="mt-2 text-xl sm:text-2xl font-semibold text-n-slate-12">
+              {{ kpi.value }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div
+        class="flex gap-0 border-t border-n-weak bg-n-surface-1 px-4 sm:px-6 shrink-0"
       >
-        {{ t(`JABVOX_WA_TEMPLATES.TABS.${tab.toUpperCase()}`) }}
-      </button>
+        <button
+          v-for="tab in ['overview', 'templates', 'permissions']"
+          :key="tab"
+          class="px-4 py-2.5 text-sm -mb-px border-b-2 transition-colors"
+          :class="
+            activeTab === tab
+              ? 'border-n-brand text-n-brand font-medium'
+              : 'border-transparent text-n-slate-11 hover:text-n-slate-12'
+          "
+          @click="switchTab(tab)"
+        >
+          {{ t(`JABVOX_WA_TEMPLATES.TABS.${tab.toUpperCase()}`) }}
+        </button>
+      </div>
     </div>
 
     <!-- ── OVERVIEW TAB ──────────────────────────────────────────────── -->
@@ -604,242 +823,305 @@ onMounted(async () => {
       v-else-if="activeTab === 'templates'"
       class="flex-1 overflow-hidden flex flex-col"
     >
-      <!-- Toolbar -->
+      <!-- Advanced search and filters -->
       <div
-        class="flex flex-wrap items-end gap-2 px-6 py-3 bg-n-surface-1 border-b border-n-weak shrink-0"
+        class="px-4 sm:px-6 py-4 bg-n-surface-1 border-b border-n-weak shrink-0 space-y-3"
       >
-        <div class="flex flex-col gap-0.5">
-          <label class="text-xs text-n-slate-10">{{
-            t('JABVOX_WA_TEMPLATES.INBOX.LABEL')
-          }}</label>
-          <select v-model="selectedInboxId" class="reset-base text-sm min-w-44">
-            <option :value="null">
-              {{ t('JABVOX_WA_TEMPLATES.INBOX.ALL') }}
-            </option>
-            <option v-for="i in inboxes" :key="i.id" :value="i.id">
-              {{ i.name }}
-            </option>
-          </select>
-        </div>
-        <div class="flex flex-col gap-0.5 flex-1 min-w-48">
-          <label class="text-xs text-n-slate-10">{{
-            t('JABVOX_WA_TEMPLATES.FILTERS.SEARCH')
-          }}</label>
-          <input
-            v-model="filters.q"
-            class="reset-base text-sm"
-            :placeholder="t('JABVOX_WA_TEMPLATES.FILTERS.SEARCH')"
-            @keyup.enter="applyFilters"
-          />
-        </div>
-        <div class="flex flex-col gap-0.5">
-          <label class="text-xs text-n-slate-10">{{
-            t('JABVOX_WA_TEMPLATES.FILTERS.STATUS')
-          }}</label>
-          <select v-model="filters.status" class="reset-base text-sm">
-            <option value="">{{ t('JABVOX_WA_TEMPLATES.FILTERS.ALL') }}</option>
-            <option
-              v-for="s in [
-                'APPROVED',
-                'PENDING',
-                'REJECTED',
-                'PAUSED',
-                'DISABLED',
-              ]"
-              :key="s"
-              :value="s"
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-2">
+          <div class="xl:col-span-2">
+            <input
+              v-model="filters.q"
+              class="reset-base text-sm w-full"
+              placeholder="Search by name, category, language or Meta ID"
+              @keyup.enter="applyFilters"
+            />
+          </div>
+          <div>
+            <input
+              v-model="filters.meta_id"
+              class="reset-base text-sm w-full"
+              placeholder="Meta Template ID"
+              @keyup.enter="applyFilters"
+            />
+          </div>
+          <div>
+            <select v-model="selectedInboxId" class="reset-base text-sm w-full">
+              <option :value="null">
+                {{ t('JABVOX_WA_TEMPLATES.INBOX.ALL') }}
+              </option>
+              <option v-for="i in inboxes" :key="i.id" :value="i.id">
+                {{ i.name }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <select
+              v-model="filters.language"
+              class="reset-base text-sm w-full"
             >
-              {{ t(`JABVOX_WA_TEMPLATES.STATUS.${s}`) }}
-            </option>
-          </select>
-        </div>
-        <div class="flex flex-col gap-0.5">
-          <label class="text-xs text-n-slate-10">{{
-            t('JABVOX_WA_TEMPLATES.FILTERS.CATEGORY')
-          }}</label>
-          <select v-model="filters.category" class="reset-base text-sm">
-            <option value="">{{ t('JABVOX_WA_TEMPLATES.FILTERS.ALL') }}</option>
-            <option
-              v-for="c in ['MARKETING', 'UTILITY', 'AUTHENTICATION']"
-              :key="c"
-              :value="c"
+              <option value="">All languages</option>
+              <option v-for="l in LANGUAGES" :key="l.value" :value="l.value">
+                {{ l.label }}
+              </option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              class="px-3 py-2 text-sm rounded-lg bg-n-brand text-white"
+              @click="applyFilters"
             >
-              {{ t(`JABVOX_WA_TEMPLATES.CATEGORIES.${c}`) }}
-            </option>
-          </select>
+              {{ t('JABVOX_WA_TEMPLATES.FILTERS.APPLY') }}
+            </button>
+            <button
+              class="px-3 py-2 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11"
+              @click="clearFilters"
+            >
+              {{ t('JABVOX_WA_TEMPLATES.FILTERS.CLEAR') }}
+            </button>
+          </div>
         </div>
-        <button
-          class="px-3 py-1.5 text-sm rounded-lg bg-n-brand text-white mt-4"
-          @click="applyFilters"
-        >
-          {{ t('JABVOX_WA_TEMPLATES.FILTERS.APPLY') }}
-        </button>
-        <button
-          class="px-3 py-1.5 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11 mt-4"
-          @click="clearFilters"
-        >
-          {{ t('JABVOX_WA_TEMPLATES.FILTERS.CLEAR') }}
-        </button>
-        <button
-          v-if="selectedInboxId"
-          class="px-3 py-1.5 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 mt-4 flex items-center gap-1.5 disabled:opacity-50"
-          :disabled="syncing"
-          @click="syncInbox"
-        >
-          <span
+
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="s in statusQuickFilters"
+            :key="`status_${s}`"
+            class="px-2.5 py-1 rounded-full text-xs border transition-colors"
             :class="
-              syncing ? 'i-lucide-loader-2 animate-spin' : 'i-lucide-refresh-cw'
+              filterChipActive('status', s)
+                ? 'border-n-brand bg-n-brand text-white'
+                : 'border-n-weak text-n-slate-11 bg-n-surface-1 hover:bg-n-alpha-1'
             "
-            class="size-3.5"
-          />
-          {{
-            syncing
-              ? t('JABVOX_WA_TEMPLATES.INBOX.SYNCING')
-              : t('JABVOX_WA_TEMPLATES.INBOX.SYNC')
-          }}
-        </button>
+            @click="applyQuickFilter('status', s)"
+          >
+            {{ t(`JABVOX_WA_TEMPLATES.STATUS.${s}`) }}
+          </button>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="c in categoryQuickFilters"
+            :key="`cat_${c}`"
+            class="px-2.5 py-1 rounded-full text-xs border transition-colors"
+            :class="
+              filterChipActive('category', c)
+                ? 'border-n-brand bg-n-brand text-white'
+                : 'border-n-weak text-n-slate-11 bg-n-surface-1 hover:bg-n-alpha-1'
+            "
+            @click="applyQuickFilter('category', c)"
+          >
+            {{ c }}
+          </button>
+        </div>
+
+        <div
+          v-if="selectedCount"
+          class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-n-weak bg-n-alpha-1 px-3 py-2"
+        >
+          <span class="text-xs text-n-slate-11">
+            {{ selectedCount }} templates selected
+          </span>
+          <div class="flex flex-wrap gap-2">
+            <button
+              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3"
+              @click="bulkSync"
+            >
+              Sync
+            </button>
+            <button
+              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3"
+              @click="bulkDuplicate"
+            >
+              Duplicate
+            </button>
+            <button
+              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3"
+              @click="bulkExportSelected"
+            >
+              Export
+            </button>
+            <button
+              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-ruby-3 text-n-ruby-11 hover:bg-n-ruby-4"
+              @click="bulkDelete"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- Table -->
-      <div class="flex-1 overflow-auto px-6 py-3">
+      <!-- Cards gallery -->
+      <div class="flex-1 overflow-auto px-4 sm:px-6 py-4">
         <div
           v-if="loadingTemplates"
-          class="py-16 text-center text-sm text-n-slate-11"
+          class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
         >
-          {{ t('JABVOX_WA_TEMPLATES.LOADING') }}
+          <div
+            v-for="n in 8"
+            :key="n"
+            class="rounded-2xl border border-n-weak bg-n-surface-1 p-4 animate-pulse"
+          >
+            <div class="h-4 w-2/3 bg-n-alpha-2 rounded mb-2" />
+            <div class="h-3 w-1/2 bg-n-alpha-2 rounded mb-4" />
+            <div class="h-40 bg-n-alpha-2 rounded-xl mb-3" />
+            <div class="h-3 w-1/3 bg-n-alpha-2 rounded" />
+          </div>
         </div>
+
         <div
           v-else-if="!templates.length"
-          class="py-16 text-center text-sm text-n-slate-11"
+          class="rounded-2xl border border-dashed border-n-weak bg-n-surface-1 py-20 text-center"
         >
-          {{ t('JABVOX_WA_TEMPLATES.EMPTY') }}
+          <p class="text-base font-medium text-n-slate-12">
+            No templates created yet
+          </p>
+          <p class="text-sm text-n-slate-10 mt-1">
+            Create your first Meta template to start sending approved WhatsApp
+            messages.
+          </p>
+          <button
+            class="mt-4 px-4 py-2 text-sm rounded-lg bg-n-brand text-white"
+            @click="openCreate"
+          >
+            Create First Template
+          </button>
         </div>
-        <table v-else class="w-full text-sm">
-          <thead>
-            <tr class="text-left border-b border-n-weak">
-              <th class="py-2 pr-3 text-xs font-medium text-n-slate-10">
-                {{ t('JABVOX_WA_TEMPLATES.TABLE.NAME') }}
-              </th>
-              <th class="py-2 pr-3 text-xs font-medium text-n-slate-10">
-                {{ t('JABVOX_WA_TEMPLATES.TABLE.META_ID') }}
-              </th>
-              <th
-                v-if="!selectedInboxId"
-                class="py-2 pr-3 text-xs font-medium text-n-slate-10"
+
+        <div
+          v-else
+          class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
+        >
+          <label
+            class="col-span-full flex items-center gap-2 text-xs text-n-slate-10"
+          >
+            <input
+              :checked="allVisibleSelected"
+              type="checkbox"
+              class="size-4"
+              @change="toggleSelectAll($event.target.checked)"
+            />
+            Select all visible templates
+          </label>
+
+          <article
+            v-for="tpl in templates"
+            :key="tpl.id"
+            class="group rounded-2xl border border-n-weak bg-n-surface-1 p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+          >
+            <div class="flex items-start justify-between gap-2 mb-3">
+              <label
+                class="inline-flex items-center gap-2 text-xs text-n-slate-11"
               >
-                {{ t('JABVOX_WA_TEMPLATES.TABLE.INBOX') }}
-              </th>
-              <th class="py-2 pr-3 text-xs font-medium text-n-slate-10">
-                {{ t('JABVOX_WA_TEMPLATES.TABLE.LANGUAGE') }}
-              </th>
-              <th class="py-2 pr-3 text-xs font-medium text-n-slate-10">
-                {{ t('JABVOX_WA_TEMPLATES.TABLE.CATEGORY') }}
-              </th>
-              <th class="py-2 pr-3 text-xs font-medium text-n-slate-10">
-                {{ t('JABVOX_WA_TEMPLATES.TABLE.STATUS') }}
-              </th>
-              <th class="py-2 pr-3 text-xs font-medium text-n-slate-10">
-                {{ t('JABVOX_WA_TEMPLATES.TABLE.QUALITY') }}
-              </th>
-              <th class="py-2 pr-3 text-xs font-medium text-n-slate-10">
-                {{ t('JABVOX_WA_TEMPLATES.TABLE.UPDATED') }}
-              </th>
-              <th class="py-2 text-xs font-medium text-n-slate-10" />
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="tpl in templates"
-              :key="tpl.id"
-              class="border-b border-n-weak hover:bg-n-alpha-1 cursor-pointer"
-              @click="openDetail(tpl)"
-            >
-              <td class="py-2.5 pr-3">
-                <span class="font-medium text-n-slate-12">{{ tpl.name }}</span>
-                <p
-                  v-if="tpl.body_content"
-                  class="text-xs text-n-slate-10 truncate max-w-xs"
-                >
-                  {{ tpl.body_content }}
-                </p>
-              </td>
-              <td class="py-2.5 pr-3 text-xs text-n-slate-10 font-mono">
-                {{ tpl.meta_template_id || '—' }}
-              </td>
-              <td
-                v-if="!selectedInboxId"
-                class="py-2.5 pr-3 text-xs text-n-slate-11"
+                <input
+                  :checked="selectedTemplateIds.includes(tpl.id)"
+                  type="checkbox"
+                  class="size-4"
+                  @change="toggleSelectOne(tpl.id, $event.target.checked)"
+                />
+              </label>
+              <span
+                class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full"
+                :class="statusClass(tpl.status)"
               >
-                {{ tpl.inbox_name }}
-              </td>
-              <td class="py-2.5 pr-3 text-xs text-n-slate-11">
-                {{ tpl.language }}
-              </td>
-              <td class="py-2.5 pr-3 text-xs text-n-slate-11">
-                {{ t(`JABVOX_WA_TEMPLATES.CATEGORIES.${tpl.category}`) }}
-              </td>
-              <td class="py-2.5 pr-3">
-                <span
-                  class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
-                  :class="statusClass(tpl.status)"
+                {{ t(`JABVOX_WA_TEMPLATES.STATUS.${tpl.status}`) }}
+              </span>
+            </div>
+
+            <button class="w-full text-left" @click="openDetail(tpl)">
+              <h3 class="text-sm font-semibold text-n-slate-12 truncate">
+                {{ tpl.name }}
+              </h3>
+              <p class="text-xs text-n-slate-10 mt-0.5">
+                {{ tpl.language }} · {{ tpl.category }} ·
+                {{ tpl.meta_template_id || 'No Meta ID' }}
+              </p>
+
+              <div class="mt-3 rounded-xl bg-[#0b141a] p-2.5">
+                <div
+                  class="rounded-lg bg-[#202c33] p-2 text-[11px] text-white/90"
                 >
-                  {{ t(`JABVOX_WA_TEMPLATES.STATUS.${tpl.status}`) }}
-                </span>
-              </td>
-              <td class="py-2.5 pr-3">
-                <span
-                  class="flex items-center gap-1 text-xs"
-                  :class="qualityClass(tpl.quality_score)"
-                >
-                  <span
-                    :class="qualityIcon(tpl.quality_score)"
-                    class="size-3.5"
-                  />
-                  {{
-                    t(
-                      `JABVOX_WA_TEMPLATES.QUALITY.${tpl.quality_score || 'UNKNOWN'}`
-                    )
-                  }}
-                </span>
-              </td>
-              <td class="py-2.5 pr-3 text-xs text-n-slate-10">
-                {{ new Date(tpl.updated_at).toLocaleDateString() }}
-              </td>
-              <td class="py-2.5" @click.stop>
-                <div class="flex items-center gap-1">
-                  <button
-                    v-tooltip="t('JABVOX_WA_TEMPLATES.ACTIONS.EDIT')"
-                    class="p-1.5 rounded hover:bg-n-alpha-2 text-n-slate-11"
-                    @click="openEdit(tpl)"
+                  <p
+                    v-if="tpl.header_type === 'TEXT' && tpl.header_content"
+                    class="font-semibold border-b border-white/10 pb-1 mb-1"
                   >
-                    <span class="i-lucide-pencil size-3.5" />
-                  </button>
-                  <button
-                    v-tooltip="t('JABVOX_WA_TEMPLATES.ACTIONS.DUPLICATE')"
-                    class="p-1.5 rounded hover:bg-n-alpha-2 text-n-slate-11"
-                    @click="duplicateTemplate(tpl)"
+                    {{ tpl.header_content }}
+                  </p>
+                  <p class="line-clamp-3 whitespace-pre-wrap">
+                    {{ tpl.body_content || '…' }}
+                  </p>
+                  <p
+                    v-if="tpl.footer_content"
+                    class="text-white/40 mt-1 line-clamp-1"
                   >
-                    <span class="i-lucide-copy size-3.5" />
-                  </button>
-                  <button
-                    v-tooltip="t('JABVOX_WA_TEMPLATES.ACTIONS.SYNC')"
-                    class="p-1.5 rounded hover:bg-n-alpha-2 text-n-slate-11"
-                    @click="syncTemplate(tpl)"
-                  >
-                    <span class="i-lucide-refresh-cw size-3.5" />
-                  </button>
-                  <button
-                    v-tooltip="t('JABVOX_WA_TEMPLATES.ACTIONS.DELETE')"
-                    class="p-1.5 rounded hover:bg-n-alpha-2 text-n-ruby-11"
-                    @click="deleteTemplate(tpl)"
-                  >
-                    <span class="i-lucide-trash-2 size-3.5" />
-                  </button>
+                    {{ tpl.footer_content }}
+                  </p>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <div v-if="tpl.buttons_json?.length" class="mt-1.5 grid gap-1">
+                  <div
+                    v-for="btn in tpl.buttons_json.slice(0, 2)"
+                    :key="`${tpl.id}_${btn.text}`"
+                    class="rounded bg-[#2a3942] py-1 text-center text-[10px] text-[#53bdeb]"
+                  >
+                    {{ btn.text }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-n-slate-9">Variables</p>
+                  <p class="text-n-slate-12 font-medium">
+                    {{ Object.keys(tpl.variables_json || {}).length }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-n-slate-9">Buttons</p>
+                  <p class="text-n-slate-12 font-medium">
+                    {{ (tpl.buttons_json || []).length }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-n-slate-9">Created</p>
+                  <p class="text-n-slate-12 font-medium">
+                    {{ new Date(tpl.created_at).toLocaleDateString() }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-n-slate-9">Updated</p>
+                  <p class="text-n-slate-12 font-medium">
+                    {{ new Date(tpl.updated_at).toLocaleDateString() }}
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            <div class="mt-3 flex items-center gap-1.5">
+              <button
+                class="p-1.5 rounded hover:bg-n-alpha-2 text-n-slate-11"
+                @click="openEdit(tpl)"
+              >
+                <span class="i-lucide-pencil size-3.5" />
+              </button>
+              <button
+                class="p-1.5 rounded hover:bg-n-alpha-2 text-n-slate-11"
+                @click="duplicateTemplate(tpl)"
+              >
+                <span class="i-lucide-copy size-3.5" />
+              </button>
+              <button
+                class="p-1.5 rounded hover:bg-n-alpha-2 text-n-slate-11"
+                @click="syncTemplate(tpl)"
+              >
+                <span class="i-lucide-refresh-cw size-3.5" />
+              </button>
+              <button
+                class="p-1.5 rounded hover:bg-n-alpha-2 text-n-ruby-11"
+                @click="deleteTemplate(tpl)"
+              >
+                <span class="i-lucide-trash-2 size-3.5" />
+              </button>
+            </div>
+          </article>
+        </div>
 
         <!-- Pagination -->
         <div
@@ -893,7 +1175,7 @@ onMounted(async () => {
     <div v-if="showForm" class="fixed inset-0 z-50 flex">
       <div class="absolute inset-0 bg-black/50" @click="showForm = false" />
       <div
-        class="relative ml-auto w-full max-w-4xl h-full bg-n-surface-1 shadow-xl flex overflow-hidden"
+        class="relative ml-auto w-full md:max-w-[900px] h-full bg-n-surface-1 shadow-xl flex overflow-hidden"
       >
         <!-- Left: form -->
         <div class="flex-1 flex flex-col overflow-hidden">
@@ -914,8 +1196,32 @@ onMounted(async () => {
               <span class="i-lucide-x size-5" />
             </button>
           </div>
+          <div
+            class="px-5 py-3 border-b border-n-weak shrink-0 overflow-x-auto"
+          >
+            <div class="flex items-center gap-2 min-w-max">
+              <button
+                v-for="step in wizardSteps"
+                :key="step.id"
+                class="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-full text-xs border"
+                :class="
+                  wizardStep >= step.id
+                    ? 'border-n-brand bg-n-brand text-white'
+                    : 'border-n-weak text-n-slate-10 bg-n-surface-1'
+                "
+                @click="wizardStep = step.id"
+              >
+                <span
+                  class="size-4 rounded-full bg-white/20 inline-flex items-center justify-center"
+                  >{{ step.id }}</span
+                >
+                <span>{{ step.label }}</span>
+              </button>
+            </div>
+          </div>
+
           <div class="flex-1 overflow-auto p-5 space-y-5">
-            <section class="space-y-3">
+            <section v-if="wizardStep === 1" class="space-y-3">
               <h3
                 class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
               >
@@ -976,7 +1282,8 @@ onMounted(async () => {
                 </div>
               </div>
             </section>
-            <section class="space-y-3">
+
+            <section v-if="wizardStep === 2" class="space-y-3">
               <h3
                 class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
               >
@@ -1023,6 +1330,24 @@ onMounted(async () => {
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BODY_PH')"
                 />
               </div>
+              <div class="flex flex-col gap-1">
+                <label class="text-xs text-n-slate-11">{{
+                  t('JABVOX_WA_TEMPLATES.CREATE.FOOTER_LABEL')
+                }}</label>
+                <input
+                  v-model="form.footer"
+                  class="reset-base text-sm w-full"
+                  :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.FOOTER_PH')"
+                />
+              </div>
+            </section>
+
+            <section v-if="wizardStep === 3" class="space-y-3">
+              <h3
+                class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
+              >
+                Variable Manager
+              </h3>
               <div
                 v-if="detectedVars.length"
                 class="rounded-lg bg-n-alpha-1 p-3 space-y-2"
@@ -1047,18 +1372,17 @@ onMounted(async () => {
                   />
                 </div>
               </div>
-              <div class="flex flex-col gap-1">
-                <label class="text-xs text-n-slate-11">{{
-                  t('JABVOX_WA_TEMPLATES.CREATE.FOOTER_LABEL')
-                }}</label>
-                <input
-                  v-model="form.footer"
-                  class="reset-base text-sm w-full"
-                  :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.FOOTER_PH')"
-                />
+              <div
+                v-else
+                class="rounded-lg border border-dashed border-n-weak p-4 text-sm text-n-slate-10"
+              >
+                No variables detected yet. Add placeholders like
+                &#123;&#123;1&#125;&#125; and &#123;&#123;2&#125;&#125; in the
+                body.
               </div>
             </section>
-            <section class="space-y-2">
+
+            <section v-if="wizardStep === 4" class="space-y-2">
               <div class="flex items-center justify-between">
                 <h3
                   class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
@@ -1105,9 +1429,77 @@ onMounted(async () => {
                 </button>
               </div>
             </section>
+
+            <section v-if="wizardStep === 5" class="space-y-3">
+              <h3
+                class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
+              >
+                Live Preview
+              </h3>
+              <p class="text-sm text-n-slate-11">
+                Review exactly how your template will look in WhatsApp before
+                submitting to Meta.
+              </p>
+              <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-4">
+                <p class="text-xs text-n-slate-10 mb-2">Template Summary</p>
+                <div class="grid grid-cols-2 gap-3 text-xs text-n-slate-11">
+                  <p>
+                    <span class="text-n-slate-9">Category:</span>
+                    {{ form.category }}
+                  </p>
+                  <p>
+                    <span class="text-n-slate-9">Language:</span>
+                    {{ form.language }}
+                  </p>
+                  <p>
+                    <span class="text-n-slate-9">Variables:</span>
+                    {{ detectedVars.length }}
+                  </p>
+                  <p>
+                    <span class="text-n-slate-9">Buttons:</span>
+                    {{ form.buttons.filter(b => b.text).length }}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section v-if="wizardStep === 6" class="space-y-3">
+              <h3
+                class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
+              >
+                Send to Meta
+              </h3>
+              <div
+                class="rounded-xl border border-n-weak bg-n-alpha-1 p-4 space-y-2 text-sm text-n-slate-11"
+              >
+                <p>
+                  This action will submit the template to Meta for review
+                  keeping all current approval workflows.
+                </p>
+                <p class="text-xs text-n-slate-10">
+                  Ensure variable examples and buttons are valid before
+                  submission.
+                </p>
+              </div>
+            </section>
           </div>
           <div class="flex gap-3 px-5 py-3.5 border-t border-n-weak shrink-0">
             <button
+              class="px-4 py-2 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11"
+              :disabled="wizardStep === 1"
+              @click="previousWizardStep"
+            >
+              Back
+            </button>
+            <button
+              v-if="wizardStep < 6"
+              class="px-4 py-2 text-sm rounded-lg bg-n-brand text-white"
+              @click="nextWizardStep"
+            >
+              Next
+            </button>
+            <button
+              v-if="wizardStep === 6"
               class="px-4 py-2 text-sm rounded-lg bg-n-brand text-white disabled:opacity-50"
               :disabled="saving || !form.body"
               @click="submitForm"
@@ -1130,7 +1522,7 @@ onMounted(async () => {
         </div>
         <!-- Right: live preview -->
         <div
-          class="w-72 border-l border-n-weak bg-n-alpha-1 flex flex-col overflow-hidden shrink-0"
+          class="hidden md:flex w-80 border-l border-n-weak bg-n-alpha-1 flex-col overflow-hidden shrink-0"
         >
           <div class="px-4 py-3 border-b border-n-weak">
             <p class="text-xs font-medium text-n-slate-11">
@@ -1206,7 +1598,7 @@ onMounted(async () => {
     <div v-if="detailTemplate" class="fixed inset-0 z-50 flex justify-end">
       <div class="absolute inset-0 bg-black/40" @click="closeDetail" />
       <div
-        class="relative w-full max-w-2xl h-full bg-n-surface-1 shadow-2xl flex flex-col overflow-hidden"
+        class="relative w-full md:max-w-[900px] h-full bg-n-surface-1 shadow-2xl flex flex-col overflow-hidden"
       >
         <div
           class="flex items-center justify-between px-5 py-3.5 border-b border-n-weak shrink-0"
@@ -1250,6 +1642,7 @@ onMounted(async () => {
             v-for="dt in [
               'components',
               'variables',
+              'analytics',
               'history',
               'versions',
               'meta_json',
@@ -1374,6 +1767,46 @@ onMounted(async () => {
                 &#123;&#123;{{ n }}&#125;&#125;
               </span>
               <span class="text-sm text-n-slate-11">{{ desc || '—' }}</span>
+            </div>
+          </div>
+          <div v-else-if="detailTab === 'analytics'" class="space-y-3">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
+                <p class="text-xs text-n-slate-10">Sent</p>
+                <p class="text-xl font-semibold text-n-slate-12">
+                  {{ templateAnalytics.sent }}
+                </p>
+              </div>
+              <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
+                <p class="text-xs text-n-slate-10">Delivered</p>
+                <p class="text-xl font-semibold text-n-slate-12">
+                  {{ templateAnalytics.delivered }}
+                </p>
+              </div>
+              <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
+                <p class="text-xs text-n-slate-10">Read</p>
+                <p class="text-xl font-semibold text-n-slate-12">
+                  {{ templateAnalytics.read }}
+                </p>
+              </div>
+              <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
+                <p class="text-xs text-n-slate-10">Replied</p>
+                <p class="text-xl font-semibold text-n-slate-12">
+                  {{ templateAnalytics.replied }}
+                </p>
+              </div>
+              <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
+                <p class="text-xs text-n-slate-10">Failed</p>
+                <p class="text-xl font-semibold text-n-slate-12">
+                  {{ templateAnalytics.failed }}
+                </p>
+              </div>
+              <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
+                <p class="text-xs text-n-slate-10">Blocked</p>
+                <p class="text-xl font-semibold text-n-slate-12">
+                  {{ templateAnalytics.blocked }}
+                </p>
+              </div>
             </div>
           </div>
           <div v-else-if="detailTab === 'history'" class="space-y-2">

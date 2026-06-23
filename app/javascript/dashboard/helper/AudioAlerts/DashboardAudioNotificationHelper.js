@@ -12,6 +12,7 @@ import {
 } from './AudioMessageHelper';
 import WindowVisibilityHelper from './WindowVisibilityHelper';
 import { useAlert } from 'dashboard/composables';
+import { hasPushPermissions } from 'dashboard/helper/pushHelper';
 
 const NOTIFICATION_TIME = 30000;
 const ALERT_DURATION = 10000;
@@ -69,6 +70,9 @@ export class DashboardAudioNotificationHelper {
   // Plays the configured tone unconditionally (for internal chat, AI chat, etc.)
   // Initializes audio on demand if set() hasn't been called yet.
   playSimpleAlert = async () => {
+    if (!hasPushPermissions()) {
+      return;
+    }
     if (!this.audioConfig.audio) {
       this.intializeAudio();
     }

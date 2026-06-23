@@ -24,4 +24,12 @@ class Api::V1::Accounts::Jabvox::WhatsappTemplates::PermissionsController < Api:
     end
     head :no_content
   end
+
+  private
+
+  def ensure_admin
+    return if Current.account_user&.administrator?
+
+    render json: { error: 'Acceso denegado' }, status: :forbidden
+  end
 end
