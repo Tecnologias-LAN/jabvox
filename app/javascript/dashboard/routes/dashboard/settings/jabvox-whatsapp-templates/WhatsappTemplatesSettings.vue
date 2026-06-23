@@ -164,6 +164,35 @@ const summaryKpis = computed(() => {
   ];
 });
 
+// Decorative symbols rendered via bindings so they are not flagged as
+// untranslatable raw text (they carry no linguistic meaning).
+const DOT = '·';
+const DASH = '—';
+const VAR_OPEN = '{{';
+const VAR_CLOSE = '}}';
+const VERSION_PREFIX = 'v';
+
+const mainTabs = computed(() => [
+  { key: 'overview', label: t('JABVOX_WA_TEMPLATES.TABS.OVERVIEW') },
+  { key: 'templates', label: t('JABVOX_WA_TEMPLATES.TABS.TEMPLATES') },
+  { key: 'permissions', label: t('JABVOX_WA_TEMPLATES.TABS.PERMISSIONS') },
+]);
+
+const overviewMetrics = computed(() => [
+  { key: 'total', label: t('JABVOX_WA_TEMPLATES.METRICS.TOTAL') },
+  { key: 'approved', label: t('JABVOX_WA_TEMPLATES.METRICS.APPROVED') },
+  { key: 'pending', label: t('JABVOX_WA_TEMPLATES.METRICS.PENDING') },
+  { key: 'rejected', label: t('JABVOX_WA_TEMPLATES.METRICS.REJECTED') },
+  { key: 'paused', label: t('JABVOX_WA_TEMPLATES.METRICS.PAUSED') },
+  { key: 'disabled', label: t('JABVOX_WA_TEMPLATES.METRICS.DISABLED') },
+  { key: 'quality_high', label: t('JABVOX_WA_TEMPLATES.METRICS.QUALITY_HIGH') },
+  {
+    key: 'quality_medium',
+    label: t('JABVOX_WA_TEMPLATES.METRICS.QUALITY_MEDIUM'),
+  },
+  { key: 'quality_low', label: t('JABVOX_WA_TEMPLATES.METRICS.QUALITY_LOW') },
+]);
+
 const statusQuickFilters = [
   'APPROVED',
   'PENDING',
@@ -210,8 +239,6 @@ const filterChipActive = (kind, value) => {
   if (kind === 'status') return filters.value.status === value;
   return filters.value.category === value;
 };
-
-const categoryLabel = c => t(`JABVOX_WA_TEMPLATES.CATEGORIES.${c}`);
 
 const applyFilters = () => {
   page.value = 1;
@@ -335,6 +362,72 @@ const qualityClass = q => {
       return 'text-n-slate-10';
   }
 };
+
+// ─── Localized label helpers (static keys, no dynamic-key lint warnings) ──────
+const statusLabel = s => {
+  switch ((s || '').toUpperCase()) {
+    case 'APPROVED':
+      return t('JABVOX_WA_TEMPLATES.STATUS.APPROVED');
+    case 'PENDING':
+      return t('JABVOX_WA_TEMPLATES.STATUS.PENDING');
+    case 'REJECTED':
+      return t('JABVOX_WA_TEMPLATES.STATUS.REJECTED');
+    case 'PAUSED':
+      return t('JABVOX_WA_TEMPLATES.STATUS.PAUSED');
+    case 'DISABLED':
+      return t('JABVOX_WA_TEMPLATES.STATUS.DISABLED');
+    default:
+      return s;
+  }
+};
+
+const categoryLabel = c => {
+  switch ((c || '').toUpperCase()) {
+    case 'MARKETING':
+      return t('JABVOX_WA_TEMPLATES.CATEGORIES.MARKETING');
+    case 'UTILITY':
+      return t('JABVOX_WA_TEMPLATES.CATEGORIES.UTILITY');
+    case 'AUTHENTICATION':
+      return t('JABVOX_WA_TEMPLATES.CATEGORIES.AUTHENTICATION');
+    case 'SERVICE':
+      return t('JABVOX_WA_TEMPLATES.CATEGORIES.SERVICE');
+    default:
+      return c;
+  }
+};
+
+const qualityLabel = q => {
+  switch ((q || '').toUpperCase()) {
+    case 'GREEN':
+      return t('JABVOX_WA_TEMPLATES.QUALITY.GREEN');
+    case 'YELLOW':
+      return t('JABVOX_WA_TEMPLATES.QUALITY.YELLOW');
+    case 'RED':
+      return t('JABVOX_WA_TEMPLATES.QUALITY.RED');
+    default:
+      return t('JABVOX_WA_TEMPLATES.QUALITY.UNKNOWN');
+  }
+};
+
+const detailTabLabel = dt => {
+  switch (dt) {
+    case 'components':
+      return t('JABVOX_WA_TEMPLATES.DETAIL.COMPONENTS');
+    case 'variables':
+      return t('JABVOX_WA_TEMPLATES.DETAIL.VARIABLES');
+    case 'analytics':
+      return t('JABVOX_WA_TEMPLATES.DETAIL.ANALYTICS');
+    case 'history':
+      return t('JABVOX_WA_TEMPLATES.DETAIL.HISTORY');
+    case 'versions':
+      return t('JABVOX_WA_TEMPLATES.DETAIL.VERSIONS');
+    case 'meta_json':
+      return t('JABVOX_WA_TEMPLATES.DETAIL.META_JSON');
+    default:
+      return dt;
+  }
+};
+
 // ─── Template actions ─────────────────────────────────────────────────────────
 const deleteTemplate = async tpl => {
   // eslint-disable-next-line no-alert
@@ -385,7 +478,7 @@ const importing = ref(false);
 
 const submitImport = async () => {
   if (!selectedInboxId.value) {
-    useAlert('Selecciona una bandeja primero');
+    useAlert(t('JABVOX_WA_TEMPLATES.IMPORT.SELECT_INBOX_FIRST'));
     return;
   }
   importing.value = true;
@@ -401,7 +494,9 @@ const submitImport = async () => {
     loadTemplates();
     loadMetrics();
   } catch (err) {
-    useAlert(err?.response?.data?.error || 'JSON inválido');
+    useAlert(
+      err?.response?.data?.error || t('JABVOX_WA_TEMPLATES.IMPORT.INVALID_JSON')
+    );
   } finally {
     importing.value = false;
   }
@@ -746,17 +841,17 @@ onMounted(async () => {
         class="flex gap-0 border-t border-n-weak bg-n-surface-1 px-4 sm:px-6 shrink-0"
       >
         <button
-          v-for="tab in ['overview', 'templates', 'permissions']"
-          :key="tab"
+          v-for="tab in mainTabs"
+          :key="tab.key"
           class="px-4 py-2.5 text-sm -mb-px border-b-2 transition-colors"
           :class="
-            activeTab === tab
+            activeTab === tab.key
               ? 'border-n-brand text-n-brand font-medium'
               : 'border-transparent text-n-slate-11 hover:text-n-slate-12'
           "
-          @click="switchTab(tab)"
+          @click="switchTab(tab.key)"
         >
-          {{ t(`JABVOX_WA_TEMPLATES.TABS.${tab.toUpperCase()}`) }}
+          {{ tab.label }}
         </button>
       </div>
     </div>
@@ -765,25 +860,13 @@ onMounted(async () => {
     <div v-if="activeTab === 'overview'" class="flex-1 overflow-auto p-6">
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         <div
-          v-for="key in [
-            'total',
-            'approved',
-            'pending',
-            'rejected',
-            'paused',
-            'disabled',
-            'quality_high',
-            'quality_medium',
-            'quality_low',
-          ]"
-          :key="key"
+          v-for="m in overviewMetrics"
+          :key="m.key"
           class="rounded-xl border border-n-weak bg-n-surface-1 p-4"
         >
-          <p class="text-xs text-n-slate-10 mb-1">
-            {{ t(`JABVOX_WA_TEMPLATES.METRICS.${key.toUpperCase()}`) }}
-          </p>
+          <p class="text-xs text-n-slate-10 mb-1">{{ m.label }}</p>
           <p class="text-2xl font-semibold text-n-slate-12">
-            {{ metrics[key] ?? 0 }}
+            {{ metrics[m.key] ?? 0 }}
           </p>
         </div>
       </div>
@@ -803,7 +886,12 @@ onMounted(async () => {
             <p class="font-medium text-n-slate-12 text-sm">{{ inbox.name }}</p>
             <p class="text-xs text-n-slate-10">{{ inbox.phone_number }}</p>
             <p class="text-xs text-n-slate-10">
-              WABA: {{ inbox.waba_id || '—' }}
+              {{
+                t('JABVOX_WA_TEMPLATES.OVERVIEW.WABA_LABELED', {
+                  value:
+                    inbox.waba_id || t('JABVOX_WA_TEMPLATES.OVERVIEW.NO_WABA'),
+                })
+              }}
             </p>
             <p class="text-xs text-n-slate-10">
               {{ inbox.template_count }}
@@ -903,7 +991,7 @@ onMounted(async () => {
             "
             @click="applyQuickFilter('status', s)"
           >
-            {{ t(`JABVOX_WA_TEMPLATES.STATUS.${s}`) }}
+            {{ statusLabel(s) }}
           </button>
         </div>
 
@@ -1033,7 +1121,7 @@ onMounted(async () => {
                 class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full"
                 :class="statusClass(tpl.status)"
               >
-                {{ t(`JABVOX_WA_TEMPLATES.STATUS.${tpl.status}`) }}
+                {{ statusLabel(tpl.status) }}
               </span>
             </div>
 
@@ -1042,7 +1130,8 @@ onMounted(async () => {
                 {{ tpl.name }}
               </h3>
               <p class="text-xs text-n-slate-10 mt-0.5">
-                {{ tpl.language }} · {{ tpl.category }} ·
+                {{ tpl.language }} {{ DOT }} {{ categoryLabel(tpl.category) }}
+                {{ DOT }}
                 {{
                   tpl.meta_template_id ||
                   t('JABVOX_WA_TEMPLATES.GALLERY.NO_META_ID')
@@ -1155,15 +1244,23 @@ onMounted(async () => {
             :disabled="page <= 1"
             @click="changePage(-1)"
           >
-            &#8249;
+            <span class="i-lucide-chevron-left size-4" aria-hidden="true" />
           </button>
-          <span>{{ page }} / {{ totalPages }} ({{ totalTemplates }})</span>
+          <span>
+            {{
+              t('JABVOX_WA_TEMPLATES.GALLERY.PAGINATION', {
+                page,
+                pages: totalPages,
+                total: totalTemplates,
+              })
+            }}
+          </span>
           <button
             class="px-3 py-1 rounded bg-n-alpha-2 disabled:opacity-50"
             :disabled="page >= totalPages"
             @click="changePage(1)"
           >
-            &#8250;
+            <span class="i-lucide-chevron-right size-4" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -1235,8 +1332,9 @@ onMounted(async () => {
               >
                 <span
                   class="size-4 rounded-full bg-white/20 inline-flex items-center justify-center"
-                  >{{ step.id }}</span
                 >
+                  {{ step.id }}
+                </span>
                 <span>{{ step.label }}</span>
               </button>
             </div>
@@ -1259,7 +1357,7 @@ onMounted(async () => {
                   }}</label>
                   <select v-model="formInboxId" class="reset-base text-sm">
                     <option v-for="i in inboxes" :key="i.id" :value="i.id">
-                      {{ i.name }} — {{ i.phone_number }}
+                      {{ i.name }} {{ DASH }} {{ i.phone_number }}
                     </option>
                   </select>
                 </div>
@@ -1284,7 +1382,7 @@ onMounted(async () => {
                   }}</label>
                   <select v-model="form.category" class="reset-base text-sm">
                     <option v-for="c in CATEGORIES" :key="c" :value="c">
-                      {{ t(`JABVOX_WA_TEMPLATES.CATEGORIES.${c}`) }}
+                      {{ categoryLabel(c) }}
                     </option>
                   </select>
                 </div>
@@ -1385,7 +1483,7 @@ onMounted(async () => {
                   <span
                     class="text-xs font-mono bg-n-alpha-2 px-2 py-0.5 rounded text-n-brand"
                   >
-                    &#123;&#123;{{ n }}&#125;&#125;
+                    {{ VAR_OPEN }}{{ n }}{{ VAR_CLOSE }}
                   </span>
                   <input
                     v-model="form.var_descriptions[n]"
@@ -1510,18 +1608,18 @@ onMounted(async () => {
           </div>
           <div class="flex gap-3 px-5 py-3.5 border-t border-n-weak shrink-0">
             <button
-              class="px-4 py-2 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11"
+              class="px-4 py-2 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11 disabled:opacity-50"
               :disabled="wizardStep === 1"
               @click="previousWizardStep"
             >
-              Back
+              {{ t('JABVOX_WA_TEMPLATES.CREATE.BACK') }}
             </button>
             <button
               v-if="wizardStep < 6"
               class="px-4 py-2 text-sm rounded-lg bg-n-brand text-white"
               @click="nextWizardStep"
             >
-              Next
+              {{ t('JABVOX_WA_TEMPLATES.CREATE.NEXT') }}
             </button>
             <button
               v-if="wizardStep === 6"
@@ -1637,13 +1735,11 @@ onMounted(async () => {
                 class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
                 :class="statusClass(detailTemplate.status)"
               >
-                {{ t(`JABVOX_WA_TEMPLATES.STATUS.${detailTemplate.status}`) }}
+                {{ statusLabel(detailTemplate.status) }}
               </span>
               <span class="text-xs text-n-slate-10">
-                {{ detailTemplate.language }} ·
-                {{
-                  t(`JABVOX_WA_TEMPLATES.CATEGORIES.${detailTemplate.category}`)
-                }}
+                {{ detailTemplate.language }} {{ DOT }}
+                {{ categoryLabel(detailTemplate.category) }}
               </span>
             </div>
           </div>
@@ -1681,48 +1777,60 @@ onMounted(async () => {
             "
             @click="detailTab = dt"
           >
-            {{ t(`JABVOX_WA_TEMPLATES.DETAIL.${dt.toUpperCase()}`) }}
+            {{ detailTabLabel(dt) }}
           </button>
         </div>
         <div class="flex-1 overflow-auto p-5">
           <div v-if="detailTab === 'components'" class="space-y-4">
             <div
               v-if="detailTemplate.rejected_reason"
-              class="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm"
+              class="p-3 rounded-lg bg-n-ruby-3 text-n-ruby-11 text-sm"
             >
-              <span class="font-medium">Razón de rechazo:</span>
+              <span class="font-medium">
+                {{ t('JABVOX_WA_TEMPLATES.DETAIL.REJECTED_REASON') }}
+              </span>
               {{ detailTemplate.rejected_reason }}
             </div>
             <div class="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <span class="text-n-slate-10">Meta ID</span>
+                <span class="text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.DETAIL.META_ID') }}
+                </span>
                 <p class="font-mono text-n-slate-12 mt-0.5">
-                  {{ detailTemplate.meta_template_id || '—' }}
+                  {{
+                    detailTemplate.meta_template_id ||
+                    t('JABVOX_WA_TEMPLATES.DETAIL.EMPTY_VALUE')
+                  }}
                 </p>
               </div>
               <div>
-                <span class="text-n-slate-10">WABA ID</span>
+                <span class="text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.DETAIL.WABA_ID') }}
+                </span>
                 <p class="font-mono text-n-slate-12 mt-0.5">
-                  {{ detailTemplate.waba_id || '—' }}
+                  {{
+                    detailTemplate.waba_id ||
+                    t('JABVOX_WA_TEMPLATES.DETAIL.EMPTY_VALUE')
+                  }}
                 </p>
               </div>
               <div>
-                <span class="text-n-slate-10">Inbox</span>
+                <span class="text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.DETAIL.INBOX') }}
+                </span>
                 <p class="text-n-slate-12 mt-0.5">
                   {{ detailTemplate.inbox_name }}
                 </p>
               </div>
               <div>
-                <span class="text-n-slate-10">Calidad</span>
+                <span class="text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.DETAIL.QUALITY') }}
+                </span>
                 <p
                   class="mt-0.5"
                   :class="qualityClass(detailTemplate.quality_score)"
                 >
-                  {{
-                    t(
-                      `JABVOX_WA_TEMPLATES.QUALITY.${detailTemplate.quality_score || 'UNKNOWN'}`
-                    )
-                  }}
+                  {{ qualityLabel(detailTemplate.quality_score) }}
                 </p>
               </div>
             </div>
@@ -1731,17 +1839,26 @@ onMounted(async () => {
               class="rounded-lg bg-n-alpha-1 p-3"
             >
               <p class="text-xs font-medium text-n-slate-10 mb-1">
-                HEADER ({{ detailTemplate.header_type }})
+                {{
+                  t('JABVOX_WA_TEMPLATES.DETAIL.HEADER_WITH_TYPE', {
+                    type: detailTemplate.header_type,
+                  })
+                }}
               </p>
               <p class="text-sm text-n-slate-12">
-                {{ detailTemplate.header_content || '(multimedia)' }}
+                {{
+                  detailTemplate.header_content ||
+                  t('JABVOX_WA_TEMPLATES.DETAIL.MEDIA')
+                }}
               </p>
             </div>
             <div
               v-if="detailTemplate.body_content"
               class="rounded-lg bg-n-alpha-1 p-3"
             >
-              <p class="text-xs font-medium text-n-slate-10 mb-1">BODY</p>
+              <p class="text-xs font-medium text-n-slate-10 mb-1">
+                {{ t('JABVOX_WA_TEMPLATES.DETAIL.BODY') }}
+              </p>
               <p class="text-sm text-n-slate-12 whitespace-pre-wrap">
                 {{ detailTemplate.body_content }}
               </p>
@@ -1750,13 +1867,17 @@ onMounted(async () => {
               v-if="detailTemplate.footer_content"
               class="rounded-lg bg-n-alpha-1 p-3"
             >
-              <p class="text-xs font-medium text-n-slate-10 mb-1">FOOTER</p>
+              <p class="text-xs font-medium text-n-slate-10 mb-1">
+                {{ t('JABVOX_WA_TEMPLATES.DETAIL.FOOTER') }}
+              </p>
               <p class="text-sm text-n-slate-12">
                 {{ detailTemplate.footer_content }}
               </p>
             </div>
             <div v-if="detailTemplate.buttons_json?.length" class="space-y-1.5">
-              <p class="text-xs font-medium text-n-slate-10">BUTTONS</p>
+              <p class="text-xs font-medium text-n-slate-10">
+                {{ t('JABVOX_WA_TEMPLATES.DETAIL.BUTTONS') }}
+              </p>
               <div
                 v-for="btn in detailTemplate.buttons_json"
                 :key="btn.text"
@@ -1779,7 +1900,7 @@ onMounted(async () => {
               v-if="!Object.keys(detailTemplate.variables_json || {}).length"
               class="text-sm text-n-slate-11"
             >
-              —
+              {{ t('JABVOX_WA_TEMPLATES.DETAIL.EMPTY_VALUE') }}
             </div>
             <div
               v-for="(desc, n) in detailTemplate.variables_json"
@@ -1789,45 +1910,59 @@ onMounted(async () => {
               <span
                 class="font-mono text-sm text-n-brand bg-n-alpha-2 px-2 py-0.5 rounded"
               >
-                &#123;&#123;{{ n }}&#125;&#125;
+                {{ VAR_OPEN }}{{ n }}{{ VAR_CLOSE }}
               </span>
-              <span class="text-sm text-n-slate-11">{{ desc || '—' }}</span>
+              <span class="text-sm text-n-slate-11">
+                {{ desc || t('JABVOX_WA_TEMPLATES.DETAIL.EMPTY_VALUE') }}
+              </span>
             </div>
           </div>
           <div v-else-if="detailTab === 'analytics'" class="space-y-3">
             <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
-                <p class="text-xs text-n-slate-10">Sent</p>
+                <p class="text-xs text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.ANALYTICS.SENT') }}
+                </p>
                 <p class="text-xl font-semibold text-n-slate-12">
                   {{ templateAnalytics.sent }}
                 </p>
               </div>
               <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
-                <p class="text-xs text-n-slate-10">Delivered</p>
+                <p class="text-xs text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.ANALYTICS.DELIVERED') }}
+                </p>
                 <p class="text-xl font-semibold text-n-slate-12">
                   {{ templateAnalytics.delivered }}
                 </p>
               </div>
               <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
-                <p class="text-xs text-n-slate-10">Read</p>
+                <p class="text-xs text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.ANALYTICS.READ') }}
+                </p>
                 <p class="text-xl font-semibold text-n-slate-12">
                   {{ templateAnalytics.read }}
                 </p>
               </div>
               <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
-                <p class="text-xs text-n-slate-10">Replied</p>
+                <p class="text-xs text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.ANALYTICS.REPLIED') }}
+                </p>
                 <p class="text-xl font-semibold text-n-slate-12">
                   {{ templateAnalytics.replied }}
                 </p>
               </div>
               <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
-                <p class="text-xs text-n-slate-10">Failed</p>
+                <p class="text-xs text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.ANALYTICS.FAILED') }}
+                </p>
                 <p class="text-xl font-semibold text-n-slate-12">
                   {{ templateAnalytics.failed }}
                 </p>
               </div>
               <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
-                <p class="text-xs text-n-slate-10">Blocked</p>
+                <p class="text-xs text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.ANALYTICS.BLOCKED') }}
+                </p>
                 <p class="text-xl font-semibold text-n-slate-12">
                   {{ templateAnalytics.blocked }}
                 </p>
@@ -1836,7 +1971,7 @@ onMounted(async () => {
           </div>
           <div v-else-if="detailTab === 'history'" class="space-y-2">
             <div v-if="!detailHistory.length" class="text-sm text-n-slate-11">
-              —
+              {{ t('JABVOX_WA_TEMPLATES.DETAIL.EMPTY_VALUE') }}
             </div>
             <div
               v-for="log in detailHistory"
@@ -1849,7 +1984,7 @@ onMounted(async () => {
               <div>
                 <p class="text-sm text-n-slate-12">{{ log.description }}</p>
                 <p class="text-xs text-n-slate-10">
-                  {{ log.user_name }} ·
+                  {{ log.user_name }} {{ DOT }}
                   {{ new Date(log.created_at).toLocaleString() }}
                 </p>
               </div>
@@ -1857,7 +1992,7 @@ onMounted(async () => {
           </div>
           <div v-else-if="detailTab === 'versions'" class="space-y-2">
             <div v-if="!detailVersions.length" class="text-sm text-n-slate-11">
-              —
+              {{ t('JABVOX_WA_TEMPLATES.DETAIL.EMPTY_VALUE') }}
             </div>
             <div
               v-for="ver in detailVersions"
@@ -1866,7 +2001,7 @@ onMounted(async () => {
             >
               <div class="flex items-center justify-between">
                 <span class="font-medium text-sm text-n-slate-12">
-                  v{{ ver.version }}
+                  {{ VERSION_PREFIX }}{{ ver.version }}
                 </span>
                 <button
                   class="text-xs text-n-brand hover:underline"
@@ -1876,7 +2011,7 @@ onMounted(async () => {
                 </button>
               </div>
               <p class="text-xs text-n-slate-10">
-                {{ ver.created_by_name }} ·
+                {{ ver.created_by_name }} {{ DOT }}
                 {{ new Date(ver.created_at).toLocaleString() }}
               </p>
               <p class="text-xs text-n-slate-11 line-clamp-2">

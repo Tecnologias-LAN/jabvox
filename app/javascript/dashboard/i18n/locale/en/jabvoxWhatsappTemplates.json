@@ -62,6 +62,7 @@
       "DELETE_CONFIRM": "Delete {count} templates?"
     },
     "GALLERY": {
+      "PAGINATION": "{page} / {pages} ({total})",
       "SELECT_ALL": "Select all visible templates",
       "VARIABLES": "Variables",
       "BUTTONS": "Buttons",
@@ -73,7 +74,7 @@
       "EMPTY_CTA": "Create First Template"
     },
     "OVERVIEW": {
-      "WABA": "WABA",
+      "WABA_LABELED": "WABA: {value}",
       "NO_WABA": "—"
     },
     "TABLE": {
@@ -191,6 +192,7 @@
       "INBOX": "Inbox",
       "QUALITY": "Quality",
       "HEADER": "Header",
+      "HEADER_WITH_TYPE": "Header ({type})",
       "BODY": "Body",
       "FOOTER": "Footer",
       "BUTTONS": "Buttons",
@@ -211,7 +213,9 @@
       "JSON_PH": "[ { \"name\": \"template_name\", ... }, ... ]",
       "SUBMIT": "Import",
       "SUCCESS": "Imported {count} templates.",
-      "ERRORS": "Some rows had errors:"
+      "ERRORS": "Some rows had errors:",
+      "SELECT_INBOX_FIRST": "Select an inbox first.",
+      "INVALID_JSON": "Invalid JSON."
     },
     "EXPORT": {
       "JSON": "Export JSON",
