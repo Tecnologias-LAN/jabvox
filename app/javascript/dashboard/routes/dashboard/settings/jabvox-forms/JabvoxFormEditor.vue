@@ -7,7 +7,7 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
-import Textarea from 'dashboard/components-next/textarea/Textarea.vue';
+import Textarea from 'dashboard/components-next/textarea/TextArea.vue';
 import EmailBodyEditor from '../jabvox-email/EmailBodyEditor.vue';
 
 const props = defineProps({
