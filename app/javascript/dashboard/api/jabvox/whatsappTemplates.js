@@ -1,4 +1,4 @@
-import axios from 'axios';
+/* global axios */
 import ApiClient from '../ApiClient';
 
 const client = new ApiClient('jabvox/whatsapp_templates', {

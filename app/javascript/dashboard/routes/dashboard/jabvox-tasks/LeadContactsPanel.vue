@@ -92,6 +92,17 @@ const onDelete = async contact => {
     </div>
 
     <div class="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
+      <button
+        type="button"
+        class="flex items-center justify-center gap-1 w-full py-2 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 disabled:opacity-40 disabled:cursor-not-allowed"
+        :disabled="!hasLead"
+        :title="!hasLead ? t('JABVOX_TASKS.CONTACTS.SELECT_LEAD') : undefined"
+        @click="openCreate"
+      >
+        <span class="i-lucide-plus size-4" aria-hidden="true" />
+        {{ t('JABVOX_TASKS.CONTACTS.ADD') }}
+      </button>
+
       <TasksEmptyState
         v-if="!hasLead"
         icon="i-lucide-user-search"
@@ -103,15 +114,6 @@ const onDelete = async contact => {
       </p>
 
       <template v-else>
-        <button
-          type="button"
-          class="flex items-center justify-center gap-1 w-full py-2 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3"
-          @click="openCreate"
-        >
-          <span class="i-lucide-plus size-4" aria-hidden="true" />
-          {{ t('JABVOX_TASKS.CONTACTS.ADD') }}
-        </button>
-
         <TasksEmptyState
           v-if="contacts.length === 0"
           icon="i-lucide-users"
