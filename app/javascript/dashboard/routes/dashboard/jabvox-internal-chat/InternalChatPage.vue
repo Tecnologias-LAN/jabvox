@@ -143,6 +143,12 @@ async function selectChat(chat) {
   nextTick(() => textareaRef.value?.focus());
 }
 
+// On mobile the list and the conversation occupy the full screen one at a
+// time; this clears the selection to return to the conversation list.
+function backToList() {
+  store.dispatch('jabvoxInternalChat/setCurrentChat', null);
+}
+
 async function send() {
   const content = newMessage.value.trim();
   if (!content || !currentChatId.value) return;
@@ -230,6 +236,13 @@ function startPolling() {
   }, 5000);
 }
 
+function onWsMessage({ chat_id: chatId }) {
+  store.dispatch('jabvoxInternalChat/fetchChats');
+  if (currentChatId.value === chatId) {
+    store.dispatch('jabvoxInternalChat/fetchMessages', chatId);
+  }
+}
+
 watch(messages, () => scrollToBottom());
 
 onMounted(async () => {
@@ -245,22 +258,19 @@ onUnmounted(() => {
   clearInterval(pollingTimer.value);
   emitter.off('jabvox.internal_chat.message_created', onWsMessage);
 });
-
-function onWsMessage({ chat_id: chatId }) {
-  store.dispatch('jabvoxInternalChat/fetchChats');
-  if (currentChatId.value === chatId) {
-    store.dispatch('jabvoxInternalChat/fetchMessages', chatId);
-  }
-}
 </script>
 
 <template>
-  <div class="flex flex-1 h-full w-full min-h-0 overflow-hidden">
+  <div
+    class="flex flex-1 h-full w-full min-h-0 overflow-hidden bg-n-background"
+  >
     <!-- ═══════════════════════════════════════════
          SIDEBAR — lista de conversaciones
+         (móvil: pantalla completa; se oculta al abrir un chat)
     ════════════════════════════════════════════ -->
     <aside
-      class="flex flex-col w-80 shrink-0 border-r border-n-weak bg-n-surface-2"
+      class="flex-col w-full md:w-80 shrink-0 border-r border-n-weak bg-n-solid-1"
+      :class="currentChat ? 'hidden md:flex' : 'flex'"
     >
       <!-- Header sidebar -->
       <div class="px-4 pt-5 pb-3 border-b border-n-weak">
@@ -271,7 +281,7 @@ function onWsMessage({ chat_id: chatId }) {
             </h1>
             <span
               v-if="totalUnread > 0"
-              class="inline-flex items-center justify-center min-w-[1.2rem] h-5 rounded-full bg-woot-500 text-white text-[10px] font-bold px-1"
+              class="inline-flex items-center justify-center min-w-[1.2rem] h-5 rounded-full bg-n-brand text-white text-[10px] font-bold px-1"
             >
               {{ totalUnread }}
             </span>
@@ -282,28 +292,28 @@ function onWsMessage({ chat_id: chatId }) {
               :title="t('JABVOX_INTERNAL_CHAT.NEW_DIRECT')"
               @click="openModal('direct')"
             >
-              <span class="i-lucide-message-square-plus w-4 h-4" />
+              <span class="i-lucide-message-square-plus size-4" />
             </button>
             <button
               class="p-1.5 rounded-lg text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-2 transition-colors"
               :title="t('JABVOX_INTERNAL_CHAT.NEW_GROUP')"
               @click="openModal('group_chat')"
             >
-              <span class="i-lucide-users-round w-4 h-4" />
+              <span class="i-lucide-users-round size-4" />
             </button>
           </div>
         </div>
 
         <!-- Search -->
         <div
-          class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-n-weak bg-n-surface-1 focus-within:border-woot-500 focus-within:ring-1 focus-within:ring-woot-500/20 transition-all"
+          class="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-n-weak bg-n-background focus-within:border-n-slate-7 transition-colors"
         >
-          <span class="i-lucide-search w-3.5 h-3.5 shrink-0 text-n-slate-9" />
+          <span class="i-lucide-search size-3.5 shrink-0 text-n-slate-9" />
           <input
             v-model="chatSearch"
             type="text"
             :placeholder="t('JABVOX_INTERNAL_CHAT.SEARCH_USERS')"
-            class="flex-1 text-sm bg-transparent text-n-slate-12 placeholder:text-n-slate-9 focus:outline-none"
+            class="reset-base flex-1 min-w-0 p-0 m-0 border-0 h-5 text-sm leading-5 bg-transparent text-n-slate-12 placeholder:text-n-slate-9 focus:outline-none focus:ring-0"
           />
         </div>
       </div>
@@ -315,9 +325,7 @@ function onWsMessage({ chat_id: chatId }) {
           v-if="uiFlags.isFetchingChats && chats.length === 0"
           class="flex flex-col items-center justify-center gap-3 py-16 text-n-slate-9"
         >
-          <span
-            class="i-lucide-loader-circle w-7 h-7 animate-spin opacity-50"
-          />
+          <span class="i-lucide-loader-circle size-7 animate-spin opacity-50" />
           <p class="text-xs">{{ t('JABVOX_INTERNAL_CHAT.LOADING') }}</p>
         </div>
 
@@ -326,12 +334,12 @@ function onWsMessage({ chat_id: chatId }) {
           v-else-if="filteredChats.length === 0"
           class="flex flex-col items-center justify-center gap-3 py-16 px-6 text-center text-n-slate-9"
         >
-          <span class="i-lucide-message-circle-off w-10 h-10 opacity-30" />
+          <span class="i-lucide-message-circle-off size-10 opacity-30" />
           <p class="text-sm font-medium text-n-slate-11">
             {{ t('JABVOX_INTERNAL_CHAT.NO_CHATS') }}
           </p>
           <button
-            class="text-xs text-woot-500 hover:text-woot-600 font-medium"
+            class="text-xs text-n-brand hover:underline font-medium"
             @click="openModal('direct')"
           >
             {{ t('JABVOX_INTERNAL_CHAT.NEW_DIRECT') }}
@@ -345,7 +353,7 @@ function onWsMessage({ chat_id: chatId }) {
           class="group flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-colors border-b border-n-weak/40 last:border-0"
           :class="
             currentChatId === chat.id
-              ? 'bg-woot-500/8 border-l-2 border-l-woot-500'
+              ? 'bg-n-alpha-2 border-l-2 border-l-n-brand'
               : 'hover:bg-n-alpha-1 border-l-2 border-l-transparent'
           "
           @click="selectChat(chat)"
@@ -355,11 +363,11 @@ function onWsMessage({ chat_id: chatId }) {
             <img
               v-if="chatAvatar(chat)"
               :src="chatAvatar(chat)"
-              class="w-10 h-10 rounded-full object-cover ring-2 ring-n-weak"
+              class="size-10 rounded-full object-cover ring-2 ring-n-weak"
             />
             <div
               v-else
-              class="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold ring-2 ring-n-weak"
+              class="size-10 rounded-full flex items-center justify-center text-white text-sm font-bold ring-2 ring-n-weak"
               :style="{ background: avatarColor(chatDisplayName(chat)) }"
             >
               {{ chatDisplayName(chat)[0]?.toUpperCase() }}
@@ -367,9 +375,9 @@ function onWsMessage({ chat_id: chatId }) {
             <!-- Group badge -->
             <span
               v-if="chat.chat_type === 'group_chat'"
-              class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-n-surface-2 rounded-full flex items-center justify-center ring-1 ring-n-weak"
+              class="absolute -bottom-0.5 -right-0.5 size-4 bg-n-solid-1 rounded-full flex items-center justify-center ring-1 ring-n-weak"
             >
-              <span class="i-lucide-users w-2.5 h-2.5 text-n-slate-10" />
+              <span class="i-lucide-users size-2.5 text-n-slate-10" />
             </span>
           </div>
 
@@ -401,7 +409,7 @@ function onWsMessage({ chat_id: chatId }) {
               </p>
               <span
                 v-if="chat.unread_count > 0"
-                class="flex-shrink-0 min-w-[1.1rem] h-4 rounded-full bg-woot-500 text-white text-[10px] font-bold flex items-center justify-center px-1"
+                class="flex-shrink-0 min-w-[1.1rem] h-4 rounded-full bg-n-brand text-white text-[10px] font-bold flex items-center justify-center px-1"
               >
                 {{ chat.unread_count > 99 ? '99+' : chat.unread_count }}
               </span>
@@ -414,22 +422,33 @@ function onWsMessage({ chat_id: chatId }) {
     <!-- ═══════════════════════════════════════════
          PANEL DERECHO — mensajes
     ════════════════════════════════════════════ -->
-    <main class="flex flex-col flex-1 min-w-0 bg-n-surface-1">
+    <main
+      class="flex-col flex-1 min-w-0 bg-n-background"
+      :class="currentChat ? 'flex' : 'hidden md:flex'"
+    >
       <template v-if="currentChat">
         <!-- Header conversación -->
         <header
-          class="flex items-center justify-between px-5 py-3.5 border-b border-n-weak bg-n-surface-2 shrink-0"
+          class="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-n-weak bg-n-solid-1 shrink-0"
         >
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+            <!-- Volver (solo móvil) -->
+            <button
+              class="md:hidden -ml-1 p-1.5 rounded-lg text-n-slate-11 hover:bg-n-alpha-2 transition-colors shrink-0"
+              :title="t('JABVOX_INTERNAL_CHAT.BACK')"
+              @click="backToList"
+            >
+              <span class="i-lucide-arrow-left size-5" />
+            </button>
             <div class="relative flex-shrink-0">
               <img
                 v-if="chatAvatar(currentChat)"
                 :src="chatAvatar(currentChat)"
-                class="w-9 h-9 rounded-full object-cover"
+                class="size-9 rounded-full object-cover"
               />
               <div
                 v-else
-                class="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                class="size-9 rounded-full flex items-center justify-center text-white text-sm font-bold"
                 :style="{
                   background: avatarColor(chatDisplayName(currentChat)),
                 }"
@@ -438,19 +457,21 @@ function onWsMessage({ chat_id: chatId }) {
               </div>
             </div>
             <div class="min-w-0">
-              <p class="text-sm font-semibold text-n-slate-12 leading-tight">
+              <p
+                class="text-sm font-semibold text-n-slate-12 leading-tight truncate"
+              >
                 {{ chatDisplayName(currentChat) }}
               </p>
               <p class="text-xs text-n-slate-9 truncate leading-tight mt-0.5">
                 <template v-if="isGroupChat">
-                  <span class="i-lucide-users w-3 h-3 inline-block mr-0.5" />
+                  <span class="i-lucide-users size-3 inline-block mr-0.5" />
                   {{ currentChat.members?.length }}
                   {{ t('JABVOX_INTERNAL_CHAT.MEMBERS') }} ·
                   {{ chatMembersPreview(currentChat) }}
                 </template>
                 <template v-else>
                   <span
-                    class="i-lucide-building-2 w-3 h-3 inline-block mr-0.5"
+                    class="i-lucide-building-2 size-3 inline-block mr-0.5"
                   />
                   {{ t('JABVOX_INTERNAL_CHAT.TITLE') }}
                 </template>
@@ -462,13 +483,13 @@ function onWsMessage({ chat_id: chatId }) {
         <!-- Área de mensajes -->
         <div
           ref="messagesContainer"
-          class="flex-1 overflow-y-auto px-5 py-4 space-y-1"
+          class="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-1"
         >
           <div
             v-if="uiFlags.isFetchingMessages"
             class="flex items-center justify-center gap-2 py-10 text-n-slate-9"
           >
-            <span class="i-lucide-loader-circle w-5 h-5 animate-spin" />
+            <span class="i-lucide-loader-circle size-5 animate-spin" />
             <span class="text-sm">{{
               t('JABVOX_INTERNAL_CHAT.LOADING_MESSAGES')
             }}</span>
@@ -478,7 +499,7 @@ function onWsMessage({ chat_id: chatId }) {
             <div
               class="flex flex-col items-center justify-center gap-3 py-20 text-n-slate-9"
             >
-              <span class="i-lucide-message-circle w-14 h-14 opacity-20" />
+              <span class="i-lucide-message-circle size-14 opacity-20" />
               <p class="text-sm font-medium text-n-slate-10">
                 {{ t('JABVOX_INTERNAL_CHAT.NO_MESSAGES') }}
               </p>
@@ -497,7 +518,7 @@ function onWsMessage({ chat_id: chatId }) {
               >
                 <div class="flex-1 h-px bg-n-weak" />
                 <span
-                  class="text-[11px] font-medium text-n-slate-9 px-3 py-1 rounded-full bg-n-surface-2 border border-n-weak"
+                  class="text-[11px] font-medium text-n-slate-9 px-3 py-1 rounded-full bg-n-solid-1 border border-n-weak"
                 >
                   {{ item.label }}
                 </span>
@@ -513,10 +534,10 @@ function onWsMessage({ chat_id: chatId }) {
                 <!-- Avatar del otro (solo en grupos o en el primer mensaje consecutivo) -->
                 <div
                   v-if="!isMine(item.msg)"
-                  class="flex items-end gap-2 max-w-[72%]"
+                  class="flex items-end gap-2 max-w-[85%] sm:max-w-[72%]"
                 >
                   <div
-                    class="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold mb-0.5"
+                    class="size-7 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold mb-0.5"
                     :style="{ background: avatarColor(item.msg.sender?.name) }"
                   >
                     {{ item.msg.sender?.name?.[0]?.toUpperCase() }}
@@ -529,7 +550,7 @@ function onWsMessage({ chat_id: chatId }) {
                       {{ item.msg.sender?.name }}
                     </p>
                     <div
-                      class="bg-n-surface-2 border border-n-weak text-n-slate-12 rounded-2xl rounded-bl-sm px-3.5 py-2.5 shadow-sm"
+                      class="bg-n-solid-1 border border-n-weak text-n-slate-12 rounded-2xl rounded-bl-sm px-3.5 py-2.5 shadow-sm"
                     >
                       <p
                         class="text-sm whitespace-pre-wrap break-words leading-relaxed"
@@ -544,9 +565,9 @@ function onWsMessage({ chat_id: chatId }) {
                 </div>
 
                 <!-- Mis mensajes -->
-                <div v-else class="max-w-[72%]">
+                <div v-else class="max-w-[85%] sm:max-w-[72%]">
                   <div
-                    class="bg-woot-500 text-white rounded-2xl rounded-br-sm px-3.5 py-2.5 shadow-sm"
+                    class="bg-n-brand text-white rounded-2xl rounded-br-sm px-3.5 py-2.5 shadow-sm"
                   >
                     <p
                       class="text-sm whitespace-pre-wrap break-words leading-relaxed"
@@ -557,9 +578,7 @@ function onWsMessage({ chat_id: chatId }) {
                       <p class="text-[10px] text-white/70">
                         {{ formatTime(item.msg.created_at) }}
                       </p>
-                      <span
-                        class="i-lucide-check-check w-3 h-3 text-white/60"
-                      />
+                      <span class="i-lucide-check-check size-3 text-white/60" />
                     </div>
                   </div>
                 </div>
@@ -570,10 +589,10 @@ function onWsMessage({ chat_id: chatId }) {
 
         <!-- Input de mensaje -->
         <footer
-          class="shrink-0 border-t border-n-weak bg-n-surface-2 px-4 py-3"
+          class="shrink-0 border-t border-n-weak bg-n-solid-1 px-3 sm:px-4 py-3"
         >
           <div
-            class="flex items-end gap-2 bg-n-surface-1 border border-n-weak rounded-xl px-3 py-2 focus-within:border-woot-500 focus-within:ring-1 focus-within:ring-woot-500/20 transition-all"
+            class="flex items-end gap-2 bg-n-background border border-n-weak rounded-xl px-3 py-2 focus-within:border-n-slate-7 transition-colors"
           >
             <textarea
               ref="textareaRef"
@@ -584,29 +603,29 @@ function onWsMessage({ chat_id: chatId }) {
               @keydown="onKeydown"
             />
             <button
-              class="p-1.5 rounded-lg bg-woot-500 text-white hover:bg-woot-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0 mb-0.5"
+              class="p-1.5 rounded-lg bg-n-brand text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity flex-shrink-0 mb-0.5"
               :disabled="!newMessage.trim() || uiFlags.isSending"
               @click="send"
             >
-              <span class="i-lucide-send w-4 h-4" />
+              <span class="i-lucide-send size-4" />
             </button>
           </div>
-          <p class="text-[10px] text-n-slate-8 mt-1.5 px-1">
+          <p class="text-[10px] text-n-slate-8 mt-1.5 px-1 hidden sm:block">
             {{ t('JABVOX_INTERNAL_CHAT.SEND_HINT') }}
           </p>
         </footer>
       </template>
 
-      <!-- Estado vacío — ningún chat seleccionado -->
+      <!-- Estado vacío — ningún chat seleccionado (solo escritorio) -->
       <div
         v-else
         class="flex-1 flex flex-col items-center justify-center gap-4 text-n-slate-9 px-8"
       >
         <div
-          class="w-20 h-20 rounded-2xl bg-woot-500/10 flex items-center justify-center"
+          class="size-20 rounded-2xl bg-n-alpha-2 flex items-center justify-center"
         >
           <span
-            class="i-lucide-message-circle w-10 h-10 text-woot-500 opacity-60"
+            class="i-lucide-message-circle size-10 text-n-brand opacity-60"
           />
         </div>
         <div class="text-center">
@@ -619,17 +638,17 @@ function onWsMessage({ chat_id: chatId }) {
         </div>
         <div class="flex gap-2 mt-2">
           <button
-            class="flex items-center gap-2 px-4 py-2 rounded-lg bg-woot-500 text-white text-sm font-medium hover:bg-woot-600 transition-colors"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg bg-n-brand text-white text-sm font-medium hover:opacity-90 transition-opacity"
             @click="openModal('direct')"
           >
-            <span class="i-lucide-message-square-plus w-4 h-4" />
+            <span class="i-lucide-message-square-plus size-4" />
             {{ t('JABVOX_INTERNAL_CHAT.NEW_DIRECT') }}
           </button>
           <button
             class="flex items-center gap-2 px-4 py-2 rounded-lg border border-n-weak text-n-slate-11 text-sm font-medium hover:bg-n-alpha-2 transition-colors"
             @click="openModal('group_chat')"
           >
-            <span class="i-lucide-users-round w-4 h-4" />
+            <span class="i-lucide-users-round size-4" />
             {{ t('JABVOX_INTERNAL_CHAT.NEW_GROUP') }}
           </button>
         </div>
@@ -647,13 +666,13 @@ function onWsMessage({ chat_id: chatId }) {
       >
         <!-- Backdrop -->
         <div
-          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          class="absolute inset-0 bg-n-alpha-black2 backdrop-blur-sm"
           @click="closeModal"
         />
 
         <!-- Modal card -->
         <div
-          class="relative z-10 w-full max-w-md bg-n-surface-2 rounded-2xl shadow-2xl border border-n-weak overflow-hidden"
+          class="relative z-10 w-full max-w-md bg-n-solid-1 rounded-2xl shadow-2xl border border-n-weak overflow-hidden"
         >
           <!-- Modal header -->
           <div
@@ -661,18 +680,18 @@ function onWsMessage({ chat_id: chatId }) {
           >
             <div class="flex items-center gap-2">
               <span
-                class="w-8 h-8 rounded-lg flex items-center justify-center"
+                class="size-8 rounded-lg flex items-center justify-center"
                 :class="
                   newChatType === 'direct'
-                    ? 'bg-woot-500/15 text-woot-500'
-                    : 'bg-violet-500/15 text-violet-500'
+                    ? 'bg-n-alpha-2 text-n-brand'
+                    : 'bg-n-iris-3 text-n-iris-11'
                 "
               >
                 <span
                   :class="
                     newChatType === 'direct'
-                      ? 'i-lucide-user w-4 h-4'
-                      : 'i-lucide-users w-4 h-4'
+                      ? 'i-lucide-user size-4'
+                      : 'i-lucide-users size-4'
                   "
                 />
               </span>
@@ -688,7 +707,7 @@ function onWsMessage({ chat_id: chatId }) {
               class="p-1.5 rounded-lg text-n-slate-9 hover:text-n-slate-12 hover:bg-n-alpha-2 transition-colors"
               @click="closeModal"
             >
-              <span class="i-lucide-x w-4 h-4" />
+              <span class="i-lucide-x size-4" />
             </button>
           </div>
 
@@ -699,24 +718,24 @@ function onWsMessage({ chat_id: chatId }) {
                 class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all"
                 :class="
                   newChatType === 'direct'
-                    ? 'bg-n-surface-2 text-n-slate-12 shadow-sm'
+                    ? 'bg-n-solid-1 text-n-slate-12 shadow-sm'
                     : 'text-n-slate-9 hover:text-n-slate-11'
                 "
                 @click="newChatType = 'direct'"
               >
-                <span class="i-lucide-user w-3.5 h-3.5" />
+                <span class="i-lucide-user size-3.5" />
                 {{ t('JABVOX_INTERNAL_CHAT.DIRECT_TAB') }}
               </button>
               <button
                 class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all"
                 :class="
                   newChatType === 'group_chat'
-                    ? 'bg-n-surface-2 text-n-slate-12 shadow-sm'
+                    ? 'bg-n-solid-1 text-n-slate-12 shadow-sm'
                     : 'text-n-slate-9 hover:text-n-slate-11'
                 "
                 @click="newChatType = 'group_chat'"
               >
-                <span class="i-lucide-users w-3.5 h-3.5" />
+                <span class="i-lucide-users size-3.5" />
                 {{ t('JABVOX_INTERNAL_CHAT.GROUP_TAB') }}
               </button>
             </div>
@@ -732,7 +751,7 @@ function onWsMessage({ chat_id: chatId }) {
                 v-model="groupName"
                 type="text"
                 :placeholder="t('JABVOX_INTERNAL_CHAT.GROUP_NAME_PLACEHOLDER')"
-                class="w-full text-sm px-3 py-2 rounded-lg border border-n-weak bg-n-surface-1 text-n-slate-12 placeholder:text-n-slate-9 focus:outline-none focus:border-woot-500 focus:ring-1 focus:ring-woot-500/20 transition-all"
+                class="reset-base w-full text-sm px-3 py-2 rounded-lg border border-n-weak bg-n-background text-n-slate-12 placeholder:text-n-slate-9 focus:outline-none focus:border-n-slate-7 transition-colors"
               />
             </div>
 
@@ -746,16 +765,16 @@ function onWsMessage({ chat_id: chatId }) {
                 }}
               </label>
               <div
-                class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-n-weak bg-n-surface-1 mb-2 focus-within:border-woot-500 transition-all"
+                class="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-n-weak bg-n-background mb-2 focus-within:border-n-slate-7 transition-colors"
               >
                 <span
-                  class="i-lucide-search w-3.5 h-3.5 shrink-0 text-n-slate-9"
+                  class="i-lucide-search size-3.5 shrink-0 text-n-slate-9"
                 />
                 <input
                   v-model="userSearch"
                   type="text"
                   :placeholder="t('JABVOX_INTERNAL_CHAT.SEARCH_USERS')"
-                  class="flex-1 text-sm bg-transparent text-n-slate-12 placeholder:text-n-slate-9 focus:outline-none"
+                  class="reset-base flex-1 min-w-0 p-0 m-0 border-0 h-5 text-sm leading-5 bg-transparent text-n-slate-12 placeholder:text-n-slate-9 focus:outline-none focus:ring-0"
                 />
               </div>
 
@@ -771,7 +790,7 @@ function onWsMessage({ chat_id: chatId }) {
                     (newChatType === 'group_chat' &&
                       selectedGroupMembers.includes(user.id)) ||
                     (newChatType === 'direct' && selectedUserId === user.id)
-                      ? 'bg-woot-500/8'
+                      ? 'bg-n-alpha-2'
                       : 'hover:bg-n-alpha-1'
                   "
                   @click="
@@ -783,11 +802,11 @@ function onWsMessage({ chat_id: chatId }) {
                   <img
                     v-if="user.avatar_url"
                     :src="user.avatar_url"
-                    class="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                    class="size-8 rounded-full object-cover flex-shrink-0"
                   />
                   <div
                     v-else
-                    class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
+                    class="size-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
                     :style="{ background: avatarColor(user.name) }"
                   >
                     {{ user.name[0]?.toUpperCase() }}
@@ -801,7 +820,7 @@ function onWsMessage({ chat_id: chatId }) {
                         selectedGroupMembers.includes(user.id)) ||
                       (newChatType === 'direct' && selectedUserId === user.id)
                     "
-                    class="i-lucide-check-circle-2 w-4 h-4 text-woot-500 flex-shrink-0"
+                    class="i-lucide-check-circle-2 size-4 text-n-brand flex-shrink-0"
                   />
                 </div>
                 <div
@@ -823,11 +842,11 @@ function onWsMessage({ chat_id: chatId }) {
               <span
                 v-for="uid in selectedGroupMembers"
                 :key="uid"
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-woot-600 bg-woot-500/10"
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-n-brand bg-n-alpha-2"
               >
                 {{ accountUsers.find(u => u.id === uid)?.name }}
                 <button
-                  class="i-lucide-x w-3 h-3 hover:text-woot-800"
+                  class="i-lucide-x size-3 hover:text-n-slate-12"
                   @click="toggleGroupMember(uid)"
                 />
               </span>
@@ -843,7 +862,7 @@ function onWsMessage({ chat_id: chatId }) {
               {{ t('JABVOX_INTERNAL_CHAT.CANCEL') }}
             </button>
             <button
-              class="flex-1 py-2 rounded-lg bg-woot-500 text-white text-sm font-medium hover:bg-woot-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              class="flex-1 py-2 rounded-lg bg-n-brand text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
               :disabled="
                 newChatType === 'direct'
                   ? !selectedUserId

@@ -119,7 +119,15 @@
 - name: inbox_view
   display_name: Inbox View
   enabled: false
-  jabvox_internal: true
+- name: mentions
+  display_name: Mentions
+  enabled: false
+- name: participating
+  display_name: Participating
+  enabled: false
+- name: unattended
+  display_name: Unattended
+  enabled: false
 - name: sla
   display_name: SLA
   enabled: false

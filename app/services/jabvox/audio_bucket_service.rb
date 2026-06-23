@@ -17,23 +17,44 @@ class Jabvox::AudioBucketService
     { success: false, message: e.message }
   end
 
-  # Lists objects under a prefix (audio files only), with a continuation token for paging.
-  def list_objects(prefix: '', token: nil, max_keys: 100)
+  # Lists EVERY object under a prefix (audio files only) plus subfolders, walking
+  # S3's continuation_token until exhausted. The frontend paginates the result.
+  # A page count cap guards against pathological prefixes (very large buckets).
+  PAGE_SIZE = 1000
+  MAX_PAGES = 50
+
+  def list_objects(prefix: '')
     full_prefix = [@creds[:path_prefix], prefix].reject(&:blank?).join
-    resp = client.list_objects_v2(
-      bucket: bucket_name, prefix: full_prefix, max_keys: max_keys,
-      continuation_token: token.presence, delimiter: '/'
-    )
+    folders = []
+    files = []
+    token = nil
+    truncated = false
+
+    MAX_PAGES.times do |page|
+      resp = client.list_objects_v2(
+        bucket: bucket_name, prefix: full_prefix, max_keys: PAGE_SIZE,
+        continuation_token: token, delimiter: '/'
+      )
+      folders.concat(resp.common_prefixes.map(&:prefix))
+      resp.contents.each do |o|
+        files << { key: o.key, size: o.size, last_modified: o.last_modified } if audio?(o.key)
+      end
+      token = resp.next_continuation_token
+      break unless token
+
+      truncated = true if page == MAX_PAGES - 1
+    end
+
     {
-      folders: resp.common_prefixes.map(&:prefix),
-      files: resp.contents.select { |o| audio?(o.key) }.map do |o|
-        { key: o.key, size: o.size, last_modified: o.last_modified }
-      end,
-      next_token: resp.next_continuation_token
+      folders: folders,
+      files: files,
+      total_folders: folders.size,
+      total_files: files.size,
+      truncated: truncated
     }
   rescue Aws::S3::Errors::ServiceError, StandardError => e
     Rails.logger.error "[AudioAnalysis] list failed: #{e.message}"
-    { folders: [], files: [], next_token: nil, error: e.message }
+    { folders: [], files: [], total_folders: 0, total_files: 0, truncated: false, error: e.message }
   end
 
   # Downloads a file to a Tempfile (binmode). Caller must close! it.

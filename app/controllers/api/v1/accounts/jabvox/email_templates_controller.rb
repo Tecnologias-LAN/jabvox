@@ -77,22 +77,15 @@ class Api::V1::Accounts::Jabvox::EmailTemplatesController < Api::V1::Accounts::J
   end
 
   def deliver_template(template, config, contact)
-    body    = interpolate(template.body.to_s, contact)
-    subject = interpolate(template.subject.to_s, contact)
-    to_addr = contact.email
-    from_str = "#{config.from_name} <#{config.from_email}>"
-
-    mail = Mail.new do
-      from    from_str
-      to      to_addr
-      subject subject
-      html_part do
-        content_type 'text/html; charset=UTF-8'
-        body body
-      end
-    end
-    mail.delivery_method(:smtp, config.delivery_settings)
-    mail.deliver!
+    Jabvox::EmailSenderService.new(
+      account: Current.account,
+      config: config,
+      to: contact.email,
+      subject: interpolate(template.subject.to_s, contact),
+      html_body: interpolate(template.body.to_s, contact),
+      source: 'manual',
+      user: current_user
+    ).deliver!
   end
 
   def interpolate(text, contact)

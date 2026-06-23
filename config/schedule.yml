@@ -80,3 +80,9 @@ jabvox_analytics_audit_retention_job:
   cron: '40 3 * * *'
   class: 'Jabvox::Analytics::AuditRetentionJob'
   queue: scheduled_jobs
+
+# Jabvox Tasks: advance task cards with time-based stage automations, every 15 minutes
+jabvox_task_time_automations_job:
+  cron: '*/15 * * * *'
+  class: 'Jabvox::TaskTimeAutomationsJob'
+  queue: scheduled_jobs

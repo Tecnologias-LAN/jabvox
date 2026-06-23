@@ -36,6 +36,21 @@ class Api::V1::Accounts::Jabvox::Analytics::DashboardWidgetsController < Api::V1
 
   # Run this widget's query (visual spec or custom SQL) against its data source, cached.
   def execute
+    # Internal report widgets resolve to a pre-baked Ruby service scoped to the
+    # current account — no data source, no raw SQL, no cross-account access.
+    report_key = @widget.config_jabvox.is_a?(Hash) ? @widget.config_jabvox['report_key'] : nil
+    return execute_internal_report(report_key) if report_key.present?
+
+    execute_data_source_widget
+  rescue Jabvox::Analytics::QueryExecutionService::RejectedError, Jabvox::Analytics::QueryBuilderService::InvalidSpec => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  rescue StandardError => e
+    Rails.logger.error "[Analytics::Widget] execute failed: #{e.message}"
+    render json: { error: 'No se pudo ejecutar el widget' }, status: :unprocessable_entity
+  end
+
+  # Runs a widget backed by an external/SQL data source (visual spec or custom SQL).
+  def execute_data_source_widget
     return render json: { error: 'El widget no tiene fuente de datos' }, status: :unprocessable_entity unless @widget.data_source
 
     unless permission_resolver.can_access_data_source?(@widget.data_source)
@@ -45,20 +60,102 @@ class Api::V1::Accounts::Jabvox::Analytics::DashboardWidgetsController < Api::V1
     svc = Jabvox::Analytics::QueryExecutionService.new(
       data_source: @widget.data_source, user: current_user, ttl_seconds: @dashboard.cache_ttl_seconds_jabvox
     )
-    outcome = if @widget.uses_custom_sql?
-                svc.run_custom_sql(@widget.custom_sql_jabvox)
-              else
-                svc.run_visual(merged_spec)
-              end
+    outcome = @widget.uses_custom_sql? ? svc.run_custom_sql(@widget.custom_sql_jabvox) : svc.run_visual(merged_spec)
     render json: outcome.to_h
-  rescue Jabvox::Analytics::QueryExecutionService::RejectedError, Jabvox::Analytics::QueryBuilderService::InvalidSpec => e
-    render json: { error: e.message }, status: :unprocessable_entity
-  rescue StandardError => e
-    Rails.logger.error "[Analytics::Widget] execute failed: #{e.message}"
-    render json: { error: 'No se pudo ejecutar el widget' }, status: :unprocessable_entity
   end
 
   private
+
+  # Executes a built-in report. The service is always instantiated with
+  # Current.account, so the account_id filter is applied through ActiveRecord
+  # and cannot be bypassed by any input.
+  def execute_internal_report(report_key)
+    unless Jabvox::Analytics::InternalReportCatalog.exists?(report_key)
+      return render json: { error: 'Reporte interno desconocido' }, status: :unprocessable_entity
+    end
+
+    service = Jabvox::Analytics::InternalReportCatalog.service_for(report_key)
+    return render json: { error: 'Reporte interno no implementado' }, status: :unprocessable_entity unless service
+
+    cfg = @widget.config_jabvox
+    filters = effective_filters(cfg)
+    data = service.new(account: Current.account, **service_filter_args(filters)).call.deep_symbolize_keys
+    render json: section_to_render(data, cfg['section'], cfg['metric'])
+  rescue StandardError => e
+    Rails.logger.error "[Analytics::InternalReport] #{report_key} failed: #{e.message}"
+    render json: { error: 'No se pudo ejecutar el reporte interno' }, status: :unprocessable_entity
+  end
+
+  # Widget-level filters + the dashboard's global filters (date range +
+  # dynamic field filters, flattened so services read them directly).
+  def effective_filters(cfg)
+    filters = cfg['filters'].is_a?(Hash) ? cfg['filters'].dup : {}
+    return filters unless params[:global_filters].respond_to?(:to_unsafe_h)
+
+    gf = params[:global_filters].to_unsafe_h.stringify_keys
+    dynamic = gf.delete('dynamic')
+    filters.merge!(gf)
+    filters.merge!(dynamic.stringify_keys) if dynamic.is_a?(Hash)
+    filters
+  end
+
+  # Only forward filter keys the service constructor understands. All services
+  # accept date_from/date_to; richer filters are accepted as a `filters` hash.
+  def service_filter_args(filters)
+    {
+      date_from: filters['date_from'] || filters[:date_from],
+      date_to: filters['date_to'] || filters[:date_to],
+      filters: filters
+    }
+  end
+
+  # Render one section of a report in the shape its widget type needs:
+  #   - metric set  -> { rows: [[value]] } so KpiCardWidget shows a single number
+  #   - summary      -> Métrica | Valor table
+  #   - array (by_*) -> { columns:, rows: } table / bar (renderer reads both)
+  #   - series       -> { columns:, rows: } with date first (line/bar)
+  def section_to_render(data, section, metric)
+    return single_metric(data, metric) if metric.present?
+
+    part = section.present? ? data[section.to_sym] : nil
+    return hash_to_table(part) if part.is_a?(Hash)
+    return array_to_table(part) if part.is_a?(Array)
+
+    report_to_table(data)
+  end
+
+  def single_metric(data, metric)
+    { columns: [humanize_key(metric)], rows: [[format_value(data.dig(:summary, metric.to_sym))]] }
+  end
+
+  def hash_to_table(hash)
+    { columns: %w[Métrica Valor], rows: hash.map { |k, v| [humanize_key(k), format_value(v)] } }
+  end
+
+  def array_to_table(arr)
+    return { columns: [], rows: [] } if arr.empty?
+
+    cols = arr.first.keys.map { |k| humanize_key(k) }
+    { columns: cols, rows: arr.map { |h| h.values.map { |v| format_value(v) } } }
+  end
+
+  def report_to_table(data)
+    return hash_to_table(data[:summary]) if data[:summary].is_a?(Hash) && data[:summary].any?
+
+    array_to_table(data.values.find { |v| v.is_a?(Array) && v.first.is_a?(Hash) } || [])
+  end
+
+  def humanize_key(key)
+    key.to_s.tr('_', ' ').strip.capitalize
+  end
+
+  def format_value(value)
+    case value
+    when Float then value.round(2)
+    when Hash then value[:available] == false ? 'N/D' : value.to_s
+    else value
+    end
+  end
 
   def set_dashboard
     @dashboard = Current.account.jabvox_analytics_dashboards.find(params[:dashboard_id])

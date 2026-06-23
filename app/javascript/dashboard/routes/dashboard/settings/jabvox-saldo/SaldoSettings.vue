@@ -5,17 +5,23 @@ import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
-import SettingsLayout from '../SettingsLayout.vue';
-import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
+import Label from 'dashboard/components-next/label/Label.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import SaveBar from './components/SaveBar.vue';
 
 const store = useStore();
 const { t } = useI18n();
-const { markDirty, markClean } = useUnsavedChanges();
+const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
 const config = useMapGetter('jabvoxSaldo/getConfig');
 const status = useMapGetter('jabvoxSaldo/getStatus');
 const uiFlags = useMapGetter('jabvoxSaldo/getUIFlags');
+
+const showApiKey = ref(false);
+const showApiSecret = ref(false);
 
 const form = ref({
   name_jabvox: '',
@@ -28,6 +34,7 @@ const form = ref({
 watch(form, () => markDirty(), { deep: true });
 
 const hasApiKey = computed(() => !!config.value?.has_api_key);
+const isValid = computed(() => form.value.proxy_url_jabvox.trim().length > 0);
 
 const fillForm = data => {
   form.value = {
@@ -50,6 +57,7 @@ const loadData = async () => {
 onMounted(loadData);
 
 const onSave = async () => {
+  if (!isValid.value) return;
   try {
     const payload = { ...form.value };
     if (!payload.api_key_jabvox) delete payload.api_key_jabvox;
@@ -66,183 +74,253 @@ const onSave = async () => {
   }
 };
 
+const onDiscard = async () => {
+  fillForm(config.value);
+  await nextTick();
+  markClean();
+};
+
 const onRefreshStatus = () => store.dispatch('jabvoxSaldo/fetchStatus');
 
 const formatBalance = value => {
   const n = Number(value || 0);
-  return `$${n.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} COP`;
+  return `$${n.toLocaleString('es-CO', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })} COP`;
 };
 
-const balanceColor = computed(() => {
+// Token-based balance tone: low (ruby), medium (amber), healthy (brand).
+const balanceTone = computed(() => {
   const n = Number(status.value?.balance || 0);
-  if (n <= 10000) return { color: '#ef4444' };
-  if (n < 50000) return { color: '#f97316' };
-  return { color: '#2563eb' };
+  if (n <= 10000) return 'text-n-ruby-11';
+  if (n < 50000) return 'text-n-amber-11';
+  return 'text-n-brand';
 });
 </script>
 
 <template>
-  <SettingsLayout>
-    <BaseSettingsHeader
-      :title="$t('JABVOX_SALDO.TITLE')"
-      :description="$t('JABVOX_SALDO.DESCRIPTION')"
-    />
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-      <div
-        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-5"
-      >
-        <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">
-          {{ $t('JABVOX_SALDO.FORM.TITLE') }}
-        </h3>
-
-        <div class="space-y-4">
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_SALDO.FORM.NAME') }}
-            </label>
-            <input
-              v-model="form.name_jabvox"
-              type="text"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100"
-            />
-          </div>
-
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_SALDO.FORM.PROXY_URL') }}
-              <span>{{ $t('JABVOX_SALDO.FORM.REQUIRED') }}</span>
-            </label>
-            <input
-              v-model="form.proxy_url_jabvox"
-              type="text"
-              :placeholder="$t('JABVOX_SALDO.FORM.PROXY_URL_PLACEHOLDER')"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100"
-            />
-          </div>
-
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_SALDO.FORM.API_KEY') }}
-              <span
-                v-if="hasApiKey && !form.api_key_jabvox"
-                class="ml-1 font-normal text-slate-400"
-              >
-                {{ $t('JABVOX_SALDO.FORM.API_SECRET_HINT') }}
-              </span>
-            </label>
-            <input
-              v-model="form.api_key_jabvox"
-              type="password"
-              autocomplete="new-password"
-              :placeholder="
-                hasApiKey ? '••••••••••••' : $t('JABVOX_SALDO.FORM.API_KEY')
-              "
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100"
-            />
-          </div>
-
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_SALDO.FORM.API_SECRET') }}
-              <span class="ml-1 font-normal text-slate-400">
-                {{ $t('JABVOX_SALDO.FORM.API_SECRET_HINT') }}
-              </span>
-            </label>
-            <input
-              v-model="form.api_secret_jabvox"
-              type="password"
-              autocomplete="new-password"
-              placeholder="••••••••••••"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100"
-            />
-          </div>
-
-          <div>
-            <label
-              class="inline-flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              <input
-                v-model="form.is_active_jabvox"
-                type="checkbox"
-                class="rounded border-slate-300"
-              />
-              {{ $t('JABVOX_SALDO.FORM.ACTIVE') }}
-            </label>
-          </div>
-        </div>
-
-        <Button
-          :label="
-            uiFlags.isSaving
-              ? $t('JABVOX_PRODUCTS.LOADING')
-              : $t('JABVOX_SALDO.SAVE')
-          "
-          :disabled="uiFlags.isSaving || !form.proxy_url_jabvox"
-          @click="onSave"
+  <div class="w-full h-full overflow-y-auto bg-n-background">
+    <div
+      class="mx-auto w-full max-w-4xl flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+    >
+      <!-- Header -->
+      <div class="flex items-start gap-3">
+        <span
+          class="i-lucide-wallet size-9 shrink-0 rounded-xl bg-n-alpha-2 p-2 text-n-brand"
         />
+        <div class="min-w-0">
+          <h1 class="text-xl font-semibold tracking-tight text-n-slate-12">
+            {{ t('JABVOX_SALDO.TITLE') }}
+          </h1>
+          <p class="mt-1 text-sm leading-relaxed text-n-slate-11">
+            {{ t('JABVOX_SALDO.SUBTITLE') }}
+          </p>
+        </div>
       </div>
 
+      <!-- Balance / status card (hero) -->
       <div
-        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-4 self-start"
+        class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm p-5 sm:p-6"
       >
-        <div class="flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">
-            {{ $t('JABVOX_SALDO.STATUS.TITLE') }}
-          </h3>
-          <Button
-            variant="clear"
-            size="small"
-            :icon="
-              uiFlags.isCheckingStatus
-                ? 'i-lucide-loader-circle'
-                : 'i-lucide-refresh-cw'
-            "
-            :class="{ 'animate-spin': uiFlags.isCheckingStatus }"
-            :label="$t('JABVOX_SALDO.STATUS.REFRESH')"
-            :disabled="uiFlags.isCheckingStatus"
-            @click="onRefreshStatus"
-          />
-        </div>
-
-        <div v-if="!status" class="text-sm text-slate-400">
-          {{ $t('JABVOX_SALDO.STATUS.LOADING') }}
-        </div>
-        <div v-else class="space-y-2">
-          <span
-            class="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-full"
-            :class="
-              status.connected
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-600'
-            "
-          >
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex flex-col gap-1 min-w-0">
             <span
-              class="size-2 rounded-full"
-              :class="status.connected ? 'bg-green-500' : 'bg-red-500'"
+              class="text-xs font-medium uppercase tracking-wide text-n-slate-10"
+            >
+              {{ t('JABVOX_SALDO.STATUS.BALANCE_LABEL') }}
+            </span>
+            <!-- Balance -->
+            <div v-if="uiFlags.isCheckingStatus" class="py-1">
+              <Spinner :size="22" />
+            </div>
+            <p
+              v-else-if="status"
+              class="text-3xl font-bold tabular-nums"
+              :class="balanceTone"
+            >
+              {{ formatBalance(status.balance) }}
+            </p>
+            <p v-else class="text-sm text-n-slate-10 py-1">
+              {{ t('JABVOX_SALDO.STATUS.NOT_CONFIGURED') }}
+            </p>
+            <p
+              v-if="status && status.message"
+              class="text-xs text-n-slate-11 truncate"
+            >
+              {{ status.message }}
+            </p>
+          </div>
+
+          <div class="flex flex-col items-end gap-2 shrink-0">
+            <Label
+              v-if="status"
+              :label="
+                status.connected
+                  ? t('JABVOX_SALDO.STATUS.CONNECTED')
+                  : t('JABVOX_SALDO.STATUS.DISCONNECTED')
+              "
+              :color="status.connected ? 'teal' : 'ruby'"
+            >
+              <template #icon>
+                <span
+                  :class="
+                    status.connected
+                      ? 'i-lucide-circle-check'
+                      : 'i-lucide-circle-x'
+                  "
+                  class="size-3"
+                />
+              </template>
+            </Label>
+            <Button
+              :label="t('JABVOX_SALDO.STATUS.REFRESH')"
+              icon="i-lucide-refresh-cw"
+              variant="outline"
+              color="slate"
+              size="sm"
+              :is-loading="uiFlags.isCheckingStatus"
+              @click="onRefreshStatus"
             />
-            {{
-              status.connected
-                ? $t('JABVOX_SALDO.STATUS.CONNECTED')
-                : $t('JABVOX_SALDO.STATUS.DISCONNECTED')
-            }}
-          </span>
-          <p class="text-sm text-slate-500 dark:text-slate-400">
-            {{ status.message }}
-          </p>
-          <p class="text-2xl font-bold" :style="balanceColor">
-            {{ formatBalance(status.balance) }}
-          </p>
+          </div>
         </div>
       </div>
+
+      <!-- Config form -->
+      <form class="flex flex-col gap-6" @submit.prevent>
+        <div
+          class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden"
+        >
+          <div class="border-b border-n-weak px-5 py-4 sm:px-6">
+            <h2 class="text-base font-semibold text-n-slate-12">
+              {{ t('JABVOX_SALDO.FORM.TITLE') }}
+            </h2>
+          </div>
+          <div class="px-5 py-5 sm:px-6 flex flex-col gap-8">
+            <!-- General -->
+            <section class="flex flex-col gap-4">
+              <h3
+                class="text-xs font-semibold uppercase tracking-wide text-n-slate-10"
+              >
+                {{ t('JABVOX_SALDO.FORM.SECTION_GENERAL') }}
+              </h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  v-model="form.name_jabvox"
+                  :label="t('JABVOX_SALDO.FORM.NAME')"
+                  :placeholder="t('JABVOX_SALDO.FORM.NAME_PLACEHOLDER')"
+                />
+                <Input
+                  v-model="form.proxy_url_jabvox"
+                  :label="`${t('JABVOX_SALDO.FORM.PROXY_URL')} ${t('JABVOX_SALDO.FORM.REQUIRED')}`"
+                  :placeholder="t('JABVOX_SALDO.FORM.PROXY_URL_PLACEHOLDER')"
+                  custom-input-class="font-mono"
+                />
+              </div>
+              <div
+                class="flex items-center justify-between gap-3 rounded-xl border border-n-weak bg-n-alpha-1 px-4 py-3"
+              >
+                <div class="flex flex-col">
+                  <span class="text-sm font-medium text-n-slate-12">
+                    {{ t('JABVOX_SALDO.FORM.ACTIVE') }}
+                  </span>
+                  <span class="text-xs text-n-slate-11">
+                    {{ t('JABVOX_SALDO.FORM.ACTIVE_HINT') }}
+                  </span>
+                </div>
+                <Switch v-model="form.is_active_jabvox" />
+              </div>
+            </section>
+
+            <!-- Credentials -->
+            <section class="flex flex-col gap-4">
+              <h3
+                class="text-xs font-semibold uppercase tracking-wide text-n-slate-10"
+              >
+                {{ t('JABVOX_SALDO.FORM.SECTION_CREDENTIALS') }}
+              </h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- API key -->
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-sm font-medium text-n-slate-12">
+                    {{ t('JABVOX_SALDO.FORM.API_KEY') }}
+                  </label>
+                  <div class="relative">
+                    <Input
+                      v-model="form.api_key_jabvox"
+                      :type="showApiKey ? 'text' : 'password'"
+                      autocomplete="new-password"
+                      custom-input-class="!pr-10 font-mono"
+                      :placeholder="
+                        hasApiKey
+                          ? '••••••••••••'
+                          : t('JABVOX_SALDO.FORM.API_KEY_PLACEHOLDER')
+                      "
+                    />
+                    <button
+                      type="button"
+                      class="absolute right-2 top-1/2 -translate-y-1/2 text-n-slate-10 hover:text-n-slate-12"
+                      @click="showApiKey = !showApiKey"
+                    >
+                      <span
+                        :class="
+                          showApiKey ? 'i-lucide-eye-off' : 'i-lucide-eye'
+                        "
+                        class="size-4"
+                      />
+                    </button>
+                  </div>
+                  <p
+                    v-if="hasApiKey && !form.api_key_jabvox"
+                    class="text-xs text-n-slate-10"
+                  >
+                    {{ t('JABVOX_SALDO.FORM.API_SECRET_HINT') }}
+                  </p>
+                </div>
+
+                <!-- API secret -->
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-sm font-medium text-n-slate-12">
+                    {{ t('JABVOX_SALDO.FORM.API_SECRET') }}
+                  </label>
+                  <div class="relative">
+                    <Input
+                      v-model="form.api_secret_jabvox"
+                      :type="showApiSecret ? 'text' : 'password'"
+                      autocomplete="new-password"
+                      custom-input-class="!pr-10 font-mono"
+                      placeholder="••••••••••••"
+                    />
+                    <button
+                      type="button"
+                      class="absolute right-2 top-1/2 -translate-y-1/2 text-n-slate-10 hover:text-n-slate-12"
+                      @click="showApiSecret = !showApiSecret"
+                    >
+                      <span
+                        :class="
+                          showApiSecret ? 'i-lucide-eye-off' : 'i-lucide-eye'
+                        "
+                        class="size-4"
+                      />
+                    </button>
+                  </div>
+                  <p class="text-xs text-n-slate-10">
+                    {{ t('JABVOX_SALDO.FORM.API_SECRET_HINT') }}
+                  </p>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <SaveBar
+          :visible="isDirty"
+          :is-saving="uiFlags.isSaving"
+          :disabled="!isValid"
+          @save="onSave"
+          @discard="onDiscard"
+        />
+      </form>
     </div>
-  </SettingsLayout>
+  </div>
 </template>

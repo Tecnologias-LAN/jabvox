@@ -100,24 +100,31 @@ const onMoveLead = async ({ leadId, stageId }) => {
 <template>
   <div class="flex flex-col h-full w-full overflow-hidden bg-n-background">
     <div
-      class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-700 shrink-0"
+      class="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3.5 border-b border-n-weak bg-n-solid-1 shrink-0"
     >
-      <div class="flex items-center gap-3">
-        <i class="i-lucide-kanban text-slate-600 dark:text-slate-300 text-xl" />
-        <h1 class="text-lg font-semibold text-slate-800 dark:text-slate-100">
-          {{ $t('JABVOX_KANBAN.TITLE') }}
-        </h1>
+      <div class="flex items-center gap-3 min-w-0">
+        <span
+          class="i-lucide-kanban size-9 shrink-0 rounded-xl bg-n-alpha-2 p-2 text-n-brand"
+        />
+        <div class="min-w-0">
+          <h1 class="text-lg font-semibold tracking-tight text-n-slate-12">
+            {{ $t('JABVOX_KANBAN.TITLE') }}
+          </h1>
+          <p class="text-xs text-n-slate-10 hidden sm:block">
+            {{ $t('JABVOX_KANBAN.SUBTITLE') }}
+          </p>
+        </div>
       </div>
 
       <div
         class="flex flex-1 sm:flex-none items-center gap-2 sm:gap-3 w-full sm:w-auto"
       >
-        <span class="text-sm text-slate-500 dark:text-slate-400 shrink-0">
+        <span class="text-sm text-n-slate-10 shrink-0">
           {{ $t('JABVOX_KANBAN.FUNNEL_LABEL') }}
         </span>
         <select
           v-model="selectedFunnelId"
-          class="text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-woot-500 w-full sm:w-64"
+          class="reset-base text-sm border border-n-weak rounded-lg px-3 h-9 bg-n-solid-1 text-n-slate-12 focus:outline-none focus:border-n-slate-7 w-full sm:w-64 transition-colors"
           @change="onSelectFunnel(selectedFunnelId)"
         >
           <option
@@ -133,22 +140,23 @@ const onMoveLead = async ({ leadId, stageId }) => {
 
     <div
       v-if="uiFlags.isFetchingFunnels || uiFlags.isFetchingBoard"
-      class="flex-1 flex items-center justify-center"
+      class="flex-1 flex items-center justify-center gap-2 text-n-slate-11 text-sm"
     >
-      <span class="text-slate-500 dark:text-slate-400 text-sm animate-pulse">
-        {{ $t('JABVOX_KANBAN.LOADING') }}
-      </span>
+      <span class="i-lucide-loader-circle size-4 animate-spin" />
+      {{ $t('JABVOX_KANBAN.LOADING') }}
     </div>
 
     <div
       v-else-if="activeFunnels.length === 0"
-      class="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500 dark:text-slate-400"
+      class="flex-1 flex flex-col items-center justify-center gap-3 text-n-slate-11 px-6 text-center"
     >
-      <i class="i-lucide-kanban text-4xl opacity-30" />
-      <p class="text-sm">{{ $t('JABVOX_KANBAN.NO_FUNNELS') }}</p>
+      <span class="i-lucide-kanban size-14 text-n-brand opacity-40" />
+      <p class="text-sm text-n-slate-12 font-medium">
+        {{ $t('JABVOX_KANBAN.NO_FUNNELS') }}
+      </p>
       <router-link
         :to="{ name: 'jabvox_kanban_funnels_index' }"
-        class="text-sm text-woot-600 hover:underline"
+        class="text-sm text-n-brand hover:underline font-medium"
       >
         {{ $t('JABVOX_KANBAN.CONFIGURE_FUNNELS') }}
       </router-link>
@@ -171,7 +179,7 @@ const onMoveLead = async ({ leadId, stageId }) => {
 
       <div
         v-if="isDetailOpen && selectedConversation"
-        class="flex-[3] min-w-0 max-w-[720px] shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-hidden"
+        class="flex-[3] min-w-0 max-w-[720px] shrink-0 border-l border-n-weak overflow-hidden"
       >
         <KanbanLeadDetail
           :conversation="selectedConversation"

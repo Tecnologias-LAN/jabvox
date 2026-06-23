@@ -5,6 +5,8 @@ import { useStore } from 'vuex';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import SectionCard from '../components/SectionCard.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -22,9 +24,7 @@ const form = ref({
   company_logo_jabvox: '',
 });
 
-onMounted(async () => {
-  await store.dispatch('jabvoxProducts/fetchIntegrationConfig');
-});
+onMounted(() => store.dispatch('jabvoxProducts/fetchIntegrationConfig'));
 
 watch(
   config,
@@ -67,238 +67,153 @@ const onSave = async () => {
 </script>
 
 <template>
-  <div class="flex gap-8 flex-wrap">
-    <div class="flex-1 min-w-[320px] max-w-lg space-y-5">
-      <div>
-        <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">
-          {{ $t('JABVOX_PRODUCTS.PDF.TITLE') }}
-        </h2>
-        <p class="text-sm text-slate-500 mt-1">
-          {{ $t('JABVOX_PRODUCTS.PDF.DESCRIPTION') }}
-        </p>
-      </div>
-
-      <div
-        v-if="uiFlags.isFetchingConfig"
-        class="text-sm text-slate-400 animate-pulse py-6"
-      >
-        {{ $t('JABVOX_PRODUCTS.LOADING') }}
-      </div>
-
-      <div v-else class="space-y-4">
-        <div>
-          <label
-            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >{{ $t('JABVOX_PRODUCTS.PDF.LOGO') }}</label
-          >
+  <!-- eslint-disable vue/no-bare-strings-in-template -- preview mockup labels -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Form -->
+    <SectionCard
+      :title="t('JABVOX_PRODUCTS.TABS.PDF')"
+      :description="t('JABVOX_PRODUCTS.PDF.SECTION_DESC')"
+      icon="i-lucide-file-text"
+    >
+      <div class="flex flex-col gap-4">
+        <!-- Logo -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_PRODUCTS.PDF.LOGO') }}
+          </label>
           <div class="flex items-center gap-3">
             <div
-              class="w-16 h-16 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-800"
+              class="size-16 shrink-0 rounded-xl border border-n-weak bg-n-alpha-1 flex items-center justify-center overflow-hidden"
             >
               <img
                 v-if="form.company_logo_jabvox"
                 :src="form.company_logo_jabvox"
-                class="w-full h-full object-contain"
-                alt="Logo"
+                alt=""
+                class="size-full object-contain"
               />
-              <i v-else class="i-lucide-image text-2xl text-slate-300" />
+              <span v-else class="i-lucide-image size-6 text-n-slate-9" />
             </div>
-            <div>
-              <label
-                class="cursor-pointer text-sm text-woot-600 hover:underline"
-              >
-                {{ $t('JABVOX_PRODUCTS.PDF.CHANGE_LOGO') }}
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/svg+xml"
-                  class="hidden"
-                  @change="onLogoChange"
-                />
-              </label>
-              <p class="text-xs text-slate-400 mt-0.5">
-                {{ $t('JABVOX_PRODUCTS.PDF.LOGO_FORMATS') }}
-              </p>
-            </div>
+            <label
+              class="inline-flex items-center gap-1.5 cursor-pointer rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 text-sm font-medium text-n-slate-12 hover:bg-n-alpha-1 transition-colors"
+            >
+              <span class="i-lucide-upload size-4" />
+              {{ t('JABVOX_PRODUCTS.PDF.LOGO') }}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml"
+                class="hidden"
+                @change="onLogoChange"
+              />
+            </label>
           </div>
         </div>
 
-        <div>
-          <label
-            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >{{ $t('JABVOX_PRODUCTS.PDF.COMPANY_NAME') }}</label
-          >
-          <input
-            v-model="form.company_name_jabvox"
-            type="text"
-            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          />
-        </div>
-
-        <div>
-          <label
-            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >{{ $t('JABVOX_PRODUCTS.PDF.NIT') }}</label
-          >
-          <input
+        <Input
+          v-model="form.company_name_jabvox"
+          :label="t('JABVOX_PRODUCTS.PDF.COMPANY_NAME')"
+        />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
             v-model="form.company_nit_jabvox"
-            type="text"
-            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
+            :label="t('JABVOX_PRODUCTS.PDF.NIT')"
           />
-        </div>
-
-        <div>
-          <label
-            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >{{ $t('JABVOX_PRODUCTS.PDF.ADDRESS') }}</label
-          >
-          <input
-            v-model="form.company_address_jabvox"
-            type="text"
-            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          />
-        </div>
-
-        <div>
-          <label
-            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >{{ $t('JABVOX_PRODUCTS.PDF.PHONE') }}</label
-          >
-          <input
+          <Input
             v-model="form.company_phone_jabvox"
-            type="text"
-            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
+            :label="t('JABVOX_PRODUCTS.PDF.PHONE')"
           />
         </div>
-
-        <div>
-          <label
-            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >{{ $t('JABVOX_PRODUCTS.PDF.WEBSITE') }}</label
-          >
-          <input
-            v-model="form.company_website_jabvox"
-            type="url"
-            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          />
-        </div>
-
-        <div>
-          <label
-            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >{{ $t('JABVOX_PRODUCTS.PDF.EMAIL') }}</label
-          >
-          <input
+        <Input
+          v-model="form.company_address_jabvox"
+          :label="t('JABVOX_PRODUCTS.PDF.ADDRESS')"
+        />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
             v-model="form.company_email_jabvox"
             type="email"
-            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
+            :label="t('JABVOX_PRODUCTS.PDF.EMAIL')"
+          />
+          <Input
+            v-model="form.company_website_jabvox"
+            type="url"
+            :label="t('JABVOX_PRODUCTS.PDF.WEBSITE')"
           />
         </div>
-
-        <Button
-          :label="$t('JABVOX_PRODUCTS.SAVE')"
-          :is-loading="uiFlags.isSavingConfig"
-          @click="onSave"
-        />
       </div>
-    </div>
 
-    <!-- PDF Preview -->
-    <div class="flex-1 min-w-[420px]">
-      <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-        {{ $t('JABVOX_PRODUCTS.PDF.PREVIEW') }}
+      <template #footer>
+        <div class="flex justify-end">
+          <Button
+            :label="t('JABVOX_PRODUCTS.SAVE')"
+            :is-loading="uiFlags.isSavingConfig"
+            @click="onSave"
+          />
+        </div>
+      </template>
+    </SectionCard>
+
+    <!-- Live preview -->
+    <div class="flex flex-col gap-2">
+      <p class="text-xs font-medium uppercase tracking-wide text-n-slate-10">
+        {{ t('JABVOX_PRODUCTS.PDF.PREVIEW_TITLE') }}
       </p>
       <div
-        class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden shadow-sm"
+        class="rounded-2xl border border-n-weak bg-white shadow-sm overflow-hidden"
       >
-        <!-- Header: Logo | Company info (center) | Doc type (right) -->
-        <div
-          class="flex items-start gap-4 p-5 border-b border-slate-200 dark:border-slate-700"
-        >
-          <!-- Logo left -->
+        <!-- Document header -->
+        <div class="flex items-start gap-4 p-5 border-b border-slate-200">
           <div
-            class="w-16 h-16 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-800 shrink-0"
+            class="size-14 shrink-0 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden"
           >
             <img
               v-if="form.company_logo_jabvox"
               :src="form.company_logo_jabvox"
-              class="w-full h-full object-contain"
+              alt=""
+              class="size-full object-contain"
             />
-            <i v-else class="i-lucide-image text-xl text-slate-300" />
+            <span v-else class="i-lucide-image size-5 text-slate-300" />
           </div>
-
-          <!-- Company info center -->
-          <div
-            class="flex-1 text-center leading-snug text-xs text-slate-600 dark:text-slate-300"
-          >
-            <p
-              class="font-bold text-sm text-slate-800 dark:text-slate-100 mb-0.5"
-            >
-              {{ form.company_name_jabvox || 'Nombre empresa' }}
+          <div class="flex-1 min-w-0 text-center">
+            <p class="text-sm font-bold text-slate-800 truncate">
+              {{ form.company_name_jabvox || '—' }}
             </p>
-            <p v-if="form.company_nit_jabvox">
-              {{ $t('JABVOX_PRODUCTS.PDF.NIT_PREFIX') }}
-              {{ form.company_nit_jabvox }}
-            </p>
-            <p v-if="form.company_address_jabvox">
-              {{ form.company_address_jabvox }}
-            </p>
-            <p v-if="form.company_phone_jabvox">
-              {{ form.company_phone_jabvox }}
-            </p>
-            <p
-              v-if="form.company_website_jabvox"
-              class="text-blue-600 underline"
-            >
-              {{ form.company_website_jabvox }}
-            </p>
-            <p v-if="form.company_email_jabvox">
-              {{ form.company_email_jabvox }}
-            </p>
+            <div class="text-[10px] leading-snug text-slate-500">
+              <p v-if="form.company_nit_jabvox">
+                NIT {{ form.company_nit_jabvox }}
+              </p>
+              <p v-if="form.company_address_jabvox">
+                {{ form.company_address_jabvox }}
+              </p>
+              <p v-if="form.company_phone_jabvox || form.company_email_jabvox">
+                {{ form.company_phone_jabvox }}
+                <span v-if="form.company_email_jabvox">
+                  · {{ form.company_email_jabvox }}
+                </span>
+              </p>
+            </div>
           </div>
-
-          <!-- Doc type top-right -->
-          <div class="text-right shrink-0">
-            <p class="text-xs text-slate-400 uppercase tracking-wide">
-              {{ $t('JABVOX_PRODUCTS.PDF.QUOTE_LABEL') }}
-            </p>
-            <p
-              class="text-2xl font-bold text-slate-800 dark:text-slate-100 leading-none mt-0.5"
+          <div class="shrink-0 text-right">
+            <span
+              class="inline-block rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500"
             >
-              {{ $t('JABVOX_PRODUCTS.PDF.QUOTE_NUMBER_PREVIEW') }}
-            </p>
+              COTIZACIÓN
+            </span>
           </div>
         </div>
-
-        <!-- Table header placeholder -->
-        <div
-          class="mx-5 mt-4 mb-2 grid grid-cols-4 gap-2 text-xs font-semibold text-slate-400 border-b border-slate-100 dark:border-slate-700 pb-1.5"
-        >
-          <span class="col-span-2">Producto / Servicio</span>
-          <span class="text-center">Cant.</span>
-          <span class="text-right">Total</span>
-        </div>
-
-        <!-- Rows placeholder -->
-        <div class="mx-5 space-y-2 pb-4">
-          <div
-            v-for="w in ['3/4', '2/3', '5/6']"
-            :key="w"
-            class="grid grid-cols-4 gap-2 items-center"
-          >
-            <div
-              class="col-span-2 h-2 bg-slate-100 dark:bg-slate-700 rounded"
-            />
-            <div class="h-2 bg-slate-100 dark:bg-slate-700 rounded" />
-            <div class="h-2 bg-slate-100 dark:bg-slate-700 rounded" />
+        <!-- Placeholder table -->
+        <div class="p-5 flex flex-col gap-2">
+          <div class="grid grid-cols-4 gap-2">
+            <div class="col-span-2 h-2 rounded bg-slate-200" />
+            <div class="h-2 rounded bg-slate-100" />
+            <div class="h-2 rounded bg-slate-100" />
           </div>
-        </div>
-
-        <!-- Total row placeholder -->
-        <div
-          class="mx-5 mb-4 flex justify-end border-t border-slate-100 dark:border-slate-700 pt-2 gap-4 text-xs"
-        >
-          <span class="text-slate-400">Total</span>
-          <div class="h-2 w-16 bg-slate-200 dark:bg-slate-600 rounded mt-0.5" />
+          <div v-for="n in 3" :key="n" class="grid grid-cols-4 gap-2">
+            <div class="col-span-2 h-2 rounded bg-slate-100" />
+            <div class="h-2 rounded bg-slate-100" />
+            <div class="h-2 rounded bg-slate-100" />
+          </div>
+          <div class="flex justify-end pt-2">
+            <div class="h-3 w-20 rounded bg-slate-200" />
+          </div>
         </div>
       </div>
     </div>

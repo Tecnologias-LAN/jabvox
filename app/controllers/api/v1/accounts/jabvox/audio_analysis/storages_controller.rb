@@ -1,6 +1,6 @@
 class Api::V1::Accounts::Jabvox::AudioAnalysis::StoragesController < Api::V1::Accounts::Jabvox::AudioAnalysis::BaseController
   before_action :ensure_can_access
-  before_action :set_storage, only: [:update, :destroy, :objects]
+  before_action :set_storage, only: [:update, :destroy, :objects, :assign]
 
   def index
     render json: { storages: Current.account.jabvox_audio_storages.order(:name).map { |s| serialize(s) } }
@@ -31,15 +31,85 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::StoragesController < Api::V1::Ac
     render json: Jabvox::AudioBucketService.new(storage).test_connection
   end
 
-  # GET /storages/:id/objects?prefix=&token= — browse the bucket.
+  # GET /storages/:id/objects?prefix= — lists the whole prefix; FE paginates.
+  # Each file is enriched with its latest analysis (analyzed?, score, how many
+  # stages scored it) so the browser can show a verified/score table.
   def objects
     result = Jabvox::AudioBucketService.new(@storage).list_objects(
-      prefix: params[:prefix].to_s, token: params[:token]
+      prefix: params[:prefix].to_s
     )
+    result[:files] = enrich_with_analysis(result[:files]) if result[:files].present?
     render json: result
   end
 
+  # POST /storages/:id/assign — bulk-assign a typification and/or agent to files
+  # without launching an analysis. Upserts one assignment row per file_key.
+  def assign
+    keys = Array(params[:file_keys]).map(&:to_s).reject(&:blank?)
+    return render(json: { error: 'file_keys required' }, status: :unprocessable_entity) if keys.empty?
+
+    typification_id = params[:typification_id].presence
+    agent_id = params[:agent_id].presence
+
+    keys.each do |key|
+      record = Current.account.jabvox_audio_assignments
+                      .find_or_initialize_by(storage_id: @storage.id, file_key: key)
+      record.typification_id = typification_id
+      record.agent_id = agent_id
+      record.save!
+    end
+    render json: { assigned: keys.size }
+  end
+
   private
+
+  # Maps each listed file_key to its most recent analysis result + manual
+  # assignment (typification/agent) for this account.
+  def enrich_with_analysis(files)
+    keys = files.map { |f| f[:key] }
+    latest = latest_results_by_key(keys)
+    assignments = assignments_by_key(keys)
+    files.map do |file|
+      result = latest[file[:key]]
+      assignment = assignments[file[:key]]
+      enriched = file
+      if result
+        enriched = enriched.merge(
+          analyzed: result.status == 'completed',
+          status: result.status,
+          score: result.final_score,
+          passed: result.passed,
+          stages_count: Array(result.stages_data).size
+        )
+      end
+      if assignment
+        enriched = enriched.merge(
+          typification_id: assignment.typification_id,
+          typification_name: assignment.typification&.name,
+          agent_id: assignment.agent_id,
+          agent_name: assignment.agent&.name
+        )
+      end
+      enriched
+    end
+  end
+
+  def assignments_by_key(keys)
+    Current.account.jabvox_audio_assignments
+           .includes(:typification, :agent)
+           .where(storage_id: @storage.id, file_key: keys)
+           .index_by(&:file_key)
+  end
+
+  # Latest result per file_key (a file may be re-analyzed across jobs).
+  def latest_results_by_key(keys)
+    Current.account.jabvox_audio_results
+           .where(file_key: keys)
+           .order(created_at: :desc)
+           .each_with_object({}) do |r, acc|
+             acc[r.file_key] ||= r
+           end
+  end
 
   def set_storage
     @storage = Current.account.jabvox_audio_storages.find(params[:id])

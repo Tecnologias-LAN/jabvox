@@ -17,7 +17,12 @@
       "API_SECRET_HINT": "(deje en blanco para mantener el actual)",
       "PROXY_URL": "URL del Proxy",
       "PROXY_URL_PLACEHOLDER": "http://voip.t-lan.co/mb-proxy.php",
-      "ACTIVE": "Activo"
+      "ACTIVE": "Activo",
+      "SECTION_GENERAL": "General",
+      "SECTION_CREDENTIALS": "Credenciales del proxy",
+      "NAME_PLACEHOLDER": "ej. Proxy de saldo principal",
+      "API_KEY_PLACEHOLDER": "Clave de API",
+      "ACTIVE_HINT": "Solo se consulta el saldo cuando la conexión está activa."
     },
     "STATUS": {
       "TITLE": "Estado de la Conexión",
@@ -25,7 +30,19 @@
       "LOADING": "Verificando conexión...",
       "CONNECTED": "Conectado",
       "DISCONNECTED": "Desconectado",
-      "BALANCE": "Saldo actual"
+      "BALANCE": "Saldo actual",
+      "BALANCE_LABEL": "Saldo disponible",
+      "NOT_CONFIGURED": "Configura el proxy para consultar tu saldo."
+    },
+    "SUBTITLE": "Conecta tu proxy de saldo para consultar el crédito disponible de tu cuenta.",
+    "COMMON": {
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar"
+    },
+    "SAVE_BAR": {
+      "UNSAVED": "Tienes cambios sin guardar",
+      "SAVE": "Guardar cambios",
+      "DISCARD": "Descartar"
     }
   }
 }

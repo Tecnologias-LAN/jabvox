@@ -36,7 +36,7 @@ const isSelected = computed(() => props.selectedId === props.folder.id);
       @click="emit('select', folder.id)"
     >
       <span class="i-lucide-folder size-4 shrink-0" />
-      <span class="truncate">{{ folder.name }}</span>
+      <span class="truncate">{{ folder.nameJabvox || folder.name }}</span>
     </button>
     <FolderTreeNode
       v-for="child in children"

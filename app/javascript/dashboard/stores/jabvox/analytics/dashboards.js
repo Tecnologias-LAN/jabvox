@@ -26,6 +26,26 @@ export const useAnalyticsDashboardsStore = defineStore('analyticsDashboards', {
       this.folders = data;
     },
 
+    async createFolder(payload) {
+      const { data } = await analyticsFoldersAPI.create({ folder: payload });
+      this.folders.push(data);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async updateFolder(id, payload) {
+      const { data } = await analyticsFoldersAPI.update(id, {
+        folder: payload,
+      });
+      const idx = this.folders.findIndex(f => f.id === Number(id));
+      if (idx !== -1) this.folders.splice(idx, 1, data);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async destroyFolder(id) {
+      await analyticsFoldersAPI.delete(id);
+      this.folders = this.folders.filter(f => f.id !== Number(id));
+    },
+
     async fetchDashboards() {
       this.uiFlags.fetchingList = true;
       try {
@@ -34,6 +54,24 @@ export const useAnalyticsDashboardsStore = defineStore('analyticsDashboards', {
       } finally {
         this.uiFlags.fetchingList = false;
       }
+    },
+
+    // Create the two predefined dashboards (Autogestión + Valiosas) and reload.
+    async seedDefaults() {
+      await analyticsDashboardsAPI.seedDefaults();
+      await this.fetchDashboards();
+    },
+
+    // Catalog of built-in internal reports the user can pick from.
+    async fetchInternalReports() {
+      const { data } = await analyticsDashboardsAPI.internalReports();
+      return data;
+    },
+
+    // Create dashboards for the selected report keys, then reload.
+    async createInternalReports(keys) {
+      await analyticsDashboardsAPI.createInternalReports(keys);
+      await this.fetchDashboards();
     },
 
     async getDashboard(id) {

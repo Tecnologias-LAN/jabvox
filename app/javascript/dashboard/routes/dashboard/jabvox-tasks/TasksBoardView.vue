@@ -1,0 +1,190 @@
+<script setup>
+import { ref, computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
+import { useAlert } from 'dashboard/composables';
+import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
+import TaskBoard from './board/TaskBoard.vue';
+import TaskFormDialog from './board/TaskFormDialog.vue';
+import LeadContactsPanel from './LeadContactsPanel.vue';
+import LeadSelect from './components/LeadSelect.vue';
+import TasksCalendar from './calendar/TasksCalendar.vue';
+import TasksEmptyState from './components/TasksEmptyState.vue';
+
+const { t } = useI18n();
+const route = useRoute();
+const store = useTasksStore();
+
+const view = ref('board');
+const appliedLeadId = ref(null);
+const showCalendarTaskDialog = ref(false);
+const calendarTask = ref(null);
+
+const boardId = computed(() => route.params.boardId || null);
+const board = computed(() => store.board);
+const stages = computed(() => store.stages);
+const isLoadingBoard = computed(() => store.uiFlags.fetchingBoard);
+
+const viewOptions = computed(() => [
+  {
+    value: 'board',
+    label: t('JABVOX_TASKS.VIEW.BOARD'),
+    icon: 'i-lucide-columns-3',
+  },
+  {
+    value: 'calendar',
+    label: t('JABVOX_TASKS.VIEW.CALENDAR'),
+    icon: 'i-lucide-calendar',
+  },
+]);
+
+const refreshTasks = async () => {
+  if (!boardId.value) return;
+  const params = { board_id: boardId.value };
+  if (appliedLeadId.value) params.lead_id = appliedLeadId.value;
+  await store.fetchTasks(params);
+};
+
+const loadBoard = async id => {
+  if (!id) return;
+  try {
+    await store.getBoard(id);
+    await refreshTasks();
+  } catch {
+    useAlert(t('JABVOX_TASKS.BOARD.ERROR'));
+  }
+};
+
+const onLeadFilterChange = async leadId => {
+  appliedLeadId.value = leadId ? Number(leadId) : null;
+  await refreshTasks();
+};
+
+const onCalendarTaskDelete = async task => {
+  // eslint-disable-next-line no-alert
+  if (!window.confirm(t('JABVOX_TASKS.TASK.DELETE_CONFIRM'))) return;
+  try {
+    await store.deleteTask(task.id);
+    useAlert(t('JABVOX_TASKS.TASK.DELETED'));
+    showCalendarTaskDialog.value = false;
+    calendarTask.value = null;
+    await refreshTasks();
+  } catch {
+    useAlert(t('JABVOX_TASKS.TASK.ERROR'));
+  }
+};
+
+const openCalendarTask = task => {
+  calendarTask.value = task;
+  showCalendarTaskDialog.value = true;
+};
+
+const onCalendarTaskSubmit = async payload => {
+  try {
+    if (calendarTask.value) {
+      await store.updateTask(calendarTask.value.id, payload);
+      useAlert(t('JABVOX_TASKS.TASK.UPDATED'));
+    }
+    showCalendarTaskDialog.value = false;
+    calendarTask.value = null;
+    await refreshTasks();
+  } catch {
+    useAlert(t('JABVOX_TASKS.TASK.ERROR'));
+  }
+};
+
+watch(boardId, id => loadBoard(id), { immediate: true });
+
+// The calendar reloads tasks for its month range; refetch full board tasks
+// when returning to the board view so columns are complete again.
+watch(view, value => {
+  if (value === 'board') refreshTasks();
+});
+</script>
+
+<template>
+  <div class="flex w-full h-full min-h-0">
+    <div class="flex-1 flex flex-col min-w-0 min-h-0">
+      <TasksEmptyState
+        v-if="!boardId"
+        icon="i-lucide-kanban"
+        :title="t('JABVOX_TASKS.BOARD.EMPTY_NO_BOARD')"
+        :body="t('JABVOX_TASKS.BOARD.EMPTY_NO_BOARD_BODY')"
+      />
+
+      <template v-else>
+        <div
+          class="flex flex-wrap items-center justify-between gap-3 px-3 sm:px-4 py-3 border-b border-n-weak shrink-0"
+        >
+          <div class="flex items-center gap-2 min-w-0 order-1">
+            <h2 class="text-sm font-semibold text-n-slate-12 truncate">
+              {{ board?.nameJabvox }}
+            </h2>
+          </div>
+
+          <div
+            class="flex items-center gap-2 sm:gap-3 order-3 sm:order-2 w-full sm:w-auto"
+          >
+            <div class="flex-1 sm:flex-none sm:w-56">
+              <LeadSelect
+                :model-value="appliedLeadId"
+                @update:model-value="onLeadFilterChange"
+              />
+            </div>
+
+            <div
+              class="flex items-center gap-1 p-0.5 rounded-lg bg-n-alpha-1 shrink-0"
+            >
+              <button
+                v-for="opt in viewOptions"
+                :key="opt.value"
+                type="button"
+                class="flex items-center gap-1 px-2.5 py-1 text-sm rounded-md transition-colors"
+                :class="
+                  view === opt.value
+                    ? 'bg-n-solid-1 text-n-slate-12'
+                    : 'text-n-slate-11'
+                "
+                @click="view = opt.value"
+              >
+                <span :class="opt.icon" class="size-4" aria-hidden="true" />
+                {{ opt.label }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-1 min-h-0 p-2 sm:p-4">
+          <p v-if="isLoadingBoard" class="text-sm text-n-slate-10">
+            {{ t('JABVOX_TASKS.BOARD.LOADING') }}
+          </p>
+
+          <TaskBoard
+            v-else-if="view === 'board'"
+            :key="boardId"
+            :board-id="boardId"
+          />
+
+          <TasksCalendar
+            v-else
+            :board-id="boardId"
+            :lead-id="appliedLeadId"
+            @open-task="openCalendarTask"
+          />
+        </div>
+      </template>
+    </div>
+
+    <LeadContactsPanel v-if="boardId" />
+
+    <TaskFormDialog
+      v-if="showCalendarTaskDialog"
+      :task="calendarTask"
+      :board-id="boardId"
+      :stages="stages"
+      @submit="onCalendarTaskSubmit"
+      @delete="onCalendarTaskDelete"
+      @close="showCalendarTaskDialog = false"
+    />
+  </div>
+</template>

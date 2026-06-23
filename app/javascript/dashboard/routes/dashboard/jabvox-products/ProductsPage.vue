@@ -46,43 +46,53 @@ const TABS = [
 </script>
 
 <template>
-  <div class="flex flex-col h-full w-full overflow-hidden bg-n-surface-1">
-    <div class="shrink-0 border-b border-n-weak bg-n-surface-1">
-      <div class="max-w-3xl mx-auto px-6 sm:px-8 pt-6 pb-0">
-        <h1 class="text-heading-1 text-n-slate-12">
-          {{ $t('JABVOX_PRODUCTS.TITLE') }}
-        </h1>
+  <div class="w-full h-full overflow-y-auto bg-n-background">
+    <div
+      class="mx-auto w-full max-w-6xl flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+    >
+      <!-- Header -->
+      <div class="flex items-start gap-3">
+        <span
+          class="i-lucide-package size-9 shrink-0 rounded-xl bg-n-alpha-2 p-2 text-n-brand"
+        />
+        <div class="min-w-0">
+          <h1 class="text-xl font-semibold tracking-tight text-n-slate-12">
+            {{ $t('JABVOX_PRODUCTS.TITLE') }}
+          </h1>
+          <p class="mt-1 text-sm leading-relaxed text-n-slate-11">
+            {{ $t('JABVOX_PRODUCTS.SUBTITLE') }}
+          </p>
+        </div>
       </div>
+
+      <!-- Tabs -->
       <div
-        class="flex px-6 sm:px-8 gap-1 max-w-3xl mx-auto mt-4 overflow-x-auto"
+        class="flex items-center gap-1 p-1 rounded-xl bg-n-alpha-1 border border-n-weak w-full overflow-x-auto"
       >
         <button
           v-for="tab in TABS"
           :key="tab.key"
-          class="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap"
-          :class="[
+          class="flex items-center justify-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand"
+          :class="
             activeTab === tab.key
-              ? 'border-woot-500 text-woot-600'
-              : 'border-transparent text-n-slate-10 hover:text-n-slate-12 hover:border-n-weak',
-          ]"
+              ? 'bg-n-solid-1 text-n-slate-12 shadow-sm'
+              : 'text-n-slate-11 hover:text-n-slate-12'
+          "
           @click="activeTab = tab.key"
         >
-          <i :class="tab.icon" />
+          <span :class="tab.icon" class="size-4 shrink-0" />
           {{ $t(tab.label) }}
         </button>
       </div>
-    </div>
 
-    <div class="flex-1 overflow-y-auto">
-      <div class="max-w-3xl mx-auto px-6 sm:px-8 py-8">
-        <ProductsTab v-if="activeTab === 'products'" />
-        <DiscountsTab v-else-if="activeTab === 'discounts'" />
-        <StatusesTab v-else-if="activeTab === 'statuses'" />
-        <IntegrationTab v-else-if="activeTab === 'integration'" />
-        <ConfigTab v-else-if="activeTab === 'config'" />
-        <PdfTab v-else-if="activeTab === 'pdf'" />
-        <SalesReportAccessTab v-else-if="activeTab === 'sales_reports'" />
-      </div>
+      <!-- Tab content -->
+      <ProductsTab v-if="activeTab === 'products'" />
+      <DiscountsTab v-else-if="activeTab === 'discounts'" />
+      <StatusesTab v-else-if="activeTab === 'statuses'" />
+      <IntegrationTab v-else-if="activeTab === 'integration'" />
+      <ConfigTab v-else-if="activeTab === 'config'" />
+      <PdfTab v-else-if="activeTab === 'pdf'" />
+      <SalesReportAccessTab v-else-if="activeTab === 'sales_reports'" />
     </div>
   </div>
 </template>

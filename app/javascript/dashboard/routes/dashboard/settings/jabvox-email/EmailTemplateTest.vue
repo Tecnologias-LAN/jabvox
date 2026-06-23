@@ -3,6 +3,10 @@ import { ref, computed, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
+import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Select from 'dashboard/components-next/select/Select.vue';
+import SectionCard from './components/SectionCard.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -13,19 +17,23 @@ const uiFlags = computed(() => store.getters['jabvoxEmail/getUIFlags']);
 const selectedTemplateId = ref('');
 const recipientEmail = ref('');
 
+const templateOptions = computed(() =>
+  templates.value.map(tpl => ({ value: tpl.id, label: tpl.name }))
+);
+
 watch(
   templates,
   list => {
     if (!selectedTemplateId.value && list?.length) {
-      selectedTemplateId.value = String(list[0].id);
+      selectedTemplateId.value = list[0].id;
     }
   },
   { immediate: true }
 );
 
-const canSend = computed(() => {
-  return selectedTemplateId.value && recipientEmail.value.trim();
-});
+const canSend = computed(
+  () => selectedTemplateId.value && recipientEmail.value.trim()
+);
 
 const onSend = async () => {
   if (!canSend.value) return;
@@ -42,68 +50,46 @@ const onSend = async () => {
 </script>
 
 <template>
-  <div class="w-full flex justify-center">
-    <div class="w-full max-w-3xl space-y-6">
-      <div
-        class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-5"
-      >
-        <div class="flex items-center justify-between gap-3">
-          <h2
-            class="text-base font-semibold text-slate-800 dark:text-slate-100"
-          >
-            {{ $t('JABVOX_EMAIL.TEST.TITLE') }}
-          </h2>
+  <div class="w-full">
+    <SectionCard
+      :title="t('JABVOX_EMAIL.TEST.TITLE')"
+      :description="t('JABVOX_EMAIL.TEST.DESCRIPTION')"
+      icon="i-lucide-send"
+    >
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_EMAIL.TEST.TEMPLATE') }}
+          </label>
+          <Select
+            v-model="selectedTemplateId"
+            :options="templateOptions"
+            :placeholder="t('JABVOX_EMAIL.TEST.TEMPLATE_PLACEHOLDER')"
+          />
         </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_EMAIL.TEST.TEMPLATE') }}
-            </label>
-            <select
-              v-model="selectedTemplateId"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            >
-              <option value="" disabled>
-                {{ $t('JABVOX_EMAIL.TEST.TEMPLATE_PLACEHOLDER') }}
-              </option>
-              <option v-for="tpl in templates" :key="tpl.id" :value="tpl.id">
-                {{ tpl.name }}
-              </option>
-            </select>
-          </div>
-
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_EMAIL.TEST.RECIPIENT') }}
-            </label>
-            <input
-              v-model="recipientEmail"
-              type="email"
-              :placeholder="$t('JABVOX_EMAIL.TEST.RECIPIENT_PLACEHOLDER')"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-        </div>
-
-        <div class="flex gap-3 pt-2">
-          <button
-            :disabled="uiFlags.isSendingTest || !canSend"
-            class="px-4 py-2 bg-woot-500 hover:bg-woot-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-            @click="onSend"
-          >
-            {{
-              uiFlags.isSendingTest
-                ? $t('JABVOX_EMAIL.TEST.SENDING')
-                : $t('JABVOX_EMAIL.TEST.SEND')
-            }}
-          </button>
-        </div>
+        <Input
+          v-model="recipientEmail"
+          type="email"
+          :label="t('JABVOX_EMAIL.TEST.RECIPIENT')"
+          :placeholder="t('JABVOX_EMAIL.TEST.RECIPIENT_PLACEHOLDER')"
+        />
       </div>
-    </div>
+
+      <template #footer>
+        <div class="flex justify-end">
+          <Button
+            :label="
+              uiFlags.isSendingTest
+                ? t('JABVOX_EMAIL.TEST.SENDING')
+                : t('JABVOX_EMAIL.TEST.SEND')
+            "
+            icon="i-lucide-send"
+            :is-loading="uiFlags.isSendingTest"
+            :disabled="!canSend"
+            @click="onSend"
+          />
+        </div>
+      </template>
+    </SectionCard>
   </div>
 </template>

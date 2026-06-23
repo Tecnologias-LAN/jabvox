@@ -10,6 +10,22 @@ class JabvoxAnalyticsDashboardsAPI extends ApiClient {
     return axios.get(this.url);
   }
 
+  overviewStats() {
+    return axios.get(`${this.url}/overview_stats`);
+  }
+
+  seedDefaults() {
+    return axios.post(`${this.url}/seed_defaults`);
+  }
+
+  internalReports() {
+    return axios.get(`${this.url}/internal_reports`);
+  }
+
+  createInternalReports(keys) {
+    return axios.post(`${this.url}/create_internal_reports`, { keys });
+  }
+
   saveLayout(id, layout) {
     return axios.put(`${this.url}/${id}/layout`, { layout });
   }

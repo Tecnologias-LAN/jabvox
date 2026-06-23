@@ -22,14 +22,19 @@
       "DIALER_TRUNK_HELP": "Troncal SIP para llamadas salientes del marcador. Canal: SIP/[phone]{'@'}[trunk].",
       "DIALER_CALLER_ID": "Caller ID del Marcador (DID)",
       "DIALER_CALLER_ID_PLACEHOLDER": "+573001234567",
-      "DIALER_CALLER_ID_HELP": "Número que ven los leads al recibir la llamada. Se puede sobreescribir por campaña."
+      "DIALER_CALLER_ID_HELP": "Número que ven los leads al recibir la llamada. Se puede sobreescribir por campaña.",
+      "SECTION_CONNECTION": "Conexión AMI",
+      "SECTION_CONNECTION_DESC": "Credenciales del Asterisk Manager Interface.",
+      "SECTION_DIALER": "Marcador",
+      "SECTION_DIALER_DESC": "Contexto y troncal usados por el marcador predictivo."
     },
     "STATUS": {
       "TITLE": "Estado de la Conexión",
       "REFRESH": "Actualizar",
       "LOADING": "Verificando conexión...",
       "CONNECTED": "Conectado",
-      "DISCONNECTED": "Desconectado"
+      "DISCONNECTED": "Desconectado",
+      "UNTESTED": "Sin verificar"
     },
     "EXTENSIONS": {
       "TITLE": "Extensiones de usuarios",
@@ -42,7 +47,15 @@
       "EMPTY": "Ningún usuario tiene extensión asignada.",
       "COL_USER": "Usuario",
       "COL_EMAIL": "Email",
-      "COL_EXT": "Extensión"
+      "COL_EXT": "Extensión",
+      "SUBTITLE": "Asigna un número de extensión a cada agente para hacer y recibir llamadas.",
+      "SEARCH_PLACEHOLDER": "Buscar agentes...",
+      "COUNT": "{count} extensiones",
+      "NO_RESULTS": "Ningún agente coincide con tu búsqueda.",
+      "EMPTY_TITLE": "Sin extensiones",
+      "ADD_TITLE": "Agregar extensión",
+      "DELETE_TITLE": "Eliminar extensión",
+      "DELETE_BODY": "¿Eliminar la extensión {ext} de {name}?"
     },
     "CALL_BUTTON": {
       "TITLE": "Click para llamar",
@@ -54,6 +67,17 @@
       "CALLING": "Llamando...",
       "SUCCESS": "Llamada iniciada correctamente",
       "ERROR": "No se pudo iniciar la llamada"
+    },
+    "SUBTITLE": "Conecta tu central Asterisk (AMI) y asigna extensiones a los agentes.",
+    "COMMON": {
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar"
+    },
+    "SAVE_BAR": {
+      "UNSAVED": "Tienes cambios sin guardar",
+      "SAVE": "Guardar cambios",
+      "DISCARD": "Descartar"
     }
   }
 }

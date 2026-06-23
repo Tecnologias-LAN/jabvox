@@ -5,6 +5,11 @@ import { useStore } from 'vuex';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Select from 'dashboard/components-next/select/Select.vue';
+import Label from 'dashboard/components-next/label/Label.vue';
+import SectionCard from '../components/SectionCard.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -21,6 +26,8 @@ const INTEGRATIONS = [
 ];
 
 const isEditing = ref(false);
+const showToken = ref(false);
+const deleteDialog = ref(null);
 const form = ref({
   integration_type_jabvox: 'alegra',
   integration_email_jabvox: '',
@@ -33,10 +40,10 @@ const integrationLabel = computed(
     INTEGRATIONS.find(i => i.value === config.value?.integration_type_jabvox)
       ?.label ?? ''
 );
+// Show the editor when actively editing, or when there is no connection yet.
+const showEditor = computed(() => isEditing.value || !isConnected.value);
 
-onMounted(async () => {
-  await store.dispatch('jabvoxProducts/fetchIntegrationConfig');
-});
+onMounted(() => store.dispatch('jabvoxProducts/fetchIntegrationConfig'));
 
 watch(
   config,
@@ -50,10 +57,6 @@ watch(
   },
   { immediate: true }
 );
-
-const startEdit = () => {
-  isEditing.value = true;
-};
 
 const cancelEdit = () => {
   isEditing.value = false;
@@ -76,9 +79,14 @@ const onSave = async () => {
   }
 };
 
-const onDisconnect = async () => {
-  if (!window.confirm(t('JABVOX_PRODUCTS.INTEGRATION.DISCONNECT_CONFIRM')))
-    return;
+const askDisconnect = () => {
+  deleteDialog.value?.open({
+    title: t('JABVOX_PRODUCTS.INTEGRATION.DISCONNECT'),
+    description: t('JABVOX_PRODUCTS.INTEGRATION.DISCONNECT_CONFIRM'),
+    data: true,
+  });
+};
+const doDisconnect = async () => {
   try {
     await store.dispatch('jabvoxProducts/disconnectIntegration');
     isEditing.value = false;
@@ -95,155 +103,138 @@ const onDisconnect = async () => {
 </script>
 
 <template>
-  <div class="max-w-lg space-y-6">
-    <div>
-      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">
-        {{ $t('JABVOX_PRODUCTS.INTEGRATION.TITLE') }}
-      </h2>
-      <p class="text-sm text-slate-500 mt-1">
-        {{ $t('JABVOX_PRODUCTS.INTEGRATION.DESCRIPTION') }}
-      </p>
-    </div>
-
-    <div
-      v-if="uiFlags.isFetchingConfig"
-      class="text-sm text-slate-400 animate-pulse py-6"
+  <div class="w-full max-w-2xl">
+    <SectionCard
+      :title="t('JABVOX_PRODUCTS.TABS.INTEGRATION')"
+      :description="t('JABVOX_PRODUCTS.INTEGRATION.SECTION_DESC')"
+      icon="i-lucide-plug"
     >
-      {{ $t('JABVOX_PRODUCTS.LOADING') }}
-    </div>
-
-    <template v-else>
-      <!-- Connected state (read-only view) -->
-      <div
-        v-if="isConnected && !isEditing"
-        class="rounded-xl border border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800 p-5 space-y-4"
-      >
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex items-center gap-2">
+      <template #actions>
+        <Label
+          :label="
+            isConnected
+              ? t('JABVOX_PRODUCTS.INTEGRATION.CONNECTED_LABEL')
+              : t('JABVOX_PRODUCTS.INTEGRATION.NOT_CONNECTED_LABEL')
+          "
+          :color="isConnected ? 'teal' : 'slate'"
+        >
+          <template #icon>
             <span
-              class="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/40 px-2.5 py-1 rounded-full"
-            >
-              <span
-                class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"
-              />
-              {{ $t('JABVOX_PRODUCTS.INTEGRATION.CONNECTED_LABEL') }}
+              :class="
+                isConnected ? 'i-lucide-circle-check' : 'i-lucide-circle-x'
+              "
+              class="size-3"
+            />
+          </template>
+        </Label>
+      </template>
+
+      <!-- Connected summary -->
+      <div v-if="isConnected && !isEditing" class="flex flex-col gap-4">
+        <div
+          class="flex flex-col gap-2 rounded-xl border border-n-weak bg-n-alpha-1 p-4"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs text-n-slate-10">
+              {{ t('JABVOX_PRODUCTS.INTEGRATION.SYSTEM') }}
+            </span>
+            <span class="text-sm font-medium text-n-slate-12">{{
+              integrationLabel
+            }}</span>
+          </div>
+          <div
+            v-if="config?.integration_email_jabvox"
+            class="flex items-center justify-between gap-2"
+          >
+            <span class="text-xs text-n-slate-10">
+              {{ t('JABVOX_PRODUCTS.INTEGRATION.EMAIL') }}
+            </span>
+            <span class="text-sm font-mono text-n-slate-11 truncate">
+              {{ config.integration_email_jabvox }}
             </span>
           </div>
-          <div class="flex items-center gap-2">
+        </div>
+        <div class="flex items-center gap-2">
+          <Button
+            :label="t('JABVOX_PRODUCTS.EDIT')"
+            icon="i-lucide-pencil"
+            variant="outline"
+            color="slate"
+            size="sm"
+            @click="isEditing = true"
+          />
+          <Button
+            :label="t('JABVOX_PRODUCTS.INTEGRATION.DISCONNECT')"
+            icon="i-lucide-unplug"
+            variant="ghost"
+            color="ruby"
+            size="sm"
+            :is-loading="uiFlags.isSavingConfig"
+            @click="askDisconnect"
+          />
+        </div>
+      </div>
+
+      <!-- Editor / connect form -->
+      <div v-if="showEditor" class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_PRODUCTS.INTEGRATION.SYSTEM') }}
+          </label>
+          <Select
+            v-model="form.integration_type_jabvox"
+            :options="INTEGRATIONS"
+          />
+        </div>
+        <Input
+          v-model="form.integration_email_jabvox"
+          type="email"
+          :label="t('JABVOX_PRODUCTS.INTEGRATION.EMAIL')"
+        />
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_PRODUCTS.INTEGRATION.TOKEN') }}
+          </label>
+          <div class="relative">
+            <Input
+              v-model="form.integration_token_jabvox"
+              :type="showToken ? 'text' : 'password'"
+              custom-input-class="!pr-10 font-mono"
+              :placeholder="isConnected ? '••••••••' : ''"
+            />
             <button
-              class="text-xs text-slate-600 dark:text-slate-300 hover:text-woot-600 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-1.5 transition-colors"
-              @click="startEdit"
+              type="button"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-n-slate-10 hover:text-n-slate-12"
+              @click="showToken = !showToken"
             >
-              {{ $t('JABVOX_PRODUCTS.INTEGRATION.EDIT_CONNECTION') }}
-            </button>
-            <button
-              class="text-xs text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
-              :disabled="uiFlags.isSavingConfig"
-              @click="onDisconnect"
-            >
-              {{ $t('JABVOX_PRODUCTS.INTEGRATION.DISCONNECT') }}
+              <span
+                :class="showToken ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                class="size-4"
+              />
             </button>
           </div>
         </div>
-        <div class="space-y-1">
-          <p class="text-sm font-medium text-slate-800 dark:text-slate-100">
-            {{ integrationLabel }}
-          </p>
-          <p class="text-sm text-slate-500 dark:text-slate-400">
-            {{ config.integration_email_jabvox }}
-          </p>
-        </div>
-      </div>
-
-      <!-- Not connected state -->
-      <div
-        v-else-if="!isConnected && !isEditing"
-        class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-5 space-y-4"
-      >
-        <div class="flex items-center gap-2">
-          <span
-            class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full"
-          >
-            <span class="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block" />
-            {{ $t('JABVOX_PRODUCTS.INTEGRATION.NOT_CONNECTED_LABEL') }}
-          </span>
-        </div>
-        <p class="text-sm text-slate-500">
-          {{ $t('JABVOX_PRODUCTS.INTEGRATION.DESCRIPTION') }}
-        </p>
-        <Button
-          :label="$t('JABVOX_PRODUCTS.INTEGRATION.CONNECT')"
-          @click="startEdit"
-        />
-      </div>
-
-      <!-- Edit / Connect form -->
-      <div v-if="isEditing || (!isConnected && isEditing)" class="space-y-4">
-        <div>
-          <label
-            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-          >
-            {{ $t('JABVOX_PRODUCTS.INTEGRATION.SYSTEM') }}
-          </label>
-          <select
-            v-model="form.integration_type_jabvox"
-            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          >
-            <option
-              v-for="opt in INTEGRATIONS"
-              :key="opt.value"
-              :value="opt.value"
-            >
-              {{ opt.label }}
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label
-            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-          >
-            {{ $t('JABVOX_PRODUCTS.INTEGRATION.EMAIL') }}
-          </label>
-          <input
-            v-model="form.integration_email_jabvox"
-            type="email"
-            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          />
-        </div>
-
-        <div>
-          <label
-            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-          >
-            {{ $t('JABVOX_PRODUCTS.INTEGRATION.TOKEN') }}
-          </label>
-          <input
-            v-model="form.integration_token_jabvox"
-            type="password"
-            :placeholder="isConnected ? '••••••••' : ''"
-            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          />
-          <p v-if="isConnected" class="mt-1 text-xs text-slate-400">
-            {{ $t('JABVOX_PRODUCTS.INTEGRATION.TOKEN_HINT') }}
-          </p>
-        </div>
-
-        <div class="flex items-center gap-3 pt-2">
+        <div class="flex items-center gap-2 pt-1">
           <Button
-            :label="$t('JABVOX_PRODUCTS.SAVE')"
+            :label="
+              isConnected
+                ? t('JABVOX_PRODUCTS.SAVE')
+                : t('JABVOX_PRODUCTS.INTEGRATION.CONNECT')
+            "
             :is-loading="uiFlags.isSavingConfig"
             @click="onSave"
           />
-          <button
+          <Button
             v-if="isConnected"
-            class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400"
+            :label="t('JABVOX_PRODUCTS.CANCEL')"
+            variant="outline"
+            color="slate"
             @click="cancelEdit"
-          >
-            {{ $t('JABVOX_PRODUCTS.INTEGRATION.CANCEL') }}
-          </button>
+          />
         </div>
       </div>
-    </template>
+    </SectionCard>
+
+    <ConfirmDialog ref="deleteDialog" @confirm="doDisconnect" />
   </div>
 </template>

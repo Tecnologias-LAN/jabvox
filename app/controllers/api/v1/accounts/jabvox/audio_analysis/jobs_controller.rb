@@ -45,14 +45,20 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
   end
 
   def build_job(file_keys, pipeline, storage)
-    agent_id = assigned_agent_id
+    fallback_agent_id = assigned_agent_id
+    # Each audio's responsible agent comes from its manual assignment
+    # (set in the explorer); fall back to the optional job-wide agent.
+    agent_by_key = Current.account.jabvox_audio_assignments
+                          .where(storage_id: storage.id, file_key: file_keys)
+                          .pluck(:file_key, :agent_id).to_h
     job = Current.account.jabvox_audio_jobs.create!(
       pipeline: pipeline, storage: storage, created_by: current_user,
       status: 'pending', total_count: file_keys.size
     )
     rows = file_keys.map do |key|
       { job_id: job.id, account_id: Current.account.id, file_key: key, status: 'pending',
-        assigned_agent_id: agent_id, stages_data: [], created_at: Time.current, updated_at: Time.current }
+        assigned_agent_id: agent_by_key[key] || fallback_agent_id, stages_data: [],
+        created_at: Time.current, updated_at: Time.current }
     end
     JabvoxAudioResult.insert_all(rows) # rubocop:disable Rails/SkipsModelValidations
     job

@@ -28,6 +28,27 @@
     "ERROR": "Ocurrió un error. Por favor, intente de nuevo.",
     "TOGGLE": "Activar/Desactivar",
     "DELETE": "Eliminar",
-    "CONFIRM_DELETE": "¿Está seguro de que desea eliminar esta IP?"
+    "CONFIRM_DELETE": "¿Está seguro de que desea eliminar esta IP?",
+    "SUBTITLE": "Restringe el acceso a tu cuenta permitiendo solo direcciones IP de confianza.",
+    "COMMON": {
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar",
+      "SAVE": "Guardar"
+    },
+    "SEARCH_PLACEHOLDER": "Buscar IPs...",
+    "COUNT": "{count} IPs",
+    "NO_RESULTS": "Ninguna IP coincide con tu búsqueda.",
+    "EMPTY_TITLE": "Sin IPs en la lista",
+    "DELETE_TITLE": "Eliminar IP",
+    "DELETE_BODY": "¿Eliminar la IP \"{ip}\" de la lista permitida? Esta acción no se puede deshacer.",
+    "IP_INVALID": "Introduce una dirección IPv4 válida.",
+    "KPI": {
+      "TOTAL": "Total de IPs",
+      "ACTIVE": "Activas",
+      "INACTIVE": "Inactivas"
+    },
+    "ADD_TITLE": "Agregar IP permitida",
+    "ADD_SUBTITLE": "Las solicitudes desde IPs activas tendrán acceso a la cuenta.",
+    "ACTIVE_HINT": "Solo las IPs activas se aplican."
   }
 }

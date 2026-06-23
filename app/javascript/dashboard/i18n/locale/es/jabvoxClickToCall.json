@@ -26,7 +26,24 @@
       "DELETE": "Delete",
       "SAVED": "Saved successfully.",
       "SAVE_ERROR": "Could not save.",
-      "CONFIRM_DELETE": "Delete this typification?"
+      "CONFIRM_DELETE": "Delete this typification?",
+      "SEARCH_PLACEHOLDER": "Buscar tipificaciones...",
+      "COUNT": "{count} tipificaciones",
+      "NO_RESULTS": "Ninguna tipificación coincide con tu búsqueda.",
+      "EMPTY_TITLE": "Sin tipificaciones",
+      "EDIT_TITLE": "Editar tipificación",
+      "DELETE_TITLE": "Eliminar tipificación",
+      "DELETE_BODY": "¿Eliminar la tipificación \"{name}\"? Esta acción no se puede deshacer.",
+      "FORM_SUBTITLE": "Define una etiqueta para clasificar las llamadas y gestiones.",
+      "NAME_PLACEHOLDER": "ej. Cliente interesado",
+      "DESCRIPTION_PLACEHOLDER": "Descripción opcional",
+      "ACTIVE_HINT": "Las tipificaciones inactivas no aparecen al clasificar.",
+      "ACTIVE_BADGE": "Activa",
+      "KPI_TOTAL": "Total",
+      "KPI_ACTIVE": "Activas",
+      "KPI_INACTIVE": "Inactivas",
+      "CANCEL_LABEL": "Cancelar",
+      "DELETE_LABEL": "Eliminar"
     }
   }
 }

@@ -37,18 +37,15 @@ module Jabvox
       subject = "#{I18n.t('jabvox.calendar.invite_subject')}: #{event.title}"
       body = invite_html(event, participant)
 
-      mail = Mail.new do
-        from    "#{smtp.from_name} <#{smtp.from_email}>"
-        to      email
-        subject subject
-        html_part do
-          content_type 'text/html; charset=UTF-8'
-          body body
-        end
-      end
-
-      mail.delivery_method(:smtp, smtp.delivery_settings)
-      mail.deliver!
+      Jabvox::EmailSenderService.new(
+        account: @account,
+        config: smtp,
+        to: email,
+        subject: subject,
+        html_body: body,
+        source: 'calendar',
+        user: nil
+      ).deliver!
     end
 
     def invite_html(event, participant)

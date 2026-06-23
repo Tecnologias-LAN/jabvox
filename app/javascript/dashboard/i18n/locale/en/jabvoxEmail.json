@@ -2,6 +2,17 @@
   "JABVOX_EMAIL": {
     "TITLE": "Email",
     "SIDEBAR_LABEL": "Email",
+    "SUBTITLE": "Configure outgoing SMTP, design email templates, send tests, and schedule calendar reminders.",
+    "COMMON": {
+      "SAVE": "Save",
+      "CANCEL": "Cancel",
+      "DELETE": "Delete"
+    },
+    "SAVE_BAR": {
+      "UNSAVED": "You have unsaved changes",
+      "SAVE": "Save changes",
+      "DISCARD": "Discard"
+    },
     "TABS": {
       "SMTP": "SMTP Configuration",
       "TEMPLATES": "Email Templates",
@@ -10,6 +21,12 @@
     },
     "SMTP": {
       "TITLE": "Outgoing SMTP",
+      "DESCRIPTION": "Connect your own SMTP server so outgoing emails are sent from your domain.",
+      "GROUP_SENDER": "Sender identity",
+      "GROUP_SERVER": "Server",
+      "GROUP_CREDENTIALS": "Credentials",
+      "GROUP_SECURITY": "Security",
+      "FROM_EMAIL_INVALID": "Enter a valid email address.",
       "VERIFIED": "Verified",
       "STATUS": {
         "CONNECTED": "Connected",
@@ -113,6 +130,7 @@
     },
     "TEST": {
       "TITLE": "Send test email",
+      "DESCRIPTION": "Send a template to any address to preview how it looks in a real inbox.",
       "TEMPLATE": "Template",
       "TEMPLATE_PLACEHOLDER": "Select a template",
       "RECIPIENT": "Recipient email",

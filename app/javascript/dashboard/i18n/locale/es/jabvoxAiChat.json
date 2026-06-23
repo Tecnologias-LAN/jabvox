@@ -57,7 +57,14 @@
         "ollama": "Ollama",
         "lmstudio": "LM Studio",
         "custom": "Personalizado"
-      }
+      },
+      "SEARCH_PLACEHOLDER": "Buscar modelos...",
+      "COUNT": "{count} modelos",
+      "NO_RESULTS": "Ningún modelo coincide con tu búsqueda.",
+      "EMPTY_TITLE": "Sin modelos de IA",
+      "DELETE_TITLE": "Eliminar modelo",
+      "DELETE_BODY": "¿Eliminar el modelo \"{name}\"? Esta acción no se puede deshacer.",
+      "TEST_LATENCY": "{ms} ms"
     },
     "DOCUMENTS": {
       "TITLE": "Documentos",
@@ -78,13 +85,24 @@
       "DISABLE": "Desactivar",
       "EMPTY": "No se encontraron documentos. Configure el bucket y sincronice.",
       "SIZE": "Tamaño",
-      "DELETE_CONFIRM": "¿Eliminar este documento?"
+      "DELETE_CONFIRM": "¿Eliminar este documento?",
+      "SEARCH_PLACEHOLDER": "Buscar documentos...",
+      "COUNT": "{count} documentos",
+      "NO_RESULTS": "Ningún documento coincide con tu búsqueda.",
+      "EMPTY_TITLE": "Sin documentos",
+      "DELETE_TITLE": "Eliminar documento",
+      "DELETE_BODY": "¿Eliminar el documento \"{name}\"?",
+      "BUCKET_SECTION_DESC": "Conecta tu bucket S3 para alimentar la base de conocimiento.",
+      "ENABLED_BADGE": "Habilitado",
+      "DISABLED_BADGE": "Deshabilitado",
+      "SYNC_TRUNCATED": "El bucket tiene {total} archivos; se importaron solo los primeros {shown} por el límite de la cuenta."
     },
     "CONFIG": {
       "TITLE": "Configuración",
       "WEB_SEARCH": "Consultar modelo de IA directamente",
       "WEB_SEARCH_DESC": "Permite al asistente responder preguntas consultando el modelo de IA directamente, sin usar documentos.",
-      "SAVE": "Guardar"
+      "SAVE": "Guardar",
+      "SECTION_DESC": "Ajustes generales del asistente de IA."
     },
     "PERMISSIONS": {
       "TITLE": "Permisos",
@@ -94,7 +112,24 @@
       "CAN_USE_MODELS": "Modo modelo",
       "CAN_USE_DOCUMENTS": "Modo documentos",
       "SAVE": "Guardar permisos",
-      "SAVED": "Permisos guardados"
-    }
+      "SAVED": "Permisos guardados",
+      "SEARCH_PLACEHOLDER": "Buscar usuarios...",
+      "COUNT": "{count} usuarios",
+      "NO_RESULTS": "Ningún usuario coincide con tu búsqueda.",
+      "UNSAVED": "Tienes cambios sin guardar"
+    },
+    "SUBTITLE": "Configura los modelos de IA, la base de conocimiento y los permisos de acceso.",
+    "COMMON": {
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar",
+      "SAVE": "Guardar",
+      "SEARCH": "Buscar..."
+    },
+    "HISTORY": "Historial",
+    "DELETE_TITLE": "Eliminar conversación",
+    "DELETE_BODY": "¿Seguro que deseas eliminar esta conversación? Esta acción no se puede deshacer.",
+    "CANCEL": "Cancelar",
+    "DELETE": "Eliminar",
+    "SESSION_ITEM": "Conversación"
   }
 }

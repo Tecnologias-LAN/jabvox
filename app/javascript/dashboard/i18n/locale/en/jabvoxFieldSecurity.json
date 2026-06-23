@@ -25,6 +25,19 @@
       "social_github": "GitHub",
       "social_telegram": "Telegram",
       "social_tiktok": "TikTok"
-    }
+    },
+    "EMPTY_TITLE": "Sin usuarios",
+    "NO_RESULTS": "Ningún usuario coincide con la búsqueda.",
+    "SEARCH_PLACEHOLDER": "Buscar usuario por nombre o correo...",
+    "USER_COLUMN": "Usuario",
+    "COUNT": "{count} usuarios",
+    "KPI_USERS": "Usuarios",
+    "KPI_FIELDS": "Campos protegidos",
+    "KPI_RESTRICTED": "Restricciones activas",
+    "VISIBLE": "Visible",
+    "RESTRICTED": "Restringido",
+    "RESTRICTED_HINT": "Restringido — muestra ***",
+    "SHOW_ALL": "Mostrar todo",
+    "HIDE_ALL": "Ocultar todo"
   }
 }

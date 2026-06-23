@@ -2,6 +2,17 @@
   "JABVOX_EMAIL": {
     "TITLE": "Correo",
     "SIDEBAR_LABEL": "Correo / SMTP",
+    "SUBTITLE": "Configura el SMTP de salida, diseña plantillas de correo, envía pruebas y programa recordatorios de calendario.",
+    "COMMON": {
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar"
+    },
+    "SAVE_BAR": {
+      "UNSAVED": "Tienes cambios sin guardar",
+      "SAVE": "Guardar cambios",
+      "DISCARD": "Descartar"
+    },
     "TABS": {
       "SMTP": "Configuración SMTP",
       "TEMPLATES": "Plantillas de correo",
@@ -10,6 +21,12 @@
     },
     "SMTP": {
       "TITLE": "SMTP de salida",
+      "DESCRIPTION": "Conecta tu propio servidor SMTP para que los correos salgan desde tu dominio.",
+      "GROUP_SENDER": "Identidad del remitente",
+      "GROUP_SERVER": "Servidor",
+      "GROUP_CREDENTIALS": "Credenciales",
+      "GROUP_SECURITY": "Seguridad",
+      "FROM_EMAIL_INVALID": "Introduce un correo electrónico válido.",
       "VERIFIED": "Verificado",
       "FROM_NAME": "Nombre del remitente",
       "FROM_NAME_PLACEHOLDER": "Mi empresa",
@@ -82,6 +99,7 @@
     },
     "TEST": {
       "TITLE": "Enviar correo de prueba",
+      "DESCRIPTION": "Envía una plantilla a cualquier dirección para previsualizar cómo se ve en una bandeja real.",
       "TEMPLATE": "Plantilla",
       "TEMPLATE_PLACEHOLDER": "Selecciona una plantilla",
       "RECIPIENT": "Correo del destinatario",

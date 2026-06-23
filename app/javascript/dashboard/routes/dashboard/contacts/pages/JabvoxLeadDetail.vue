@@ -173,10 +173,9 @@ const isIncoming = m => m.message_type === 0;
 
 const msgBubbleClass = m => {
   if (isPrivateNote(m))
-    return 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 text-slate-700 dark:text-slate-200';
-  if (isIncoming(m))
-    return 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100';
-  return 'bg-woot-500 text-white ml-auto';
+    return 'bg-n-amber-3 border border-n-amber-6 text-n-amber-11';
+  if (isIncoming(m)) return 'bg-n-alpha-2 text-n-slate-12';
+  return 'bg-n-brand text-white ml-auto';
 };
 
 const msgAlignClass = m =>
@@ -201,11 +200,11 @@ const scrollToBottom = container => {
 };
 
 const loadMessages = async () => {
-  if (!lead.value?.conversation_id) return;
+  if (!lead.value?.conversation_display_id) return;
   isLoadingMessages.value = true;
   try {
     const response = await messageAPI.getPreviousMessages({
-      conversationId: lead.value.conversation_id,
+      conversationId: lead.value.conversation_display_id,
       before: undefined,
       after: undefined,
     });
@@ -241,7 +240,7 @@ const sendMessage = async (privateFlag = false) => {
     return;
   }
 
-  if (privateFlag && !lead.value?.conversation_id) {
+  if (privateFlag && !lead.value?.conversation_display_id) {
     if (managementStates.value.length > 0 && !managementStateId.value) return;
     isSending.value = true;
     try {
@@ -268,7 +267,7 @@ const sendMessage = async (privateFlag = false) => {
     return;
   }
 
-  if (!lead.value?.conversation_id) return;
+  if (!lead.value?.conversation_display_id) return;
   if (
     privateFlag &&
     managementStates.value.length > 0 &&
@@ -278,7 +277,7 @@ const sendMessage = async (privateFlag = false) => {
   isSending.value = true;
   try {
     const payload = {
-      conversationId: lead.value.conversation_id,
+      conversationId: lead.value.conversation_display_id,
       message: content,
       private: privateFlag,
       echo_id: `jabvox_${Date.now()}`,
@@ -394,13 +393,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full w-full overflow-hidden bg-n-surface-1">
+  <div class="flex flex-col h-full w-full overflow-hidden bg-n-background">
     <!-- Header -->
     <div
-      class="shrink-0 border-b border-n-weak bg-n-surface-1 px-6 py-4 flex items-center gap-4"
+      class="shrink-0 border-b border-n-weak bg-n-solid-1 px-6 py-3.5 flex items-center gap-4"
     >
       <button
-        class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+        class="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-sm font-medium text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 transition-colors"
         @click="goBack"
       >
         <span class="i-lucide-arrow-left size-4" />
@@ -412,45 +411,49 @@ onMounted(async () => {
       <div v-if="leads.length > 1" class="flex items-center gap-2">
         <button
           :disabled="!prevLead"
-          class="group flex items-center gap-2 h-9 pl-2.5 pr-3.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          class="group flex items-center gap-2 h-9 pl-2.5 pr-3.5 rounded-xl border border-n-weak bg-n-solid-1 text-n-slate-11 hover:border-n-brand hover:text-n-brand disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           @click="prevLead && goToLead(prevLead.id)"
         >
           <span
-            class="i-lucide-arrow-left size-3.5 group-hover:-translate-x-0.5 transition-transform"
+            class="i-lucide-chevron-left size-4 group-hover:-translate-x-0.5 transition-transform"
           />
           <span class="text-left">
-            <span class="block text-[10px] text-slate-400 leading-none">
+            <span
+              class="block text-[10px] text-n-slate-10 leading-none uppercase tracking-wide"
+            >
               {{ t('JABVOX_LEADS.DETAIL.PREV') }}
             </span>
             <span
-              class="block text-xs font-medium truncate max-w-[110px] leading-tight mt-0.5"
+              class="block text-xs font-medium truncate max-w-[110px] leading-tight mt-0.5 text-n-slate-12"
             >
               {{ prevLead?.contact?.name || '···' }}
             </span>
           </span>
         </button>
         <span
-          class="text-xs font-medium text-slate-400 tabular-nums whitespace-nowrap"
+          class="text-xs font-medium text-n-slate-10 tabular-nums whitespace-nowrap px-1"
         >
           {{ currentIndex + 1 }}&thinsp;/&thinsp;{{ leads.length }}
         </span>
         <button
           :disabled="!nextLead"
-          class="group flex items-center gap-2 h-9 pl-3.5 pr-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          class="group flex items-center gap-2 h-9 pl-3.5 pr-2.5 rounded-xl border border-n-weak bg-n-solid-1 text-n-slate-11 hover:border-n-brand hover:text-n-brand disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           @click="nextLead && goToLead(nextLead.id)"
         >
           <span class="text-right">
-            <span class="block text-[10px] text-slate-400 leading-none">
+            <span
+              class="block text-[10px] text-n-slate-10 leading-none uppercase tracking-wide"
+            >
               {{ t('JABVOX_LEADS.DETAIL.NEXT') }}
             </span>
             <span
-              class="block text-xs font-medium truncate max-w-[110px] leading-tight mt-0.5"
+              class="block text-xs font-medium truncate max-w-[110px] leading-tight mt-0.5 text-n-slate-12"
             >
               {{ nextLead?.contact?.name || '···' }}
             </span>
           </span>
           <span
-            class="i-lucide-arrow-right size-3.5 group-hover:translate-x-0.5 transition-transform"
+            class="i-lucide-chevron-right size-4 group-hover:translate-x-0.5 transition-transform"
           />
         </button>
       </div>
@@ -459,16 +462,18 @@ onMounted(async () => {
     <!-- Loading lead -->
     <div
       v-if="uiFlags.isFetchingOne"
-      class="flex-1 flex items-center justify-center text-sm text-slate-400 animate-pulse"
+      class="flex-1 flex items-center justify-center gap-2 text-sm text-n-slate-10 animate-pulse"
     >
+      <span class="i-lucide-loader-circle size-4 animate-spin" />
       {{ t('JABVOX_LEADS.DETAIL.LOADING') }}
     </div>
 
     <!-- Not found -->
     <div
       v-else-if="!lead"
-      class="flex-1 flex items-center justify-center text-sm text-slate-400"
+      class="flex-1 flex flex-col items-center justify-center gap-2 text-sm text-n-slate-10"
     >
+      <span class="i-lucide-search-x size-8 text-n-slate-9" />
       {{ t('JABVOX_LEADS.DETAIL.NOT_FOUND') }}
     </div>
 
@@ -476,25 +481,25 @@ onMounted(async () => {
     <div v-else class="flex-1 min-h-0 flex flex-col lg:flex-row">
       <!-- Left panel: lead info -->
       <div
-        class="lg:w-72 shrink-0 border-b lg:border-b-0 lg:border-r border-n-weak p-5 space-y-5 overflow-y-auto"
+        class="lg:w-80 shrink-0 border-b lg:border-b-0 lg:border-r border-n-weak bg-n-solid-1 p-5 space-y-4 overflow-y-auto"
       >
         <!-- Contact avatar + name -->
-        <div class="flex items-center gap-3">
+        <div class="flex flex-col items-center text-center gap-3 pb-1">
           <img
             v-if="lead.contact.avatar_url"
             :src="lead.contact.avatar_url"
             :alt="lead.contact.name"
-            class="w-12 h-12 rounded-full object-cover shrink-0"
+            class="size-16 rounded-full object-cover shrink-0 ring-2 ring-n-weak"
           />
           <div
             v-else
-            class="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0 text-lg font-semibold text-indigo-600 dark:text-indigo-400"
+            class="size-16 rounded-full bg-n-brand/10 flex items-center justify-center shrink-0 text-2xl font-semibold text-n-brand ring-2 ring-n-brand/20"
           >
             {{ lead.contact.name?.charAt(0)?.toUpperCase() || '?' }}
           </div>
-          <div class="min-w-0">
+          <div class="min-w-0 w-full">
             <button
-              class="text-sm font-semibold text-woot-600 hover:underline truncate text-left"
+              class="text-base font-semibold text-n-slate-12 hover:text-n-brand transition-colors truncate max-w-full"
               @click="
                 router.push({
                   name: 'contacts_edit',
@@ -504,7 +509,7 @@ onMounted(async () => {
             >
               {{ lead.contact.name || '—' }}
             </button>
-            <p class="text-xs text-slate-400 font-mono">
+            <p class="text-xs text-n-slate-10 font-mono mt-0.5">
               #{{ lead.lead_number }}
             </p>
           </div>
@@ -539,126 +544,137 @@ onMounted(async () => {
         </div>
 
         <!-- Info rows -->
-        <dl class="space-y-2.5">
+        <dl
+          class="rounded-xl border border-n-weak bg-n-background divide-y divide-n-weak overflow-hidden"
+        >
           <!-- Phone (editable) -->
-          <div v-if="isEditing || lead.contact.phone_number" class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0 pt-1">
+          <div
+            v-if="isEditing || lead.contact.phone_number"
+            class="flex items-center gap-2 px-3 py-2.5"
+          >
+            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.PHONE') }}
             </dt>
             <input
               v-if="isEditing"
               v-model="editForm.phone_number"
-              class="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+              class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
             />
             <dd
               v-else
-              class="text-sm text-slate-700 dark:text-slate-200 font-mono truncate"
+              class="text-sm text-n-slate-12 font-mono truncate flex-1 text-right"
             >
               {{ lead.contact.phone_number || '—' }}
             </dd>
           </div>
           <!-- Email (editable) -->
-          <div class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0 pt-1">
+          <div class="flex items-center gap-2 px-3 py-2.5">
+            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.EMAIL') }}
             </dt>
             <input
               v-if="isEditing"
               v-model="editForm.email"
               type="email"
-              class="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+              class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
             />
             <dd
               v-else
-              class="text-sm text-slate-700 dark:text-slate-200 truncate"
+              class="text-sm text-n-slate-12 truncate flex-1 text-right"
             >
               {{ lead.contact.email || '—' }}
             </dd>
           </div>
           <!-- Country (editable) -->
-          <div v-if="isEditing || lead.contact.country" class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0 pt-1">
+          <div
+            v-if="isEditing || lead.contact.country"
+            class="flex items-center gap-2 px-3 py-2.5"
+          >
+            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.COUNTRY') }}
             </dt>
             <input
               v-if="isEditing"
               v-model="editForm.country"
-              class="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+              class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
             />
-            <dd v-else class="text-sm text-slate-700 dark:text-slate-200">
+            <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
               {{ lead.contact.country }}
             </dd>
           </div>
           <!-- Campaign (editable) -->
-          <div class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0 pt-1">
+          <div class="flex items-center gap-2 px-3 py-2.5">
+            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.CAMPAIGN') }}
             </dt>
             <input
               v-if="isEditing"
               v-model="editForm.campaign_name"
-              class="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+              class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
             />
-            <dd v-else class="text-sm text-slate-700 dark:text-slate-200">
+            <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
               {{ lead.campaign?.name || '—' }}
             </dd>
           </div>
           <!-- Affiliate (read-only) -->
-          <div class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0">
+          <div class="flex items-center gap-2 px-3 py-2.5">
+            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.AFFILIATE') }}
             </dt>
-            <dd class="text-sm text-slate-700 dark:text-slate-200">
+            <dd class="text-sm text-n-slate-12 flex-1 text-right">
               {{ lead.affiliate_name || t('JABVOX_LEADS.TABLE.AFFILIATE_OWN') }}
             </dd>
           </div>
           <!-- Inbox (read-only) -->
-          <div class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0">
+          <div class="flex items-center gap-2 px-3 py-2.5">
+            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.INBOX') }}
             </dt>
-            <dd class="text-sm text-slate-700 dark:text-slate-200">
+            <dd class="text-sm text-n-slate-12 flex-1 text-right">
               {{ lead.inbox_name || '—' }}
             </dd>
           </div>
           <!-- Assignee (editable) -->
-          <div class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0 pt-1">
+          <div class="flex items-center gap-2 px-3 py-2.5">
+            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.ASSIGNEE') }}
             </dt>
             <select
               v-if="isEditing"
               v-model="editForm.assignee_id"
-              class="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+              class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
             >
               <option :value="null">—</option>
               <option v-for="a in assignees" :key="a.id" :value="a.id">
                 {{ a.name }}
               </option>
             </select>
-            <dd v-else class="text-sm text-slate-700 dark:text-slate-200">
+            <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
               {{ lead.assignee_name || '—' }}
             </dd>
           </div>
           <!-- Last management (read-only, comes from notes) -->
-          <div v-if="lead.last_management_state" class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0">
+          <div
+            v-if="lead.last_management_state"
+            class="flex items-center gap-2 px-3 py-2.5"
+          >
+            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.MANAGEMENT_STATE') }}
             </dt>
-            <dd>
+            <dd class="flex-1 text-right">
               <span
-                class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+                class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-n-brand/10 text-n-brand"
               >
                 {{ lead.last_management_state }}
               </span>
             </dd>
           </div>
           <!-- Created at (read-only) -->
-          <div class="flex gap-2">
-            <dt class="text-xs text-slate-400 w-24 shrink-0">
+          <div class="flex items-center gap-2 px-3 py-2.5">
+            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
               {{ t('JABVOX_LEADS.DETAIL.INFO.CREATED_AT') }}
             </dt>
-            <dd class="text-sm text-slate-700 dark:text-slate-200">
+            <dd class="text-sm text-n-slate-12 flex-1 text-right">
               {{ formatDate(lead.created_at) }}
             </dd>
           </div>
@@ -666,24 +682,21 @@ onMounted(async () => {
         <!-- Custom fields inline (tabla vinculada a leads) -->
         <div
           v-if="isCustomizationEnabled && leadsTableColumns.length"
-          class="border-t border-slate-100 dark:border-slate-700 pt-3 space-y-2"
+          class="rounded-xl border border-n-weak bg-n-background p-3 space-y-2.5"
         >
           <p
-            class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+            class="text-xs font-semibold text-n-slate-11 uppercase tracking-wide"
           >
             {{ leadsTable.name_jabvox }}
           </p>
-          <dl class="space-y-2">
+          <dl class="space-y-2.5">
             <div v-for="col in leadsTableColumns" :key="col.id">
-              <dt class="text-xs text-slate-400 mb-0.5">
+              <dt class="text-xs text-n-slate-10 mb-1">
                 {{ col.label_jabvox }}
               </dt>
               <dd>
                 <!-- Read-only view -->
-                <span
-                  v-if="!isEditing"
-                  class="text-sm text-slate-700 dark:text-slate-200"
-                >
+                <span v-if="!isEditing" class="text-sm text-n-slate-12">
                   <template v-if="col.column_type_jabvox === 'boolean'">
                     {{
                       lead.custom_fields_jabvox?.[col.name_jabvox]
@@ -700,13 +713,13 @@ onMounted(async () => {
                   v-else-if="col.column_type_jabvox === 'boolean'"
                   v-model="editForm.custom[col.name_jabvox]"
                   type="checkbox"
-                  class="rounded border-slate-300"
+                  class="reset-base size-4 rounded border-n-weak text-n-brand focus:outline-none focus:border-n-slate-7"
                 />
                 <!-- select -->
                 <select
                   v-else-if="col.column_type_jabvox === 'select'"
                   v-model="editForm.custom[col.name_jabvox]"
-                  class="w-full rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+                  class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
                 >
                   <option value="">—</option>
                   <option
@@ -722,7 +735,7 @@ onMounted(async () => {
                   v-else-if="col.column_type_jabvox === 'date'"
                   v-model="editForm.custom[col.name_jabvox]"
                   type="date"
-                  class="w-full rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+                  class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
                 />
                 <!-- text / integer / float -->
                 <input
@@ -735,35 +748,32 @@ onMounted(async () => {
                       : 'text'
                   "
                   :step="col.column_type_jabvox === 'float' ? '0.01' : '1'"
-                  class="w-full rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-woot-500"
+                  class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
                 />
               </dd>
             </div>
           </dl>
         </div>
 
-        <div
-          v-if="lead.contact"
-          class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700"
-        >
+        <div v-if="lead.contact" class="pt-1">
           <JabvoxQuickButtons :lead="lead" :contact="lead.contact" />
         </div>
       </div>
 
       <!-- Right panel: tabs -->
-      <div class="flex-1 flex flex-col min-w-0 min-h-0">
+      <div class="flex-1 flex flex-col min-w-0 min-h-0 bg-n-background">
         <!-- Tab bar -->
         <div
-          class="shrink-0 border-b border-n-weak flex items-center gap-0 px-4"
+          class="shrink-0 border-b border-n-weak bg-n-solid-1 flex items-center gap-1 px-4"
         >
           <button
             v-for="tab in availableTabs"
             :key="tab"
-            class="px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors"
+            class="px-3.5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors"
             :class="
               activeTab === tab
-                ? 'border-woot-600 text-woot-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
+                ? 'border-n-brand text-n-brand'
+                : 'border-transparent text-n-slate-11 hover:text-n-slate-12'
             "
             @click="activeTab = tab"
           >
@@ -795,28 +805,26 @@ onMounted(async () => {
         <!-- ── CHAT TAB ── -->
         <template v-if="activeTab === 'chat'">
           <div
-            v-if="!lead.conversation_id"
+            v-if="!lead.conversation_display_id"
             class="flex-1 flex flex-col items-center justify-center px-6 py-10 gap-5"
           >
             <div
-              class="w-14 h-14 rounded-2xl bg-woot-500/10 flex items-center justify-center"
+              class="size-14 rounded-2xl bg-n-brand/10 flex items-center justify-center"
             >
-              <span
-                class="i-lucide-message-circle-plus w-7 h-7 text-woot-500"
-              />
+              <span class="i-lucide-message-circle-plus size-7 text-n-brand" />
             </div>
             <div class="text-center max-w-xs">
-              <p class="text-sm font-semibold text-n-slate-11 mb-1">
+              <p class="text-sm font-semibold text-n-slate-12 mb-1">
                 {{ t('JABVOX_LEADS.DETAIL.CONTACT_VIA') }}
               </p>
-              <p class="text-xs text-n-slate-9">
+              <p class="text-xs text-n-slate-10">
                 {{ t('JABVOX_LEADS.DETAIL.CONTACT_VIA_HINT') }}
               </p>
             </div>
             <div class="w-full max-w-sm space-y-3">
               <select
                 v-model="selectedInboxId"
-                class="w-full rounded-lg border border-n-weak bg-n-surface-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-woot-500"
+                class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:border-n-slate-7 transition-colors"
               >
                 <option :value="null" disabled>
                   {{ t('JABVOX_LEADS.DETAIL.SELECT_INBOX') }}
@@ -835,7 +843,7 @@ onMounted(async () => {
                 :placeholder="
                   t('JABVOX_LEADS.DETAIL.INITIAL_MESSAGE_PLACEHOLDER')
                 "
-                class="w-full rounded-lg border border-n-weak bg-n-surface-1 text-sm px-3 py-2 text-n-slate-12 placeholder-n-slate-9 focus:outline-none focus:ring-2 focus:ring-woot-500 resize-none"
+                class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 placeholder-n-slate-9 focus:outline-none focus:border-n-slate-7 transition-colors resize-none"
               />
               <Button
                 :label="
@@ -853,12 +861,13 @@ onMounted(async () => {
           <template v-else>
             <div
               ref="chatContainer"
-              class="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0"
+              class="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0"
             >
               <div
                 v-if="isLoadingMessages"
-                class="flex items-center justify-center py-8 text-sm text-slate-400 animate-pulse"
+                class="flex items-center justify-center gap-2 py-8 text-sm text-n-slate-10 animate-pulse"
               >
+                <span class="i-lucide-loader-circle size-4 animate-spin" />
                 {{ t('JABVOX_LEADS.DETAIL.LOADING_MESSAGES') }}
               </div>
               <template v-else>
@@ -870,12 +879,12 @@ onMounted(async () => {
                 >
                   <div
                     v-if="msg.content"
-                    class="max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap break-words"
+                    class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words shadow-sm"
                     :class="msgBubbleClass(msg)"
                   >
                     <div
                       v-if="isPrivateNote(msg)"
-                      class="flex items-center gap-1 mb-1 text-xs text-yellow-700 dark:text-yellow-400 font-medium"
+                      class="flex items-center gap-1 mb-1 text-xs text-n-amber-11 font-medium"
                     >
                       <span class="i-lucide-sticky-note size-3.5" />
                       {{ t('JABVOX_LEADS.DETAIL.NOTE_LABEL') }}
@@ -896,27 +905,32 @@ onMounted(async () => {
                     </div>
                     {{ msg.content }}
                   </div>
-                  <span class="text-xs text-slate-400 px-1">
+                  <span class="text-[11px] text-n-slate-10 px-1">
                     {{ formatTime(msg.created_at) }}
                   </span>
                 </div>
                 <div
                   v-if="sortedMessages.length === 0"
-                  class="flex items-center justify-center py-8 text-sm text-slate-400"
+                  class="flex flex-col items-center justify-center gap-2 py-10 text-sm text-n-slate-10"
                 >
+                  <span
+                    class="i-lucide-messages-square size-7 text-n-slate-9"
+                  />
                   {{ t('JABVOX_LEADS.DETAIL.NO_MESSAGES') }}
                 </div>
               </template>
             </div>
 
-            <div class="shrink-0 border-t border-n-weak p-3 space-y-2">
+            <div
+              class="shrink-0 border-t border-n-weak bg-n-solid-1 p-3 space-y-2"
+            >
               <div class="flex gap-2">
                 <button
                   class="text-xs px-2.5 py-1 rounded-md font-medium transition-colors"
                   :class="
                     !isNoteMode
-                      ? 'bg-woot-500 text-white'
-                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      ? 'bg-n-brand text-white'
+                      : 'bg-n-alpha-2 text-n-slate-11 hover:text-n-slate-12'
                   "
                   @click="isNoteMode = false"
                 >
@@ -926,8 +940,8 @@ onMounted(async () => {
                   class="text-xs px-2.5 py-1 rounded-md font-medium transition-colors"
                   :class="
                     isNoteMode
-                      ? 'bg-yellow-500 text-white'
-                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      ? 'bg-n-amber-9 text-white'
+                      : 'bg-n-alpha-2 text-n-slate-11 hover:text-n-slate-12'
                   "
                   @click="isNoteMode = true"
                 >
@@ -939,17 +953,15 @@ onMounted(async () => {
                 class="flex items-center gap-2"
               >
                 <label
-                  class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0"
+                  class="text-xs font-medium text-n-slate-11 whitespace-nowrap shrink-0"
                 >
                   {{ t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.LABEL') }}
                 </label>
                 <select
                   v-model="managementStateId"
-                  class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+                  class="reset-base flex-1 rounded-lg border text-xs px-2.5 py-1.5 bg-n-solid-1 text-n-slate-12 focus:outline-none focus:border-n-slate-7 transition-colors"
                   :class="
-                    managementStateId
-                      ? 'border-slate-200 dark:border-slate-600'
-                      : 'border-amber-400 dark:border-amber-500'
+                    managementStateId ? 'border-n-weak' : 'border-n-amber-6'
                   "
                 >
                   <option :value="null" disabled>
@@ -979,7 +991,7 @@ onMounted(async () => {
                       ? t('JABVOX_LEADS.DETAIL.NOTE_PLACEHOLDER')
                       : t('JABVOX_LEADS.DETAIL.MESSAGE_PLACEHOLDER')
                   "
-                  class="flex-1 resize-none rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500 placeholder-slate-400"
+                  class="reset-base flex-1 resize-none rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-3 py-2 focus:outline-none focus:border-n-slate-7 transition-colors placeholder-n-slate-9"
                   @keydown="onChatKeydown"
                 />
                 <Button
@@ -999,16 +1011,17 @@ onMounted(async () => {
           <div class="flex flex-col flex-1 min-h-0 overflow-hidden">
             <div
               ref="notesContainer"
-              class="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0"
+              class="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0"
             >
               <div
                 v-if="isLoadingMessages"
-                class="flex items-center justify-center py-8 text-sm text-slate-400 animate-pulse"
+                class="flex items-center justify-center gap-2 py-8 text-sm text-n-slate-10 animate-pulse"
               >
+                <span class="i-lucide-loader-circle size-4 animate-spin" />
                 {{ t('JABVOX_LEADS.DETAIL.LOADING_MESSAGES') }}
               </div>
               <template v-else>
-                <template v-if="lead.conversation_id">
+                <template v-if="lead.conversation_display_id">
                   <div
                     v-for="note in privateNotes"
                     :key="note.id"
@@ -1016,7 +1029,7 @@ onMounted(async () => {
                   >
                     <div
                       v-if="note.content"
-                      class="max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap break-words bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 text-slate-700 dark:text-slate-200"
+                      class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words bg-n-amber-3 border border-n-amber-6 text-n-amber-11 shadow-sm"
                     >
                       <div
                         v-if="
@@ -1035,14 +1048,15 @@ onMounted(async () => {
                       </div>
                       {{ note.content }}
                     </div>
-                    <span class="text-xs text-slate-400 px-1">
+                    <span class="text-[11px] text-n-slate-10 px-1">
                       {{ formatTime(note.created_at) }}
                     </span>
                   </div>
                   <div
                     v-if="privateNotes.length === 0"
-                    class="flex items-center justify-center py-8 text-sm text-slate-400"
+                    class="flex flex-col items-center justify-center gap-2 py-10 text-sm text-n-slate-10"
                   >
+                    <span class="i-lucide-sticky-note size-7 text-n-slate-9" />
                     {{ t('JABVOX_LEADS.DETAIL.NO_NOTES') }}
                   </div>
                 </template>
@@ -1054,7 +1068,7 @@ onMounted(async () => {
                   >
                     <div
                       v-if="note.content"
-                      class="max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap break-words bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 text-slate-700 dark:text-slate-200"
+                      class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words bg-n-amber-3 border border-n-amber-6 text-n-amber-11 shadow-sm"
                     >
                       <div
                         v-if="note.contentAttributes?.jabvoxManagementStateName"
@@ -1069,37 +1083,38 @@ onMounted(async () => {
                       </div>
                       {{ note.content }}
                     </div>
-                    <span class="text-xs text-slate-400 px-1">
+                    <span class="text-[11px] text-n-slate-10 px-1">
                       {{ formatTime(note.createdAt) }}
                     </span>
                   </div>
                   <div
                     v-if="contactNotesList.length === 0"
-                    class="flex items-center justify-center py-8 text-sm text-slate-400"
+                    class="flex flex-col items-center justify-center gap-2 py-10 text-sm text-n-slate-10"
                   >
+                    <span class="i-lucide-sticky-note size-7 text-n-slate-9" />
                     {{ t('JABVOX_LEADS.DETAIL.NO_NOTES') }}
                   </div>
                 </template>
               </template>
             </div>
 
-            <div class="shrink-0 border-t border-n-weak p-3 space-y-2">
+            <div
+              class="shrink-0 border-t border-n-weak bg-n-solid-1 p-3 space-y-2"
+            >
               <div
                 v-if="managementStates.length > 0"
                 class="flex items-center gap-2"
               >
                 <label
-                  class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0"
+                  class="text-xs font-medium text-n-slate-11 whitespace-nowrap shrink-0"
                 >
                   {{ t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.LABEL') }}
                 </label>
                 <select
                   v-model="managementStateId"
-                  class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+                  class="reset-base flex-1 rounded-lg border text-xs px-2.5 py-1.5 bg-n-solid-1 text-n-slate-12 focus:outline-none focus:border-n-slate-7 transition-colors"
                   :class="
-                    managementStateId
-                      ? 'border-slate-200 dark:border-slate-600'
-                      : 'border-amber-400 dark:border-amber-500'
+                    managementStateId ? 'border-n-weak' : 'border-n-amber-6'
                   "
                 >
                   <option :value="null" disabled>
@@ -1125,7 +1140,7 @@ onMounted(async () => {
                   v-model="newMessage"
                   rows="2"
                   :placeholder="t('JABVOX_LEADS.DETAIL.NOTE_PLACEHOLDER')"
-                  class="flex-1 resize-none rounded-lg border border-yellow-200 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/10 text-sm text-slate-700 dark:text-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 placeholder-slate-400"
+                  class="reset-base flex-1 resize-none rounded-lg border border-n-amber-6 bg-n-amber-3 text-sm text-n-amber-11 px-3 py-2 focus:outline-none focus:border-n-amber-8 transition-colors placeholder-n-amber-11/60"
                   @keydown="onNoteKeydown"
                 />
                 <Button

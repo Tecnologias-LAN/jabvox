@@ -1,138 +1,283 @@
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
-import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import { typificationsAPI } from 'dashboard/api/jabvox/clickToCall';
+import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Label from 'dashboard/components-next/label/Label.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
+import FormDialog from './components/FormDialog.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const { t } = useI18n();
 
-// Warn before reload/close while editing a typification with unsaved changes.
-const { markDirty, markClean } = useUnsavedChanges();
-
 const items = ref([]);
-const editing = ref(null);
+const loading = ref(true);
+const saving = ref(false);
+const search = ref('');
 
-watch(editing, () => markDirty(), { deep: true });
+const formDialog = ref(null);
+const deleteDialog = ref(null);
+
+const total = computed(() => items.value.length);
+const activeCount = computed(() => items.value.filter(i => i.is_active).length);
+const inactiveCount = computed(() => total.value - activeCount.value);
+
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) return items.value;
+  return items.value.filter(
+    i =>
+      i.name?.toLowerCase().includes(q) ||
+      i.description?.toLowerCase().includes(q)
+  );
+});
 
 const load = async () => {
-  const { data } = await typificationsAPI.getAll(false);
-  items.value = data.typifications || [];
-};
-
-const startCreate = () => {
-  editing.value = { name: '', description: '', is_active: true };
-};
-
-const cancelEdit = async () => {
-  editing.value = null;
-  await nextTick();
-  markClean();
-};
-
-const save = async () => {
-  if (!editing.value.name) {
-    useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.NAME_REQUIRED'));
-    return;
-  }
+  loading.value = true;
   try {
-    if (editing.value.id)
-      await typificationsAPI.update(editing.value.id, editing.value);
-    else await typificationsAPI.create(editing.value);
-    editing.value = null;
-    await load();
-    await nextTick();
-    markClean();
-    useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.SAVED'));
-  } catch (e) {
-    useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.SAVE_ERROR'));
+    const { data } = await typificationsAPI.getAll(false);
+    items.value = data.typifications || [];
+  } finally {
+    loading.value = false;
   }
-};
-
-const remove = async id => {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(t('JABVOX_CLICK_TO_CALL.SETTINGS.CONFIRM_DELETE')))
-    return;
-  await typificationsAPI.destroy(id);
-  await load();
 };
 
 onMounted(load);
+
+const onSubmit = async ({ id, values }) => {
+  if (!values.name) {
+    useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.NAME_REQUIRED'));
+    return;
+  }
+  saving.value = true;
+  try {
+    if (id) await typificationsAPI.update(id, values);
+    else await typificationsAPI.create(values);
+    formDialog.value?.close();
+    await load();
+    useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.SAVED'));
+  } catch {
+    useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.SAVE_ERROR'));
+  } finally {
+    saving.value = false;
+  }
+};
+
+const askDelete = tp => {
+  deleteDialog.value?.open({
+    title: t('JABVOX_CLICK_TO_CALL.SETTINGS.DELETE_TITLE'),
+    description: t('JABVOX_CLICK_TO_CALL.SETTINGS.DELETE_BODY', {
+      name: tp.name,
+    }),
+    data: tp.id,
+  });
+};
+
+const doDelete = async id => {
+  try {
+    await typificationsAPI.destroy(id);
+    await load();
+  } catch {
+    useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.SAVE_ERROR'));
+  }
+};
 </script>
 
 <template>
-  <div class="flex flex-col flex-1 overflow-auto p-6 max-w-2xl">
-    <h1 class="text-xl font-medium text-n-slate-12 mb-1">
-      {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.TITLE') }}
-    </h1>
-    <p class="text-sm text-n-slate-11 mb-4">
-      {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.SUBTITLE') }}
-    </p>
-
-    <div v-if="!editing">
-      <button
-        class="mb-4 px-4 py-2 text-sm rounded-lg bg-n-brand text-white"
-        @click="startCreate"
-      >
-        {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.NEW') }}
-      </button>
+  <div class="w-full h-full overflow-y-auto bg-n-background">
+    <div
+      class="mx-auto w-full max-w-4xl flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+    >
+      <!-- Header -->
       <div
-        v-for="tp in items"
-        :key="tp.id"
-        class="flex items-center justify-between p-3 mb-2 rounded-lg bg-n-alpha-2"
+        class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
       >
-        <div>
-          <span class="font-medium text-n-slate-12">{{ tp.name }}</span>
-          <span v-if="!tp.is_active" class="ml-2 text-xs text-n-slate-10">
-            {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.INACTIVE') }}
-          </span>
-          <p v-if="tp.description" class="text-xs text-n-slate-11">
-            {{ tp.description }}
-          </p>
+        <div class="flex items-start gap-3 min-w-0">
+          <span
+            class="i-lucide-tags size-9 shrink-0 rounded-xl bg-n-alpha-2 p-2 text-n-brand"
+          />
+          <div class="min-w-0">
+            <h1 class="text-xl font-semibold tracking-tight text-n-slate-12">
+              {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.TITLE') }}
+            </h1>
+            <p class="mt-1 text-sm leading-relaxed text-n-slate-11">
+              {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.SUBTITLE') }}
+            </p>
+          </div>
         </div>
-        <div class="flex gap-2">
-          <button class="text-sm text-n-slate-11" @click="editing = { ...tp }">
-            {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.EDIT') }}
-          </button>
-          <button class="text-sm text-n-ruby-11" @click="remove(tp.id)">
-            {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.DELETE') }}
-          </button>
-        </div>
+        <Button
+          :label="t('JABVOX_CLICK_TO_CALL.SETTINGS.NEW')"
+          icon="i-lucide-plus"
+          class="shrink-0"
+          @click="formDialog?.openCreate()"
+        />
       </div>
-      <p v-if="!items.length" class="text-sm text-n-slate-11">
-        {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.EMPTY') }}
-      </p>
+
+      <!-- Loading -->
+      <div
+        v-if="loading"
+        class="flex items-center justify-center gap-2 py-16 text-sm text-n-slate-11"
+      >
+        <Spinner :size="18" />
+      </div>
+
+      <!-- Empty -->
+      <EmptyStateLayout
+        v-else-if="!items.length"
+        :title="t('JABVOX_CLICK_TO_CALL.SETTINGS.EMPTY_TITLE')"
+        :subtitle="t('JABVOX_CLICK_TO_CALL.SETTINGS.EMPTY')"
+      >
+        <template #actions>
+          <Button
+            icon="i-lucide-plus"
+            :label="t('JABVOX_CLICK_TO_CALL.SETTINGS.NEW')"
+            size="sm"
+            @click="formDialog?.openCreate()"
+          />
+        </template>
+      </EmptyStateLayout>
+
+      <template v-else>
+        <!-- KPIs -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div
+            class="flex items-center gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+          >
+            <span
+              class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-n-alpha-2 text-n-slate-11"
+            >
+              <span class="i-lucide-tags size-5" />
+            </span>
+            <div>
+              <p class="text-xl font-semibold tabular-nums text-n-slate-12">
+                {{ total }}
+              </p>
+              <p class="text-xs text-n-slate-11">
+                {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.KPI_TOTAL') }}
+              </p>
+            </div>
+          </div>
+          <div
+            class="flex items-center gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+          >
+            <span
+              class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-n-teal-3 text-n-teal-11"
+            >
+              <span class="i-lucide-circle-check size-5" />
+            </span>
+            <div>
+              <p class="text-xl font-semibold tabular-nums text-n-slate-12">
+                {{ activeCount }}
+              </p>
+              <p class="text-xs text-n-slate-11">
+                {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.KPI_ACTIVE') }}
+              </p>
+            </div>
+          </div>
+          <div
+            class="flex items-center gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+          >
+            <span
+              class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-n-amber-3 text-n-amber-11"
+            >
+              <span class="i-lucide-circle-pause size-5" />
+            </span>
+            <div>
+              <p class="text-xl font-semibold tabular-nums text-n-slate-12">
+                {{ inactiveCount }}
+              </p>
+              <p class="text-xs text-n-slate-11">
+                {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.KPI_INACTIVE') }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search + count -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="relative w-full sm:w-64">
+            <Input
+              v-model="search"
+              :placeholder="
+                t('JABVOX_CLICK_TO_CALL.SETTINGS.SEARCH_PLACEHOLDER')
+              "
+              custom-input-class="!pl-9"
+            >
+              <template #prefix>
+                <span
+                  class="i-lucide-search size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                />
+              </template>
+            </Input>
+          </div>
+          <span class="text-xs text-n-slate-10">
+            {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.COUNT', { count: total }) }}
+          </span>
+        </div>
+
+        <!-- No results -->
+        <div
+          v-if="!filtered.length"
+          class="rounded-xl border border-dashed border-n-weak py-10 text-center text-sm text-n-slate-11"
+        >
+          {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.NO_RESULTS') }}
+        </div>
+
+        <!-- List -->
+        <div
+          v-else
+          class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm divide-y divide-n-weak overflow-hidden"
+        >
+          <div
+            v-for="tp in filtered"
+            :key="tp.id"
+            class="flex items-center gap-3 px-4 py-3 hover:bg-n-alpha-1 transition-colors"
+          >
+            <span
+              class="i-lucide-tag size-5 text-n-slate-10 shrink-0 hidden sm:block"
+            />
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-n-slate-12 truncate">
+                {{ tp.name }}
+              </p>
+              <p v-if="tp.description" class="text-xs text-n-slate-10 truncate">
+                {{ tp.description }}
+              </p>
+            </div>
+            <Label
+              :label="
+                tp.is_active
+                  ? t('JABVOX_CLICK_TO_CALL.SETTINGS.ACTIVE_BADGE')
+                  : t('JABVOX_CLICK_TO_CALL.SETTINGS.INACTIVE')
+              "
+              :color="tp.is_active ? 'teal' : 'slate'"
+              compact
+            />
+            <Button
+              icon="i-lucide-pencil"
+              variant="ghost"
+              color="slate"
+              size="sm"
+              :title="t('JABVOX_CLICK_TO_CALL.SETTINGS.EDIT')"
+              @click="formDialog?.openEdit(tp)"
+            />
+            <Button
+              icon="i-lucide-trash-2"
+              variant="ghost"
+              color="ruby"
+              size="sm"
+              :title="t('JABVOX_CLICK_TO_CALL.SETTINGS.DELETE')"
+              @click="askDelete(tp)"
+            />
+          </div>
+        </div>
+      </template>
     </div>
 
-    <div v-else class="space-y-3">
-      <input
-        v-model="editing.name"
-        class="reset-base text-sm w-full"
-        :placeholder="t('JABVOX_CLICK_TO_CALL.SETTINGS.NAME')"
-      />
-      <input
-        v-model="editing.description"
-        class="reset-base text-sm w-full"
-        :placeholder="t('JABVOX_CLICK_TO_CALL.SETTINGS.DESCRIPTION')"
-      />
-      <label class="flex items-center gap-2 text-sm text-n-slate-11">
-        <input v-model="editing.is_active" type="checkbox" />
-        {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.ACTIVE') }}
-      </label>
-      <div class="flex gap-3">
-        <button
-          class="px-4 py-2 text-sm rounded-lg bg-n-brand text-white"
-          @click="save"
-        >
-          {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.SAVE') }}
-        </button>
-        <button
-          class="px-4 py-2 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11"
-          @click="cancelEdit"
-        >
-          {{ t('JABVOX_CLICK_TO_CALL.SETTINGS.CANCEL') }}
-        </button>
-      </div>
-    </div>
+    <FormDialog ref="formDialog" :is-saving="saving" @submit="onSubmit" />
+    <ConfirmDialog ref="deleteDialog" @confirm="doDelete" />
   </div>
 </template>

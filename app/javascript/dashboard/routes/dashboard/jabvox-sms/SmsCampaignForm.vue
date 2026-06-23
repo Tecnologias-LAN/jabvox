@@ -4,6 +4,9 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Select from 'dashboard/components-next/select/Select.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import TagMultiSelectComboBox from 'dashboard/components-next/combobox/TagMultiSelectComboBox.vue';
 import { smsCampaignsAPI } from 'dashboard/api/jabvox/sms';
@@ -33,7 +36,6 @@ const form = ref({
 });
 
 const textareaRef = ref(null);
-const isEdit = computed(() => !!props.campaign);
 
 const leadCampaignOptions = computed(() =>
   (leadCampaigns.value || []).map(c => ({ value: c.id, label: c.name }))
@@ -43,6 +45,13 @@ const affiliateOptions = computed(() =>
 );
 const inboxOptions = computed(() =>
   (inboxes.value || []).map(i => ({ value: i.id, label: i.name }))
+);
+const providerOptions = computed(() =>
+  (providers.value || []).map(p => ({
+    value: p.id,
+    label: p.active ? p.name : `${p.name} (inactivo)`,
+    disabled: !p.active,
+  }))
 );
 
 // Lead count
@@ -126,108 +135,75 @@ const onSave = () => emit('save', { ...form.value });
 </script>
 
 <template>
-  <div class="space-y-5">
-    <div>
-      <h3 class="text-base font-semibold text-n-slate-12">
-        {{
-          isEdit
-            ? t('JABVOX_SMS.CAMPAIGNS.EDIT_TITLE')
-            : t('JABVOX_SMS.CAMPAIGNS.NEW_TITLE')
-        }}
-      </h3>
-      <p class="text-sm text-n-slate-10 mt-1">
-        {{ t('JABVOX_SMS.CAMPAIGNS.SUBTITLE') }}
-      </p>
-    </div>
-
-    <!-- Name -->
-    <div class="space-y-1">
-      <label class="block text-xs font-medium text-n-slate-11">
-        {{ t('JABVOX_SMS.CAMPAIGNS.FORM.NAME') }} *
-      </label>
-      <input
+  <div class="flex flex-col gap-6">
+    <!-- General -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <Input
         v-model="form.name"
-        type="text"
+        :label="`${t('JABVOX_SMS.CAMPAIGNS.FORM.NAME')} *`"
         :placeholder="t('JABVOX_SMS.CAMPAIGNS.FORM.NAME_PLACEHOLDER')"
-        class="w-full rounded-lg border border-n-weak bg-white dark:bg-n-surface-2 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-woot-500"
+        autofocus
       />
-    </div>
-
-    <!-- Description -->
-    <div class="space-y-1">
-      <label class="block text-xs font-medium text-n-slate-11">
-        {{ t('JABVOX_SMS.CAMPAIGNS.FORM.DESCRIPTION') }}
-      </label>
-      <input
+      <Input
         v-model="form.description"
-        type="text"
+        :label="t('JABVOX_SMS.CAMPAIGNS.FORM.DESCRIPTION')"
         :placeholder="t('JABVOX_SMS.CAMPAIGNS.FORM.DESCRIPTION_PLACEHOLDER')"
-        class="w-full rounded-lg border border-n-weak bg-white dark:bg-n-surface-2 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-woot-500"
       />
     </div>
 
-    <!-- Provider -->
-    <div class="space-y-1">
-      <label class="block text-xs font-medium text-n-slate-11">
-        {{ t('JABVOX_SMS.CAMPAIGNS.FORM.PROVIDER') }} *
+    <div class="flex flex-col gap-1.5">
+      <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
+      <label class="text-sm font-medium text-n-slate-12">
+        {{ t('JABVOX_SMS.CAMPAIGNS.FORM.PROVIDER') }}
+        <span class="text-n-ruby-11">*</span>
       </label>
-      <select
+      <Select
         v-model="form.jabvox_sms_provider_id"
-        class="w-full rounded-lg border border-n-weak bg-white dark:bg-n-surface-2 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-woot-500"
-      >
-        <option :value="null">
-          {{ t('JABVOX_SMS.CAMPAIGNS.FORM.SELECT_PROVIDER') }}
-        </option>
-        <option
-          v-for="p in providers"
-          :key="p.id"
-          :value="p.id"
-          :disabled="!p.active"
-        >
-          {{ p.name }}{{ !p.active ? ' (inactivo)' : '' }}
-        </option>
-      </select>
+        :options="providerOptions"
+        :placeholder="t('JABVOX_SMS.CAMPAIGNS.FORM.SELECT_PROVIDER')"
+      />
     </div>
 
     <!-- Message -->
-    <div class="space-y-2">
-      <label class="block text-xs font-medium text-n-slate-11">
-        {{ t('JABVOX_SMS.CAMPAIGNS.FORM.MESSAGE') }} *
+    <div class="flex flex-col gap-2">
+      <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
+      <label class="text-sm font-medium text-n-slate-12">
+        {{ t('JABVOX_SMS.CAMPAIGNS.FORM.MESSAGE') }}
+        <span class="text-n-ruby-11">*</span>
       </label>
-      <div class="flex gap-2 flex-wrap">
+      <div class="flex gap-1.5 flex-wrap">
         <span
           v-for="v in VARIABLES"
           :key="v"
           draggable="true"
-          class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-woot-50 text-woot-700 dark:bg-woot-900 dark:text-woot-300 cursor-grab select-none border border-woot-200 dark:border-woot-700 hover:bg-woot-100 transition-colors"
+          class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium bg-n-alpha-2 text-n-brand border border-n-weak cursor-grab select-none hover:bg-n-alpha-3 transition-colors"
           @dragstart="onDragStart($event, v)"
           @click="insertVariable(v)"
         >
           {{ v }}
         </span>
       </div>
-      <p class="text-xs text-n-slate-9">
-        {{ t('JABVOX_SMS.CAMPAIGNS.FORM.VARIABLES_HINT') }}
-      </p>
       <textarea
         ref="textareaRef"
         v-model="form.message"
         rows="4"
         :placeholder="t('JABVOX_SMS.CAMPAIGNS.FORM.MESSAGE_PLACEHOLDER')"
-        class="w-full rounded-lg border border-n-weak bg-white dark:bg-n-surface-2 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-woot-500 resize-none"
+        class="w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand resize-y"
         @dragover.prevent
         @drop="onDrop"
       />
+      <p class="text-xs text-n-slate-10">
+        {{ t('JABVOX_SMS.CAMPAIGNS.FORM.VARIABLES_HINT') }}
+      </p>
     </div>
 
-    <div class="border-t border-n-weak pt-4 space-y-4">
-      <p class="text-xs font-semibold text-n-slate-11 uppercase tracking-wide">
+    <!-- Filters -->
+    <div class="flex flex-col gap-4 border-t border-n-weak pt-5">
+      <p class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide">
         {{ t('JABVOX_SMS.CAMPAIGNS.FORM.FILTERS_SECTION') }}
       </p>
-
-      <!-- Lead campaign -->
-      <div class="space-y-1">
-        <label class="block text-xs font-medium text-n-slate-11">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-medium text-n-slate-12">
           {{ t('JABVOX_SMS.CAMPAIGNS.FORM.LEAD_CAMPAIGN') }}
         </label>
         <ComboBox
@@ -241,77 +217,71 @@ const onSave = () => emit('save', { ...form.value });
           "
         />
       </div>
-
-      <!-- Affiliates -->
-      <div class="space-y-1">
-        <label class="block text-xs font-medium text-n-slate-11">
-          {{ t('JABVOX_SMS.CAMPAIGNS.FORM.AFFILIATES') }}
-        </label>
-        <TagMultiSelectComboBox
-          v-model="form.affiliate_ids_sms"
-          :options="affiliateOptions"
-          :placeholder="t('JABVOX_SMS.CAMPAIGNS.FORM.AFFILIATES_PLACEHOLDER')"
-          :search-placeholder="
-            t('JABVOX_SMS.CAMPAIGNS.FORM.AFFILIATES_PLACEHOLDER')
-          "
-        />
-      </div>
-
-      <!-- Inboxes -->
-      <div class="space-y-1">
-        <label class="block text-xs font-medium text-n-slate-11">
-          {{ t('JABVOX_SMS.CAMPAIGNS.FORM.INBOXES') }}
-        </label>
-        <TagMultiSelectComboBox
-          v-model="form.inbox_ids_sms"
-          :options="inboxOptions"
-          :placeholder="t('JABVOX_SMS.CAMPAIGNS.FORM.INBOXES_PLACEHOLDER')"
-          :search-placeholder="
-            t('JABVOX_SMS.CAMPAIGNS.FORM.INBOXES_PLACEHOLDER')
-          "
-        />
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_SMS.CAMPAIGNS.FORM.AFFILIATES') }}
+          </label>
+          <TagMultiSelectComboBox
+            v-model="form.affiliate_ids_sms"
+            :options="affiliateOptions"
+            :placeholder="t('JABVOX_SMS.CAMPAIGNS.FORM.AFFILIATES_PLACEHOLDER')"
+            :search-placeholder="
+              t('JABVOX_SMS.CAMPAIGNS.FORM.AFFILIATES_PLACEHOLDER')
+            "
+          />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_SMS.CAMPAIGNS.FORM.INBOXES') }}
+          </label>
+          <TagMultiSelectComboBox
+            v-model="form.inbox_ids_sms"
+            :options="inboxOptions"
+            :placeholder="t('JABVOX_SMS.CAMPAIGNS.FORM.INBOXES_PLACEHOLDER')"
+            :search-placeholder="
+              t('JABVOX_SMS.CAMPAIGNS.FORM.INBOXES_PLACEHOLDER')
+            "
+          />
+        </div>
       </div>
     </div>
 
-    <!-- Lead count -->
+    <!-- Lead count preview -->
     <div
-      class="rounded-xl border border-n-weak bg-n-surface-2 px-4 py-3 grid grid-cols-2 gap-4"
+      class="grid grid-cols-2 gap-3 rounded-xl border border-n-weak bg-n-alpha-1 p-4"
     >
       <div class="text-center">
-        <p class="text-xl font-bold text-n-slate-12">
-          <span v-if="loadingCount" class="text-n-slate-8 animate-pulse">
-            ...
-          </span>
+        <p class="text-xl font-bold text-n-slate-12 tabular-nums">
+          <Spinner v-if="loadingCount" :size="16" class="mx-auto" />
           <span v-else>{{ leadCount?.total_count ?? '—' }}</span>
         </p>
-        <p class="text-xs text-n-slate-9 mt-0.5">
+        <p class="text-xs text-n-slate-10 mt-0.5">
           {{ t('JABVOX_SMS.CAMPAIGNS.FORM.TOTAL_LEADS') }}
         </p>
       </div>
       <div class="text-center">
-        <p class="text-xl font-bold text-woot-600 dark:text-woot-400">
-          <span v-if="loadingCount" class="text-n-slate-8 animate-pulse">
-            ...
-          </span>
+        <p class="text-xl font-bold text-n-brand tabular-nums">
+          <Spinner v-if="loadingCount" :size="16" class="mx-auto" />
           <span v-else>{{ leadCount?.with_phone_count ?? '—' }}</span>
         </p>
-        <p class="text-xs text-n-slate-9 mt-0.5">
+        <p class="text-xs text-n-slate-10 mt-0.5">
           {{ t('JABVOX_SMS.CAMPAIGNS.FORM.WITH_PHONE') }}
         </p>
       </div>
     </div>
 
     <!-- Actions -->
-    <div class="flex justify-end gap-3 pt-2">
+    <div class="flex justify-end gap-2 pt-1">
       <Button
-        variant="clear"
-        :label="t('JABVOX_SMS.CANCEL')"
+        variant="outline"
+        color="slate"
+        :label="t('JABVOX_SMS.COMMON.CANCEL')"
         @click="emit('cancel')"
       />
       <Button
-        :label="
-          uiFlags.isSaving ? t('JABVOX_PRODUCTS.LOADING') : t('JABVOX_SMS.SAVE')
-        "
+        :label="t('JABVOX_SMS.SAVE')"
+        :is-loading="uiFlags.isSaving"
         :disabled="
           uiFlags.isSaving ||
           !form.name ||

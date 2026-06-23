@@ -5,15 +5,21 @@ import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
-import SettingsLayout from '../SettingsLayout.vue';
-import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
-import Button from 'dashboard/components-next/button/Button.vue';
 import userExtensionAPI from 'dashboard/api/jabvox/userExtension';
 import agentsAPI from 'dashboard/api/agents';
+import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Label from 'dashboard/components-next/label/Label.vue';
+import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
+import SectionCard from './components/SectionCard.vue';
+import SaveBar from './components/SaveBar.vue';
+import ExtensionDialog from './components/ExtensionDialog.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const store = useStore();
 const { t } = useI18n();
-const { markDirty, markClean } = useUnsavedChanges();
+const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
 const config = useMapGetter('jabvoxVoip/getConfig');
 const status = useMapGetter('jabvoxVoip/getStatus');
@@ -22,6 +28,7 @@ const currentUserRole = useMapGetter('getCurrentRole');
 
 const isAdmin = computed(() => currentUserRole.value === 'administrator');
 const isConnected = computed(() => status.value?.connected === true);
+const showPassword = ref(false);
 
 const buildForm = cfg => ({
   host: cfg?.host || '',
@@ -34,21 +41,47 @@ const buildForm = cfg => ({
 });
 
 const form = ref(buildForm(config.value?.id ? config.value : null));
-
 watch(form, () => markDirty(), { deep: true });
 
 const isNew = computed(() => !config.value?.id);
+const isValid = computed(
+  () => !!form.value.host && !!form.value.username && !!form.value.context
+);
 
+// ── status tone ──
+const statusColor = computed(() => {
+  if (status.value === null) return 'slate';
+  return isConnected.value ? 'teal' : 'ruby';
+});
+const statusLabel = computed(() => {
+  if (status.value === null) return t('JABVOX_VOIP.STATUS.LOADING');
+  return isConnected.value
+    ? t('JABVOX_VOIP.STATUS.CONNECTED')
+    : t('JABVOX_VOIP.STATUS.DISCONNECTED');
+});
+
+// ── extensions ──
 const extensions = ref([]);
 const agents = ref([]);
-const newExtUserId = ref('');
-const newExtValue = ref('');
 const extSaving = ref(false);
+const extSearch = ref('');
+const extensionDialog = ref(null);
+const deleteDialog = ref(null);
 
 const usedUserIds = computed(() => extensions.value.map(e => e.user_id));
 const availableAgents = computed(() =>
   agents.value.filter(a => !usedUserIds.value.includes(a.id))
 );
+const filteredExtensions = computed(() => {
+  const q = extSearch.value.trim().toLowerCase();
+  if (!q) return extensions.value;
+  return extensions.value.filter(
+    e =>
+      e.user_name?.toLowerCase().includes(q) ||
+      e.user_email?.toLowerCase().includes(q) ||
+      String(e.extension).includes(q)
+  );
+});
 
 const loadExtensions = async () => {
   try {
@@ -75,6 +108,7 @@ onMounted(async () => {
 });
 
 const onSave = async () => {
+  if (!isValid.value) return;
   try {
     await store.dispatch('jabvoxVoip/updateConfig', { ...form.value });
     form.value.password = '';
@@ -87,19 +121,20 @@ const onSave = async () => {
   }
 };
 
+const onDiscard = async () => {
+  form.value = buildForm(config.value?.id ? config.value : null);
+  await nextTick();
+  markClean();
+};
+
 const onRefreshStatus = () => store.dispatch('jabvoxVoip/fetchStatus');
 
-const onAddExtension = async () => {
-  if (!newExtUserId.value || !newExtValue.value.trim()) return;
+const onSubmitExtension = async ({ userId, extension }) => {
   extSaving.value = true;
   try {
-    const { data } = await userExtensionAPI.create(
-      newExtUserId.value,
-      newExtValue.value.trim()
-    );
+    const { data } = await userExtensionAPI.create(userId, extension);
     extensions.value.push(data);
-    newExtUserId.value = '';
-    newExtValue.value = '';
+    extensionDialog.value?.close();
   } catch (e) {
     useAlert(e?.response?.data?.error || t('JABVOX_VOIP.ERROR'));
   } finally {
@@ -107,7 +142,18 @@ const onAddExtension = async () => {
   }
 };
 
-const onRemoveExtension = async ext => {
+const askRemoveExtension = ext => {
+  deleteDialog.value?.open({
+    title: t('JABVOX_VOIP.EXTENSIONS.DELETE_TITLE'),
+    description: t('JABVOX_VOIP.EXTENSIONS.DELETE_BODY', {
+      ext: ext.extension,
+      name: ext.user_name,
+    }),
+    data: ext,
+  });
+};
+
+const doRemoveExtension = async ext => {
   try {
     await userExtensionAPI.destroy(ext.id);
     extensions.value = extensions.value.filter(e => e.id !== ext.id);
@@ -118,314 +164,301 @@ const onRemoveExtension = async ext => {
 </script>
 
 <template>
-  <SettingsLayout>
-    <BaseSettingsHeader
-      :title="$t('JABVOX_VOIP.TITLE')"
-      :description="$t('JABVOX_VOIP.DESCRIPTION')"
-    />
+  <div class="w-full h-full overflow-y-auto bg-n-background">
+    <div
+      class="mx-auto w-full max-w-4xl flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+    >
+      <!-- Header -->
+      <div class="flex items-start gap-3">
+        <span
+          class="i-lucide-phone-call size-9 shrink-0 rounded-xl bg-n-alpha-2 p-2 text-n-brand"
+        />
+        <div class="min-w-0">
+          <h1 class="text-xl font-semibold tracking-tight text-n-slate-12">
+            {{ t('JABVOX_VOIP.TITLE') }}
+          </h1>
+          <p class="mt-1 text-sm leading-relaxed text-n-slate-11">
+            {{ t('JABVOX_VOIP.SUBTITLE') }}
+          </p>
+        </div>
+      </div>
 
-    <div class="mt-6 max-w-3xl mx-auto space-y-6">
-      <!-- Connection status banner -->
+      <!-- Status banner -->
       <div
-        class="rounded-2xl border p-4 flex items-center justify-between gap-4"
-        :class="
-          status === null
-            ? 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
-            : isConnected
-              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-        "
+        class="flex items-center justify-between gap-3 rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm p-4 sm:p-5"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 min-w-0">
           <span
-            class="w-3 h-3 rounded-full flex-shrink-0"
-            :class="
-              status === null
-                ? 'bg-slate-300'
-                : isConnected
-                  ? 'bg-green-500'
-                  : 'bg-red-500'
-            "
-          />
-          <div>
-            <p
-              class="text-sm font-semibold"
-              :class="
-                status === null
-                  ? 'text-slate-500'
-                  : isConnected
-                    ? 'text-green-700 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
-              "
-            >
-              {{
-                status === null
-                  ? $t('JABVOX_VOIP.STATUS.LOADING')
-                  : isConnected
-                    ? $t('JABVOX_VOIP.STATUS.CONNECTED')
-                    : $t('JABVOX_VOIP.STATUS.DISCONNECTED')
-              }}
-            </p>
+            class="flex size-10 shrink-0 items-center justify-center rounded-xl"
+            :class="{
+              'bg-n-teal-3 text-n-teal-11': statusColor === 'teal',
+              'bg-n-ruby-3 text-n-ruby-11': statusColor === 'ruby',
+              'bg-n-alpha-2 text-n-slate-11': statusColor === 'slate',
+            }"
+          >
+            <span class="i-lucide-server size-5" />
+          </span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <p class="text-sm font-semibold text-n-slate-12">
+                {{ statusLabel }}
+              </p>
+              <Label
+                v-if="status !== null"
+                :label="
+                  isConnected
+                    ? t('JABVOX_VOIP.STATUS.CONNECTED')
+                    : t('JABVOX_VOIP.STATUS.DISCONNECTED')
+                "
+                :color="statusColor"
+                compact
+              />
+            </div>
             <p
               v-if="status?.message"
-              class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"
+              class="text-xs text-n-slate-11 mt-0.5 truncate"
             >
               {{ status.message }}
             </p>
           </div>
         </div>
         <Button
-          variant="clear"
-          size="small"
-          :icon="
-            uiFlags.isCheckingStatus
-              ? 'i-lucide-loader-circle'
-              : 'i-lucide-refresh-cw'
-          "
-          :class="{ 'animate-spin': uiFlags.isCheckingStatus }"
-          :label="$t('JABVOX_VOIP.STATUS.REFRESH')"
-          :disabled="uiFlags.isCheckingStatus"
+          :label="t('JABVOX_VOIP.STATUS.REFRESH')"
+          icon="i-lucide-refresh-cw"
+          variant="outline"
+          color="slate"
+          size="sm"
+          class="shrink-0"
+          :is-loading="uiFlags.isCheckingStatus"
           @click="onRefreshStatus"
         />
       </div>
 
-      <!-- Config card -->
-      <div
-        class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-5"
-      >
-        <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">
-          {{ $t('JABVOX_VOIP.FORM.TITLE') }}
-        </h3>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="sm:col-span-2 space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_VOIP.FORM.HOST') }} *
-            </label>
-            <input
-              v-model="form.host"
-              type="text"
-              :placeholder="$t('JABVOX_VOIP.FORM.HOST_PLACEHOLDER')"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_VOIP.FORM.PORT') }} *
-            </label>
-            <input
-              v-model.number="form.port"
-              type="number"
-              min="1"
-              max="65535"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_VOIP.FORM.USERNAME') }} *
-            </label>
-            <input
-              v-model="form.username"
-              type="text"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_VOIP.FORM.PASSWORD') }}
-              <span v-if="!isNew" class="font-normal text-slate-400">
-                {{ $t('JABVOX_VOIP.FORM.PASSWORD_HINT') }}
-              </span>
-            </label>
-            <input
-              v-model="form.password"
-              type="password"
-              autocomplete="new-password"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_VOIP.FORM.CONTEXT') }} *
-            </label>
-            <input
+      <!-- Config form -->
+      <form class="flex flex-col gap-6" @submit.prevent>
+        <!-- AMI connection -->
+        <SectionCard
+          :title="t('JABVOX_VOIP.FORM.SECTION_CONNECTION')"
+          :description="t('JABVOX_VOIP.FORM.SECTION_CONNECTION_DESC')"
+          icon="i-lucide-server"
+        >
+          <div class="flex flex-col gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="sm:col-span-2">
+                <Input
+                  v-model="form.host"
+                  :label="`${t('JABVOX_VOIP.FORM.HOST')} *`"
+                  :placeholder="t('JABVOX_VOIP.FORM.HOST_PLACEHOLDER')"
+                  custom-input-class="font-mono"
+                />
+              </div>
+              <Input
+                v-model.number="form.port"
+                type="number"
+                min="1"
+                max="65535"
+                :label="`${t('JABVOX_VOIP.FORM.PORT')} *`"
+              />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                v-model="form.username"
+                :label="`${t('JABVOX_VOIP.FORM.USERNAME')} *`"
+              />
+              <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-medium text-n-slate-12">
+                  {{ t('JABVOX_VOIP.FORM.PASSWORD') }}
+                </label>
+                <div class="relative">
+                  <Input
+                    v-model="form.password"
+                    :type="showPassword ? 'text' : 'password'"
+                    autocomplete="new-password"
+                    custom-input-class="!pr-10"
+                    :placeholder="isNew ? '' : '••••••••'"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-n-slate-10 hover:text-n-slate-12"
+                    @click="showPassword = !showPassword"
+                  >
+                    <span
+                      :class="
+                        showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'
+                      "
+                      class="size-4"
+                    />
+                  </button>
+                </div>
+                <p v-if="!isNew" class="text-xs text-n-slate-10">
+                  {{ t('JABVOX_VOIP.FORM.PASSWORD_HINT') }}
+                </p>
+              </div>
+            </div>
+            <Input
               v-model="form.context"
-              type="text"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
+              :label="`${t('JABVOX_VOIP.FORM.CONTEXT')} *`"
+              :message="t('JABVOX_VOIP.FORM.CONTEXT_HELP')"
+              custom-input-class="font-mono"
             />
-            <p class="text-xs text-slate-400">
-              {{ $t('JABVOX_VOIP.FORM.CONTEXT_HELP') }}
-            </p>
           </div>
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_VOIP.FORM.DIALER_CONTEXT') }}
-            </label>
-            <input
+        </SectionCard>
+
+        <!-- Dialer -->
+        <SectionCard
+          :title="t('JABVOX_VOIP.FORM.SECTION_DIALER')"
+          :description="t('JABVOX_VOIP.FORM.SECTION_DIALER_DESC')"
+          icon="i-lucide-phone-outgoing"
+        >
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
               v-model="form.dialer_context"
-              type="text"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
+              :label="t('JABVOX_VOIP.FORM.DIALER_CONTEXT')"
+              :message="t('JABVOX_VOIP.FORM.DIALER_CONTEXT_HELP')"
+              custom-input-class="font-mono"
             />
-            <p class="text-xs text-slate-400">
-              {{ $t('JABVOX_VOIP.FORM.DIALER_CONTEXT_HELP') }}
-            </p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_VOIP.FORM.DIALER_TRUNK') }}
-            </label>
-            <input
+            <Input
               v-model="form.dialer_trunk"
-              type="text"
-              :placeholder="$t('JABVOX_VOIP.FORM.DIALER_TRUNK_PLACEHOLDER')"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-            <p class="text-xs text-slate-400">
-              {{ $t('JABVOX_VOIP.FORM.DIALER_TRUNK_HELP') }}
-            </p>
-          </div>
-        </div>
-
-        <Button
-          :label="
-            uiFlags.isSaving
-              ? $t('JABVOX_PRODUCTS.LOADING')
-              : $t('JABVOX_VOIP.SAVE')
-          "
-          :disabled="
-            uiFlags.isSaving || !form.host || !form.username || !form.context
-          "
-          @click="onSave"
-        />
-      </div>
-
-      <!-- Extensions card (admin only) -->
-      <div
-        v-if="isAdmin"
-        class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-5"
-      >
-        <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">
-          {{ $t('JABVOX_VOIP.EXTENSIONS.TITLE') }}
-        </h3>
-
-        <div class="flex gap-3 items-end flex-wrap">
-          <div class="space-y-1 flex-1 min-w-[180px]">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_VOIP.EXTENSIONS.USER') }}
-            </label>
-            <select
-              v-model="newExtUserId"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            >
-              <option value="">
-                {{ $t('JABVOX_VOIP.EXTENSIONS.SELECT_USER') }}
-              </option>
-              <option v-for="a in availableAgents" :key="a.id" :value="a.id">
-                {{ a.name }} ({{ a.email }})
-              </option>
-            </select>
-          </div>
-          <div class="space-y-1 w-28">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-            >
-              {{ $t('JABVOX_VOIP.EXTENSIONS.EXTENSION') }}
-            </label>
-            <input
-              v-model="newExtValue"
-              type="text"
-              :placeholder="$t('JABVOX_VOIP.EXTENSIONS.PLACEHOLDER')"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-              @keydown.enter="onAddExtension"
+              :label="t('JABVOX_VOIP.FORM.DIALER_TRUNK')"
+              :placeholder="t('JABVOX_VOIP.FORM.DIALER_TRUNK_PLACEHOLDER')"
+              :message="t('JABVOX_VOIP.FORM.DIALER_TRUNK_HELP')"
+              custom-input-class="font-mono"
             />
           </div>
+        </SectionCard>
+
+        <!-- First-time save button (no config yet → SaveBar baseline is clean) -->
+        <div v-if="isNew" class="flex">
           <Button
-            :label="$t('JABVOX_VOIP.EXTENSIONS.ADD')"
-            :disabled="extSaving || !newExtUserId || !newExtValue.trim()"
-            @click="onAddExtension"
+            :label="t('JABVOX_VOIP.SAVE')"
+            :is-loading="uiFlags.isSaving"
+            :disabled="!isValid || uiFlags.isSaving"
+            @click="onSave"
           />
         </div>
 
+        <SaveBar
+          :visible="!isNew && isDirty"
+          :is-saving="uiFlags.isSaving"
+          :disabled="!isValid"
+          @save="onSave"
+          @discard="onDiscard"
+        />
+      </form>
+
+      <!-- Extensions (admin only) -->
+      <div v-if="isAdmin" class="flex flex-col gap-5">
         <div
-          v-if="extensions.length"
-          class="overflow-x-auto overflow-y-auto max-h-64 rounded-xl border border-slate-100 dark:border-slate-700"
+          class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
         >
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="bg-slate-50 dark:bg-slate-700/40 text-left">
-                <th class="px-4 py-2.5 text-xs font-medium text-slate-500">
-                  {{ $t('JABVOX_VOIP.EXTENSIONS.COL_USER') }}
-                </th>
-                <th class="px-4 py-2.5 text-xs font-medium text-slate-500">
-                  {{ $t('JABVOX_VOIP.EXTENSIONS.COL_EMAIL') }}
-                </th>
-                <th class="px-4 py-2.5 text-xs font-medium text-slate-500">
-                  {{ $t('JABVOX_VOIP.EXTENSIONS.COL_EXT') }}
-                </th>
-                <th class="px-4 py-2.5" />
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-              <tr
-                v-for="ext in extensions"
-                :key="ext.id"
-                class="hover:bg-slate-50 dark:hover:bg-slate-700/20"
-              >
-                <td
-                  class="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-100"
-                >
-                  {{ ext.user_name }}
-                </td>
-                <td class="px-4 py-2.5 text-slate-500">{{ ext.user_email }}</td>
-                <td class="px-4 py-2.5">
-                  <span
-                    class="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                  >
-                    {{ ext.extension }}
-                  </span>
-                </td>
-                <td class="px-4 py-2.5 text-right">
-                  <button
-                    class="text-xs text-red-400 hover:text-red-600 transition-colors"
-                    @click="onRemoveExtension(ext)"
-                  >
-                    {{ $t('JABVOX_VOIP.EXTENSIONS.REMOVE') }}
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold text-n-slate-12">
+              {{ t('JABVOX_VOIP.EXTENSIONS.TITLE') }}
+            </h2>
+            <p class="mt-1 text-sm text-n-slate-11 max-w-2xl">
+              {{ t('JABVOX_VOIP.EXTENSIONS.SUBTITLE') }}
+            </p>
+          </div>
+          <Button
+            :label="t('JABVOX_VOIP.EXTENSIONS.ADD')"
+            icon="i-lucide-plus"
+            size="sm"
+            class="shrink-0"
+            :disabled="!availableAgents.length"
+            @click="extensionDialog?.open()"
+          />
         </div>
-        <p v-else class="text-xs text-slate-400">
-          {{ $t('JABVOX_VOIP.EXTENSIONS.EMPTY') }}
-        </p>
+
+        <!-- Empty -->
+        <EmptyStateLayout
+          v-if="!extensions.length"
+          :title="t('JABVOX_VOIP.EXTENSIONS.EMPTY_TITLE')"
+          :subtitle="t('JABVOX_VOIP.EXTENSIONS.EMPTY')"
+        >
+          <template #actions>
+            <Button
+              icon="i-lucide-plus"
+              :label="t('JABVOX_VOIP.EXTENSIONS.ADD')"
+              size="sm"
+              :disabled="!availableAgents.length"
+              @click="extensionDialog?.open()"
+            />
+          </template>
+        </EmptyStateLayout>
+
+        <template v-else>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="relative w-full sm:w-64">
+              <Input
+                v-model="extSearch"
+                :placeholder="t('JABVOX_VOIP.EXTENSIONS.SEARCH_PLACEHOLDER')"
+                custom-input-class="!pl-9"
+              >
+                <template #prefix>
+                  <span
+                    class="i-lucide-search size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  />
+                </template>
+              </Input>
+            </div>
+            <span class="text-xs text-n-slate-10">
+              {{
+                t('JABVOX_VOIP.EXTENSIONS.COUNT', { count: extensions.length })
+              }}
+            </span>
+          </div>
+
+          <div
+            v-if="!filteredExtensions.length"
+            class="rounded-xl border border-dashed border-n-weak py-10 text-center text-sm text-n-slate-11"
+          >
+            {{ t('JABVOX_VOIP.EXTENSIONS.NO_RESULTS') }}
+          </div>
+
+          <div
+            v-else
+            class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm divide-y divide-n-weak overflow-hidden"
+          >
+            <div
+              v-for="ext in filteredExtensions"
+              :key="ext.id"
+              class="flex items-center gap-3 px-4 py-3 hover:bg-n-alpha-1 transition-colors"
+            >
+              <Avatar :name="ext.user_name" :size="32" rounded-full />
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-n-slate-12 truncate">
+                  {{ ext.user_name }}
+                </p>
+                <p class="text-xs text-n-slate-10 truncate">
+                  {{ ext.user_email }}
+                </p>
+              </div>
+              <code
+                class="font-mono text-sm font-semibold text-n-brand bg-n-alpha-2 rounded-md px-2 py-0.5 shrink-0"
+              >
+                {{ ext.extension }}
+              </code>
+              <Button
+                icon="i-lucide-trash-2"
+                variant="ghost"
+                color="ruby"
+                size="sm"
+                :title="t('JABVOX_VOIP.EXTENSIONS.REMOVE')"
+                @click="askRemoveExtension(ext)"
+              />
+            </div>
+          </div>
+        </template>
       </div>
     </div>
-  </SettingsLayout>
+
+    <!-- Dialogs -->
+    <ExtensionDialog
+      ref="extensionDialog"
+      :available-agents="availableAgents"
+      :is-saving="extSaving"
+      @submit="onSubmitExtension"
+    />
+    <ConfirmDialog ref="deleteDialog" @confirm="doRemoveExtension" />
+  </div>
 </template>

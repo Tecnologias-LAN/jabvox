@@ -496,7 +496,10 @@ Rails.application.routes.draw do
             namespace :audio_analysis do
               resources :storages, only: [:index, :create, :update, :destroy] do
                 collection { post :test }
-                member { get :objects }
+                member do
+                  get :objects
+                  post :assign
+                end
               end
               resources :pipelines
               resources :jobs, only: [:index, :show, :create] do
@@ -620,6 +623,20 @@ Rails.application.routes.draw do
             end
             resources :quick_buttons, only: [:index, :create, :update, :destroy]
 
+            # Tasks (kanban) module
+            namespace :tasks do
+              resources :boards do
+                resources :stages, only: [:index, :create, :update, :destroy] do
+                  resources :automations, only: [:index, :create, :update, :destroy],
+                                          controller: 'stage_automations'
+                end
+              end
+              resources :tasks do
+                member { post :move }
+              end
+              resources :lead_contacts
+            end
+
             # Analytics & Dashboards (BI) module
             namespace :analytics do
               resources :data_sources do
@@ -638,6 +655,12 @@ Rails.application.routes.draw do
 
               resources :folders
               resources :dashboards do
+                collection do
+                  get :overview_stats
+                  post :seed_defaults
+                  get :internal_reports
+                  post :create_internal_reports
+                end
                 member do
                   put :layout
                   post :duplicate

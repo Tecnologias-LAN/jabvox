@@ -203,7 +203,10 @@ const actions = {
     commit('SET_UI_FLAG', { isSyncingDocuments: true });
     try {
       const { data } = await aiChatConfigAPI.syncDocuments();
-      commit('SET_DOCUMENTS', data);
+      // Backend now returns { documents, total_in_bucket, skipped, limit }.
+      // Stay backward-compatible if it ever returns a bare array.
+      commit('SET_DOCUMENTS', Array.isArray(data) ? data : data.documents);
+      return Array.isArray(data) ? { documents: data } : data;
     } finally {
       commit('SET_UI_FLAG', { isSyncingDocuments: false });
     }

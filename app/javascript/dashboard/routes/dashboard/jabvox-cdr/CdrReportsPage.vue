@@ -4,6 +4,10 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useAlert } from 'dashboard/composables';
 import { cdrReportsAPI } from 'dashboard/api/jabvox/cdr';
+import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Select from 'dashboard/components-next/select/Select.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import CdrAnalysisModal from './CdrAnalysisModal.vue';
 
 const { t } = useI18n();
@@ -30,6 +34,11 @@ const selectedCall = ref(null);
 const totalPages = computed(
   () => Math.ceil(totalRecords.value / PER_PAGE) || 1
 );
+
+const dispositionOptions = computed(() => [
+  { value: '', label: t('JABVOX_CDR.REPORTS.FILTERS.ALL') },
+  ...DISPOSITIONS.map(d => ({ value: d, label: d })),
+]);
 
 const kpis = computed(() => {
   return summary.value.reduce(
@@ -131,6 +140,11 @@ const applyFilters = () => {
   else loadRecords();
 };
 
+const resetFilters = () => {
+  filters.value = { from: '', to: '', extension: '', disposition: '' };
+  applyFilters();
+};
+
 const switchView = view => {
   activeView.value = view;
   applyFilters();
@@ -169,294 +183,401 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div
-    class="flex flex-col flex-1 h-full w-full min-h-0 overflow-auto bg-n-surface-1"
-  >
-    <header
-      class="flex items-center justify-between px-6 py-4 border-b border-n-weak"
-    >
-      <h1 class="text-xl font-medium text-n-slate-12">
-        {{ t('JABVOX_CDR.REPORTS.TITLE') }}
-      </h1>
-      <div class="flex gap-2">
-        <button
-          class="px-3 py-1.5 text-sm rounded-lg"
-          :class="
-            activeView === 'summary'
-              ? 'bg-n-brand text-white'
-              : 'bg-n-alpha-2 text-n-slate-11'
-          "
-          @click="switchView('summary')"
-        >
-          {{ t('JABVOX_CDR.REPORTS.VIEW_SUMMARY') }}
-        </button>
-        <button
-          class="px-3 py-1.5 text-sm rounded-lg"
-          :class="
-            activeView === 'records'
-              ? 'bg-n-brand text-white'
-              : 'bg-n-alpha-2 text-n-slate-11'
-          "
-          @click="switchView('records')"
-        >
-          {{ t('JABVOX_CDR.REPORTS.VIEW_RECORDS') }}
-        </button>
-      </div>
-    </header>
-
+  <div class="w-full h-full overflow-y-auto bg-n-background">
     <div
-      v-if="!access.configured"
-      class="m-6 p-4 rounded-lg bg-n-amber-3 text-n-amber-11 text-sm"
+      class="mx-auto w-full max-w-6xl flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
     >
-      {{ t('JABVOX_CDR.REPORTS.NOT_CONFIGURED') }}
-    </div>
-
-    <!-- Filters -->
-    <div class="flex flex-wrap gap-3 items-end px-6 py-4">
-      <label class="flex flex-col text-xs text-n-slate-11">
-        {{ t('JABVOX_CDR.REPORTS.FILTERS.FROM') }}
-        <input
-          v-model="filters.from"
-          type="datetime-local"
-          class="reset-base mt-1 text-sm"
-        />
-      </label>
-      <label class="flex flex-col text-xs text-n-slate-11">
-        {{ t('JABVOX_CDR.REPORTS.FILTERS.TO') }}
-        <input
-          v-model="filters.to"
-          type="datetime-local"
-          class="reset-base mt-1 text-sm"
-        />
-      </label>
-      <label class="flex flex-col text-xs text-n-slate-11">
-        {{ t('JABVOX_CDR.REPORTS.FILTERS.EXTENSION') }}
-        <input
-          v-model="filters.extension"
-          type="text"
-          class="reset-base mt-1 text-sm"
-        />
-      </label>
-      <label class="flex flex-col text-xs text-n-slate-11">
-        {{ t('JABVOX_CDR.REPORTS.FILTERS.DISPOSITION') }}
-        <select v-model="filters.disposition" class="reset-base mt-1 text-sm">
-          <option value="">{{ t('JABVOX_CDR.REPORTS.FILTERS.ALL') }}</option>
-          <option v-for="d in DISPOSITIONS" :key="d" :value="d">{{ d }}</option>
-        </select>
-      </label>
-      <button
-        class="px-4 py-2 text-sm rounded-lg bg-n-brand text-white"
-        @click="applyFilters"
-      >
-        {{ t('JABVOX_CDR.REPORTS.FILTERS.APPLY') }}
-      </button>
-    </div>
-
-    <div v-if="loading" class="px-6 py-10 text-center text-n-slate-11">
-      {{ t('JABVOX_CDR.REPORTS.LOADING') }}
-    </div>
-
-    <!-- Summary view -->
-    <template v-else-if="activeView === 'summary'">
-      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 px-6 pb-4">
-        <div class="p-4 rounded-lg bg-n-alpha-2">
-          <p class="text-xs text-n-slate-11">
-            {{ t('JABVOX_CDR.REPORTS.KPI.TOTAL') }}
-          </p>
-          <p class="text-2xl font-semibold text-n-slate-12">{{ kpis.total }}</p>
-        </div>
-        <div class="p-4 rounded-lg bg-n-alpha-2">
-          <p class="text-xs text-n-slate-11">
-            {{ t('JABVOX_CDR.REPORTS.KPI.ANSWERED') }}
-          </p>
-          <p class="text-2xl font-semibold text-n-teal-11">
-            {{ kpis.answered }}
-          </p>
-        </div>
-        <div class="p-4 rounded-lg bg-n-alpha-2">
-          <p class="text-xs text-n-slate-11">
-            {{ t('JABVOX_CDR.REPORTS.KPI.NO_ANSWER') }}
-          </p>
-          <p class="text-2xl font-semibold text-n-slate-12">
-            {{ kpis.no_answer }}
-          </p>
-        </div>
-        <div class="p-4 rounded-lg bg-n-alpha-2">
-          <p class="text-xs text-n-slate-11">
-            {{ t('JABVOX_CDR.REPORTS.KPI.TALK_TIME') }}
-          </p>
-          <p class="text-2xl font-semibold text-n-slate-12">
-            {{ formatDuration(kpis.talk_seconds) }}
-          </p>
-        </div>
-        <div class="p-4 rounded-lg bg-n-alpha-2">
-          <p class="text-xs text-n-slate-11">
-            {{ t('JABVOX_CDR.REPORTS.KPI.ANSWER_RATE') }}
-          </p>
-          <p class="text-2xl font-semibold text-n-brand">
-            {{ `${answerRate}%` }}
-          </p>
-        </div>
-      </div>
-
-      <div class="px-6 pb-8">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-n-slate-11 border-b border-n-weak">
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.TABLE.AGENT') }}</th>
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.KPI.TOTAL') }}</th>
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.KPI.ANSWERED') }}</th>
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.KPI.NO_ANSWER') }}</th>
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.TABLE.BUSY') }}</th>
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.TABLE.FAILED') }}</th>
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.KPI.TALK_TIME') }}</th>
-              <th class="py-2">
-                {{ t('JABVOX_CDR.REPORTS.KPI.ANSWER_RATE') }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="row in summary"
-              :key="row.agent"
-              class="border-b border-n-weak"
-            >
-              <td class="py-2 text-n-slate-12">
-                {{ row.agent }}
-                <span
-                  v-if="
-                    row.agent_extension && row.agent !== row.agent_extension
-                  "
-                  class="text-n-slate-10"
-                >
-                  {{ `(${row.agent_extension})` }}
-                </span>
-              </td>
-              <td class="py-2">{{ row.total }}</td>
-              <td class="py-2 text-n-teal-11">{{ row.answered }}</td>
-              <td class="py-2">{{ row.no_answer }}</td>
-              <td class="py-2">{{ row.busy }}</td>
-              <td class="py-2">{{ row.failed }}</td>
-              <td class="py-2">{{ formatDuration(row.talk_seconds) }}</td>
-              <td class="py-2">{{ `${row.answer_rate}%` }}</td>
-            </tr>
-            <tr v-if="!summary.length">
-              <td colspan="8" class="py-6 text-center text-n-slate-11">
-                {{ t('JABVOX_CDR.REPORTS.EMPTY') }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </template>
-
-    <!-- Records view -->
-    <template v-else>
-      <div class="px-6 pb-4">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-n-slate-11 border-b border-n-weak">
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.TABLE.DATE') }}</th>
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.TABLE.ORIGIN') }}</th>
-              <th class="py-2">
-                {{ t('JABVOX_CDR.REPORTS.TABLE.DESTINATION') }}
-              </th>
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.TABLE.MEDIUM') }}</th>
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.TABLE.STATUS') }}</th>
-              <th class="py-2">
-                {{ t('JABVOX_CDR.REPORTS.TABLE.TYPIFICATION') }}
-              </th>
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.TABLE.DURATION') }}</th>
-              <th class="py-2">{{ t('JABVOX_CDR.REPORTS.TABLE.SCORE') }}</th>
-              <th class="py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="call in records"
-              :key="call.uniqueid"
-              class="border-b border-n-weak"
-            >
-              <td class="py-2 text-n-slate-12">{{ call.calldate }}</td>
-              <td class="py-2 text-n-slate-12">
-                {{ call.origin || t('JABVOX_CDR.REPORTS.NO_SCORE') }}
-              </td>
-              <td class="py-2 text-n-slate-12">
-                {{ call.destination || t('JABVOX_CDR.REPORTS.NO_SCORE') }}
-              </td>
-              <td class="py-2">
-                <span
-                  class="rounded px-1.5 py-0.5 text-xs"
-                  :class="mediumClass(call.medium)"
-                >
-                  {{ mediumLabel(call.medium) }}
-                </span>
-              </td>
-              <td class="py-2">{{ call.disposition }}</td>
-              <td class="py-2">
-                <span
-                  v-if="call.typification"
-                  class="rounded bg-n-alpha-2 px-1.5 py-0.5 text-xs text-n-slate-12"
-                >
-                  {{ call.typification }}
-                </span>
-                <span v-else class="text-n-slate-10">{{
-                  t('JABVOX_CDR.REPORTS.NO_SCORE')
-                }}</span>
-              </td>
-              <td class="py-2">{{ formatDuration(call.billsec) }}</td>
-              <td class="py-2">
-                <span
-                  v-if="scoreFor(call.uniqueid) != null"
-                  class="font-medium text-n-brand"
-                >
-                  {{ scoreFor(call.uniqueid) }}
-                </span>
-                <span v-else class="text-n-slate-10">{{
-                  t('JABVOX_CDR.REPORTS.NO_SCORE')
-                }}</span>
-              </td>
-              <td class="py-2 text-right">
-                <button
-                  v-tooltip="t('JABVOX_CDR.REPORTS.ANALYZE')"
-                  class="p-1.5 rounded-lg hover:bg-n-alpha-2"
-                  @click="openAnalysis(call)"
-                >
-                  <span class="i-lucide-mic text-base text-n-slate-11" />
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!records.length">
-              <td colspan="9" class="py-6 text-center text-n-slate-11">
-                {{ t('JABVOX_CDR.REPORTS.EMPTY') }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
+      <!-- Header + view tabs -->
       <div
-        class="flex items-center justify-center gap-4 pb-8 text-sm text-n-slate-11"
+        class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
       >
-        <button
-          class="px-3 py-1 rounded-lg bg-n-alpha-2 disabled:opacity-50"
-          :disabled="page <= 1"
-          @click="changePage(-1)"
+        <div class="flex items-start gap-3 min-w-0">
+          <span
+            class="i-lucide-phone-call size-9 shrink-0 rounded-xl bg-n-alpha-2 p-2 text-n-brand"
+          />
+          <div class="min-w-0">
+            <h1 class="text-xl font-semibold tracking-tight text-n-slate-12">
+              {{ t('JABVOX_CDR.REPORTS.TITLE') }}
+            </h1>
+            <p class="mt-1 max-w-2xl text-sm leading-relaxed text-n-slate-11">
+              {{ t('JABVOX_CDR.REPORTS.DESCRIPTION') }}
+            </p>
+          </div>
+        </div>
+        <div
+          class="inline-flex shrink-0 rounded-lg border border-n-weak bg-n-solid-1 p-1"
         >
-          {{ t('JABVOX_CDR.REPORTS.PREV') }}
-        </button>
-        <span>{{
-          t('JABVOX_CDR.REPORTS.PAGE_OF', { page, total: totalPages })
-        }}</span>
-        <button
-          class="px-3 py-1 rounded-lg bg-n-alpha-2 disabled:opacity-50"
-          :disabled="page >= totalPages"
-          @click="changePage(1)"
-        >
-          {{ t('JABVOX_CDR.REPORTS.NEXT') }}
-        </button>
+          <button
+            class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+            :class="
+              activeView === 'summary'
+                ? 'bg-n-brand text-white'
+                : 'text-n-slate-11 hover:bg-n-alpha-1'
+            "
+            @click="switchView('summary')"
+          >
+            {{ t('JABVOX_CDR.REPORTS.VIEW_SUMMARY') }}
+          </button>
+          <button
+            class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+            :class="
+              activeView === 'records'
+                ? 'bg-n-brand text-white'
+                : 'text-n-slate-11 hover:bg-n-alpha-1'
+            "
+            @click="switchView('records')"
+          >
+            {{ t('JABVOX_CDR.REPORTS.VIEW_RECORDS') }}
+          </button>
+        </div>
       </div>
-    </template>
+
+      <!-- Not configured banner -->
+      <div
+        v-if="!access.configured"
+        class="flex items-center gap-2 rounded-xl border border-n-amber-6 bg-n-amber-3 px-4 py-3 text-sm text-n-amber-11"
+      >
+        <span class="i-lucide-triangle-alert size-4 shrink-0" />
+        {{ t('JABVOX_CDR.REPORTS.NOT_CONFIGURED') }}
+      </div>
+
+      <!-- Filters -->
+      <div
+        class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm flex flex-col gap-4"
+      >
+        <div class="flex items-center gap-2">
+          <span class="i-lucide-sliders-horizontal size-4 text-n-slate-11" />
+          <span class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_CDR.REPORTS.FILTERS.TITLE') }}
+          </span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Input
+            v-model="filters.from"
+            type="datetime-local"
+            :label="t('JABVOX_CDR.REPORTS.FILTERS.FROM')"
+          />
+          <Input
+            v-model="filters.to"
+            type="datetime-local"
+            :label="t('JABVOX_CDR.REPORTS.FILTERS.TO')"
+          />
+          <Input
+            v-model="filters.extension"
+            :label="t('JABVOX_CDR.REPORTS.FILTERS.EXTENSION')"
+            :placeholder="t('JABVOX_CDR.REPORTS.FILTERS.EXTENSION_PLACEHOLDER')"
+          />
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_CDR.REPORTS.FILTERS.DISPOSITION') }}
+            </label>
+            <Select
+              v-model="filters.disposition"
+              :options="dispositionOptions"
+            />
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <Button
+            :label="t('JABVOX_CDR.REPORTS.FILTERS.APPLY')"
+            icon="i-lucide-search"
+            size="sm"
+            @click="applyFilters"
+          />
+          <Button
+            :label="t('JABVOX_CDR.REPORTS.FILTERS.RESET')"
+            icon="i-lucide-x"
+            variant="ghost"
+            color="slate"
+            size="sm"
+            @click="resetFilters"
+          />
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div
+        v-if="loading"
+        class="flex items-center justify-center gap-2 py-16 text-sm text-n-slate-11"
+      >
+        <Spinner :size="18" />
+        {{ t('JABVOX_CDR.REPORTS.LOADING') }}
+      </div>
+
+      <!-- Summary view -->
+      <template v-else-if="activeView === 'summary'">
+        <!-- KPIs -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div
+            class="p-4 rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm"
+          >
+            <p class="text-xs text-n-slate-11">
+              {{ t('JABVOX_CDR.REPORTS.KPI.TOTAL') }}
+            </p>
+            <p class="text-2xl font-semibold text-n-slate-12">
+              {{ kpis.total }}
+            </p>
+          </div>
+          <div
+            class="p-4 rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm"
+          >
+            <p class="text-xs text-n-slate-11">
+              {{ t('JABVOX_CDR.REPORTS.KPI.ANSWERED') }}
+            </p>
+            <p class="text-2xl font-semibold text-n-teal-11">
+              {{ kpis.answered }}
+            </p>
+          </div>
+          <div
+            class="p-4 rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm"
+          >
+            <p class="text-xs text-n-slate-11">
+              {{ t('JABVOX_CDR.REPORTS.KPI.NO_ANSWER') }}
+            </p>
+            <p class="text-2xl font-semibold text-n-slate-12">
+              {{ kpis.no_answer }}
+            </p>
+          </div>
+          <div
+            class="p-4 rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm"
+          >
+            <p class="text-xs text-n-slate-11">
+              {{ t('JABVOX_CDR.REPORTS.KPI.TALK_TIME') }}
+            </p>
+            <p class="text-2xl font-semibold text-n-slate-12">
+              {{ formatDuration(kpis.talk_seconds) }}
+            </p>
+          </div>
+          <div
+            class="p-4 rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm"
+          >
+            <p class="text-xs text-n-slate-11">
+              {{ t('JABVOX_CDR.REPORTS.KPI.ANSWER_RATE') }}
+            </p>
+            <p class="text-2xl font-semibold text-n-brand">
+              {{ `${answerRate}%` }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Summary table -->
+        <div
+          class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden"
+        >
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr
+                  class="text-left text-n-slate-10 bg-n-alpha-1 border-b border-n-weak"
+                >
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.AGENT') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.KPI.TOTAL') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.KPI.ANSWERED') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.KPI.NO_ANSWER') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.BUSY') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.FAILED') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.KPI.TALK_TIME') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.KPI.ANSWER_RATE') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-n-weak">
+                <tr
+                  v-for="row in summary"
+                  :key="row.agent"
+                  class="hover:bg-n-alpha-1 transition-colors"
+                >
+                  <td class="px-4 py-2.5 text-n-slate-12">
+                    {{ row.agent }}
+                    <span
+                      v-if="
+                        row.agent_extension && row.agent !== row.agent_extension
+                      "
+                      class="text-n-slate-10"
+                    >
+                      {{ `(${row.agent_extension})` }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-2.5 text-n-slate-12">{{ row.total }}</td>
+                  <td class="px-4 py-2.5 text-n-teal-11">{{ row.answered }}</td>
+                  <td class="px-4 py-2.5 text-n-slate-12">
+                    {{ row.no_answer }}
+                  </td>
+                  <td class="px-4 py-2.5 text-n-slate-12">{{ row.busy }}</td>
+                  <td class="px-4 py-2.5 text-n-slate-12">{{ row.failed }}</td>
+                  <td class="px-4 py-2.5 text-n-slate-12">
+                    {{ formatDuration(row.talk_seconds) }}
+                  </td>
+                  <td class="px-4 py-2.5 text-n-slate-12">
+                    {{ `${row.answer_rate}%` }}
+                  </td>
+                </tr>
+                <tr v-if="!summary.length">
+                  <td colspan="8" class="py-10 text-center text-n-slate-11">
+                    {{ t('JABVOX_CDR.REPORTS.EMPTY') }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+
+      <!-- Records view -->
+      <template v-else>
+        <div
+          class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden"
+        >
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr
+                  class="text-left text-n-slate-10 bg-n-alpha-1 border-b border-n-weak"
+                >
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.DATE') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.ORIGIN') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.DESTINATION') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.MEDIUM') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.STATUS') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.TYPIFICATION') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.DURATION') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.SCORE') }}
+                  </th>
+                  <th class="px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-n-weak">
+                <tr
+                  v-for="call in records"
+                  :key="call.uniqueid"
+                  class="hover:bg-n-alpha-1 transition-colors"
+                >
+                  <td class="px-4 py-2.5 text-n-slate-12 whitespace-nowrap">
+                    {{ call.calldate }}
+                  </td>
+                  <td class="px-4 py-2.5 text-n-slate-12">
+                    {{ call.origin || t('JABVOX_CDR.REPORTS.NO_SCORE') }}
+                  </td>
+                  <td class="px-4 py-2.5 text-n-slate-12">
+                    {{ call.destination || t('JABVOX_CDR.REPORTS.NO_SCORE') }}
+                  </td>
+                  <td class="px-4 py-2.5">
+                    <span
+                      class="rounded-full px-2 py-0.5 text-xs font-medium"
+                      :class="mediumClass(call.medium)"
+                    >
+                      {{ mediumLabel(call.medium) }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-2.5 text-n-slate-12">
+                    {{ call.disposition }}
+                  </td>
+                  <td class="px-4 py-2.5">
+                    <span
+                      v-if="call.typification"
+                      class="rounded-full bg-n-alpha-2 px-2 py-0.5 text-xs text-n-slate-12"
+                    >
+                      {{ call.typification }}
+                    </span>
+                    <span v-else class="text-n-slate-10">{{
+                      t('JABVOX_CDR.REPORTS.NO_SCORE')
+                    }}</span>
+                  </td>
+                  <td class="px-4 py-2.5 text-n-slate-12 whitespace-nowrap">
+                    {{ formatDuration(call.billsec) }}
+                  </td>
+                  <td class="px-4 py-2.5">
+                    <span
+                      v-if="scoreFor(call.uniqueid) != null"
+                      class="font-semibold text-n-brand"
+                    >
+                      {{ scoreFor(call.uniqueid) }}
+                    </span>
+                    <span v-else class="text-n-slate-10">{{
+                      t('JABVOX_CDR.REPORTS.NO_SCORE')
+                    }}</span>
+                  </td>
+                  <td class="px-4 py-2.5 text-right">
+                    <Button
+                      v-tooltip="t('JABVOX_CDR.REPORTS.ANALYZE')"
+                      icon="i-lucide-mic"
+                      variant="ghost"
+                      color="slate"
+                      size="sm"
+                      @click="openAnalysis(call)"
+                    />
+                  </td>
+                </tr>
+                <tr v-if="!records.length">
+                  <td colspan="9" class="py-10 text-center text-n-slate-11">
+                    {{ t('JABVOX_CDR.REPORTS.EMPTY') }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div
+          v-if="records.length"
+          class="flex items-center justify-center gap-4 text-sm text-n-slate-11"
+        >
+          <Button
+            :label="t('JABVOX_CDR.REPORTS.PREV')"
+            icon="i-lucide-chevron-left"
+            variant="outline"
+            color="slate"
+            size="sm"
+            :disabled="page <= 1"
+            @click="changePage(-1)"
+          />
+          <span>{{
+            t('JABVOX_CDR.REPORTS.PAGE_OF', { page, total: totalPages })
+          }}</span>
+          <Button
+            :label="t('JABVOX_CDR.REPORTS.NEXT')"
+            icon="i-lucide-chevron-right"
+            variant="outline"
+            color="slate"
+            size="sm"
+            trailing-icon
+            :disabled="page >= totalPages"
+            @click="changePage(1)"
+          />
+        </div>
+      </template>
+    </div>
 
     <CdrAnalysisModal
       v-if="selectedCall"

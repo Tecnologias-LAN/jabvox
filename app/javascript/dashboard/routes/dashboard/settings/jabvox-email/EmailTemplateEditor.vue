@@ -3,6 +3,9 @@ import { ref, watch, computed } from 'vue';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
+import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
 import EmailBodyEditor from './EmailBodyEditor.vue';
 
 const props = defineProps({
@@ -124,14 +127,16 @@ const onSave = async () => {
 <template>
   <div class="flex flex-col gap-4 h-full">
     <!-- Header -->
-    <div class="flex items-center gap-3">
-      <button
-        class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center gap-1"
+    <div class="flex items-center gap-2">
+      <Button
+        icon="i-lucide-arrow-left"
+        :label="$t('JABVOX_EMAIL.TEMPLATES.BACK')"
+        variant="ghost"
+        color="slate"
+        size="sm"
         @click="emit('close')"
-      >
-        {{ $t('JABVOX_EMAIL.TEMPLATES.BACK') }}
-      </button>
-      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">
+      />
+      <h2 class="text-base font-semibold text-n-slate-12">
         {{
           isEdit
             ? $t('JABVOX_EMAIL.TEMPLATES.EDIT_TITLE')
@@ -142,36 +147,26 @@ const onSave = async () => {
 
     <!-- Meta fields -->
     <div
-      class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3"
+      class="rounded-xl border border-n-weak bg-n-alpha-1 p-4 flex flex-col gap-3"
     >
-      <div class="grid grid-cols-2 gap-4">
-        <div class="space-y-1">
-          <label
-            class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-          >
-            {{ $t('JABVOX_EMAIL.TEMPLATES.FORM.NAME') }}
-          </label>
-          <input
-            v-model="form.name"
-            type="text"
-            :placeholder="$t('JABVOX_EMAIL.TEMPLATES.FORM.NAME_PLACEHOLDER')"
-            class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          />
-        </div>
-        <div class="flex items-end pb-1">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input v-model="form.active" type="checkbox" class="rounded" />
-            <span class="text-sm text-slate-700 dark:text-slate-300">
-              {{ $t('JABVOX_EMAIL.TEMPLATES.FORM.ACTIVE') }}
-            </span>
-          </label>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+        <Input
+          v-model="form.name"
+          :label="$t('JABVOX_EMAIL.TEMPLATES.FORM.NAME')"
+          :placeholder="$t('JABVOX_EMAIL.TEMPLATES.FORM.NAME_PLACEHOLDER')"
+        />
+        <div
+          class="flex items-center justify-between gap-3 rounded-xl border border-n-weak bg-n-solid-1 px-4 py-2.5"
+        >
+          <span class="text-sm text-n-slate-12">
+            {{ $t('JABVOX_EMAIL.TEMPLATES.FORM.ACTIVE') }}
+          </span>
+          <Switch v-model="form.active" />
         </div>
       </div>
 
-      <div class="space-y-1">
-        <label
-          class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-        >
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-medium text-n-slate-12">
           {{ $t('JABVOX_EMAIL.TEMPLATES.FORM.SUBJECT') }}
         </label>
         <input
@@ -179,20 +174,20 @@ const onSave = async () => {
           v-model="form.subject"
           type="text"
           :placeholder="$t('JABVOX_EMAIL.TEMPLATES.FORM.SUBJECT_PLACEHOLDER')"
-          class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
+          class="w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
           @dragover.prevent
           @drop.prevent="onDropSubject"
         />
       </div>
 
       <div class="flex items-center gap-2 flex-wrap">
-        <span class="text-xs text-slate-400">
+        <span class="text-xs text-n-slate-10">
           {{ $t('JABVOX_EMAIL.TEMPLATES.FORM.VARIABLES_LABEL') }}
         </span>
         <button
           v-for="v in VARIABLES"
           :key="v"
-          class="text-xs px-2 py-0.5 rounded bg-woot-50 dark:bg-woot-900/20 text-woot-600 dark:text-woot-400 border border-woot-200 dark:border-woot-800 hover:bg-woot-100 transition-colors font-mono"
+          class="text-xs px-2 py-0.5 rounded-md bg-n-alpha-2 text-n-brand border border-n-weak hover:bg-n-alpha-3 transition-colors font-mono"
           draggable="true"
           @click="insertVariable(v)"
           @dragstart="event => onVariableDragStart(event, v)"
@@ -206,24 +201,23 @@ const onSave = async () => {
     <EmailBodyEditor v-model="form.body" />
 
     <!-- Actions -->
-    <div class="flex gap-3 pt-2">
-      <button
-        :disabled="uiFlags.isSaving || !isValid"
-        class="px-5 py-2 bg-woot-500 hover:bg-woot-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-        @click="onSave"
-      >
-        {{
+    <div class="flex gap-2 pt-2">
+      <Button
+        :label="
           uiFlags.isSaving
             ? $t('JABVOX_EMAIL.TEMPLATES.SAVING')
             : $t('JABVOX_EMAIL.TEMPLATES.SAVE')
-        }}
-      </button>
-      <button
-        class="px-5 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+        "
+        :is-loading="uiFlags.isSaving"
+        :disabled="!isValid"
+        @click="onSave"
+      />
+      <Button
+        :label="$t('JABVOX_EMAIL.TEMPLATES.CANCEL')"
+        variant="outline"
+        color="slate"
         @click="emit('close')"
-      >
-        {{ $t('JABVOX_EMAIL.TEMPLATES.CANCEL') }}
-      </button>
+      />
     </div>
   </div>
 </template>

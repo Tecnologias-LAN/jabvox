@@ -5,7 +5,8 @@
     "NAV": {
       "DATA_SOURCES": "Data Sources",
       "DASHBOARDS": "Dashboards",
-      "PERMISSIONS": "Permissions"
+      "PERMISSIONS": "Permissions",
+      "OVERVIEW": "Resumen"
     },
     "COMMON": {
       "CANCEL": "Cancel",
@@ -47,7 +48,8 @@
         "TIMEOUT": "Query timeout (ms)",
         "CREATE": "Create Data Source",
         "TEST": "Test Connection",
-        "REQUIRED": "This field is required"
+        "REQUIRED": "This field is required",
+        "TEST_OPTIONAL": "Probar la conexión es opcional — puedes guardar sin conectar."
       },
       "TEST": {
         "TESTING": "Testing connection…",
@@ -110,7 +112,8 @@
         "lt": "less than",
         "lte": "less or equal",
         "contains": "contains",
-        "in": "in list"
+        "in": "in list",
+        "starts_with": "Empieza con"
       }
     },
     "SQL": {
@@ -156,7 +159,22 @@
       "REFRESH": "Refresh",
       "NOT_FOUND": "Dashboard not found",
       "NO_WIDGETS_TITLE": "No widgets yet",
-      "NO_WIDGETS_BODY": "Add a widget to start visualizing your data."
+      "NO_WIDGETS_BODY": "Add a widget to start visualizing your data.",
+      "FOLDERS_TITLE": "Carpetas",
+      "NEW_FOLDER": "Nueva carpeta",
+      "FOLDER_NAME": "Nombre de la carpeta",
+      "FOLDER_NAME_PLACEHOLDER": "Ej. Ventas",
+      "FOLDER_CREATED": "Carpeta creada",
+      "FOLDER_ERROR": "No se pudo crear la carpeta",
+      "SEED_DEFAULTS": "Crear dashboards predeterminados",
+      "SEED_DEFAULTS_HELP": "Crea los dashboards Autogestión y Valiosas, ligados a las fuentes CRM_Autogestion y CRM_Valiosas si existen.",
+      "SEED_DEFAULTS_DONE": "Dashboards predeterminados creados",
+      "SEED_DEFAULTS_ERROR": "No se pudieron crear los dashboards predeterminados",
+      "INTERNAL_REPORTS": "Reportes internos",
+      "INTERNAL_REPORTS_HELP": "Elige qué reportes de esta cuenta quieres crear como dashboards. Cada uno usa solo los datos de esta cuenta.",
+      "CREATE_SELECTED": "Crear ({count})",
+      "REPORTS_CREATED": "Reportes creados",
+      "REPORTS_ERROR": "No se pudieron crear los reportes"
     },
     "WIDGETS": {
       "TYPES": {
@@ -235,7 +253,9 @@
         "view": "Can view",
         "edit": "Can edit",
         "admin": "Can administer"
-      }
+      },
+      "SUBJECT": "Destinatario",
+      "SELECT": "Selecciona…"
     },
     "EXPORT": {
       "TITLE": "Export",
@@ -291,6 +311,25 @@
       "IP": "IP",
       "ACTION": "Action",
       "RESULT": "Result"
+    },
+    "BRAND": "Analytics",
+    "BRAND_SUB": "Inteligencia de negocio",
+    "OVERVIEW": {
+      "TITLE": "Centro de Inteligencia",
+      "SUBTITLE": "Vista general de tu plataforma de analítica",
+      "DASHBOARDS": "Dashboards",
+      "DATA_SOURCES": "Fuentes de datos",
+      "SOURCES_OK": "Fuentes activas",
+      "WIDGETS": "Widgets",
+      "FOLDERS": "Carpetas",
+      "SHARED": "Dashboards compartidos",
+      "USERS_ACCESS": "Usuarios con acceso",
+      "ACTIONS_TODAY": "Acciones hoy",
+      "EXPORTS": "Exportaciones",
+      "QUICK": "Accesos rápidos",
+      "GO_DASHBOARDS": "Ver dashboards",
+      "GO_SOURCES": "Gestionar fuentes",
+      "GO_PERMISSIONS": "Permisos"
     }
   }
 }

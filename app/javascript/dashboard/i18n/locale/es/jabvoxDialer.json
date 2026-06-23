@@ -22,11 +22,9 @@
       "NOTE_PLACEHOLDER": "Agrega una nota de gestión...",
       "NO_CONVERSATION": "Sin conversación activa — la nota no se guardará."
     },
-
     "HISTORY": {
       "TITLE": "Historial de gestiones"
     },
-
     "SETTINGS": {
       "TITLE": "Configuración del Marcador",
       "DESCRIPTION": "Configura campañas, estados y permisos del marcador predictivo.",
@@ -36,19 +34,16 @@
         "PERMISSIONS": "Permisos"
       }
     },
-
     "STATUS": {
       "DRAFT": "Borrador",
       "ACTIVE": "Activa",
       "PAUSED": "Pausada",
       "COMPLETED": "Completada"
     },
-
     "TABS": {
       "CONTACTS": "Contactos",
       "LOGS": "Registros de llamadas"
     },
-
     "CAMPAIGN": {
       "NEW": "Nueva campaña",
       "EDIT": "Editar campaña",
@@ -68,9 +63,24 @@
       "DIALED": "marcados",
       "HOURS": "{start} – {end}",
       "RETRIES": "{count} reintentos",
-      "AGENTS_LABEL": "agentes"
+      "AGENTS_LABEL": "agentes",
+      "SEARCH_PLACEHOLDER": "Buscar campañas...",
+      "COUNT": "{count} campañas",
+      "NO_RESULTS": "Ninguna campaña coincide con tu búsqueda.",
+      "EMPTY_TITLE": "Sin campañas",
+      "EDIT_TITLE": "Editar campaña",
+      "DELETE_TITLE": "Eliminar campaña",
+      "DELETE_BODY": "¿Eliminar la campaña \"{name}\"? Esta acción no se puede deshacer.",
+      "REPORT": "Reporte",
+      "GROUP_SOURCE": "Origen de leads",
+      "GROUP_DIALING": "Marcación",
+      "GROUP_TARGETING": "Segmentación",
+      "GROUP_ASSIGNMENT": "Asignación",
+      "METRIC_LEADS": "Leads",
+      "METRIC_DIALED": "Marcados",
+      "METRIC_ANSWERED": "Contestados",
+      "METRIC_AGENTS": "Agentes"
     },
-
     "FORM": {
       "NAME": "Nombre de la campaña",
       "NAME_PLACEHOLDER": "Ej: Dialer México Q1",
@@ -108,7 +118,6 @@
       "LEAD_COUNT_LABEL": "Leads que coinciden con estos filtros",
       "LEAD_COUNT_UNIT": "leads"
     },
-
     "CONTACTS": {
       "EMPTY": "No hay contactos en esta campaña. Importa contactos desde la configuración.",
       "NAME": "Nombre",
@@ -117,7 +126,6 @@
       "ATTEMPTS": "Intentos",
       "LAST_ATTEMPT": "Último intento"
     },
-
     "CONTACT_STATUS": {
       "PENDING": "Pendiente",
       "CALLING": "Llamando",
@@ -127,14 +135,12 @@
       "BUSY": "Ocupado",
       "NO_ANSWER": "Sin respuesta"
     },
-
     "STATS": {
       "TOTAL": "Total",
       "LEADS": "leads",
       "ANSWERED": "Contestadas",
       "FAILED": "Fallidas"
     },
-
     "LOGS": {
       "EMPTY": "No hay registros de llamadas aún.",
       "PHONE": "Teléfono",
@@ -143,7 +149,6 @@
       "STARTED_AT": "Inicio",
       "NOTES": "Notas"
     },
-
     "CALL_STATUS": {
       "INITIATED": "Iniciada",
       "ANSWERED": "Contestada",
@@ -151,7 +156,6 @@
       "NO_ANSWER": "Sin respuesta",
       "FAILED": "Fallida"
     },
-
     "CALL": {
       "CALL": "Llamar",
       "MODAL_TITLE": "Originar llamada",
@@ -166,7 +170,6 @@
       "END": "Colgar",
       "LAST_GESTION": "Última gestión"
     },
-
     "IMPORT": {
       "BUTTON": "Importar contactos",
       "TITLE": "Importar contactos",
@@ -176,7 +179,6 @@
       "PARSED": "{count} contacto(s) detectado(s)",
       "SUCCESS": "{count} contacto(s) importado(s) correctamente."
     },
-
     "DIALER_STATES": {
       "DESCRIPTION": "Define los estados en que puede estar un agente durante el dialer (ej: Conectado, Esperando, En comentarios).",
       "NEW": "Nuevo estado",
@@ -192,9 +194,17 @@
         "NAME_PLACEHOLDER": "Ej: En comentarios",
         "COLOR": "Color",
         "ACTIVE": "Activo"
-      }
+      },
+      "SEARCH_PLACEHOLDER": "Buscar estados...",
+      "COUNT": "{count} estados",
+      "NO_RESULTS": "Ningún estado coincide con tu búsqueda.",
+      "EMPTY_TITLE": "Sin estados",
+      "EDIT_TITLE": "Editar estado",
+      "DELETE_TITLE": "Eliminar estado",
+      "DELETE_BODY": "¿Eliminar el estado \"{name}\"?",
+      "NEW_SUBTITLE": "Define un estado de gestión disponible durante las llamadas.",
+      "ACTIVE_BADGE": "Activo"
     },
-
     "PERMISSIONS": {
       "TITLE": "Permisos de acceso al Dialer",
       "DESCRIPTION": "Activa el acceso al módulo del Dialer para cada agente. Los administradores siempre tienen acceso.",
@@ -203,12 +213,24 @@
         "AGENT": "Agente",
         "EMAIL": "Email",
         "ACCESS": "Acceso"
-      }
+      },
+      "SEARCH_PLACEHOLDER": "Buscar agentes...",
+      "COUNT": "{count} agentes",
+      "NO_RESULTS": "Ningún agente coincide con tu búsqueda.",
+      "GRANTED": "Con acceso"
     },
-
     "ACCESS_DENIED": {
       "TITLE": "Acceso restringido",
       "DESCRIPTION": "No tienes permiso para acceder al Marcador Predictivo. Contacta al administrador."
+    },
+    "COMMON": {
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar",
+      "SAVE": "Guardar",
+      "SEARCH": "Buscar..."
+    },
+    "REPORT": {
+      "PERIOD": "Periodo"
     }
   }
 }

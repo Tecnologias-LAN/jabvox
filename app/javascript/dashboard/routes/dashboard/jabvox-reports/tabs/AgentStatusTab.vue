@@ -3,6 +3,9 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import reportsAPI from 'dashboard/api/jabvox/reports';
 import { emitter } from 'shared/helpers/mitt';
+import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 
 const { t } = useI18n();
 
@@ -47,21 +50,17 @@ const elapsed = sinceIso => {
 };
 
 const availabilityColor = val => {
-  if (val === 'online') return 'bg-green-500';
-  if (val === 'busy') return 'bg-amber-500';
-  return 'bg-slate-400';
+  if (val === 'online') return 'bg-n-teal-9';
+  if (val === 'busy') return 'bg-n-amber-9';
+  return 'bg-n-slate-8';
 };
 
 const dialerBadgeClass = val => {
-  if (val === 'connected')
-    return 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30';
-  if (val === 'waiting')
-    return 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30';
-  if (val === 'in_call')
-    return 'text-woot-700 dark:text-woot-300 bg-woot-100 dark:bg-woot-900/30';
-  if (val === 'in_comments')
-    return 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30';
-  return 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700';
+  if (val === 'connected') return 'text-n-teal-11 bg-n-teal-3';
+  if (val === 'waiting') return 'text-n-blue-11 bg-n-blue-3';
+  if (val === 'in_call') return 'text-n-brand bg-n-alpha-2';
+  if (val === 'in_comments') return 'text-n-amber-11 bg-n-amber-3';
+  return 'text-n-slate-11 bg-n-alpha-2';
 };
 
 const dialerIsActive = val => val && val !== 'inactive';
@@ -89,12 +88,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <!-- eslint-disable vue/no-bare-strings-in-template -- symbols (—) are universal -->
+  <div class="flex flex-col gap-4">
     <!-- Loading -->
     <div
       v-if="loading"
-      class="text-sm text-slate-400 animate-pulse text-center py-16"
+      class="flex items-center justify-center gap-2 py-16 text-sm text-n-slate-11"
     >
+      <Spinner :size="18" />
       {{ t('JABVOX_REPORTS.COMMON.LOADING') }}
     </div>
 
@@ -106,59 +107,47 @@ onUnmounted(() => {
       <div
         v-for="agent in agents"
         :key="agent.id"
-        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm"
+        class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
       >
         <!-- Header: avatar + name + availability dot -->
         <div class="flex items-center gap-3 mb-4">
           <div class="relative shrink-0">
-            <img
-              v-if="agent.avatar_url"
+            <Avatar
+              :name="agent.name || agent.email || '?'"
               :src="agent.avatar_url"
-              :alt="agent.name"
-              class="w-10 h-10 rounded-full object-cover"
+              :size="40"
+              rounded-full
             />
             <span
-              v-else
-              class="w-10 h-10 rounded-full bg-woot-100 dark:bg-woot-900/30 flex items-center justify-center"
-            >
-              <span class="text-sm font-bold text-woot-600">{{
-                agent.name?.charAt(0)?.toUpperCase()
-              }}</span>
-            </span>
-            <span
-              class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-slate-800"
+              class="absolute bottom-0 right-0 size-3 rounded-full border-2 border-n-solid-1"
               :class="availabilityColor(agentAvailability(agent))"
             />
           </div>
           <div class="min-w-0 flex-1">
-            <p
-              class="font-semibold text-sm text-slate-900 dark:text-slate-50 truncate"
-            >
+            <p class="font-semibold text-sm text-n-slate-12 truncate">
               {{ agent.name }}
             </p>
-            <p class="text-xs text-slate-400 truncate">{{ agent.email }}</p>
+            <p class="text-xs text-n-slate-10 truncate">{{ agent.email }}</p>
           </div>
         </div>
 
         <!-- Divider -->
-        <div class="border-t border-slate-100 dark:border-slate-700 mb-3" />
+        <div class="border-t border-n-weak mb-3" />
 
         <!-- Rows -->
-        <dl class="space-y-2.5">
+        <dl class="flex flex-col gap-2.5">
           <!-- App state -->
           <div class="flex items-center justify-between gap-2">
-            <dt class="text-xs text-slate-500 dark:text-slate-400 shrink-0">
+            <dt class="text-xs text-n-slate-10 shrink-0">
               {{ t('JABVOX_REPORTS.AGENT_STATUS.APP_STATE') }}
             </dt>
             <dd class="flex items-center gap-1.5">
               <span
                 v-if="agentAppStateId(agent)"
-                class="w-2 h-2 rounded-full shrink-0"
+                class="size-2 rounded-full shrink-0"
                 :style="{ backgroundColor: agent.app_state_color || '#94a3b8' }"
               />
-              <span
-                class="text-xs font-semibold text-slate-700 dark:text-slate-300"
-              >
+              <span class="text-xs font-semibold text-n-slate-12">
                 {{
                   isOnline(agent)
                     ? agentAppStateName(agent) ||
@@ -174,11 +163,11 @@ onUnmounted(() => {
             v-if="agentAppStateSince(agent)"
             class="flex items-center justify-between gap-2"
           >
-            <dt class="text-xs text-slate-500 dark:text-slate-400 shrink-0">
+            <dt class="text-xs text-n-slate-10 shrink-0">
               {{ t('JABVOX_REPORTS.AGENT_STATUS.TIME_IN_STATE') }}
             </dt>
             <dd
-              class="text-xs font-mono font-semibold tabular-nums text-slate-600 dark:text-slate-300"
+              class="text-xs font-mono font-semibold tabular-nums text-n-slate-11"
             >
               {{ elapsed(agentAppStateSince(agent)) }}
             </dd>
@@ -186,10 +175,10 @@ onUnmounted(() => {
 
           <!-- Availability -->
           <div class="flex items-center justify-between gap-2">
-            <dt class="text-xs text-slate-500 dark:text-slate-400 shrink-0">
+            <dt class="text-xs text-n-slate-10 shrink-0">
               {{ t('JABVOX_REPORTS.AGENT_STATUS.AVAILABILITY_LABEL') }}
             </dt>
-            <dd class="text-xs font-medium text-slate-700 dark:text-slate-300">
+            <dd class="text-xs font-medium text-n-slate-12">
               {{
                 t(
                   `JABVOX_REPORTS.AGENT_STATUS.AVAILABILITY.${agentAvailability(agent)}`,
@@ -200,11 +189,11 @@ onUnmounted(() => {
           </div>
 
           <!-- Divider before dialer section -->
-          <div class="border-t border-slate-100 dark:border-slate-700 pt-1" />
+          <div class="border-t border-n-weak pt-1" />
 
           <!-- Dialer state badge -->
           <div class="flex items-center justify-between gap-2">
-            <dt class="text-xs text-slate-500 dark:text-slate-400 shrink-0">
+            <dt class="text-xs text-n-slate-10 shrink-0">
               {{ t('JABVOX_REPORTS.AGENT_STATUS.DIALER_STATE') }}
             </dt>
             <dd>
@@ -229,11 +218,11 @@ onUnmounted(() => {
             "
             class="flex items-center justify-between gap-2"
           >
-            <dt class="text-xs text-slate-500 dark:text-slate-400 shrink-0">
+            <dt class="text-xs text-n-slate-10 shrink-0">
               {{ t('JABVOX_REPORTS.AGENT_STATUS.TIME_IN_DIALER') }}
             </dt>
             <dd
-              class="text-xs font-mono font-semibold tabular-nums text-woot-600 dark:text-woot-400"
+              class="text-xs font-mono font-semibold tabular-nums text-n-brand"
             >
               {{ elapsed(agent.dialer_state_since) }}
             </dd>
@@ -243,15 +232,17 @@ onUnmounted(() => {
     </div>
 
     <!-- Empty -->
-    <div v-else class="text-sm text-slate-400 text-center py-16">
-      {{ t('JABVOX_REPORTS.COMMON.EMPTY') }}
-    </div>
+    <EmptyStateLayout
+      v-else
+      :title="t('JABVOX_REPORTS.COMMON.EMPTY_TITLE')"
+      :subtitle="t('JABVOX_REPORTS.COMMON.EMPTY')"
+    />
 
     <!-- Footer note -->
     <p
-      class="text-xs text-slate-400 text-center flex items-center justify-center gap-1.5"
+      class="text-xs text-n-slate-10 text-center flex items-center justify-center gap-1.5"
     >
-      <span class="i-lucide-radio w-3 h-3" />
+      <span class="i-lucide-radio size-3" />
       {{ t('JABVOX_REPORTS.AGENT_STATUS.LIVE_NOTE') }}
     </p>
   </div>

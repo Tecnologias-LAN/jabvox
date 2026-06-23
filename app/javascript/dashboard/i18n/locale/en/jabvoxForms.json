@@ -1,6 +1,11 @@
 {
   "JABVOX_FORMS": {
     "TITLE": "Forms",
+    "SUBTITLE": "Build public forms to capture leads and feed them into your funnels.",
+    "SEARCH_PLACEHOLDER": "Search forms...",
+    "COUNT": "{count} forms",
+    "NO_RESULTS": "No forms match your search.",
+    "DELETE": "Delete form",
     "LOADING": "Loading forms...",
     "EMPTY": "No forms created yet.",
     "CREATE_FIRST": "Create your first form",

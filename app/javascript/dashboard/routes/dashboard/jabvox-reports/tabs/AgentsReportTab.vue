@@ -2,6 +2,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import reportsAPI from 'dashboard/api/jabvox/reports';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
+import FilterBar from '../components/FilterBar.vue';
+import AgentCell from '../components/AgentCell.vue';
 
 const { t } = useI18n();
 
@@ -29,6 +34,11 @@ const fetch = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const resetFilters = () => {
+  filters.value = { date_from: '', date_to: '' };
+  fetch();
 };
 
 const visibleStates = computed(() => appStates.value);
@@ -78,268 +88,207 @@ onUnmounted(() => clearInterval(ticker));
 </script>
 
 <template>
-  <div class="space-y-5">
+  <div class="flex flex-col gap-5">
     <!-- Filters -->
-    <div
-      class="flex flex-wrap gap-3 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700"
-    >
-      <div class="flex flex-col gap-1">
-        <label class="text-xs font-medium text-slate-600 dark:text-slate-400">{{
-          t('JABVOX_REPORTS.COMMON.FILTER_FROM')
-        }}</label>
-        <input
-          v-model="filters.date_from"
-          type="date"
-          class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-        />
+    <FilterBar :loading="loading" @apply="fetch" @reset="resetFilters">
+      <div class="flex flex-col gap-1.5 w-40">
+        <label class="text-xs font-medium text-n-slate-11">
+          {{ t('JABVOX_REPORTS.COMMON.FILTER_FROM') }}
+        </label>
+        <Input v-model="filters.date_from" type="date" size="sm" />
       </div>
-      <div class="flex flex-col gap-1">
-        <label class="text-xs font-medium text-slate-600 dark:text-slate-400">{{
-          t('JABVOX_REPORTS.COMMON.FILTER_TO')
-        }}</label>
-        <input
-          v-model="filters.date_to"
-          type="date"
-          class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-        />
+      <div class="flex flex-col gap-1.5 w-40">
+        <label class="text-xs font-medium text-n-slate-11">
+          {{ t('JABVOX_REPORTS.COMMON.FILTER_TO') }}
+        </label>
+        <Input v-model="filters.date_to" type="date" size="sm" />
       </div>
-      <div class="flex items-end">
-        <button
-          :disabled="loading"
-          class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-woot-500 hover:bg-woot-600 text-white text-sm font-medium disabled:opacity-50 transition-colors"
-          @click="fetch"
-        >
-          <span class="i-lucide-search w-4 h-4" />
-          {{ t('JABVOX_REPORTS.COMMON.APPLY') }}
-        </button>
-      </div>
-    </div>
+    </FilterBar>
 
     <!-- Loading -->
     <div
       v-if="loading"
-      class="text-sm text-slate-400 animate-pulse text-center py-16"
+      class="flex items-center justify-center gap-2 py-16 text-sm text-n-slate-11"
     >
+      <Spinner :size="18" />
       {{ t('JABVOX_REPORTS.COMMON.LOADING') }}
     </div>
 
     <template v-else-if="agents.length">
       <!-- Activity table -->
       <div
-        class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 shadow-sm"
+        class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden"
       >
-        <table
-          class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm"
-        >
-          <thead class="bg-slate-50 dark:bg-slate-800/80">
-            <tr
-              class="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-            >
-              <th class="py-3 px-4">
-                {{ t('JABVOX_REPORTS.AGENTS.COLS.AGENT') }}
-              </th>
-              <th class="py-3 px-4 text-right">
-                {{ t('JABVOX_REPORTS.AGENTS.COLS.MESSAGES') }}
-              </th>
-              <th class="py-3 px-4 text-right">
-                {{ t('JABVOX_REPORTS.AGENTS.COLS.NOTES') }}
-              </th>
-              <th class="py-3 px-4 text-right">
-                {{ t('JABVOX_REPORTS.AGENTS.COLS.ORDERS') }}
-              </th>
-              <th class="py-3 px-4 text-right">
-                {{ t('JABVOX_REPORTS.AGENTS.COLS.CALLS') }}
-              </th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-            <tr
-              v-for="agent in agents"
-              :key="agent.id"
-              class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-            >
-              <td class="py-3 px-4">
-                <div class="flex items-center gap-2.5">
-                  <img
-                    v-if="agent.avatar_url"
-                    :src="agent.avatar_url"
-                    :alt="agent.name"
-                    class="w-7 h-7 rounded-full object-cover shrink-0"
-                  />
-                  <span
-                    v-else
-                    class="w-7 h-7 rounded-full bg-woot-100 dark:bg-woot-900/30 flex items-center justify-center shrink-0"
-                  >
-                    <span class="text-xs font-semibold text-woot-600">{{
-                      agent.name?.charAt(0)
-                    }}</span>
-                  </span>
-                  <div>
-                    <p
-                      class="font-medium text-slate-900 dark:text-slate-50 leading-tight"
-                    >
-                      {{ agent.name }}
-                    </p>
-                    <p class="text-xs text-slate-400">{{ agent.email }}</p>
-                  </div>
-                </div>
-              </td>
-              <td class="py-3 px-4 text-right">
-                <span
-                  class="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold"
-                >
-                  <span
-                    class="i-lucide-message-square w-3.5 h-3.5 text-slate-400"
-                  />
-                  {{ agent.messages_sent }}
-                </span>
-              </td>
-              <td class="py-3 px-4 text-right">
-                <span
-                  class="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold"
-                >
-                  <span
-                    class="i-lucide-sticky-note w-3.5 h-3.5 text-slate-400"
-                  />
-                  {{ agent.notes_added }}
-                </span>
-              </td>
-              <td class="py-3 px-4 text-right">
-                <span
-                  class="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold"
-                >
-                  <span class="i-lucide-package w-3.5 h-3.5 text-slate-400" />
-                  {{ agent.orders_placed }}
-                </span>
-              </td>
-              <td class="py-3 px-4 text-right">
-                <span
-                  class="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold"
-                >
-                  <span class="i-lucide-phone w-3.5 h-3.5 text-slate-400" />
-                  {{ agent.calls_made }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- State times table -->
-      <div class="space-y-2">
-        <h3
-          class="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2"
-        >
-          <span class="i-lucide-clock w-4 h-4 text-slate-400" />
-          {{ t('JABVOX_REPORTS.AGENTS.STATE_TIMES_TITLE') }}
-        </h3>
-
-        <div
-          v-if="hasStateTimes"
-          class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 shadow-sm"
-        >
-          <table
-            class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm"
-          >
-            <thead class="bg-slate-50 dark:bg-slate-800/80">
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead>
               <tr
-                class="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                class="text-left text-xs font-medium uppercase tracking-wide text-n-slate-10 bg-n-alpha-1 border-b border-n-weak"
               >
-                <th class="py-3 px-4 min-w-[160px]">
+                <th class="py-3 px-4">
                   {{ t('JABVOX_REPORTS.AGENTS.COLS.AGENT') }}
                 </th>
-                <th
-                  v-for="state in visibleStates"
-                  :key="state.key"
-                  class="py-3 px-4 text-right whitespace-nowrap"
-                >
-                  <span class="inline-flex items-center gap-1.5">
-                    <span
-                      class="w-2.5 h-2.5 rounded-full shrink-0"
-                      :style="{ backgroundColor: state.color }"
-                    />
-                    {{ state.name }}
-                  </span>
+                <th class="py-3 px-4 text-right">
+                  {{ t('JABVOX_REPORTS.AGENTS.COLS.MESSAGES') }}
                 </th>
-                <th class="py-3 px-4 text-right whitespace-nowrap">
-                  {{ t('JABVOX_REPORTS.COMMON.TOTAL') }}
+                <th class="py-3 px-4 text-right">
+                  {{ t('JABVOX_REPORTS.AGENTS.COLS.NOTES') }}
+                </th>
+                <th class="py-3 px-4 text-right">
+                  {{ t('JABVOX_REPORTS.AGENTS.COLS.ORDERS') }}
+                </th>
+                <th class="py-3 px-4 text-right">
+                  {{ t('JABVOX_REPORTS.AGENTS.COLS.CALLS') }}
                 </th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody class="divide-y divide-n-weak">
               <tr
                 v-for="agent in agents"
                 :key="agent.id"
-                class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                class="hover:bg-n-alpha-1 transition-colors"
               >
                 <td class="py-3 px-4">
-                  <div class="flex items-center gap-2.5">
-                    <img
-                      v-if="agent.avatar_url"
-                      :src="agent.avatar_url"
-                      :alt="agent.name"
-                      class="w-6 h-6 rounded-full object-cover shrink-0"
-                    />
-                    <span
-                      v-else
-                      class="w-6 h-6 rounded-full bg-woot-100 dark:bg-woot-900/30 flex items-center justify-center shrink-0"
-                    >
-                      <span class="text-[10px] font-semibold text-woot-600">{{
-                        agent.name?.charAt(0)
-                      }}</span>
-                    </span>
-                    <span
-                      class="font-medium text-slate-800 dark:text-slate-100 text-xs truncate max-w-[120px]"
-                      >{{ agent.name }}</span
-                    >
-                  </div>
+                  <AgentCell :agent="agent" />
                 </td>
-                <td
-                  v-for="state in visibleStates"
-                  :key="state.key"
-                  class="py-3 px-4 text-right"
-                >
+                <td class="py-3 px-4 text-right">
                   <span
-                    class="inline-block text-xs font-semibold tabular-nums px-2 py-0.5 rounded-full"
-                    :class="
-                      liveSeconds(agent, state.key)
-                        ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
-                        : 'text-slate-300 dark:text-slate-600'
-                    "
+                    class="inline-flex items-center gap-1 text-n-slate-12 font-semibold"
                   >
-                    {{
-                      formatDuration(
-                        liveSeconds(agent, state.key),
-                        agent.current_state_key === state.key
-                      )
-                    }}
+                    <span
+                      class="i-lucide-message-square size-3.5 text-n-slate-10"
+                    />
+                    {{ agent.messages_sent }}
                   </span>
                 </td>
                 <td class="py-3 px-4 text-right">
                   <span
-                    class="inline-block text-xs font-bold tabular-nums px-2 py-0.5 rounded-full"
-                    :class="
-                      liveTotalSeconds(agent)
-                        ? 'bg-woot-50 dark:bg-woot-900/20 text-woot-700 dark:text-woot-300'
-                        : 'text-slate-300 dark:text-slate-600'
-                    "
+                    class="inline-flex items-center gap-1 text-n-slate-12 font-semibold"
                   >
-                    {{
-                      formatDuration(
-                        liveTotalSeconds(agent),
-                        !!agent.current_state_key
-                      )
-                    }}
+                    <span
+                      class="i-lucide-sticky-note size-3.5 text-n-slate-10"
+                    />
+                    {{ agent.notes_added }}
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <span
+                    class="inline-flex items-center gap-1 text-n-slate-12 font-semibold"
+                  >
+                    <span class="i-lucide-package size-3.5 text-n-slate-10" />
+                    {{ agent.orders_placed }}
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <span
+                    class="inline-flex items-center gap-1 text-n-slate-12 font-semibold"
+                  >
+                    <span class="i-lucide-phone size-3.5 text-n-slate-10" />
+                    {{ agent.calls_made }}
                   </span>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+      </div>
+
+      <!-- State times table -->
+      <div class="flex flex-col gap-2">
+        <h3
+          class="text-sm font-semibold text-n-slate-12 flex items-center gap-2"
+        >
+          <span class="i-lucide-clock size-4 text-n-slate-10" />
+          {{ t('JABVOX_REPORTS.AGENTS.STATE_TIMES_TITLE') }}
+        </h3>
+
+        <div
+          v-if="hasStateTimes"
+          class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden"
+        >
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr
+                  class="text-left text-xs font-medium uppercase tracking-wide text-n-slate-10 bg-n-alpha-1 border-b border-n-weak"
+                >
+                  <th class="py-3 px-4 min-w-[160px]">
+                    {{ t('JABVOX_REPORTS.AGENTS.COLS.AGENT') }}
+                  </th>
+                  <th
+                    v-for="state in visibleStates"
+                    :key="state.key"
+                    class="py-3 px-4 text-right whitespace-nowrap"
+                  >
+                    <span class="inline-flex items-center gap-1.5">
+                      <span
+                        class="size-2.5 rounded-full shrink-0"
+                        :style="{ backgroundColor: state.color }"
+                      />
+                      {{ state.name }}
+                    </span>
+                  </th>
+                  <th class="py-3 px-4 text-right whitespace-nowrap">
+                    {{ t('JABVOX_REPORTS.COMMON.TOTAL') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-n-weak">
+                <tr
+                  v-for="agent in agents"
+                  :key="agent.id"
+                  class="hover:bg-n-alpha-1 transition-colors"
+                >
+                  <td class="py-3 px-4">
+                    <AgentCell :agent="agent" :size="24" compact />
+                  </td>
+                  <td
+                    v-for="state in visibleStates"
+                    :key="state.key"
+                    class="py-3 px-4 text-right"
+                  >
+                    <span
+                      class="inline-block text-xs font-semibold tabular-nums px-2 py-0.5 rounded-full"
+                      :class="
+                        liveSeconds(agent, state.key)
+                          ? 'bg-n-alpha-2 text-n-slate-12'
+                          : 'text-n-slate-9'
+                      "
+                    >
+                      {{
+                        formatDuration(
+                          liveSeconds(agent, state.key),
+                          agent.current_state_key === state.key
+                        )
+                      }}
+                    </span>
+                  </td>
+                  <td class="py-3 px-4 text-right">
+                    <span
+                      class="inline-block text-xs font-bold tabular-nums px-2 py-0.5 rounded-full"
+                      :class="
+                        liveTotalSeconds(agent)
+                          ? 'bg-n-alpha-2 text-n-brand'
+                          : 'text-n-slate-9'
+                      "
+                    >
+                      {{
+                        formatDuration(
+                          liveTotalSeconds(agent),
+                          !!agent.current_state_key
+                        )
+                      }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         <p
           v-else
-          class="text-xs text-slate-400 text-center py-6 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700"
+          class="text-xs text-n-slate-11 text-center py-6 rounded-2xl border border-n-weak bg-n-solid-1"
         >
           {{ t('JABVOX_REPORTS.AGENTS.STATE_TIMES_EMPTY') }}
         </p>
@@ -347,8 +296,10 @@ onUnmounted(() => clearInterval(ticker));
     </template>
 
     <!-- Empty -->
-    <div v-else class="text-sm text-slate-400 text-center py-16">
-      {{ t('JABVOX_REPORTS.COMMON.EMPTY') }}
-    </div>
+    <EmptyStateLayout
+      v-else
+      :title="t('JABVOX_REPORTS.COMMON.EMPTY_TITLE')"
+      :subtitle="t('JABVOX_REPORTS.COMMON.EMPTY')"
+    />
   </div>
 </template>

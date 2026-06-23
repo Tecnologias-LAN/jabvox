@@ -2,6 +2,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import reportsAPI from 'dashboard/api/jabvox/reports';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
+import FilterBar from '../components/FilterBar.vue';
+import KpiCard from '../components/KpiCard.vue';
+import AgentCell from '../components/AgentCell.vue';
 
 const { t } = useI18n();
 
@@ -35,6 +41,11 @@ const fetch = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const resetFilters = () => {
+  filters.value = { date_from: '', date_to: '' };
+  fetch();
 };
 
 const byStatusList = computed(() =>
@@ -105,86 +116,52 @@ onUnmounted(() => clearInterval(ticker));
 </script>
 
 <template>
-  <div class="space-y-5">
+  <!-- eslint-disable vue/no-bare-strings-in-template -- symbols (—) are universal -->
+  <div class="flex flex-col gap-5">
     <!-- Filters -->
-    <div
-      class="flex flex-wrap gap-3 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700"
-    >
-      <div class="flex flex-col gap-1">
-        <label class="text-xs font-medium text-slate-600 dark:text-slate-400">{{
-          t('JABVOX_REPORTS.COMMON.FILTER_FROM')
-        }}</label>
-        <input
-          v-model="filters.date_from"
-          type="date"
-          class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-        />
+    <FilterBar :loading="loading" @apply="fetch" @reset="resetFilters">
+      <div class="flex flex-col gap-1.5 w-40">
+        <label class="text-xs font-medium text-n-slate-11">
+          {{ t('JABVOX_REPORTS.COMMON.FILTER_FROM') }}
+        </label>
+        <Input v-model="filters.date_from" type="date" size="sm" />
       </div>
-      <div class="flex flex-col gap-1">
-        <label class="text-xs font-medium text-slate-600 dark:text-slate-400">{{
-          t('JABVOX_REPORTS.COMMON.FILTER_TO')
-        }}</label>
-        <input
-          v-model="filters.date_to"
-          type="date"
-          class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-        />
+      <div class="flex flex-col gap-1.5 w-40">
+        <label class="text-xs font-medium text-n-slate-11">
+          {{ t('JABVOX_REPORTS.COMMON.FILTER_TO') }}
+        </label>
+        <Input v-model="filters.date_to" type="date" size="sm" />
       </div>
-      <div class="flex items-end">
-        <button
-          :disabled="loading"
-          class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-woot-500 hover:bg-woot-600 text-white text-sm font-medium disabled:opacity-50 transition-colors"
-          @click="fetch"
-        >
-          <span class="i-lucide-search w-4 h-4" />
-          {{ t('JABVOX_REPORTS.COMMON.APPLY') }}
-        </button>
-      </div>
-    </div>
+    </FilterBar>
 
     <!-- Summary cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <div
-        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-1 shadow-sm"
+      <KpiCard
+        :label="t('JABVOX_REPORTS.DIALER.STATS.TOTAL_CALLS')"
+        :value="totals.total_calls"
+      />
+      <KpiCard
+        :label="t('JABVOX_REPORTS.DIALER.STATS.TOTAL_ANSWERED')"
+        :value="totals.total_answered"
+        tone="teal"
+      />
+      <KpiCard
+        :label="t('JABVOX_REPORTS.DIALER.STATS.TOTAL_DURATION')"
+        tone="brand"
       >
-        <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">
-          {{ t('JABVOX_REPORTS.DIALER.STATS.TOTAL_CALLS') }}
-        </p>
-        <p class="text-2xl font-bold text-slate-900 dark:text-slate-50">
-          {{ totals.total_calls }}
-        </p>
-      </div>
+        {{ formatDuration(totals.total_duration) }}
+      </KpiCard>
       <div
-        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-1 shadow-sm"
+        class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm flex flex-col gap-1"
       >
-        <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">
-          {{ t('JABVOX_REPORTS.DIALER.STATS.TOTAL_ANSWERED') }}
-        </p>
-        <p class="text-2xl font-bold text-green-600 dark:text-green-400">
-          {{ totals.total_answered }}
-        </p>
-      </div>
-      <div
-        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-1 shadow-sm"
-      >
-        <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">
-          {{ t('JABVOX_REPORTS.DIALER.STATS.TOTAL_DURATION') }}
-        </p>
-        <p class="text-xl font-bold text-woot-600 dark:text-woot-400">
-          {{ formatDuration(totals.total_duration) }}
-        </p>
-      </div>
-      <div
-        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-1 shadow-sm"
-      >
-        <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">
+        <p class="text-xs font-medium text-n-slate-11">
           {{ t('JABVOX_REPORTS.DIALER.STATS.BY_STATUS') }}
         </p>
         <div class="flex flex-wrap gap-1 pt-0.5">
           <span
             v-for="s in byStatusList"
             :key="s.key"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-n-alpha-2 text-n-slate-12"
           >
             {{ t(`JABVOX_REPORTS.DIALER.STATUS.${s.key}`, s.key) }}
             <span class="font-bold">{{ s.count }}</span>
@@ -196,245 +173,109 @@ onUnmounted(() => clearInterval(ticker));
     <!-- Loading -->
     <div
       v-if="loading"
-      class="text-sm text-slate-400 animate-pulse text-center py-16"
+      class="flex items-center justify-center gap-2 py-16 text-sm text-n-slate-11"
     >
+      <Spinner :size="18" />
       {{ t('JABVOX_REPORTS.COMMON.LOADING') }}
     </div>
 
     <template v-else-if="hasAgents">
       <!-- Activity table -->
       <div
-        class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 shadow-sm"
+        class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden"
       >
-        <table
-          class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm"
-        >
-          <thead class="bg-slate-50 dark:bg-slate-800/80">
-            <tr
-              class="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-            >
-              <th class="py-3 px-4 min-w-[160px]">
-                {{ t('JABVOX_REPORTS.DIALER.COLS.AGENT') }}
-              </th>
-              <th class="py-3 px-4 text-right">
-                {{ t('JABVOX_REPORTS.DIALER.COLS.CALLS') }}
-              </th>
-              <th class="py-3 px-4 text-right">
-                {{ t('JABVOX_REPORTS.DIALER.COLS.ANSWERED') }}
-              </th>
-              <th class="py-3 px-4 text-right">
-                {{ t('JABVOX_REPORTS.DIALER.COLS.DURATION') }}
-              </th>
-              <th class="py-3 px-4 text-right">
-                {{ t('JABVOX_REPORTS.DIALER.COLS.NOTES') }}
-              </th>
-              <th class="py-3 px-4 text-right whitespace-nowrap">
-                {{ t('JABVOX_REPORTS.DIALER.TIME_CONNECTED') }}
-              </th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-            <tr
-              v-for="agent in agents"
-              :key="agent.id"
-              class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-            >
-              <td class="py-3 px-4">
-                <div class="flex items-center gap-2.5">
-                  <img
-                    v-if="agent.avatar_url"
-                    :src="agent.avatar_url"
-                    :alt="agent.name"
-                    class="w-7 h-7 rounded-full object-cover shrink-0"
-                  />
-                  <span
-                    v-else
-                    class="w-7 h-7 rounded-full bg-woot-100 dark:bg-woot-900/30 flex items-center justify-center shrink-0"
-                  >
-                    <span class="text-xs font-semibold text-woot-600">{{
-                      agent.name?.charAt(0)
-                    }}</span>
-                  </span>
-                  <div>
-                    <p
-                      class="font-medium text-slate-900 dark:text-slate-50 leading-tight"
-                    >
-                      {{ agent.name }}
-                    </p>
-                    <p class="text-xs text-slate-400">{{ agent.email }}</p>
-                  </div>
-                </div>
-              </td>
-              <td class="py-3 px-4 text-right">
-                <span
-                  class="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold"
-                >
-                  <span
-                    class="i-lucide-phone-call w-3.5 h-3.5 text-slate-400"
-                  />
-                  {{ agent.total_calls || '—' }}
-                </span>
-              </td>
-              <td class="py-3 px-4 text-right">
-                <span
-                  class="inline-flex items-center gap-1 font-semibold"
-                  :class="
-                    agent.answered_calls
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-slate-300 dark:text-slate-600'
-                  "
-                >
-                  <span class="i-lucide-phone-incoming w-3.5 h-3.5" />
-                  {{ agent.answered_calls || '—' }}
-                </span>
-              </td>
-              <td
-                class="py-3 px-4 text-right font-semibold text-slate-700 dark:text-slate-300"
-              >
-                {{ formatDuration(agent.total_duration) }}
-              </td>
-              <td class="py-3 px-4 text-right">
-                <span
-                  class="inline-flex items-center gap-1 font-semibold"
-                  :class="
-                    agent.notes_in_calls
-                      ? 'text-slate-700 dark:text-slate-300'
-                      : 'text-slate-300 dark:text-slate-600'
-                  "
-                >
-                  <span
-                    class="i-lucide-sticky-note w-3.5 h-3.5 text-slate-400"
-                  />
-                  {{ agent.notes_in_calls || '—' }}
-                </span>
-              </td>
-              <td class="py-3 px-4 text-right">
-                <span
-                  class="inline-block text-xs font-bold tabular-nums px-2 py-0.5 rounded-full"
-                  :class="
-                    liveConnectedSecs(agent)
-                      ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
-                      : 'text-slate-300 dark:text-slate-600'
-                  "
-                >
-                  {{
-                    formatDuration(
-                      liveConnectedSecs(agent),
-                      !!(
-                        agent.current_dialer_state_key &&
-                        ACTIVE_DIALER_STATES.has(agent.current_dialer_state_key)
-                      )
-                    )
-                  }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Dialer state times table -->
-      <div class="space-y-2">
-        <h3
-          class="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2"
-        >
-          <span class="i-lucide-timer w-4 h-4 text-slate-400" />
-          {{ t('JABVOX_REPORTS.DIALER.STATE_TIMES_TITLE') }}
-        </h3>
-        <div
-          class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 shadow-sm"
-        >
-          <table
-            class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm"
-          >
-            <thead class="bg-slate-50 dark:bg-slate-800/80">
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead>
               <tr
-                class="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                class="text-left text-xs font-medium uppercase tracking-wide text-n-slate-10 bg-n-alpha-1 border-b border-n-weak"
               >
                 <th class="py-3 px-4 min-w-[160px]">
-                  {{ t('JABVOX_REPORTS.AGENTS.COLS.AGENT') }}
+                  {{ t('JABVOX_REPORTS.DIALER.COLS.AGENT') }}
                 </th>
-                <th
-                  v-for="state in dialerStates"
-                  :key="state.key"
-                  class="py-3 px-4 text-right whitespace-nowrap"
-                >
-                  <span class="inline-flex items-center gap-1.5">
-                    <span
-                      class="w-2.5 h-2.5 rounded-full shrink-0"
-                      :style="{ backgroundColor: state.color }"
-                    />
-                    {{ state.name }}
-                  </span>
+                <th class="py-3 px-4 text-right">
+                  {{ t('JABVOX_REPORTS.DIALER.COLS.CALLS') }}
+                </th>
+                <th class="py-3 px-4 text-right">
+                  {{ t('JABVOX_REPORTS.DIALER.COLS.ANSWERED') }}
+                </th>
+                <th class="py-3 px-4 text-right">
+                  {{ t('JABVOX_REPORTS.DIALER.COLS.DURATION') }}
+                </th>
+                <th class="py-3 px-4 text-right">
+                  {{ t('JABVOX_REPORTS.DIALER.COLS.NOTES') }}
                 </th>
                 <th class="py-3 px-4 text-right whitespace-nowrap">
-                  {{ t('JABVOX_REPORTS.COMMON.TOTAL') }}
+                  {{ t('JABVOX_REPORTS.DIALER.TIME_CONNECTED') }}
                 </th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody class="divide-y divide-n-weak">
               <tr
                 v-for="agent in agents"
                 :key="agent.id"
-                class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                class="hover:bg-n-alpha-1 transition-colors"
               >
                 <td class="py-3 px-4">
-                  <div class="flex items-center gap-2.5">
-                    <img
-                      v-if="agent.avatar_url"
-                      :src="agent.avatar_url"
-                      :alt="agent.name"
-                      class="w-6 h-6 rounded-full object-cover shrink-0"
-                    />
-                    <span
-                      v-else
-                      class="w-6 h-6 rounded-full bg-woot-100 dark:bg-woot-900/30 flex items-center justify-center shrink-0"
-                    >
-                      <span class="text-[10px] font-semibold text-woot-600">{{
-                        agent.name?.charAt(0)
-                      }}</span>
-                    </span>
-                    <span
-                      class="font-medium text-slate-800 dark:text-slate-100 text-xs truncate max-w-[120px]"
-                    >
-                      {{ agent.name }}
-                    </span>
-                  </div>
+                  <AgentCell :agent="agent" />
                 </td>
-                <td
-                  v-for="state in dialerStates"
-                  :key="state.key"
-                  class="py-3 px-4 text-right"
-                >
+                <td class="py-3 px-4 text-right">
                   <span
-                    class="inline-block text-xs font-semibold tabular-nums px-2 py-0.5 rounded-full"
+                    class="inline-flex items-center gap-1 text-n-slate-12 font-semibold"
+                  >
+                    <span
+                      class="i-lucide-phone-call size-3.5 text-n-slate-10"
+                    />
+                    {{ agent.total_calls || '—' }}
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <span
+                    class="inline-flex items-center gap-1 font-semibold"
                     :class="
-                      liveSecs(agent, state.key)
-                        ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
-                        : 'text-slate-300 dark:text-slate-600'
+                      agent.answered_calls ? 'text-n-teal-11' : 'text-n-slate-9'
                     "
                   >
-                    {{
-                      formatDuration(
-                        liveSecs(agent, state.key),
-                        agent.current_dialer_state_key === state.key
-                      )
-                    }}
+                    <span class="i-lucide-phone-incoming size-3.5" />
+                    {{ agent.answered_calls || '—' }}
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-right font-semibold text-n-slate-12">
+                  {{ formatDuration(agent.total_duration) }}
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <span
+                    class="inline-flex items-center gap-1 font-semibold"
+                    :class="
+                      agent.notes_in_calls
+                        ? 'text-n-slate-12'
+                        : 'text-n-slate-9'
+                    "
+                  >
+                    <span
+                      class="i-lucide-sticky-note size-3.5 text-n-slate-10"
+                    />
+                    {{ agent.notes_in_calls || '—' }}
                   </span>
                 </td>
                 <td class="py-3 px-4 text-right">
                   <span
                     class="inline-block text-xs font-bold tabular-nums px-2 py-0.5 rounded-full"
                     :class="
-                      liveTotalSecs(agent)
-                        ? 'bg-woot-50 dark:bg-woot-900/20 text-woot-700 dark:text-woot-300'
-                        : 'text-slate-300 dark:text-slate-600'
+                      liveConnectedSecs(agent)
+                        ? 'bg-n-teal-3 text-n-teal-11'
+                        : 'text-n-slate-9'
                     "
                   >
                     {{
                       formatDuration(
-                        liveTotalSecs(agent),
-                        !!agent.current_dialer_state_key
+                        liveConnectedSecs(agent),
+                        !!(
+                          agent.current_dialer_state_key &&
+                          ACTIVE_DIALER_STATES.has(
+                            agent.current_dialer_state_key
+                          )
+                        )
                       )
                     }}
                   </span>
@@ -444,11 +285,105 @@ onUnmounted(() => clearInterval(ticker));
           </table>
         </div>
       </div>
+
+      <!-- Dialer state times table -->
+      <div class="flex flex-col gap-2">
+        <h3
+          class="text-sm font-semibold text-n-slate-12 flex items-center gap-2"
+        >
+          <span class="i-lucide-timer size-4 text-n-slate-10" />
+          {{ t('JABVOX_REPORTS.DIALER.STATE_TIMES_TITLE') }}
+        </h3>
+        <div
+          class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden"
+        >
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr
+                  class="text-left text-xs font-medium uppercase tracking-wide text-n-slate-10 bg-n-alpha-1 border-b border-n-weak"
+                >
+                  <th class="py-3 px-4 min-w-[160px]">
+                    {{ t('JABVOX_REPORTS.AGENTS.COLS.AGENT') }}
+                  </th>
+                  <th
+                    v-for="state in dialerStates"
+                    :key="state.key"
+                    class="py-3 px-4 text-right whitespace-nowrap"
+                  >
+                    <span class="inline-flex items-center gap-1.5">
+                      <span
+                        class="size-2.5 rounded-full shrink-0"
+                        :style="{ backgroundColor: state.color }"
+                      />
+                      {{ state.name }}
+                    </span>
+                  </th>
+                  <th class="py-3 px-4 text-right whitespace-nowrap">
+                    {{ t('JABVOX_REPORTS.COMMON.TOTAL') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-n-weak">
+                <tr
+                  v-for="agent in agents"
+                  :key="agent.id"
+                  class="hover:bg-n-alpha-1 transition-colors"
+                >
+                  <td class="py-3 px-4">
+                    <AgentCell :agent="agent" :size="24" compact />
+                  </td>
+                  <td
+                    v-for="state in dialerStates"
+                    :key="state.key"
+                    class="py-3 px-4 text-right"
+                  >
+                    <span
+                      class="inline-block text-xs font-semibold tabular-nums px-2 py-0.5 rounded-full"
+                      :class="
+                        liveSecs(agent, state.key)
+                          ? 'bg-n-alpha-2 text-n-slate-12'
+                          : 'text-n-slate-9'
+                      "
+                    >
+                      {{
+                        formatDuration(
+                          liveSecs(agent, state.key),
+                          agent.current_dialer_state_key === state.key
+                        )
+                      }}
+                    </span>
+                  </td>
+                  <td class="py-3 px-4 text-right">
+                    <span
+                      class="inline-block text-xs font-bold tabular-nums px-2 py-0.5 rounded-full"
+                      :class="
+                        liveTotalSecs(agent)
+                          ? 'bg-n-alpha-2 text-n-brand'
+                          : 'text-n-slate-9'
+                      "
+                    >
+                      {{
+                        formatDuration(
+                          liveTotalSecs(agent),
+                          !!agent.current_dialer_state_key
+                        )
+                      }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </template>
 
     <!-- Empty -->
-    <div v-else class="text-sm text-slate-400 text-center py-16">
-      {{ t('JABVOX_REPORTS.COMMON.EMPTY') }}
-    </div>
+    <EmptyStateLayout
+      v-else
+      :title="t('JABVOX_REPORTS.COMMON.EMPTY_TITLE')"
+      :subtitle="t('JABVOX_REPORTS.COMMON.EMPTY')"
+    />
   </div>
 </template>

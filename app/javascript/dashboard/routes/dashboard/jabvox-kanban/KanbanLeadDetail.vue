@@ -105,7 +105,8 @@ const loadMessages = async () => {
   isLoadingMessages.value = true;
   try {
     const response = await messageAPI.getPreviousMessages({
-      conversationId: props.conversation.id,
+      // messages API resolves by display_id, not the PK
+      conversationId: props.conversation.display_id,
       before: undefined,
       after: undefined,
     });
@@ -178,7 +179,8 @@ const sendMessage = async () => {
   isSending.value = true;
   try {
     const payload = {
-      conversationId: props.conversation.id,
+      // messages API resolves by display_id, not the PK
+      conversationId: props.conversation.display_id,
       message: content,
       private: isNote.value,
       echo_id: `jabvox_${Date.now()}`,
