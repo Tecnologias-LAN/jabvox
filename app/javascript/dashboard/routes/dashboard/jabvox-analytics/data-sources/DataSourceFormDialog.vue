@@ -93,7 +93,8 @@ const buildPayload = () => {
 const handleClose = () => emit('close');
 
 const handleSave = async () => {
-  const valid = await formRef.value?.v$.$validate();
+  // Only the name is required; connection can be saved untested.
+  const valid = formRef.value?.validate();
   if (!valid) return;
 
   saving.value = true;
@@ -141,8 +142,12 @@ const handleSave = async () => {
 
         <DataSourceForm ref="formRef" v-model="form" :is-edit="isEdit" />
 
-        <div class="mt-5 flex flex-col gap-3">
-          <div class="flex items-center gap-3">
+        <!-- Optional connection test — does not block saving -->
+        <div class="mt-5 flex flex-col gap-3 border-t border-n-weak pt-4">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-xs text-n-slate-10">
+              {{ t('JABVOX_ANALYTICS.DATA_SOURCES.FORM.TEST_OPTIONAL') }}
+            </span>
             <TestConnectionButton
               :data-source-id="isEdit ? dataSource.id : null"
               :payload="form"

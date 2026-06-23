@@ -287,17 +287,25 @@ const saldoBalanceColor = computed(() => {
 });
 
 const menuItems = computed(() => {
+  // These views are toggled per-account from Super Admin via feature flags.
+  const hasFeature = flag =>
+    isFeatureEnabledonAccount.value(accountId.value, flag);
+
   return [
-    {
-      name: 'Inbox',
-      label: t('SIDEBAR.INBOX'),
-      icon: 'i-lucide-inbox',
-      to: accountScopedRoute('inbox_view'),
-      activeOn: ['inbox_view', 'inbox_view_conversation'],
-      getterKeys: {
-        count: 'notifications/getUnreadCount',
-      },
-    },
+    ...(hasFeature(FEATURE_FLAGS.INBOX_VIEW)
+      ? [
+          {
+            name: 'Inbox',
+            label: t('SIDEBAR.INBOX'),
+            icon: 'i-lucide-inbox',
+            to: accountScopedRoute('inbox_view'),
+            activeOn: ['inbox_view', 'inbox_view_conversation'],
+            getterKeys: {
+              count: 'notifications/getUnreadCount',
+            },
+          },
+        ]
+      : []),
     {
       name: 'Conversation',
       label: t('SIDEBAR.CONVERSATIONS'),
@@ -309,24 +317,36 @@ const menuItems = computed(() => {
           activeOn: ['inbox_conversation'],
           to: accountScopedRoute('home'),
         },
-        {
-          name: 'Mentions',
-          label: t('SIDEBAR.MENTIONED_CONVERSATIONS'),
-          activeOn: ['conversation_through_mentions'],
-          to: accountScopedRoute('conversation_mentions'),
-        },
-        {
-          name: 'Participating',
-          label: t('SIDEBAR.PARTICIPATING_CONVERSATIONS'),
-          activeOn: ['conversation_through_participating'],
-          to: accountScopedRoute('conversation_participating'),
-        },
-        {
-          name: 'Unattended',
-          activeOn: ['conversation_through_unattended'],
-          label: t('SIDEBAR.UNATTENDED_CONVERSATIONS'),
-          to: accountScopedRoute('conversation_unattended'),
-        },
+        ...(hasFeature(FEATURE_FLAGS.MENTIONS)
+          ? [
+              {
+                name: 'Mentions',
+                label: t('SIDEBAR.MENTIONED_CONVERSATIONS'),
+                activeOn: ['conversation_through_mentions'],
+                to: accountScopedRoute('conversation_mentions'),
+              },
+            ]
+          : []),
+        ...(hasFeature(FEATURE_FLAGS.PARTICIPATING)
+          ? [
+              {
+                name: 'Participating',
+                label: t('SIDEBAR.PARTICIPATING_CONVERSATIONS'),
+                activeOn: ['conversation_through_participating'],
+                to: accountScopedRoute('conversation_participating'),
+              },
+            ]
+          : []),
+        ...(hasFeature(FEATURE_FLAGS.UNATTENDED)
+          ? [
+              {
+                name: 'Unattended',
+                activeOn: ['conversation_through_unattended'],
+                label: t('SIDEBAR.UNATTENDED_CONVERSATIONS'),
+                to: accountScopedRoute('conversation_unattended'),
+              },
+            ]
+          : []),
         {
           name: 'Folders',
           label: t('SIDEBAR.CUSTOM_VIEWS_FOLDER'),
@@ -439,6 +459,20 @@ const menuItems = computed(() => {
             icon: 'i-lucide-calendar-days',
             to: accountScopedRoute('jabvox_calendar_index'),
             activeOn: ['jabvox_calendar_index'],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_TASKS
+    )
+      ? [
+          {
+            name: 'Jabvox Tasks',
+            label: t('SIDEBAR.JABVOX_TASKS'),
+            icon: 'i-lucide-square-kanban',
+            to: accountScopedRoute('jabvox_tasks_index'),
+            activeOn: ['jabvox_tasks_index', 'jabvox_tasks_board'],
           },
         ]
       : []),
@@ -1019,7 +1053,9 @@ const menuItems = computed(() => {
                 name: 'Settings Jabvox WA Templates',
                 label: t('SIDEBAR.JABVOX_WHATSAPP_TEMPLATES'),
                 icon: 'i-lucide-message-square-text',
-                to: accountScopedRoute('jabvox_whatsapp_templates_settings_index'),
+                to: accountScopedRoute(
+                  'jabvox_whatsapp_templates_settings_index'
+                ),
                 activeOn: ['jabvox_whatsapp_templates_settings_index'],
               },
             ]

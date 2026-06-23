@@ -50,18 +50,15 @@ class Jabvox::CalendarReminderService
     subject = "#{I18n.t('jabvox.calendar.reminder_subject')}: #{event.title}"
     body    = reminder_html(event, contact, label)
 
-    mail = Mail.new do
-      from    "#{smtp.from_name} <#{smtp.from_email}>"
-      to      contact.email
-      subject subject
-      html_part do
-        content_type 'text/html; charset=UTF-8'
-        body body
-      end
-    end
-
-    mail.delivery_method(:smtp, smtp.delivery_settings)
-    mail.deliver!
+    Jabvox::EmailSenderService.new(
+      account: smtp.account,
+      config: smtp,
+      to: contact.email,
+      subject: subject,
+      html_body: body,
+      source: 'calendar',
+      user: nil
+    ).deliver!
   end
 
   def minutes_label(minutes)

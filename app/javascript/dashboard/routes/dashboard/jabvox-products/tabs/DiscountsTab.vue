@@ -1,10 +1,18 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
+import Label from 'dashboard/components-next/label/Label.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
+import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
+import SearchInput from '../components/SearchInput.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -12,26 +20,31 @@ const { t } = useI18n();
 const discounts = useMapGetter('jabvoxProducts/getDiscounts');
 const uiFlags = useMapGetter('jabvoxProducts/getUIFlags');
 
-const showForm = ref(false);
+const search = ref('');
+const formDialog = ref(null);
+const deleteDialog = ref(null);
 const editingItem = ref(null);
-const form = ref({
+
+const emptyForm = () => ({
   name_jabvox: '',
   description_jabvox: '',
   percentage_jabvox: '',
   active_jabvox: true,
+});
+const form = ref(emptyForm());
+
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) return discounts.value;
+  return discounts.value.filter(d => d.name_jabvox?.toLowerCase().includes(q));
 });
 
 onMounted(() => store.dispatch('jabvoxProducts/fetchDiscount'));
 
 const openNew = () => {
   editingItem.value = null;
-  form.value = {
-    name_jabvox: '',
-    description_jabvox: '',
-    percentage_jabvox: '',
-    active_jabvox: true,
-  };
-  showForm.value = true;
+  form.value = emptyForm();
+  formDialog.value?.open();
 };
 
 const openEdit = item => {
@@ -39,17 +52,14 @@ const openEdit = item => {
   form.value = {
     name_jabvox: item.name_jabvox,
     description_jabvox: item.description_jabvox || '',
-    percentage_jabvox: item.percentage_jabvox,
+    percentage_jabvox: item.percentage_jabvox || '',
     active_jabvox: item.active_jabvox,
   };
-  showForm.value = true;
+  formDialog.value?.open();
 };
 
 const onSubmit = async () => {
-  if (!form.value.name_jabvox.trim()) {
-    useAlert(t('JABVOX_PRODUCTS.DISCOUNTS.FORM.NAME_REQUIRED'));
-    return;
-  }
+  if (!form.value.name_jabvox.trim()) return;
   try {
     if (editingItem.value) {
       await store.dispatch('jabvoxProducts/updateDiscount', {
@@ -59,22 +69,25 @@ const onSubmit = async () => {
     } else {
       await store.dispatch('jabvoxProducts/createDiscount', form.value);
     }
+    formDialog.value?.close();
     useAlert(t('JABVOX_PRODUCTS.SAVE_SUCCESS'));
-    showForm.value = false;
   } catch (e) {
     useAlert(e.message || t('JABVOX_PRODUCTS.ERROR'));
   }
 };
 
-const onDelete = async item => {
-  if (
-    !window.confirm(
-      t('JABVOX_PRODUCTS.DELETE_CONFIRM', { name: item.name_jabvox })
-    )
-  )
-    return;
+const askDelete = item => {
+  deleteDialog.value?.open({
+    title: t('JABVOX_PRODUCTS.DISCOUNTS.DELETE_TITLE'),
+    description: t('JABVOX_PRODUCTS.DISCOUNTS.DELETE_BODY', {
+      name: item.name_jabvox,
+    }),
+    data: item.id,
+  });
+};
+const doDelete = async id => {
   try {
-    await store.dispatch('jabvoxProducts/destroyDiscount', item.id);
+    await store.dispatch('jabvoxProducts/destroyDiscount', id);
     useAlert(t('JABVOX_PRODUCTS.DELETE_SUCCESS'));
   } catch (e) {
     useAlert(e.message || t('JABVOX_PRODUCTS.ERROR'));
@@ -83,174 +96,152 @@ const onDelete = async item => {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center justify-between">
-      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">
-        {{ $t('JABVOX_PRODUCTS.DISCOUNTS.TITLE') }}
-      </h2>
-      <Button
-        icon="i-lucide-plus"
-        :label="$t('JABVOX_PRODUCTS.NEW')"
-        @click="openNew"
-      />
-    </div>
-
+  <div class="flex flex-col gap-5">
     <div
       v-if="uiFlags.isFetchingDiscounts"
-      class="text-sm text-slate-400 animate-pulse py-6 text-center"
+      class="flex items-center justify-center gap-2 py-12 text-sm text-n-slate-11"
     >
-      {{ $t('JABVOX_PRODUCTS.LOADING') }}
-    </div>
-    <div
-      v-else-if="discounts.length === 0"
-      class="text-sm text-slate-400 text-center py-10"
-    >
-      {{ $t('JABVOX_PRODUCTS.DISCOUNTS.EMPTY') }}
+      <Spinner :size="18" />
     </div>
 
-    <table
-      v-else
-      class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm"
+    <EmptyStateLayout
+      v-else-if="!discounts.length"
+      :title="t('JABVOX_PRODUCTS.DISCOUNTS.EMPTY_TITLE')"
+      :subtitle="t('JABVOX_PRODUCTS.DISCOUNTS.EMPTY')"
     >
-      <thead>
-        <tr class="text-left text-slate-500 dark:text-slate-400">
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.COLS.NAME') }}
-          </th>
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.DISCOUNTS.COLS.PERCENTAGE') }}
-          </th>
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.COLS.STATUS') }}
-          </th>
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.COLS.ACTIONS') }}
-          </th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-        <tr
-          v-for="item in discounts"
-          :key="item.id"
-          class="hover:bg-slate-50 dark:hover:bg-slate-800/50"
-        >
-          <td class="py-3 pr-4 font-medium text-slate-800 dark:text-slate-100">
-            {{ item.name_jabvox }}
-          </td>
-          <td class="py-3 pr-4 text-slate-700 dark:text-slate-200">
-            {{ item.percentage_jabvox }}%
-          </td>
-          <td class="py-3 pr-4">
-            <span
-              class="text-xs px-2 py-1 rounded-full font-medium"
-              :class="[
-                item.active_jabvox
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-slate-100 text-slate-500',
-              ]"
-            >
-              {{
-                item.active_jabvox
-                  ? $t('JABVOX_PRODUCTS.ACTIVE')
-                  : $t('JABVOX_PRODUCTS.INACTIVE')
-              }}
-            </span>
-          </td>
-          <td class="py-3 pr-4">
-            <div class="flex gap-2">
-              <Button
-                size="small"
-                variant="ghost"
-                icon="i-lucide-pencil"
-                @click="openEdit(item)"
-              />
-              <Button
-                size="small"
-                variant="ghost"
-                color-scheme="alert"
-                icon="i-lucide-trash-2"
-                @click="onDelete(item)"
-              />
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      <template #actions>
+        <Button
+          icon="i-lucide-plus"
+          :label="t('JABVOX_PRODUCTS.NEW')"
+          size="sm"
+          @click="openNew"
+        />
+      </template>
+    </EmptyStateLayout>
 
-    <div
-      v-if="showForm"
-      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-      @click.self="showForm = false"
-    >
+    <template v-else>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <SearchInput
+          v-model="search"
+          :placeholder="t('JABVOX_PRODUCTS.DISCOUNTS.SEARCH_PLACEHOLDER')"
+        />
+        <Button
+          :label="t('JABVOX_PRODUCTS.NEW')"
+          icon="i-lucide-plus"
+          size="sm"
+          @click="openNew"
+        />
+      </div>
+
       <div
-        class="bg-white dark:bg-slate-900 rounded-xl shadow-xl p-6 w-full max-w-md space-y-4"
+        v-if="!filtered.length"
+        class="rounded-xl border border-dashed border-n-weak py-10 text-center text-sm text-n-slate-11"
       >
-        <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">
-          {{
-            editingItem ? $t('JABVOX_PRODUCTS.EDIT') : $t('JABVOX_PRODUCTS.NEW')
-          }}
-        </h3>
-        <div class="space-y-3">
-          <div>
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
-              >{{ $t('JABVOX_PRODUCTS.COLS.NAME') }} *</label
+        {{ t('JABVOX_PRODUCTS.DISCOUNTS.NO_RESULTS') }}
+      </div>
+
+      <div
+        v-else
+        class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm divide-y divide-n-weak overflow-hidden"
+      >
+        <div
+          v-for="item in filtered"
+          :key="item.id"
+          class="flex items-center gap-3 px-4 py-3 hover:bg-n-alpha-1 transition-colors"
+        >
+          <span
+            class="i-lucide-tag size-5 text-n-slate-10 shrink-0 hidden sm:block"
+          />
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-n-slate-12 truncate">
+              {{ item.name_jabvox }}
+            </p>
+            <p
+              v-if="item.description_jabvox"
+              class="text-xs text-n-slate-10 truncate"
             >
-            <input
-              v-model="form.name_jabvox"
-              type="text"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
+              {{ item.description_jabvox }}
+            </p>
           </div>
-          <div>
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
-              >{{ $t('JABVOX_PRODUCTS.DISCOUNTS.COLS.PERCENTAGE') }}</label
-            >
-            <input
-              v-model="form.percentage_jabvox"
-              type="number"
-              step="0.01"
-              min="0"
-              max="100"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-          <div>
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
-              >{{ $t('JABVOX_PRODUCTS.COLS.DESCRIPTION') }}</label
-            >
-            <textarea
-              v-model="form.description_jabvox"
-              rows="2"
-              class="w-full resize-none rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              v-model="form.active_jabvox"
-              type="checkbox"
-              class="rounded text-woot-500"
-            />
-            <span class="text-sm text-slate-700 dark:text-slate-300">{{
-              $t('JABVOX_PRODUCTS.ACTIVE')
-            }}</span>
-          </label>
-        </div>
-        <div class="flex gap-3 pt-2">
-          <Button
-            :label="$t('JABVOX_PRODUCTS.SAVE')"
-            :is-loading="uiFlags.isSavingDiscount"
-            @click="onSubmit"
+          <code
+            class="font-mono text-sm font-semibold text-n-brand bg-n-alpha-2 rounded-md px-2 py-0.5 shrink-0"
+          >
+            {{ item.percentage_jabvox }}%
+          </code>
+          <Label
+            :label="
+              item.active_jabvox
+                ? t('JABVOX_PRODUCTS.ACTIVE')
+                : t('JABVOX_PRODUCTS.INACTIVE')
+            "
+            :color="item.active_jabvox ? 'teal' : 'slate'"
+            compact
           />
           <Button
+            icon="i-lucide-pencil"
             variant="ghost"
-            :label="$t('CANCEL')"
-            @click="showForm = false"
+            color="slate"
+            size="sm"
+            @click="openEdit(item)"
+          />
+          <Button
+            icon="i-lucide-trash-2"
+            variant="ghost"
+            color="ruby"
+            size="sm"
+            @click="askDelete(item)"
           />
         </div>
       </div>
-    </div>
+    </template>
+
+    <Dialog
+      ref="formDialog"
+      :title="
+        editingItem ? t('JABVOX_PRODUCTS.EDIT') : t('JABVOX_PRODUCTS.NEW')
+      "
+      :confirm-button-label="t('JABVOX_PRODUCTS.SAVE')"
+      :cancel-button-label="t('JABVOX_PRODUCTS.CANCEL')"
+      :disable-confirm-button="!form.name_jabvox.trim()"
+      :is-loading="uiFlags.isSavingDiscount"
+      width="lg"
+      @confirm="onSubmit"
+    >
+      <div class="flex flex-col gap-4">
+        <Input
+          v-model="form.name_jabvox"
+          :label="`${t('JABVOX_PRODUCTS.COLS.NAME')} *`"
+          autofocus
+        />
+        <Input
+          v-model="form.percentage_jabvox"
+          type="number"
+          step="0.01"
+          min="0"
+          max="100"
+          :label="t('JABVOX_PRODUCTS.DISCOUNTS.COLS.PERCENTAGE')"
+        />
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_PRODUCTS.COLS.DESCRIPTION') }}
+          </label>
+          <textarea
+            v-model="form.description_jabvox"
+            rows="2"
+            class="w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand resize-y"
+          />
+        </div>
+        <div
+          class="flex items-center justify-between rounded-xl border border-n-weak bg-n-alpha-1 px-4 py-3"
+        >
+          <span class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_PRODUCTS.ACTIVE') }}
+          </span>
+          <Switch v-model="form.active_jabvox" />
+        </div>
+      </div>
+    </Dialog>
+
+    <ConfirmDialog ref="deleteDialog" @confirm="doDelete" />
   </div>
 </template>

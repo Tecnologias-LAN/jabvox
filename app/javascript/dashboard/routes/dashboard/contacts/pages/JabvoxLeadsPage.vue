@@ -8,6 +8,10 @@ import { useAlert } from 'dashboard/composables';
 import { emitter } from 'shared/helpers/mitt';
 import leadsAPI from 'dashboard/api/jabvox/leads';
 import countries from 'shared/constants/countries.js';
+import Button from 'dashboard/components-next/button/Button.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 
 const store = useStore();
 const router = useRouter();
@@ -71,7 +75,44 @@ const pendingBulkAction = ref(null); // null | 'assign' | 'unassign' | 'delete'
 const selectedCount = computed(() => selectedIds.value.size);
 const hasSelection = computed(() => selectedIds.value.size > 0);
 
-const PER_PAGE_OPTIONS = [10, 25, 50, 100, 200];
+const PER_PAGE_OPTIONS = [10, 25, 50, 100, 250];
+
+// ── Pagination helpers (shared by top + bottom bars) ────────────────────
+const rangeStart = computed(() =>
+  meta.value.total ? (currentPage.value - 1) * perPage.value + 1 : 0
+);
+const rangeEnd = computed(() =>
+  Math.min(currentPage.value * perPage.value, meta.value.total || 0)
+);
+
+// ── Page-level selection (Gmail/HubSpot style) ──────────────────────────
+const pageIds = computed(() => leads.value.map(l => l.id));
+const allPageSelected = computed(
+  () =>
+    pageIds.value.length > 0 &&
+    pageIds.value.every(id => selectedIds.value.has(id))
+);
+const somePageSelected = computed(
+  () =>
+    pageIds.value.some(id => selectedIds.value.has(id)) &&
+    !allPageSelected.value
+);
+
+const toggleSelectPage = () => {
+  const s = new Set(selectedIds.value);
+  if (allPageSelected.value) {
+    pageIds.value.forEach(id => s.delete(id));
+  } else {
+    pageIds.value.forEach(id => s.add(id));
+  }
+  selectedIds.value = s;
+};
+
+// Reflect the "some-but-not-all" state on the header checkbox.
+const pageCheckbox = ref(null);
+watch(somePageSelected, val => {
+  if (pageCheckbox.value) pageCheckbox.value.indeterminate = val;
+});
 
 const SOLD_OPTIONS = [
   { value: 'quotes', label: t('JABVOX_LEADS.FILTERS.SOLD_QUOTES') },
@@ -107,6 +148,22 @@ const fetchLeads = () => {
   store.dispatch('jabvoxLeads/fetchLeads', params);
 };
 
+const goToPage = delta => {
+  const next = currentPage.value + delta;
+  if (next < 1 || next > (meta.value.totalPages || 1)) return;
+  currentPage.value = next;
+  fetchLeads();
+};
+
+// Phone filter accepts digits and a leading + only (strips anything else).
+const onPhoneInput = e => {
+  filterPhone.value = e.target.value.replace(/[^\d+]/g, '');
+};
+// ID filter accepts digits only.
+const onIdInput = e => {
+  filterId.value = e.target.value.replace(/\D/g, '');
+};
+
 // ── Sorting helpers ────────────────────────────────────────────────────
 const toggleSort = col => {
   if (sortColumn.value === col) {
@@ -134,11 +191,6 @@ const toggleSelect = id => {
   if (s.has(id)) s.delete(id);
   else s.add(id);
   selectedIds.value = s;
-};
-
-const selectN = n => {
-  const ids = leads.value.slice(0, n).map(l => l.id);
-  selectedIds.value = new Set(ids);
 };
 
 const clearSelection = () => {
@@ -327,80 +379,104 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full w-full overflow-hidden bg-n-surface-1">
+  <div class="flex flex-col h-full w-full overflow-hidden bg-n-background">
     <!-- Header -->
     <div
-      class="shrink-0 border-b border-n-weak bg-n-surface-1 px-6 sm:px-8 py-5 flex items-center justify-between"
+      class="shrink-0 border-b border-n-weak bg-n-solid-1 px-4 sm:px-6 lg:px-8 py-4 flex items-start justify-between gap-4"
     >
-      <h1 class="text-heading-1 text-n-slate-12">
-        {{ t('JABVOX_LEADS.TITLE') }}
-      </h1>
-      <button
-        class="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+      <div class="flex items-start gap-3 min-w-0">
+        <span
+          class="i-lucide-target size-9 shrink-0 rounded-xl bg-n-alpha-2 p-2 text-n-brand"
+        />
+        <div class="min-w-0">
+          <h1 class="text-xl font-semibold tracking-tight text-n-slate-12">
+            {{ t('JABVOX_LEADS.TITLE') }}
+          </h1>
+          <p class="mt-0.5 text-sm text-n-slate-11">
+            {{ t('JABVOX_LEADS.SUBTITLE') }}
+            <span v-if="meta.total" class="text-n-slate-10">
+              · {{ t('JABVOX_LEADS.PAGINATION.TOTAL', { count: meta.total }) }}
+            </span>
+          </p>
+        </div>
+      </div>
+      <Button
+        :label="t('JABVOX_LEADS.GO_TO_CONTACTS')"
+        icon="i-lucide-users"
+        variant="outline"
+        color="slate"
+        size="sm"
+        class="shrink-0"
         @click="
           router.push({
             name: 'contacts_dashboard_index',
             params: { accountId: accountId },
           })
         "
-      >
-        <span class="i-lucide-users w-4 h-4" />
-        {{ t('JABVOX_LEADS.GO_TO_CONTACTS') }}
-      </button>
+      />
     </div>
 
     <!-- Content -->
-    <div class="flex-1 overflow-auto px-6 sm:px-8 py-5">
+    <div class="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-5">
       <!-- Filter bar -->
       <div class="mb-4">
-        <!-- Primary row: ID + Name + Filters toggle + Clear -->
-        <div class="flex flex-wrap items-center gap-2">
-          <!-- ID input -->
-          <div
-            class="flex items-center gap-1.5 px-3 py-1.5 shrink-0 w-32 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800"
-          >
-            <span
-              class="text-xs font-bold font-mono text-slate-400 dark:text-slate-500 select-none shrink-0 leading-none"
-              >#</span
+        <!-- Primary row: search by name (grows) + ID + filters + clear -->
+        <div class="flex flex-wrap items-end gap-3">
+          <!-- Name search (primary) -->
+          <div class="flex flex-col gap-1 w-full sm:w-64">
+            <label class="text-xs font-medium text-n-slate-10 select-none">
+              {{ t('JABVOX_LEADS.FILTERS.NAME') }}
+            </label>
+            <div
+              class="flex items-center gap-2 px-3 h-9 rounded-lg border border-n-weak bg-n-solid-1 focus-within:border-n-slate-7 transition-colors"
             >
-            <input
-              v-model="filterId"
-              type="text"
-              :placeholder="t('JABVOX_LEADS.FILTERS.SEARCH_ID')"
-              class="flex-1 min-w-0 py-0 appearance-none bg-transparent text-sm leading-none text-slate-700 dark:text-slate-200 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              @keydown.enter="onFilterChange"
-              @blur="onFilterChange"
-            />
+              <span class="i-lucide-search size-3.5 text-n-slate-9 shrink-0" />
+              <input
+                v-model="filterName"
+                type="text"
+                :placeholder="t('JABVOX_LEADS.FILTERS.NAME')"
+                class="reset-base flex-1 min-w-0 p-0 m-0 border-0 h-5 appearance-none bg-transparent text-sm leading-5 text-n-slate-12 focus:outline-none focus:ring-0 placeholder:text-n-slate-9"
+                @keydown.enter="onFilterChange"
+                @blur="onFilterChange"
+              />
+            </div>
           </div>
-          <!-- Name input -->
-          <div
-            class="flex items-center gap-2 px-3 py-1.5 shrink-0 w-48 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800"
-          >
-            <span class="i-lucide-search w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <input
-              v-model="filterName"
-              type="text"
-              :placeholder="t('JABVOX_LEADS.FILTERS.NAME')"
-              class="flex-1 min-w-0 py-0 appearance-none bg-transparent text-sm leading-none text-slate-700 dark:text-slate-200 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              @keydown.enter="onFilterChange"
-              @blur="onFilterChange"
-            />
+          <!-- ID search (own labelled field) -->
+          <div class="flex flex-col gap-1 shrink-0 w-40">
+            <label class="text-xs font-medium text-n-slate-10 select-none">
+              {{ t('JABVOX_LEADS.FILTERS.SEARCH_ID') }}
+            </label>
+            <div
+              class="flex items-center gap-1.5 px-3 h-9 rounded-lg border border-n-weak bg-n-solid-1 focus-within:border-n-slate-7 transition-colors"
+            >
+              <span class="i-lucide-hash size-3.5 text-n-slate-9 shrink-0" />
+              <input
+                v-model="filterId"
+                type="text"
+                inputmode="numeric"
+                :placeholder="t('JABVOX_LEADS.FILTERS.SEARCH_ID_PLACEHOLDER')"
+                class="reset-base flex-1 min-w-0 p-0 m-0 border-0 h-5 appearance-none bg-transparent text-sm leading-5 font-mono text-n-slate-12 focus:outline-none focus:ring-0 placeholder:text-n-slate-9"
+                @input="onIdInput"
+                @keydown.enter="onFilterChange"
+                @blur="onFilterChange"
+              />
+            </div>
           </div>
           <!-- Toggle advanced filters -->
           <button
-            class="relative h-8 flex shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors"
+            class="relative h-9 flex shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors"
             :class="
               showAdvancedFilters
-                ? 'border-indigo-400 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-500'
-                : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                ? 'border-n-brand/40 bg-n-alpha-2 text-n-brand'
+                : 'border-n-weak bg-n-solid-1 text-n-slate-11 hover:bg-n-alpha-1'
             "
             @click="showAdvancedFilters = !showAdvancedFilters"
           >
-            <span class="i-lucide-sliders-horizontal w-3.5 h-3.5" />
+            <span class="i-lucide-sliders-horizontal size-3.5" />
             {{ t('JABVOX_LEADS.FILTERS.MORE') }}
             <span
               v-if="activeAdvancedFilterCount > 0"
-              class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center px-1"
+              class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-n-brand text-white text-[10px] font-bold flex items-center justify-center px-1"
             >
               {{ activeAdvancedFilterCount }}
             </span>
@@ -408,10 +484,10 @@ onUnmounted(() => {
           <!-- Clear — only when there are active filters -->
           <button
             v-if="filterId || filterName || activeAdvancedFilterCount > 0"
-            class="h-8 shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-500 dark:text-slate-400 px-3 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 dark:hover:bg-rose-900/20 dark:hover:text-rose-400 transition-colors"
+            class="h-9 shrink-0 flex items-center gap-1.5 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-10 px-3 hover:bg-n-ruby-3 hover:text-n-ruby-11 hover:border-n-ruby-6 transition-colors"
             @click="clearFilters"
           >
-            <span class="i-lucide-x w-3.5 h-3.5" />
+            <span class="i-lucide-x size-3.5" />
             {{ t('JABVOX_LEADS.FILTERS.CLEAR') }}
           </button>
         </div>
@@ -419,32 +495,36 @@ onUnmounted(() => {
         <!-- Advanced filters panel -->
         <div
           v-if="showAdvancedFilters"
-          class="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-4 space-y-3"
+          class="mt-3 rounded-xl border border-n-weak bg-n-solid-1 p-4 space-y-3 shadow-sm"
         >
           <!-- Row 1: email + phone -->
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <input
               v-model="filterEmail"
               type="text"
               :placeholder="t('JABVOX_LEADS.FILTERS.EMAIL')"
-              class="h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 pl-3 w-52 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              class="reset-base h-9 rounded-lg border border-n-weak bg-n-background text-sm text-n-slate-12 placeholder:text-n-slate-9 px-3 w-52 focus:outline-none focus:border-n-slate-7 transition-colors"
               @keydown.enter="onFilterChange"
               @blur="onFilterChange"
             />
             <input
               v-model="filterPhone"
-              type="text"
+              type="tel"
+              inputmode="numeric"
               :placeholder="t('JABVOX_LEADS.FILTERS.PHONE')"
-              class="h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 pl-3 w-40 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              class="reset-base h-9 rounded-lg border border-n-weak bg-n-background text-sm text-n-slate-12 placeholder:text-n-slate-9 px-3 w-40 focus:outline-none focus:border-n-slate-7 transition-colors"
+              @input="onPhoneInput"
               @keydown.enter="onFilterChange"
               @blur="onFilterChange"
             />
           </div>
           <!-- Row 2: selects -->
-          <div class="flex flex-wrap gap-2">
+          <div
+            class="flex flex-wrap gap-2 [&_select]:reset-base [&_select]:h-9 [&_select]:rounded-lg [&_select]:border [&_select]:border-n-weak [&_select]:bg-n-background [&_select]:text-sm [&_select]:text-n-slate-12 [&_select]:pl-3 [&_select]:pr-7 [&_select]:focus:outline-none [&_select]:focus:border-n-slate-7"
+          >
             <select
               v-model="filterCountry"
-              class="h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 pl-3 pr-7 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-44"
+              class="w-44"
               @change="onFilterChange"
             >
               <option value="">
@@ -454,10 +534,7 @@ onUnmounted(() => {
                 {{ c.emoji }} {{ c.name }}
               </option>
             </select>
-            <select
-              v-model="filterCampaign"
-              class="h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 pl-3 pr-7 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-40"
-            >
+            <select v-model="filterCampaign" class="w-40">
               <option value="">
                 {{ t('JABVOX_LEADS.FILTERS.ALL_CAMPAIGNS') }}
               </option>
@@ -469,10 +546,7 @@ onUnmounted(() => {
                 {{ c.name }}
               </option>
             </select>
-            <select
-              v-model="filterSold"
-              class="h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 pl-3 pr-7 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-36"
-            >
+            <select v-model="filterSold" class="w-36">
               <option value="">
                 {{ t('JABVOX_LEADS.FILTERS.ALL_SALES') }}
               </option>
@@ -480,10 +554,7 @@ onUnmounted(() => {
                 {{ s.label }}
               </option>
             </select>
-            <select
-              v-model="filterAffiliate"
-              class="h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 pl-3 pr-7 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-40"
-            >
+            <select v-model="filterAffiliate" class="w-40">
               <option value="">
                 {{ t('JABVOX_LEADS.FILTERS.ALL_AFFILIATES') }}
               </option>
@@ -498,10 +569,7 @@ onUnmounted(() => {
                 {{ aff.name }}
               </option>
             </select>
-            <select
-              v-model="filterAssignee"
-              class="h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 pl-3 pr-7 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-40"
-            >
+            <select v-model="filterAssignee" class="w-40">
               <option value="">
                 {{ t('JABVOX_LEADS.FILTERS.ALL_ASSIGNEES') }}
               </option>
@@ -513,10 +581,7 @@ onUnmounted(() => {
                 {{ a.name }}
               </option>
             </select>
-            <select
-              v-model="filterTeam"
-              class="h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 pl-3 pr-7 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-36"
-            >
+            <select v-model="filterTeam" class="w-36">
               <option value="">
                 {{ t('JABVOX_LEADS.FILTERS.ALL_TEAMS') }}
               </option>
@@ -528,10 +593,7 @@ onUnmounted(() => {
                 {{ team.name }}
               </option>
             </select>
-            <select
-              v-model="filterManagementState"
-              class="h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 pl-3 pr-7 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-44"
-            >
+            <select v-model="filterManagementState" class="w-44">
               <option value="">
                 {{ t('JABVOX_LEADS.FILTERS.ALL_MANAGEMENT_STATES') }}
               </option>
@@ -543,10 +605,7 @@ onUnmounted(() => {
                 {{ ms.name }}
               </option>
             </select>
-            <select
-              v-model="filterInbox"
-              class="h-9 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 pl-3 pr-7 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-40"
-            >
+            <select v-model="filterInbox" class="w-40">
               <option value="">
                 {{ t('JABVOX_LEADS.FILTERS.ALL_INBOXES') }}
               </option>
@@ -562,32 +621,32 @@ onUnmounted(() => {
 
           <!-- Date range — own row so it never overflows -->
           <div
-            class="flex items-center gap-3 pt-2 border-t border-slate-200 dark:border-slate-700 flex-wrap"
+            class="flex items-center gap-3 pt-3 border-t border-n-weak flex-wrap"
           >
             <span
-              class="text-xs font-medium text-slate-500 dark:text-slate-400 shrink-0 select-none"
+              class="text-xs font-medium text-n-slate-10 shrink-0 select-none"
             >
               {{ t('JABVOX_LEADS.FILTERS.DATE_RANGE') }}:
             </span>
             <div class="flex items-center gap-2">
-              <span class="text-xs text-slate-400 shrink-0 select-none">{{
+              <span class="text-xs text-n-slate-9 shrink-0 select-none">{{
                 t('JABVOX_LEADS.FILTERS.DATE_FROM')
               }}</span>
               <input
                 v-model="filterDateFrom"
                 type="date"
-                class="h-8 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 px-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                class="reset-base h-9 rounded-lg border border-n-weak bg-n-background text-sm text-n-slate-12 px-2.5 focus:outline-none focus:border-n-slate-7 transition-colors"
                 @change="onFilterChange"
               />
             </div>
             <div class="flex items-center gap-2">
-              <span class="text-xs text-slate-400 shrink-0 select-none">{{
+              <span class="text-xs text-n-slate-9 shrink-0 select-none">{{
                 t('JABVOX_LEADS.FILTERS.DATE_TO')
               }}</span>
               <input
                 v-model="filterDateTo"
                 type="date"
-                class="h-8 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 px-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                class="reset-base h-9 rounded-lg border border-n-weak bg-n-background text-sm text-n-slate-12 px-2.5 focus:outline-none focus:border-n-slate-7 transition-colors"
                 @change="onFilterChange"
               />
             </div>
@@ -595,54 +654,84 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Quick-select + Bulk action toolbar -->
-      <div class="mb-3 flex flex-wrap items-center gap-3">
-        <!-- Quick-select segmented group -->
-        <div class="flex items-center gap-1.5">
-          <span
-            class="text-xs font-medium text-slate-400 dark:text-slate-500 select-none"
-          >
-            {{ t('JABVOX_LEADS.BULK.SELECT_LABEL') }}
-          </span>
-          <div
-            class="inline-flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600"
-          >
-            <button
-              v-for="n in [1, 25, 50, 100]"
-              :key="n"
-              class="h-7 px-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border-r border-slate-200 dark:border-slate-600 last:border-r-0 transition-colors"
-              @click="selectN(n)"
+      <!-- Top summary + pagination bar -->
+      <div
+        v-if="!uiFlags.isFetching && leads.length"
+        class="mb-3 flex flex-wrap items-center justify-between gap-3"
+      >
+        <!-- Showing X-Y of N -->
+        <p class="text-sm text-n-slate-11">
+          {{
+            t('JABVOX_LEADS.PAGINATION.SHOWING', {
+              from: rangeStart,
+              to: rangeEnd,
+              total: meta.total,
+            })
+          }}
+        </p>
+        <!-- Per-page + nav -->
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-n-slate-10 select-none">
+              {{ t('JABVOX_LEADS.PAGINATION.PER_PAGE') }}
+            </span>
+            <select
+              v-model="perPage"
+              class="reset-base h-8 rounded-lg border border-n-weak bg-n-solid-1 text-xs text-n-slate-12 pl-2.5 pr-7 focus:outline-none focus:border-n-slate-7"
             >
-              {{ n }}
+              <option v-for="n in PER_PAGE_OPTIONS" :key="n" :value="n">
+                {{ n }}
+              </option>
+            </select>
+          </div>
+          <div v-if="meta.totalPages > 1" class="flex items-center gap-1.5">
+            <button
+              :disabled="currentPage <= 1"
+              class="size-8 flex items-center justify-center rounded-lg border border-n-weak bg-n-solid-1 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-n-alpha-1 transition-colors"
+              @click="goToPage(-1)"
+            >
+              <span class="i-lucide-chevron-left size-3.5" />
+            </button>
+            <span class="text-xs text-n-slate-11 tabular-nums px-1">
+              {{ currentPage }} / {{ meta.totalPages }}
+            </span>
+            <button
+              :disabled="currentPage >= meta.totalPages"
+              class="size-8 flex items-center justify-center rounded-lg border border-n-weak bg-n-solid-1 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-n-alpha-1 transition-colors"
+              @click="goToPage(1)"
+            >
+              <span class="i-lucide-chevron-right size-3.5" />
             </button>
           </div>
         </div>
+      </div>
 
-        <!-- Bulk action bar — appears when rows are selected -->
+      <!-- Bulk action toolbar -->
+      <div v-if="hasSelection" class="mb-3 flex flex-wrap items-center gap-3">
+        <!-- Bulk action bar -->
         <div
-          v-if="hasSelection"
-          class="flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600"
+          class="w-full flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-n-alpha-2 border border-n-weak shadow-sm"
         >
           <!-- Selected count -->
           <span
-            class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap"
+            class="inline-flex items-center gap-1.5 text-xs font-semibold text-n-slate-12 whitespace-nowrap"
           >
-            <span class="i-lucide-check-square w-3.5 h-3.5" />
+            <span class="i-lucide-check-square size-3.5 text-n-brand" />
             {{ t('JABVOX_LEADS.BULK.SELECTED', { n: selectedCount }) }}
           </span>
-          <div class="w-px h-5 bg-slate-300 dark:bg-slate-500 shrink-0" />
+          <div class="w-px h-5 bg-n-weak shrink-0" />
 
           <template v-if="!pendingBulkAction">
             <!-- Assignee picker -->
             <div class="flex items-center gap-1.5">
               <span
-                class="text-xs text-slate-600 dark:text-slate-300 font-medium shrink-0 select-none"
+                class="text-xs text-n-slate-11 font-medium shrink-0 select-none"
               >
                 {{ t('JABVOX_LEADS.BULK.ASSIGN_LABEL') }}
               </span>
               <select
                 v-model="bulkAssigneeId"
-                class="h-8 rounded-lg border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 pl-3 pr-7 min-w-[160px] focus:outline-none"
+                class="reset-base h-8 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 pl-3 pr-7 min-w-[160px] focus:outline-none focus:border-n-slate-7"
               >
                 <option value="" disabled>
                   {{ t('JABVOX_LEADS.BULK.ASSIGN_LABEL') }}
@@ -657,13 +746,13 @@ onUnmounted(() => {
               </select>
             </div>
             <button
-              class="h-8 px-3 rounded-lg border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-800 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors whitespace-nowrap"
+              class="h-8 px-3 rounded-lg border border-n-weak bg-n-solid-1 text-xs font-medium text-n-slate-11 hover:bg-n-alpha-1 transition-colors whitespace-nowrap"
               @click="requestBulkUnassign"
             >
               {{ t('JABVOX_LEADS.BULK.UNASSIGN_BUTTON') }}
             </button>
             <button
-              class="h-8 px-3 rounded-lg border border-red-300 dark:border-red-700 bg-white dark:bg-slate-800 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors whitespace-nowrap"
+              class="h-8 px-3 rounded-lg border border-n-ruby-6 bg-n-solid-1 text-xs font-medium text-n-ruby-11 hover:bg-n-ruby-3 transition-colors whitespace-nowrap"
               @click="requestBulkDelete"
             >
               {{ t('JABVOX_LEADS.BULK.DELETE_BUTTON') }}
@@ -672,7 +761,7 @@ onUnmounted(() => {
           <template v-else>
             <!-- Confirmation text -->
             <span
-              class="text-sm font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap"
+              class="text-sm font-semibold text-n-slate-12 whitespace-nowrap"
             >
               <template v-if="pendingBulkAction === 'assign'">
                 {{
@@ -698,10 +787,9 @@ onUnmounted(() => {
             </span>
             <button
               :disabled="isBulkAssigning || isBulkUnassigning || isBulkDeleting"
+              class="h-8 px-4 rounded-lg text-white text-sm font-semibold disabled:opacity-40 hover:brightness-110 transition-all flex items-center gap-1.5 whitespace-nowrap"
               :class="
-                pendingBulkAction === 'delete'
-                  ? 'h-8 px-4 rounded-lg bg-red-600 text-white text-sm font-semibold disabled:opacity-40 hover:brightness-110 transition-all flex items-center gap-1.5 whitespace-nowrap'
-                  : 'h-8 px-4 rounded-lg bg-n-brand text-white text-sm font-semibold disabled:opacity-40 hover:brightness-110 transition-all flex items-center gap-1.5 whitespace-nowrap'
+                pendingBulkAction === 'delete' ? 'bg-n-ruby-9' : 'bg-n-brand'
               "
               @click="
                 pendingBulkAction === 'assign'
@@ -713,15 +801,15 @@ onUnmounted(() => {
             >
               <span
                 v-if="isBulkAssigning || isBulkUnassigning || isBulkDeleting"
-                class="i-lucide-loader-2 w-3.5 h-3.5 animate-spin"
+                class="i-lucide-loader-2 size-3.5 animate-spin"
               />
               <template v-else>
-                <span class="i-lucide-check w-3.5 h-3.5" />
+                <span class="i-lucide-check size-3.5" />
                 {{ t('JABVOX_LEADS.BULK.CONFIRM') }}
               </template>
             </button>
             <button
-              class="h-8 px-3 rounded-lg border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-800 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-colors whitespace-nowrap"
+              class="h-8 px-3 rounded-lg border border-n-weak bg-n-solid-1 text-xs font-medium text-n-slate-10 hover:bg-n-alpha-1 transition-colors whitespace-nowrap"
               @click="cancelPendingAction"
             >
               {{ t('JABVOX_LEADS.BULK.CANCEL') }}
@@ -730,10 +818,10 @@ onUnmounted(() => {
 
           <!-- Clear selection -->
           <button
-            class="h-8 w-8 flex items-center justify-center rounded-lg text-indigo-400 hover:text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors ml-auto"
+            class="h-8 w-8 flex items-center justify-center rounded-lg text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-1 transition-colors ml-auto"
             @click="clearSelection"
           >
-            <span class="i-lucide-x w-4 h-4" />
+            <span class="i-lucide-x size-4" />
           </button>
         </div>
       </div>
@@ -741,33 +829,40 @@ onUnmounted(() => {
       <!-- Loading -->
       <div
         v-if="uiFlags.isFetching"
-        class="flex items-center justify-center py-20 text-sm text-slate-400 animate-pulse"
+        class="flex items-center justify-center gap-2 py-20 text-sm text-n-slate-11"
       >
+        <Spinner :size="18" />
         {{ t('JABVOX_LEADS.LOADING') }}
       </div>
 
       <!-- Empty -->
-      <div
+      <EmptyStateLayout
         v-else-if="!leads.length"
-        class="flex items-center justify-center py-20 text-sm text-slate-400"
-      >
-        {{ t('JABVOX_LEADS.EMPTY') }}
-      </div>
+        :title="t('JABVOX_LEADS.EMPTY_TITLE')"
+        :subtitle="t('JABVOX_LEADS.EMPTY')"
+      />
 
       <!-- Table -->
       <div
         v-else
-        class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
+        class="bg-n-solid-1 rounded-2xl border border-n-weak shadow-sm overflow-hidden"
       >
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto max-h-[calc(100vh-22rem)]">
           <table class="w-full text-sm border-collapse">
-            <thead>
-              <tr
-                class="bg-slate-50 dark:bg-slate-700/40 border-b border-slate-200 dark:border-slate-700"
-              >
-                <th class="px-3 py-3 w-8" />
+            <thead class="sticky top-0 z-10">
+              <tr class="bg-n-alpha-1 border-b border-n-weak">
+                <th class="px-3 py-3 w-8 bg-n-alpha-1">
+                  <input
+                    ref="pageCheckbox"
+                    type="checkbox"
+                    :checked="allPageSelected"
+                    class="rounded accent-n-brand cursor-pointer align-middle"
+                    :title="t('JABVOX_LEADS.BULK.SELECT_PAGE')"
+                    @change="toggleSelectPage"
+                  />
+                </th>
                 <th
-                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap hover:text-slate-700 dark:hover:text-slate-300"
+                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap hover:text-n-slate-12 transition-colors"
                   @click="toggleSort('lead_number')"
                 >
                   <span class="flex items-center gap-1">
@@ -776,7 +871,7 @@ onUnmounted(() => {
                   </span>
                 </th>
                 <th
-                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap hover:text-slate-700 dark:hover:text-slate-300"
+                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap hover:text-n-slate-12 transition-colors"
                   @click="toggleSort('name')"
                 >
                   <span class="flex items-center gap-1">
@@ -785,7 +880,7 @@ onUnmounted(() => {
                   </span>
                 </th>
                 <th
-                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap hover:text-slate-700 dark:hover:text-slate-300"
+                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap hover:text-n-slate-12 transition-colors"
                   @click="toggleSort('email')"
                 >
                   <span class="flex items-center gap-1">
@@ -794,7 +889,7 @@ onUnmounted(() => {
                   </span>
                 </th>
                 <th
-                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap hover:text-slate-700 dark:hover:text-slate-300"
+                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap hover:text-n-slate-12 transition-colors"
                   @click="toggleSort('phone_number')"
                 >
                   <span class="flex items-center gap-1">
@@ -803,32 +898,32 @@ onUnmounted(() => {
                   </span>
                 </th>
                 <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
                 >
                   {{ t('JABVOX_LEADS.TABLE.COUNTRY') }}
                 </th>
                 <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
                 >
                   {{ t('JABVOX_LEADS.TABLE.AFFILIATE') }}
                 </th>
                 <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
                 >
                   {{ t('JABVOX_LEADS.TABLE.CAMPAIGN') }}
                 </th>
                 <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
                 >
                   {{ t('JABVOX_LEADS.TABLE.INBOX') }}
                 </th>
                 <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
                 >
                   {{ t('JABVOX_LEADS.TABLE.MANAGEMENT_STATE') }}
                 </th>
                 <th
-                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap hover:text-slate-700 dark:hover:text-slate-300"
+                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap hover:text-n-slate-12 transition-colors"
                   @click="toggleSort('created_at')"
                 >
                   <span class="flex items-center gap-1">
@@ -837,21 +932,21 @@ onUnmounted(() => {
                   </span>
                 </th>
                 <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
                 >
                   {{ t('JABVOX_LEADS.TABLE.ASSIGNEE') }}
                 </th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+            <tbody class="divide-y divide-n-weak">
               <tr
                 v-for="lead in leads"
                 :key="lead.id"
-                class="cursor-pointer transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-700/20"
+                class="cursor-pointer transition-colors group/row"
                 :class="
                   isSelected(lead.id)
-                    ? 'bg-indigo-50/60 dark:bg-indigo-900/10'
-                    : ''
+                    ? 'bg-n-alpha-2'
+                    : 'odd:bg-transparent even:bg-n-alpha-1/40 hover:!bg-n-alpha-1'
                 "
                 @click="goToLead(lead.id)"
               >
@@ -859,86 +954,78 @@ onUnmounted(() => {
                   <input
                     type="checkbox"
                     :checked="isSelected(lead.id)"
-                    class="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    class="rounded accent-n-brand cursor-pointer"
                     @change="toggleSelect(lead.id)"
                   />
                 </td>
                 <td class="px-3 py-2.5">
                   <span
-                    class="inline-flex items-center gap-0.5 rounded-md bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 text-xs font-bold font-mono text-blue-600 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800"
+                    class="inline-flex items-center gap-0.5 rounded-md bg-n-alpha-2 px-2 py-0.5 text-xs font-bold font-mono text-n-brand ring-1 ring-inset ring-n-brand/20"
                   >
                     #{{ lead.lead_number }}
                   </span>
                 </td>
                 <td class="px-3 py-2.5">
                   <div class="flex items-center gap-2">
-                    <img
-                      v-if="lead.contact.avatar_url"
+                    <Avatar
+                      :name="lead.contact.name || '?'"
                       :src="lead.contact.avatar_url"
-                      :alt="lead.contact.name"
-                      class="w-7 h-7 rounded-full shrink-0 object-cover"
+                      :size="28"
+                      rounded-full
                     />
-                    <div
-                      v-else
-                      class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0 text-xs font-medium text-indigo-600 dark:text-indigo-400"
-                    >
-                      {{ lead.contact.name?.charAt(0)?.toUpperCase() || '?' }}
-                    </div>
-                    <span
-                      class="text-sm text-slate-800 dark:text-slate-100 whitespace-nowrap"
-                    >
+                    <span class="text-sm text-n-slate-12 whitespace-nowrap">
                       {{ lead.contact.name || '—' }}
                     </span>
                   </div>
                 </td>
                 <td
-                  class="px-3 py-2.5 text-sm text-slate-600 dark:text-slate-300 max-w-[180px] truncate"
+                  class="px-3 py-2.5 text-sm text-n-slate-11 max-w-[180px] truncate"
                 >
                   {{ lead.contact.email || '—' }}
                 </td>
                 <td
-                  class="px-3 py-2.5 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap"
+                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
                 >
                   {{ lead.contact.phone_number || '—' }}
                 </td>
                 <td
-                  class="px-3 py-2.5 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap"
+                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
                 >
                   {{ lead.contact.country || '—' }}
                 </td>
                 <td
-                  class="px-3 py-2.5 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap"
+                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
                 >
                   {{
                     lead.affiliate_name || t('JABVOX_LEADS.TABLE.AFFILIATE_OWN')
                   }}
                 </td>
                 <td
-                  class="px-3 py-2.5 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap"
+                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
                 >
                   {{ lead.campaign?.name || '—' }}
                 </td>
                 <td
-                  class="px-3 py-2.5 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap"
+                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
                 >
                   {{ lead.inbox_name || '—' }}
                 </td>
                 <td class="px-3 py-2.5">
                   <span
                     v-if="lead.last_management_state"
-                    class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 whitespace-nowrap"
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-n-alpha-2 text-n-brand whitespace-nowrap"
                   >
                     {{ lead.last_management_state }}
                   </span>
-                  <span v-else class="text-sm text-slate-400">—</span>
+                  <span v-else class="text-sm text-n-slate-9">—</span>
                 </td>
                 <td
-                  class="px-3 py-2.5 text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap"
+                  class="px-3 py-2.5 text-sm text-n-slate-10 whitespace-nowrap"
                 >
                   {{ formatDate(lead.last_management_at) }}
                 </td>
                 <td
-                  class="px-3 py-2.5 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap"
+                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
                 >
                   {{ lead.assignee_name || '—' }}
                 </td>
@@ -947,22 +1034,28 @@ onUnmounted(() => {
           </table>
         </div>
 
-        <!-- Footer: total + per-page + pagination -->
+        <!-- Footer: showing range + per-page + pagination (synced with top) -->
         <div
-          class="px-4 py-3 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500"
+          class="px-4 py-3 border-t border-n-weak flex flex-wrap items-center justify-between gap-3 text-sm text-n-slate-10"
         >
-          <span>{{
-            t('JABVOX_LEADS.PAGINATION.TOTAL', { count: meta.total })
-          }}</span>
+          <span>
+            {{
+              t('JABVOX_LEADS.PAGINATION.SHOWING', {
+                from: rangeStart,
+                to: rangeEnd,
+                total: meta.total,
+              })
+            }}
+          </span>
 
           <div class="flex items-center gap-4">
             <div class="flex items-center gap-2">
-              <span class="text-xs text-slate-400">
+              <span class="text-xs text-n-slate-9">
                 {{ t('JABVOX_LEADS.PAGINATION.PER_PAGE') }}:
               </span>
               <select
                 v-model="perPage"
-                class="h-7 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 px-1 focus:outline-none"
+                class="reset-base h-8 rounded-lg border border-n-weak bg-n-solid-1 text-xs text-n-slate-12 pl-2.5 pr-7 focus:outline-none focus:border-n-slate-7"
               >
                 <option v-for="n in PER_PAGE_OPTIONS" :key="n" :value="n">
                   {{ n }}
@@ -970,29 +1063,23 @@ onUnmounted(() => {
               </select>
             </div>
 
-            <div v-if="meta.totalPages > 1" class="flex items-center gap-2">
+            <div v-if="meta.totalPages > 1" class="flex items-center gap-1.5">
               <button
                 :disabled="currentPage <= 1"
-                class="px-2.5 py-1 rounded border border-slate-200 dark:border-slate-600 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-xs"
-                @click="
-                  currentPage--;
-                  fetchLeads();
-                "
+                class="size-8 flex items-center justify-center rounded-lg border border-n-weak bg-n-solid-1 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-n-alpha-1 transition-colors"
+                @click="goToPage(-1)"
               >
-                <span class="i-lucide-chevron-left w-3 h-3" />
+                <span class="i-lucide-chevron-left size-3.5" />
               </button>
-              <span class="text-xs"
-                >{{ currentPage }} / {{ meta.totalPages }}</span
-              >
+              <span class="text-xs text-n-slate-11 tabular-nums px-1">
+                {{ currentPage }} / {{ meta.totalPages }}
+              </span>
               <button
                 :disabled="currentPage >= meta.totalPages"
-                class="px-2.5 py-1 rounded border border-slate-200 dark:border-slate-600 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-xs"
-                @click="
-                  currentPage++;
-                  fetchLeads();
-                "
+                class="size-8 flex items-center justify-center rounded-lg border border-n-weak bg-n-solid-1 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-n-alpha-1 transition-colors"
+                @click="goToPage(1)"
               >
-                <span class="i-lucide-chevron-right w-3 h-3" />
+                <span class="i-lucide-chevron-right size-3.5" />
               </button>
             </div>
           </div>

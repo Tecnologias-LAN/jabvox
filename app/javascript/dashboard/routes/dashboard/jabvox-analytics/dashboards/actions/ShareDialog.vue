@@ -2,8 +2,12 @@
 import { ref, reactive, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import camelcaseKeys from 'camelcase-keys';
+import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
-import { analyticsDashboardsAPI } from 'dashboard/api/jabvox/analytics';
+import {
+  analyticsDashboardsAPI,
+  analyticsPermissionsAPI,
+} from 'dashboard/api/jabvox/analytics';
 import { useAnalyticsError } from 'dashboard/composables/useAnalyticsError';
 
 const props = defineProps({
@@ -20,11 +24,17 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 const { t } = useI18n();
+const store = useStore();
 const { showError } = useAnalyticsError();
 
 const shares = ref([]);
 const loading = ref(false);
 const saving = ref(false);
+
+// Subject options loaded so the user picks from dropdowns, not raw IDs.
+const users = ref([]); // [{ user_id, name }]
+const roles = ref([]); // [{ id, name_jabvox }]
+const teams = useMapGetter('teams/getTeams'); // [{ id, name }]
 
 const form = reactive({
   subjectType: 'user',
@@ -48,7 +58,54 @@ const accessLevelLabels = computed(() => ({
   admin: t('JABVOX_ANALYTICS.SHARE.ACCESS.admin'),
 }));
 
+// Options for the subject dropdown, depending on the selected subject type.
+const subjectOptions = computed(() => {
+  if (form.subjectType === 'user') {
+    return users.value.map(u => ({ id: u.userId ?? u.user_id, label: u.name }));
+  }
+  if (form.subjectType === 'role') {
+    return roles.value.map(r => ({
+      id: r.id,
+      label: r.nameJabvox ?? r.name_jabvox,
+    }));
+  }
+  return (teams.value || []).map(tm => ({ id: tm.id, label: tm.name }));
+});
+
+// Resolve a subject's display name for the current shares list.
+const subjectName = share => {
+  const id = share.subjectIdJabvox;
+  if (share.subjectTypeJabvox === 'user') {
+    return users.value.find(u => (u.userId ?? u.user_id) === id)?.name;
+  }
+  if (share.subjectTypeJabvox === 'role') {
+    return roles.value.find(r => r.id === id)?.nameJabvox;
+  }
+  return (teams.value || []).find(tm => tm.id === id)?.name;
+};
+
 const canAdd = computed(() => String(form.subjectId).trim() !== '');
+
+// Reset the chosen subject when the subject type changes (IDs aren't comparable).
+watch(
+  () => form.subjectType,
+  () => {
+    form.subjectId = '';
+  }
+);
+
+const loadSubjects = async () => {
+  store.dispatch('teams/get');
+  try {
+    const { data } = await analyticsPermissionsAPI.getUserPermissions();
+    const camel = camelcaseKeys(data, { deep: true });
+    users.value = camel.users || [];
+    roles.value = camel.roles || [];
+  } catch (error) {
+    // Non-blocking: dropdowns just stay empty if this fails.
+    showError(error);
+  }
+};
 
 const loadShares = async () => {
   loading.value = true;
@@ -65,7 +122,10 @@ const loadShares = async () => {
 watch(
   () => props.open,
   isOpen => {
-    if (isOpen) loadShares();
+    if (isOpen) {
+      loadSubjects();
+      loadShares();
+    }
   },
   { immediate: true }
 );
@@ -103,12 +163,14 @@ const accessLabel = level => accessLevelLabels.value[level] || level;
 
 const subjectTypeLabel = type => subjectTypeLabels.value[type] || type;
 
-// Full label for a share row, e.g. "User #5 · Can edit" — composed here so the template
-// has no bare punctuation and no dynamic i18n keys.
-const shareLabel = share =>
-  `${subjectTypeLabel(share.subjectTypeJabvox)} #${share.subjectIdJabvox} · ${accessLabel(
-    share.accessLevelJabvox
-  )}`;
+// Full label for a share row, e.g. "Ana López · Puede editar" — uses the
+// resolved subject name when available, falling back to "Tipo #id".
+const shareLabel = share => {
+  const name =
+    subjectName(share) ||
+    `${subjectTypeLabel(share.subjectTypeJabvox)} #${share.subjectIdJabvox}`;
+  return `${name} · ${accessLabel(share.accessLevelJabvox)}`;
+};
 
 const labelClass = 'mb-1 block text-xs font-medium text-n-slate-11';
 const inputClass =
@@ -151,9 +213,16 @@ const inputClass =
           </div>
           <div class="col-span-3">
             <label :class="labelClass">{{
-              t('JABVOX_ANALYTICS.SHARE.SUBJECT_ID')
+              t('JABVOX_ANALYTICS.SHARE.SUBJECT')
             }}</label>
-            <input v-model="form.subjectId" type="number" :class="inputClass" />
+            <select v-model="form.subjectId" :class="inputClass">
+              <option value="" disabled>
+                {{ t('JABVOX_ANALYTICS.SHARE.SELECT') }}
+              </option>
+              <option v-for="o in subjectOptions" :key="o.id" :value="o.id">
+                {{ o.label }}
+              </option>
+            </select>
           </div>
           <div class="col-span-3">
             <label :class="labelClass">{{

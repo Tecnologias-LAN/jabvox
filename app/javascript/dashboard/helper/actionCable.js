@@ -235,10 +235,15 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   onInternalChatMessageCreated = data => {
     this.app.$store.dispatch('jabvoxInternalChat/receiveMessage', data);
-    DashboardAudioNotificationHelper.playSimpleAlert();
+    // Only chime for messages from other users, not the ones we just sent.
+    const currentUserId = this.app.$store.getters.getCurrentUser?.id;
+    if (data?.message?.sender?.id !== currentUserId) {
+      DashboardAudioNotificationHelper.playSimpleAlert();
+    }
     emitter.emit('jabvox.internal_chat.message_created', data);
   };
 
+  // eslint-disable-next-line class-methods-use-this
   onAiChatResponseCreated = data => {
     DashboardAudioNotificationHelper.playSimpleAlert();
     emitter.emit('jabvox.ai_chat.response_created', data);

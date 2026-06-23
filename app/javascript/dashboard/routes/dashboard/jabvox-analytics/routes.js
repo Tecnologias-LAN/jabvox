@@ -2,6 +2,7 @@ import { frontendURL } from 'dashboard/helper/URLHelper.js';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 const AnalyticsLayout = () => import('./AnalyticsLayout.vue');
+const OverviewPage = () => import('./overview/OverviewPage.vue');
 const DataSourcesIndex = () => import('./data-sources/DataSourcesIndex.vue');
 const SchemaExplorer = () => import('./data-sources/SchemaExplorer.vue');
 const DataViewerPage = () => import('./data-sources/DataViewerPage.vue');
@@ -26,9 +27,15 @@ export const routes = [
         name: 'jabvox_analytics_index',
         meta,
         redirect: to => ({
-          name: 'jabvox_analytics_data_sources',
+          name: 'jabvox_analytics_overview',
           params: { accountId: to.params.accountId },
         }),
+      },
+      {
+        path: 'overview',
+        name: 'jabvox_analytics_overview',
+        meta,
+        component: OverviewPage,
       },
       {
         path: 'data-sources',

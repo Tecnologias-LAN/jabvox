@@ -59,7 +59,64 @@ class Api::V1::Accounts::Jabvox::Analytics::DashboardsController < Api::V1::Acco
     render json: serialize(copy), status: :created
   end
 
+  # Real, account-scoped KPI counters for the Analytics Overview/Home. Only
+  # counts entities that actually exist — no fabricated metrics.
+  def overview_stats
+    render json: overview_counters(Current.account)
+  end
+
+  # Catalog of built-in internal reports the user can turn into dashboards.
+  def internal_reports
+    render json: Jabvox::Analytics::InternalReportCatalog.all
+  end
+
+  # Create one dashboard per selected internal report (keys[]). Each dashboard
+  # gets a single widget bound to that report (config.report_key). Idempotent
+  # by dashboard name. Account-scoped end to end.
+  def create_internal_reports
+    authorize!(:create)
+    keys = Array(params[:keys]).map(&:to_s).select { |k| Jabvox::Analytics::InternalReportCatalog.exists?(k) }
+    created = Jabvox::Analytics::InternalReportSeeder.new(
+      account: Current.account, user: current_user, keys: keys
+    ).call
+    audit!(action: 'dashboard.create_internal_reports', auditable: created.first)
+    render json: created.compact.map { |d| serialize(d) }, status: :created
+  end
+
+  # Create the two predefined dashboards (Autogestión + Valiosas) and link them
+  # to the external data sources named CRM_Autogestion / CRM_Valiosas if present.
+  # Idempotent: existing dashboards with those names are left untouched.
+  def seed_defaults
+    authorize!(:create)
+    dashboards = Jabvox::Analytics::DefaultDashboardSeeder.new(
+      account: Current.account,
+      user: current_user
+    ).call
+    audit!(action: 'dashboard.seed_defaults', auditable: dashboards.first)
+    render json: dashboards.compact.map { |d| serialize(d) }, status: :created
+  end
+
   private
+
+  def overview_counters(acc)
+    sources = acc.jabvox_analytics_data_sources
+    {
+      total_dashboards: acc.jabvox_analytics_dashboards.count,
+      total_data_sources: sources.count,
+      data_sources_ok: sources.where(status_jabvox: 'ok').count,
+      total_widgets: JabvoxAnalyticsDashboardWidget.where(account_id: acc.id).count,
+      total_folders: acc.jabvox_analytics_folders.count
+    }.merge(overview_access_counters(acc))
+  end
+
+  def overview_access_counters(acc)
+    {
+      shared_dashboards: JabvoxAnalyticsShare.where(account_id: acc.id).distinct.count(:dashboard_id),
+      users_with_access: JabvoxAnalyticsUserPermission.where(account_id: acc.id).distinct.count(:user_id),
+      actions_today: acc.jabvox_analytics_audit_logs.where(created_at: Time.zone.today.all_day).count,
+      total_exports: acc.jabvox_analytics_exports.count
+    }
+  end
 
   def scoped
     Current.account.jabvox_analytics_dashboards

@@ -7,6 +7,17 @@ import {
   aiChatDocumentsAPI,
 } from 'dashboard/api/jabvox/aiChat';
 import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
+import { useAlert } from 'dashboard/composables';
+import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
+import Label from 'dashboard/components-next/label/Label.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
+import SectionCard from './components/SectionCard.vue';
+import ModelFormDialog from './components/ModelFormDialog.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -15,73 +26,19 @@ const { markDirty, markClean } = useUnsavedChanges();
 const ACTIVE_TAB_KEY = 'jabvox_ai_chat_active_tab';
 const BUCKET_FORM_KEY = 'jabvox_ai_chat_bucket_form';
 const activeTab = ref(sessionStorage.getItem(ACTIVE_TAB_KEY) || 'models');
-const tabs = ['models', 'documents', 'config', 'permissions'];
+
+const tabs = [
+  { key: 'models', icon: 'i-lucide-cpu' },
+  { key: 'documents', icon: 'i-lucide-file-text' },
+  { key: 'config', icon: 'i-lucide-settings-2' },
+  { key: 'permissions', icon: 'i-lucide-shield-check' },
+];
 
 watch(activeTab, val => sessionStorage.setItem(ACTIVE_TAB_KEY, val), {
   flush: 'sync',
 });
 
-// Models
-const showModelModal = ref(false);
-const editingModel = ref(null);
-const modelForm = ref({
-  name_jabvox: '',
-  provider_jabvox: '',
-  model_jabvox: '',
-  api_key_jabvox: '',
-  base_url_jabvox: '',
-  is_default_jabvox: false,
-});
-const testResults = ref({});
-const testingId = ref(null);
-
-watch(modelForm, () => markDirty(), { deep: true });
-
-// Documents
-function loadBucketFormFromStorage() {
-  try {
-    const saved = sessionStorage.getItem(BUCKET_FORM_KEY);
-    return saved ? JSON.parse(saved) : null;
-  } catch {
-    return null;
-  }
-}
-
-const savedBucket = loadBucketFormFromStorage();
-const bucketForm = ref({
-  bucket_url_jabvox: savedBucket?.bucket_url_jabvox || '',
-  bucket_access_key_jabvox: savedBucket?.bucket_access_key_jabvox || '',
-  bucket_secret_key_jabvox: '',
-  bucket_region_jabvox: savedBucket?.bucket_region_jabvox || 'us-east-1',
-  bucket_name_jabvox: savedBucket?.bucket_name_jabvox || '',
-});
-const showSecretKey = ref(false);
-
-watch(
-  bucketForm,
-  val => {
-    markDirty();
-    sessionStorage.setItem(
-      BUCKET_FORM_KEY,
-      JSON.stringify({
-        bucket_url_jabvox: val.bucket_url_jabvox,
-        bucket_access_key_jabvox: val.bucket_access_key_jabvox,
-        bucket_region_jabvox: val.bucket_region_jabvox,
-        bucket_name_jabvox: val.bucket_name_jabvox,
-      })
-    );
-  },
-  { deep: true, flush: 'sync' }
-);
-
-// Config
-const configForm = ref({ web_search_enabled_jabvox: false });
-
-watch(configForm, () => markDirty(), { deep: true });
-
-// Permissions - local copy for editing
-const localPermissions = ref([]);
-
+// ─── store ───
 const models = computed(() => store.getters['jabvoxAiChat/getModels']);
 const config = computed(() => store.getters['jabvoxAiChat/getConfig']);
 const documents = computed(() => store.getters['jabvoxAiChat/getDocuments']);
@@ -90,97 +47,27 @@ const permissions = computed(
 );
 const uiFlags = computed(() => store.getters['jabvoxAiChat/getUIFlags']);
 
-onMounted(async () => {
-  store.dispatch('jabvoxAiChat/fetchModels');
-  store.dispatch('jabvoxAiChat/fetchDocuments');
-  store.dispatch('jabvoxAiChat/fetchPermissions');
-  await store.dispatch('jabvoxAiChat/fetchConfig');
-  if (!config.value) return;
-  // Only fill from API when sessionStorage has no draft for this field
-  const hasDraft = !!savedBucket;
-  if (!hasDraft) {
-    bucketForm.value.bucket_url_jabvox = config.value.bucket_url_jabvox || '';
-    bucketForm.value.bucket_access_key_jabvox =
-      config.value.bucket_access_key_jabvox || '';
-    bucketForm.value.bucket_name_jabvox = config.value.bucket_name_jabvox || '';
-    bucketForm.value.bucket_region_jabvox =
-      config.value.bucket_region_jabvox || 'us-east-1';
-  }
-  configForm.value.web_search_enabled_jabvox =
-    config.value.web_search_enabled_jabvox;
-  await nextTick();
-  markClean();
+// ─── models ───
+const modelDialog = ref(null);
+const deleteDialog = ref(null);
+const testResults = ref({});
+const testingId = ref(null);
+const modelSearch = ref('');
+
+const filteredModels = computed(() => {
+  const q = modelSearch.value.trim().toLowerCase();
+  if (!q) return models.value;
+  return models.value.filter(
+    m =>
+      m.name_jabvox?.toLowerCase().includes(q) ||
+      m.model_jabvox?.toLowerCase().includes(q) ||
+      m.provider_jabvox?.toLowerCase().includes(q)
+  );
 });
 
-watch(
-  permissions,
-  async val => {
-    localPermissions.value = val.map(p => ({ ...p }));
-    await nextTick();
-    markClean();
-  },
-  { immediate: true }
-);
+const setDefault = id => store.dispatch('jabvoxAiChat/setDefaultModel', id);
 
-watch(localPermissions, () => markDirty(), { deep: true });
-
-function openAddModel() {
-  editingModel.value = null;
-  modelForm.value = {
-    name_jabvox: '',
-    provider_jabvox: '',
-    model_jabvox: '',
-    api_key_jabvox: '',
-    base_url_jabvox: '',
-    is_default_jabvox: false,
-  };
-  showModelModal.value = true;
-}
-
-function openEditModel(model) {
-  editingModel.value = model;
-  modelForm.value = {
-    name_jabvox: model.name_jabvox,
-    provider_jabvox: model.provider_jabvox || '',
-    model_jabvox: model.model_jabvox,
-    api_key_jabvox: '',
-    base_url_jabvox: model.base_url_jabvox || '',
-    is_default_jabvox: model.is_default_jabvox,
-  };
-  showModelModal.value = true;
-}
-
-async function closeModelModal() {
-  showModelModal.value = false;
-  await nextTick();
-  markClean();
-}
-
-async function saveModel() {
-  const payload = { ...modelForm.value };
-  if (!payload.api_key_jabvox) delete payload.api_key_jabvox;
-  if (!payload.provider_jabvox) delete payload.provider_jabvox;
-  if (editingModel.value) {
-    await store.dispatch('jabvoxAiChat/updateModel', {
-      id: editingModel.value.id,
-      ...payload,
-    });
-  } else {
-    await store.dispatch('jabvoxAiChat/createModel', payload);
-  }
-  await closeModelModal();
-}
-
-async function deleteModel(id) {
-  if (!window.confirm(t('JABVOX_AI_CHAT.MODELS.DELETE_CONFIRM'))) return;
-  await store.dispatch('jabvoxAiChat/deleteModel', id);
-}
-
-async function setDefault(id) {
-  await store.dispatch('jabvoxAiChat/setDefaultModel', id);
-}
-
-async function testConnection(model) {
+const testConnection = async model => {
   testingId.value = model.id;
   testResults.value = { ...testResults.value, [model.id]: null };
   try {
@@ -199,587 +86,823 @@ async function testConnection(model) {
   } finally {
     testingId.value = null;
   }
-}
+};
 
-async function saveBucketConfig() {
-  const payload = { ...bucketForm.value };
-  if (!payload.bucket_secret_key_jabvox)
-    delete payload.bucket_secret_key_jabvox;
-  await store.dispatch('jabvoxAiChat/updateConfig', payload);
+const askDeleteModel = model => {
+  deleteDialog.value?.open({
+    title: t('JABVOX_AI_CHAT.MODELS.DELETE_TITLE'),
+    description: t('JABVOX_AI_CHAT.MODELS.DELETE_BODY', {
+      name: model.name_jabvox,
+    }),
+    data: { kind: 'model', id: model.id },
+  });
+};
+
+// ─── documents (bucket config + list) ───
+const loadBucketFormFromStorage = () => {
+  try {
+    const saved = sessionStorage.getItem(BUCKET_FORM_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+};
+const savedBucket = loadBucketFormFromStorage();
+const bucketForm = ref({
+  bucket_url_jabvox: savedBucket?.bucket_url_jabvox || '',
+  bucket_access_key_jabvox: savedBucket?.bucket_access_key_jabvox || '',
+  bucket_secret_key_jabvox: '',
+  bucket_region_jabvox: savedBucket?.bucket_region_jabvox || 'us-east-1',
+  bucket_name_jabvox: savedBucket?.bucket_name_jabvox || '',
+});
+const showSecretKey = ref(false);
+const docSearch = ref('');
+
+watch(
+  bucketForm,
+  val => {
+    markDirty();
+    sessionStorage.setItem(
+      BUCKET_FORM_KEY,
+      JSON.stringify({
+        bucket_url_jabvox: val.bucket_url_jabvox,
+        bucket_access_key_jabvox: val.bucket_access_key_jabvox,
+        bucket_region_jabvox: val.bucket_region_jabvox,
+        bucket_name_jabvox: val.bucket_name_jabvox,
+      })
+    );
+  },
+  { deep: true, flush: 'sync' }
+);
+
+const filteredDocuments = computed(() => {
+  const q = docSearch.value.trim().toLowerCase();
+  if (!q) return documents.value;
+  return documents.value.filter(d => d.name_jabvox?.toLowerCase().includes(q));
+});
+
+const saveBucketConfig = async () => {
+  await store.dispatch('jabvoxAiChat/updateConfig', { ...bucketForm.value });
   sessionStorage.removeItem(BUCKET_FORM_KEY);
   await nextTick();
   markClean();
-}
+  useAlert(t('JABVOX_AI_CHAT.DOCUMENTS.SAVE_CONFIG'));
+};
 
-async function syncDocuments() {
-  await store.dispatch('jabvoxAiChat/syncDocuments');
-}
+// Whether a bucket is configured (sync would fail without one).
+const hasBucket = computed(() => !!config.value?.bucket_name_jabvox);
 
-async function toggleDocument(doc) {
-  await store.dispatch('jabvoxAiChat/toggleDocument', {
+// Manual sync: surfaces errors and warns when the bucket has more files than
+// the document limit allows (only the first N are imported).
+const syncDocuments = async () => {
+  try {
+    const res = await store.dispatch('jabvoxAiChat/syncDocuments');
+    if (res?.skipped > 0) {
+      useAlert(
+        t('JABVOX_AI_CHAT.DOCUMENTS.SYNC_TRUNCATED', {
+          shown: res.limit,
+          total: res.total_in_bucket,
+        })
+      );
+    }
+  } catch (e) {
+    useAlert(e?.response?.data?.error || t('JABVOX_AI_CHAT.ERROR'));
+  }
+};
+
+// Auto-sync the live bucket contents every time the Documents tab is opened,
+// so the list reflects the real bucket instead of stale DB rows. Silently
+// ignores errors (e.g. transient bucket issues) — the manual Sync button
+// surfaces them. Only runs when a bucket is configured.
+const autoSyncDocuments = async () => {
+  if (!hasBucket.value) return;
+  try {
+    await store.dispatch('jabvoxAiChat/syncDocuments');
+  } catch {
+    // keep whatever is in the list; manual sync reports the error
+  }
+};
+
+watch(activeTab, tab => {
+  if (tab === 'documents') autoSyncDocuments();
+});
+
+const toggleDocument = doc =>
+  store.dispatch('jabvoxAiChat/toggleDocument', {
     id: doc.id,
     is_enabled_jabvox: !doc.is_enabled_jabvox,
   });
-}
 
-async function deleteDocument(id) {
-  if (!window.confirm(t('JABVOX_AI_CHAT.DOCUMENTS.DELETE_CONFIRM'))) return;
-  await aiChatDocumentsAPI.destroy(id);
-  await store.dispatch('jabvoxAiChat/fetchDocuments');
-}
+const askDeleteDocument = doc => {
+  deleteDialog.value?.open({
+    title: t('JABVOX_AI_CHAT.DOCUMENTS.DELETE_TITLE'),
+    description: t('JABVOX_AI_CHAT.DOCUMENTS.DELETE_BODY', {
+      name: doc.name_jabvox,
+    }),
+    data: { kind: 'document', id: doc.id },
+  });
+};
 
-async function saveConfig() {
-  await store.dispatch('jabvoxAiChat/updateConfig', configForm.value);
+// ─── config ───
+const configForm = ref({ web_search_enabled_jabvox: false });
+watch(configForm, () => markDirty(), { deep: true });
+
+const saveConfig = async () => {
+  await store.dispatch('jabvoxAiChat/updateConfig', { ...configForm.value });
   await nextTick();
   markClean();
-}
+  useAlert(t('JABVOX_AI_CHAT.CONFIG.SAVE'));
+};
 
-async function savePermissions() {
+// ─── permissions ───
+const localPermissions = ref([]);
+const permSearch = ref('');
+const permDirty = ref(false);
+
+watch(
+  permissions,
+  async val => {
+    localPermissions.value = val.map(p => ({ ...p }));
+    permDirty.value = false;
+    await nextTick();
+    markClean();
+  },
+  { immediate: true }
+);
+
+const filteredPermissions = computed(() => {
+  const q = permSearch.value.trim().toLowerCase();
+  if (!q) return localPermissions.value;
+  return localPermissions.value.filter(
+    p => p.name?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q)
+  );
+});
+
+const onPermissionChange = () => {
+  permDirty.value = true;
+  markDirty();
+};
+
+const savePermissions = async () => {
   await store.dispatch('jabvoxAiChat/savePermissions', localPermissions.value);
+  permDirty.value = false;
   await nextTick();
   markClean();
-}
+  useAlert(t('JABVOX_AI_CHAT.PERMISSIONS.SAVED'));
+};
 
-function formatBytes(bytes) {
+// ─── shared delete handler ───
+const onConfirmDelete = async ({ kind, id }) => {
+  try {
+    if (kind === 'model') {
+      await store.dispatch('jabvoxAiChat/deleteModel', id);
+    } else {
+      // Documents have no store action — call the API directly then refetch.
+      await aiChatDocumentsAPI.destroy(id);
+      await store.dispatch('jabvoxAiChat/fetchDocuments');
+    }
+  } catch {
+    useAlert(t('JABVOX_AI_CHAT.ERROR'));
+  }
+};
+
+// ─── helpers ───
+const formatBytes = bytes => {
   if (!bytes) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
-}
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let i = 0;
+  let val = bytes;
+  while (val >= 1024 && i < units.length - 1) {
+    val /= 1024;
+    i += 1;
+  }
+  return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+};
+
+onMounted(async () => {
+  store.dispatch('jabvoxAiChat/fetchModels');
+  store.dispatch('jabvoxAiChat/fetchDocuments');
+  store.dispatch('jabvoxAiChat/fetchPermissions');
+  await store.dispatch('jabvoxAiChat/fetchConfig');
+  if (!config.value) return;
+  if (!savedBucket) {
+    bucketForm.value.bucket_url_jabvox = config.value.bucket_url_jabvox || '';
+    bucketForm.value.bucket_access_key_jabvox =
+      config.value.bucket_access_key_jabvox || '';
+    bucketForm.value.bucket_name_jabvox = config.value.bucket_name_jabvox || '';
+    bucketForm.value.bucket_region_jabvox =
+      config.value.bucket_region_jabvox || 'us-east-1';
+  }
+  configForm.value.web_search_enabled_jabvox =
+    config.value.web_search_enabled_jabvox;
+  await nextTick();
+  markClean();
+  // Live-sync the bucket if we land directly on the Documents tab.
+  if (activeTab.value === 'documents') autoSyncDocuments();
+});
 </script>
 
 <template>
-  <div class="flex-1 overflow-y-auto">
-    <div class="max-w-5xl mx-auto p-8">
-      <h1 class="text-2xl font-bold text-slate-800 mb-6">
-        {{ t('JABVOX_AI_CHAT.TITLE') }} —
-        {{ t('JABVOX_AI_CHAT.CONFIG_SIDEBAR_LABEL') }}
-      </h1>
-
-      <!-- Tabs -->
-      <div class="border-b border-slate-200 mb-8">
-        <nav class="flex gap-1">
-          <button
-            v-for="tab in tabs"
-            :key="tab"
-            class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors capitalize"
-            :class="
-              activeTab === tab
-                ? 'border-violet-600 text-violet-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            "
-            @click="activeTab = tab"
-          >
-            {{ t(`JABVOX_AI_CHAT.TABS.${tab.toUpperCase()}`) }}
-          </button>
-        </nav>
+  <div class="w-full h-full overflow-y-auto bg-n-background">
+    <div
+      class="mx-auto w-full max-w-6xl flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+    >
+      <!-- Header -->
+      <div
+        class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+      >
+        <div class="flex items-start gap-3 min-w-0">
+          <span
+            class="i-lucide-sparkles size-9 shrink-0 rounded-xl bg-n-alpha-2 p-2 text-n-brand"
+          />
+          <div class="min-w-0">
+            <h1 class="text-xl font-semibold tracking-tight text-n-slate-12">
+              {{ t('JABVOX_AI_CHAT.TITLE') }}
+            </h1>
+            <p class="mt-1 text-sm leading-relaxed text-n-slate-11">
+              {{ t('JABVOX_AI_CHAT.SUBTITLE') }}
+            </p>
+          </div>
+        </div>
+        <Button
+          v-if="activeTab === 'models'"
+          :label="t('JABVOX_AI_CHAT.MODELS.ADD')"
+          icon="i-lucide-plus"
+          class="shrink-0"
+          @click="modelDialog?.openCreate()"
+        />
       </div>
 
-      <!-- MODELS TAB -->
-      <div v-show="activeTab === 'models'">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-slate-700">
-            {{ t('JABVOX_AI_CHAT.MODELS.TITLE') }}
-          </h2>
-          <button
-            class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
-            @click="openAddModel"
-          >
-            <span class="i-ri-add-line" />
-            {{ t('JABVOX_AI_CHAT.MODELS.ADD') }}
-          </button>
-        </div>
-        <div
-          v-if="models.length === 0"
-          class="text-center py-12 text-slate-400 text-sm"
+      <!-- Tabs -->
+      <div
+        class="flex items-center gap-1 p-1 rounded-xl bg-n-alpha-1 border border-n-weak w-full sm:w-fit overflow-x-auto"
+      >
+        <button
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors flex-1 sm:flex-none focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand"
+          :class="
+            activeTab === tab.key
+              ? 'bg-n-solid-1 text-n-slate-12 shadow-sm'
+              : 'text-n-slate-11 hover:text-n-slate-12'
+          "
+          @click="activeTab = tab.key"
         >
-          {{ t('JABVOX_AI_CHAT.MODELS.EMPTY') }}
+          <span :class="tab.icon" class="size-4 shrink-0" />
+          {{ t(`JABVOX_AI_CHAT.TABS.${tab.key.toUpperCase()}`) }}
+        </button>
+      </div>
+
+      <!-- ── MODELS ── -->
+      <div v-if="activeTab === 'models'" class="flex flex-col gap-5">
+        <div
+          v-if="uiFlags.isFetchingModels"
+          class="flex items-center justify-center gap-2 py-12 text-sm text-n-slate-11"
+        >
+          <Spinner :size="18" />
         </div>
-        <div v-else class="space-y-3">
+
+        <EmptyStateLayout
+          v-else-if="!models.length"
+          :title="t('JABVOX_AI_CHAT.MODELS.EMPTY_TITLE')"
+          :subtitle="t('JABVOX_AI_CHAT.MODELS.EMPTY')"
+        >
+          <template #actions>
+            <Button
+              icon="i-lucide-plus"
+              :label="t('JABVOX_AI_CHAT.MODELS.ADD')"
+              size="sm"
+              @click="modelDialog?.openCreate()"
+            />
+          </template>
+        </EmptyStateLayout>
+
+        <template v-else>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="relative w-full sm:w-64">
+              <Input
+                v-model="modelSearch"
+                :placeholder="t('JABVOX_AI_CHAT.MODELS.SEARCH_PLACEHOLDER')"
+                custom-input-class="!pl-9"
+              >
+                <template #prefix>
+                  <span
+                    class="i-lucide-search size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  />
+                </template>
+              </Input>
+            </div>
+            <span class="text-xs text-n-slate-10">
+              {{ t('JABVOX_AI_CHAT.MODELS.COUNT', { count: models.length }) }}
+            </span>
+          </div>
+
           <div
-            v-for="model in models"
-            :key="model.id"
-            class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between shadow-sm"
+            v-if="!filteredModels.length"
+            class="rounded-xl border border-dashed border-n-weak py-10 text-center text-sm text-n-slate-11"
           >
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-medium text-slate-800 text-sm">{{
-                  model.name_jabvox
-                }}</span>
-                <span
+            {{ t('JABVOX_AI_CHAT.MODELS.NO_RESULTS') }}
+          </div>
+
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div
+              v-for="model in filteredModels"
+              :key="model.id"
+              class="flex flex-col gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="i-lucide-cpu size-4 text-n-slate-10 shrink-0" />
+                  <p class="text-sm font-semibold text-n-slate-12 truncate">
+                    {{ model.name_jabvox }}
+                  </p>
+                </div>
+                <Label
                   v-if="model.is_default_jabvox"
-                  class="bg-violet-100 text-violet-700 text-xs px-2 py-0.5 rounded-full font-medium"
-                  >{{ t('JABVOX_AI_CHAT.MODELS.DEFAULT_BADGE') }}</span
-                >
+                  :label="t('JABVOX_AI_CHAT.MODELS.DEFAULT_BADGE')"
+                  color="teal"
+                  compact
+                />
               </div>
-              <div class="text-xs text-slate-500 mt-0.5">
-                {{ model.provider_jabvox }} · {{ model.model_jabvox }}
-              </div>
-              <div v-if="testResults[model.id]" class="mt-1">
+
+              <p
+                class="flex items-center gap-1.5 text-xs text-n-slate-11 font-mono truncate"
+              >
+                <span v-if="model.provider_jabvox" class="text-n-slate-12">
+                  {{ model.provider_jabvox }}
+                </span>
+                <span
+                  v-if="model.provider_jabvox"
+                  class="size-1 rounded-full bg-n-slate-8 shrink-0"
+                />
+                <span class="truncate">{{ model.model_jabvox }}</span>
+              </p>
+
+              <!-- Test result -->
+              <div
+                v-if="testResults[model.id]"
+                class="text-xs"
+                :class="
+                  testResults[model.id].success
+                    ? 'text-n-teal-11'
+                    : 'text-n-ruby-11'
+                "
+              >
                 <span
                   v-if="testResults[model.id].success"
-                  class="text-xs text-green-600"
+                  class="inline-flex items-center gap-1"
                 >
+                  <span class="i-lucide-check size-3.5" />
                   {{
-                    t('JABVOX_AI_CHAT.MODELS.TEST_SUCCESS', {
+                    t('JABVOX_AI_CHAT.MODELS.TEST_LATENCY', {
                       ms: testResults[model.id].latency,
                     })
                   }}
                 </span>
-                <span v-else class="text-xs text-red-500">
-                  {{
-                    t('JABVOX_AI_CHAT.MODELS.TEST_ERROR', {
-                      error: testResults[model.id].error,
-                    })
-                  }}
+                <span v-else class="inline-flex items-center gap-1">
+                  <span class="i-lucide-circle-x size-3.5" />
+                  {{ testResults[model.id].error }}
                 </span>
               </div>
-            </div>
-            <div class="flex items-center gap-2 ml-4">
-              <button
-                class="text-xs text-slate-500 hover:text-violet-600 px-2 py-1 rounded border border-slate-200 hover:border-violet-300 transition-colors disabled:opacity-50"
-                :disabled="testingId === model.id"
-                @click="testConnection(model)"
-              >
-                {{
-                  testingId === model.id
-                    ? t('JABVOX_AI_CHAT.MODELS.TESTING')
-                    : t('JABVOX_AI_CHAT.MODELS.TEST')
-                }}
-              </button>
-              <button
-                v-if="!model.is_default_jabvox"
-                class="text-xs text-slate-500 hover:text-violet-600 px-2 py-1 rounded border border-slate-200 hover:border-violet-300 transition-colors"
-                @click="setDefault(model.id)"
-              >
-                {{ t('JABVOX_AI_CHAT.MODELS.SET_DEFAULT') }}
-              </button>
-              <button
-                class="text-xs text-slate-500 hover:text-violet-600 p-1.5 rounded hover:bg-slate-100 transition-colors"
-                @click="openEditModel(model)"
-              >
-                <span class="i-ri-edit-line" />
-              </button>
-              <button
-                class="text-xs text-slate-500 hover:text-red-500 p-1.5 rounded hover:bg-red-50 transition-colors"
-                @click="deleteModel(model.id)"
-              >
-                <span class="i-ri-delete-bin-line" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- DOCUMENTS TAB -->
-      <div v-show="activeTab === 'documents'" class="space-y-8">
-        <!-- Bucket config -->
-        <div class="bg-white border border-slate-200 rounded-xl p-6">
-          <h2 class="text-base font-semibold text-slate-700 mb-4">
-            {{ t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_CONFIG') }}
-          </h2>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="col-span-2">
-              <label class="block text-xs font-medium text-slate-600 mb-1">
-                {{ t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_URL') }}
-              </label>
-              <input
-                v-model="bucketForm.bucket_url_jabvox"
-                type="text"
-                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                :placeholder="
-                  t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_URL_PLACEHOLDER')
-                "
-              />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">
-                {{ t('JABVOX_AI_CHAT.DOCUMENTS.ACCESS_KEY') }}
-              </label>
-              <input
-                v-model="bucketForm.bucket_access_key_jabvox"
-                type="text"
-                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-              />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">
-                {{ t('JABVOX_AI_CHAT.DOCUMENTS.SECRET_KEY') }}
-              </label>
-              <div class="relative">
-                <input
-                  v-model="bucketForm.bucket_secret_key_jabvox"
-                  :type="showSecretKey ? 'text' : 'password'"
-                  class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 pr-10"
-                  :placeholder="
-                    t('JABVOX_AI_CHAT.DOCUMENTS.SECRET_KEY_PLACEHOLDER')
+              <div class="flex items-center gap-1 pt-2 border-t border-n-weak">
+                <Button
+                  :label="
+                    testingId === model.id
+                      ? t('JABVOX_AI_CHAT.MODELS.TESTING')
+                      : t('JABVOX_AI_CHAT.MODELS.TEST')
                   "
+                  icon="i-lucide-plug-zap"
+                  variant="outline"
+                  color="slate"
+                  size="sm"
+                  :is-loading="testingId === model.id"
+                  @click="testConnection(model)"
                 />
-                <button
-                  class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  @click="showSecretKey = !showSecretKey"
-                >
-                  <span
-                    :class="
-                      showSecretKey ? 'i-ri-eye-off-line' : 'i-ri-eye-line'
-                    "
-                  />
-                </button>
+                <Button
+                  v-if="!model.is_default_jabvox"
+                  :label="t('JABVOX_AI_CHAT.MODELS.SET_DEFAULT')"
+                  variant="ghost"
+                  color="slate"
+                  size="sm"
+                  @click="setDefault(model.id)"
+                />
+                <div class="flex-1" />
+                <Button
+                  icon="i-lucide-pencil"
+                  variant="ghost"
+                  color="slate"
+                  size="sm"
+                  :title="t('JABVOX_AI_CHAT.MODELS.EDIT')"
+                  @click="modelDialog?.openEdit(model)"
+                />
+                <Button
+                  icon="i-lucide-trash-2"
+                  variant="ghost"
+                  color="ruby"
+                  size="sm"
+                  :title="t('JABVOX_AI_CHAT.COMMON.DELETE')"
+                  @click="askDeleteModel(model)"
+                />
               </div>
             </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">
-                {{ t('JABVOX_AI_CHAT.DOCUMENTS.REGION') }}
-              </label>
-              <input
+          </div>
+        </template>
+      </div>
+
+      <!-- ── DOCUMENTS ── -->
+      <div v-else-if="activeTab === 'documents'" class="flex flex-col gap-6">
+        <!-- Bucket config -->
+        <SectionCard
+          :title="t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_CONFIG')"
+          :description="t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_SECTION_DESC')"
+          icon="i-lucide-database"
+        >
+          <div class="flex flex-col gap-4">
+            <Input
+              v-model="bucketForm.bucket_url_jabvox"
+              :label="t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_URL')"
+              :placeholder="
+                t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_URL_PLACEHOLDER')
+              "
+            />
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                v-model="bucketForm.bucket_access_key_jabvox"
+                :label="t('JABVOX_AI_CHAT.DOCUMENTS.ACCESS_KEY')"
+                custom-input-class="font-mono"
+              />
+              <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-medium text-n-slate-12">
+                  {{ t('JABVOX_AI_CHAT.DOCUMENTS.SECRET_KEY') }}
+                </label>
+                <div class="relative">
+                  <Input
+                    v-model="bucketForm.bucket_secret_key_jabvox"
+                    :type="showSecretKey ? 'text' : 'password'"
+                    custom-input-class="!pr-10 font-mono"
+                    :placeholder="
+                      t('JABVOX_AI_CHAT.DOCUMENTS.SECRET_KEY_PLACEHOLDER')
+                    "
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-n-slate-10 hover:text-n-slate-12"
+                    @click="showSecretKey = !showSecretKey"
+                  >
+                    <span
+                      :class="
+                        showSecretKey ? 'i-lucide-eye-off' : 'i-lucide-eye'
+                      "
+                      class="size-4"
+                    />
+                  </button>
+                </div>
+              </div>
+              <Input
                 v-model="bucketForm.bucket_region_jabvox"
-                type="text"
-                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                :placeholder="t('JABVOX_AI_CHAT.DOCUMENTS.REGION_DEFAULT')"
+                :label="t('JABVOX_AI_CHAT.DOCUMENTS.REGION')"
               />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">
-                {{ t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_NAME') }}
-              </label>
-              <input
+              <Input
                 v-model="bucketForm.bucket_name_jabvox"
-                type="text"
-                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                :label="t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_NAME')"
               />
             </div>
           </div>
-          <div class="flex items-center gap-3 mt-4">
-            <button
-              class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-              :disabled="uiFlags.isSavingConfig"
-              @click="saveBucketConfig"
-            >
-              {{ t('JABVOX_AI_CHAT.DOCUMENTS.SAVE_CONFIG') }}
-            </button>
-            <button
-              class="border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50"
-              :disabled="uiFlags.isSyncingDocuments"
-              @click="syncDocuments"
-            >
-              <span
-                class="i-ri-refresh-line"
-                :class="uiFlags.isSyncingDocuments ? 'animate-spin' : ''"
+          <template #footer>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                :label="
+                  uiFlags.isSyncingDocuments
+                    ? t('JABVOX_AI_CHAT.DOCUMENTS.SYNCING')
+                    : t('JABVOX_AI_CHAT.DOCUMENTS.SYNC')
+                "
+                icon="i-lucide-refresh-cw"
+                variant="outline"
+                color="slate"
+                size="sm"
+                :is-loading="uiFlags.isSyncingDocuments"
+                @click="syncDocuments"
               />
-              {{
-                uiFlags.isSyncingDocuments
-                  ? t('JABVOX_AI_CHAT.DOCUMENTS.SYNCING')
-                  : t('JABVOX_AI_CHAT.DOCUMENTS.SYNC')
-              }}
-            </button>
-          </div>
-        </div>
+              <Button
+                :label="t('JABVOX_AI_CHAT.DOCUMENTS.SAVE_CONFIG')"
+                size="sm"
+                :is-loading="uiFlags.isSavingConfig"
+                @click="saveBucketConfig"
+              />
+            </div>
+          </template>
+        </SectionCard>
 
         <!-- Document list -->
-        <div>
-          <h2 class="text-base font-semibold text-slate-700 mb-3">
-            {{ t('JABVOX_AI_CHAT.DOCUMENTS.DOCUMENT_LIST') }}
-          </h2>
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2 min-w-0">
+              <h2 class="text-base font-semibold text-n-slate-12">
+                {{ t('JABVOX_AI_CHAT.DOCUMENTS.DOCUMENT_LIST') }}
+              </h2>
+              <span
+                v-if="uiFlags.isSyncingDocuments"
+                class="inline-flex items-center gap-1.5 text-xs text-n-slate-11"
+              >
+                <Spinner :size="14" />
+                {{ t('JABVOX_AI_CHAT.DOCUMENTS.SYNCING') }}
+              </span>
+            </div>
+            <span class="text-xs text-n-slate-10">
+              {{
+                t('JABVOX_AI_CHAT.DOCUMENTS.COUNT', { count: documents.length })
+              }}
+            </span>
+          </div>
+
+          <div v-if="documents.length" class="relative w-full sm:w-64">
+            <Input
+              v-model="docSearch"
+              :placeholder="t('JABVOX_AI_CHAT.DOCUMENTS.SEARCH_PLACEHOLDER')"
+              custom-input-class="!pl-9"
+            >
+              <template #prefix>
+                <span
+                  class="i-lucide-search size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                />
+              </template>
+            </Input>
+          </div>
+
           <div
-            v-if="documents.length === 0"
-            class="text-center py-8 text-slate-400 text-sm"
+            v-if="!documents.length"
+            class="rounded-xl border border-dashed border-n-weak py-12 text-center text-sm text-n-slate-11"
           >
             {{ t('JABVOX_AI_CHAT.DOCUMENTS.EMPTY') }}
           </div>
-          <div v-else class="space-y-2">
-            <div
-              v-for="doc in documents"
-              :key="doc.id"
-              class="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between"
-            >
-              <div class="flex items-center gap-3 min-w-0">
-                <span
-                  class="i-ri-file-text-line text-slate-400 flex-shrink-0"
-                />
-                <div class="min-w-0">
-                  <p class="text-sm text-slate-700 truncate font-medium">
-                    {{ doc.name_jabvox }}
-                  </p>
-                  <p class="text-xs text-slate-400">
-                    {{ formatBytes(doc.size_jabvox) }}
-                  </p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2 ml-4">
-                <button
-                  class="text-xs px-3 py-1 rounded-full border transition-colors font-medium"
-                  :class="
-                    doc.is_enabled_jabvox
-                      ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                      : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                  "
-                  @click="toggleDocument(doc)"
-                >
-                  {{
-                    doc.is_enabled_jabvox
-                      ? t('JABVOX_AI_CHAT.DOCUMENTS.DISABLE')
-                      : t('JABVOX_AI_CHAT.DOCUMENTS.ENABLE')
-                  }}
-                </button>
-                <button
-                  class="text-slate-400 hover:text-red-500 p-1.5 rounded hover:bg-red-50 transition-colors"
-                  @click="deleteDocument(doc.id)"
-                >
-                  <span class="i-ri-delete-bin-line text-base" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- CONFIG TAB -->
-      <div v-show="activeTab === 'config'" class="max-w-lg">
-        <div class="bg-white border border-slate-200 rounded-xl p-6">
-          <h2 class="text-base font-semibold text-slate-700 mb-4">
-            {{ t('JABVOX_AI_CHAT.CONFIG.TITLE') }}
-          </h2>
           <div
-            class="flex items-start justify-between gap-4 p-4 rounded-lg border border-slate-100 bg-slate-50"
+            v-else-if="!filteredDocuments.length"
+            class="rounded-xl border border-dashed border-n-weak py-10 text-center text-sm text-n-slate-11"
           >
-            <div>
-              <p class="text-sm font-medium text-slate-700">
-                {{ t('JABVOX_AI_CHAT.CONFIG.WEB_SEARCH') }}
-              </p>
-              <p class="text-xs text-slate-500 mt-0.5">
-                {{ t('JABVOX_AI_CHAT.CONFIG.WEB_SEARCH_DESC') }}
-              </p>
-            </div>
-            <button
-              class="flex-shrink-0 w-10 h-6 rounded-full transition-colors relative"
-              :class="
-                configForm.web_search_enabled_jabvox
-                  ? 'bg-violet-600'
-                  : 'bg-slate-300'
-              "
-              @click="
-                configForm.web_search_enabled_jabvox =
-                  !configForm.web_search_enabled_jabvox
-              "
+            {{ t('JABVOX_AI_CHAT.DOCUMENTS.NO_RESULTS') }}
+          </div>
+
+          <div
+            v-else
+            class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm divide-y divide-n-weak overflow-hidden"
+          >
+            <div
+              v-for="doc in filteredDocuments"
+              :key="doc.id"
+              class="flex items-center gap-3 px-4 py-3"
             >
               <span
-                class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
-                :class="
-                  configForm.web_search_enabled_jabvox
-                    ? 'translate-x-4'
-                    : 'translate-x-0'
-                "
+                class="i-lucide-file-text size-5 text-n-slate-10 shrink-0"
               />
-            </button>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-n-slate-12 truncate">
+                  {{ doc.name_jabvox }}
+                </p>
+                <p class="text-xs text-n-slate-10">
+                  {{ formatBytes(doc.size_jabvox) }}
+                </p>
+              </div>
+              <label
+                class="flex items-center gap-2 cursor-pointer shrink-0"
+                :title="
+                  doc.is_enabled_jabvox
+                    ? t('JABVOX_AI_CHAT.DOCUMENTS.DISABLE')
+                    : t('JABVOX_AI_CHAT.DOCUMENTS.ENABLE')
+                "
+              >
+                <Switch
+                  :model-value="doc.is_enabled_jabvox"
+                  @update:model-value="toggleDocument(doc)"
+                />
+              </label>
+              <Button
+                icon="i-lucide-trash-2"
+                variant="ghost"
+                color="ruby"
+                size="sm"
+                @click="askDeleteDocument(doc)"
+              />
+            </div>
           </div>
-          <button
-            class="mt-4 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-            :disabled="uiFlags.isSavingConfig"
-            @click="saveConfig"
-          >
-            {{ t('JABVOX_AI_CHAT.CONFIG.SAVE') }}
-          </button>
         </div>
       </div>
 
-      <!-- PERMISSIONS TAB -->
-      <div v-show="activeTab === 'permissions'">
-        <div class="flex items-center justify-between mb-4">
+      <!-- ── CONFIG ── -->
+      <div v-else-if="activeTab === 'config'" class="w-full max-w-2xl">
+        <SectionCard
+          :title="t('JABVOX_AI_CHAT.CONFIG.TITLE')"
+          :description="t('JABVOX_AI_CHAT.CONFIG.SECTION_DESC')"
+          icon="i-lucide-settings-2"
+        >
+          <div
+            class="flex items-center justify-between gap-4 rounded-xl border border-n-weak bg-n-alpha-1 px-4 py-3"
+          >
+            <div class="flex flex-col">
+              <span class="text-sm font-medium text-n-slate-12">
+                {{ t('JABVOX_AI_CHAT.CONFIG.WEB_SEARCH') }}
+              </span>
+              <span class="text-xs text-n-slate-11">
+                {{ t('JABVOX_AI_CHAT.CONFIG.WEB_SEARCH_DESC') }}
+              </span>
+            </div>
+            <Switch v-model="configForm.web_search_enabled_jabvox" />
+          </div>
+          <template #footer>
+            <div class="flex justify-end">
+              <Button
+                :label="t('JABVOX_AI_CHAT.CONFIG.SAVE')"
+                size="sm"
+                :is-loading="uiFlags.isSavingConfig"
+                @click="saveConfig"
+              />
+            </div>
+          </template>
+        </SectionCard>
+      </div>
+
+      <!-- ── PERMISSIONS ── -->
+      <div v-else class="flex flex-col gap-5">
+        <div
+          class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+        >
           <div>
-            <h2 class="text-lg font-semibold text-slate-700">
+            <h2 class="text-base font-semibold text-n-slate-12">
               {{ t('JABVOX_AI_CHAT.PERMISSIONS.TITLE') }}
             </h2>
-            <p class="text-sm text-slate-500 mt-0.5">
+            <p class="mt-1 text-sm text-n-slate-11 max-w-2xl">
               {{ t('JABVOX_AI_CHAT.PERMISSIONS.DESC') }}
             </p>
           </div>
-          <button
-            class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-            :disabled="uiFlags.isSavingPermissions"
+          <Button
+            :label="t('JABVOX_AI_CHAT.PERMISSIONS.SAVE')"
+            icon="i-lucide-save"
+            size="sm"
+            class="shrink-0"
+            :disabled="!permDirty"
+            :is-loading="uiFlags.isSavingPermissions"
             @click="savePermissions"
-          >
-            {{ t('JABVOX_AI_CHAT.PERMISSIONS.SAVE') }}
-          </button>
+          />
         </div>
+
+        <div class="relative w-full sm:w-64">
+          <Input
+            v-model="permSearch"
+            :placeholder="t('JABVOX_AI_CHAT.PERMISSIONS.SEARCH_PLACEHOLDER')"
+            custom-input-class="!pl-9"
+          >
+            <template #prefix>
+              <span
+                class="i-lucide-search size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              />
+            </template>
+          </Input>
+        </div>
+
         <div
-          class="bg-white border border-slate-200 rounded-xl overflow-hidden"
+          v-if="!filteredPermissions.length"
+          class="rounded-xl border border-dashed border-n-weak py-12 text-center text-sm text-n-slate-11"
         >
-          <table class="w-full">
-            <thead class="bg-slate-50 border-b border-slate-200">
+          {{ t('JABVOX_AI_CHAT.PERMISSIONS.NO_RESULTS') }}
+        </div>
+
+        <!-- Desktop table -->
+        <div
+          v-else
+          class="hidden md:block rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden overflow-x-auto"
+        >
+          <table class="min-w-full text-sm">
+            <thead
+              class="bg-n-alpha-1 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
+            >
               <tr>
-                <th
-                  class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                >
+                <th class="text-left px-4 py-2.5">
                   {{ t('JABVOX_AI_CHAT.PERMISSIONS.USER') }}
                 </th>
-                <th
-                  class="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                >
+                <th class="text-center px-4 py-2.5">
                   {{ t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE') }}
                 </th>
-                <th
-                  class="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                >
+                <th class="text-center px-4 py-2.5">
                   {{ t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE_MODELS') }}
                 </th>
-                <th
-                  class="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                >
+                <th class="text-center px-4 py-2.5">
                   {{ t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE_DOCUMENTS') }}
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody class="divide-y divide-n-weak">
               <tr
-                v-for="(perm, idx) in localPermissions"
-                :key="perm.user_id"
-                class="border-b border-slate-100 last:border-0"
+                v-for="perm in filteredPermissions"
+                :key="perm.user_id ?? perm.id"
+                class="hover:bg-n-alpha-1 transition-colors"
               >
                 <td class="px-4 py-3">
-                  <div>
-                    <p class="text-sm font-medium text-slate-700">
-                      {{ perm.name }}
-                    </p>
-                    <p class="text-xs text-slate-400">{{ perm.email }}</p>
+                  <div class="flex items-center gap-3 min-w-0">
+                    <Avatar
+                      :name="perm.name"
+                      :src="perm.thumbnail"
+                      :size="32"
+                      rounded-full
+                    />
+                    <div class="min-w-0">
+                      <p class="font-medium text-n-slate-12 truncate">
+                        {{ perm.name }}
+                      </p>
+                      <p class="text-xs text-n-slate-10 truncate">
+                        {{ perm.email }}
+                      </p>
+                    </div>
                   </div>
                 </td>
-                <td class="px-4 py-3 text-center">
-                  <input
-                    v-model="localPermissions[idx].can_use"
-                    type="checkbox"
-                    class="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-600"
-                  />
+                <td class="px-4 py-3">
+                  <div class="flex justify-center">
+                    <Switch
+                      v-model="perm.can_use"
+                      @update:model-value="onPermissionChange"
+                    />
+                  </div>
                 </td>
-                <td class="px-4 py-3 text-center">
-                  <input
-                    v-model="localPermissions[idx].can_use_models"
-                    type="checkbox"
-                    class="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-600"
-                  />
+                <td class="px-4 py-3">
+                  <div class="flex justify-center">
+                    <Switch
+                      v-model="perm.can_use_models"
+                      @update:model-value="onPermissionChange"
+                    />
+                  </div>
                 </td>
-                <td class="px-4 py-3 text-center">
-                  <input
-                    v-model="localPermissions[idx].can_use_documents"
-                    type="checkbox"
-                    class="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-600"
-                  />
+                <td class="px-4 py-3">
+                  <div class="flex justify-center">
+                    <Switch
+                      v-model="perm.can_use_documents"
+                      @update:model-value="onPermissionChange"
+                    />
+                  </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+
+        <!-- Mobile cards -->
+        <div
+          v-if="filteredPermissions.length"
+          class="flex flex-col gap-3 md:hidden"
+        >
+          <div
+            v-for="perm in filteredPermissions"
+            :key="perm.user_id ?? perm.id"
+            class="flex flex-col gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+          >
+            <div class="flex items-center gap-3 min-w-0">
+              <Avatar
+                :name="perm.name"
+                :src="perm.thumbnail"
+                :size="36"
+                rounded-full
+              />
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-n-slate-12 truncate">
+                  {{ perm.name }}
+                </p>
+                <p class="text-xs text-n-slate-10 truncate">{{ perm.email }}</p>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 rounded-xl bg-n-alpha-1 p-3">
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-sm text-n-slate-12">{{
+                  t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE')
+                }}</span>
+                <Switch
+                  v-model="perm.can_use"
+                  @update:model-value="onPermissionChange"
+                />
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-sm text-n-slate-12">{{
+                  t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE_MODELS')
+                }}</span>
+                <Switch
+                  v-model="perm.can_use_models"
+                  @update:model-value="onPermissionChange"
+                />
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-sm text-n-slate-12">{{
+                  t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE_DOCUMENTS')
+                }}</span>
+                <Switch
+                  v-model="perm.can_use_documents"
+                  @update:model-value="onPermissionChange"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Model Modal -->
-    <div
-      v-if="showModelModal"
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-    >
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div class="p-6 border-b border-slate-100">
-          <h3 class="text-base font-semibold text-slate-800">
-            {{
-              editingModel
-                ? t('JABVOX_AI_CHAT.MODELS.EDIT')
-                : t('JABVOX_AI_CHAT.MODELS.ADD')
-            }}
-          </h3>
-        </div>
-        <div class="p-6 space-y-4">
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">
-              {{ t('JABVOX_AI_CHAT.MODELS.NAME') }} *
-            </label>
-            <input
-              v-model="modelForm.name_jabvox"
-              type="text"
-              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-              :placeholder="t('JABVOX_AI_CHAT.MODELS.NAME_PLACEHOLDER')"
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">
-              {{ t('JABVOX_AI_CHAT.MODELS.PROVIDER') }}
-            </label>
-            <input
-              v-model="modelForm.provider_jabvox"
-              type="text"
-              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-              :placeholder="t('JABVOX_AI_CHAT.MODELS.PROVIDER_PLACEHOLDER')"
-            />
-            <p class="text-xs text-slate-400 mt-1">
-              {{ t('JABVOX_AI_CHAT.MODELS.PROVIDER_HINT') }}
-            </p>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">
-              {{ t('JABVOX_AI_CHAT.MODELS.MODEL_API') }} *
-            </label>
-            <input
-              v-model="modelForm.model_jabvox"
-              type="text"
-              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-              :placeholder="t('JABVOX_AI_CHAT.MODELS.MODEL_PLACEHOLDER')"
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">
-              {{ t('JABVOX_AI_CHAT.MODELS.API_KEY') }}
-            </label>
-            <input
-              v-model="modelForm.api_key_jabvox"
-              type="password"
-              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-              :placeholder="
-                editingModel
-                  ? t('JABVOX_AI_CHAT.DOCUMENTS.SECRET_KEY_PLACEHOLDER')
-                  : t('JABVOX_AI_CHAT.MODELS.API_KEY_PLACEHOLDER')
-              "
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">
-              {{ t('JABVOX_AI_CHAT.MODELS.BASE_URL') }}
-            </label>
-            <input
-              v-model="modelForm.base_url_jabvox"
-              type="text"
-              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-              :placeholder="t('JABVOX_AI_CHAT.MODELS.BASE_URL_PLACEHOLDER')"
-            />
-            <p class="text-xs text-slate-400 mt-1">
-              {{ t('JABVOX_AI_CHAT.MODELS.BASE_URL_HINT') }}
-            </p>
-          </div>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              v-model="modelForm.is_default_jabvox"
-              type="checkbox"
-              class="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-600"
-            />
-            <span class="text-sm text-slate-600">
-              {{ t('JABVOX_AI_CHAT.MODELS.IS_DEFAULT') }}
-            </span>
-          </label>
-        </div>
-        <div class="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end">
-          <button
-            class="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors"
-            @click="closeModelModal"
-          >
-            {{ t('JABVOX_AI_CHAT.MODELS.CANCEL') }}
-          </button>
-          <button
-            class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-            :disabled="uiFlags.isSavingModel"
-            @click="saveModel"
-          >
-            {{ t('JABVOX_AI_CHAT.MODELS.SAVE') }}
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- Dialogs -->
+    <ModelFormDialog ref="modelDialog" :is-saving="uiFlags.isSavingModel" />
+    <ConfirmDialog ref="deleteDialog" @confirm="onConfirmDelete" />
   </div>
 </template>

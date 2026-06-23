@@ -63,7 +63,17 @@
         "CURRENCY": "Currency",
         "ITEM_TYPE": "Item type",
         "UNIT": "Unit of measure"
-      }
+      },
+      "SEARCH_PLACEHOLDER": "Buscar productos...",
+      "COUNT": "{count} productos",
+      "NO_RESULTS": "Ningún producto coincide.",
+      "EMPTY_TITLE": "Sin productos",
+      "KPI_TOTAL": "Productos",
+      "KPI_ACTIVE": "Activos",
+      "KPI_INACTIVE": "Inactivos",
+      "IMPORT": "Importar",
+      "DELETE_TITLE": "Eliminar producto",
+      "DELETE_BODY": "¿Eliminar el producto \"{name}\"? Esta acción no se puede deshacer."
     },
     "DISCOUNTS": {
       "TITLE": "Discounts",
@@ -73,7 +83,13 @@
       },
       "FORM": {
         "NAME_REQUIRED": "Name is required"
-      }
+      },
+      "SEARCH_PLACEHOLDER": "Buscar descuentos...",
+      "COUNT": "{count} descuentos",
+      "NO_RESULTS": "Ningún descuento coincide.",
+      "EMPTY_TITLE": "Sin descuentos",
+      "DELETE_TITLE": "Eliminar descuento",
+      "DELETE_BODY": "¿Eliminar el descuento \"{name}\"?"
     },
     "STATUSES": {
       "TITLE": "Order statuses",
@@ -87,7 +103,13 @@
       "FORM": {
         "REQUIRED": "Key and label are required",
         "KEY_PLACEHOLDER": "PENDING"
-      }
+      },
+      "SEARCH_PLACEHOLDER": "Buscar estados...",
+      "COUNT": "{count} estados",
+      "NO_RESULTS": "Ningún estado coincide.",
+      "EMPTY_TITLE": "Sin estados",
+      "DELETE_TITLE": "Eliminar estado",
+      "DELETE_BODY": "¿Eliminar el estado \"{name}\"?"
     },
     "INTEGRATION": {
       "TITLE": "Accounting integration",
@@ -104,7 +126,8 @@
       "DISCONNECT": "Disconnect",
       "DISCONNECT_CONFIRM": "Are you sure you want to disconnect the integration? This will not delete your products.",
       "DISCONNECT_SUCCESS": "Integration disconnected successfully.",
-      "CANCEL": "Cancel"
+      "CANCEL": "Cancel",
+      "SECTION_DESC": "Conecta tu sistema de facturación para sincronizar ventas."
     },
     "CONFIG": {
       "TITLE": "Configuration",
@@ -117,7 +140,15 @@
       "ABBREVIATION": "Abbreviation",
       "ABBREVIATION_PLACEHOLDER": "kg",
       "PERCENTAGE": "Percentage (%)",
-      "EMPTY": "No items yet."
+      "EMPTY": "No items yet.",
+      "DELETE_TITLE": "Eliminar elemento",
+      "DELETE_BODY": "¿Eliminar \"{name}\"?",
+      "SUBTABS": {
+        "CURRENCIES": "Monedas",
+        "ITEM_TYPES": "Tipos",
+        "UNITS": "Unidades",
+        "TAX_RATES": "Impuestos"
+      }
     },
     "PDF": {
       "TITLE": "PDF configuration",
@@ -135,7 +166,9 @@
       "EMAIL": "Email",
       "PREVIEW": "Header preview",
       "QUOTE_LABEL": "Quote",
-      "QUOTE_NUMBER_PREVIEW": "No. 1"
+      "QUOTE_NUMBER_PREVIEW": "No. 1",
+      "SECTION_DESC": "Datos de tu empresa que aparecerán en las cotizaciones y facturas PDF.",
+      "PREVIEW_TITLE": "Vista previa"
     },
     "REPORTS": {
       "TITLE": "Sales reports",
@@ -147,7 +180,9 @@
         "AGENT": "Agent",
         "EMAIL": "Email",
         "ACCESS": "Access"
-      }
+      },
+      "SEARCH_PLACEHOLDER": "Buscar agentes...",
+      "GRANTED": "con acceso"
     },
     "CONVERSATION": {
       "TAB_CHAT": "Chat",
@@ -210,7 +245,17 @@
       "BY_AGENT": "By Agent",
       "BY_STATUS": "By Status",
       "EMPTY": "No records for the selected period.",
-      "LOADING": "Loading report..."
-    }
+      "LOADING": "Loading report...",
+      "NO_RESULTS": "Sin resultados para los filtros."
+    },
+    "SUBTITLE": "Gestiona tu catálogo, descuentos, estados de pedido e integraciones de facturación.",
+    "COMMON": {
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar",
+      "SEARCH": "Buscar..."
+    },
+    "SEARCH_PLACEHOLDER": "Buscar...",
+    "NO_RESULTS": "Ningún resultado coincide con tu búsqueda."
   }
 }

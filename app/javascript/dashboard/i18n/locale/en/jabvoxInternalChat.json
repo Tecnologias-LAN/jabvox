@@ -29,6 +29,7 @@
     "NO_USERS_FOUND": "No users found",
     "YESTERDAY": "Yesterday",
     "SEND_HINT": "Enter to send · Shift+Enter for new line",
-    "START_CONVERSATION": "Start chatting"
+    "START_CONVERSATION": "Start chatting",
+    "BACK": "Back"
   }
 }

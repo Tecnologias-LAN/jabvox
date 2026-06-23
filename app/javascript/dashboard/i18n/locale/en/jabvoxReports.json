@@ -15,7 +15,11 @@
       "FILTER_TO": "Hasta",
       "APPLY": "Buscar",
       "AGENT": "Agente",
-      "TOTAL": "Total"
+      "TOTAL": "Total",
+      "EMPTY_TITLE": "Sin datos",
+      "RESET": "Limpiar",
+      "DESCRIPTION": "Métricas de productos, agentes y telefonía en tiempo real.",
+      "FILTERS": "Filters"
     },
     "PRODUCTS": {
       "FILTER_TYPE": "Tipo",

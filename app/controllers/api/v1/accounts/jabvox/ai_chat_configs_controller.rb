@@ -16,21 +16,30 @@ class Api::V1::Accounts::Jabvox::AiChatConfigsController < Api::V1::Accounts::Ba
     bucket_service = Jabvox::AiChatBucketService.new(@config)
     objects = bucket_service.list_objects
 
-    synced = objects.map do |obj|
+    # Enforce the limit BEFORE writing anything: only the first N bucket objects
+    # are imported; the rest are reported as skipped instead of failing the sync.
+    max_docs = Current.account.jabvox_ai_chat_max_documents_jabvox
+    selected = max_docs.to_i.positive? ? objects.first(max_docs) : objects
+    skipped = objects.size - selected.size
+
+    synced = selected.map do |obj|
       doc = Current.account.jabvox_ai_chat_documents.find_or_initialize_by(s3_key_jabvox: obj[:key])
       doc.assign_attributes(name_jabvox: File.basename(obj[:key]), size_jabvox: obj[:size])
       doc.save!
       doc
     end
 
-    # Check document limit
-    max_docs = Current.account.jabvox_ai_chat_max_documents_jabvox
-    if max_docs > 0 && synced.count > max_docs
-      render json: { error: "Se excede el límite de #{max_docs} documentos permitidos." }, status: :unprocessable_entity
-      return
-    end
+    # Drop documents that no longer exist in the bucket (or fell outside the limit)
+    # so the list reflects the live bucket instead of stale rows.
+    kept_keys = synced.map(&:s3_key_jabvox)
+    Current.account.jabvox_ai_chat_documents.where.not(s3_key_jabvox: kept_keys).destroy_all
 
-    render json: synced.map { |d| document_json(d) }
+    render json: {
+      documents: synced.map { |d| document_json(d) },
+      total_in_bucket: objects.size,
+      skipped: skipped,
+      limit: max_docs
+    }
   rescue StandardError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end

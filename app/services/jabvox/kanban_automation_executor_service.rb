@@ -57,18 +57,15 @@ class Jabvox::KanbanAutomationExecutorService
     body = render_template(template.body)
     subject = render_template(template.subject)
 
-    mail = Mail.new do
-      from     "#{smtp_config.from_name} <#{smtp_config.from_email}>"
-      to       @contact.email
-      subject  subject
-      html_part do
-        content_type 'text/html; charset=UTF-8'
-        body body
-      end
-    end
-
-    mail.delivery_method(:smtp, smtp_config.delivery_settings)
-    mail.deliver!
+    Jabvox::EmailSenderService.new(
+      account: @account,
+      config: smtp_config,
+      to: @contact.email,
+      subject: subject,
+      html_body: body,
+      source: 'kanban',
+      user: Current.user
+    ).deliver!
   end
 
   def send_via_sms(automation)

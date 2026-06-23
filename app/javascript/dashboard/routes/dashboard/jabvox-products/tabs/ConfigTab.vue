@@ -1,10 +1,15 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
+import Label from 'dashboard/components-next/label/Label.vue';
+import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -16,16 +21,50 @@ const taxRates = useMapGetter('jabvoxProducts/getTaxRates');
 const uiFlags = useMapGetter('jabvoxProducts/getUIFlags');
 
 const activeSubTab = ref('currencies');
-const showForm = ref(false);
+const formDialog = ref(null);
+const deleteDialog = ref(null);
 const editingItem = ref(null);
 const form = ref({});
 
 const SUB_TABS = [
-  { key: 'currencies', label: 'JABVOX_PRODUCTS.CONFIG.CURRENCIES' },
-  { key: 'itemTypes', label: 'JABVOX_PRODUCTS.CONFIG.ITEM_TYPES' },
-  { key: 'units', label: 'JABVOX_PRODUCTS.CONFIG.UNITS' },
-  { key: 'taxRates', label: 'JABVOX_PRODUCTS.CONFIG.TAX_RATES' },
+  {
+    key: 'currencies',
+    label: 'JABVOX_PRODUCTS.CONFIG.SUBTABS.CURRENCIES',
+    icon: 'i-lucide-dollar-sign',
+  },
+  {
+    key: 'itemTypes',
+    label: 'JABVOX_PRODUCTS.CONFIG.SUBTABS.ITEM_TYPES',
+    icon: 'i-lucide-shapes',
+  },
+  {
+    key: 'units',
+    label: 'JABVOX_PRODUCTS.CONFIG.SUBTABS.UNITS',
+    icon: 'i-lucide-ruler',
+  },
+  {
+    key: 'taxRates',
+    label: 'JABVOX_PRODUCTS.CONFIG.SUBTABS.TAX_RATES',
+    icon: 'i-lucide-percent',
+  },
 ];
+
+const currentList = computed(() => {
+  if (activeSubTab.value === 'currencies') return currencies.value;
+  if (activeSubTab.value === 'itemTypes') return itemTypes.value;
+  if (activeSubTab.value === 'units') return unitsOfMeasure.value;
+  return taxRates.value;
+});
+
+const isSaving = computed(() => {
+  const map = {
+    currencies: uiFlags.value.isSavingCurrency,
+    itemTypes: uiFlags.value.isSavingItemType,
+    units: uiFlags.value.isSavingUnit,
+    taxRates: uiFlags.value.isSavingTaxRate,
+  };
+  return map[activeSubTab.value];
+});
 
 onMounted(() =>
   Promise.all([
@@ -36,11 +75,11 @@ onMounted(() =>
   ])
 );
 
-const currentList = () => {
-  if (activeSubTab.value === 'currencies') return currencies.value;
-  if (activeSubTab.value === 'itemTypes') return itemTypes.value;
-  if (activeSubTab.value === 'units') return unitsOfMeasure.value;
-  return taxRates.value;
+const actionPrefix = () => {
+  if (activeSubTab.value === 'currencies') return 'Currency';
+  if (activeSubTab.value === 'itemTypes') return 'ItemType';
+  if (activeSubTab.value === 'units') return 'Unit';
+  return 'TaxRate';
 };
 
 const openNew = () => {
@@ -61,23 +100,17 @@ const openNew = () => {
       percentage_jabvox: '',
       active_jabvox: true,
     };
-  showForm.value = true;
+  formDialog.value?.open();
 };
 
 const openEdit = item => {
   editingItem.value = item;
   form.value = { ...item };
-  showForm.value = true;
-};
-
-const actionPrefix = () => {
-  if (activeSubTab.value === 'currencies') return 'Currency';
-  if (activeSubTab.value === 'itemTypes') return 'ItemType';
-  if (activeSubTab.value === 'units') return 'Unit';
-  return 'TaxRate';
+  formDialog.value?.open();
 };
 
 const onSubmit = async () => {
+  if (!form.value.name_jabvox?.trim()) return;
   try {
     const prefix = actionPrefix();
     if (editingItem.value) {
@@ -88,257 +121,174 @@ const onSubmit = async () => {
     } else {
       await store.dispatch(`jabvoxProducts/create${prefix}`, form.value);
     }
+    formDialog.value?.close();
     useAlert(t('JABVOX_PRODUCTS.SAVE_SUCCESS'));
-    showForm.value = false;
   } catch (e) {
     useAlert(e.message || t('JABVOX_PRODUCTS.ERROR'));
   }
 };
 
-const onDelete = async item => {
-  if (
-    !window.confirm(
-      t('JABVOX_PRODUCTS.DELETE_CONFIRM', { name: item.name_jabvox })
-    )
-  )
-    return;
+const askDelete = item => {
+  deleteDialog.value?.open({
+    title: t('JABVOX_PRODUCTS.CONFIG.DELETE_TITLE'),
+    description: t('JABVOX_PRODUCTS.CONFIG.DELETE_BODY', {
+      name: item.name_jabvox,
+    }),
+    data: item,
+  });
+};
+const doDelete = async item => {
   try {
-    const prefix = actionPrefix();
-    await store.dispatch(`jabvoxProducts/destroy${prefix}`, item.id);
+    await store.dispatch(`jabvoxProducts/destroy${actionPrefix()}`, item.id);
     useAlert(t('JABVOX_PRODUCTS.DELETE_SUCCESS'));
   } catch (e) {
     useAlert(e.message || t('JABVOX_PRODUCTS.ERROR'));
   }
 };
 
-const isSaving = () => {
-  if (activeSubTab.value === 'currencies')
-    return uiFlags.value.isSavingCurrency;
-  if (activeSubTab.value === 'itemTypes') return uiFlags.value.isSavingItemType;
-  if (activeSubTab.value === 'units') return uiFlags.value.isSavingUnit;
-  return uiFlags.value.isSavingTaxRate;
+// Secondary detail shown per row depending on sub-tab.
+const rowDetail = item => {
+  if (activeSubTab.value === 'currencies') return item.symbol_jabvox;
+  if (activeSubTab.value === 'units') return item.abbreviation_jabvox;
+  if (activeSubTab.value === 'taxRates') return `${item.percentage_jabvox}%`;
+  return '';
 };
 </script>
 
 <template>
-  <div class="space-y-4">
-    <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">
-      {{ $t('JABVOX_PRODUCTS.CONFIG.TITLE') }}
-    </h2>
-
-    <div class="flex gap-1 border-b border-slate-200 dark:border-slate-700">
-      <button
-        v-for="tab in SUB_TABS"
-        :key="tab.key"
-        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-        :class="[
-          activeSubTab === tab.key
-            ? 'border-woot-600 text-woot-600'
-            : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300',
-        ]"
-        @click="
-          activeSubTab = tab.key;
-          showForm = false;
-        "
+  <div class="flex flex-col gap-5">
+    <!-- Sub-tabs -->
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div
+        class="flex items-center gap-1 p-1 rounded-xl bg-n-alpha-1 border border-n-weak overflow-x-auto"
       >
-        {{ $t(tab.label) }}
-      </button>
-    </div>
-
-    <div class="flex justify-end">
+        <button
+          v-for="st in SUB_TABS"
+          :key="st.key"
+          class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg whitespace-nowrap transition-colors shrink-0"
+          :class="
+            activeSubTab === st.key
+              ? 'bg-n-solid-1 text-n-slate-12 shadow-sm'
+              : 'text-n-slate-11 hover:text-n-slate-12'
+          "
+          @click="activeSubTab = st.key"
+        >
+          <span :class="st.icon" class="size-3.5" />
+          {{ t(st.label) }}
+        </button>
+      </div>
       <Button
+        :label="t('JABVOX_PRODUCTS.NEW')"
         icon="i-lucide-plus"
-        :label="$t('JABVOX_PRODUCTS.NEW')"
+        size="sm"
         @click="openNew"
       />
     </div>
 
+    <!-- Empty -->
     <div
-      v-if="currentList().length === 0"
-      class="text-sm text-slate-400 text-center py-8"
+      v-if="!currentList.length"
+      class="rounded-xl border border-dashed border-n-weak py-12 text-center text-sm text-n-slate-11"
     >
-      {{ $t('JABVOX_PRODUCTS.CONFIG.EMPTY') }}
+      {{ t('JABVOX_PRODUCTS.CONFIG.EMPTY') }}
     </div>
 
-    <table
-      v-else
-      class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm"
-    >
-      <thead>
-        <tr class="text-left text-slate-500 dark:text-slate-400">
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.COLS.NAME') }}
-          </th>
-          <th
-            v-if="activeSubTab === 'currencies'"
-            class="py-3 pr-4 font-medium"
-          >
-            {{ $t('JABVOX_PRODUCTS.CONFIG.SYMBOL') }}
-          </th>
-          <th v-if="activeSubTab === 'units'" class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.CONFIG.ABBREVIATION') }}
-          </th>
-          <th v-if="activeSubTab === 'taxRates'" class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.CONFIG.PERCENTAGE') }}
-          </th>
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.COLS.STATUS') }}
-          </th>
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.COLS.ACTIONS') }}
-          </th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-        <tr
-          v-for="item in currentList()"
-          :key="item.id"
-          class="hover:bg-slate-50 dark:hover:bg-slate-800/50"
-        >
-          <td class="py-3 pr-4 font-medium text-slate-800 dark:text-slate-100">
-            {{ item.name_jabvox }}
-          </td>
-          <td
-            v-if="activeSubTab === 'currencies'"
-            class="py-3 pr-4 text-slate-500"
-          >
-            {{ item.symbol_jabvox }}
-          </td>
-          <td v-if="activeSubTab === 'units'" class="py-3 pr-4 text-slate-500">
-            {{ item.abbreviation_jabvox || '—' }}
-          </td>
-          <td
-            v-if="activeSubTab === 'taxRates'"
-            class="py-3 pr-4 text-slate-500"
-          >
-            {{ item.percentage_jabvox }}%
-          </td>
-          <td class="py-3 pr-4">
-            <span
-              class="text-xs px-2 py-1 rounded-full font-medium"
-              :class="[
-                item.active_jabvox
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-slate-100 text-slate-500',
-              ]"
-            >
-              {{
-                item.active_jabvox
-                  ? $t('JABVOX_PRODUCTS.ACTIVE')
-                  : $t('JABVOX_PRODUCTS.INACTIVE')
-              }}
-            </span>
-          </td>
-          <td class="py-3 pr-4">
-            <div class="flex gap-2">
-              <Button
-                size="small"
-                variant="ghost"
-                icon="i-lucide-pencil"
-                @click="openEdit(item)"
-              />
-              <Button
-                size="small"
-                variant="ghost"
-                color-scheme="alert"
-                icon="i-lucide-trash-2"
-                @click="onDelete(item)"
-              />
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
+    <!-- List -->
     <div
-      v-if="showForm"
-      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-      @click.self="showForm = false"
+      v-else
+      class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm divide-y divide-n-weak overflow-hidden"
     >
       <div
-        class="bg-white dark:bg-slate-900 rounded-xl shadow-xl p-6 w-full max-w-md space-y-4"
+        v-for="item in currentList"
+        :key="item.id"
+        class="flex items-center gap-3 px-4 py-3 hover:bg-n-alpha-1 transition-colors"
       >
-        <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">
-          {{
-            editingItem ? $t('JABVOX_PRODUCTS.EDIT') : $t('JABVOX_PRODUCTS.NEW')
-          }}
-        </h3>
-        <div class="space-y-3">
-          <div v-if="activeSubTab === 'currencies'">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
-              >{{ $t('JABVOX_PRODUCTS.CONFIG.SYMBOL') }}</label
-            >
-            <input
-              v-model="form.symbol_jabvox"
-              type="text"
-              :placeholder="$t('JABVOX_PRODUCTS.CONFIG.SYMBOL_PLACEHOLDER')"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-          <div>
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
-              >{{ $t('JABVOX_PRODUCTS.COLS.NAME') }}</label
-            >
-            <input
-              v-model="form.name_jabvox"
-              type="text"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-          <div v-if="activeSubTab === 'units'">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
-              >{{ $t('JABVOX_PRODUCTS.CONFIG.ABBREVIATION') }}</label
-            >
-            <input
-              v-model="form.abbreviation_jabvox"
-              type="text"
-              :placeholder="
-                $t('JABVOX_PRODUCTS.CONFIG.ABBREVIATION_PLACEHOLDER')
-              "
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-          <div v-if="activeSubTab === 'taxRates'">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
-              >{{ $t('JABVOX_PRODUCTS.CONFIG.PERCENTAGE') }}</label
-            >
-            <input
-              v-model="form.percentage_jabvox"
-              type="number"
-              step="0.01"
-              min="0"
-              max="100"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              v-model="form.active_jabvox"
-              type="checkbox"
-              class="rounded text-woot-500"
-            />
-            <span class="text-sm text-slate-700 dark:text-slate-300">{{
-              $t('JABVOX_PRODUCTS.ACTIVE')
-            }}</span>
-          </label>
+        <div class="flex-1 min-w-0 flex items-center gap-2">
+          <p class="text-sm font-medium text-n-slate-12 truncate">
+            {{ item.name_jabvox }}
+          </p>
+          <code
+            v-if="rowDetail(item)"
+            class="text-xs font-mono text-n-slate-10 bg-n-alpha-2 rounded px-1.5 py-0.5"
+          >
+            {{ rowDetail(item) }}
+          </code>
         </div>
-        <div class="flex gap-3 pt-2">
-          <Button
-            :label="$t('JABVOX_PRODUCTS.SAVE')"
-            :is-loading="isSaving()"
-            @click="onSubmit"
-          />
-          <Button
-            variant="ghost"
-            :label="$t('CANCEL')"
-            @click="showForm = false"
-          />
-        </div>
+        <Label
+          :label="
+            item.active_jabvox
+              ? t('JABVOX_PRODUCTS.ACTIVE')
+              : t('JABVOX_PRODUCTS.INACTIVE')
+          "
+          :color="item.active_jabvox ? 'teal' : 'slate'"
+          compact
+        />
+        <Button
+          icon="i-lucide-pencil"
+          variant="ghost"
+          color="slate"
+          size="sm"
+          @click="openEdit(item)"
+        />
+        <Button
+          icon="i-lucide-trash-2"
+          variant="ghost"
+          color="ruby"
+          size="sm"
+          @click="askDelete(item)"
+        />
       </div>
     </div>
+
+    <!-- Form dialog -->
+    <Dialog
+      ref="formDialog"
+      :title="
+        editingItem ? t('JABVOX_PRODUCTS.EDIT') : t('JABVOX_PRODUCTS.NEW')
+      "
+      :confirm-button-label="t('JABVOX_PRODUCTS.SAVE')"
+      :cancel-button-label="t('JABVOX_PRODUCTS.CANCEL')"
+      :disable-confirm-button="!form.name_jabvox?.trim()"
+      :is-loading="isSaving"
+      width="lg"
+      @confirm="onSubmit"
+    >
+      <div class="flex flex-col gap-4">
+        <Input
+          v-if="activeSubTab === 'currencies'"
+          v-model="form.symbol_jabvox"
+          :label="t('JABVOX_PRODUCTS.CONFIG.SYMBOL')"
+        />
+        <Input
+          v-model="form.name_jabvox"
+          :label="`${t('JABVOX_PRODUCTS.COLS.NAME')} *`"
+          autofocus
+        />
+        <Input
+          v-if="activeSubTab === 'units'"
+          v-model="form.abbreviation_jabvox"
+          :label="t('JABVOX_PRODUCTS.CONFIG.ABBREVIATION')"
+        />
+        <Input
+          v-if="activeSubTab === 'taxRates'"
+          v-model="form.percentage_jabvox"
+          type="number"
+          step="0.01"
+          min="0"
+          max="100"
+          :label="t('JABVOX_PRODUCTS.CONFIG.PERCENTAGE')"
+        />
+        <div
+          class="flex items-center justify-between rounded-xl border border-n-weak bg-n-alpha-1 px-4 py-3"
+        >
+          <span class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_PRODUCTS.ACTIVE') }}
+          </span>
+          <Switch v-model="form.active_jabvox" />
+        </div>
+      </div>
+    </Dialog>
+
+    <ConfirmDialog ref="deleteDialog" @confirm="doDelete" />
   </div>
 </template>

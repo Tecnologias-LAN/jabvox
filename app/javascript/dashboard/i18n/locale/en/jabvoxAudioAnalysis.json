@@ -29,7 +29,14 @@
       "ENDPOINT": "Endpoint (S3-compatible / MinIO)",
       "ACCESS_KEY": "Access key",
       "SECRET_KEY": "Secret key (leave blank to keep current)",
-      "PATH_PREFIX": "Root path prefix (optional)"
+      "PATH_PREFIX": "Root path prefix (optional)",
+      "TITLE": "Almacenamiento de audios",
+      "SUBTITLE": "Conexiones S3/MinIO de donde se leen las grabaciones.",
+      "EDIT_TITLE": "Editar almacenamiento",
+      "REGION": "Región",
+      "DOCS_BADGE": "Documentos",
+      "USE_DOCS_HINT": "Reutiliza la configuración del bucket de Documentos.",
+      "EMPTY_TITLE": "Sin almacenamientos"
     },
     "PIPELINE": {
       "NEW": "New pipeline",
@@ -48,7 +55,13 @@
       "MIN_SCORE": "Min score",
       "PROMPT": "Analysis prompt for the LLM",
       "ADD_STAGE": "Add stage",
-      "STAGES_REQUIRED": "Add at least one stage."
+      "STAGES_REQUIRED": "Add at least one stage.",
+      "TITLE": "Pipelines de análisis",
+      "SUBTITLE": "Define el modelo de transcripción y las etapas de evaluación.",
+      "EDIT_TITLE": "Editar pipeline",
+      "STAGES_TITLE": "Etapas de validación",
+      "EMPTY_TITLE": "Sin pipelines",
+      "EMPTY_SUBTITLE": "Crea un pipeline para empezar a analizar audios."
     },
     "ANALYZER": {
       "STORAGE": "Storage",
@@ -63,8 +76,33 @@
       "ASSIGN_AGENT": "Asignar a agente",
       "NO_AGENT": "Sin asignar",
       "SELECT": "Seleccionar:",
+      "SELECT_PAGE": "Página",
       "SELECT_ALL": "Todos",
-      "CLEAR": "Limpiar"
+      "CLEAR": "Limpiar",
+      "TITLE": "Analizador",
+      "SUBTITLE": "Elige el origen, el pipeline y los audios a procesar.",
+      "BROWSER_TITLE": "Explorador de archivos",
+      "ITEM_COUNT": "{folders} carpetas · {files} audios",
+      "PER_PAGE": "Por página",
+      "RANGE": "{from}–{to} de {total}",
+      "TRUNCATED": "Mostrando un máximo de resultados; entra a una subcarpeta para ver el resto.",
+      "COL_NAME": "Nombre",
+      "COL_VERIFIED": "¿Verificado?",
+      "COL_SCORE": "Score",
+      "COL_STAGES": "Etapas",
+      "VERIFIED_YES": "Sí",
+      "VERIFIED_NO": "No",
+      "VERIFIED_RUNNING": "En curso",
+      "VERIFIED_ERROR": "Error",
+      "INCLUDE_VERIFIED": "Incluir verificados",
+      "COL_TYPIFICATION": "Tipificación",
+      "COL_AGENT": "Agente",
+      "TYPIFICATION": "Tipificación",
+      "NO_TYPIFICATION": "Sin tipificación",
+      "ASSIGN": "Asignar",
+      "ASSIGN_TO": "Asignar a {count} seleccionados:",
+      "ASSIGNED": "Asignación guardada.",
+      "ASSIGN_ERROR": "No se pudo asignar."
     },
     "JOBS": {
       "EMPTY": "No jobs yet.",
@@ -74,12 +112,19 @@
       "RESULTS_ERROR": "No se pudieron cargar los resultados.",
       "SHOW_TRANSCRIPT": "Ver transcripción",
       "HIDE_TRANSCRIPT": "Ocultar transcripción",
-      "ESCALATED": "Escalado"
+      "ESCALATED": "Escalado",
+      "TITLE": "Trabajos de análisis",
+      "SUBTITLE": "Historial de análisis con resultados por audio.",
+      "EMPTY_TITLE": "Sin trabajos aún"
     },
     "ACCESS": {
       "USER": "User",
       "CAN_ACCESS": "Module access",
-      "CAN_VIEW_REPORTS": "View reports"
+      "CAN_VIEW_REPORTS": "View reports",
+      "TITLE": "Acceso al módulo",
+      "DESCRIPTION": "Define quién puede usar el analizador y ver los reportes.",
+      "EMPTY_TITLE": "Sin usuarios",
+      "EMPTY_SUBTITLE": "No hay usuarios en esta cuenta."
     },
     "REPORTS": {
       "TITLE": "Audio Reports",
@@ -105,7 +150,38 @@
       "AVG_SCORE": "Promedio",
       "SHOW_TRANSCRIPT": "Ver transcripción",
       "HIDE_TRANSCRIPT": "Ocultar transcripción",
-      "NO_RESULTS": "Sin audios para este trabajo."
+      "NO_RESULTS": "Sin audios para este trabajo.",
+      "DESCRIPTION": "Resultados del análisis de audio por día, con puntaje, sentimiento y transcripción.",
+      "EMPTY_TITLE": "Sin resultados",
+      "FILTERS": "Filtros",
+      "RESET": "Limpiar",
+      "LAST_7D": "Últimos 7 días",
+      "LAST_30D": "Últimos 30 días",
+      "SCORE_PLACEHOLDER": "%"
+    },
+    "BREADCRUMB": {
+      "SETTINGS": "Configuración",
+      "AUDIO": "Análisis de Audio"
+    },
+    "SIDEBAR": {
+      "STATUS_TITLE": "Estado del sistema",
+      "AI": "IA",
+      "ENGINE": "Motor",
+      "STORAGE": "Almacenamiento",
+      "PROCESSING": "Procesamiento",
+      "CONNECTED": "Conectada",
+      "DISCONNECTED": "Sin modelos",
+      "CONFIGURED": "Configurado",
+      "NOT_CONFIGURED": "Pendiente",
+      "ENGINE_ON": "Activo",
+      "ENGINE_OFF": "Inactivo",
+      "PROCESSING_ACTIVE": "En curso",
+      "PROCESSING_IDLE": "Inactivo",
+      "MODELS": "Modelos IA",
+      "PIPELINES": "Pipelines",
+      "STORAGES": "Almacenamientos",
+      "JOBS": "Trabajos",
+      "HELP": "Las configuraciones afectan únicamente los nuevos análisis. Los trabajos en curso no se modifican."
     }
   }
 }

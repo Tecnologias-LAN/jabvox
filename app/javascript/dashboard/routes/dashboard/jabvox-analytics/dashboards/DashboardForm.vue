@@ -30,7 +30,10 @@ const flatFolders = computed(() => {
   const out = [];
   const walk = (folders, depth) => {
     (folders || []).forEach(folder => {
-      out.push({ id: folder.id, label: `${'— '.repeat(depth)}${folder.name}` });
+      out.push({
+        id: folder.id,
+        label: `${'— '.repeat(depth)}${folder.nameJabvox || folder.name}`,
+      });
       walk(folder.children, depth + 1);
     });
   };

@@ -29,6 +29,7 @@
     "NO_USERS_FOUND": "No se encontraron usuarios",
     "YESTERDAY": "Ayer",
     "SEND_HINT": "Enter para enviar · Shift+Enter para nueva línea",
-    "START_CONVERSATION": "Comenzar a chatear"
+    "START_CONVERSATION": "Comenzar a chatear",
+    "BACK": "Volver"
   }
 }

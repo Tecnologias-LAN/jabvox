@@ -29,7 +29,8 @@
       "ALL_AFFILIATES": "Afiliado",
       "OWN_LEADS": "Propio",
       "MORE": "Filtros",
-      "CLEAR": "Limpiar"
+      "CLEAR": "Limpiar",
+      "SEARCH_ID_PLACEHOLDER": "12345"
     },
     "STATUS": {
       "open": "Abierto",
@@ -65,11 +66,15 @@
       "CONFIRM_ASSIGN": "¿Asignar {n} leads a {name}?",
       "CONFIRM_UNASSIGN": "¿Desasignar {n} leads seleccionados?",
       "CONFIRM": "Confirmar",
-      "CANCEL": "Cancelar"
+      "CANCEL": "Cancelar",
+      "SELECT_PAGE": "Seleccionar esta página",
+      "CLEAR": "Limpiar selección"
     },
     "PAGINATION": {
       "TOTAL": "{count} leads en total",
-      "PER_PAGE": "Por página"
+      "PER_PAGE": "Por página",
+      "SHOWING": "Mostrando {from}-{to} de {total}",
+      "PAGE": "Página"
     },
     "DETAIL": {
       "BACK": "Volver a leads",
@@ -121,6 +126,8 @@
         "AFFILIATE": "Afiliado",
         "CREATED_AT": "Fecha de registro"
       }
-    }
+    },
+    "SUBTITLE": "Gestiona y da seguimiento a tus prospectos",
+    "EMPTY_TITLE": "Sin leads"
   }
 }

@@ -1,12 +1,16 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
-import SettingsLayout from '../SettingsLayout.vue';
-import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
+import Label from 'dashboard/components-next/label/Label.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -15,11 +19,37 @@ const entries = useMapGetter('jabvoxIpWhitelist/getEntries');
 const uiFlags = useMapGetter('jabvoxIpWhitelist/getUIFlags');
 
 const form = ref({ ip: '', comment: '', is_active: true });
+const search = ref('');
+const deleteDialog = ref(null);
+
+const IPV4_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
+const ipError = computed(() => {
+  const v = form.value.ip.trim();
+  if (!v) return '';
+  return IPV4_RE.test(v) ? '' : t('JABVOX_IP_WHITELIST.IP_INVALID');
+});
+const canAdd = computed(
+  () => form.value.ip.trim().length > 0 && !ipError.value
+);
+
+const total = computed(() => entries.value.length);
+const activeCount = computed(
+  () => entries.value.filter(e => e.is_active).length
+);
+const inactiveCount = computed(() => total.value - activeCount.value);
+
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) return entries.value;
+  return entries.value.filter(
+    e => e.ip?.toLowerCase().includes(q) || e.comment?.toLowerCase().includes(q)
+  );
+});
 
 onMounted(() => store.dispatch('jabvoxIpWhitelist/fetchEntries'));
 
 const onAdd = async () => {
-  if (!form.value.ip.trim()) return;
+  if (!canAdd.value) return;
   try {
     await store.dispatch('jabvoxIpWhitelist/createEntry', { ...form.value });
     form.value = { ip: '', comment: '', is_active: true };
@@ -40,10 +70,17 @@ const onToggle = async entry => {
   }
 };
 
-const onDelete = async entry => {
-  if (!window.confirm(t('JABVOX_IP_WHITELIST.CONFIRM_DELETE'))) return;
+const askDelete = entry => {
+  deleteDialog.value?.open({
+    title: t('JABVOX_IP_WHITELIST.DELETE_TITLE'),
+    description: t('JABVOX_IP_WHITELIST.DELETE_BODY', { ip: entry.ip }),
+    data: entry.id,
+  });
+};
+
+const doDelete = async id => {
   try {
-    await store.dispatch('jabvoxIpWhitelist/deleteEntry', entry.id);
+    await store.dispatch('jabvoxIpWhitelist/deleteEntry', id);
     useAlert(t('JABVOX_IP_WHITELIST.DELETE_SUCCESS'));
   } catch {
     useAlert(t('JABVOX_IP_WHITELIST.ERROR'));
@@ -59,184 +96,240 @@ const formatDate = iso =>
 </script>
 
 <template>
-  <SettingsLayout>
-    <BaseSettingsHeader
-      :title="$t('JABVOX_IP_WHITELIST.TITLE')"
-      :description="$t('JABVOX_IP_WHITELIST.DESCRIPTION')"
-    />
+  <div class="w-full h-full overflow-y-auto bg-n-background">
+    <div
+      class="mx-auto w-full max-w-4xl flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+    >
+      <!-- Header -->
+      <div class="flex items-start gap-3">
+        <span
+          class="i-lucide-shield-check size-9 shrink-0 rounded-xl bg-n-alpha-2 p-2 text-n-brand"
+        />
+        <div class="min-w-0">
+          <h1 class="text-xl font-semibold tracking-tight text-n-slate-12">
+            {{ t('JABVOX_IP_WHITELIST.TITLE') }}
+          </h1>
+          <p class="mt-1 text-sm leading-relaxed text-n-slate-11">
+            {{ t('JABVOX_IP_WHITELIST.SUBTITLE') }}
+          </p>
+        </div>
+      </div>
 
-    <div class="mt-8 max-w-3xl mx-auto space-y-6">
-      <!-- Add form -->
-      <div
-        class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm"
-      >
-        <h3
-          class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-5"
+      <!-- KPIs -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div
+          class="flex items-center gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
         >
-          {{ $t('JABVOX_IP_WHITELIST.ADD_IP') }}
-        </h3>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1.5">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400"
-            >
-              {{ $t('JABVOX_IP_WHITELIST.TABLE.IP') }}
-              <span class="text-red-500 ml-0.5">*</span>
-            </label>
-            <input
-              v-model="form.ip"
-              type="text"
-              :placeholder="$t('JABVOX_IP_WHITELIST.FORM.IP_PLACEHOLDER')"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-woot-500 focus:border-transparent transition"
-              @keydown.enter="onAdd"
-            />
-            <p class="text-xs text-slate-400">
-              {{ $t('JABVOX_IP_WHITELIST.FORM.IP_HINT') }}
+          <span
+            class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-n-alpha-2 text-n-slate-11"
+          >
+            <span class="i-lucide-list size-5" />
+          </span>
+          <div>
+            <p class="text-xl font-semibold tabular-nums text-n-slate-12">
+              {{ total }}
+            </p>
+            <p class="text-xs text-n-slate-11">
+              {{ t('JABVOX_IP_WHITELIST.KPI.TOTAL') }}
             </p>
           </div>
-
-          <div class="space-y-1.5">
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400"
-            >
-              {{ $t('JABVOX_IP_WHITELIST.TABLE.COMMENT') }}
-            </label>
-            <input
-              v-model="form.comment"
-              type="text"
-              :placeholder="$t('JABVOX_IP_WHITELIST.FORM.COMMENT_PLACEHOLDER')"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-woot-500 focus:border-transparent transition"
-            />
+        </div>
+        <div
+          class="flex items-center gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+        >
+          <span
+            class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-n-teal-3 text-n-teal-11"
+          >
+            <span class="i-lucide-circle-check size-5" />
+          </span>
+          <div>
+            <p class="text-xl font-semibold tabular-nums text-n-slate-12">
+              {{ activeCount }}
+            </p>
+            <p class="text-xs text-n-slate-11">
+              {{ t('JABVOX_IP_WHITELIST.KPI.ACTIVE') }}
+            </p>
           </div>
         </div>
+        <div
+          class="flex items-center gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+        >
+          <span
+            class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-n-amber-3 text-n-amber-11"
+          >
+            <span class="i-lucide-circle-pause size-5" />
+          </span>
+          <div>
+            <p class="text-xl font-semibold tabular-nums text-n-slate-12">
+              {{ inactiveCount }}
+            </p>
+            <p class="text-xs text-n-slate-11">
+              {{ t('JABVOX_IP_WHITELIST.KPI.INACTIVE') }}
+            </p>
+          </div>
+        </div>
+      </div>
 
-        <div class="mt-4 flex items-center justify-between flex-wrap gap-3">
-          <label class="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              id="ip-active"
-              v-model="form.is_active"
-              type="checkbox"
-              class="h-4 w-4 rounded border-slate-300 text-woot-600 focus:ring-woot-500"
+      <!-- Add form -->
+      <div
+        class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden"
+      >
+        <div class="border-b border-n-weak px-5 py-4 sm:px-6">
+          <h2 class="text-base font-semibold text-n-slate-12">
+            {{ t('JABVOX_IP_WHITELIST.ADD_TITLE') }}
+          </h2>
+          <p class="mt-0.5 text-sm text-n-slate-11">
+            {{ t('JABVOX_IP_WHITELIST.ADD_SUBTITLE') }}
+          </p>
+        </div>
+        <div class="px-5 py-5 sm:px-6 flex flex-col gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              v-model="form.ip"
+              :label="t('JABVOX_IP_WHITELIST.TABLE.IP')"
+              :placeholder="t('JABVOX_IP_WHITELIST.FORM.IP_PLACEHOLDER')"
+              :message="ipError || t('JABVOX_IP_WHITELIST.FORM.IP_HINT')"
+              :message-type="ipError ? 'error' : 'info'"
+              custom-input-class="font-mono"
+              @keydown.enter="onAdd"
             />
-            <span class="text-sm text-slate-600 dark:text-slate-300">
-              {{ $t('JABVOX_IP_WHITELIST.FORM.ACTIVE_LABEL') }}
-            </span>
-          </label>
-
-          <Button
-            :label="$t('JABVOX_IP_WHITELIST.ADD_IP')"
-            :is-loading="uiFlags.isSaving"
-            :disabled="uiFlags.isSaving || !form.ip.trim()"
-            @click="onAdd"
-          />
+            <Input
+              v-model="form.comment"
+              :label="t('JABVOX_IP_WHITELIST.TABLE.COMMENT')"
+              :placeholder="t('JABVOX_IP_WHITELIST.FORM.COMMENT_PLACEHOLDER')"
+              @keydown.enter="onAdd"
+            />
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <Switch v-model="form.is_active" />
+              <span class="text-sm text-n-slate-12">
+                {{ t('JABVOX_IP_WHITELIST.FORM.ACTIVE_LABEL') }}
+              </span>
+            </label>
+            <Button
+              :label="t('JABVOX_IP_WHITELIST.ADD_IP')"
+              icon="i-lucide-plus"
+              :is-loading="uiFlags.isSaving"
+              :disabled="!canAdd || uiFlags.isSaving"
+              @click="onAdd"
+            />
+          </div>
         </div>
       </div>
 
       <!-- IP list -->
-      <div
-        class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
-      >
+      <div class="flex flex-col gap-4">
+        <!-- Loading -->
         <div
-          class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between"
+          v-if="uiFlags.isFetching"
+          class="flex items-center justify-center gap-2 py-12 text-sm text-n-slate-11"
         >
-          <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">
-            {{ $t('JABVOX_IP_WHITELIST.TABLE.IP') }} ({{ entries.length }})
-          </h3>
+          <Spinner :size="18" />
         </div>
 
-        <div v-if="uiFlags.isFetching" class="px-6 py-10 text-center">
-          <div
-            class="inline-block w-5 h-5 border-2 border-woot-500 border-t-transparent rounded-full animate-spin"
-          />
-        </div>
+        <!-- Empty -->
+        <EmptyStateLayout
+          v-else-if="!entries.length"
+          :title="t('JABVOX_IP_WHITELIST.EMPTY_TITLE')"
+          :subtitle="t('JABVOX_IP_WHITELIST.EMPTY')"
+        />
 
-        <div
-          v-else-if="entries.length === 0"
-          class="px-6 py-12 text-center space-y-2"
-        >
-          <span
-            class="i-ri-shield-check-line text-3xl text-slate-300 block mx-auto"
-          />
-          <p class="text-sm text-slate-400">
-            {{ $t('JABVOX_IP_WHITELIST.EMPTY') }}
-          </p>
-        </div>
-
-        <div v-else class="divide-y divide-slate-100 dark:divide-slate-700">
-          <div
-            v-for="entry in entries"
-            :key="entry.id"
-            class="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
-          >
-            <!-- IP + comment -->
-            <div class="flex-1 min-w-0 space-y-0.5">
-              <p
-                class="font-mono text-sm font-medium text-slate-800 dark:text-slate-100 truncate"
+        <template v-else>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="relative w-full sm:w-64">
+              <Input
+                v-model="search"
+                :placeholder="t('JABVOX_IP_WHITELIST.SEARCH_PLACEHOLDER')"
+                custom-input-class="!pl-9"
               >
-                {{ entry.ip }}
-              </p>
-              <p v-if="entry.comment" class="text-xs text-slate-400 truncate">
-                {{ entry.comment }}
-              </p>
+                <template #prefix>
+                  <span
+                    class="i-lucide-search size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  />
+                </template>
+              </Input>
             </div>
+            <span class="text-xs text-n-slate-10">
+              {{ t('JABVOX_IP_WHITELIST.COUNT', { count: entries.length }) }}
+            </span>
+          </div>
 
-            <!-- Date -->
-            <p class="hidden sm:block text-xs text-slate-400 flex-shrink-0">
-              {{ formatDate(entry.created_at) }}
-            </p>
+          <!-- No results -->
+          <div
+            v-if="!filtered.length"
+            class="rounded-xl border border-dashed border-n-weak py-10 text-center text-sm text-n-slate-11"
+          >
+            {{ t('JABVOX_IP_WHITELIST.NO_RESULTS') }}
+          </div>
 
-            <!-- Status badge -->
-            <span
-              class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0"
-              :class="
-                entry.is_active
-                  ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                  : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
-              "
+          <!-- List -->
+          <div
+            v-else
+            class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm divide-y divide-n-weak overflow-hidden"
+          >
+            <div
+              v-for="entry in filtered"
+              :key="entry.id"
+              class="flex items-center gap-3 px-4 py-3 hover:bg-n-alpha-1 transition-colors"
             >
               <span
-                class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                :class="entry.is_active ? 'bg-green-500' : 'bg-slate-400'"
+                class="i-lucide-globe size-5 text-n-slate-10 shrink-0 hidden sm:block"
               />
-              {{
-                entry.is_active
-                  ? $t('JABVOX_IP_WHITELIST.STATUS.ACTIVE')
-                  : $t('JABVOX_IP_WHITELIST.STATUS.INACTIVE')
-              }}
-            </span>
-
-            <!-- Actions -->
-            <div class="flex items-center gap-1 flex-shrink-0">
-              <button
-                class="p-1.5 rounded-lg text-slate-400 hover:text-woot-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              <div class="flex-1 min-w-0">
+                <p
+                  class="font-mono text-sm font-medium text-n-slate-12 truncate"
+                >
+                  {{ entry.ip }}
+                </p>
+                <p
+                  v-if="entry.comment"
+                  class="text-xs text-n-slate-10 truncate"
+                >
+                  {{ entry.comment }}
+                </p>
+              </div>
+              <p
+                class="hidden md:block text-xs text-n-slate-10 shrink-0 tabular-nums"
+              >
+                {{ formatDate(entry.created_at) }}
+              </p>
+              <Label
+                :label="
+                  entry.is_active
+                    ? t('JABVOX_IP_WHITELIST.STATUS.ACTIVE')
+                    : t('JABVOX_IP_WHITELIST.STATUS.INACTIVE')
+                "
+                :color="entry.is_active ? 'teal' : 'slate'"
+                compact
+              />
+              <label
+                class="shrink-0 cursor-pointer"
                 :title="
                   entry.is_active
-                    ? $t('JABVOX_IP_WHITELIST.STATUS.INACTIVE')
-                    : $t('JABVOX_IP_WHITELIST.STATUS.ACTIVE')
+                    ? t('JABVOX_IP_WHITELIST.STATUS.INACTIVE')
+                    : t('JABVOX_IP_WHITELIST.STATUS.ACTIVE')
                 "
-                @click="onToggle(entry)"
               >
-                <span
-                  :class="
-                    entry.is_active
-                      ? 'i-ri-toggle-fill text-woot-500'
-                      : 'i-ri-toggle-line'
-                  "
-                  class="text-lg block"
+                <Switch
+                  :model-value="entry.is_active"
+                  @update:model-value="onToggle(entry)"
                 />
-              </button>
-              <button
-                class="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                :title="$t('JABVOX_IP_WHITELIST.DELETE')"
-                @click="onDelete(entry)"
-              >
-                <span class="i-ri-delete-bin-line text-lg block" />
-              </button>
+              </label>
+              <Button
+                icon="i-lucide-trash-2"
+                variant="ghost"
+                color="ruby"
+                size="sm"
+                :title="t('JABVOX_IP_WHITELIST.DELETE')"
+                @click="askDelete(entry)"
+              />
             </div>
           </div>
-        </div>
+        </template>
       </div>
     </div>
-  </SettingsLayout>
+
+    <ConfirmDialog ref="deleteDialog" @confirm="doDelete" />
+  </div>
 </template>

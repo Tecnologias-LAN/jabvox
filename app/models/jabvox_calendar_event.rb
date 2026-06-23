@@ -20,6 +20,7 @@
 #  updated_at          :datetime         not null
 #  account_id          :bigint           not null
 #  contact_id          :bigint
+#  jabvox_task_id      :bigint
 #  recurrence_group_id :string
 #  user_id             :bigint           not null
 #
@@ -29,6 +30,7 @@
 #  index_jabvox_calendar_events_on_account_id_and_start_at  (account_id,start_at)
 #  index_jabvox_calendar_events_on_account_id_and_user_id   (account_id,user_id)
 #  index_jabvox_calendar_events_on_contact_id               (contact_id)
+#  index_jabvox_calendar_events_on_jabvox_task_id           (jabvox_task_id)
 #  index_jabvox_calendar_events_on_recurrence_group_id      (recurrence_group_id)
 #  index_jabvox_calendar_events_on_user_id                  (user_id)
 #
@@ -36,6 +38,7 @@
 #
 #  fk_jabvox_calendar_events_contact  (contact_id => contacts.id)
 #  fk_rails_...                       (account_id => accounts.id)
+#  fk_rails_...                       (jabvox_task_id => jabvox_tasks.id)
 #  fk_rails_...                       (user_id => users.id)
 #
 
@@ -43,6 +46,7 @@ class JabvoxCalendarEvent < ApplicationRecord
   belongs_to :account
   belongs_to :user
   belongs_to :contact, optional: true
+  belongs_to :jabvox_task, class_name: 'JabvoxTask', optional: true, inverse_of: :calendar_events
   has_many :jabvox_calendar_event_reminders, dependent: :destroy
   has_many :jabvox_calendar_event_participants, dependent: :destroy
   has_many :participant_users, through: :jabvox_calendar_event_participants, source: :user

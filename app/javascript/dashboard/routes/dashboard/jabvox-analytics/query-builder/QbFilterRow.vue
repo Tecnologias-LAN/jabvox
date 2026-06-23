@@ -17,8 +17,19 @@ const emit = defineEmits(['update:modelValue', 'remove']);
 
 const { t } = useI18n();
 
-// Operator keys match the backend QueryBuilderService (OPERATOR_SQL); labels are i18n.
-const OPERATORS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains', 'in'];
+// Operator keys MUST match the backend QueryBuilderService OPERATOR_SQL exactly,
+// or the filter is silently dropped server-side. ('in' is not supported;
+// 'starts_with' is.)
+const OPERATORS = [
+  'eq',
+  'neq',
+  'gt',
+  'gte',
+  'lt',
+  'lte',
+  'contains',
+  'starts_with',
+];
 
 // Operator labels resolved with static literal keys so the template binds plain
 // strings (no dynamic i18n key). Unknown operators fall back to the raw value.
@@ -30,7 +41,7 @@ const operatorLabels = computed(() => ({
   lt: t('JABVOX_ANALYTICS.QUERY_BUILDER.OPERATORS.lt'),
   lte: t('JABVOX_ANALYTICS.QUERY_BUILDER.OPERATORS.lte'),
   contains: t('JABVOX_ANALYTICS.QUERY_BUILDER.OPERATORS.contains'),
-  in: t('JABVOX_ANALYTICS.QUERY_BUILDER.OPERATORS.in'),
+  starts_with: t('JABVOX_ANALYTICS.QUERY_BUILDER.OPERATORS.starts_with'),
 }));
 const operatorLabel = op => operatorLabels.value[op] || op;
 

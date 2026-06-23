@@ -196,14 +196,15 @@ class JabvoxFormsController < ApplicationController
   end
 
   def send_mail(smtp_config, to_email, subject_text, full_body)
-    mail = Mail.new do
-      from    "#{smtp_config.from_name} <#{smtp_config.from_email}>"
-      to      to_email
-      subject subject_text
-      body    full_body
-    end
-    mail.delivery_method(:smtp, smtp_config.delivery_settings)
-    mail.deliver!
+    Jabvox::EmailSenderService.new(
+      account: @form.account,
+      config: smtp_config,
+      to: to_email,
+      subject: subject_text,
+      html_body: full_body,
+      source: 'form',
+      user: nil
+    ).deliver!
   end
 
   # rubocop:disable Metrics/MethodLength, Metrics/AbcSize

@@ -3,6 +3,11 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Select from 'dashboard/components-next/select/Select.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
+import Textarea from 'dashboard/components-next/textarea/Textarea.vue';
 import EmailBodyEditor from '../jabvox-email/EmailBodyEditor.vue';
 
 const props = defineProps({
@@ -28,6 +33,15 @@ const FIELD_TYPES = [
   { value: 'cedula', label: 'JABVOX_FORMS.FIELD_TYPE_CEDULA' },
   { value: 'pais', label: 'JABVOX_FORMS.FIELD_TYPE_PAIS' },
 ];
+
+// Options shaped for the design-system Select ({ value, label }).
+const emailTemplateOptions = computed(() => [
+  { value: '', label: t('JABVOX_FORMS.ACTION_EMAIL_TEMPLATE_NONE') },
+  ...emailTemplates.value.map(tpl => ({
+    value: String(tpl.id),
+    label: tpl.name,
+  })),
+]);
 
 const PRIVACY_DEFAULTS = {
   enabled: false,
@@ -214,6 +228,8 @@ const footerSocials = computed(() =>
 );
 
 // ── right panel tabs ──────────────────────────────────────────────────────────
+// On mobile the config panel collapses into a drawer toggled by `showPanel`.
+const showPanel = ref(false);
 const activeTab = ref('design');
 const TABS = [
   { key: 'design', icon: 'i-lucide-palette', label: 'JABVOX_FORMS.TAB_DESIGN' },
@@ -277,67 +293,76 @@ const onSave = async () => {
 </script>
 
 <template>
-  <div
-    class="flex flex-col h-full overflow-hidden bg-slate-50 dark:bg-slate-900"
-  >
+  <div class="flex flex-col h-full overflow-hidden bg-n-background">
     <!-- ── Top bar ── -->
     <div
-      class="flex items-center gap-3 px-5 py-2.5 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shrink-0"
+      class="flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 bg-n-solid-1 border-b border-n-weak shrink-0"
     >
-      <button
-        class="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors shrink-0"
+      <Button
+        icon="i-lucide-arrow-left"
+        :label="$t('JABVOX_FORMS.BACK')"
+        variant="ghost"
+        color="slate"
+        size="sm"
         @click="
           clearDraft();
           emit('close');
         "
-      >
-        <span class="i-lucide-arrow-left size-4" />
-        {{ $t('JABVOX_FORMS.BACK') }}
-      </button>
-      <div class="w-px h-5 bg-slate-200 dark:bg-slate-600" />
-      <input
-        v-model="draft.name_jabvox"
-        type="text"
-        maxlength="80"
-        :placeholder="$t('JABVOX_FORMS.FORM_NAME_PLACEHOLDER')"
-        class="w-44 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-1.5 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
       />
-      <input
-        v-model="draft.slug_jabvox"
-        type="text"
-        pattern="[-a-z0-9]+"
-        :placeholder="$t('JABVOX_FORMS.SLUG_PLACEHOLDER')"
-        class="w-28 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-1.5 font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-      />
+      <div class="hidden sm:block w-px h-5 bg-n-weak" />
+      <div class="w-32 sm:w-44">
+        <Input
+          v-model="draft.name_jabvox"
+          size="sm"
+          :placeholder="$t('JABVOX_FORMS.FORM_NAME_PLACEHOLDER')"
+        />
+      </div>
+      <div class="w-24 sm:w-28">
+        <Input
+          v-model="draft.slug_jabvox"
+          size="sm"
+          custom-input-class="font-mono"
+          :placeholder="$t('JABVOX_FORMS.SLUG_PLACEHOLDER')"
+        />
+      </div>
       <label
-        class="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300 cursor-pointer shrink-0"
+        class="flex items-center gap-1.5 text-sm text-n-slate-11 cursor-pointer shrink-0"
       >
-        <input v-model="draft.active_jabvox" type="checkbox" class="rounded" />
-        {{ $t('JABVOX_FORMS.ACTIVE') }}
+        <Switch v-model="draft.active_jabvox" />
+        <span class="hidden sm:inline">{{ $t('JABVOX_FORMS.ACTIVE') }}</span>
       </label>
       <div class="flex-1" />
-      <button
-        class="px-4 py-1.5 text-sm text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+      <!-- Mobile: toggle config panel -->
+      <Button
+        icon="i-lucide-settings-2"
+        variant="outline"
+        color="slate"
+        size="sm"
+        class="lg:hidden"
+        @click="showPanel = !showPanel"
+      />
+      <Button
+        :label="$t('JABVOX_FORMS.CANCEL')"
+        variant="outline"
+        color="slate"
+        size="sm"
         @click="emit('close')"
-      >
-        {{ $t('JABVOX_FORMS.CANCEL') }}
-      </button>
-      <button
-        :disabled="uiFlags.isSaving"
-        class="px-4 py-1.5 text-sm text-white bg-woot-500 hover:bg-woot-600 rounded-lg transition-colors disabled:opacity-50"
-        @click="onSave"
-      >
-        {{
+      />
+      <Button
+        :label="
           uiFlags.isSaving ? $t('JABVOX_FORMS.SAVING') : $t('JABVOX_FORMS.SAVE')
-        }}
-      </button>
+        "
+        size="sm"
+        :is-loading="uiFlags.isSaving"
+        @click="onSave"
+      />
     </div>
 
     <!-- ── Body ── -->
-    <div class="flex flex-1 min-h-0">
+    <div class="flex flex-col lg:flex-row flex-1 min-h-0">
       <!-- ── Left: live form preview ── -->
       <div
-        class="flex-1 overflow-auto p-8 min-w-0 transition-colors duration-300"
+        class="flex-1 overflow-auto p-4 sm:p-8 min-w-0 transition-colors duration-300"
         :style="{ background: draft.header_jabvox.bg_color || '#f1f5f9' }"
       >
         <div
@@ -355,8 +380,8 @@ const onSave = async () => {
               class="group relative rounded-xl border transition-all duration-150"
               :class="[
                 dragOverIdx === idx && dragIdx !== idx
-                  ? 'border-woot-400 bg-woot-50 dark:bg-woot-900/20 scale-[1.01]'
-                  : 'border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30',
+                  ? 'border-n-brand bg-n-alpha-2 scale-[1.01]'
+                  : 'border-n-weak bg-n-alpha-1',
                 dragIdx === idx ? 'opacity-30 scale-95' : '',
               ]"
               @dragstart="onDragStart(idx)"
@@ -366,7 +391,7 @@ const onSave = async () => {
             >
               <!-- Drag handle -->
               <div
-                class="absolute left-2.5 top-1/2 -translate-y-1/2 cursor-grab text-slate-300 group-hover:text-slate-400 transition-colors select-none"
+                class="absolute left-2.5 top-1/2 -translate-y-1/2 cursor-grab text-n-slate-9 group-hover:text-n-slate-11 transition-colors select-none"
               >
                 <span class="i-lucide-grip-vertical size-4" />
               </div>
@@ -379,11 +404,11 @@ const onSave = async () => {
                     type="text"
                     maxlength="60"
                     :placeholder="$t('JABVOX_FORMS.FIELD_LABEL_PLACEHOLDER')"
-                    class="flex-1 text-sm font-semibold text-slate-700 dark:text-slate-100 bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-slate-500 focus:border-woot-500 focus:outline-none py-0.5 transition-colors"
+                    class="flex-1 text-sm font-semibold text-n-slate-12 bg-transparent border-b border-transparent hover:border-n-weak focus:border-n-brand focus:outline-none py-0.5 transition-colors"
                   />
                   <span
                     v-if="field.required"
-                    class="text-red-500 text-sm font-bold shrink-0"
+                    class="text-n-ruby-11 text-sm font-bold shrink-0"
                   >
                     {{ $t('JABVOX_FORMS.REQUIRED_MARK') }}
                   </span>
@@ -394,7 +419,7 @@ const onSave = async () => {
                   >
                     <select
                       v-model="field.type"
-                      class="text-xs rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-1.5 py-0.5 text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
+                      class="text-xs rounded-md border border-n-weak bg-n-solid-1 px-1.5 py-0.5 text-n-slate-11 focus:outline-none cursor-pointer"
                     >
                       <option
                         v-for="ft in FIELD_TYPES"
@@ -405,17 +430,17 @@ const onSave = async () => {
                       </option>
                     </select>
                     <label
-                      class="flex items-center gap-0.5 text-xs text-slate-500 cursor-pointer whitespace-nowrap"
+                      class="flex items-center gap-0.5 text-xs text-n-slate-11 cursor-pointer whitespace-nowrap"
                     >
                       <input
                         v-model="field.required"
                         type="checkbox"
-                        class="rounded"
+                        class="rounded accent-n-brand"
                       />
                       {{ $t('JABVOX_FORMS.REQUIRED_SHORT') }}
                     </label>
                     <button
-                      class="p-0.5 text-slate-400 hover:text-red-500 transition-colors"
+                      class="p-0.5 text-n-slate-10 hover:text-n-ruby-11 transition-colors"
                       @click="removeField(idx)"
                     >
                       <span class="i-lucide-trash-2 size-3.5" />
@@ -482,17 +507,17 @@ const onSave = async () => {
                       type="text"
                       maxlength="40"
                       :placeholder="`Opción ${oi + 1}`"
-                      class="flex-1 text-xs border border-slate-200 dark:border-slate-600 rounded px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-woot-500"
+                      class="flex-1 text-xs border border-n-weak rounded px-2 py-1 bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-n-brand"
                     />
                     <button
-                      class="text-slate-400 hover:text-red-500 transition-colors"
+                      class="text-n-slate-10 hover:text-n-ruby-11 transition-colors"
                       @click="removeOption(field, oi)"
                     >
                       <span class="i-lucide-x size-3" />
                     </button>
                   </div>
                   <button
-                    class="text-xs text-woot-500 hover:text-woot-600 flex items-center gap-1"
+                    class="text-xs text-n-brand hover:opacity-80 flex items-center gap-1"
                     @click="addOption(field)"
                   >
                     <span class="i-lucide-plus size-3" />
@@ -504,7 +529,7 @@ const onSave = async () => {
 
             <!-- Add field -->
             <button
-              class="w-full border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl py-3 text-sm text-slate-400 hover:border-woot-400 hover:text-woot-500 hover:bg-woot-50 dark:hover:bg-woot-900/10 flex items-center justify-center gap-2 transition-all"
+              class="w-full border-2 border-dashed border-n-weak rounded-xl py-3 text-sm text-n-slate-10 hover:border-n-brand hover:text-n-brand hover:bg-n-alpha-1 flex items-center justify-center gap-2 transition-all"
               @click="addField"
             >
               <span class="i-lucide-plus size-4" />
@@ -586,22 +611,21 @@ const onSave = async () => {
         </div>
       </div>
 
-      <!-- ── Right: config panel ── -->
+      <!-- ── Right: config panel (drawer on mobile) ── -->
       <div
-        class="w-72 shrink-0 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col"
+        class="shrink-0 border-t lg:border-t-0 lg:border-l border-n-weak bg-n-solid-1 flex-col w-full lg:w-80"
+        :class="showPanel ? 'flex' : 'hidden lg:flex'"
       >
         <!-- Tabs -->
-        <div
-          class="flex border-b border-slate-200 dark:border-slate-700 shrink-0"
-        >
+        <div class="flex border-b border-n-weak shrink-0">
           <button
             v-for="tab in TABS"
             :key="tab.key"
             class="flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-medium border-b-2 transition-colors"
             :class="[
               activeTab === tab.key
-                ? 'border-woot-600 text-woot-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300',
+                ? 'border-n-brand text-n-brand'
+                : 'border-transparent text-n-slate-11 hover:text-n-slate-12',
             ]"
             @click="activeTab = tab.key"
           >
@@ -611,246 +635,151 @@ const onSave = async () => {
         </div>
 
         <!-- Tab content -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
           <!-- ── Diseño ── -->
           <template v-if="activeTab === 'design'">
-            <div class="space-y-5">
-              <!-- Background color -->
-              <div class="space-y-1.5">
-                <label
-                  class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                >
-                  {{ $t('JABVOX_FORMS.DESIGN_BG_COLOR') }}
-                </label>
-                <div class="flex items-center gap-2">
-                  <input
-                    v-model="draft.header_jabvox.bg_color"
-                    type="color"
-                    class="w-9 h-9 rounded-lg cursor-pointer border border-slate-200 dark:border-slate-600 p-0.5 bg-white shrink-0"
-                  />
-                  <input
-                    v-model="draft.header_jabvox.bg_color"
-                    type="text"
-                    maxlength="20"
-                    class="flex-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-1.5 text-slate-800 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-woot-500"
-                  />
-                </div>
-              </div>
-
-              <!-- Button color -->
-              <div class="space-y-1.5">
-                <label
-                  class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                >
-                  {{ $t('JABVOX_FORMS.DESIGN_BUTTON_COLOR') }}
-                </label>
-                <div class="flex items-center gap-2">
-                  <input
-                    v-model="draft.header_jabvox.button_color"
-                    type="color"
-                    class="w-9 h-9 rounded-lg cursor-pointer border border-slate-200 dark:border-slate-600 p-0.5 bg-white shrink-0"
-                  />
-                  <input
-                    v-model="draft.header_jabvox.button_color"
-                    type="text"
-                    maxlength="20"
-                    class="flex-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-1.5 text-slate-800 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-woot-500"
-                  />
-                </div>
-              </div>
-
-              <!-- Submit button text -->
-              <div class="space-y-1.5">
-                <label
-                  class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                >
-                  {{ $t('JABVOX_FORMS.SUBMIT_BUTTON_TEXT') }}
-                </label>
+            <!-- Background color -->
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-medium text-n-slate-12">
+                {{ $t('JABVOX_FORMS.DESIGN_BG_COLOR') }}
+              </label>
+              <div class="flex items-center gap-2">
                 <input
-                  v-model="draft.submit_button_text_jabvox"
-                  type="text"
-                  maxlength="40"
-                  :placeholder="$t('JABVOX_FORMS.SUBMIT_BUTTON_PLACEHOLDER')"
-                  class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
+                  v-model="draft.header_jabvox.bg_color"
+                  type="color"
+                  class="w-9 h-9 rounded-lg cursor-pointer border border-n-weak p-0.5 bg-n-solid-1 shrink-0"
                 />
+                <div class="flex-1">
+                  <Input
+                    v-model="draft.header_jabvox.bg_color"
+                    size="sm"
+                    custom-input-class="font-mono"
+                  />
+                </div>
               </div>
+            </div>
 
-              <!-- Slug -->
-              <div class="space-y-1.5">
-                <label
-                  class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                >
-                  {{ $t('JABVOX_FORMS.SLUG') }}
-                </label>
+            <!-- Button color -->
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-medium text-n-slate-12">
+                {{ $t('JABVOX_FORMS.DESIGN_BUTTON_COLOR') }}
+              </label>
+              <div class="flex items-center gap-2">
                 <input
-                  v-model="draft.slug_jabvox"
-                  type="text"
-                  pattern="[-a-z0-9]+"
-                  :placeholder="$t('JABVOX_FORMS.SLUG_PLACEHOLDER')"
-                  class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
+                  v-model="draft.header_jabvox.button_color"
+                  type="color"
+                  class="w-9 h-9 rounded-lg cursor-pointer border border-n-weak p-0.5 bg-n-solid-1 shrink-0"
                 />
-              </div>
-
-              <!-- Divider -->
-              <div class="border-t border-slate-200 dark:border-slate-700 pt-1">
-                <p
-                  class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3"
-                >
-                  {{ $t('JABVOX_FORMS.SUCCESS_SECTION') }}
-                </p>
-
-                <!-- Success message -->
-                <div class="space-y-1.5 mb-3">
-                  <label
-                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
-                    {{ $t('JABVOX_FORMS.SUCCESS_MESSAGE_LABEL') }}
-                  </label>
-                  <textarea
-                    v-model="draft.submit_actions_jabvox.success.message"
-                    rows="3"
-                    maxlength="300"
-                    :placeholder="
-                      $t('JABVOX_FORMS.SUCCESS_MESSAGE_PLACEHOLDER')
-                    "
-                    class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500 resize-none"
-                  />
-                </div>
-
-                <!-- Success button label -->
-                <div class="space-y-1.5 mb-3">
-                  <label
-                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
-                    {{ $t('JABVOX_FORMS.SUCCESS_BTN_LABEL') }}
-                  </label>
-                  <input
-                    v-model="draft.submit_actions_jabvox.success.button_label"
-                    type="text"
-                    maxlength="50"
-                    :placeholder="
-                      $t('JABVOX_FORMS.SUCCESS_BTN_LABEL_PLACEHOLDER')
-                    "
-                    class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-                  />
-                </div>
-
-                <!-- Success button URL -->
-                <div class="space-y-1.5">
-                  <label
-                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
-                    {{ $t('JABVOX_FORMS.SUCCESS_BTN_URL') }}
-                  </label>
-                  <input
-                    v-model="draft.submit_actions_jabvox.success.button_url"
-                    type="url"
-                    :placeholder="
-                      $t('JABVOX_FORMS.SUCCESS_BTN_URL_PLACEHOLDER')
-                    "
-                    class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
+                <div class="flex-1">
+                  <Input
+                    v-model="draft.header_jabvox.button_color"
+                    size="sm"
+                    custom-input-class="font-mono"
                   />
                 </div>
               </div>
+            </div>
+
+            <Input
+              v-model="draft.submit_button_text_jabvox"
+              :label="$t('JABVOX_FORMS.SUBMIT_BUTTON_TEXT')"
+              :placeholder="$t('JABVOX_FORMS.SUBMIT_BUTTON_PLACEHOLDER')"
+            />
+
+            <Input
+              v-model="draft.slug_jabvox"
+              :label="$t('JABVOX_FORMS.SLUG')"
+              :placeholder="$t('JABVOX_FORMS.SLUG_PLACEHOLDER')"
+              custom-input-class="font-mono"
+            />
+
+            <!-- Success section -->
+            <div class="border-t border-n-weak pt-3 flex flex-col gap-3">
+              <p
+                class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
+              >
+                {{ $t('JABVOX_FORMS.SUCCESS_SECTION') }}
+              </p>
+
+              <Textarea
+                v-model="draft.submit_actions_jabvox.success.message"
+                :label="$t('JABVOX_FORMS.SUCCESS_MESSAGE_LABEL')"
+                :placeholder="$t('JABVOX_FORMS.SUCCESS_MESSAGE_PLACEHOLDER')"
+                :max-length="300"
+              />
+
+              <Input
+                v-model="draft.submit_actions_jabvox.success.button_label"
+                :label="$t('JABVOX_FORMS.SUCCESS_BTN_LABEL')"
+                :placeholder="$t('JABVOX_FORMS.SUCCESS_BTN_LABEL_PLACEHOLDER')"
+              />
+
+              <Input
+                v-model="draft.submit_actions_jabvox.success.button_url"
+                type="url"
+                :label="$t('JABVOX_FORMS.SUCCESS_BTN_URL')"
+                :placeholder="$t('JABVOX_FORMS.SUCCESS_BTN_URL_PLACEHOLDER')"
+              />
             </div>
           </template>
 
           <!-- ── Pie de página ── -->
           <template v-else-if="activeTab === 'footer'">
-            <p class="text-xs text-slate-400 dark:text-slate-500">
+            <p class="text-xs text-n-slate-10">
               {{ $t('JABVOX_FORMS.FOOTER_HINT') }}
             </p>
-            <div
+            <Input
               v-for="social in ['whatsapp', 'facebook', 'instagram', 'website']"
               :key="social"
-              class="space-y-1"
-            >
-              <label
-                class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-              >
-                {{ $t(`JABVOX_FORMS.FOOTER_${social.toUpperCase()}`) }}
-              </label>
-              <input
-                v-model="draft.footer_jabvox[social]"
-                type="text"
-                maxlength="200"
-                :placeholder="
-                  $t(`JABVOX_FORMS.FOOTER_${social.toUpperCase()}_PLACEHOLDER`)
-                "
-                class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-              />
-            </div>
-            <div class="space-y-1">
-              <label
-                class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-              >
-                {{ $t('JABVOX_FORMS.FOOTER_COPYRIGHT') }}
-              </label>
-              <input
-                v-model="draft.footer_jabvox.copyright"
-                type="text"
-                maxlength="100"
-                :placeholder="$t('JABVOX_FORMS.FOOTER_COPYRIGHT_PLACEHOLDER')"
-                class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-              />
-            </div>
+              v-model="draft.footer_jabvox[social]"
+              :label="$t(`JABVOX_FORMS.FOOTER_${social.toUpperCase()}`)"
+              :placeholder="
+                $t(`JABVOX_FORMS.FOOTER_${social.toUpperCase()}_PLACEHOLDER`)
+              "
+            />
+            <Input
+              v-model="draft.footer_jabvox.copyright"
+              :label="$t('JABVOX_FORMS.FOOTER_COPYRIGHT')"
+              :placeholder="$t('JABVOX_FORMS.FOOTER_COPYRIGHT_PLACEHOLDER')"
+            />
           </template>
 
           <!-- ── Acciones ── -->
           <template v-else-if="activeTab === 'actions'">
             <!-- Email -->
             <div
-              class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 space-y-3"
+              class="rounded-xl border border-n-weak p-3 flex flex-col gap-3"
             >
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input
-                  v-model="draft.submit_actions_jabvox.email.enabled"
-                  type="checkbox"
-                  class="rounded"
-                />
-                <span
-                  class="text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-sm font-medium text-n-slate-12">
                   {{ $t('JABVOX_FORMS.ACTION_EMAIL') }}
                 </span>
+                <Switch v-model="draft.submit_actions_jabvox.email.enabled" />
               </label>
               <div
                 v-if="draft.submit_actions_jabvox.email.enabled"
-                class="space-y-2"
+                class="flex flex-col gap-2"
               >
                 <p
-                  class="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2"
+                  class="text-xs text-n-slate-11 bg-n-alpha-1 rounded-lg px-3 py-2"
                 >
                   <span
                     class="i-lucide-info size-3 inline-block mr-1 align-middle"
                   />
                   {{ $t('JABVOX_FORMS.ACTION_EMAIL_NOTE') }}
                 </p>
-                <div class="space-y-1">
-                  <label
-                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-xs font-medium text-n-slate-12">
                     {{ $t('JABVOX_FORMS.ACTION_EMAIL_TEMPLATE') }}
-                    <span class="text-red-500">{{
+                    <span class="text-n-ruby-11">{{
                       $t('JABVOX_FORMS.REQUIRED_MARK')
                     }}</span>
                   </label>
-                  <select
+                  <Select
                     v-model="draft.submit_actions_jabvox.email.template_id"
-                    class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-                  >
-                    <option value="">
-                      {{ $t('JABVOX_FORMS.ACTION_EMAIL_TEMPLATE_NONE') }}
-                    </option>
-                    <option
-                      v-for="tpl in emailTemplates"
-                      :key="tpl.id"
-                      :value="String(tpl.id)"
-                    >
-                      {{ tpl.name }}
-                    </option>
-                  </select>
-                  <p class="text-xs text-slate-400 dark:text-slate-500">
+                    :options="emailTemplateOptions"
+                  />
+                  <p class="text-xs text-n-slate-10">
                     {{ $t('JABVOX_FORMS.ACTION_EMAIL_TEMPLATE_HELP') }}
                   </p>
                 </div>
@@ -859,148 +788,75 @@ const onSave = async () => {
 
             <!-- Webhook -->
             <div
-              class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 space-y-3"
+              class="rounded-xl border border-n-weak p-3 flex flex-col gap-3"
             >
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input
-                  v-model="draft.submit_actions_jabvox.webhook.enabled"
-                  type="checkbox"
-                  class="rounded"
-                />
-                <span
-                  class="text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-sm font-medium text-n-slate-12">
                   {{ $t('JABVOX_FORMS.ACTION_WEBHOOK') }}
                 </span>
+                <Switch v-model="draft.submit_actions_jabvox.webhook.enabled" />
               </label>
               <div
                 v-if="draft.submit_actions_jabvox.webhook.enabled"
-                class="space-y-2"
+                class="flex flex-col gap-2"
               >
-                <div class="space-y-1">
-                  <label
-                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
-                    {{ $t('JABVOX_FORMS.ACTION_WEBHOOK_URL') }}
-                  </label>
-                  <input
-                    v-model="draft.submit_actions_jabvox.webhook.url"
-                    type="url"
-                    :placeholder="
-                      $t('JABVOX_FORMS.ACTION_WEBHOOK_URL_PLACEHOLDER')
-                    "
-                    class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-                  />
-                </div>
-                <div class="space-y-1">
-                  <label
-                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
-                    {{ $t('JABVOX_FORMS.ACTION_WEBHOOK_SECRET') }}
-                  </label>
-                  <input
-                    v-model="draft.submit_actions_jabvox.webhook.secret"
-                    type="password"
-                    autocomplete="new-password"
-                    :placeholder="
-                      $t('JABVOX_FORMS.ACTION_WEBHOOK_SECRET_PLACEHOLDER')
-                    "
-                    class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-                  />
-                  <p class="text-xs text-slate-400 dark:text-slate-500">
-                    {{ $t('JABVOX_FORMS.ACTION_WEBHOOK_SECRET_HELP') }}
-                  </p>
-                </div>
+                <Input
+                  v-model="draft.submit_actions_jabvox.webhook.url"
+                  type="url"
+                  :label="$t('JABVOX_FORMS.ACTION_WEBHOOK_URL')"
+                  :placeholder="
+                    $t('JABVOX_FORMS.ACTION_WEBHOOK_URL_PLACEHOLDER')
+                  "
+                />
+                <Input
+                  v-model="draft.submit_actions_jabvox.webhook.secret"
+                  type="password"
+                  :label="$t('JABVOX_FORMS.ACTION_WEBHOOK_SECRET')"
+                  :placeholder="
+                    $t('JABVOX_FORMS.ACTION_WEBHOOK_SECRET_PLACEHOLDER')
+                  "
+                  :message="$t('JABVOX_FORMS.ACTION_WEBHOOK_SECRET_HELP')"
+                />
               </div>
             </div>
 
             <!-- Privacy policy -->
             <div
-              class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 space-y-3"
+              class="rounded-xl border border-n-weak p-3 flex flex-col gap-3"
             >
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input
-                  v-model="draft.submit_actions_jabvox.privacy.enabled"
-                  type="checkbox"
-                  class="rounded"
-                />
-                <span
-                  class="text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-sm font-medium text-n-slate-12">
                   {{ $t('JABVOX_FORMS.PRIVACY_ENABLED') }}
                 </span>
+                <Switch v-model="draft.submit_actions_jabvox.privacy.enabled" />
               </label>
               <template v-if="draft.submit_actions_jabvox.privacy.enabled">
-                <div class="space-y-1">
-                  <label
-                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
-                    {{ $t('JABVOX_FORMS.PRIVACY_TITLE') }}
-                  </label>
-                  <input
-                    v-model="draft.submit_actions_jabvox.privacy.title"
-                    type="text"
-                    maxlength="100"
-                    :placeholder="$t('JABVOX_FORMS.PRIVACY_TITLE_DEFAULT')"
-                    class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-                  />
-                </div>
-                <div class="space-y-1">
-                  <label
-                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
-                    {{ $t('JABVOX_FORMS.PRIVACY_BODY') }}
-                  </label>
-                  <textarea
-                    v-model="draft.submit_actions_jabvox.privacy.body"
-                    rows="4"
-                    maxlength="1000"
-                    class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500 resize-none"
-                  />
-                </div>
-                <div class="space-y-1">
-                  <label
-                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
-                    {{ $t('JABVOX_FORMS.PRIVACY_LINK_TEXT') }}
-                  </label>
-                  <input
-                    v-model="draft.submit_actions_jabvox.privacy.link_text"
-                    type="text"
-                    maxlength="80"
-                    :placeholder="$t('JABVOX_FORMS.PRIVACY_LINK_TEXT_DEFAULT')"
-                    class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-                  />
-                </div>
-                <div class="space-y-1">
-                  <label
-                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
-                    {{ $t('JABVOX_FORMS.PRIVACY_LINK_URL') }}
-                  </label>
-                  <input
-                    v-model="draft.submit_actions_jabvox.privacy.link_url"
-                    type="url"
-                    :placeholder="$t('JABVOX_FORMS.HEADER_IMAGE_PLACEHOLDER')"
-                    class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-                  />
-                </div>
-                <div class="space-y-1">
-                  <label
-                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
-                    {{ $t('JABVOX_FORMS.PRIVACY_ACCEPT_TEXT') }}
-                  </label>
-                  <input
-                    v-model="draft.submit_actions_jabvox.privacy.accept_text"
-                    type="text"
-                    maxlength="50"
-                    :placeholder="
-                      $t('JABVOX_FORMS.PRIVACY_ACCEPT_TEXT_DEFAULT')
-                    "
-                    class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-                  />
-                </div>
+                <Input
+                  v-model="draft.submit_actions_jabvox.privacy.title"
+                  :label="$t('JABVOX_FORMS.PRIVACY_TITLE')"
+                  :placeholder="$t('JABVOX_FORMS.PRIVACY_TITLE_DEFAULT')"
+                />
+                <Textarea
+                  v-model="draft.submit_actions_jabvox.privacy.body"
+                  :label="$t('JABVOX_FORMS.PRIVACY_BODY')"
+                  :max-length="1000"
+                />
+                <Input
+                  v-model="draft.submit_actions_jabvox.privacy.link_text"
+                  :label="$t('JABVOX_FORMS.PRIVACY_LINK_TEXT')"
+                  :placeholder="$t('JABVOX_FORMS.PRIVACY_LINK_TEXT_DEFAULT')"
+                />
+                <Input
+                  v-model="draft.submit_actions_jabvox.privacy.link_url"
+                  type="url"
+                  :label="$t('JABVOX_FORMS.PRIVACY_LINK_URL')"
+                  :placeholder="$t('JABVOX_FORMS.HEADER_IMAGE_PLACEHOLDER')"
+                />
+                <Input
+                  v-model="draft.submit_actions_jabvox.privacy.accept_text"
+                  :label="$t('JABVOX_FORMS.PRIVACY_ACCEPT_TEXT')"
+                  :placeholder="$t('JABVOX_FORMS.PRIVACY_ACCEPT_TEXT_DEFAULT')"
+                />
               </template>
             </div>
           </template>

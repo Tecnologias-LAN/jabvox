@@ -3,6 +3,9 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import Button from 'dashboard/components-next/button/Button.vue';
+import Select from 'dashboard/components-next/select/Select.vue';
+import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -13,6 +16,9 @@ const messageInput = ref('');
 const messagesContainer = ref(null);
 const selectedMode = ref('model');
 const selectedModelId = ref(null);
+const showSessions = ref(false); // mobile drawer
+const deleteDialog = ref(null);
+const pendingDeleteId = ref(null);
 
 const sessions = computed(() => store.getters['jabvoxAiChat/getSessions']);
 const messages = computed(() =>
@@ -45,9 +51,13 @@ const canSend = computed(
 const defaultModel = computed(
   () => models.value.find(m => m.is_default_jabvox) || models.value[0]
 );
+const modelOptions = computed(() =>
+  (models.value || []).map(m => ({ value: m.id, label: m.name_jabvox }))
+);
 
 function selectSession(sessionId) {
   currentSessionId.value = sessionId;
+  showSessions.value = false;
   store.dispatch('jabvoxAiChat/fetchMessages', sessionId);
 }
 
@@ -85,12 +95,20 @@ watch(messages, async () => {
 function newChat() {
   currentSessionId.value = null;
   messageInput.value = '';
+  showSessions.value = false;
 }
 
-async function deleteSession(sessionId) {
-  if (!window.confirm(t('JABVOX_AI_CHAT.DELETE_SESSION_CONFIRM'))) return;
+function askDeleteSession(sessionId) {
+  pendingDeleteId.value = sessionId;
+  deleteDialog.value?.open();
+}
+
+async function confirmDeleteSession() {
+  const sessionId = pendingDeleteId.value;
+  if (!sessionId) return;
   await store.dispatch('jabvoxAiChat/deleteSession', sessionId);
   if (currentSessionId.value === sessionId) currentSessionId.value = null;
+  pendingDeleteId.value = null;
 }
 
 async function sendMessage() {
@@ -171,85 +189,164 @@ function formatSessionLabel(session) {
     }
   );
 }
+
+// Sessions newest-first; numbered so each gets a readable primary label
+// (the backend only sends session_id + timestamps, no title/preview).
+const numberedSessions = computed(() =>
+  sessions.value.map((session, idx) => ({
+    ...session,
+    label: `${t('JABVOX_AI_CHAT.SESSION_ITEM')} ${sessions.value.length - idx}`,
+  }))
+);
 </script>
 
 <template>
-  <div class="flex h-full w-full overflow-hidden bg-slate-50">
-    <!-- Sessions sidebar -->
+  <div class="flex h-full w-full overflow-hidden bg-n-background relative">
+    <!-- Mobile drawer backdrop -->
     <div
-      class="hidden lg:flex w-72 flex-shrink-0 border-r border-slate-200 bg-white flex-col"
+      v-if="showSessions"
+      class="fixed inset-0 z-30 bg-n-alpha-black2 lg:hidden"
+      @click="showSessions = false"
+    />
+
+    <!-- Sessions sidebar -->
+    <aside
+      class="z-40 w-72 flex-shrink-0 border-r border-n-weak bg-n-solid-1 flex-col lg:flex lg:static lg:translate-x-0"
+      :class="
+        showSessions
+          ? 'flex fixed inset-y-0 left-0 shadow-xl'
+          : 'hidden lg:flex'
+      "
     >
-      <div
-        class="p-4 border-b border-slate-200 flex items-center justify-between"
-      >
-        <h2 class="text-sm font-semibold text-slate-700">
+      <div class="p-4 border-b border-n-weak flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-n-slate-12">
           {{ t('JABVOX_AI_CHAT.SESSIONS_LABEL') }}
         </h2>
-        <button
-          class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-violet-600 transition-colors"
+        <Button
+          icon="i-lucide-plus"
+          variant="ghost"
+          color="slate"
+          size="sm"
+          :title="t('JABVOX_AI_CHAT.NEW_CHAT')"
           @click="newChat"
-        >
-          <span class="i-ri-add-line text-lg" />
-        </button>
+        />
       </div>
-      <div class="flex-1 overflow-y-auto p-3 space-y-1">
-        <button
-          v-for="session in sessions"
+      <div class="flex-1 overflow-y-auto p-2.5 space-y-1.5">
+        <div
+          v-for="session in numberedSessions"
           :key="session.session_id"
-          class="w-full text-left px-3 py-2 rounded-lg text-xs transition-colors group flex items-center justify-between"
+          class="group relative flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer overflow-hidden transition-all duration-200"
           :class="
             currentSessionId === session.session_id
-              ? 'bg-violet-50 text-violet-700'
-              : 'text-slate-600 hover:bg-slate-100'
+              ? 'bg-gradient-to-r from-n-alpha-2 to-transparent ring-1 ring-inset ring-n-brand/30'
+              : 'hover:bg-n-alpha-1'
           "
           @click="selectSession(session.session_id)"
         >
-          <span class="truncate">{{ formatSessionLabel(session) }}</span>
+          <!-- Active accent bar -->
           <span
-            class="hidden group-hover:flex i-ri-delete-bin-line text-slate-400 hover:text-red-500 ml-1 flex-shrink-0"
-            @click.stop="deleteSession(session.session_id)"
+            v-if="currentSessionId === session.session_id"
+            class="absolute inset-y-2 left-0 w-0.5 rounded-full bg-n-brand"
           />
-        </button>
-        <p
+          <!-- Icon -->
+          <span
+            class="flex items-center justify-center size-8 rounded-lg shrink-0 transition-colors"
+            :class="
+              currentSessionId === session.session_id
+                ? 'bg-n-brand/15 text-n-brand'
+                : 'bg-n-alpha-2 text-n-slate-10 group-hover:text-n-slate-11'
+            "
+          >
+            <span class="i-lucide-message-square-text size-4" />
+          </span>
+          <!-- Label + meta -->
+          <div class="flex-1 min-w-0">
+            <p
+              class="text-sm truncate"
+              :class="
+                currentSessionId === session.session_id
+                  ? 'font-semibold text-n-slate-12'
+                  : 'font-medium text-n-slate-11'
+              "
+            >
+              {{ session.label }}
+            </p>
+            <span class="flex items-center gap-1 text-xs text-n-slate-9 mt-0.5">
+              <span class="i-lucide-clock size-3 shrink-0" />
+              {{ formatSessionLabel(session) }}
+            </span>
+          </div>
+          <!-- Delete -->
+          <button
+            class="hidden group-hover:flex items-center justify-center size-6 rounded-md text-n-slate-9 hover:text-n-ruby-11 hover:bg-n-ruby-3 shrink-0 transition-colors"
+            :title="t('JABVOX_AI_CHAT.DELETE_SESSION')"
+            @click.stop="askDeleteSession(session.session_id)"
+          >
+            <span class="i-lucide-trash-2 size-3.5" />
+          </button>
+        </div>
+        <div
           v-if="sessions.length === 0"
-          class="text-xs text-slate-400 px-3 py-4 text-center"
+          class="flex flex-col items-center justify-center gap-2 px-3 py-10 text-center"
         >
-          {{ t('JABVOX_AI_CHAT.EMPTY_STATE') }}
-        </p>
+          <span
+            class="i-lucide-messages-square size-8 text-n-slate-9 opacity-50"
+          />
+          <p class="text-xs text-n-slate-10">
+            {{ t('JABVOX_AI_CHAT.EMPTY_STATE') }}
+          </p>
+        </div>
       </div>
-    </div>
+    </aside>
 
     <!-- Main chat area -->
     <div class="flex-1 flex flex-col min-w-0">
       <!-- Header -->
       <div
-        class="border-b border-slate-200 bg-white px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 flex-shrink-0"
+        class="border-b border-n-weak bg-n-solid-1 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 flex-shrink-0"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+          <!-- Historial (móvil) -->
+          <Button
+            icon="i-lucide-panel-left"
+            variant="ghost"
+            color="slate"
+            size="sm"
+            class="lg:hidden"
+            :title="t('JABVOX_AI_CHAT.HISTORY')"
+            @click="showSessions = true"
+          />
           <div
-            class="hidden sm:flex items-center justify-center size-10 rounded-xl bg-violet-50 text-violet-600"
+            class="hidden sm:flex items-center justify-center size-10 rounded-xl bg-n-alpha-2 text-n-brand shrink-0"
           >
-            <span class="i-ri-robot-2-line text-lg" />
+            <span class="i-lucide-bot size-5" />
           </div>
-          <div>
-            <h1 class="text-base sm:text-lg font-semibold text-slate-800">
+          <div class="min-w-0">
+            <h1
+              class="text-base sm:text-lg font-semibold text-n-slate-12 truncate"
+            >
               {{ t('JABVOX_AI_CHAT.TITLE') }}
             </h1>
-            <p class="text-xs text-slate-500">
+            <p class="text-xs text-n-slate-10">
               {{ t('JABVOX_AI_CHAT.SESSIONS_LABEL') }}
             </p>
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2 sm:gap-3">
           <!-- Mode selector -->
-          <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+          <div
+            v-if="
+              (canUseModels && hasModels) || (canUseDocuments && hasDocuments)
+            "
+            class="flex items-center gap-1 bg-n-alpha-1 rounded-lg p-1"
+          >
             <button
               v-if="canUseModels && hasModels"
               class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
               :class="
                 selectedMode === 'model'
-                  ? 'bg-white text-violet-700 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-n-solid-1 text-n-brand shadow-sm'
+                  : 'text-n-slate-10 hover:text-n-slate-12'
               "
               @click="selectedMode = 'model'"
             >
@@ -260,8 +357,8 @@ function formatSessionLabel(session) {
               class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
               :class="
                 selectedMode === 'documents'
-                  ? 'bg-white text-violet-700 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-n-solid-1 text-n-brand shadow-sm'
+                  : 'text-n-slate-10 hover:text-n-slate-12'
               "
               @click="selectedMode = 'documents'"
             >
@@ -269,21 +366,18 @@ function formatSessionLabel(session) {
             </button>
           </div>
           <!-- Model selector -->
-          <select
-            v-if="hasModels && canUseModels"
-            v-model="selectedModelId"
-            class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-          >
-            <option v-for="m in models" :key="m.id" :value="m.id">
-              {{ m.name_jabvox }}
-            </option>
-          </select>
+          <div v-if="hasModels && canUseModels" class="w-40">
+            <Select v-model="selectedModelId" :options="modelOptions" />
+          </div>
         </div>
       </div>
 
       <!-- Access denied -->
-      <div v-if="!canUse" class="flex-1 flex items-center justify-center">
-        <p class="text-slate-500 text-sm">
+      <div
+        v-if="!canUse"
+        class="flex-1 flex items-center justify-center text-center px-6"
+      >
+        <p class="text-n-slate-11 text-sm">
           {{ t('JABVOX_AI_CHAT.ACCESS_DENIED') }}
         </p>
       </div>
@@ -291,9 +385,11 @@ function formatSessionLabel(session) {
       <!-- No model warning -->
       <div
         v-else-if="!hasModels && !hasDocuments"
-        class="flex-1 flex items-center justify-center"
+        class="flex-1 flex items-center justify-center text-center px-6"
       >
-        <p class="text-slate-500 text-sm">{{ t('JABVOX_AI_CHAT.NO_MODEL') }}</p>
+        <p class="text-n-slate-11 text-sm">
+          {{ t('JABVOX_AI_CHAT.NO_MODEL') }}
+        </p>
       </div>
 
       <template v-else>
@@ -302,12 +398,13 @@ function formatSessionLabel(session) {
           ref="messagesContainer"
           class="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-4"
         >
-          <p
+          <div
             v-if="messages.length === 0 && !currentSessionId"
-            class="text-center text-slate-400 text-sm mt-16"
+            class="flex flex-col items-center justify-center gap-3 text-center mt-16 text-n-slate-10"
           >
-            {{ t('JABVOX_AI_CHAT.EMPTY_STATE') }}
-          </p>
+            <span class="i-lucide-sparkles size-12 text-n-brand opacity-50" />
+            <p class="text-sm">{{ t('JABVOX_AI_CHAT.EMPTY_STATE') }}</p>
+          </div>
           <div
             v-for="msg in messages"
             :key="msg.id"
@@ -315,14 +412,14 @@ function formatSessionLabel(session) {
             :class="msg.role === 'user' ? 'flex-row-reverse' : ''"
           >
             <div
-              class="max-w-[min(720px,100%)] rounded-2xl px-4 py-2.5 text-sm leading-relaxed"
+              class="max-w-[min(720px,85%)] sm:max-w-[min(720px,100%)] rounded-2xl px-4 py-2.5 text-sm leading-relaxed"
               :class="
                 msg.role === 'user'
-                  ? 'bg-violet-600 text-white rounded-tr-sm'
-                  : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm shadow-sm'
+                  ? 'bg-n-brand text-white rounded-tr-sm'
+                  : 'bg-n-solid-1 border border-n-weak text-n-slate-12 rounded-tl-sm shadow-sm'
               "
             >
-              <p class="whitespace-pre-wrap">
+              <p class="whitespace-pre-wrap break-words">
                 {{ msg.content || msg.content_jabvox }}
               </p>
               <span
@@ -336,17 +433,17 @@ function formatSessionLabel(session) {
           <!-- Thinking indicator -->
           <div v-if="isSending" class="flex gap-3">
             <div
-              class="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm"
+              class="bg-n-solid-1 border border-n-weak rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm"
             >
               <div class="flex gap-1 items-center">
                 <div
-                  class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0ms]"
+                  class="size-1.5 rounded-full bg-n-slate-9 animate-bounce [animation-delay:0ms]"
                 />
                 <div
-                  class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:150ms]"
+                  class="size-1.5 rounded-full bg-n-slate-9 animate-bounce [animation-delay:150ms]"
                 />
                 <div
-                  class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:300ms]"
+                  class="size-1.5 rounded-full bg-n-slate-9 animate-bounce [animation-delay:300ms]"
                 />
               </div>
             </div>
@@ -354,27 +451,38 @@ function formatSessionLabel(session) {
         </div>
 
         <!-- Input area -->
-        <div class="border-t border-slate-200 bg-white p-4 flex-shrink-0">
+        <div class="border-t border-n-weak bg-n-solid-1 p-4 flex-shrink-0">
           <div
             class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end max-w-5xl mx-auto w-full"
           >
             <textarea
               v-model="messageInput"
               rows="1"
-              class="flex-1 resize-none border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-slate-700 placeholder-slate-400"
+              class="reset-base flex-1 resize-none border border-n-weak rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-n-slate-7 text-n-slate-12 placeholder:text-n-slate-9 bg-n-background transition-colors"
               :placeholder="t('JABVOX_AI_CHAT.PLACEHOLDER')"
               @keydown="handleKeydown"
             />
-            <button
-              class="flex-shrink-0 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2"
+            <Button
+              icon="i-lucide-send"
+              :label="t('JABVOX_AI_CHAT.SEND')"
               :disabled="!canSend"
+              class="shrink-0 sm:w-auto justify-center"
               @click="sendMessage"
-            >
-              <span class="i-ri-send-plane-fill text-base" />
-            </button>
+            />
           </div>
         </div>
       </template>
     </div>
+
+    <!-- Delete session dialog -->
+    <Dialog
+      ref="deleteDialog"
+      type="alert"
+      :title="t('JABVOX_AI_CHAT.DELETE_TITLE')"
+      :description="t('JABVOX_AI_CHAT.DELETE_BODY')"
+      :confirm-button-label="t('JABVOX_AI_CHAT.DELETE')"
+      :cancel-button-label="t('JABVOX_AI_CHAT.CANCEL')"
+      @confirm="confirmDeleteSession"
+    />
   </div>
 </template>

@@ -20,6 +20,9 @@ export const FEATURE_FLAGS = {
   VOICE_RECORDER: 'voice_recorder',
   AUDIT_LOGS: 'audit_logs',
   INBOX_VIEW: 'inbox_view',
+  MENTIONS: 'mentions',
+  PARTICIPATING: 'participating',
+  UNATTENDED: 'unattended',
   SLA: 'sla',
   CHANNEL_EMAIL: 'channel_email',
   CHANNEL_FACEBOOK: 'channel_facebook',
@@ -66,6 +69,7 @@ export const FEATURE_FLAGS = {
   JABVOX_CUSTOMIZATION: 'jabvox_customization',
   JABVOX_CLICK_TO_CALL: 'jabvox_click_to_call',
   JABVOX_ANALYTICS: 'jabvox_analytics',
+  JABVOX_TASKS: 'jabvox_tasks',
 };
 
 export const PREMIUM_FEATURES = [

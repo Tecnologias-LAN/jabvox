@@ -248,9 +248,11 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
       row = conv_by_contact[contact_id] || {}
       mgmt = mgmt_data[contact_id]
       conv_id = row['conversation_id']&.to_i
+      conv_display_id = row['conversation_display_id']&.to_i
       inbox_id = row['inbox_id']&.to_i
       h[contact_id] = {
         conversation_id: conv_id,
+        conversation_display_id: conv_display_id,
         inbox_id: inbox_id,
         inbox_name: inbox_id&.positive? ? inboxes[inbox_id]&.name : nil,
         last_management_state: mgmt&.fetch('last_management_state', nil),
@@ -261,8 +263,12 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
   def fetch_latest_conversations(account_id, contact_ids)
+    # Expose BOTH ids:
+    #  - conversation_id (PK): used as a FK filter by orders/history endpoints.
+    #  - conversation_display_id: per-account number the messages API resolves
+    #    via find_by!(display_id:). Sending the PK there 404s when id != display_id.
     sql = <<~SQL.squish
-      SELECT DISTINCT ON (contact_id) contact_id, id AS conversation_id, inbox_id
+      SELECT DISTINCT ON (contact_id) contact_id, id AS conversation_id, display_id AS conversation_display_id, inbox_id
       FROM conversations
       WHERE account_id = #{account_id} AND contact_id IN (#{contact_ids.join(', ')})
       ORDER BY contact_id, created_at DESC

@@ -78,26 +78,36 @@ const onDrop = event => {
 
 <template>
   <div
-    class="flex flex-col min-w-[260px] w-[280px] sm:w-[300px] lg:w-[320px] flex-shrink-0 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 h-full"
+    class="flex flex-col min-w-[280px] w-[280px] sm:w-[300px] lg:w-[324px] flex-shrink-0 bg-n-solid-1 rounded-2xl border border-n-weak h-full shadow-sm overflow-hidden transition-all duration-200"
+    :class="isDragOver ? 'ring-2 ring-inset ring-n-brand/40' : ''"
   >
+    <!-- Stage accent bar -->
     <div
-      class="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-700"
+      class="h-1 w-full shrink-0"
+      :style="{ backgroundColor: stage.color_jabvox }"
+    />
+
+    <div
+      class="flex items-center justify-between px-3 py-2.5 border-b border-n-weak"
     >
       <div class="flex items-center gap-2 min-w-0">
         <span
-          class="w-3 h-3 rounded-full shrink-0"
+          class="size-2.5 rounded-full shrink-0 ring-2 ring-inset ring-white/40"
           :style="{ backgroundColor: stage.color_jabvox }"
         />
-        <h3
-          class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate"
-        >
+        <h3 class="text-sm font-semibold text-n-slate-12 truncate">
           {{ stage.name_jabvox }}
         </h3>
+        <span
+          class="text-xs font-semibold text-n-slate-11 bg-n-alpha-2 rounded-full px-2 py-0.5 shrink-0 tabular-nums"
+        >
+          {{ cardCount }}
+        </span>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1">
         <select
           v-model="pageSize"
-          class="text-[11px] border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-woot-500"
+          class="reset-base text-[11px] border border-n-weak rounded-md pl-2 pr-5 h-7 bg-n-background text-n-slate-11 focus:outline-none focus:border-n-slate-7"
           :aria-label="$t('JABVOX_KANBAN.PER_PAGE')"
         >
           <option v-for="size in pageSizeOptions" :key="size" :value="size">
@@ -105,23 +115,18 @@ const onDrop = event => {
           </option>
         </select>
         <button
-          class="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+          class="size-7 flex items-center justify-center rounded-lg text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-2 transition-colors"
           :title="$t('JABVOX_KANBAN.AUTOMATIONS.CONFIGURE')"
           @click="showAutomations = true"
         >
-          <span class="i-lucide-settings-2 w-3.5 h-3.5" />
+          <span class="i-lucide-settings-2 size-3.5" />
         </button>
-        <span
-          class="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-700 rounded-full px-2 py-0.5"
-        >
-          {{ cardCount }}
-        </span>
       </div>
     </div>
 
     <div
       class="flex-1 overflow-y-auto p-2 space-y-2 transition-colors"
-      :class="isDragOver ? 'bg-slate-100 dark:bg-slate-800' : ''"
+      :class="isDragOver ? 'bg-n-alpha-1' : ''"
       @dragover="onDragOver"
       @dragleave="onDragLeave"
       @drop="onDrop"
@@ -135,14 +140,15 @@ const onDrop = event => {
 
       <div
         v-if="allCards.length === 0"
-        class="flex items-center justify-center py-8 text-slate-400 dark:text-slate-600 text-sm"
+        class="flex flex-col items-center justify-center gap-1.5 py-10 text-n-slate-9 text-sm"
       >
+        <span class="i-lucide-inbox size-6 opacity-50" />
         {{ $t('JABVOX_KANBAN.EMPTY_COLUMN') }}
       </div>
 
       <button
         v-if="!showAll && hiddenCount > 0"
-        class="w-full text-xs text-woot-600 dark:text-woot-400 hover:underline py-1"
+        class="w-full text-xs font-medium text-n-brand hover:bg-n-alpha-1 rounded-lg py-1.5 transition-colors"
         @click="showAll = true"
       >
         {{ $t('JABVOX_KANBAN.SHOW_MORE', { count: hiddenCount }) }}
@@ -150,7 +156,7 @@ const onDrop = event => {
 
       <button
         v-if="showAll && cardCount > pageSize"
-        class="w-full text-xs text-slate-500 dark:text-slate-400 hover:underline py-1"
+        class="w-full text-xs font-medium text-n-slate-10 hover:bg-n-alpha-1 rounded-lg py-1.5 transition-colors"
         @click="showAll = false"
       >
         {{ $t('JABVOX_KANBAN.SHOW_LESS') }}

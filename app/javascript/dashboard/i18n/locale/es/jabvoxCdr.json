@@ -18,14 +18,19 @@
         "EXTENSION": "Extensión",
         "DISPOSITION": "Estado",
         "ALL": "Todas",
-        "APPLY": "Aplicar"
+        "APPLY": "Aplicar",
+        "TITLE": "Filtros",
+        "EXTENSION_PLACEHOLDER": "Ej. 1001",
+        "RESET": "Limpiar"
       },
       "KPI": {
         "TOTAL": "Total",
         "ANSWERED": "Contestadas",
         "NO_ANSWER": "No contestadas",
         "TALK_TIME": "Tiempo de conversación",
-        "ANSWER_RATE": "Tasa de respuesta"
+        "ANSWER_RATE": "Tasa de respuesta",
+        "BUSY": "Ocupado",
+        "FAILED": "Fallidas"
       },
       "TABLE": {
         "AGENT": "Agente",
@@ -37,7 +42,9 @@
         "STATUS": "Estado",
         "DURATION": "Duración",
         "SCORE": "Puntaje IA"
-      }
+      },
+      "DESCRIPTION": "Registro detallado de llamadas (CDR): resumen por agente y registros individuales con análisis de calidad.",
+      "EMPTY_TITLE": "Sin registros"
     },
     "ANALYSIS": {
       "TITLE": "Análisis de llamada",
@@ -100,8 +107,40 @@
         "STAGE_NAME": "Nombre de la etapa",
         "MIN_SCORE": "Puntaje mínimo",
         "PROMPT": "Prompt de análisis para el LLM",
-        "CONFIRM_DELETE": "¿Eliminar este pipeline?"
-      }
+        "CONFIRM_DELETE": "¿Eliminar este pipeline?",
+        "EDIT_TITLE": "Editar pipeline",
+        "DELETE_TITLE": "Eliminar pipeline",
+        "DELETE_BODY": "¿Eliminar el pipeline \"{name}\"? Esta acción no se puede deshacer.",
+        "SEARCH_PLACEHOLDER": "Buscar pipelines...",
+        "COUNT": "{count} pipelines",
+        "NO_RESULTS": "Ningún pipeline coincide con tu búsqueda.",
+        "EMPTY_TITLE": "Sin pipelines",
+        "SUBTITLE": "Define las etapas de análisis de IA aplicadas a cada llamada.",
+        "STAGE_NUMBER": "Etapa {n}"
+      },
+      "COMMON": {
+        "SAVE": "Guardar",
+        "CANCEL": "Cancelar",
+        "DELETE": "Eliminar"
+      },
+      "SAVE_BAR": {
+        "UNSAVED": "Tienes cambios sin guardar",
+        "SAVE": "Guardar cambios",
+        "DISCARD": "Descartar"
+      },
+      "SECTION_MYSQL_DESC": "Conexión a la base de datos CDR de Asterisk.",
+      "SECTION_SSH_DESC": "Acceso SFTP/SSH para descargar las grabaciones.",
+      "SECTION_ANALYSIS_DESC": "Cómo se analizan las llamadas con IA.",
+      "PERMISSIONS": {
+        "TITLE": "Permisos de acceso a CDR",
+        "DESC": "Activa el acceso a los reportes CDR para cada usuario.",
+        "SEARCH_PLACEHOLDER": "Buscar usuarios...",
+        "COUNT": "{count} usuarios",
+        "NO_RESULTS": "Ningún usuario coincide con tu búsqueda.",
+        "GRANTED": "con acceso",
+        "EMPTY": "No hay usuarios."
+      },
+      "STATUS_UNTESTED": "Sin probar"
     }
   }
 }

@@ -1,9 +1,14 @@
 <script setup>
-import { onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -11,16 +16,21 @@ const { t } = useI18n();
 const userRows = useMapGetter('jabvoxFieldVisibilities/getUserRows');
 const uiFlags = useMapGetter('jabvoxFieldVisibilities/getUIFlags');
 
+const search = ref('');
+
 const GROUPS = [
   {
+    key: 'contact',
     label: t('JABVOX_FIELD_SECURITY.GROUP_CONTACT'),
     fields: ['name', 'phone', 'email', 'identification'],
   },
   {
+    key: 'profile',
     label: t('JABVOX_FIELD_SECURITY.GROUP_PROFILE'),
     fields: ['company', 'contact_type', 'country', 'city'],
   },
   {
+    key: 'social',
     label: t('JABVOX_FIELD_SECURITY.GROUP_SOCIAL'),
     fields: [
       'social_facebook',
@@ -33,6 +43,12 @@ const GROUPS = [
   },
 ];
 
+const GROUP_TONE = {
+  contact: 'bg-n-iris-3 text-n-slate-12',
+  profile: 'bg-n-amber-3 text-n-slate-12',
+  social: 'bg-n-teal-3 text-n-slate-12',
+};
+
 const ALL_FIELDS = GROUPS.flatMap(g => g.fields);
 
 const GROUP_LAST_FIELDS = new Set(
@@ -40,6 +56,25 @@ const GROUP_LAST_FIELDS = new Set(
 );
 
 onMounted(() => store.dispatch('jabvoxFieldVisibilities/fetchAll'));
+
+const isVisible = (user, field) => user.visibilities[field] !== false;
+
+const filteredRows = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) return userRows.value;
+  return userRows.value.filter(
+    u => u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
+  );
+});
+
+const totalUsers = computed(() => userRows.value.length);
+const totalFields = computed(() => ALL_FIELDS.length);
+const totalRestricted = computed(() =>
+  userRows.value.reduce(
+    (sum, u) => sum + ALL_FIELDS.filter(f => !isVisible(u, f)).length,
+    0
+  )
+);
 
 const toggle = async (userId, fieldName, currentValue) => {
   try {
@@ -54,92 +89,180 @@ const toggle = async (userId, fieldName, currentValue) => {
   }
 };
 
+const allVisible = user => ALL_FIELDS.every(f => isVisible(user, f));
+
+const toggleRow = async user => {
+  const target = !allVisible(user);
+  const toUpdate = ALL_FIELDS.filter(f => isVisible(user, f) !== target);
+  try {
+    await Promise.all(
+      toUpdate.map(field =>
+        store.dispatch('jabvoxFieldVisibilities/toggleField', {
+          userId: user.id,
+          fieldName: field,
+          canView: target,
+        })
+      )
+    );
+    useAlert(t('JABVOX_FIELD_SECURITY.SAVED'));
+  } catch {
+    useAlert(t('JABVOX_FIELD_SECURITY.ERROR'));
+  }
+};
+
 const fieldLabel = field => t(`JABVOX_FIELD_SECURITY.FIELDS.${field}`);
 </script>
 
 <template>
-  <div class="flex flex-col h-full w-full overflow-hidden bg-n-surface-1">
-    <!-- Page header -->
-    <div class="shrink-0 border-b border-n-weak bg-n-surface-1">
-      <div class="max-w-full mx-auto px-6 sm:px-8 py-6">
-        <h1 class="text-heading-1 text-n-slate-12">
-          {{ $t('JABVOX_FIELD_SECURITY.TITLE') }}
-        </h1>
-        <p class="mt-1 text-body-main text-n-slate-11 max-w-2xl">
-          {{ $t('JABVOX_FIELD_SECURITY.DESCRIPTION') }}
-        </p>
+  <div class="w-full h-full overflow-y-auto bg-n-background">
+    <div
+      class="mx-auto w-full max-w-7xl flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+    >
+      <!-- Header -->
+      <div class="flex items-start gap-3 min-w-0">
+        <span
+          class="i-lucide-shield-check size-9 shrink-0 rounded-xl bg-n-alpha-2 p-2 text-n-brand"
+        />
+        <div class="min-w-0">
+          <h1 class="text-xl font-semibold tracking-tight text-n-slate-12">
+            {{ t('JABVOX_FIELD_SECURITY.TITLE') }}
+          </h1>
+          <p class="mt-1 max-w-2xl text-sm leading-relaxed text-n-slate-11">
+            {{ t('JABVOX_FIELD_SECURITY.DESCRIPTION') }}
+          </p>
+        </div>
       </div>
-    </div>
 
-    <!-- Scrollable content -->
-    <div class="flex-1 overflow-auto">
-      <div class="px-6 sm:px-8 py-8">
-        <!-- Loading -->
-        <div
-          v-if="uiFlags.isFetching"
-          class="flex items-center justify-center py-20 text-sm text-slate-400 animate-pulse"
-        >
-          {{ $t('JABVOX_FIELD_SECURITY.LOADING') }}
+      <!-- Loading -->
+      <div
+        v-if="uiFlags.isFetching"
+        class="flex items-center justify-center gap-2 py-16 text-sm text-n-slate-11"
+      >
+        <Spinner :size="18" />
+        {{ t('JABVOX_FIELD_SECURITY.LOADING') }}
+      </div>
+
+      <!-- Empty -->
+      <EmptyStateLayout
+        v-else-if="!userRows.length"
+        :title="t('JABVOX_FIELD_SECURITY.EMPTY_TITLE')"
+        :subtitle="t('JABVOX_FIELD_SECURITY.EMPTY')"
+      />
+
+      <template v-else>
+        <!-- KPIs -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div
+            class="flex items-center gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+          >
+            <span
+              class="i-lucide-users size-8 rounded-lg bg-n-iris-3 p-1.5 text-n-slate-12"
+            />
+            <div>
+              <p class="text-2xl font-semibold text-n-slate-12">
+                {{ totalUsers }}
+              </p>
+              <p class="text-xs text-n-slate-11">
+                {{ t('JABVOX_FIELD_SECURITY.KPI_USERS') }}
+              </p>
+            </div>
+          </div>
+          <div
+            class="flex items-center gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+          >
+            <span
+              class="i-lucide-list size-8 rounded-lg bg-n-teal-3 p-1.5 text-n-slate-12"
+            />
+            <div>
+              <p class="text-2xl font-semibold text-n-slate-12">
+                {{ totalFields }}
+              </p>
+              <p class="text-xs text-n-slate-11">
+                {{ t('JABVOX_FIELD_SECURITY.KPI_FIELDS') }}
+              </p>
+            </div>
+          </div>
+          <div
+            class="flex items-center gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+          >
+            <span
+              class="i-lucide-eye-off size-8 rounded-lg bg-n-ruby-3 p-1.5 text-n-ruby-11"
+            />
+            <div>
+              <p class="text-2xl font-semibold text-n-slate-12">
+                {{ totalRestricted }}
+              </p>
+              <p class="text-xs text-n-slate-11">
+                {{ t('JABVOX_FIELD_SECURITY.KPI_RESTRICTED') }}
+              </p>
+            </div>
+          </div>
         </div>
 
-        <!-- Empty -->
-        <div
-          v-else-if="!userRows.length"
-          class="flex items-center justify-center py-20 text-sm text-slate-400"
-        >
-          {{ $t('JABVOX_FIELD_SECURITY.EMPTY') }}
+        <!-- Search -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="w-full sm:w-80">
+            <Input
+              v-model="search"
+              :placeholder="t('JABVOX_FIELD_SECURITY.SEARCH_PLACEHOLDER')"
+            >
+              <template #prefix>
+                <span class="i-lucide-search size-4 text-n-slate-10" />
+              </template>
+            </Input>
+          </div>
+          <span class="text-xs text-n-slate-10">
+            {{ t('JABVOX_FIELD_SECURITY.COUNT', { count: totalUsers }) }}
+          </span>
         </div>
 
-        <!-- Table -->
+        <!-- No results -->
+        <div
+          v-if="!filteredRows.length"
+          class="rounded-xl border border-dashed border-n-weak py-10 text-center text-sm text-n-slate-11"
+        >
+          {{ t('JABVOX_FIELD_SECURITY.NO_RESULTS') }}
+        </div>
+
+        <!-- Matrix -->
         <div
           v-else
-          class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
+          class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden"
         >
           <div class="overflow-x-auto">
             <table class="w-full text-sm border-collapse">
               <thead>
                 <!-- Group header row -->
-                <tr
-                  class="bg-slate-50 dark:bg-slate-700/40 border-b border-slate-200 dark:border-slate-700"
-                >
+                <tr class="border-b border-n-weak">
                   <th
-                    class="sticky left-0 z-10 bg-slate-50 dark:bg-slate-700/40 text-left px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide border-r border-slate-200 dark:border-slate-700 min-w-[180px]"
                     rowspan="2"
+                    class="sticky left-0 z-10 bg-n-solid-1 border-r border-n-weak px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-n-slate-10 min-w-[200px]"
                   >
-                    Usuario
+                    {{ t('JABVOX_FIELD_SECURITY.USER_COLUMN') }}
                   </th>
                   <th
                     v-for="(group, idx) in GROUPS"
-                    :key="group.label"
+                    :key="group.key"
                     :colspan="group.fields.length"
-                    class="text-center px-2 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide border-b border-slate-200 dark:border-slate-600"
-                    :class="{
-                      'bg-indigo-50 dark:bg-indigo-900/20':
-                        group.label ===
-                        $t('JABVOX_FIELD_SECURITY.GROUP_CONTACT'),
-                      'bg-amber-50 dark:bg-amber-900/20':
-                        group.label ===
-                        $t('JABVOX_FIELD_SECURITY.GROUP_PROFILE'),
-                      'bg-sky-50 dark:bg-sky-900/20':
-                        group.label ===
-                        $t('JABVOX_FIELD_SECURITY.GROUP_SOCIAL'),
-                      'border-r-2 border-r-slate-300 dark:border-r-slate-500':
-                        idx < GROUPS.length - 1,
-                    }"
+                    class="px-2 py-2 text-center text-xs font-bold uppercase tracking-wide"
+                    :class="[
+                      GROUP_TONE[group.key],
+                      idx < GROUPS.length - 1
+                        ? 'border-r-2 border-r-n-weak'
+                        : '',
+                    ]"
                   >
                     {{ group.label }}
                   </th>
                 </tr>
                 <!-- Field name row -->
-                <tr
-                  class="bg-slate-50 dark:bg-slate-700/40 border-b border-slate-200 dark:border-slate-700"
-                >
+                <tr class="border-b border-n-weak bg-n-alpha-1">
                   <th
                     v-for="field in ALL_FIELDS"
                     :key="field"
-                    class="text-center px-2 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap min-w-[72px]"
+                    class="px-2 py-2 text-center text-xs font-medium text-n-slate-11 whitespace-nowrap min-w-[76px]"
                     :class="{
-                      'border-r-2 border-r-slate-300 dark:border-r-slate-500':
+                      'border-r-2 border-r-n-weak':
                         GROUP_LAST_FIELDS.has(field),
                     }"
                   >
@@ -148,25 +271,48 @@ const fieldLabel = field => t(`JABVOX_FIELD_SECURITY.FIELDS.${field}`);
                 </tr>
               </thead>
 
-              <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+              <tbody class="divide-y divide-n-weak">
                 <tr
-                  v-for="user in userRows"
+                  v-for="user in filteredRows"
                   :key="user.id"
-                  class="hover:bg-slate-50/60 dark:hover:bg-slate-700/20 transition-colors"
+                  class="hover:bg-n-alpha-1 transition-colors"
                 >
                   <!-- Sticky user column -->
                   <td
-                    class="sticky left-0 z-10 bg-white dark:bg-slate-800 px-4 py-3 border-r border-slate-100 dark:border-slate-700 min-w-[180px]"
+                    class="sticky left-0 z-10 bg-n-solid-1 border-r border-n-weak px-4 py-3 min-w-[200px]"
                   >
-                    <div class="flex flex-col min-w-0">
-                      <span
-                        class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate"
-                      >
-                        {{ user.name }}
-                      </span>
-                      <span class="text-xs text-slate-400 truncate">
-                        {{ user.email }}
-                      </span>
+                    <div class="flex items-center gap-3 min-w-0">
+                      <Avatar
+                        :name="user.name || user.email"
+                        :src="user.thumbnail || user.avatar_url"
+                        :size="32"
+                        rounded-full
+                      />
+                      <div class="flex flex-col min-w-0 flex-1">
+                        <span
+                          class="text-sm font-medium text-n-slate-12 truncate"
+                        >
+                          {{ user.name }}
+                        </span>
+                        <span class="text-xs text-n-slate-10 truncate">
+                          {{ user.email }}
+                        </span>
+                      </div>
+                      <Button
+                        :icon="
+                          allVisible(user) ? 'i-lucide-eye-off' : 'i-lucide-eye'
+                        "
+                        variant="ghost"
+                        color="slate"
+                        size="sm"
+                        :disabled="uiFlags.isSaving"
+                        :title="
+                          allVisible(user)
+                            ? t('JABVOX_FIELD_SECURITY.HIDE_ALL')
+                            : t('JABVOX_FIELD_SECURITY.SHOW_ALL')
+                        "
+                        @click="toggleRow(user)"
+                      />
                     </div>
                   </td>
 
@@ -176,35 +322,29 @@ const fieldLabel = field => t(`JABVOX_FIELD_SECURITY.FIELDS.${field}`);
                     :key="field"
                     class="px-2 py-3 text-center"
                     :class="{
-                      'border-r-2 border-r-slate-200 dark:border-r-slate-600':
+                      'border-r-2 border-r-n-weak':
                         GROUP_LAST_FIELDS.has(field),
                     }"
                   >
                     <button
-                      class="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors"
+                      class="inline-flex items-center justify-center size-7 rounded-lg transition-colors"
                       :class="
-                        user.visibilities[field] !== false
-                          ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-100'
-                          : 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-100'
+                        isVisible(user, field)
+                          ? 'bg-n-teal-3 text-n-teal-11 hover:bg-n-teal-4'
+                          : 'bg-n-ruby-3 text-n-ruby-11 hover:bg-n-ruby-4'
                       "
                       :disabled="uiFlags.isSaving"
                       :title="
-                        user.visibilities[field] !== false
-                          ? 'Visible'
-                          : 'Restringido'
+                        isVisible(user, field)
+                          ? t('JABVOX_FIELD_SECURITY.VISIBLE')
+                          : t('JABVOX_FIELD_SECURITY.RESTRICTED')
                       "
-                      @click="
-                        toggle(
-                          user.id,
-                          field,
-                          user.visibilities[field] !== false
-                        )
-                      "
+                      @click="toggle(user.id, field, isVisible(user, field))"
                     >
                       <span
-                        class="text-sm block"
+                        class="size-4 block"
                         :class="
-                          user.visibilities[field] !== false
+                          isVisible(user, field)
                             ? 'i-lucide-eye'
                             : 'i-lucide-eye-off'
                         "
@@ -218,27 +358,27 @@ const fieldLabel = field => t(`JABVOX_FIELD_SECURITY.FIELDS.${field}`);
 
           <!-- Legend -->
           <div
-            class="px-5 py-3 border-t border-slate-100 dark:border-slate-700 flex items-center gap-4 text-xs text-slate-400"
+            class="flex items-center gap-5 border-t border-n-weak px-5 py-3 text-xs text-n-slate-10"
           >
             <span class="flex items-center gap-1.5">
               <span
-                class="inline-flex items-center justify-center w-5 h-5 rounded bg-green-50 text-green-600 dark:bg-green-900/30"
+                class="inline-flex items-center justify-center size-5 rounded bg-n-teal-3 text-n-teal-11"
               >
-                <span class="i-lucide-eye text-xs block" />
+                <span class="i-lucide-eye size-3 block" />
               </span>
-              Visible
+              {{ t('JABVOX_FIELD_SECURITY.VISIBLE') }}
             </span>
             <span class="flex items-center gap-1.5">
               <span
-                class="inline-flex items-center justify-center w-5 h-5 rounded bg-red-50 text-red-500 dark:bg-red-900/30"
+                class="inline-flex items-center justify-center size-5 rounded bg-n-ruby-3 text-n-ruby-11"
               >
-                <span class="i-lucide-eye-off text-xs block" />
+                <span class="i-lucide-eye-off size-3 block" />
               </span>
-              Restringido — muestra ***
+              {{ t('JABVOX_FIELD_SECURITY.RESTRICTED_HINT') }}
             </span>
           </div>
         </div>
-      </div>
+      </template>
     </div>
   </div>
 </template>

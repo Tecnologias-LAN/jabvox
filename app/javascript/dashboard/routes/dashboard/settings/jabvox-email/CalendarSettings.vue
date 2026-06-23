@@ -4,10 +4,16 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
+import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Select from 'dashboard/components-next/select/Select.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
+import SectionCard from './components/SectionCard.vue';
+import SaveBar from './components/SaveBar.vue';
 
 const store = useStore();
 const { t } = useI18n();
-const { markDirty, markClean } = useUnsavedChanges();
+const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
 const calendarSetting = computed(
   () => store.getters['jabvoxEmail/getCalendarSetting']
@@ -32,12 +38,16 @@ const displayToMinutes = (value, unit) => {
   return v;
 };
 
+const applySetting = setting => {
+  enabled.value = setting.reminders_enabled ?? false;
+  intervals.value = (setting.reminder_minutes || []).map(minutesToDisplay);
+};
+
 watch(
   calendarSetting,
   async setting => {
     if (setting) {
-      enabled.value = setting.reminders_enabled ?? false;
-      intervals.value = (setting.reminder_minutes || []).map(minutesToDisplay);
+      applySetting(setting);
       await nextTick();
       markClean();
     }
@@ -92,116 +102,95 @@ const onSave = async () => {
     useAlert(t('JABVOX_EMAIL.CALENDAR.SAVE_ERROR'));
   }
 };
+
+const onDiscard = async () => {
+  if (calendarSetting.value) applySetting(calendarSetting.value);
+  await nextTick();
+  markClean();
+};
 </script>
 
 <template>
-  <div class="space-y-6 max-w-xl">
-    <div>
-      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">
-        {{ $t('JABVOX_EMAIL.CALENDAR.TITLE') }}
-      </h2>
-      <p class="text-xs text-slate-500 mt-0.5">
-        {{ $t('JABVOX_EMAIL.CALENDAR.DESCRIPTION') }}
-      </p>
-    </div>
-
-    <div
-      class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 space-y-5"
+  <div class="w-full flex flex-col gap-4">
+    <SectionCard
+      :title="t('JABVOX_EMAIL.CALENDAR.TITLE')"
+      :description="t('JABVOX_EMAIL.CALENDAR.DESCRIPTION')"
+      icon="i-lucide-calendar-clock"
     >
-      <!-- Enable toggle -->
-      <label class="flex items-center justify-between gap-4 cursor-pointer">
-        <div>
-          <p class="text-sm font-medium text-slate-700 dark:text-slate-200">
-            {{ $t('JABVOX_EMAIL.CALENDAR.ENABLED_LABEL') }}
-          </p>
-          <p class="text-xs text-slate-500 mt-0.5">
-            {{ $t('JABVOX_EMAIL.CALENDAR.ENABLED_HELP') }}
-          </p>
-        </div>
-        <button
-          role="switch"
-          :aria-checked="enabled"
-          class="relative w-11 h-6 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          :class="enabled ? 'bg-woot-500' : 'bg-slate-300 dark:bg-slate-600'"
-          @click="enabled = !enabled"
+      <div class="flex flex-col gap-5">
+        <!-- Enable toggle -->
+        <div
+          class="flex items-center justify-between gap-4 rounded-xl border border-n-weak bg-n-alpha-1 px-4 py-3"
         >
-          <span
-            class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
-            :class="enabled ? 'translate-x-5' : 'translate-x-0'"
-          />
-        </button>
-      </label>
-
-      <template v-if="enabled">
-        <hr class="border-slate-200 dark:border-slate-700" />
-
-        <!-- Interval list -->
-        <div class="space-y-2">
-          <p class="text-xs font-medium text-slate-600 dark:text-slate-400">
-            {{ $t('JABVOX_EMAIL.CALENDAR.INTERVALS_LABEL') }}
-          </p>
-
-          <div
-            v-if="!intervals.length"
-            class="text-xs text-slate-400 italic py-1"
-          >
-            {{ $t('JABVOX_EMAIL.CALENDAR.INTERVALS_EMPTY') }}
+          <div>
+            <p class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_EMAIL.CALENDAR.ENABLED_LABEL') }}
+            </p>
+            <p class="text-xs text-n-slate-11 mt-0.5">
+              {{ t('JABVOX_EMAIL.CALENDAR.ENABLED_HELP') }}
+            </p>
           </div>
-
-          <div class="flex flex-wrap gap-2">
-            <span
-              v-for="(interval, idx) in intervals"
-              :key="idx"
-              class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-woot-50 dark:bg-woot-900/20 text-woot-700 dark:text-woot-400 text-sm"
-            >
-              {{ intervalLabel(interval) }}
-              <button
-                class="text-woot-400 hover:text-woot-600 dark:hover:text-woot-300"
-                :aria-label="$t('JABVOX_EMAIL.CALENDAR.REMOVE_INTERVAL')"
-                @click="removeInterval(idx)"
-              >
-                <span class="i-lucide-x size-3" />
-              </button>
-            </span>
-          </div>
-
-          <!-- Add interval form -->
-          <div class="flex items-center gap-2 pt-1">
-            <input
-              v-model.number="newValue"
-              type="number"
-              min="1"
-              class="w-20 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500 text-slate-700 dark:text-slate-200"
-            />
-            <select
-              v-model="newUnit"
-              class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500 text-slate-700 dark:text-slate-200"
-            >
-              <option v-for="u in UNITS" :key="u.value" :value="u.value">
-                {{ u.label }}
-              </option>
-            </select>
-            <button
-              class="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg transition-colors"
-              @click="addInterval"
-            >
-              {{ $t('JABVOX_EMAIL.CALENDAR.ADD_INTERVAL') }}
-            </button>
-          </div>
+          <Switch v-model="enabled" />
         </div>
-      </template>
-    </div>
 
-    <button
-      :disabled="uiFlags.isSavingCalendar"
-      class="px-5 py-2 bg-woot-500 hover:bg-woot-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-      @click="onSave"
-    >
-      {{
-        uiFlags.isSavingCalendar
-          ? $t('JABVOX_EMAIL.CALENDAR.SAVING')
-          : $t('JABVOX_EMAIL.CALENDAR.SAVE')
-      }}
-    </button>
+        <template v-if="enabled">
+          <!-- Interval list -->
+          <div class="flex flex-col gap-2">
+            <p class="text-xs font-medium text-n-slate-11">
+              {{ t('JABVOX_EMAIL.CALENDAR.INTERVALS_LABEL') }}
+            </p>
+
+            <div
+              v-if="!intervals.length"
+              class="text-xs text-n-slate-10 italic py-1"
+            >
+              {{ t('JABVOX_EMAIL.CALENDAR.INTERVALS_EMPTY') }}
+            </div>
+
+            <div v-else class="flex flex-wrap gap-2">
+              <span
+                v-for="(interval, idx) in intervals"
+                :key="idx"
+                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-n-alpha-2 text-n-slate-12 text-sm"
+              >
+                {{ intervalLabel(interval) }}
+                <button
+                  class="text-n-slate-10 hover:text-n-ruby-11"
+                  :aria-label="t('JABVOX_EMAIL.CALENDAR.REMOVE_INTERVAL')"
+                  @click="removeInterval(idx)"
+                >
+                  <span class="i-lucide-x size-3" />
+                </button>
+              </span>
+            </div>
+
+            <!-- Add interval form -->
+            <div class="flex flex-wrap items-end gap-2 pt-1">
+              <div class="w-24">
+                <Input v-model.number="newValue" type="number" min="1" />
+              </div>
+              <div class="w-32">
+                <Select v-model="newUnit" :options="UNITS" />
+              </div>
+              <Button
+                icon="i-lucide-plus"
+                :label="t('JABVOX_EMAIL.CALENDAR.ADD_INTERVAL')"
+                variant="outline"
+                color="slate"
+                size="sm"
+                @click="addInterval"
+              />
+            </div>
+          </div>
+        </template>
+      </div>
+    </SectionCard>
+
+    <SaveBar
+      :visible="isDirty"
+      :is-saving="uiFlags.isSavingCalendar"
+      @save="onSave"
+      @discard="onDiscard"
+    />
   </div>
 </template>

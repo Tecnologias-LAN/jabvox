@@ -1,10 +1,16 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
+import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
+import SearchInput from '../components/SearchInput.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -12,26 +18,35 @@ const { t } = useI18n();
 const statuses = useMapGetter('jabvoxProducts/getOrderStatusConfigs');
 const uiFlags = useMapGetter('jabvoxProducts/getUIFlags');
 
-const showForm = ref(false);
+const search = ref('');
+const formDialog = ref(null);
+const deleteDialog = ref(null);
 const editingItem = ref(null);
-const form = ref({
+
+const emptyForm = () => ({
   key_jabvox: '',
   label_jabvox: '',
   sort_order_jabvox: 0,
   color_jabvox: '#6B7280',
+});
+const form = ref(emptyForm());
+
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) return statuses.value;
+  return statuses.value.filter(
+    s =>
+      s.label_jabvox?.toLowerCase().includes(q) ||
+      s.key_jabvox?.toLowerCase().includes(q)
+  );
 });
 
 onMounted(() => store.dispatch('jabvoxProducts/fetchStatus'));
 
 const openNew = () => {
   editingItem.value = null;
-  form.value = {
-    key_jabvox: '',
-    label_jabvox: '',
-    sort_order_jabvox: statuses.value.length,
-    color_jabvox: '#6B7280',
-  };
-  showForm.value = true;
+  form.value = { ...emptyForm(), sort_order_jabvox: statuses.value.length };
+  formDialog.value?.open();
 };
 
 const openEdit = item => {
@@ -40,16 +55,17 @@ const openEdit = item => {
     key_jabvox: item.key_jabvox,
     label_jabvox: item.label_jabvox,
     sort_order_jabvox: item.sort_order_jabvox,
-    color_jabvox: item.color_jabvox,
+    color_jabvox: item.color_jabvox || '#6B7280',
   };
-  showForm.value = true;
+  formDialog.value?.open();
 };
 
+const isValid = computed(
+  () => form.value.key_jabvox.trim() && form.value.label_jabvox.trim()
+);
+
 const onSubmit = async () => {
-  if (!form.value.key_jabvox.trim() || !form.value.label_jabvox.trim()) {
-    useAlert(t('JABVOX_PRODUCTS.STATUSES.FORM.REQUIRED'));
-    return;
-  }
+  if (!isValid.value) return;
   try {
     if (editingItem.value) {
       await store.dispatch('jabvoxProducts/updateStatus', {
@@ -59,22 +75,25 @@ const onSubmit = async () => {
     } else {
       await store.dispatch('jabvoxProducts/createStatus', form.value);
     }
+    formDialog.value?.close();
     useAlert(t('JABVOX_PRODUCTS.SAVE_SUCCESS'));
-    showForm.value = false;
   } catch (e) {
     useAlert(e.message || t('JABVOX_PRODUCTS.ERROR'));
   }
 };
 
-const onDelete = async item => {
-  if (
-    !window.confirm(
-      t('JABVOX_PRODUCTS.DELETE_CONFIRM', { name: item.label_jabvox })
-    )
-  )
-    return;
+const askDelete = item => {
+  deleteDialog.value?.open({
+    title: t('JABVOX_PRODUCTS.STATUSES.DELETE_TITLE'),
+    description: t('JABVOX_PRODUCTS.STATUSES.DELETE_BODY', {
+      name: item.label_jabvox,
+    }),
+    data: item.id,
+  });
+};
+const doDelete = async id => {
   try {
-    await store.dispatch('jabvoxProducts/destroyStatus', item.id);
+    await store.dispatch('jabvoxProducts/destroyStatus', id);
     useAlert(t('JABVOX_PRODUCTS.DELETE_SUCCESS'));
   } catch (e) {
     useAlert(e.message || t('JABVOX_PRODUCTS.ERROR'));
@@ -83,170 +102,146 @@ const onDelete = async item => {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center justify-between">
-      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">
-        {{ $t('JABVOX_PRODUCTS.STATUSES.TITLE') }}
-      </h2>
-      <Button
-        icon="i-lucide-plus"
-        :label="$t('JABVOX_PRODUCTS.NEW')"
-        @click="openNew"
-      />
-    </div>
-
+  <div class="flex flex-col gap-5">
     <div
       v-if="uiFlags.isFetchingStatuses"
-      class="text-sm text-slate-400 animate-pulse py-6 text-center"
+      class="flex items-center justify-center gap-2 py-12 text-sm text-n-slate-11"
     >
-      {{ $t('JABVOX_PRODUCTS.LOADING') }}
-    </div>
-    <div
-      v-else-if="statuses.length === 0"
-      class="text-sm text-slate-400 text-center py-10"
-    >
-      {{ $t('JABVOX_PRODUCTS.STATUSES.EMPTY') }}
+      <Spinner :size="18" />
     </div>
 
-    <table
-      v-else
-      class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm"
+    <EmptyStateLayout
+      v-else-if="!statuses.length"
+      :title="t('JABVOX_PRODUCTS.STATUSES.EMPTY_TITLE')"
+      :subtitle="t('JABVOX_PRODUCTS.STATUSES.EMPTY')"
     >
-      <thead>
-        <tr class="text-left text-slate-500 dark:text-slate-400">
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.STATUSES.COLS.KEY') }}
-          </th>
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.STATUSES.COLS.LABEL') }}
-          </th>
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.STATUSES.COLS.COLOR') }}
-          </th>
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.STATUSES.COLS.ORDER') }}
-          </th>
-          <th class="py-3 pr-4 font-medium">
-            {{ $t('JABVOX_PRODUCTS.COLS.ACTIONS') }}
-          </th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-        <tr
-          v-for="item in statuses"
-          :key="item.id"
-          class="hover:bg-slate-50 dark:hover:bg-slate-800/50"
-        >
-          <td
-            class="py-3 pr-4 font-mono text-xs text-slate-600 dark:text-slate-300"
-          >
-            {{ item.key_jabvox }}
-          </td>
-          <td class="py-3 pr-4 font-medium text-slate-800 dark:text-slate-100">
-            {{ item.label_jabvox }}
-          </td>
-          <td class="py-3 pr-4">
-            <span
-              class="inline-block w-5 h-5 rounded-full border border-slate-200"
-              :style="{ backgroundColor: item.color_jabvox }"
-            />
-          </td>
-          <td class="py-3 pr-4 text-slate-500">{{ item.sort_order_jabvox }}</td>
-          <td class="py-3 pr-4">
-            <div class="flex gap-2">
-              <Button
-                size="small"
-                variant="ghost"
-                icon="i-lucide-pencil"
-                @click="openEdit(item)"
-              />
-              <Button
-                size="small"
-                variant="ghost"
-                color-scheme="alert"
-                icon="i-lucide-trash-2"
-                @click="onDelete(item)"
-              />
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      <template #actions>
+        <Button
+          icon="i-lucide-plus"
+          :label="t('JABVOX_PRODUCTS.NEW')"
+          size="sm"
+          @click="openNew"
+        />
+      </template>
+    </EmptyStateLayout>
 
-    <div
-      v-if="showForm"
-      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-      @click.self="showForm = false"
-    >
+    <template v-else>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <SearchInput
+          v-model="search"
+          :placeholder="t('JABVOX_PRODUCTS.STATUSES.SEARCH_PLACEHOLDER')"
+        />
+        <Button
+          :label="t('JABVOX_PRODUCTS.NEW')"
+          icon="i-lucide-plus"
+          size="sm"
+          @click="openNew"
+        />
+      </div>
+
       <div
-        class="bg-white dark:bg-slate-900 rounded-xl shadow-xl p-6 w-full max-w-md space-y-4"
+        v-if="!filtered.length"
+        class="rounded-xl border border-dashed border-n-weak py-10 text-center text-sm text-n-slate-11"
       >
-        <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">
-          {{
-            editingItem ? $t('JABVOX_PRODUCTS.EDIT') : $t('JABVOX_PRODUCTS.NEW')
-          }}
-        </h3>
-        <div class="space-y-3">
-          <div>
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
-              >{{ $t('JABVOX_PRODUCTS.STATUSES.COLS.KEY') }} *</label
-            >
-            <input
-              v-model="form.key_jabvox"
-              type="text"
-              :placeholder="$t('JABVOX_PRODUCTS.STATUSES.FORM.KEY_PLACEHOLDER')"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500 font-mono"
-            />
+        {{ t('JABVOX_PRODUCTS.STATUSES.NO_RESULTS') }}
+      </div>
+
+      <div
+        v-else
+        class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm divide-y divide-n-weak overflow-hidden"
+      >
+        <div
+          v-for="item in filtered"
+          :key="item.id"
+          class="flex items-center gap-3 px-4 py-3 hover:bg-n-alpha-1 transition-colors"
+        >
+          <span
+            class="size-7 rounded-lg shrink-0 ring-1 ring-inset ring-n-weak"
+            :style="{ backgroundColor: item.color_jabvox }"
+          />
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-n-slate-12 truncate">
+              {{ item.label_jabvox }}
+            </p>
+            <code class="text-xs font-mono text-n-slate-10">
+              {{ item.key_jabvox }}
+            </code>
           </div>
-          <div>
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
-              >{{ $t('JABVOX_PRODUCTS.STATUSES.COLS.LABEL') }} *</label
-            >
-            <input
-              v-model="form.label_jabvox"
-              type="text"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-          <div>
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
-              >{{ $t('JABVOX_PRODUCTS.STATUSES.COLS.COLOR') }}</label
-            >
-            <input
-              v-model="form.color_jabvox"
-              type="color"
-              class="h-9 w-full rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer"
-            />
-          </div>
-          <div>
-            <label
-              class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
-              >{{ $t('JABVOX_PRODUCTS.STATUSES.COLS.ORDER') }}</label
-            >
-            <input
-              v-model.number="form.sort_order_jabvox"
-              type="number"
-              min="0"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-            />
-          </div>
-        </div>
-        <div class="flex gap-3 pt-2">
+          <span class="text-xs text-n-slate-10 tabular-nums shrink-0">
+            #{{ item.sort_order_jabvox }}
+          </span>
           <Button
-            :label="$t('JABVOX_PRODUCTS.SAVE')"
-            :is-loading="uiFlags.isSavingStatus"
-            @click="onSubmit"
+            icon="i-lucide-pencil"
+            variant="ghost"
+            color="slate"
+            size="sm"
+            @click="openEdit(item)"
           />
           <Button
+            icon="i-lucide-trash-2"
             variant="ghost"
-            :label="$t('CANCEL')"
-            @click="showForm = false"
+            color="ruby"
+            size="sm"
+            @click="askDelete(item)"
           />
         </div>
       </div>
-    </div>
+    </template>
+
+    <Dialog
+      ref="formDialog"
+      :title="
+        editingItem ? t('JABVOX_PRODUCTS.EDIT') : t('JABVOX_PRODUCTS.NEW')
+      "
+      :confirm-button-label="t('JABVOX_PRODUCTS.SAVE')"
+      :cancel-button-label="t('JABVOX_PRODUCTS.CANCEL')"
+      :disable-confirm-button="!isValid"
+      :is-loading="uiFlags.isSavingStatus"
+      width="lg"
+      @confirm="onSubmit"
+    >
+      <div class="flex flex-col gap-4">
+        <Input
+          v-model="form.key_jabvox"
+          :label="`${t('JABVOX_PRODUCTS.STATUSES.COLS.KEY')} *`"
+          :placeholder="t('JABVOX_PRODUCTS.STATUSES.FORM.KEY_PLACEHOLDER')"
+          custom-input-class="font-mono"
+          autofocus
+        />
+        <Input
+          v-model="form.label_jabvox"
+          :label="`${t('JABVOX_PRODUCTS.STATUSES.COLS.LABEL')} *`"
+        />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_PRODUCTS.STATUSES.COLS.COLOR') }}
+            </label>
+            <div class="flex items-center gap-2">
+              <input
+                v-model="form.color_jabvox"
+                type="color"
+                class="w-10 h-9 rounded-lg cursor-pointer border border-n-weak p-0.5 bg-n-solid-1 shrink-0"
+              />
+              <div class="flex-1">
+                <Input
+                  v-model="form.color_jabvox"
+                  size="sm"
+                  custom-input-class="font-mono"
+                />
+              </div>
+            </div>
+          </div>
+          <Input
+            v-model.number="form.sort_order_jabvox"
+            type="number"
+            min="0"
+            :label="t('JABVOX_PRODUCTS.STATUSES.COLS.ORDER')"
+          />
+        </div>
+      </div>
+    </Dialog>
+
+    <ConfirmDialog ref="deleteDialog" @confirm="doDelete" />
   </div>
 </template>

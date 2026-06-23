@@ -29,6 +29,7 @@
 #  jabvox_response_bot_enabled_jabvox       :boolean          default(FALSE), not null
 #  jabvox_saldo_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_sms_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_tasks_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_voip_enabled_jabvox               :boolean          default(FALSE), not null
 #  jabvox_whatsapp_templates_enabled_jabvox :boolean          default(FALSE), not null
 #  limits                                   :jsonb
@@ -133,6 +134,7 @@ class Account < ApplicationRecord
   has_many :jabvox_audio_pipelines, dependent: :destroy_async
   has_many :jabvox_audio_jobs, dependent: :destroy_async
   has_many :jabvox_audio_results, dependent: :destroy_async
+  has_many :jabvox_audio_assignments, dependent: :destroy_async
   has_many :jabvox_audio_permissions, dependent: :destroy_async
   has_many :jabvox_typifications, dependent: :destroy_async
   has_many :jabvox_call_logs, dependent: :destroy_async
@@ -186,6 +188,7 @@ class Account < ApplicationRecord
   has_many :jabvox_custom_tables, dependent: :destroy
   has_many :jabvox_quick_buttons, dependent: :destroy
   has_many :jabvox_custom_table_rows, through: :jabvox_custom_tables
+  has_many :jabvox_email_send_logs, dependent: :delete_all
   # Jabvox Analytics & Dashboards (BI) module
   has_many :jabvox_analytics_data_sources, dependent: :destroy
   has_many :jabvox_analytics_roles, dependent: :destroy
@@ -193,6 +196,11 @@ class Account < ApplicationRecord
   has_many :jabvox_analytics_dashboards, dependent: :destroy
   has_many :jabvox_analytics_exports, dependent: :destroy
   has_many :jabvox_analytics_audit_logs, dependent: :delete_all
+  # Jabvox Tasks (kanban) module
+  has_many :jabvox_task_boards, dependent: :destroy
+  has_many :jabvox_tasks, dependent: :destroy
+  has_many :jabvox_task_lead_contacts, dependent: :destroy
+  has_many :jabvox_task_webhook_deliveries, dependent: :delete_all
   has_many :portals, dependent: :destroy_async, class_name: '::Portal'
   has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
   has_many :teams, dependent: :destroy_async

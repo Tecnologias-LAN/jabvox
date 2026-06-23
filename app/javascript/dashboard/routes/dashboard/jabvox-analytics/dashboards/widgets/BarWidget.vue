@@ -9,16 +9,20 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
-const { hasData, categories, values, valueLabel } = useWidgetData(
-  toRef(props, 'data')
-);
+const { hasData, categories, series } = useWidgetData(toRef(props, 'data'));
 
 const option = computed(() => ({
   tooltip: { trigger: 'axis' },
-  grid: { left: 48, right: 16, top: 24, bottom: 32 },
+  legend: series.value.length > 1 ? { top: 0 } : undefined,
+  grid: {
+    left: 48,
+    right: 16,
+    top: series.value.length > 1 ? 32 : 24,
+    bottom: 32,
+  },
   xAxis: { type: 'category', data: categories.value },
   yAxis: { type: 'value' },
-  series: [{ name: valueLabel.value, type: 'bar', data: values.value }],
+  series: series.value.map(s => ({ name: s.name, type: 'bar', data: s.data })),
 }));
 </script>
 

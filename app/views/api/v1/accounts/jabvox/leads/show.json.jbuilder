@@ -29,6 +29,7 @@ json.inbox_name conv[:inbox_name]
 json.assignee_id conv[:assignee_id]
 json.assignee_name conv[:assignee_name]
 json.conversation_id conv[:conversation_id]
+json.conversation_display_id conv[:conversation_display_id]
 json.last_management_state conv[:last_management_state]
 json.last_management_at conv[:last_management_at]
 json.affiliate_id lead.jabvox_affiliate_id

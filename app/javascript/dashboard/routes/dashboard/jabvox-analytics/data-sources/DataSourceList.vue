@@ -33,6 +33,36 @@ const normalizeStatus = status => {
   return 'untested';
 };
 
+// Icon + accent per supported engine (backend supports these four).
+const ENGINE_META = {
+  postgresql: {
+    icon: 'i-lucide-database',
+    label: 'PostgreSQL',
+    tone: 'bg-n-blue-3 text-n-blue-11',
+  },
+  mysql: {
+    icon: 'i-lucide-database',
+    label: 'MySQL',
+    tone: 'bg-n-amber-3 text-n-amber-11',
+  },
+  mariadb: {
+    icon: 'i-lucide-database',
+    label: 'MariaDB',
+    tone: 'bg-n-amber-3 text-n-amber-11',
+  },
+  sqlite: {
+    icon: 'i-lucide-file-box',
+    label: 'SQLite',
+    tone: 'bg-n-teal-3 text-n-teal-11',
+  },
+};
+const engineMeta = engine =>
+  ENGINE_META[engine] || {
+    icon: 'i-lucide-database',
+    label: engine,
+    tone: 'bg-n-alpha-2 text-n-slate-11',
+  };
+
 const formatDate = value => {
   if (!value) return '—';
   return new Date(value).toLocaleString();
@@ -63,103 +93,107 @@ const onSync = ds => {
 </script>
 
 <template>
-  <div class="overflow-x-auto rounded-lg border border-n-weak">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="border-b border-n-weak text-left text-n-slate-11">
-          <th class="px-4 py-3 font-medium">
-            {{ t('JABVOX_ANALYTICS.COMMON.NAME') }}
-          </th>
-          <th class="px-4 py-3 font-medium">
-            {{ t('JABVOX_ANALYTICS.DATA_SOURCES.LIST.ENGINE') }}
-          </th>
-          <th class="px-4 py-3 font-medium">
-            {{ t('JABVOX_ANALYTICS.DATA_SOURCES.LIST.HOST') }}
-          </th>
-          <th class="px-4 py-3 font-medium">
-            {{ t('JABVOX_ANALYTICS.COMMON.STATUS') }}
-          </th>
-          <th class="px-4 py-3 font-medium">
-            {{ t('JABVOX_ANALYTICS.COMMON.CREATED_AT') }}
-          </th>
-          <th class="px-4 py-3 font-medium">
-            {{ t('JABVOX_ANALYTICS.DATA_SOURCES.LIST.LAST_CONNECTION') }}
-          </th>
-          <th class="px-4 py-3 text-right font-medium">
-            {{ t('JABVOX_ANALYTICS.COMMON.ACTIONS') }}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="ds in dataSources"
-          :key="ds.id"
-          class="border-b border-n-weak last:border-b-0"
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div
+      v-for="ds in dataSources"
+      :key="ds.id"
+      class="group flex flex-col gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
+    >
+      <!-- Header: engine icon + name + menu -->
+      <div class="flex items-start gap-3">
+        <span
+          class="flex items-center justify-center size-10 rounded-xl shrink-0"
+          :class="engineMeta(ds.engineJabvox).tone"
         >
-          <td class="px-4 py-3 font-medium text-n-slate-12">
+          <span :class="engineMeta(ds.engineJabvox).icon" class="size-5" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-semibold text-n-slate-12 truncate">
             {{ ds.nameJabvox }}
-          </td>
-          <td class="px-4 py-3 text-n-slate-11">{{ ds.engineJabvox }}</td>
-          <td class="px-4 py-3 text-n-slate-11">
-            {{ ds.hostJabvox || ds.sqlitePathJabvox || '—' }}
-          </td>
-          <td class="px-4 py-3">
-            <StatusBadge :status="normalizeStatus(ds.statusJabvox)" />
-          </td>
-          <td class="px-4 py-3 text-n-slate-11">
-            {{ formatDate(ds.createdAt) }}
-          </td>
-          <td class="px-4 py-3 text-n-slate-11">
-            {{ formatDate(ds.lastTestedAtJabvox) }}
-          </td>
-          <td class="relative px-4 py-3 text-right">
+          </p>
+          <p class="text-xs text-n-slate-10">
+            {{ engineMeta(ds.engineJabvox).label }}
+          </p>
+        </div>
+        <div class="relative shrink-0">
+          <button
+            type="button"
+            class="rounded-lg p-1.5 text-n-slate-11 hover:bg-n-alpha-2 transition-colors"
+            @click="toggleMenu(ds.id)"
+          >
+            <span class="i-lucide-ellipsis-vertical size-5" />
+          </button>
+          <div
+            v-if="openMenuId === ds.id"
+            class="absolute right-0 top-10 z-10 w-44 overflow-hidden rounded-lg border border-n-weak bg-n-solid-1 py-1 shadow-lg"
+          >
             <button
               type="button"
-              class="rounded-lg p-1.5 text-n-slate-11 hover:bg-n-alpha-2"
-              @click="toggleMenu(ds.id)"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-n-slate-12 hover:bg-n-alpha-2"
+              @click="viewTables(ds)"
             >
-              <span class="i-lucide-ellipsis-vertical size-5" />
+              <span class="i-lucide-table-2 size-4 text-n-slate-11" />
+              {{ t('JABVOX_ANALYTICS.DATA_SOURCES.LIST.VIEW_TABLES') }}
             </button>
-            <div
-              v-if="openMenuId === ds.id"
-              class="absolute right-4 top-12 z-10 w-44 overflow-hidden rounded-lg border border-n-weak bg-n-solid-1 py-1 shadow-lg"
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-n-slate-12 hover:bg-n-alpha-2"
+              @click="onSync(ds)"
             >
-              <button
-                type="button"
-                class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-n-slate-12 hover:bg-n-alpha-2"
-                @click="viewTables(ds)"
-              >
-                <span class="i-lucide-table-2 size-4 text-n-slate-11" />
-                {{ t('JABVOX_ANALYTICS.DATA_SOURCES.LIST.VIEW_TABLES') }}
-              </button>
-              <button
-                type="button"
-                class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-n-slate-12 hover:bg-n-alpha-2"
-                @click="onSync(ds)"
-              >
-                <span class="i-lucide-refresh-cw size-4 text-n-slate-11" />
-                {{ t('JABVOX_ANALYTICS.DATA_SOURCES.LIST.SYNC') }}
-              </button>
-              <button
-                type="button"
-                class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-n-slate-12 hover:bg-n-alpha-2"
-                @click="onEdit(ds)"
-              >
-                <span class="i-lucide-pencil size-4 text-n-slate-11" />
-                {{ t('JABVOX_ANALYTICS.COMMON.EDIT') }}
-              </button>
-              <button
-                type="button"
-                class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-n-ruby-11 hover:bg-n-alpha-2"
-                @click="onDelete(ds)"
-              >
-                <span class="i-lucide-trash-2 size-4" />
-                {{ t('JABVOX_ANALYTICS.COMMON.DELETE') }}
-              </button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+              <span class="i-lucide-refresh-cw size-4 text-n-slate-11" />
+              {{ t('JABVOX_ANALYTICS.DATA_SOURCES.LIST.SYNC') }}
+            </button>
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-n-slate-12 hover:bg-n-alpha-2"
+              @click="onEdit(ds)"
+            >
+              <span class="i-lucide-pencil size-4 text-n-slate-11" />
+              {{ t('JABVOX_ANALYTICS.COMMON.EDIT') }}
+            </button>
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-n-ruby-11 hover:bg-n-alpha-2"
+              @click="onDelete(ds)"
+            >
+              <span class="i-lucide-trash-2 size-4" />
+              {{ t('JABVOX_ANALYTICS.COMMON.DELETE') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status + host -->
+      <div class="flex items-center justify-between gap-2">
+        <StatusBadge :status="normalizeStatus(ds.statusJabvox)" />
+        <span class="text-xs text-n-slate-10 truncate font-mono">
+          {{ ds.hostJabvox || ds.sqlitePathJabvox || '—' }}
+        </span>
+      </div>
+
+      <!-- Meta footer -->
+      <div
+        class="flex items-center justify-between gap-2 pt-2 border-t border-n-weak text-xs text-n-slate-10"
+      >
+        <span class="inline-flex items-center gap-1">
+          <span class="i-lucide-calendar-plus size-3" />
+          {{ formatDate(ds.createdAt) }}
+        </span>
+        <span class="inline-flex items-center gap-1">
+          <span class="i-lucide-plug size-3" />
+          {{ formatDate(ds.lastTestedAtJabvox) }}
+        </span>
+      </div>
+
+      <!-- Quick action -->
+      <button
+        type="button"
+        class="mt-1 flex items-center justify-center gap-1.5 rounded-lg bg-n-alpha-1 py-2 text-xs font-medium text-n-slate-11 hover:bg-n-alpha-2 transition-colors"
+        @click="viewTables(ds)"
+      >
+        <span class="i-lucide-table-2 size-3.5" />
+        {{ t('JABVOX_ANALYTICS.DATA_SOURCES.LIST.VIEW_TABLES') }}
+      </button>
+    </div>
   </div>
 </template>

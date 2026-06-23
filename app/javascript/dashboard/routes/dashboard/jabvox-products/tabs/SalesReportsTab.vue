@@ -1,11 +1,16 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
+import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Select from 'dashboard/components-next/select/Select.vue';
+import Label from 'dashboard/components-next/label/Label.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 
 const store = useStore();
+const { t } = useI18n();
 
 const salesReports = useMapGetter('jabvoxProducts/getSalesReports');
 const products = useMapGetter('jabvoxProducts/getProducts');
@@ -26,16 +31,32 @@ const filters = ref({
 });
 
 const INNER_TABS = [
-  { key: 'summary', label: 'JABVOX_PRODUCTS.SALES_REPORTS.TABS.SUMMARY' },
-  { key: 'quotes', label: 'JABVOX_PRODUCTS.SALES_REPORTS.TABS.QUOTES' },
-  { key: 'sales', label: 'JABVOX_PRODUCTS.SALES_REPORTS.TABS.SALES' },
+  {
+    key: 'summary',
+    label: 'JABVOX_PRODUCTS.SALES_REPORTS.TABS.SUMMARY',
+    icon: 'i-lucide-layout-dashboard',
+  },
+  {
+    key: 'quotes',
+    label: 'JABVOX_PRODUCTS.SALES_REPORTS.TABS.QUOTES',
+    icon: 'i-lucide-file-text',
+  },
+  {
+    key: 'sales',
+    label: 'JABVOX_PRODUCTS.SALES_REPORTS.TABS.SALES',
+    icon: 'i-lucide-receipt',
+  },
 ];
 
-const DOC_TYPES = [
-  { value: '', label: 'JABVOX_PRODUCTS.SALES_REPORTS.FILTER_ALL' },
-  { value: 'QUOTE', label: 'JABVOX_PRODUCTS.SALES_REPORTS.FILTER_QUOTES' },
-  { value: 'SALE', label: 'JABVOX_PRODUCTS.SALES_REPORTS.FILTER_SALES' },
-];
+const productOptions = computed(() => [
+  { value: '', label: t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_PRODUCT') },
+  ...products.value.map(p => ({ value: p.id, label: p.name_jabvox })),
+]);
+const docTypeOptions = computed(() => [
+  { value: '', label: t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_ALL') },
+  { value: 'QUOTE', label: t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_QUOTES') },
+  { value: 'SALE', label: t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_SALES') },
+]);
 
 const summary = computed(() => salesReports.value?.summary || {});
 const orders = computed(() => salesReports.value?.orders || []);
@@ -52,7 +73,7 @@ const applyFilters = async () => {
       ...filters.value,
     });
   } catch (e) {
-    useAlert(e.message || 'Error al cargar el reporte');
+    useAlert(e.message || t('JABVOX_PRODUCTS.ERROR'));
   }
 };
 
@@ -63,11 +84,7 @@ const formatCurrency = val => {
     maximumFractionDigits: 2,
   });
 };
-
-const formatDate = val => {
-  if (!val) return '—';
-  return new Date(val).toLocaleDateString();
-};
+const formatDate = val => (val ? new Date(val).toLocaleDateString() : '—');
 
 onMounted(() => {
   store.dispatch('jabvoxProducts/fetchProduct');
@@ -76,482 +93,288 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-5 sm:space-y-6">
+  <div class="flex flex-col gap-6">
     <!-- Filters -->
     <div
-      class="flex flex-col gap-3 p-4 sm:p-5 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/60 dark:to-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-sm"
+      class="flex flex-wrap items-end gap-3 rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm p-4"
     >
-      <div class="flex flex-col sm:flex-row sm:flex-wrap items-start gap-3">
-        <div class="flex flex-col gap-1">
-          <label
-            class="text-xs font-medium text-slate-600 dark:text-slate-400"
-            >{{ $t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_FROM') }}</label>
-          <input
-            v-model="filters.date_from"
-            type="date"
-            class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label
-            class="text-xs font-medium text-slate-600 dark:text-slate-400"
-            >{{ $t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_TO') }}</label>
-          <input
-            v-model="filters.date_to"
-            type="date"
-            class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label
-            class="text-xs font-medium text-slate-600 dark:text-slate-400"
-            >{{ $t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_PRODUCT') }}</label>
-          <select
-            v-model="filters.jabvox_product_id"
-            class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          >
-            <option value="">
-              {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_ALL') }}
-            </option>
-            <option v-for="p in products" :key="p.id" :value="p.id">
-              {{ p.name_jabvox }}
-            </option>
-          </select>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label
-            class="text-xs font-medium text-slate-600 dark:text-slate-400"
-            >{{ $t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_TYPE') }}</label>
-          <select
-            v-model="filters.doc_type"
-            class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-          >
-            <option v-for="dt in DOC_TYPES" :key="dt.value" :value="dt.value">
-              {{ $t(dt.label) }}
-            </option>
-          </select>
-        </div>
-        <div class="flex items-end">
-          <Button
-            icon="i-lucide-search"
-            :label="$t('JABVOX_PRODUCTS.SALES_REPORTS.APPLY')"
-            :is-loading="uiFlags.isFetchingReports"
-            @click="applyFilters"
-          />
-        </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-medium text-n-slate-11">
+          {{ t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_FROM') }}
+        </label>
+        <input
+          v-model="filters.date_from"
+          type="date"
+          class="rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
+        />
       </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-medium text-n-slate-11">
+          {{ t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_TO') }}
+        </label>
+        <input
+          v-model="filters.date_to"
+          type="date"
+          class="rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
+        />
+      </div>
+      <div class="flex flex-col gap-1.5 w-44">
+        <label class="text-xs font-medium text-n-slate-11">
+          {{ t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_PRODUCT') }}
+        </label>
+        <Select v-model="filters.jabvox_product_id" :options="productOptions" />
+      </div>
+      <div class="flex flex-col gap-1.5 w-36">
+        <label class="text-xs font-medium text-n-slate-11">
+          {{ t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_TYPE') }}
+        </label>
+        <Select v-model="filters.doc_type" :options="docTypeOptions" />
+      </div>
+      <Button
+        :label="t('JABVOX_PRODUCTS.SALES_REPORTS.FILTER_APPLY')"
+        icon="i-lucide-search"
+        :is-loading="uiFlags.isFetchingReports"
+        @click="applyFilters"
+      />
     </div>
 
     <!-- Loading -->
     <div
       v-if="uiFlags.isFetchingReports"
-      class="text-sm text-slate-400 animate-pulse text-center py-12 sm:py-16"
+      class="flex items-center justify-center gap-2 py-12 text-sm text-n-slate-11"
     >
-      {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.LOADING') }}
+      <Spinner :size="18" />
     </div>
 
     <template v-else>
       <!-- Inner tabs -->
       <div
-        class="flex border-b border-slate-200 dark:border-slate-700 overflow-x-auto bg-white dark:bg-slate-800/30 pb-0"
+        class="flex items-center gap-1 p-1 rounded-xl bg-n-alpha-1 border border-n-weak w-full sm:w-fit overflow-x-auto"
       >
         <button
           v-for="tab in INNER_TABS"
           :key="tab.key"
-          class="px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-all duration-200 relative -bottom-px"
-          :class="[
+          class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors flex-1 sm:flex-none"
+          :class="
             activeTab === tab.key
-              ? 'border-woot-600 text-woot-600 dark:text-woot-400'
-              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200',
-          ]"
+              ? 'bg-n-solid-1 text-n-slate-12 shadow-sm'
+              : 'text-n-slate-11 hover:text-n-slate-12'
+          "
           @click="activeTab = tab.key"
         >
-          {{ $t(tab.label) }}
+          <span :class="tab.icon" class="size-4 shrink-0" />
+          {{ t(tab.label) }}
         </button>
       </div>
 
-      <div class="mt-5 sm:mt-6">
-        <!-- Summary tab -->
-        <template v-if="activeTab === 'summary'">
-          <!-- Stat cards -->
+      <!-- ── SUMMARY ── -->
+      <div v-if="activeTab === 'summary'" class="flex flex-col gap-6">
+        <!-- KPIs -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5 sm:mb-6"
+            class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
           >
-            <div
-              class="bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 p-4 sm:p-5 space-y-2 shadow-sm hover:shadow-md transition-shadow duration-200"
-            >
-              <p class="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.STATS.TOTAL_QUOTES') }}
-              </p>
-              <p
-                class="text-3xl sm:text-3xl font-bold text-slate-900 dark:text-slate-50 tracking-tight"
-              >
-                {{ summary.total_quotes ?? '—' }}
-              </p>
-            </div>
-            <div
-              class="bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 p-4 sm:p-5 space-y-2 shadow-sm hover:shadow-md transition-shadow duration-200"
-            >
-              <p class="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.STATS.TOTAL_SALES') }}
-              </p>
-              <p
-                class="text-3xl sm:text-3xl font-bold text-slate-900 dark:text-slate-50 tracking-tight"
-              >
-                {{ summary.total_sales ?? '—' }}
-              </p>
-            </div>
-            <div
-              class="bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 p-4 sm:p-5 space-y-2 shadow-sm hover:shadow-md transition-shadow duration-200"
-            >
-              <p class="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.STATS.TOTAL_REVENUE') }}
-              </p>
-              <p
-                class="text-3xl sm:text-3xl font-bold text-slate-900 dark:text-slate-50 tracking-tight"
-              >
-                {{ formatCurrency(summary.total_revenue) }}
-              </p>
-            </div>
-            <div
-              class="bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 p-4 sm:p-5 space-y-2 shadow-sm hover:shadow-md transition-shadow duration-200"
-            >
-              <p class="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.STATS.CONVERSION') }}
-              </p>
-              <p
-                class="text-3xl sm:text-3xl font-bold text-slate-900 dark:text-slate-50 tracking-tight"
-              >
-                {{
-                  summary.conversion_rate != null
-                    ? `${summary.conversion_rate}%`
-                    : '—'
-                }}
-              </p>
-            </div>
+            <p class="text-2xl font-bold tabular-nums text-n-slate-12">
+              {{ summary.total_quotes ?? 0 }}
+            </p>
+            <p class="text-xs text-n-slate-11 mt-0.5">
+              {{ t('JABVOX_PRODUCTS.SALES_REPORTS.TOTAL_QUOTES') }}
+            </p>
           </div>
+          <div
+            class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+          >
+            <p class="text-2xl font-bold tabular-nums text-n-teal-11">
+              {{ summary.total_sales ?? 0 }}
+            </p>
+            <p class="text-xs text-n-slate-11 mt-0.5">
+              {{ t('JABVOX_PRODUCTS.SALES_REPORTS.TOTAL_SALES') }}
+            </p>
+          </div>
+          <div
+            class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+          >
+            <p class="text-2xl font-bold tabular-nums text-n-brand">
+              {{ formatCurrency(summary.total_revenue) }}
+            </p>
+            <p class="text-xs text-n-slate-11 mt-0.5">
+              {{ t('JABVOX_PRODUCTS.SALES_REPORTS.TOTAL_REVENUE') }}
+            </p>
+          </div>
+          <div
+            class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
+          >
+            <p class="text-2xl font-bold tabular-nums text-n-slate-12">
+              {{ summary.conversion_rate ?? 0 }}%
+            </p>
+            <p class="text-xs text-n-slate-11 mt-0.5">
+              {{ t('JABVOX_PRODUCTS.SALES_REPORTS.CONVERSION') }}
+            </p>
+          </div>
+        </div>
 
-          <!-- By Product -->
-          <div
-            v-if="byProduct.length"
-            class="space-y-2 sm:space-y-3 mb-6 sm:mb-8"
-          >
-            <h3
-              class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-50"
+        <!-- By product -->
+        <div
+          v-if="byProduct.length"
+          class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden overflow-x-auto"
+        >
+          <table class="min-w-full text-sm">
+            <thead
+              class="bg-n-alpha-1 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
             >
-              {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.BY_PRODUCT') }}
-            </h3>
-            <div
-              class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50"
-            >
-              <table
-                class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs sm:text-sm"
+              <tr>
+                <th class="text-left px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.BY_PRODUCT') }}
+                </th>
+                <th class="text-right px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.QUANTITY') }}
+                </th>
+                <th class="text-right px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.REVENUE') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-n-weak">
+              <tr
+                v-for="row in byProduct"
+                :key="row.product_id"
+                class="hover:bg-n-alpha-1"
               >
-                <thead class="bg-slate-50 dark:bg-slate-800/80">
-                  <tr
-                    class="text-left text-slate-600 dark:text-slate-300 font-semibold"
-                  >
-                    <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                      {{ $t('JABVOX_PRODUCTS.PRODUCTS.COLS.NAME') }}
-                    </th>
-                    <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                      {{
-                        $t('JABVOX_PRODUCTS.SALES_REPORTS.STATS.TOTAL_SALES')
-                      }}
-                    </th>
-                    <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                      {{
-                        $t('JABVOX_PRODUCTS.SALES_REPORTS.STATS.TOTAL_REVENUE')
-                      }}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                  <tr
-                    v-for="row in byProduct"
-                    :key="row.product_id"
-                    class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150"
-                  >
-                    <td
-                      class="py-2 sm:py-3 px-4 sm:px-5 text-slate-900 dark:text-slate-50 font-medium"
-                    >
-                      {{ row.name }}
-                    </td>
-                    <td
-                      class="py-2 sm:py-3 px-4 sm:px-5 text-slate-600 dark:text-slate-400"
-                    >
-                      {{ row.quantity }}
-                    </td>
-                    <td
-                      class="py-2 sm:py-3 px-4 sm:px-5 text-slate-600 dark:text-slate-400 font-semibold"
-                    >
-                      {{ formatCurrency(row.revenue) }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- By Agent -->
-          <div
-            v-if="byAgent.length"
-            class="space-y-2 sm:space-y-3 mb-6 sm:mb-8"
-          >
-            <h3
-              class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-50"
-            >
-              {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.BY_AGENT') }}
-            </h3>
-            <div
-              class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50"
-            >
-              <table
-                class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs sm:text-sm"
-              >
-                <thead class="bg-slate-50 dark:bg-slate-800/80">
-                  <tr
-                    class="text-left text-slate-600 dark:text-slate-300 font-semibold"
-                  >
-                    <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                      {{ $t('JABVOX_PRODUCTS.REPORTS.COLS.AGENT') }}
-                    </th>
-                    <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                      {{
-                        $t('JABVOX_PRODUCTS.SALES_REPORTS.STATS.TOTAL_SALES')
-                      }}
-                    </th>
-                    <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                      {{
-                        $t('JABVOX_PRODUCTS.SALES_REPORTS.STATS.TOTAL_REVENUE')
-                      }}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                  <tr
-                    v-for="row in byAgent"
-                    :key="row.agent_id"
-                    class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150"
-                  >
-                    <td
-                      class="py-2 sm:py-3 px-4 sm:px-5 text-slate-900 dark:text-slate-50 font-medium"
-                    >
-                      {{ row.name }}
-                    </td>
-                    <td
-                      class="py-2 sm:py-3 px-4 sm:px-5 text-slate-600 dark:text-slate-400"
-                    >
-                      {{ row.count }}
-                    </td>
-                    <td
-                      class="py-2 sm:py-3 px-4 sm:px-5 text-slate-600 dark:text-slate-400 font-semibold"
-                    >
-                      {{ formatCurrency(row.revenue) }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- By Status -->
-          <div
-            v-if="byStatus.length"
-            class="space-y-2 sm:space-y-3 mb-6 sm:mb-8"
-          >
-            <h3
-              class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-50"
-            >
-              {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.BY_STATUS') }}
-            </h3>
-            <div class="flex flex-wrap gap-2">
-              <span
-                v-for="row in byStatus"
-                :key="row.status"
-                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors duration-150"
-              >
-                {{ row.label || row.status }}
-                <span class="font-bold text-slate-900 dark:text-slate-50">{{
-                  row.count
-                }}</span>
-              </span>
-            </div>
-          </div>
-
-          <div
-            v-if="!byProduct.length && !byAgent.length && !byStatus.length"
-            class="text-sm text-slate-400 text-center py-8 sm:py-10"
-          >
-            {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.EMPTY') }}
-          </div>
-        </template>
-
-        <!-- Quotes tab -->
-        <template v-else-if="activeTab === 'quotes'">
-          <div
-            v-if="!quotes.length"
-            class="text-sm text-slate-400 text-center py-8 sm:py-10"
-          >
-            {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.EMPTY') }}
-          </div>
-          <div
-            v-else
-            class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50"
-          >
-            <table
-              class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs sm:text-sm"
-            >
-              <thead class="bg-slate-50 dark:bg-slate-800/80">
-                <tr
-                  class="text-left text-slate-600 dark:text-slate-300 font-semibold"
+                <td class="px-4 py-2.5 text-n-slate-12">{{ row.name }}</td>
+                <td class="px-4 py-2.5 text-right tabular-nums text-n-slate-11">
+                  {{ row.quantity }}
+                </td>
+                <td
+                  class="px-4 py-2.5 text-right tabular-nums font-medium text-n-slate-12"
                 >
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.ID') }}
-                  </th>
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.DATE') }}
-                  </th>
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.CONTACT') }}
-                  </th>
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.AGENT') }}
-                  </th>
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.STATUS') }}
-                  </th>
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.TOTAL') }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                <tr
-                  v-for="order in quotes"
-                  :key="order.id"
-                  class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150"
-                >
-                  <td
-                    class="py-2 sm:py-3 px-4 sm:px-5 text-slate-500 dark:text-slate-400 font-mono text-xs"
-                  >
-                    #{{ order.id }}
-                  </td>
-                  <td
-                    class="py-2 sm:py-3 px-4 sm:px-5 text-slate-600 dark:text-slate-400"
-                  >
-                    {{ formatDate(order.date) }}
-                  </td>
-                  <td
-                    class="py-2 sm:py-3 px-4 sm:px-5 text-slate-900 dark:text-slate-50"
-                  >
-                    {{ order.contact_name || '—' }}
-                  </td>
-                  <td
-                    class="py-2 sm:py-3 px-4 sm:px-5 text-slate-600 dark:text-slate-400"
-                  >
-                    {{ order.agent_name || '—' }}
-                  </td>
-                  <td class="py-2 sm:py-3 px-4 sm:px-5">
-                    <span
-                      class="text-xs px-2 py-1 rounded-full font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
-                    >
-                      {{ order.status || '—' }}
-                    </span>
-                  </td>
-                  <td
-                    class="py-2 sm:py-3 px-4 sm:px-5 text-slate-900 dark:text-slate-50 font-semibold"
-                  >
-                    {{ formatCurrency(order.total) }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </template>
+                  {{ formatCurrency(row.revenue) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-        <!-- Sales tab -->
-        <template v-else-if="activeTab === 'sales'">
-          <div
-            v-if="!sales.length"
-            class="text-sm text-slate-400 text-center py-8 sm:py-10"
-          >
-            {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.EMPTY') }}
-          </div>
-          <div
-            v-else
-            class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50"
-          >
-            <table
-              class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs sm:text-sm"
+        <!-- By agent -->
+        <div
+          v-if="byAgent.length"
+          class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden overflow-x-auto"
+        >
+          <table class="min-w-full text-sm">
+            <thead
+              class="bg-n-alpha-1 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
             >
-              <thead class="bg-slate-50 dark:bg-slate-800/80">
-                <tr
-                  class="text-left text-slate-600 dark:text-slate-300 font-semibold"
+              <tr>
+                <th class="text-left px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.BY_AGENT') }}
+                </th>
+                <th class="text-right px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.QUANTITY') }}
+                </th>
+                <th class="text-right px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.REVENUE') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-n-weak">
+              <tr
+                v-for="row in byAgent"
+                :key="row.agent_id"
+                class="hover:bg-n-alpha-1"
+              >
+                <td class="px-4 py-2.5 text-n-slate-12">{{ row.name }}</td>
+                <td class="px-4 py-2.5 text-right tabular-nums text-n-slate-11">
+                  {{ row.count }}
+                </td>
+                <td
+                  class="px-4 py-2.5 text-right tabular-nums font-medium text-n-slate-12"
                 >
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.ID') }}
-                  </th>
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.DATE') }}
-                  </th>
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.CONTACT') }}
-                  </th>
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.AGENT') }}
-                  </th>
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.STATUS') }}
-                  </th>
-                  <th class="py-2 sm:py-3 px-4 sm:px-5 font-semibold">
-                    {{ $t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.TOTAL') }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                <tr
-                  v-for="order in sales"
-                  :key="order.id"
-                  class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150"
+                  {{ formatCurrency(row.revenue) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- By status -->
+        <div v-if="byStatus.length" class="flex flex-wrap gap-2">
+          <Label
+            v-for="row in byStatus"
+            :key="row.status"
+            :label="`${row.status}: ${row.count}`"
+            color="slate"
+          />
+        </div>
+      </div>
+
+      <!-- ── QUOTES / SALES tables ── -->
+      <div v-else>
+        <div
+          v-if="(activeTab === 'quotes' ? quotes : sales).length"
+          class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden overflow-x-auto"
+        >
+          <table class="min-w-full text-sm">
+            <thead
+              class="bg-n-alpha-1 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
+            >
+              <tr>
+                <th class="text-left px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.ID') }}
+                </th>
+                <th class="text-left px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.DATE') }}
+                </th>
+                <th class="text-left px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.CONTACT') }}
+                </th>
+                <th class="text-left px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.AGENT') }}
+                </th>
+                <th class="text-left px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.STATUS') }}
+                </th>
+                <th class="text-right px-4 py-2.5">
+                  {{ t('JABVOX_PRODUCTS.SALES_REPORTS.COLS.TOTAL') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-n-weak">
+              <tr
+                v-for="o in activeTab === 'quotes' ? quotes : sales"
+                :key="o.id"
+                class="hover:bg-n-alpha-1"
+              >
+                <td class="px-4 py-2.5 font-mono text-xs text-n-slate-11">
+                  {{ o.id }}
+                </td>
+                <td class="px-4 py-2.5 text-n-slate-11 whitespace-nowrap">
+                  {{ formatDate(o.created_at) }}
+                </td>
+                <td class="px-4 py-2.5 text-n-slate-12">
+                  {{ o.contact_name }}
+                </td>
+                <td class="px-4 py-2.5 text-n-slate-11">{{ o.agent_name }}</td>
+                <td class="px-4 py-2.5">
+                  <Label
+                    :label="o.status"
+                    :color="activeTab === 'sales' ? 'teal' : 'slate'"
+                    compact
+                  />
+                </td>
+                <td
+                  class="px-4 py-2.5 text-right tabular-nums font-semibold text-n-slate-12"
                 >
-                  <td
-                    class="py-2 sm:py-3 px-4 sm:px-5 text-slate-500 dark:text-slate-400 font-mono text-xs"
-                  >
-                    #{{ order.id }}
-                  </td>
-                  <td
-                    class="py-2 sm:py-3 px-4 sm:px-5 text-slate-600 dark:text-slate-400"
-                  >
-                    {{ formatDate(order.date) }}
-                  </td>
-                  <td
-                    class="py-2 sm:py-3 px-4 sm:px-5 text-slate-900 dark:text-slate-50"
-                  >
-                    {{ order.contact_name || '—' }}
-                  </td>
-                  <td
-                    class="py-2 sm:py-3 px-4 sm:px-5 text-slate-600 dark:text-slate-400"
-                  >
-                    {{ order.agent_name || '—' }}
-                  </td>
-                  <td class="py-2 sm:py-3 px-4 sm:px-5">
-                    <span
-                      class="text-xs px-2 py-1 rounded-full font-semibold bg-green-100/70 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-                    >
-                      {{ order.status || '—' }}
-                    </span>
-                  </td>
-                  <td
-                    class="py-2 sm:py-3 px-4 sm:px-5 text-slate-900 dark:text-slate-50 font-semibold"
-                  >
-                    {{ formatCurrency(order.total) }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </template>
+                  {{ formatCurrency(o.total) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div
+          v-else
+          class="rounded-xl border border-dashed border-n-weak py-12 text-center text-sm text-n-slate-11"
+        >
+          {{ t('JABVOX_PRODUCTS.SALES_REPORTS.NO_RESULTS') }}
+        </div>
       </div>
     </template>
   </div>

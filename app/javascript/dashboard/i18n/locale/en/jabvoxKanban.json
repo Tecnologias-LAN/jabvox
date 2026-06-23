@@ -117,8 +117,20 @@
           "UPDATE_BUTTON": "Save Changes",
           "CREATE_SUCCESS": "Funnel created successfully.",
           "UPDATE_SUCCESS": "Funnel updated successfully.",
-          "ERROR": "An error occurred. Please try again."
-        }
+          "ERROR": "An error occurred. Please try again.",
+          "SECTION_GENERAL": "General",
+          "SECTION_SOURCES": "Origen de leads",
+          "ACTIVE_HINT": "Los embudos inactivos no aparecen en el tablero."
+        },
+        "SEARCH_PLACEHOLDER": "Buscar embudos...",
+        "COUNT": "{count} embudos",
+        "NO_RESULTS": "Ningún embudo coincide con tu búsqueda.",
+        "EMPTY_TITLE": "Sin embudos",
+        "DELETE_TITLE": "Eliminar embudo",
+        "DELETE_BODY": "¿Eliminar el embudo \"{name}\" y todas sus etapas? Esta acción no se puede deshacer.",
+        "KPI_TOTAL": "Embudos",
+        "KPI_ACTIVE": "Activos",
+        "KPI_STAGES": "Etapas"
       },
       "STAGES": {
         "TITLE": "Stages — {funnel}",
@@ -152,9 +164,23 @@
             "TARGET_LABEL": "Move to stage",
             "TARGET_PLACEHOLDER": "Select target stage..."
           }
-        }
+        },
+        "SEARCH_PLACEHOLDER": "Buscar etapas...",
+        "COUNT": "{count} etapas",
+        "DELETE_TITLE": "Eliminar etapa",
+        "DELETE_BODY": "¿Eliminar la etapa \"{name}\"?",
+        "EMPTY_TITLE": "Sin etapas",
+        "ADD_TITLE": "Nueva etapa",
+        "EDIT_TITLE2": "Editar etapa"
       }
-    }
+    },
+    "COMMON": {
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar",
+      "EDIT": "Editar"
+    },
+    "SUBTITLE": "Arrastra las tarjetas entre etapas para gestionar tu pipeline"
   },
   "CANCEL": "Cancel"
 }

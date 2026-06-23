@@ -70,7 +70,8 @@ watch(selectedTable, () => {
 });
 
 const addFilter = () => {
-  filters.value.push({ field: null, operator: '=', value: '' });
+  // Default operator must match QbFilterRow's options / backend OPERATOR_SQL ('eq', not '=').
+  filters.value.push({ field: null, operator: 'eq', value: '' });
 };
 
 const removeFilter = index => {

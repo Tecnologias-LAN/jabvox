@@ -46,6 +46,7 @@ import jabvoxVoip from './jabvoxVoip.json';
 import jabvoxCdr from './jabvoxCdr.json';
 import jabvoxAudioAnalysis from './jabvoxAudioAnalysis.json';
 import jabvoxAnalytics from './jabvoxAnalytics.json';
+import jabvoxTasks from './jabvoxTasks.json';
 import jabvoxSaldo from './jabvoxSaldo.json';
 import jabvoxSms from './jabvoxSms.json';
 import jabvoxIpWhitelist from './jabvoxIpWhitelist.json';
@@ -116,6 +117,7 @@ export default {
   ...jabvoxCdr,
   ...jabvoxAudioAnalysis,
   ...jabvoxAnalytics,
+  ...jabvoxTasks,
   ...jabvoxSaldo,
   ...jabvoxSms,
   ...jabvoxIpWhitelist,

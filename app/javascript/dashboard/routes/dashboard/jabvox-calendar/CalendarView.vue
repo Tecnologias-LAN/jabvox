@@ -16,6 +16,7 @@ function toDateKey(date) {
 
 // ─── tabs ──────────────────────────────────────────────────────────────────
 const activeTab = ref('calendar'); // calendar | settings
+const showSidebar = ref(false); // mobile drawer
 
 // ─── view / date state ───────────────────────────────────────────────────────
 const viewMode = ref('month'); // month | week | day
@@ -207,10 +208,21 @@ const TYPE_ICONS = {
     <ExternalPeopleTab v-if="activeTab === 'settings'" class="flex-1 min-h-0" />
 
     <!-- ── Calendar tab ── -->
-    <div v-else class="flex flex-1 min-h-0 overflow-hidden">
-      <!-- Left panel -->
+    <div v-else class="flex flex-1 min-h-0 overflow-hidden relative">
+      <!-- Mobile drawer backdrop -->
+      <div
+        v-if="showSidebar"
+        class="fixed inset-0 z-30 bg-n-alpha-black2 lg:hidden"
+        @click="showSidebar = false"
+      />
+      <!-- Left panel (drawer on mobile) -->
       <aside
-        class="w-64 shrink-0 border-r border-n-weak bg-n-surface-2 flex flex-col overflow-y-auto"
+        class="w-64 shrink-0 border-r border-n-weak bg-n-surface-2 flex-col overflow-y-auto z-40 lg:flex lg:static"
+        :class="
+          showSidebar
+            ? 'flex fixed inset-y-0 left-0 shadow-xl'
+            : 'hidden lg:flex'
+        "
       >
         <div class="p-4">
           <button
@@ -316,34 +328,46 @@ const TYPE_ICONS = {
       </aside>
 
       <!-- Main area -->
-      <main class="flex-1 flex flex-col overflow-hidden">
+      <main class="flex-1 flex flex-col overflow-hidden min-w-0">
         <header
-          class="flex items-center justify-between px-5 py-3 border-b border-n-weak shrink-0"
+          class="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-5 py-3 border-b border-n-weak shrink-0"
         >
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <!-- Mobile: open sidebar drawer -->
             <button
-              class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-slate-11 hover:bg-n-alpha-black2 transition-colors"
+              class="lg:hidden p-1.5 rounded-lg text-n-slate-11 hover:bg-n-alpha-black2 transition-colors shrink-0"
+              :title="t('JABVOX_CALENDAR.FILTERS.CALENDARS')"
+              @click="showSidebar = true"
+            >
+              <span class="i-lucide-panel-left size-5" />
+            </button>
+            <button
+              class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-slate-11 hover:bg-n-alpha-black2 transition-colors shrink-0"
               @click="goToday"
             >
               {{ t('JABVOX_CALENDAR.TODAY') }}
             </button>
             <button
-              class="p-1.5 rounded hover:bg-n-alpha-black2"
+              class="p-1.5 rounded hover:bg-n-alpha-black2 shrink-0"
               @click="shift(-1)"
             >
               <span class="i-lucide-chevron-left size-4 text-n-slate-11" />
             </button>
             <button
-              class="p-1.5 rounded hover:bg-n-alpha-black2"
+              class="p-1.5 rounded hover:bg-n-alpha-black2 shrink-0"
               @click="shift(1)"
             >
               <span class="i-lucide-chevron-right size-4 text-n-slate-11" />
             </button>
-            <h2 class="text-base font-semibold text-n-slate-12 ml-1">
+            <h2
+              class="text-sm sm:text-base font-semibold text-n-slate-12 ml-1 truncate"
+            >
               {{ currentMonthLabel }}
             </h2>
           </div>
-          <div class="flex rounded-lg border border-n-weak overflow-hidden">
+          <div
+            class="flex rounded-lg border border-n-weak overflow-hidden shrink-0"
+          >
             <button
               v-for="mode in ['month', 'week', 'day']"
               :key="mode"

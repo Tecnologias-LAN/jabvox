@@ -1,8 +1,6 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useVuelidate } from '@vuelidate/core';
-import { required, requiredIf } from '@vuelidate/validators';
 
 const props = defineProps({
   modelValue: {
@@ -21,36 +19,37 @@ const { t } = useI18n();
 
 const ENGINES = ['postgresql', 'mysql', 'mariadb', 'sqlite'];
 
-const form = computed({
-  get: () => props.modelValue,
-  set: value => emit('update:modelValue', value),
-});
-
 const update = (key, value) => {
   emit('update:modelValue', { ...props.modelValue, [key]: value });
 };
 
 const isSqlite = computed(() => props.modelValue.engineJabvox === 'sqlite');
 
-const rules = computed(() => ({
-  nameJabvox: { required },
-  sqlitePathJabvox: { required: requiredIf(() => isSqlite.value) },
-  hostJabvox: { required: requiredIf(() => !isSqlite.value) },
-  databaseJabvox: { required: requiredIf(() => !isSqlite.value) },
-}));
+// Only the name is truly required to save a draft data source — the user can
+// save with or without a working connection. We validate minimally on submit
+// and show field errors only after a failed attempt (touched).
+const touched = ref(false);
 
-const v$ = useVuelidate(rules, form);
+const hasError = field => {
+  if (!touched.value) return false;
+  const v = props.modelValue[field];
+  return !v || String(v).trim() === '';
+};
+
+// Minimum to persist: a name. (Connection fields are optional — save anytime.)
+const validate = () => {
+  touched.value = true;
+  return Boolean(props.modelValue.nameJabvox?.trim());
+};
 
 const errorFor = field =>
-  v$.value[field]?.$error
-    ? t('JABVOX_ANALYTICS.DATA_SOURCES.FORM.REQUIRED')
-    : '';
+  hasError(field) ? t('JABVOX_ANALYTICS.DATA_SOURCES.FORM.REQUIRED') : '';
 
 const labelClass = 'mb-1 block text-sm font-medium text-n-slate-12';
 const inputClass =
   'block w-full rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2 text-sm text-n-slate-12 outline-none focus:border-n-strong';
 
-defineExpose({ v$ });
+defineExpose({ validate });
 </script>
 
 <template>
@@ -99,12 +98,6 @@ defineExpose({ v$ });
         :class="inputClass"
         @input="update('sqlitePathJabvox', $event.target.value)"
       />
-      <p
-        v-if="errorFor('sqlitePathJabvox')"
-        class="mt-1 text-xs text-n-ruby-11"
-      >
-        {{ errorFor('sqlitePathJabvox') }}
-      </p>
     </div>
 
     <!-- Connection fields -->
@@ -120,9 +113,6 @@ defineExpose({ v$ });
             :class="inputClass"
             @input="update('hostJabvox', $event.target.value)"
           />
-          <p v-if="errorFor('hostJabvox')" class="mt-1 text-xs text-n-ruby-11">
-            {{ errorFor('hostJabvox') }}
-          </p>
         </div>
         <div>
           <label :class="labelClass">
@@ -147,12 +137,6 @@ defineExpose({ v$ });
           :class="inputClass"
           @input="update('databaseJabvox', $event.target.value)"
         />
-        <p
-          v-if="errorFor('databaseJabvox')"
-          class="mt-1 text-xs text-n-ruby-11"
-        >
-          {{ errorFor('databaseJabvox') }}
-        </p>
       </div>
 
       <div class="grid grid-cols-2 gap-3">

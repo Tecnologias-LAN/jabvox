@@ -12,6 +12,8 @@ export const audioStoragesAPI = {
   test: storage => axios.post(`${base}/storages/test`, { storage }),
   objects: (id, params) =>
     axios.get(`${base}/storages/${id}/objects`, { params }),
+  // Bulk-assign typification/agent to files without analyzing them.
+  assign: (id, payload) => axios.post(`${base}/storages/${id}/assign`, payload),
 };
 
 export const audioPipelinesAPI = {

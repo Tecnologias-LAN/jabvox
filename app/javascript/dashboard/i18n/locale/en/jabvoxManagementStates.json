@@ -95,6 +95,58 @@
       "SELECT": "Selecciona...",
       "YES": "Sí",
       "INCOMPLETE": "Por favor responde las preguntas obligatorias de la gestión."
+    },
+    "HEADER_DESCRIPTION": "Configura y administra los estados de flujo de trabajo usados en la plataforma.",
+    "COUNT": "{count} estados",
+    "COMMON": {
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar",
+      "SAVE": "Guardar",
+      "SEARCH": "Buscar..."
+    },
+    "KPI": {
+      "TOTAL": "Total de estados",
+      "ACTIVE": "Activos",
+      "INACTIVE": "Inactivos",
+      "WITH_QUESTIONS": "Con preguntas"
+    },
+    "FILTERS": {
+      "SEARCH_PLACEHOLDER": "Buscar estados...",
+      "STATUS_ALL": "Todos",
+      "STATUS_ACTIVE": "Solo activos",
+      "STATUS_INACTIVE": "Solo inactivos",
+      "SORT_LABEL": "Ordenar por",
+      "SORT_POSITION": "Orden manual",
+      "SORT_NAME": "Nombre (A–Z)",
+      "RESET": "Limpiar filtros",
+      "NO_RESULTS": "Ningún estado coincide con los filtros.",
+      "VIEW_CARDS": "Tarjetas",
+      "VIEW_TABLE": "Tabla"
+    },
+    "CARD": {
+      "QUESTIONS_COUNT": "Sin preguntas | 1 pregunta | {count} preguntas",
+      "NOTE_MODE_LABEL": "Nota"
+    },
+    "DRAWER": {
+      "SECTION_GENERAL": "General",
+      "SECTION_APPEARANCE": "Apariencia",
+      "SECTION_CONFIG": "Configuración",
+      "SECTION_QUESTIONS": "Preguntas",
+      "PREVIEW_TITLE": "Vista previa",
+      "ACTIVE_HINT": "Los estados inactivos no se muestran a los agentes."
+    },
+    "DELETE": {
+      "TITLE": "Eliminar estado",
+      "BODY": "¿Eliminar el estado \"{name}\"? Esta acción no se puede deshacer."
+    },
+    "EMPTY_TITLE": "Aún no hay estados",
+    "CREATE_FIRST": "Crear primer estado",
+    "TABLE": {
+      "COL_NAME": "Nombre",
+      "COL_STATUS": "Estado",
+      "COL_NOTE": "Nota",
+      "COL_QUESTIONS": "Preguntas",
+      "COL_ACTIONS": "Acciones"
     }
   }
 }

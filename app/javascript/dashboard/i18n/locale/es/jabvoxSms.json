@@ -53,7 +53,15 @@
         "WITH_PHONE": "Con número de teléfono"
       },
       "HAS_LEAD_CAMPAIGN": "Campaña: {name}",
-      "ALL_LEADS": "Todos los leads"
+      "ALL_LEADS": "Todos los leads",
+      "SEARCH_PLACEHOLDER": "Buscar campañas...",
+      "COUNT_LABEL": "{count} campañas",
+      "NO_RESULTS": "Ninguna campaña coincide con tu búsqueda.",
+      "EMPTY_TITLE": "Sin campañas",
+      "DELETE_TITLE": "Eliminar campaña",
+      "DELETE_BODY": "¿Eliminar la campaña \"{name}\"? Esta acción no se puede deshacer.",
+      "SEND_TITLE": "Enviar campaña",
+      "SEND_BODY": "¿Enviar la campaña \"{name}\" a todos los destinatarios? Esta acción no se puede deshacer."
     },
     "PROVIDERS": {
       "NEW_TITLE": "Nuevo Proveedor SMS",
@@ -77,7 +85,15 @@
         "API_PASSWORD_PLACEHOLDER": "contraseña",
         "PASSWORD_HINT": "deje en blanco para mantener la actual",
         "ACTIVE": "Activo"
-      }
+      },
+      "SEARCH_PLACEHOLDER": "Buscar proveedores...",
+      "COUNT_LABEL": "{count} proveedores",
+      "NO_RESULTS": "Ningún proveedor coincide con tu búsqueda.",
+      "EMPTY_TITLE": "Sin proveedores",
+      "DELETE_TITLE": "Eliminar proveedor",
+      "DELETE_BODY": "¿Eliminar el proveedor \"{name}\"? Las campañas que lo usen dejarán de poder enviar.",
+      "CHECKING": "Comprobando…",
+      "ACTIVE_HINT": "Solo los proveedores activos pueden enviar SMS."
     },
     "REPORTS": {
       "SENT": "Enviados",
@@ -90,7 +106,17 @@
       "MESSAGE": "Mensaje",
       "STATUS": "Estado",
       "DATE": "Fecha",
-      "PAGE": "Página {page} de {total}"
+      "PAGE": "Página {page} de {total}",
+      "TITLE": "Reportes de entrega",
+      "SUBTITLE": "Estado de los mensajes enviados por tus campañas.",
+      "SEARCH_PLACEHOLDER": "Buscar por teléfono o contacto...",
+      "NO_RESULTS": "No hay mensajes que coincidan."
+    },
+    "SUBTITLE": "Envía campañas de SMS, gestiona proveedores y consulta los reportes de entrega.",
+    "COMMON": {
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar",
+      "SAVE": "Guardar"
     }
   }
 }

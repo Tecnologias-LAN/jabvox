@@ -1,6 +1,11 @@
 {
   "JABVOX_FORMS": {
     "TITLE": "Formularios",
+    "SUBTITLE": "Crea formularios públicos para captar leads y alimentar tus embudos.",
+    "SEARCH_PLACEHOLDER": "Buscar formularios...",
+    "COUNT": "{count} formularios",
+    "NO_RESULTS": "Ningún formulario coincide con tu búsqueda.",
+    "DELETE": "Eliminar formulario",
     "LOADING": "Cargando formularios...",
     "EMPTY": "Aún no hay formularios creados.",
     "CREATE_FIRST": "Crea tu primer formulario",

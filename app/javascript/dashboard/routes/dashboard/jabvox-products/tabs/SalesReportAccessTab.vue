@@ -4,6 +4,10 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
+import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import SearchInput from '../components/SearchInput.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -14,19 +18,29 @@ const agents = useMapGetter('agents/getAgents');
 const agentsUIFlags = useMapGetter('agents/getUIFlags');
 
 const savingUserId = ref(null);
+const search = ref('');
 const isLoading = computed(
   () => uiFlags.value.isFetchingAccesses || agentsUIFlags.value.isFetching
 );
+
+const isGranted = userId =>
+  accesses.value.find(a => a.user_id === userId)?.can_view_reports ?? false;
+
+const grantedCount = computed(
+  () => agents.value.filter(a => isGranted(a.id)).length
+);
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) return agents.value;
+  return agents.value.filter(
+    a => a.name?.toLowerCase().includes(q) || a.email?.toLowerCase().includes(q)
+  );
+});
 
 onMounted(() => {
   store.dispatch('jabvoxProducts/fetchSalesReportAccesses');
   store.dispatch('agents/get');
 });
-
-const isGranted = userId => {
-  const access = accesses.value.find(a => a.user_id === userId);
-  return access?.can_view_reports ?? false;
-};
 
 const toggleAccess = async agent => {
   savingUserId.value = agent.id;
@@ -44,86 +58,78 @@ const toggleAccess = async agent => {
 </script>
 
 <template>
-  <div class="max-w-2xl space-y-4">
+  <div class="flex flex-col gap-5">
     <div>
-      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">
-        {{ $t('JABVOX_PRODUCTS.REPORTS.PERMISSIONS_TITLE') }}
+      <h2 class="text-base font-semibold text-n-slate-12">
+        {{ t('JABVOX_PRODUCTS.REPORTS.PERMISSIONS_TITLE') }}
       </h2>
-      <p class="text-sm text-slate-500 mt-1">
-        {{ $t('JABVOX_PRODUCTS.REPORTS.PERMISSIONS_DESC') }}
+      <p class="mt-1 text-sm text-n-slate-11 max-w-2xl">
+        {{ t('JABVOX_PRODUCTS.REPORTS.PERMISSIONS_DESC') }}
       </p>
     </div>
 
     <div
       v-if="isLoading"
-      class="text-sm text-slate-400 animate-pulse py-6 text-center"
+      class="flex items-center justify-center gap-2 py-12 text-sm text-n-slate-11"
     >
-      {{ $t('JABVOX_PRODUCTS.LOADING') }}
+      <Spinner :size="18" />
     </div>
 
     <div
       v-else-if="!agents.length"
-      class="text-sm text-slate-400 text-center py-8"
+      class="rounded-xl border border-dashed border-n-weak py-12 text-center text-sm text-n-slate-11"
     >
-      {{ $t('JABVOX_PRODUCTS.REPORTS.NO_AGENTS') }}
+      {{ t('JABVOX_PRODUCTS.REPORTS.NO_AGENTS') }}
     </div>
 
-    <div
-      v-else
-      class="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
-    >
-      <table
-        class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm"
+    <template v-else>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <SearchInput
+          v-model="search"
+          :placeholder="t('JABVOX_PRODUCTS.REPORTS.SEARCH_PLACEHOLDER')"
+        />
+        <span class="text-xs text-n-slate-10">
+          {{ grantedCount }} / {{ agents.length }}
+          {{ t('JABVOX_PRODUCTS.REPORTS.GRANTED') }}
+        </span>
+      </div>
+
+      <div
+        v-if="!filtered.length"
+        class="rounded-xl border border-dashed border-n-weak py-10 text-center text-sm text-n-slate-11"
       >
-        <thead>
-          <tr
-            class="bg-slate-50 dark:bg-slate-800 text-left text-slate-500 dark:text-slate-400"
-          >
-            <th class="px-5 py-3 font-medium">
-              {{ $t('JABVOX_PRODUCTS.REPORTS.COLS.AGENT') }}
-            </th>
-            <th class="px-5 py-3 font-medium">
-              {{ $t('JABVOX_PRODUCTS.REPORTS.COLS.EMAIL') }}
-            </th>
-            <th class="px-5 py-3 font-medium">
-              {{ $t('JABVOX_PRODUCTS.REPORTS.COLS.ACCESS') }}
-            </th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-          <tr
-            v-for="agent in agents"
-            :key="agent.id"
-            class="hover:bg-slate-50 dark:hover:bg-slate-800/30"
-          >
-            <td
-              class="px-5 py-3 font-medium text-slate-800 dark:text-slate-100"
-            >
+        {{ t('JABVOX_PRODUCTS.NO_RESULTS') }}
+      </div>
+
+      <div
+        v-else
+        class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm divide-y divide-n-weak overflow-hidden"
+      >
+        <div
+          v-for="agent in filtered"
+          :key="agent.id"
+          class="flex items-center gap-3 px-4 py-3"
+        >
+          <Avatar
+            :name="agent.name"
+            :src="agent.thumbnail"
+            :size="32"
+            rounded-full
+          />
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-n-slate-12 truncate">
               {{ agent.name }}
-            </td>
-            <td class="px-5 py-3 text-slate-500">{{ agent.email }}</td>
-            <td class="px-5 py-3">
-              <button
-                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-                :class="[
-                  isGranted(agent.id)
-                    ? 'bg-woot-600'
-                    : 'bg-slate-200 dark:bg-slate-700',
-                ]"
-                :disabled="savingUserId === agent.id"
-                @click="toggleAccess(agent)"
-              >
-                <span
-                  class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
-                  :class="[
-                    isGranted(agent.id) ? 'translate-x-6' : 'translate-x-1',
-                  ]"
-                />
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+            </p>
+            <p class="text-xs text-n-slate-10 truncate">{{ agent.email }}</p>
+          </div>
+          <Spinner v-if="savingUserId === agent.id" :size="16" />
+          <Switch
+            v-else
+            :model-value="isGranted(agent.id)"
+            @update:model-value="toggleAccess(agent)"
+          />
+        </div>
+      </div>
+    </template>
   </div>
 </template>

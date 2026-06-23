@@ -5,9 +5,10 @@ import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
-import SettingsLayout from '../SettingsLayout.vue';
-import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
+import SectionCard from './components/SectionCard.vue';
 import leadCampaignsAPI from 'dashboard/api/jabvox/leadCampaigns';
 import affiliatesAPI from 'dashboard/api/jabvox/affiliates';
 
@@ -27,7 +28,6 @@ const isEditing = computed(() => !!route.params.funnelId);
 const funnelId = computed(() =>
   route.params.funnelId ? parseInt(route.params.funnelId, 10) : null
 );
-
 const existingFunnel = computed(() =>
   isEditing.value ? funnels.value.find(f => f.id === funnelId.value) : null
 );
@@ -73,43 +73,26 @@ onMounted(async () => {
   }
 });
 
-const isInboxSelected = inboxId => form.value.inbox_ids.includes(inboxId);
-const toggleInbox = inboxId => {
-  if (isInboxSelected(inboxId)) {
-    form.value.inbox_ids = form.value.inbox_ids.filter(id => id !== inboxId);
-  } else {
-    form.value.inbox_ids = [...form.value.inbox_ids, inboxId];
-  }
+const toggleIn = (list, id) => {
+  const arr = form.value[list];
+  form.value[list] = arr.includes(id)
+    ? arr.filter(x => x !== id)
+    : [...arr, id];
 };
-
+const isInboxSelected = id => form.value.inbox_ids.includes(id);
 const isCampaignSelected = id => form.value.campaign_ids.includes(id);
-const toggleCampaign = id => {
-  if (isCampaignSelected(id)) {
-    form.value.campaign_ids = form.value.campaign_ids.filter(c => c !== id);
-  } else {
-    form.value.campaign_ids = [...form.value.campaign_ids, id];
-  }
-};
-
 const isAffiliateSelected = id => form.value.affiliate_ids.includes(id);
-const toggleAffiliate = id => {
-  if (isAffiliateSelected(id)) {
-    form.value.affiliate_ids = form.value.affiliate_ids.filter(a => a !== id);
-  } else {
-    form.value.affiliate_ids = [...form.value.affiliate_ids, id];
-  }
-};
 
 const isSubmitting = computed(
   () => uiFlags.value.isCreatingFunnel || uiFlags.value.isUpdatingFunnel
 );
+const isValid = computed(() => form.value.name_jabvox.trim().length > 0);
 
 const onSubmit = async () => {
-  if (!form.value.name_jabvox.trim()) {
+  if (!isValid.value) {
     useAlert(t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.NAME_REQUIRED'));
     return;
   }
-
   try {
     const payload = {
       funnel: {
@@ -152,208 +135,207 @@ const onCancel = () => router.push({ name: 'jabvox_kanban_funnels_index' });
 </script>
 
 <template>
-  <SettingsLayout>
-    <div class="px-4 sm:px-6 lg:px-8 pb-6 pt-3 sm:pt-4">
-      <BaseSettingsHeader
-        :title="
-          isEditing
-            ? $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.EDIT_TITLE')
-            : $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.NEW_TITLE')
-        "
-        :description="$t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.DESCRIPTION')"
-      />
+  <div class="w-full h-full overflow-y-auto bg-n-background">
+    <div
+      class="mx-auto w-full max-w-3xl flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+    >
+      <!-- Header -->
+      <div class="flex items-center gap-3">
+        <Button
+          icon="i-lucide-arrow-left"
+          variant="ghost"
+          color="slate"
+          size="sm"
+          @click="onCancel"
+        />
+        <div class="min-w-0">
+          <h1 class="text-xl font-semibold tracking-tight text-n-slate-12">
+            {{
+              isEditing
+                ? t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.EDIT_TITLE')
+                : t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.NEW_TITLE')
+            }}
+          </h1>
+          <p class="mt-0.5 text-sm text-n-slate-11">
+            {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.DESCRIPTION') }}
+          </p>
+        </div>
+      </div>
 
-      <div class="max-w-2xl mx-auto">
-        <div
-          class="mt-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6"
-        >
-          <!-- Name -->
-          <div>
-            <label
-              class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >
-              {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.NAME_LABEL') }} *
-            </label>
-            <input
-              v-model="form.name_jabvox"
-              type="text"
-              class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
-              :placeholder="
-                $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.NAME_PLACEHOLDER')
-              "
-            />
-          </div>
-
-          <!-- Description -->
-          <div>
-            <label
-              class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >
-              {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.DESCRIPTION_LABEL') }}
+      <!-- General -->
+      <SectionCard
+        :title="t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.SECTION_GENERAL')"
+        icon="i-lucide-settings-2"
+      >
+        <div class="flex flex-col gap-4">
+          <Input
+            v-model="form.name_jabvox"
+            :label="`${t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.NAME_LABEL')} *`"
+            :placeholder="
+              t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.NAME_PLACEHOLDER')
+            "
+            autofocus
+          />
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.DESCRIPTION_LABEL') }}
             </label>
             <textarea
               v-model="form.description_jabvox"
               rows="3"
-              class="w-full resize-none rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500"
               :placeholder="
-                $t(
-                  'JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.DESCRIPTION_PLACEHOLDER'
-                )
+                t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.DESCRIPTION_PLACEHOLDER')
               "
+              class="w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand resize-y"
             />
           </div>
+          <div
+            class="flex items-center justify-between gap-3 rounded-xl border border-n-weak bg-n-alpha-1 px-4 py-3"
+          >
+            <div class="flex flex-col">
+              <span class="text-sm font-medium text-n-slate-12">
+                {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.ACTIVE_LABEL') }}
+              </span>
+              <span class="text-xs text-n-slate-11">
+                {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.ACTIVE_HINT') }}
+              </span>
+            </div>
+            <Switch v-model="form.active_jabvox" />
+          </div>
+        </div>
+      </SectionCard>
 
+      <!-- Sources -->
+      <SectionCard
+        :title="t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.SECTION_SOURCES')"
+        icon="i-lucide-filter"
+      >
+        <div class="flex flex-col gap-5">
           <!-- Inboxes -->
-          <div>
-            <label
-              class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
-            >
-              {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.INBOXES_LABEL') }}
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.INBOXES_LABEL') }}
             </label>
             <div
-              class="space-y-2 max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg p-3"
+              class="flex flex-col gap-1 max-h-48 overflow-y-auto rounded-xl border border-n-weak p-2"
             >
               <p
                 v-if="!inboxes.length"
-                class="text-xs text-slate-400 text-center py-2"
+                class="text-xs text-n-slate-10 text-center py-2"
               >
-                {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.INBOXES_EMPTY') }}
+                {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.INBOXES_EMPTY') }}
               </p>
               <label
                 v-for="inbox in inboxes"
                 :key="inbox.id"
-                class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+                class="flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer hover:bg-n-alpha-1 text-sm text-n-slate-12"
               >
                 <input
                   type="checkbox"
                   :checked="isInboxSelected(inbox.id)"
-                  class="rounded text-woot-500 focus:ring-woot-500"
-                  @change="toggleInbox(inbox.id)"
+                  class="rounded accent-n-brand"
+                  @change="toggleIn('inbox_ids', inbox.id)"
                 />
-                <span class="text-sm text-slate-700 dark:text-slate-300">{{
-                  inbox.name
-                }}</span>
+                {{ inbox.name }}
               </label>
             </div>
-            <p class="mt-1 text-xs text-slate-400">
-              {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.INBOXES_HINT') }}
+            <p class="text-xs text-n-slate-10">
+              {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.INBOXES_HINT') }}
             </p>
           </div>
 
           <!-- Campaigns -->
-          <div>
-            <label
-              class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
-            >
-              {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.CAMPAIGNS_LABEL') }}
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.CAMPAIGNS_LABEL') }}
             </label>
             <div
-              class="space-y-2 max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg p-3"
+              class="flex flex-col gap-1 max-h-48 overflow-y-auto rounded-xl border border-n-weak p-2"
             >
               <p
                 v-if="!campaigns.length"
-                class="text-xs text-slate-400 text-center py-2"
+                class="text-xs text-n-slate-10 text-center py-2"
               >
-                {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.CAMPAIGNS_EMPTY') }}
+                {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.CAMPAIGNS_EMPTY') }}
               </p>
               <label
                 v-for="campaign in campaigns"
                 :key="campaign.id"
-                class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+                class="flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer hover:bg-n-alpha-1 text-sm text-n-slate-12"
               >
                 <input
                   type="checkbox"
                   :checked="isCampaignSelected(campaign.id)"
-                  class="rounded text-woot-500 focus:ring-woot-500"
-                  @change="toggleCampaign(campaign.id)"
+                  class="rounded accent-n-brand"
+                  @change="toggleIn('campaign_ids', campaign.id)"
                 />
-                <span class="text-sm text-slate-700 dark:text-slate-300">{{
-                  campaign.name
-                }}</span>
+                {{ campaign.name }}
               </label>
             </div>
-            <p class="mt-1 text-xs text-slate-400">
-              {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.CAMPAIGNS_HINT') }}
+            <p class="text-xs text-n-slate-10">
+              {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.CAMPAIGNS_HINT') }}
             </p>
           </div>
 
           <!-- Affiliates -->
-          <div>
-            <label
-              class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
-            >
-              {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.AFFILIATES_LABEL') }}
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.AFFILIATES_LABEL') }}
             </label>
             <div
-              class="space-y-2 max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg p-3"
+              class="flex flex-col gap-1 max-h-48 overflow-y-auto rounded-xl border border-n-weak p-2"
             >
-              <!-- Propio: leads without affiliate -->
               <label
-                class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+                class="flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer hover:bg-n-alpha-1 text-sm font-medium text-n-slate-12"
               >
                 <input
                   v-model="form.include_own_leads"
                   type="checkbox"
-                  class="rounded text-woot-500 focus:ring-woot-500"
+                  class="rounded accent-n-brand"
                 />
-                <span
-                  class="text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  {{ $t('JABVOX_LEADS.TABLE.AFFILIATE_OWN') }}
-                </span>
+                {{ t('JABVOX_LEADS.TABLE.AFFILIATE_OWN') }}
               </label>
               <label
                 v-for="affiliate in affiliates"
                 :key="affiliate.id"
-                class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+                class="flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer hover:bg-n-alpha-1 text-sm text-n-slate-12"
               >
                 <input
                   type="checkbox"
                   :checked="isAffiliateSelected(affiliate.id)"
-                  class="rounded text-woot-500 focus:ring-woot-500"
-                  @change="toggleAffiliate(affiliate.id)"
+                  class="rounded accent-n-brand"
+                  @change="toggleIn('affiliate_ids', affiliate.id)"
                 />
-                <span class="text-sm text-slate-700 dark:text-slate-300">{{
-                  affiliate.name
-                }}</span>
+                {{ affiliate.name }}
               </label>
             </div>
-            <p class="mt-1 text-xs text-slate-400">
-              {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.AFFILIATES_HINT') }}
+            <p class="text-xs text-n-slate-10">
+              {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.AFFILIATES_HINT') }}
             </p>
           </div>
+        </div>
 
-          <!-- Active toggle -->
-          <div class="flex items-center gap-3">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input
-                v-model="form.active_jabvox"
-                type="checkbox"
-                class="rounded text-woot-500 focus:ring-woot-500"
-              />
-              <span
-                class="text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                {{ $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.ACTIVE_LABEL') }}
-              </span>
-            </label>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex flex-wrap items-center gap-3 pt-2">
+        <template #footer>
+          <div class="flex items-center justify-end gap-2">
+            <Button
+              :label="t('JABVOX_KANBAN.COMMON.CANCEL')"
+              variant="outline"
+              color="slate"
+              @click="onCancel"
+            />
             <Button
               :label="
                 isEditing
-                  ? $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.UPDATE_BUTTON')
-                  : $t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.CREATE_BUTTON')
+                  ? t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.UPDATE_BUTTON')
+                  : t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.CREATE_BUTTON')
               "
               :is-loading="isSubmitting"
+              :disabled="!isValid"
               @click="onSubmit"
             />
-            <Button variant="ghost" :label="$t('CANCEL')" @click="onCancel" />
           </div>
-        </div>
-      </div>
+        </template>
+      </SectionCard>
     </div>
-  </SettingsLayout>
+  </div>
 </template>
