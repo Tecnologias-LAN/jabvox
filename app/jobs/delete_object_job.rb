@@ -13,13 +13,45 @@ class DeleteObjectJob < ApplicationJob
     else
       purge_heavy_associations(object)
     end
-    object.destroy!
+    destroy_object!(object)
     process_post_deletion_tasks(object, user, ip)
   end
 
   def process_post_deletion_tasks(object, user, ip); end
 
   private
+
+  # Destroys the object, surfacing any failure to the logs instead of dying
+  # silently in Sidekiq. For inboxes a callback on the dependent channel
+  # (e.g. a WhatsApp webhook teardown calling out to Meta) can raise and abort
+  # the whole deletion, leaving the inbox to reappear on reload. In that case
+  # we log the real error and fall back to a callback-free deletion so the
+  # record is actually removed.
+  def destroy_object!(object)
+    object.destroy!
+  rescue StandardError => e
+    Rails.logger.error("[DeleteObjectJob] destroy failed for #{object.class}##{object.id}: #{e.class} - #{e.message}")
+    raise unless object.is_a?(Inbox)
+
+    force_destroy_inbox(object)
+  end
+
+  # Last-resort inbox deletion: clear the remaining direct associations, then
+  # drop the inbox and its channel without running callbacks (a channel
+  # callback such as a WhatsApp webhook teardown may depend on a now-unreachable
+  # external API and is what aborted the normal destroy).
+  def force_destroy_inbox(inbox)
+    channel = inbox.channel
+    inbox.campaigns.delete_all
+    inbox.webhooks.delete_all
+    inbox.hooks.delete_all
+    inbox.inbox_members.delete_all
+    inbox.working_hours.delete_all
+    inbox.agent_bot_inbox&.delete
+    inbox.inbox_assignment_policy&.delete
+    inbox.delete
+    channel&.delete
+  end
 
   def purge_inbox_associations(inbox, delete_mode, target_inbox_id = nil)
     # Remove records with real FK constraints before inbox deletion
