@@ -30,7 +30,8 @@ const expandedDays = ref(new Set());
 const toDate = val => {
   if (!val) return new Date(0);
   const num = Number(val);
-  if (!isNaN(num) && num > 0) return new Date(num < 1e11 ? num * 1000 : num);
+  if (!Number.isNaN(num) && num > 0)
+    return new Date(num < 1e11 ? num * 1000 : num);
   return new Date(val);
 };
 
@@ -203,6 +204,7 @@ const toggleDay = key => {
 const isDayExpanded = key => expandedDays.value.has(key);
 </script>
 
+<!-- eslint-disable vue/no-bare-strings-in-template -->
 <template>
   <div class="flex flex-col h-full overflow-y-auto">
     <div class="flex-1 overflow-y-auto p-4 space-y-2">
@@ -238,15 +240,22 @@ const isDayExpanded = key => expandedDays.value.has(key);
             {{ formatDayLabel(group.date) }}
           </span>
           <div class="flex items-center gap-1.5 text-slate-400 text-xs">
-            <span v-if="group.orders.length">{{ group.orders.length }} pedido(s)</span>
+            <span v-if="group.orders.length"
+              >{{ group.orders.length }} pedido(s)</span
+            >
             <span
               v-if="
                 group.orders.length && (group.chat.length || group.notes.length)
               "
-              >·</span>
-            <span v-if="group.chat.length">{{ group.chat.length }} mensaje(s)</span>
+              >·</span
+            >
+            <span v-if="group.chat.length"
+              >{{ group.chat.length }} mensaje(s)</span
+            >
             <span v-if="group.chat.length && group.notes.length">·</span>
-            <span v-if="group.notes.length">{{ group.notes.length }} nota(s)</span>
+            <span v-if="group.notes.length"
+              >{{ group.notes.length }} nota(s)</span
+            >
             <i
               class="ml-1"
               :class="
@@ -268,7 +277,8 @@ const isDayExpanded = key => expandedDays.value.has(key);
               <i class="i-lucide-shopping-cart text-xs text-slate-400" />
               <span
                 class="text-xs font-semibold text-slate-400 uppercase tracking-wide"
-                >Pedidos</span>
+                >Pedidos</span
+              >
             </div>
             <div class="px-3 pb-3 space-y-2">
               <div
@@ -336,14 +346,16 @@ const isDayExpanded = key => expandedDays.value.has(key);
                           <span
                             v-if="Number(item.discount_pct) > 0"
                             class="text-amber-500"
-                            >{{ item.discount_pct }}%</span>
+                            >{{ item.discount_pct }}%</span
+                          >
                           <span v-else class="text-slate-300">—</span>
                         </td>
                         <td class="py-0.5 text-center">
                           <span
                             v-if="Number(item.tax_pct) > 0"
                             class="text-blue-500"
-                            >{{ item.tax_pct }}%</span>
+                            >{{ item.tax_pct }}%</span
+                          >
                           <span v-else class="text-slate-300">—</span>
                         </td>
                         <td class="py-0.5 text-right font-semibold">
@@ -372,7 +384,8 @@ const isDayExpanded = key => expandedDays.value.has(key);
               <i class="i-lucide-message-circle text-xs text-slate-400" />
               <span
                 class="text-xs font-semibold text-slate-400 uppercase tracking-wide"
-                >Chat</span>
+                >Chat</span
+              >
             </div>
             <div class="px-4 pb-3 space-y-2">
               <div v-for="msg in group.chat" :key="msg.id" class="text-xs">
@@ -404,7 +417,8 @@ const isDayExpanded = key => expandedDays.value.has(key);
               <i class="i-lucide-pencil-line text-xs text-amber-500" />
               <span
                 class="text-xs font-semibold text-amber-500 uppercase tracking-wide"
-                >Notas</span>
+                >Notas</span
+              >
             </div>
             <div class="px-4 pb-3 space-y-2">
               <div v-for="msg in group.notes" :key="msg.id" class="text-xs">
