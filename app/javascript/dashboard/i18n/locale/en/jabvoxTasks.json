@@ -135,7 +135,7 @@
         "ROLE": "Role",
         "ROLE_PLACEHOLDER": "e.g. Decision maker",
         "EMAIL": "Email",
-        "EMAIL_PLACEHOLDER": "name@example.com",
+        "EMAIL_PLACEHOLDER": "name{'@'}example.com",
         "PHONE": "Phone",
         "PHONE_PLACEHOLDER": "+1 555 0100",
         "DESCRIPTION": "Notes",

@@ -51,7 +51,14 @@
       "DATE_TO": "To",
       "ALL": "All",
       "CLEAR": "Clear filters",
-      "APPLY": "Apply"
+      "APPLY": "Apply",
+      "TITLE": "Search & filter",
+      "INBOX_LABEL": "Inbox",
+      "LANGUAGE_LABEL": "Language",
+      "STATUS_GROUP": "Status",
+      "CATEGORY_GROUP": "Category",
+      "ACTIVE_BADGE": "Filters active",
+      "RESULTS": "{count} templates"
     },
     "BULK": {
       "SELECTED": "{count} templates selected",

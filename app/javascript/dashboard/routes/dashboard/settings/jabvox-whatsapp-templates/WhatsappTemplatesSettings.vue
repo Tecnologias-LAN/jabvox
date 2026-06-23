@@ -363,6 +363,43 @@ const qualityClass = q => {
   }
 };
 
+// Solid dot color used by the status quick-filter chips.
+const statusDotClass = s => {
+  switch ((s || '').toUpperCase()) {
+    case 'APPROVED':
+      return 'bg-n-teal-9';
+    case 'PENDING':
+      return 'bg-n-amber-9';
+    case 'REJECTED':
+      return 'bg-n-ruby-9';
+    case 'PAUSED':
+      return 'bg-n-amber-9';
+    default:
+      return 'bg-n-slate-9';
+  }
+};
+
+// Icon for each quick-filter category chip.
+const categoryIcon = c => {
+  switch ((c || '').toUpperCase()) {
+    case 'MARKETING':
+      return 'i-lucide-megaphone';
+    case 'UTILITY':
+      return 'i-lucide-wrench';
+    case 'AUTHENTICATION':
+      return 'i-lucide-shield-check';
+    case 'SERVICE':
+      return 'i-lucide-headset';
+    default:
+      return 'i-lucide-tag';
+  }
+};
+
+// True when any filter (text, ids, selects, chips) is currently set.
+const hasActiveFilters = computed(() =>
+  Object.values(filters.value).some(Boolean)
+);
+
 // ─── Localized label helpers (static keys, no dynamic-key lint warnings) ──────
 const statusLabel = s => {
   switch ((s || '').toUpperCase()) {
@@ -919,29 +956,72 @@ onMounted(async () => {
     >
       <!-- Advanced search and filters -->
       <div
-        class="px-4 sm:px-6 py-4 bg-n-surface-1 border-b border-n-weak shrink-0 space-y-3"
+        class="px-4 sm:px-6 py-4 bg-n-surface-1 border-b border-n-weak shrink-0 space-y-4"
       >
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-2">
-          <div class="xl:col-span-2">
+        <!-- Panel heading: title + active badge + result count -->
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span
+              class="i-lucide-sliders-horizontal size-4 text-n-slate-11"
+              aria-hidden="true"
+            />
+            <h2 class="text-sm font-semibold text-n-slate-12">
+              {{ t('JABVOX_WA_TEMPLATES.FILTERS.TITLE') }}
+            </h2>
+            <span
+              v-if="hasActiveFilters"
+              class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-n-brand/10 text-n-brand"
+            >
+              <span class="i-lucide-filter size-3" aria-hidden="true" />
+              {{ t('JABVOX_WA_TEMPLATES.FILTERS.ACTIVE_BADGE') }}
+            </span>
+          </div>
+          <span class="text-xs text-n-slate-10 shrink-0">
+            {{
+              t('JABVOX_WA_TEMPLATES.FILTERS.RESULTS', {
+                count: totalTemplates,
+              })
+            }}
+          </span>
+        </div>
+
+        <!-- Search inputs row with embedded icons -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-2.5">
+          <div class="xl:col-span-4 relative">
+            <span
+              class="i-lucide-search size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              aria-hidden="true"
+            />
             <input
               v-model="filters.q"
-              class="reset-base text-sm w-full"
+              class="reset-base text-sm w-full pl-9"
               :placeholder="t('JABVOX_WA_TEMPLATES.FILTERS.SEARCH_PLACEHOLDER')"
               @keyup.enter="applyFilters"
             />
           </div>
-          <div>
+          <div class="xl:col-span-3 relative">
+            <span
+              class="i-lucide-hash size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              aria-hidden="true"
+            />
             <input
               v-model="filters.meta_id"
-              class="reset-base text-sm w-full"
+              class="reset-base text-sm w-full pl-9"
               :placeholder="
                 t('JABVOX_WA_TEMPLATES.FILTERS.META_ID_PLACEHOLDER')
               "
               @keyup.enter="applyFilters"
             />
           </div>
-          <div>
-            <select v-model="selectedInboxId" class="reset-base text-sm w-full">
+          <div class="xl:col-span-2 relative">
+            <span
+              class="i-lucide-inbox size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              aria-hidden="true"
+            />
+            <select
+              v-model="selectedInboxId"
+              class="reset-base text-sm w-full pl-9"
+            >
               <option :value="null">
                 {{ t('JABVOX_WA_TEMPLATES.INBOX.ALL') }}
               </option>
@@ -950,10 +1030,14 @@ onMounted(async () => {
               </option>
             </select>
           </div>
-          <div>
+          <div class="xl:col-span-3 relative">
+            <span
+              class="i-lucide-languages size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              aria-hidden="true"
+            />
             <select
               v-model="filters.language"
-              class="reset-base text-sm w-full"
+              class="reset-base text-sm w-full pl-9"
             >
               <option value="">
                 {{ t('JABVOX_WA_TEMPLATES.FILTERS.ALL_LANGUAGES') }}
@@ -963,52 +1047,82 @@ onMounted(async () => {
               </option>
             </select>
           </div>
-          <div class="flex items-center gap-2">
+        </div>
+
+        <!-- Quick filters: status + category, each grouped with a label -->
+        <div class="flex flex-col lg:flex-row lg:items-start gap-x-6 gap-y-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span
+              class="text-[11px] font-medium uppercase tracking-wide text-n-slate-9 mr-0.5"
+            >
+              {{ t('JABVOX_WA_TEMPLATES.FILTERS.STATUS_GROUP') }}
+            </span>
             <button
-              class="px-3 py-2 text-sm rounded-lg bg-n-brand text-white"
+              v-for="s in statusQuickFilters"
+              :key="`status_${s}`"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-all"
+              :class="
+                filterChipActive('status', s)
+                  ? 'border-n-brand bg-n-brand text-white shadow-sm'
+                  : 'border-n-weak text-n-slate-11 bg-n-surface-1 hover:bg-n-alpha-1 hover:border-n-slate-7'
+              "
+              @click="applyQuickFilter('status', s)"
+            >
+              <span
+                class="size-1.5 rounded-full shrink-0"
+                :class="
+                  filterChipActive('status', s) ? 'bg-white' : statusDotClass(s)
+                "
+                aria-hidden="true"
+              />
+              {{ statusLabel(s) }}
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2 flex-wrap">
+            <span
+              class="text-[11px] font-medium uppercase tracking-wide text-n-slate-9 mr-0.5"
+            >
+              {{ t('JABVOX_WA_TEMPLATES.FILTERS.CATEGORY_GROUP') }}
+            </span>
+            <button
+              v-for="c in categoryQuickFilters"
+              :key="`cat_${c}`"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-all"
+              :class="
+                filterChipActive('category', c)
+                  ? 'border-n-brand bg-n-brand text-white shadow-sm'
+                  : 'border-n-weak text-n-slate-11 bg-n-surface-1 hover:bg-n-alpha-1 hover:border-n-slate-7'
+              "
+              @click="applyQuickFilter('category', c)"
+            >
+              <span
+                :class="categoryIcon(c)"
+                class="size-3 shrink-0"
+                aria-hidden="true"
+              />
+              {{ categoryLabel(c) }}
+            </button>
+          </div>
+
+          <!-- Apply / Clear actions, right-aligned on wide screens -->
+          <div class="flex items-center gap-2 lg:ml-auto">
+            <button
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-n-brand text-white hover:opacity-90 transition-opacity"
               @click="applyFilters"
             >
+              <span class="i-lucide-check size-3.5" aria-hidden="true" />
               {{ t('JABVOX_WA_TEMPLATES.FILTERS.APPLY') }}
             </button>
             <button
-              class="px-3 py-2 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors disabled:opacity-50"
+              :disabled="!hasActiveFilters"
               @click="clearFilters"
             >
+              <span class="i-lucide-x size-3.5" aria-hidden="true" />
               {{ t('JABVOX_WA_TEMPLATES.FILTERS.CLEAR') }}
             </button>
           </div>
-        </div>
-
-        <div class="flex flex-wrap gap-2">
-          <button
-            v-for="s in statusQuickFilters"
-            :key="`status_${s}`"
-            class="px-2.5 py-1 rounded-full text-xs border transition-colors"
-            :class="
-              filterChipActive('status', s)
-                ? 'border-n-brand bg-n-brand text-white'
-                : 'border-n-weak text-n-slate-11 bg-n-surface-1 hover:bg-n-alpha-1'
-            "
-            @click="applyQuickFilter('status', s)"
-          >
-            {{ statusLabel(s) }}
-          </button>
-        </div>
-
-        <div class="flex flex-wrap gap-2">
-          <button
-            v-for="c in categoryQuickFilters"
-            :key="`cat_${c}`"
-            class="px-2.5 py-1 rounded-full text-xs border transition-colors"
-            :class="
-              filterChipActive('category', c)
-                ? 'border-n-brand bg-n-brand text-white'
-                : 'border-n-weak text-n-slate-11 bg-n-surface-1 hover:bg-n-alpha-1'
-            "
-            @click="applyQuickFilter('category', c)"
-          >
-            {{ categoryLabel(c) }}
-          </button>
         </div>
 
         <div
