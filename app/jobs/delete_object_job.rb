@@ -25,7 +25,9 @@ class DeleteObjectJob < ApplicationJob
     # Remove records with real FK constraints before inbox deletion
     JabvoxKanbanFunnelInbox.where(inbox_id: inbox.id).delete_all
     JabvoxKanbanStageAutomation.where(inbox_id: inbox.id).delete_all
+    JabvoxTaskStageAutomation.where(inbox_id: inbox.id).delete_all
     JabvoxResponseBotConfig.where(inbox_id: inbox.id).delete_all
+    JabvoxWhatsappTemplate.where(inbox_id: inbox.id).delete_all
 
     mode = DELETE_MODES.include?(delete_mode) ? delete_mode : 'inbox_conversations'
 
@@ -135,9 +137,7 @@ class DeleteObjectJob < ApplicationJob
     klass = heavy_associations.keys.find { |k| object.is_a?(k) }
     return unless klass
 
-    if object.respond_to?(:conversations)
-      JabvoxKanbanConversationStage.where(conversation_id: object.conversations.select(:id)).delete_all
-    end
+    JabvoxKanbanConversationStage.where(conversation_id: object.conversations.select(:id)).delete_all if object.respond_to?(:conversations)
 
     heavy_associations[klass].each do |assoc|
       next unless object.respond_to?(assoc)

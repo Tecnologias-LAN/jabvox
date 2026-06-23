@@ -5,6 +5,14 @@
       "TITLE": "WhatsApp Templates",
       "SUBTITLE": "Enterprise management of WhatsApp Business API templates."
     },
+    "HEADER": {
+      "TITLE": "WhatsApp Templates",
+      "SUBTITLE": "Manage, create and monitor Meta approved message templates.",
+      "CREATE": "Create Template",
+      "SYNC": "Sync Templates",
+      "IMPORT": "Import",
+      "EXPORT": "Export"
+    },
     "TABS": {
       "OVERVIEW": "Overview",
       "TEMPLATES": "Templates",
@@ -19,7 +27,8 @@
       "DISABLED": "Disabled",
       "QUALITY_HIGH": "High quality",
       "QUALITY_MEDIUM": "Med quality",
-      "QUALITY_LOW": "Low quality"
+      "QUALITY_LOW": "Low quality",
+      "USAGE_MONTH": "Usage This Month"
     },
     "INBOX": {
       "ALL": "All inboxes",
@@ -32,6 +41,9 @@
     },
     "FILTERS": {
       "SEARCH": "Search by name or content…",
+      "SEARCH_PLACEHOLDER": "Search by name, category, language or Meta ID",
+      "META_ID_PLACEHOLDER": "Meta Template ID",
+      "ALL_LANGUAGES": "All languages",
       "STATUS": "Status",
       "CATEGORY": "Category",
       "LANGUAGE": "Language",
@@ -40,6 +52,29 @@
       "ALL": "All",
       "CLEAR": "Clear filters",
       "APPLY": "Apply"
+    },
+    "BULK": {
+      "SELECTED": "{count} templates selected",
+      "SYNC": "Sync",
+      "DUPLICATE": "Duplicate",
+      "EXPORT": "Export",
+      "DELETE": "Delete",
+      "DELETE_CONFIRM": "Delete {count} templates?"
+    },
+    "GALLERY": {
+      "SELECT_ALL": "Select all visible templates",
+      "VARIABLES": "Variables",
+      "BUTTONS": "Buttons",
+      "CREATED": "Created",
+      "UPDATED": "Updated",
+      "NO_META_ID": "No Meta ID",
+      "EMPTY_TITLE": "No templates created yet",
+      "EMPTY_BODY": "Create your first Meta template to start sending approved WhatsApp messages.",
+      "EMPTY_CTA": "Create First Template"
+    },
+    "OVERVIEW": {
+      "WABA": "WABA",
+      "NO_WABA": "—"
     },
     "TABLE": {
       "NAME": "Name",
@@ -69,7 +104,8 @@
     "CATEGORIES": {
       "MARKETING": "Marketing",
       "UTILITY": "Utility",
-      "AUTHENTICATION": "Authentication"
+      "AUTHENTICATION": "Authentication",
+      "SERVICE": "Service"
     },
     "ACTIONS": {
       "VIEW": "View",
@@ -113,19 +149,61 @@
       "SUBMIT": "Send to Meta",
       "UPDATE": "Update",
       "CANCEL": "Cancel",
-      "SUBMITTING": "Sending…"
+      "SUBMITTING": "Sending…",
+      "BACK": "Back",
+      "NEXT": "Next",
+      "STEPS": {
+        "BASIC": "Basic Info",
+        "CONTENT": "Content",
+        "VARIABLES": "Variables",
+        "BUTTONS": "Buttons",
+        "PREVIEW": "Preview",
+        "SUBMIT": "Submit"
+      },
+      "VARS_MANAGER": "Variable Manager",
+      "VARS_EMPTY": "No variables detected yet. Add numbered placeholders in the body to create variables.",
+      "PREVIEW_HEADING": "Live Preview",
+      "PREVIEW_NOTE": "Review exactly how your template will look in WhatsApp before submitting to Meta.",
+      "SUMMARY_TITLE": "Template Summary",
+      "SUMMARY_CATEGORY": "Category:",
+      "SUMMARY_LANGUAGE": "Language:",
+      "SUMMARY_VARIABLES": "Variables:",
+      "SUMMARY_BUTTONS": "Buttons:",
+      "SUBMIT_HEADING": "Send to Meta",
+      "SUBMIT_NOTE": "This action will submit the template to Meta for review keeping all current approval workflows.",
+      "SUBMIT_HINT": "Ensure variable examples and buttons are valid before submission."
     },
     "DETAIL": {
       "TITLE": "Template detail",
       "COMPONENTS": "Components",
       "VARIABLES": "Variables",
+      "ANALYTICS": "Analytics",
       "META_JSON": "Raw Meta JSON",
       "HISTORY": "Change history",
       "VERSIONS": "Versions",
       "RESTORE": "Restore this version",
       "RESTORE_CONFIRM": "Restore template to version {v}?",
       "DUPLICATE_NAME": "New template name (copy)",
-      "CLOSE": "Close"
+      "CLOSE": "Close",
+      "REJECTED_REASON": "Rejection reason:",
+      "META_ID": "Meta ID",
+      "WABA_ID": "WABA ID",
+      "INBOX": "Inbox",
+      "QUALITY": "Quality",
+      "HEADER": "Header",
+      "BODY": "Body",
+      "FOOTER": "Footer",
+      "BUTTONS": "Buttons",
+      "MEDIA": "(media)",
+      "EMPTY_VALUE": "—"
+    },
+    "ANALYTICS": {
+      "SENT": "Sent",
+      "DELIVERED": "Delivered",
+      "READ": "Read",
+      "REPLIED": "Replied",
+      "FAILED": "Failed",
+      "BLOCKED": "Blocked"
     },
     "IMPORT": {
       "TITLE": "Import templates",

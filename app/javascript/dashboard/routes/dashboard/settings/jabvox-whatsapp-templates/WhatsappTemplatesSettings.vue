@@ -30,23 +30,6 @@ const loadInboxes = async () => {
   }
 };
 
-const syncInbox = async () => {
-  if (!selectedInboxId.value) return;
-  syncing.value = true;
-  try {
-    await wtInboxesAPI.sync(selectedInboxId.value);
-    useAlert(t('JABVOX_WA_TEMPLATES.SYNCED'));
-    // eslint-disable-next-line no-use-before-define
-    await loadTemplates();
-    // eslint-disable-next-line no-use-before-define
-    await loadMetrics();
-  } catch {
-    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
-  } finally {
-    syncing.value = false;
-  }
-};
-
 // ─── Metrics ─────────────────────────────────────────────────────────────────
 const metrics = ref({});
 
@@ -81,6 +64,43 @@ const apiFilters = computed(() => {
   return f;
 });
 
+// ─── Templates list ──────────────────────────────────────────────────────────
+const templates = ref([]);
+const totalTemplates = ref(0);
+const loadingTemplates = ref(false);
+
+const totalPages = computed(
+  () => Math.ceil(totalTemplates.value / perPage) || 1
+);
+
+const loadTemplates = async () => {
+  loadingTemplates.value = true;
+  try {
+    const { data } = await wtTemplatesAPI.getAll(apiFilters.value);
+    templates.value = data.templates || [];
+    totalTemplates.value = data.total || 0;
+  } catch {
+    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
+  } finally {
+    loadingTemplates.value = false;
+  }
+};
+
+const syncInbox = async () => {
+  if (!selectedInboxId.value) return;
+  syncing.value = true;
+  try {
+    await wtInboxesAPI.sync(selectedInboxId.value);
+    useAlert(t('JABVOX_WA_TEMPLATES.SYNCED'));
+    await loadTemplates();
+    await loadMetrics();
+  } catch {
+    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
+  } finally {
+    syncing.value = false;
+  }
+};
+
 const clearFilters = () => {
   filters.value = {
     q: '',
@@ -92,18 +112,8 @@ const clearFilters = () => {
     date_to: '',
   };
   page.value = 1;
-  // eslint-disable-next-line no-use-before-define
   loadTemplates();
 };
-
-// ─── Templates list ──────────────────────────────────────────────────────────
-const templates = ref([]);
-const totalTemplates = ref(0);
-const loadingTemplates = ref(false);
-
-const totalPages = computed(
-  () => Math.ceil(totalTemplates.value / perPage) || 1
-);
 
 const summaryKpis = computed(() => {
   const m = metrics.value || {};
@@ -121,35 +131,35 @@ const summaryKpis = computed(() => {
       label: t('JABVOX_WA_TEMPLATES.METRICS.APPROVED'),
       value: m.approved ?? 0,
       icon: 'i-lucide-badge-check',
-      accent: 'text-emerald-600',
+      accent: 'text-n-teal-11',
     },
     {
       key: 'pending',
       label: t('JABVOX_WA_TEMPLATES.METRICS.PENDING'),
       value: m.pending ?? 0,
       icon: 'i-lucide-clock-3',
-      accent: 'text-amber-600',
+      accent: 'text-n-amber-11',
     },
     {
       key: 'rejected',
       label: t('JABVOX_WA_TEMPLATES.METRICS.REJECTED'),
       value: m.rejected ?? 0,
       icon: 'i-lucide-shield-x',
-      accent: 'text-rose-600',
+      accent: 'text-n-ruby-11',
     },
     {
       key: 'disabled',
       label: t('JABVOX_WA_TEMPLATES.METRICS.DISABLED'),
       value: m.disabled ?? 0,
       icon: 'i-lucide-pause-circle',
-      accent: 'text-slate-500',
+      accent: 'text-n-slate-11',
     },
     {
       key: 'usage_month',
-      label: 'Usage This Month',
+      label: t('JABVOX_WA_TEMPLATES.METRICS.USAGE_MONTH'),
       value: usage,
       icon: 'i-lucide-chart-column',
-      accent: 'text-indigo-600',
+      accent: 'text-n-brand',
     },
   ];
 });
@@ -201,10 +211,22 @@ const filterChipActive = (kind, value) => {
   return filters.value.category === value;
 };
 
+const categoryLabel = c => t(`JABVOX_WA_TEMPLATES.CATEGORIES.${c}`);
+
+const applyFilters = () => {
+  page.value = 1;
+  loadTemplates();
+};
+const changePage = delta => {
+  const n = page.value + delta;
+  if (n < 1 || n > totalPages.value) return;
+  page.value = n;
+  loadTemplates();
+};
+
 const applyQuickFilter = (kind, value) => {
   const key = kind === 'status' ? 'status' : 'category';
   filters.value[key] = filters.value[key] === value ? '' : value;
-  // eslint-disable-next-line no-use-before-define
   applyFilters();
 };
 
@@ -216,7 +238,6 @@ const bulkSync = async () => {
     );
     useAlert(t('JABVOX_WA_TEMPLATES.SYNCED'));
     selectedTemplateIds.value = [];
-    // eslint-disable-next-line no-use-before-define
     await loadTemplates();
   } catch {
     useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
@@ -233,7 +254,6 @@ const bulkDuplicate = async () => {
     );
     useAlert(t('JABVOX_WA_TEMPLATES.DUPLICATED'));
     selectedTemplateIds.value = [];
-    // eslint-disable-next-line no-use-before-define
     await loadTemplates();
     await loadMetrics();
   } catch {
@@ -244,7 +264,13 @@ const bulkDuplicate = async () => {
 const bulkDelete = async () => {
   if (!selectedTemplates.value.length) return;
   // eslint-disable-next-line no-alert
-  if (!window.confirm(`Delete ${selectedTemplates.value.length} templates?`))
+  if (
+    !window.confirm(
+      t('JABVOX_WA_TEMPLATES.BULK.DELETE_CONFIRM', {
+        count: selectedTemplates.value.length,
+      })
+    )
+  )
     return;
 
   try {
@@ -253,7 +279,6 @@ const bulkDelete = async () => {
     );
     useAlert(t('JABVOX_WA_TEMPLATES.DELETED'));
     selectedTemplateIds.value = [];
-    // eslint-disable-next-line no-use-before-define
     await loadTemplates();
     await loadMetrics();
   } catch {
@@ -282,41 +307,18 @@ const bulkExportSelected = () => {
   URL.revokeObjectURL(url);
 };
 
-const loadTemplates = async () => {
-  loadingTemplates.value = true;
-  try {
-    const { data } = await wtTemplatesAPI.getAll(apiFilters.value);
-    templates.value = data.templates || [];
-    totalTemplates.value = data.total || 0;
-  } catch {
-    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
-  } finally {
-    loadingTemplates.value = false;
-  }
-};
-
-const applyFilters = () => {
-  page.value = 1;
-  loadTemplates();
-};
-const changePage = delta => {
-  const n = page.value + delta;
-  if (n < 1 || n > totalPages.value) return;
-  page.value = n;
-  loadTemplates();
-};
-
 // ─── Status / quality helpers ────────────────────────────────────────────────
+// Design-system status tokens (theme-aware, no hardcoded palette colors).
 const statusClass = s => {
   switch ((s || '').toUpperCase()) {
     case 'APPROVED':
-      return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      return 'bg-n-teal-3 text-n-teal-11';
     case 'PENDING':
-      return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+      return 'bg-n-amber-3 text-n-amber-11';
     case 'REJECTED':
-      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      return 'bg-n-ruby-3 text-n-ruby-11';
     case 'PAUSED':
-      return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+      return 'bg-n-amber-3 text-n-amber-11';
     default:
       return 'bg-n-alpha-2 text-n-slate-11';
   }
@@ -324,11 +326,11 @@ const statusClass = s => {
 const qualityClass = q => {
   switch ((q || '').toUpperCase()) {
     case 'GREEN':
-      return 'text-green-600';
+      return 'text-n-teal-11';
     case 'YELLOW':
-      return 'text-yellow-600';
+      return 'text-n-amber-11';
     case 'RED':
-      return 'text-red-600';
+      return 'text-n-ruby-11';
     default:
       return 'text-n-slate-10';
   }
@@ -524,12 +526,12 @@ const submitForm = async () => {
 
 const wizardStep = ref(1);
 const wizardSteps = [
-  { id: 1, label: 'Basic Info' },
-  { id: 2, label: 'Content' },
-  { id: 3, label: 'Variables' },
-  { id: 4, label: 'Buttons' },
-  { id: 5, label: 'Preview' },
-  { id: 6, label: 'Submit' },
+  { id: 1, label: t('JABVOX_WA_TEMPLATES.CREATE.STEPS.BASIC') },
+  { id: 2, label: t('JABVOX_WA_TEMPLATES.CREATE.STEPS.CONTENT') },
+  { id: 3, label: t('JABVOX_WA_TEMPLATES.CREATE.STEPS.VARIABLES') },
+  { id: 4, label: t('JABVOX_WA_TEMPLATES.CREATE.STEPS.BUTTONS') },
+  { id: 5, label: t('JABVOX_WA_TEMPLATES.CREATE.STEPS.PREVIEW') },
+  { id: 6, label: t('JABVOX_WA_TEMPLATES.CREATE.STEPS.SUBMIT') },
 ];
 
 const nextWizardStep = () => {
@@ -672,21 +674,22 @@ onMounted(async () => {
         >
           <div>
             <h1 class="text-xl sm:text-2xl font-semibold text-n-slate-12">
-              WhatsApp Templates
+              {{ t('JABVOX_WA_TEMPLATES.HEADER.TITLE') }}
             </h1>
             <p class="text-xs sm:text-sm text-n-slate-10 mt-1 max-w-2xl">
-              Manage, create and monitor Meta approved message templates.
+              {{ t('JABVOX_WA_TEMPLATES.HEADER.SUBTITLE') }}
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <button
-              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5"
+              class="px-3 py-1.5 text-xs rounded-lg bg-n-brand text-white hover:opacity-90 flex items-center gap-1.5 transition-opacity"
               @click="openCreate"
             >
-              <span class="i-lucide-plus size-3.5" />Create Template
+              <span class="i-lucide-plus size-3.5" />
+              {{ t('JABVOX_WA_TEMPLATES.HEADER.CREATE') }}
             </button>
             <button
-              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5 disabled:opacity-50"
+              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5 disabled:opacity-50 transition-colors"
               :disabled="syncing || !selectedInboxId"
               @click="syncInbox"
             >
@@ -697,19 +700,22 @@ onMounted(async () => {
                     : 'i-lucide-refresh-cw'
                 "
                 class="size-3.5"
-              />Sync Templates
+              />
+              {{ t('JABVOX_WA_TEMPLATES.HEADER.SYNC') }}
             </button>
             <button
-              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5"
+              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5 transition-colors"
               @click="showImport = true"
             >
-              <span class="i-lucide-upload size-3.5" />Import
+              <span class="i-lucide-upload size-3.5" />
+              {{ t('JABVOX_WA_TEMPLATES.HEADER.IMPORT') }}
             </button>
             <button
-              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5"
+              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5 transition-colors"
               @click="exportJson"
             >
-              <span class="i-lucide-download size-3.5" />Export
+              <span class="i-lucide-download size-3.5" />
+              {{ t('JABVOX_WA_TEMPLATES.HEADER.EXPORT') }}
             </button>
           </div>
         </div>
@@ -832,7 +838,7 @@ onMounted(async () => {
             <input
               v-model="filters.q"
               class="reset-base text-sm w-full"
-              placeholder="Search by name, category, language or Meta ID"
+              :placeholder="t('JABVOX_WA_TEMPLATES.FILTERS.SEARCH_PLACEHOLDER')"
               @keyup.enter="applyFilters"
             />
           </div>
@@ -840,7 +846,9 @@ onMounted(async () => {
             <input
               v-model="filters.meta_id"
               class="reset-base text-sm w-full"
-              placeholder="Meta Template ID"
+              :placeholder="
+                t('JABVOX_WA_TEMPLATES.FILTERS.META_ID_PLACEHOLDER')
+              "
               @keyup.enter="applyFilters"
             />
           </div>
@@ -859,7 +867,9 @@ onMounted(async () => {
               v-model="filters.language"
               class="reset-base text-sm w-full"
             >
-              <option value="">All languages</option>
+              <option value="">
+                {{ t('JABVOX_WA_TEMPLATES.FILTERS.ALL_LANGUAGES') }}
+              </option>
               <option v-for="l in LANGUAGES" :key="l.value" :value="l.value">
                 {{ l.label }}
               </option>
@@ -909,7 +919,7 @@ onMounted(async () => {
             "
             @click="applyQuickFilter('category', c)"
           >
-            {{ c }}
+            {{ categoryLabel(c) }}
           </button>
         </div>
 
@@ -918,32 +928,34 @@ onMounted(async () => {
           class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-n-weak bg-n-alpha-1 px-3 py-2"
         >
           <span class="text-xs text-n-slate-11">
-            {{ selectedCount }} templates selected
+            {{
+              t('JABVOX_WA_TEMPLATES.BULK.SELECTED', { count: selectedCount })
+            }}
           </span>
           <div class="flex flex-wrap gap-2">
             <button
-              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3"
+              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
               @click="bulkSync"
             >
-              Sync
+              {{ t('JABVOX_WA_TEMPLATES.BULK.SYNC') }}
             </button>
             <button
-              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3"
+              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
               @click="bulkDuplicate"
             >
-              Duplicate
+              {{ t('JABVOX_WA_TEMPLATES.BULK.DUPLICATE') }}
             </button>
             <button
-              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3"
+              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
               @click="bulkExportSelected"
             >
-              Export
+              {{ t('JABVOX_WA_TEMPLATES.BULK.EXPORT') }}
             </button>
             <button
-              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-ruby-3 text-n-ruby-11 hover:bg-n-ruby-4"
+              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-ruby-3 text-n-ruby-11 hover:bg-n-ruby-4 transition-colors"
               @click="bulkDelete"
             >
-              Delete
+              {{ t('JABVOX_WA_TEMPLATES.BULK.DELETE') }}
             </button>
           </div>
         </div>
@@ -972,17 +984,16 @@ onMounted(async () => {
           class="rounded-2xl border border-dashed border-n-weak bg-n-surface-1 py-20 text-center"
         >
           <p class="text-base font-medium text-n-slate-12">
-            No templates created yet
+            {{ t('JABVOX_WA_TEMPLATES.GALLERY.EMPTY_TITLE') }}
           </p>
-          <p class="text-sm text-n-slate-10 mt-1">
-            Create your first Meta template to start sending approved WhatsApp
-            messages.
+          <p class="text-sm text-n-slate-10 mt-1 max-w-md mx-auto">
+            {{ t('JABVOX_WA_TEMPLATES.GALLERY.EMPTY_BODY') }}
           </p>
           <button
-            class="mt-4 px-4 py-2 text-sm rounded-lg bg-n-brand text-white"
+            class="mt-4 px-4 py-2 text-sm rounded-lg bg-n-brand text-white hover:opacity-90 transition-opacity"
             @click="openCreate"
           >
-            Create First Template
+            {{ t('JABVOX_WA_TEMPLATES.GALLERY.EMPTY_CTA') }}
           </button>
         </div>
 
@@ -999,7 +1010,7 @@ onMounted(async () => {
               class="size-4"
               @change="toggleSelectAll($event.target.checked)"
             />
-            Select all visible templates
+            {{ t('JABVOX_WA_TEMPLATES.GALLERY.SELECT_ALL') }}
           </label>
 
           <article
@@ -1032,7 +1043,10 @@ onMounted(async () => {
               </h3>
               <p class="text-xs text-n-slate-10 mt-0.5">
                 {{ tpl.language }} · {{ tpl.category }} ·
-                {{ tpl.meta_template_id || 'No Meta ID' }}
+                {{
+                  tpl.meta_template_id ||
+                  t('JABVOX_WA_TEMPLATES.GALLERY.NO_META_ID')
+                }}
               </p>
 
               <div class="mt-3 rounded-xl bg-[#0b141a] p-2.5">
@@ -1068,25 +1082,33 @@ onMounted(async () => {
 
               <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <p class="text-n-slate-9">Variables</p>
+                  <p class="text-n-slate-9">
+                    {{ t('JABVOX_WA_TEMPLATES.GALLERY.VARIABLES') }}
+                  </p>
                   <p class="text-n-slate-12 font-medium">
                     {{ Object.keys(tpl.variables_json || {}).length }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-n-slate-9">Buttons</p>
+                  <p class="text-n-slate-9">
+                    {{ t('JABVOX_WA_TEMPLATES.GALLERY.BUTTONS') }}
+                  </p>
                   <p class="text-n-slate-12 font-medium">
                     {{ (tpl.buttons_json || []).length }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-n-slate-9">Created</p>
+                  <p class="text-n-slate-9">
+                    {{ t('JABVOX_WA_TEMPLATES.GALLERY.CREATED') }}
+                  </p>
                   <p class="text-n-slate-12 font-medium">
                     {{ new Date(tpl.created_at).toLocaleDateString() }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-n-slate-9">Updated</p>
+                  <p class="text-n-slate-9">
+                    {{ t('JABVOX_WA_TEMPLATES.GALLERY.UPDATED') }}
+                  </p>
                   <p class="text-n-slate-12 font-medium">
                     {{ new Date(tpl.updated_at).toLocaleDateString() }}
                   </p>
@@ -1346,7 +1368,7 @@ onMounted(async () => {
               <h3
                 class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
               >
-                Variable Manager
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.VARS_MANAGER') }}
               </h3>
               <div
                 v-if="detectedVars.length"
@@ -1376,9 +1398,7 @@ onMounted(async () => {
                 v-else
                 class="rounded-lg border border-dashed border-n-weak p-4 text-sm text-n-slate-10"
               >
-                No variables detected yet. Add placeholders like
-                &#123;&#123;1&#125;&#125; and &#123;&#123;2&#125;&#125; in the
-                body.
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.VARS_EMPTY') }}
               </div>
             </section>
 
@@ -1434,29 +1454,38 @@ onMounted(async () => {
               <h3
                 class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
               >
-                Live Preview
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.PREVIEW_HEADING') }}
               </h3>
               <p class="text-sm text-n-slate-11">
-                Review exactly how your template will look in WhatsApp before
-                submitting to Meta.
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.PREVIEW_NOTE') }}
               </p>
               <div class="rounded-xl border border-n-weak bg-n-alpha-1 p-4">
-                <p class="text-xs text-n-slate-10 mb-2">Template Summary</p>
+                <p class="text-xs text-n-slate-10 mb-2">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.SUMMARY_TITLE') }}
+                </p>
                 <div class="grid grid-cols-2 gap-3 text-xs text-n-slate-11">
                   <p>
-                    <span class="text-n-slate-9">Category:</span>
+                    <span class="text-n-slate-9">
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.SUMMARY_CATEGORY') }}
+                    </span>
                     {{ form.category }}
                   </p>
                   <p>
-                    <span class="text-n-slate-9">Language:</span>
+                    <span class="text-n-slate-9">
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.SUMMARY_LANGUAGE') }}
+                    </span>
                     {{ form.language }}
                   </p>
                   <p>
-                    <span class="text-n-slate-9">Variables:</span>
+                    <span class="text-n-slate-9">
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.SUMMARY_VARIABLES') }}
+                    </span>
                     {{ detectedVars.length }}
                   </p>
                   <p>
-                    <span class="text-n-slate-9">Buttons:</span>
+                    <span class="text-n-slate-9">
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.SUMMARY_BUTTONS') }}
+                    </span>
                     {{ form.buttons.filter(b => b.text).length }}
                   </p>
                 </div>
@@ -1467,18 +1496,14 @@ onMounted(async () => {
               <h3
                 class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
               >
-                Send to Meta
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.SUBMIT_HEADING') }}
               </h3>
               <div
                 class="rounded-xl border border-n-weak bg-n-alpha-1 p-4 space-y-2 text-sm text-n-slate-11"
               >
-                <p>
-                  This action will submit the template to Meta for review
-                  keeping all current approval workflows.
-                </p>
+                <p>{{ t('JABVOX_WA_TEMPLATES.CREATE.SUBMIT_NOTE') }}</p>
                 <p class="text-xs text-n-slate-10">
-                  Ensure variable examples and buttons are valid before
-                  submission.
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.SUBMIT_HINT') }}
                 </p>
               </div>
             </section>
