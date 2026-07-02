@@ -24,6 +24,10 @@ Rails.application.config.to_prepare do
   Account.prepend Jabvox::AccountBulkWhatsappFeature
   Account.prepend Jabvox::AccountLeadImportFeature
   Account.prepend Jabvox::AccountDataExportFeature
+  # Prevents a PostgreSQL bigint overflow in feature_flags when a default
+  # feature sits at bit >= 64 (upstream Chatwoot has > 63 features). Keeps
+  # account creation from 500-ing regardless of the DB feature-defaults config.
+  Account.prepend Jabvox::AccountFeatureFlagGuard
 
   Contact.include Jabvox::ContactLeadsIntegration
   Note.include Jabvox::NoteManagementAnswers
