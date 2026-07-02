@@ -197,12 +197,18 @@ const actions = {
     }
   },
 
-  async syncDocuments({ commit }) {
+  // Lists a folder in the bucket for the picker. Returns { folders, files, limit }.
+  // Does not mutate the stored document list — pure listing.
+  async fetchBucketObjects(_ctx, { prefix = '', search = '' } = {}) {
+    const { data } = await aiChatConfigAPI.bucketObjects({ prefix, search });
+    return data;
+  },
+
+  // Persists the user's manual selection of bucket file keys as the active set.
+  async saveDocuments({ commit }, keys) {
     commit('SET_UI_FLAG', { isSyncingDocuments: true });
     try {
-      const { data } = await aiChatConfigAPI.syncDocuments();
-      // Backend now returns { documents, total_in_bucket, skipped, limit }.
-      // Stay backward-compatible if it ever returns a bare array.
+      const { data } = await aiChatConfigAPI.saveDocuments(keys);
       commit('SET_DOCUMENTS', Array.isArray(data) ? data : data.documents);
       return Array.isArray(data) ? { documents: data } : data;
     } finally {

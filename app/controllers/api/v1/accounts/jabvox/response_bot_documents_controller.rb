@@ -12,23 +12,14 @@ class Api::V1::Accounts::Jabvox::ResponseBotDocumentsController < Api::V1::Accou
 
   def sync
     authorize JabvoxResponseBotDocument
-    bucket_config = Current.account.jabvox_ai_chat_config
-    return render json: { error: 'Bucket not configured' }, status: :unprocessable_entity if bucket_config&.bucket_url_jabvox.blank?
+    bucket_service = documents_bucket_service
+    return render(json: { error: 'Bucket not configured' }, status: :unprocessable_entity) unless bucket_service
 
-    bucket_service = Jabvox::AiChatBucketService.new(bucket_config)
-    objects = bucket_service.list_objects
     synced = 0
-
-    objects.each do |obj|
+    bucket_service.list_objects.each do |obj|
       next if obj[:key].blank?
 
-      Current.account.jabvox_response_bot_documents.find_or_create_by!(
-        s3_key_jabvox: obj[:key]
-      ) do |d|
-        d.name_jabvox = File.basename(obj[:key])
-        d.size_jabvox = obj[:size]
-        d.content_type_jabvox = obj[:content_type]
-      end
+      upsert_response_bot_document(obj)
       synced += 1
     end
 
@@ -50,6 +41,22 @@ class Api::V1::Accounts::Jabvox::ResponseBotDocumentsController < Api::V1::Accou
   end
 
   private
+
+  # Bucket service for the account's document source (shared storage or the
+  # inline AI Chat bucket). Returns nil when nothing usable is configured.
+  def documents_bucket_service
+    config = Current.account.jabvox_ai_chat_config
+    service = Jabvox::AiChatBucketService.new(config&.documents_bucket_source)
+    service.configured? ? service : nil
+  end
+
+  def upsert_response_bot_document(obj)
+    Current.account.jabvox_response_bot_documents.find_or_create_by!(s3_key_jabvox: obj[:key]) do |d|
+      d.name_jabvox = File.basename(obj[:key])
+      d.size_jabvox = obj[:size]
+      d.content_type_jabvox = obj[:content_type]
+    end
+  end
 
   # Gate solo si el usuario tiene un custom role: sin rol personalizado se
   # conserva el comportamiento histórico (acceso). El admin siempre pasa.

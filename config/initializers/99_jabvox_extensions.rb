@@ -32,6 +32,8 @@ Rails.application.config.to_prepare do
   Account.include Jabvox::AccountModulesAdmin
   # Backfill CDR <-> Audio pipelines when both modules become enabled.
   Account.include Jabvox::AccountPipelineSync
+  # Backfill Audio <-> AI Chat storages when both modules become enabled.
+  Account.include Jabvox::AccountStorageSync
 
   Contact.include Jabvox::ContactLeadsIntegration
   Note.include Jabvox::NoteManagementAnswers

@@ -136,10 +136,10 @@ class Jabvox::ResponseBotService
   end
 
   def build_documents_context
-    bucket_config = @account.jabvox_ai_chat_config
-    return '' if bucket_config&.bucket_url_jabvox.blank?
+    ai_chat_config = @account.jabvox_ai_chat_config
+    bucket_service = Jabvox::AiChatBucketService.new(ai_chat_config&.documents_bucket_source)
+    return '' unless bucket_service.configured?
 
-    bucket_service = Jabvox::AiChatBucketService.new(bucket_config)
     parts = []
     total_chars = 0
 
@@ -276,12 +276,12 @@ class Jabvox::ResponseBotService
     qr_doc = @account.jabvox_response_bot_documents.enabled.for_category('qr_pago').first
     return unless qr_doc
 
-    bucket_config = @account.jabvox_ai_chat_config
-    return unless bucket_config&.bucket_url_jabvox.present?
+    ai_chat_config = @account.jabvox_ai_chat_config
+    bucket_service = Jabvox::AiChatBucketService.new(ai_chat_config&.documents_bucket_source)
+    return unless bucket_service.configured?
 
-    bucket_service = Jabvox::AiChatBucketService.new(bucket_config)
     qr_url = bucket_service.public_url(qr_doc.s3_key_jabvox)
-    return unless qr_url.present?
+    return if qr_url.blank?
 
     @conversation.messages.create!(
       account_id: @account.id,

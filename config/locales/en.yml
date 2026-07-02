@@ -498,6 +498,10 @@ en:
     ssl_status:
       custom_domain_not_configured: 'Custom domain is not configured'
   jabvox:
+    ai_chat:
+      documents:
+        limit_exceeded: "You can select at most %{limit} documents."
+        bucket_not_configured: "The selected storage has no bucket credentials. Configure it in Manage storages."
     calendar:
       reminder_subject: "Reminder"
       reminder_greeting: "Hello %{name}"

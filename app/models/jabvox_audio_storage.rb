@@ -33,4 +33,21 @@ class JabvoxAudioStorage < ApplicationRecord
 
   validates :name, presence: true, length: { maximum: 150 }
   validates :bucket_name, presence: true, unless: :use_documents_config?
+
+  # Mirror to the AI Chat module (only when both modules are enabled), matched by
+  # name — same pattern as the CDR/Audio pipeline mirror. Storages that reuse the
+  # documents config (use_documents_config) are NOT mirrored: they have no own
+  # credentials to share, and AI Chat is that very source.
+  after_commit :mirror_to_ai_chat, on: %i[create update]
+  after_commit :remove_ai_chat_mirror, on: :destroy
+
+  private
+
+  def mirror_to_ai_chat
+    Jabvox::StorageSyncService.mirror(self)
+  end
+
+  def remove_ai_chat_mirror
+    Jabvox::StorageSyncService.remove_mirror(self)
+  end
 end

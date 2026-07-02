@@ -42,10 +42,10 @@ module Jabvox
       enabled_docs = @account.jabvox_ai_chat_documents.enabled
       return '' if enabled_docs.empty?
 
-      bucket_config = @account.jabvox_ai_chat_config
-      return '' unless bucket_config&.bucket_url_jabvox.present?
+      config = @account.jabvox_ai_chat_config
+      bucket_service = Jabvox::AiChatBucketService.new(config&.documents_bucket_source)
+      return '' unless bucket_service.configured?
 
-      bucket_service = Jabvox::AiChatBucketService.new(bucket_config)
       parts = []
       total_chars = 0
 

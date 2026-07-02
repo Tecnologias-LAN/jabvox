@@ -41,7 +41,9 @@
     },
     "FILTERS": {
       "SEARCH": "Buscar por nombre o contenido…",
+      "SEARCH_LABEL": "Buscar",
       "SEARCH_PLACEHOLDER": "Buscar por nombre, categoría, idioma o ID de Meta",
+      "META_ID_LABEL": "ID de Meta",
       "META_ID_PLACEHOLDER": "ID de plantilla de Meta",
       "ALL_LANGUAGES": "Todos los idiomas",
       "STATUS": "Estado",

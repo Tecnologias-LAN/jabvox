@@ -8,4 +8,6 @@ class JabvoxAiChatConfigPolicy < ApplicationPolicy
   def show? = can_manage?
   def update? = can_manage?
   def sync_documents? = can_manage?
+  def bucket_objects? = can_manage?
+  def save_documents? = can_manage?
 end

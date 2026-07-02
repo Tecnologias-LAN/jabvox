@@ -2,8 +2,16 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::ReportsController < Api::V1::Acc
   before_action :ensure_can_view_reports, except: [:my_access]
 
   # GET /access/my — used by the frontend guard and to gate the UI.
+  # `can_manage` mirrors the backend `ensure_can_manage` gate (jabvox_audio_manage),
+  # so the Pipelines/Storages tabs show for anyone who can actually manage them,
+  # not only pure administrators.
   def my_access
-    render json: { can_access: can_access?, can_view_reports: can_view_reports?, is_admin: admin? }
+    render json: {
+      can_access: can_access?,
+      can_view_reports: can_view_reports?,
+      can_manage: jabvox_can?('jabvox_audio_manage'),
+      is_admin: Current.account_user&.administrator? || false
+    }
   end
 
   # GET /reports/daily — jobs grouped by day, each with its per-audio results,

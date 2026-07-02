@@ -152,10 +152,13 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::StoragesController < Api::V1::Ac
   end
 
   def storage_params
+    # `use_documents_config` is deprecated (AI Chat no longer has an inline bucket
+    # to reuse); every storage now carries its own credentials so it can mirror to
+    # AI Chat. Force it off on any write.
     params.require(:storage).permit(
-      :name, :use_documents_config, :bucket_name, :bucket_region,
+      :name, :bucket_name, :bucket_region,
       :endpoint, :access_key, :secret_key, :path_prefix
-    )
+    ).merge(use_documents_config: false)
   end
 
   def serialize(storage)

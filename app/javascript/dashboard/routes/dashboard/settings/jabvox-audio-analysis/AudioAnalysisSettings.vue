@@ -56,7 +56,7 @@ const setEditorClean = async (editorKey, value) => {
 const apiErrorMessage = (error, fallbackKey) =>
   error?.response?.data?.error || t(fallbackKey);
 
-const access = ref({ is_admin: false, can_access: false });
+const access = ref({ is_admin: false, can_access: false, can_manage: false });
 const activeTab = ref('analyzer');
 
 const baseTabs = [
@@ -76,17 +76,21 @@ const baseTabs = [
     key: 'pipelines',
     label: () => t('JABVOX_AUDIO.TABS.PIPELINES'),
     icon: 'i-lucide-workflow',
-    adminOnly: true,
+    manageOnly: true,
   },
   {
     key: 'storages',
     label: () => t('JABVOX_AUDIO.TABS.STORAGES'),
     icon: 'i-lucide-database',
-    adminOnly: true,
+    manageOnly: true,
   },
 ];
+// Pipelines/Storages need the manage capability (admins always qualify).
+const canManage = computed(
+  () => access.value.can_manage || access.value.is_admin
+);
 const tabs = computed(() =>
-  baseTabs.filter(tab => !tab.adminOnly || access.value.is_admin)
+  baseTabs.filter(tab => !tab.manageOnly || canManage.value)
 );
 
 // ---------- Storages ----------
@@ -454,8 +458,13 @@ const statusProcessing = computed(() => {
 
 onMounted(async () => {
   store.dispatch('agents/get');
-  const { data } = await audioReportsAPI.myAccess();
-  access.value = data;
+  try {
+    const { data } = await audioReportsAPI.myAccess();
+    access.value = data;
+  } catch (e) {
+    // Don't let an access-check failure blank the management tabs silently.
+    useAlert(e?.response?.data?.error || t('JABVOX_AUDIO.ERROR'));
+  }
   await switchTab('analyzer');
 });
 </script>

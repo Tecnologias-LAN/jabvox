@@ -568,7 +568,8 @@ Rails.application.routes.draw do
               collection do
                 get '/', action: :show
                 patch '/', action: :update
-                post :sync_documents
+                get :bucket_objects
+                post :save_documents
               end
             end
             resources :ai_chat_messages, only: [:index, :create, :destroy] do
@@ -578,6 +579,11 @@ Rails.application.routes.draw do
               end
             end
             resources :ai_chat_documents, only: [:index, :update, :destroy]
+            resources :ai_chat_storages, only: [:index, :create, :update, :destroy] do
+              collection do
+                post :test
+              end
+            end
             resources :response_bot_seats, only: [:index]
             resources :response_bot_roles, only: [:index]
             resources :response_bot_configs, only: [:index, :create, :update, :destroy] do

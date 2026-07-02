@@ -129,42 +129,42 @@ const summaryKpis = computed(() => {
       label: t('JABVOX_WA_TEMPLATES.METRICS.TOTAL'),
       value: m.total ?? 0,
       icon: 'i-lucide-layout-template',
-      accent: 'text-[#6C5DD3]',
+      accent: 'text-n-brand',
     },
     {
       key: 'approved',
       label: t('JABVOX_WA_TEMPLATES.METRICS.APPROVED'),
       value: m.approved ?? 0,
       icon: 'i-lucide-badge-check',
-      accent: 'text-[#3DDC97]',
+      accent: 'text-n-teal-11',
     },
     {
       key: 'pending',
       label: t('JABVOX_WA_TEMPLATES.METRICS.PENDING'),
       value: m.pending ?? 0,
       icon: 'i-lucide-clock-3',
-      accent: 'text-[#F5A623]',
+      accent: 'text-n-amber-11',
     },
     {
       key: 'rejected',
       label: t('JABVOX_WA_TEMPLATES.METRICS.REJECTED'),
       value: m.rejected ?? 0,
       icon: 'i-lucide-shield-x',
-      accent: 'text-[#F06767]',
+      accent: 'text-n-ruby-11',
     },
     {
       key: 'disabled',
       label: t('JABVOX_WA_TEMPLATES.METRICS.DISABLED'),
       value: m.disabled ?? 0,
       icon: 'i-lucide-pause-circle',
-      accent: 'text-[#8A90A2]',
+      accent: 'text-n-slate-10',
     },
     {
       key: 'usage_month',
       label: t('JABVOX_WA_TEMPLATES.METRICS.USAGE_MONTH'),
       value: usage,
       icon: 'i-lucide-chart-column',
-      accent: 'text-[#6C5DD3]',
+      accent: 'text-n-brand',
     },
   ];
 });
@@ -343,15 +343,15 @@ const bulkExportSelected = () => {
 const statusClass = s => {
   switch ((s || '').toUpperCase()) {
     case 'APPROVED':
-      return 'bg-[#3DDC97]/15 text-[#3DDC97] ring-1 ring-inset ring-[#3DDC97]/30';
+      return 'bg-n-teal-11/15 text-n-teal-11 ring-1 ring-inset ring-n-teal-11/30';
     case 'PENDING':
-      return 'bg-[#F5A623]/15 text-[#F5A623] ring-1 ring-inset ring-[#F5A623]/30';
+      return 'bg-n-amber-11/15 text-n-amber-11 ring-1 ring-inset ring-n-amber-11/30';
     case 'REJECTED':
-      return 'bg-[#F06767]/15 text-[#F06767] ring-1 ring-inset ring-[#F06767]/30';
+      return 'bg-n-ruby-11/15 text-n-ruby-11 ring-1 ring-inset ring-n-ruby-11/30';
     case 'PAUSED':
-      return 'bg-[#F5A623]/15 text-[#F5A623] ring-1 ring-inset ring-[#F5A623]/30';
+      return 'bg-n-amber-11/15 text-n-amber-11 ring-1 ring-inset ring-n-amber-11/30';
     default:
-      return 'bg-white/5 text-[#8A90A2] ring-1 ring-inset ring-white/10';
+      return 'bg-white/5 text-n-slate-10 ring-1 ring-inset ring-white/10';
   }
 };
 const qualityClass = q => {
@@ -804,7 +804,7 @@ onMounted(async () => {
             <h1 class="wa-title text-xl sm:text-2xl font-semibold">
               {{ t('JABVOX_WA_TEMPLATES.HEADER.TITLE') }}
             </h1>
-            <p class="text-xs sm:text-sm text-[#8A90A2] mt-1 max-w-2xl">
+            <p class="text-xs sm:text-sm text-n-slate-10 mt-1 max-w-2xl">
               {{ t('JABVOX_WA_TEMPLATES.HEADER.SUBTITLE') }}
             </p>
           </div>
@@ -854,15 +854,21 @@ onMounted(async () => {
           <div
             v-for="kpi in summaryKpis"
             :key="kpi.key"
-            class="wa-kpi group rounded-2xl px-3 py-3.5"
+            class="group flex flex-col gap-2 rounded-xl border border-n-weak bg-n-solid-1 px-3.5 py-3 shadow-sm transition-colors hover:border-n-strong"
           >
-            <div class="flex items-start justify-between">
-              <p class="text-[11px] uppercase tracking-wide text-[#8A90A2]">
+            <div class="flex items-center justify-between gap-2">
+              <p
+                class="text-[11px] font-medium uppercase tracking-wide text-n-slate-10 truncate"
+              >
                 {{ kpi.label }}
               </p>
-              <span :class="[kpi.icon, kpi.accent]" class="size-4" />
+              <span
+                :class="[kpi.icon, kpi.accent]"
+                class="size-4 shrink-0"
+                aria-hidden="true"
+              />
             </div>
-            <p class="mt-2 text-xl sm:text-2xl font-semibold text-white">
+            <p class="text-2xl font-semibold text-n-slate-12 leading-none">
               {{ kpi.value }}
             </p>
           </div>
@@ -946,164 +952,187 @@ onMounted(async () => {
     >
       <!-- Advanced search and filters -->
       <div
-        class="px-4 sm:px-6 py-4 bg-n-surface-1 border-b border-n-weak shrink-0 space-y-4"
+        class="mx-4 sm:mx-6 my-4 rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm shrink-0 overflow-hidden"
       >
-        <!-- Panel heading: title + active badge + result count -->
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex items-center gap-2">
+        <!-- Panel heading: icon chip + title + active badge + result count -->
+        <div
+          class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-n-weak bg-n-alpha-1"
+        >
+          <div class="flex items-center gap-2.5 min-w-0">
             <span
-              class="i-lucide-sliders-horizontal size-4 text-n-slate-11"
-              aria-hidden="true"
-            />
-            <h2 class="text-sm font-semibold text-n-slate-12">
-              {{ t('JABVOX_WA_TEMPLATES.FILTERS.TITLE') }}
-            </h2>
+              class="flex items-center justify-center size-8 rounded-lg bg-n-brand/10 text-n-brand shrink-0"
+            >
+              <span
+                class="i-lucide-sliders-horizontal size-4"
+                aria-hidden="true"
+              />
+            </span>
+            <div class="min-w-0">
+              <h2 class="text-sm font-semibold text-n-slate-12 leading-tight">
+                {{ t('JABVOX_WA_TEMPLATES.FILTERS.TITLE') }}
+              </h2>
+              <p class="text-[11px] text-n-slate-10">
+                {{
+                  t('JABVOX_WA_TEMPLATES.FILTERS.RESULTS', {
+                    count: totalTemplates,
+                  })
+                }}
+              </p>
+            </div>
             <span
               v-if="hasActiveFilters"
-              class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-n-brand/10 text-n-brand"
+              class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-n-brand/10 text-n-brand shrink-0"
             >
               <span class="i-lucide-filter size-3" aria-hidden="true" />
               {{ t('JABVOX_WA_TEMPLATES.FILTERS.ACTIVE_BADGE') }}
             </span>
           </div>
-          <span class="text-xs text-n-slate-10 shrink-0">
-            {{
-              t('JABVOX_WA_TEMPLATES.FILTERS.RESULTS', {
-                count: totalTemplates,
-              })
-            }}
-          </span>
         </div>
 
-        <!-- Search inputs row with embedded icons -->
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-2.5">
-          <div class="xl:col-span-4 relative">
-            <span
-              class="i-lucide-search size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              aria-hidden="true"
-            />
-            <input
-              v-model="filters.q"
-              class="reset-base text-sm w-full pl-9"
-              :placeholder="t('JABVOX_WA_TEMPLATES.FILTERS.SEARCH_PLACEHOLDER')"
-              @keyup.enter="applyFilters"
-            />
+        <div class="px-4 sm:px-5 py-4 space-y-4">
+          <!-- Search + dropdown filters, each with its own label -->
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-3 gap-y-3"
+          >
+            <div class="md:col-span-2 xl:col-span-1 flex flex-col gap-1">
+              <label class="text-[11px] font-medium text-n-slate-11">
+                {{ t('JABVOX_WA_TEMPLATES.FILTERS.SEARCH_LABEL') }}
+              </label>
+              <div class="relative">
+                <span
+                  class="i-lucide-search size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  aria-hidden="true"
+                />
+                <input
+                  v-model="filters.q"
+                  class="reset-base text-sm w-full pl-9"
+                  :placeholder="
+                    t('JABVOX_WA_TEMPLATES.FILTERS.SEARCH_PLACEHOLDER')
+                  "
+                  @keyup.enter="applyFilters"
+                />
+              </div>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-[11px] font-medium text-n-slate-11">
+                {{ t('JABVOX_WA_TEMPLATES.FILTERS.META_ID_LABEL') }}
+              </label>
+              <div class="relative">
+                <span
+                  class="i-lucide-hash size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  aria-hidden="true"
+                />
+                <input
+                  v-model="filters.meta_id"
+                  class="reset-base text-sm w-full pl-9"
+                  :placeholder="
+                    t('JABVOX_WA_TEMPLATES.FILTERS.META_ID_PLACEHOLDER')
+                  "
+                  @keyup.enter="applyFilters"
+                />
+              </div>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-[11px] font-medium text-n-slate-11">
+                {{ t('JABVOX_WA_TEMPLATES.FILTERS.INBOX_LABEL') }}
+              </label>
+              <select
+                v-model="selectedInboxId"
+                class="reset-base text-sm w-full"
+              >
+                <option :value="null">
+                  {{ t('JABVOX_WA_TEMPLATES.INBOX.ALL') }}
+                </option>
+                <option v-for="i in inboxes" :key="i.id" :value="i.id">
+                  {{ i.name }}
+                </option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-[11px] font-medium text-n-slate-11">
+                {{ t('JABVOX_WA_TEMPLATES.FILTERS.LANGUAGE_LABEL') }}
+              </label>
+              <select
+                v-model="filters.language"
+                class="reset-base text-sm w-full"
+              >
+                <option value="">
+                  {{ t('JABVOX_WA_TEMPLATES.FILTERS.ALL_LANGUAGES') }}
+                </option>
+                <option v-for="l in LANGUAGES" :key="l.value" :value="l.value">
+                  {{ l.label }}
+                </option>
+              </select>
+            </div>
           </div>
-          <div class="xl:col-span-3 relative">
-            <span
-              class="i-lucide-hash size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              aria-hidden="true"
-            />
-            <input
-              v-model="filters.meta_id"
-              class="reset-base text-sm w-full pl-9"
-              :placeholder="
-                t('JABVOX_WA_TEMPLATES.FILTERS.META_ID_PLACEHOLDER')
-              "
-              @keyup.enter="applyFilters"
-            />
-          </div>
-          <div class="xl:col-span-2 relative">
-            <span
-              class="i-lucide-inbox size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              aria-hidden="true"
-            />
-            <select
-              v-model="selectedInboxId"
-              class="reset-base text-sm w-full pl-9"
-            >
-              <option :value="null">
-                {{ t('JABVOX_WA_TEMPLATES.INBOX.ALL') }}
-              </option>
-              <option v-for="i in inboxes" :key="i.id" :value="i.id">
-                {{ i.name }}
-              </option>
-            </select>
-          </div>
-          <div class="xl:col-span-3 relative">
-            <span
-              class="i-lucide-languages size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              aria-hidden="true"
-            />
-            <select
-              v-model="filters.language"
-              class="reset-base text-sm w-full pl-9"
-            >
-              <option value="">
-                {{ t('JABVOX_WA_TEMPLATES.FILTERS.ALL_LANGUAGES') }}
-              </option>
-              <option v-for="l in LANGUAGES" :key="l.value" :value="l.value">
-                {{ l.label }}
-              </option>
-            </select>
-          </div>
-        </div>
 
-        <!-- Quick filters: status + category, each grouped with a label -->
-        <div class="flex flex-col lg:flex-row lg:items-start gap-x-6 gap-y-3">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span
-              class="text-[11px] font-medium uppercase tracking-wide text-n-slate-9 mr-0.5"
-            >
-              {{ t('JABVOX_WA_TEMPLATES.FILTERS.STATUS_GROUP') }}
-            </span>
-            <button
-              v-for="s in statusQuickFilters"
-              :key="`status_${s}`"
-              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-all"
-              :class="
-                filterChipActive('status', s)
-                  ? 'border-n-brand bg-n-brand text-white shadow-sm'
-                  : 'border-n-weak text-n-slate-11 bg-n-surface-1 hover:bg-n-alpha-1 hover:border-n-slate-7'
-              "
-              @click="applyQuickFilter('status', s)"
-            >
+          <!-- Quick filters: status + category, each grouped with a label -->
+          <div class="flex flex-col gap-3">
+            <div class="flex flex-col gap-1.5">
               <span
-                class="size-1.5 rounded-full shrink-0"
-                :class="
-                  filterChipActive('status', s) ? 'bg-white' : statusDotClass(s)
-                "
-                aria-hidden="true"
-              />
-              {{ statusLabel(s) }}
-            </button>
-          </div>
+                class="text-[11px] font-medium uppercase tracking-wide text-n-slate-9"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.FILTERS.STATUS_GROUP') }}
+              </span>
+              <div class="flex items-center gap-2 flex-wrap">
+                <button
+                  v-for="s in statusQuickFilters"
+                  :key="`status_${s}`"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-all"
+                  :class="
+                    filterChipActive('status', s)
+                      ? 'border-n-brand bg-n-brand text-white shadow-sm'
+                      : 'border-n-weak text-n-slate-11 bg-n-solid-1 hover:bg-n-alpha-1 hover:border-n-strong'
+                  "
+                  @click="applyQuickFilter('status', s)"
+                >
+                  <span
+                    class="size-1.5 rounded-full shrink-0"
+                    :class="
+                      filterChipActive('status', s)
+                        ? 'bg-white'
+                        : statusDotClass(s)
+                    "
+                    aria-hidden="true"
+                  />
+                  {{ statusLabel(s) }}
+                </button>
+              </div>
+            </div>
 
-          <div class="flex items-center gap-2 flex-wrap">
-            <span
-              class="text-[11px] font-medium uppercase tracking-wide text-n-slate-9 mr-0.5"
-            >
-              {{ t('JABVOX_WA_TEMPLATES.FILTERS.CATEGORY_GROUP') }}
-            </span>
-            <button
-              v-for="c in categoryQuickFilters"
-              :key="`cat_${c}`"
-              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-all"
-              :class="
-                filterChipActive('category', c)
-                  ? 'border-n-brand bg-n-brand text-white shadow-sm'
-                  : 'border-n-weak text-n-slate-11 bg-n-surface-1 hover:bg-n-alpha-1 hover:border-n-slate-7'
-              "
-              @click="applyQuickFilter('category', c)"
-            >
+            <div class="flex flex-col gap-1.5">
               <span
-                :class="categoryIcon(c)"
-                class="size-3 shrink-0"
-                aria-hidden="true"
-              />
-              {{ categoryLabel(c) }}
-            </button>
+                class="text-[11px] font-medium uppercase tracking-wide text-n-slate-9"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.FILTERS.CATEGORY_GROUP') }}
+              </span>
+              <div class="flex items-center gap-2 flex-wrap">
+                <button
+                  v-for="c in categoryQuickFilters"
+                  :key="`cat_${c}`"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-all"
+                  :class="
+                    filterChipActive('category', c)
+                      ? 'border-n-brand bg-n-brand text-white shadow-sm'
+                      : 'border-n-weak text-n-slate-11 bg-n-solid-1 hover:bg-n-alpha-1 hover:border-n-strong'
+                  "
+                  @click="applyQuickFilter('category', c)"
+                >
+                  <span
+                    :class="categoryIcon(c)"
+                    class="size-3 shrink-0"
+                    aria-hidden="true"
+                  />
+                  {{ categoryLabel(c) }}
+                </button>
+              </div>
+            </div>
           </div>
 
-          <!-- Apply / Clear actions, right-aligned on wide screens -->
-          <div class="flex items-center gap-2 lg:ml-auto">
-            <button
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-n-brand text-white hover:opacity-90 transition-opacity"
-              @click="applyFilters"
-            >
-              <span class="i-lucide-check size-3.5" aria-hidden="true" />
-              {{ t('JABVOX_WA_TEMPLATES.FILTERS.APPLY') }}
-            </button>
+          <!-- Apply / Clear actions -->
+          <div
+            class="flex items-center justify-end gap-2 pt-1 border-t border-n-weak"
+          >
             <button
               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors disabled:opacity-50"
               :disabled="!hasActiveFilters"
@@ -1112,44 +1141,50 @@ onMounted(async () => {
               <span class="i-lucide-x size-3.5" aria-hidden="true" />
               {{ t('JABVOX_WA_TEMPLATES.FILTERS.CLEAR') }}
             </button>
+            <button
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-n-brand text-white hover:opacity-90 transition-opacity"
+              @click="applyFilters"
+            >
+              <span class="i-lucide-check size-3.5" aria-hidden="true" />
+              {{ t('JABVOX_WA_TEMPLATES.FILTERS.APPLY') }}
+            </button>
           </div>
         </div>
+      </div>
 
-        <div
-          v-if="selectedCount"
-          class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-n-weak bg-n-alpha-1 px-3 py-2"
-        >
-          <span class="text-xs text-n-slate-11">
-            {{
-              t('JABVOX_WA_TEMPLATES.BULK.SELECTED', { count: selectedCount })
-            }}
-          </span>
-          <div class="flex flex-wrap gap-2">
-            <button
-              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
-              @click="bulkSync"
-            >
-              {{ t('JABVOX_WA_TEMPLATES.BULK.SYNC') }}
-            </button>
-            <button
-              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
-              @click="bulkDuplicate"
-            >
-              {{ t('JABVOX_WA_TEMPLATES.BULK.DUPLICATE') }}
-            </button>
-            <button
-              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
-              @click="bulkExportSelected"
-            >
-              {{ t('JABVOX_WA_TEMPLATES.BULK.EXPORT') }}
-            </button>
-            <button
-              class="px-2.5 py-1.5 text-xs rounded-lg bg-n-ruby-3 text-n-ruby-11 hover:bg-n-ruby-4 transition-colors"
-              @click="bulkDelete"
-            >
-              {{ t('JABVOX_WA_TEMPLATES.BULK.DELETE') }}
-            </button>
-          </div>
+      <!-- Bulk actions bar (shown when templates are selected) -->
+      <div
+        v-if="selectedCount"
+        class="mx-4 sm:mx-6 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-n-brand/30 bg-n-brand/5 px-3.5 py-2.5 shrink-0"
+      >
+        <span class="text-xs font-medium text-n-slate-12">
+          {{ t('JABVOX_WA_TEMPLATES.BULK.SELECTED', { count: selectedCount }) }}
+        </span>
+        <div class="flex flex-wrap gap-2">
+          <button
+            class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
+            @click="bulkSync"
+          >
+            {{ t('JABVOX_WA_TEMPLATES.BULK.SYNC') }}
+          </button>
+          <button
+            class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
+            @click="bulkDuplicate"
+          >
+            {{ t('JABVOX_WA_TEMPLATES.BULK.DUPLICATE') }}
+          </button>
+          <button
+            class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
+            @click="bulkExportSelected"
+          >
+            {{ t('JABVOX_WA_TEMPLATES.BULK.EXPORT') }}
+          </button>
+          <button
+            class="px-2.5 py-1.5 text-xs rounded-lg bg-n-ruby-3 text-n-ruby-11 hover:bg-n-ruby-4 transition-colors"
+            @click="bulkDelete"
+          >
+            {{ t('JABVOX_WA_TEMPLATES.BULK.DELETE') }}
+          </button>
         </div>
       </div>
 
@@ -1169,12 +1204,12 @@ onMounted(async () => {
 
         <div v-else-if="!templates.length" class="wa-empty py-20 text-center">
           <div class="wa-empty-icon mx-auto mb-4">
-            <span class="i-lucide-layout-template size-7 text-[#6C5DD3]" />
+            <span class="i-lucide-layout-template size-7 text-n-brand" />
           </div>
           <p class="text-base font-semibold text-white">
             {{ t('JABVOX_WA_TEMPLATES.GALLERY.EMPTY_TITLE') }}
           </p>
-          <p class="text-sm text-[#8A90A2] mt-1.5 max-w-md mx-auto">
+          <p class="text-sm text-n-slate-10 mt-1.5 max-w-md mx-auto">
             {{ t('JABVOX_WA_TEMPLATES.GALLERY.EMPTY_BODY') }}
           </p>
           <button
@@ -1191,12 +1226,12 @@ onMounted(async () => {
           class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
         >
           <label
-            class="col-span-full flex items-center gap-2 text-xs text-[#8A90A2]"
+            class="col-span-full flex items-center gap-2 text-xs text-n-slate-10"
           >
             <input
               :checked="allVisibleSelected"
               type="checkbox"
-              class="size-4 accent-[#6C5DD3]"
+              class="size-4 accent-n-brand"
               @change="toggleSelectAll($event.target.checked)"
             />
             {{ t('JABVOX_WA_TEMPLATES.GALLERY.SELECT_ALL') }}
@@ -1209,12 +1244,12 @@ onMounted(async () => {
           >
             <div class="flex items-start justify-between gap-2 mb-3">
               <label
-                class="inline-flex items-center gap-2 text-xs text-[#8A90A2]"
+                class="inline-flex items-center gap-2 text-xs text-n-slate-10"
               >
                 <input
                   :checked="selectedTemplateIds.includes(tpl.id)"
                   type="checkbox"
-                  class="size-4 accent-[#6C5DD3]"
+                  class="size-4 accent-n-brand"
                   @change="toggleSelectOne(tpl.id, $event.target.checked)"
                 />
               </label>
@@ -1230,7 +1265,7 @@ onMounted(async () => {
               <h3 class="text-sm font-semibold text-white truncate">
                 {{ tpl.name }}
               </h3>
-              <p class="text-xs text-[#8A90A2] mt-0.5">
+              <p class="text-xs text-n-slate-10 mt-0.5">
                 {{ tpl.language }} {{ DOT }} {{ categoryLabel(tpl.category) }}
                 {{ DOT }}
                 {{
@@ -1272,7 +1307,7 @@ onMounted(async () => {
 
               <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <p class="text-[#5B6172]">
+                  <p class="text-n-slate-11">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.VARIABLES') }}
                   </p>
                   <p class="text-white/90 font-medium">
@@ -1280,7 +1315,7 @@ onMounted(async () => {
                   </p>
                 </div>
                 <div>
-                  <p class="text-[#5B6172]">
+                  <p class="text-n-slate-11">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.BUTTONS') }}
                   </p>
                   <p class="text-white/90 font-medium">
@@ -1288,7 +1323,7 @@ onMounted(async () => {
                   </p>
                 </div>
                 <div>
-                  <p class="text-[#5B6172]">
+                  <p class="text-n-slate-11">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.CREATED') }}
                   </p>
                   <p class="text-white/90 font-medium">
@@ -1296,7 +1331,7 @@ onMounted(async () => {
                   </p>
                 </div>
                 <div>
-                  <p class="text-[#5B6172]">
+                  <p class="text-n-slate-11">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.UPDATED') }}
                   </p>
                   <p class="text-white/90 font-medium">
@@ -2163,112 +2198,89 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* ─── Futuristic dark-first shell (brief palette) ──────────────────────────
-   NOTE: this module intentionally uses fixed hex colors and a scoped stylesheet
-   for a dark, glassmorphism look requested for WhatsApp Templates. It does not
-   follow the app's theme tokens; it is dark-first by design. */
+/* Uses the shared Jabvox design-system tokens (n-* CSS variables) so this module
+   matches the rest of the app in both light and dark themes. */
 .wa-shell {
-  background: radial-gradient(
-      1200px 600px at 15% -10%,
-      rgba(108, 93, 211, 0.18),
-      transparent 60%
-    ),
-    radial-gradient(
-      900px 500px at 100% 0%,
-      rgba(61, 220, 151, 0.08),
-      transparent 55%
-    ),
-    #0b0f19;
-  color: #e6e8ee;
+  background: var(--color-background);
+  color: var(--color-body);
 }
 
-/* Header: glass panel that floats over the shell */
+/* Header bar */
 .wa-glass-header {
-  background: rgba(14, 17, 26, 0.72);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border-weak, var(--color-border));
 }
 
-/* Gradient brand title */
+/* Brand title */
 .wa-title {
-  background: linear-gradient(90deg, #ffffff 0%, #b9b3ec 60%, #6c5dd3 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--color-heading);
   letter-spacing: -0.01em;
 }
 
-/* Primary action with soft glow */
+/* Primary action */
 .wa-btn-primary {
   color: #fff;
   font-weight: 600;
-  background: linear-gradient(180deg, #7b6ce0, #6c5dd3);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 6px 20px rgba(108, 93, 211, 0.35);
+  background: var(--color-woot);
+  border: 1px solid var(--color-woot);
   transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    filter 0.2s ease;
+    filter 0.2s ease,
+    transform 0.2s ease;
 }
 .wa-btn-primary:hover {
-  filter: brightness(1.06);
-  box-shadow: 0 10px 28px rgba(108, 93, 211, 0.5);
+  filter: brightness(1.05);
   transform: translateY(-1px);
 }
 
 /* Ghost action */
 .wa-btn-ghost {
-  color: #c5c9d4;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-body);
+  background: var(--color-background-light);
+  border: 1px solid var(--color-border-weak, var(--color-border));
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
     color 0.2s ease;
 }
 .wa-btn-ghost:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  background: var(--color-background);
+  border-color: var(--color-border);
+  color: var(--color-heading);
 }
 
-/* KPI glass tiles */
+/* KPI tiles */
 .wa-kpi {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--color-background-light);
+  border: 1px solid var(--color-border-weak, var(--color-border));
   transition:
     transform 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease;
+    border-color 0.2s ease;
 }
 .wa-kpi:hover {
   transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(108, 93, 211, 0.4);
+  border-color: var(--color-woot);
 }
 
 /* Tabs (pill style) */
 .wa-tab {
-  color: #8a90a2;
+  color: var(--color-body);
   background: transparent;
   border: 1px solid transparent;
 }
 .wa-tab:hover {
-  color: #e6e8ee;
+  color: var(--color-heading);
 }
 .wa-tab-active {
-  color: #fff;
-  background: rgba(108, 93, 211, 0.16);
-  border-color: rgba(108, 93, 211, 0.4);
+  color: var(--color-woot);
+  background: var(--color-background-light);
+  border-color: var(--color-border);
 }
 
-/* Template cards: glass with glowing border on hover */
+/* Template cards */
 .wa-card {
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  background: var(--color-background-light);
+  border: 1px solid var(--color-border-weak, var(--color-border));
 }
 .wa-card-hover {
   transition:
@@ -2278,11 +2290,8 @@ onMounted(async () => {
 }
 .wa-card-hover:hover {
   transform: translateY(-3px);
-  border-color: rgba(108, 93, 211, 0.55);
-  box-shadow:
-    0 12px 34px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(108, 93, 211, 0.25),
-    0 0 26px rgba(108, 93, 211, 0.22);
+  border-color: var(--color-woot);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 /* Card action icons — revealed/brightened on card hover */
@@ -2296,28 +2305,28 @@ onMounted(async () => {
 .wa-icon-btn {
   padding: 6px;
   border-radius: 8px;
-  color: #c5c9d4;
+  color: var(--color-body);
   transition:
     background 0.18s ease,
     color 0.18s ease;
 }
 .wa-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  background: var(--color-background);
+  color: var(--color-heading);
 }
 .wa-icon-btn-danger {
-  color: #f06767;
+  color: var(--color-error, #f06767);
 }
 .wa-icon-btn-danger:hover {
-  background: rgba(240, 103, 103, 0.14);
-  color: #ff8585;
+  background: var(--color-background);
+  color: var(--color-error, #f06767);
 }
 
 /* Empty state */
 .wa-empty {
   border-radius: 20px;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--color-border);
+  background: var(--color-background-light);
 }
 .wa-empty-icon {
   display: flex;
@@ -2326,9 +2335,8 @@ onMounted(async () => {
   width: 64px;
   height: 64px;
   border-radius: 18px;
-  background: rgba(108, 93, 211, 0.14);
-  border: 1px solid rgba(108, 93, 211, 0.3);
-  box-shadow: 0 0 30px rgba(108, 93, 211, 0.22);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
 }
 
 /* Skeleton shimmer */
@@ -2338,9 +2346,9 @@ onMounted(async () => {
 .wa-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 25%,
-    rgba(255, 255, 255, 0.09) 37%,
-    rgba(255, 255, 255, 0.04) 63%
+    var(--color-background-light) 25%,
+    var(--color-background) 37%,
+    var(--color-background-light) 63%
   );
   background-size: 400% 100%;
   animation: wa-shimmer 1.4s ease infinite;

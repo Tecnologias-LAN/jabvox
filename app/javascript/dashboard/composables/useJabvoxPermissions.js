@@ -17,12 +17,15 @@ export function useJabvoxPermissions() {
     () => getters.getCurrentRole.value === 'administrator'
   );
 
-  const permissions = computed(() =>
-    getUserPermissions(
-      getters.getCurrentUser.value,
-      getters.getCurrentAccountId.value
-    )
-  );
+  const permissions = computed(() => {
+    const user = getters.getCurrentUser.value;
+    const accountId = getters.getCurrentAccountId.value;
+    // During an account switch the user/accounts can be momentarily missing;
+    // guard so the sidebar never throws (which would blank the whole app).
+    if (!user?.accounts || !accountId) return [];
+
+    return getUserPermissions(user, accountId) || [];
+  });
 
   // Admins pass everything; otherwise the custom role must grant the key.
   const jabvoxCan = key => isAdmin.value || permissions.value.includes(key);

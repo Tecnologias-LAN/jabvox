@@ -11,6 +11,7 @@
     "SAVED": "Guardado correctamente.",
     "SAVE_ERROR": "No se pudo guardar. Verifica los valores.",
     "TEST_ERROR": "La prueba de conexión falló.",
+    "ERROR": "Algo salió mal. Inténtalo de nuevo.",
     "CONFIRM_DELETE": "¿Eliminar este elemento?",
     "TABS": {
       "STORAGES": "Almacenamiento",

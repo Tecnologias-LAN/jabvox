@@ -11,6 +11,7 @@
     "SAVED": "Saved successfully.",
     "SAVE_ERROR": "Could not save. Please check the values.",
     "TEST_ERROR": "Connection test failed.",
+    "ERROR": "Something went wrong. Please try again.",
     "CONFIRM_DELETE": "Delete this item?",
     "TABS": {
       "STORAGES": "Storage",

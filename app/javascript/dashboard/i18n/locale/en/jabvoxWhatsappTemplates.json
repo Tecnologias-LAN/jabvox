@@ -41,7 +41,9 @@
     },
     "FILTERS": {
       "SEARCH": "Search by name or content…",
+      "SEARCH_LABEL": "Search",
       "SEARCH_PLACEHOLDER": "Search by name, category, language or Meta ID",
+      "META_ID_LABEL": "Meta ID",
       "META_ID_PLACEHOLDER": "Meta Template ID",
       "ALL_LANGUAGES": "All languages",
       "STATUS": "Status",

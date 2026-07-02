@@ -13,6 +13,9 @@ const configClient = new ApiClient('jabvox/ai_chat_configs', {
 const documentsClient = new ApiClient('jabvox/ai_chat_documents', {
   accountScoped: true,
 });
+const storagesClient = new ApiClient('jabvox/ai_chat_storages', {
+  accountScoped: true,
+});
 
 export const aiChatAPI = {
   getMyAccess: () => axios.get(`${chatClient.url}/my_access`),
@@ -37,7 +40,14 @@ export const aiChatConfigAPI = {
   get: () => axios.get(configClient.url),
   update: data =>
     axios.patch(configClient.url, { jabvox_ai_chat_config: data }),
-  syncDocuments: () => axios.post(`${configClient.url}/sync_documents`),
+  // Lists a bucket folder (folders + files) so the user can navigate and pick.
+  bucketObjects: ({ prefix = '', search = '' } = {}) =>
+    axios.get(`${configClient.url}/bucket_objects`, {
+      params: { prefix, search },
+    }),
+  // Persists the manually selected file keys as the active document set.
+  saveDocuments: keys =>
+    axios.post(`${configClient.url}/save_documents`, { keys }),
 };
 
 export const aiChatDocumentsAPI = {
@@ -47,4 +57,15 @@ export const aiChatDocumentsAPI = {
       jabvox_ai_chat_document: data,
     }),
   destroy: id => axios.delete(`${documentsClient.url}/${id}`),
+};
+
+// Shared storage buckets (JabvoxAudioStorage) managed from AI Chat, gated by
+// AI Chat's own permission so Audio Analysis need not be enabled.
+export const aiChatStoragesAPI = {
+  getAll: () => axios.get(storagesClient.url),
+  create: storage => axios.post(storagesClient.url, { storage }),
+  update: (id, storage) =>
+    axios.patch(`${storagesClient.url}/${id}`, { storage }),
+  destroy: id => axios.delete(`${storagesClient.url}/${id}`),
+  test: storage => axios.post(`${storagesClient.url}/test`, { storage }),
 };

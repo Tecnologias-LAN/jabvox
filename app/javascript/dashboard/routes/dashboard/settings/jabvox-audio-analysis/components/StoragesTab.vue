@@ -1,9 +1,7 @@
 <script setup>
 import { useI18n } from 'vue-i18n';
 import Input from 'dashboard/components-next/input/Input.vue';
-import Switch from 'dashboard/components-next/switch/Switch.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
-import Label from 'dashboard/components-next/label/Label.vue';
 import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import SettingsCard from './SettingsCard.vue';
 
@@ -55,21 +53,11 @@ const { t } = useI18n();
               {{ s.name }}
             </p>
             <p class="text-xs text-n-slate-11 truncate">
-              {{
-                s.use_documents_config
-                  ? t('JABVOX_AUDIO.STORAGE.USES_DOCS')
-                  : s.bucket_name
-              }}
+              {{ s.bucket_name }}
             </p>
           </div>
         </div>
         <div class="flex items-center gap-1 shrink-0">
-          <Label
-            v-if="s.use_documents_config"
-            :label="t('JABVOX_AUDIO.STORAGE.DOCS_BADGE')"
-            color="iris"
-            compact
-          />
           <Button
             icon="i-lucide-pencil"
             variant="ghost"
@@ -121,52 +109,36 @@ const { t } = useI18n();
         :placeholder="t('JABVOX_AUDIO.STORAGE.NAME')"
       />
 
-      <label
-        class="flex items-center justify-between gap-3 rounded-xl border border-n-weak px-4 py-3"
-      >
-        <span class="flex flex-col">
-          <span class="text-sm font-medium text-n-slate-12">
-            {{ t('JABVOX_AUDIO.STORAGE.USE_DOCS') }}
-          </span>
-          <span class="text-xs text-n-slate-11">
-            {{ t('JABVOX_AUDIO.STORAGE.USE_DOCS_HINT') }}
-          </span>
-        </span>
-        <Switch v-model="editing.use_documents_config" />
-      </label>
-
-      <template v-if="!editing.use_documents_config">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Input
+          v-model="editing.bucket_name"
+          :label="t('JABVOX_AUDIO.STORAGE.BUCKET')"
+          :placeholder="t('JABVOX_AUDIO.STORAGE.BUCKET')"
+        />
+        <Input
+          v-model="editing.bucket_region"
+          :label="t('JABVOX_AUDIO.STORAGE.REGION')"
+          placeholder="us-east-1"
+        />
+        <div class="sm:col-span-2">
           <Input
-            v-model="editing.bucket_name"
-            :label="t('JABVOX_AUDIO.STORAGE.BUCKET')"
-            :placeholder="t('JABVOX_AUDIO.STORAGE.BUCKET')"
-          />
-          <Input
-            v-model="editing.bucket_region"
-            :label="t('JABVOX_AUDIO.STORAGE.REGION')"
-            placeholder="us-east-1"
-          />
-          <div class="sm:col-span-2">
-            <Input
-              v-model="editing.endpoint"
-              :label="t('JABVOX_AUDIO.STORAGE.ENDPOINT')"
-              :placeholder="t('JABVOX_AUDIO.STORAGE.ENDPOINT')"
-            />
-          </div>
-          <Input
-            v-model="editing.access_key"
-            :label="t('JABVOX_AUDIO.STORAGE.ACCESS_KEY')"
-            :placeholder="t('JABVOX_AUDIO.STORAGE.ACCESS_KEY')"
-          />
-          <Input
-            v-model="editing.secret_key"
-            type="password"
-            :label="t('JABVOX_AUDIO.STORAGE.SECRET_KEY')"
-            :placeholder="t('JABVOX_AUDIO.STORAGE.SECRET_KEY')"
+            v-model="editing.endpoint"
+            :label="t('JABVOX_AUDIO.STORAGE.ENDPOINT')"
+            :placeholder="t('JABVOX_AUDIO.STORAGE.ENDPOINT')"
           />
         </div>
-      </template>
+        <Input
+          v-model="editing.access_key"
+          :label="t('JABVOX_AUDIO.STORAGE.ACCESS_KEY')"
+          :placeholder="t('JABVOX_AUDIO.STORAGE.ACCESS_KEY')"
+        />
+        <Input
+          v-model="editing.secret_key"
+          type="password"
+          :label="t('JABVOX_AUDIO.STORAGE.SECRET_KEY')"
+          :placeholder="t('JABVOX_AUDIO.STORAGE.SECRET_KEY')"
+        />
+      </div>
 
       <Input
         v-model="editing.path_prefix"

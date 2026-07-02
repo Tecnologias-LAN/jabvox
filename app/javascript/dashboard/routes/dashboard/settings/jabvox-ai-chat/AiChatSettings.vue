@@ -17,13 +17,14 @@ import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import SectionCard from './components/SectionCard.vue';
 import ModelFormDialog from './components/ModelFormDialog.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
+import DocumentPickerDialog from './components/DocumentPickerDialog.vue';
+import SharedStoragesManager from './components/SharedStoragesManager.vue';
 
 const store = useStore();
 const { t } = useI18n();
 const { markDirty, markClean } = useUnsavedChanges();
 
 const ACTIVE_TAB_KEY = 'jabvox_ai_chat_active_tab';
-const BUCKET_FORM_KEY = 'jabvox_ai_chat_bucket_form';
 const activeTab = ref(sessionStorage.getItem(ACTIVE_TAB_KEY) || 'models');
 
 const tabs = [
@@ -93,42 +94,11 @@ const askDeleteModel = model => {
   });
 };
 
-// ─── documents (bucket config + list) ───
-const loadBucketFormFromStorage = () => {
-  try {
-    const saved = sessionStorage.getItem(BUCKET_FORM_KEY);
-    return saved ? JSON.parse(saved) : null;
-  } catch {
-    return null;
-  }
-};
-const savedBucket = loadBucketFormFromStorage();
-const bucketForm = ref({
-  bucket_url_jabvox: savedBucket?.bucket_url_jabvox || '',
-  bucket_access_key_jabvox: savedBucket?.bucket_access_key_jabvox || '',
-  bucket_secret_key_jabvox: '',
-  bucket_region_jabvox: savedBucket?.bucket_region_jabvox || 'us-east-1',
-  bucket_name_jabvox: savedBucket?.bucket_name_jabvox || '',
-});
-const showSecretKey = ref(false);
+// ─── documents (storage selection + list) ───
 const docSearch = ref('');
 
-watch(
-  bucketForm,
-  val => {
-    markDirty();
-    sessionStorage.setItem(
-      BUCKET_FORM_KEY,
-      JSON.stringify({
-        bucket_url_jabvox: val.bucket_url_jabvox,
-        bucket_access_key_jabvox: val.bucket_access_key_jabvox,
-        bucket_region_jabvox: val.bucket_region_jabvox,
-        bucket_name_jabvox: val.bucket_name_jabvox,
-      })
-    );
-  },
-  { deep: true, flush: 'sync' }
-);
+// The shared storage AI Chat reads documents from (its only bucket source).
+const selectedStorageId = ref(null);
 
 const filteredDocuments = computed(() => {
   const q = docSearch.value.trim().toLowerCase();
@@ -136,50 +106,36 @@ const filteredDocuments = computed(() => {
   return documents.value.filter(d => d.name_jabvox?.toLowerCase().includes(q));
 });
 
-const saveBucketConfig = async () => {
-  await store.dispatch('jabvoxAiChat/updateConfig', { ...bucketForm.value });
-  sessionStorage.removeItem(BUCKET_FORM_KEY);
-  await nextTick();
-  markClean();
-  useAlert(t('JABVOX_AI_CHAT.DOCUMENTS.SAVE_CONFIG'));
+// Shared storages the account can point AI Chat documents at.
+const availableStorages = computed(
+  () => config.value?.available_storages || []
+);
+
+// Persist the chosen storage as soon as it changes.
+const saveStorageSelection = async () => {
+  await store.dispatch('jabvoxAiChat/updateConfig', {
+    documents_storage_jabvox_id: selectedStorageId.value,
+  });
 };
 
-// Whether a bucket is configured (sync would fail without one).
-const hasBucket = computed(() => !!config.value?.bucket_name_jabvox);
-
-// Manual sync: surfaces errors and warns when the bucket has more files than
-// the document limit allows (only the first N are imported).
-const syncDocuments = async () => {
-  try {
-    const res = await store.dispatch('jabvoxAiChat/syncDocuments');
-    if (res?.skipped > 0) {
-      useAlert(
-        t('JABVOX_AI_CHAT.DOCUMENTS.SYNC_TRUNCATED', {
-          shown: res.limit,
-          total: res.total_in_bucket,
-        })
-      );
-    }
-  } catch (e) {
-    useAlert(e?.response?.data?.error || t('JABVOX_AI_CHAT.ERROR'));
+// Opens the bucket file picker so the user selects which documents to use.
+const documentPicker = ref(null);
+const storageManager = ref(null);
+const openDocumentPicker = () => {
+  if (!selectedStorageId.value) {
+    useAlert(t('JABVOX_AI_CHAT.DOCUMENTS.PICKER.NO_BUCKET'));
+    return;
   }
+  documentPicker.value?.openDialog();
 };
 
-// Auto-sync the live bucket contents every time the Documents tab is opened,
-// so the list reflects the real bucket instead of stale DB rows. Silently
-// ignores errors (e.g. transient bucket issues) — the manual Sync button
-// surfaces them. Only runs when a bucket is configured.
-const autoSyncDocuments = async () => {
-  if (!hasBucket.value) return;
-  try {
-    await store.dispatch('jabvoxAiChat/syncDocuments');
-  } catch {
-    // keep whatever is in the list; manual sync reports the error
-  }
-};
+// Refresh config (and therefore available storages) after the manager changes.
+const onStoragesChanged = () => store.dispatch('jabvoxAiChat/fetchConfig');
 
+// Refresh the saved document list whenever the Documents tab is opened so it
+// reflects the current selection.
 watch(activeTab, tab => {
-  if (tab === 'documents') autoSyncDocuments();
+  if (tab === 'documents') store.dispatch('jabvoxAiChat/fetchDocuments');
 });
 
 const toggleDocument = doc =>
@@ -242,20 +198,15 @@ onMounted(async () => {
   store.dispatch('jabvoxAiChat/fetchDocuments');
   await store.dispatch('jabvoxAiChat/fetchConfig');
   if (!config.value) return;
-  if (!savedBucket) {
-    bucketForm.value.bucket_url_jabvox = config.value.bucket_url_jabvox || '';
-    bucketForm.value.bucket_access_key_jabvox =
-      config.value.bucket_access_key_jabvox || '';
-    bucketForm.value.bucket_name_jabvox = config.value.bucket_name_jabvox || '';
-    bucketForm.value.bucket_region_jabvox =
-      config.value.bucket_region_jabvox || 'us-east-1';
-  }
+  selectedStorageId.value = config.value.documents_storage_jabvox_id ?? null;
   configForm.value.web_search_enabled_jabvox =
     config.value.web_search_enabled_jabvox;
   await nextTick();
   markClean();
-  // Live-sync the bucket if we land directly on the Documents tab.
-  if (activeTab.value === 'documents') autoSyncDocuments();
+  // Refresh the saved document list if we land directly on the Documents tab.
+  if (activeTab.value === 'documents') {
+    store.dispatch('jabvoxAiChat/fetchDocuments');
+  }
 });
 </script>
 
@@ -469,83 +420,56 @@ onMounted(async () => {
 
       <!-- ── DOCUMENTS ── -->
       <div v-else-if="activeTab === 'documents'" class="flex flex-col gap-6">
-        <!-- Bucket config -->
+        <!-- Storage selection -->
         <SectionCard
           :title="t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_CONFIG')"
           :description="t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_SECTION_DESC')"
           icon="i-lucide-database"
         >
           <div class="flex flex-col gap-4">
-            <Input
-              v-model="bucketForm.bucket_url_jabvox"
-              :label="t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_URL')"
-              :placeholder="
-                t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_URL_PLACEHOLDER')
-              "
-            />
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                v-model="bucketForm.bucket_access_key_jabvox"
-                :label="t('JABVOX_AI_CHAT.DOCUMENTS.ACCESS_KEY')"
-                custom-input-class="font-mono"
-              />
-              <div class="flex flex-col gap-1.5">
-                <label class="text-sm font-medium text-n-slate-12">
-                  {{ t('JABVOX_AI_CHAT.DOCUMENTS.SECRET_KEY') }}
-                </label>
-                <div class="relative">
-                  <Input
-                    v-model="bucketForm.bucket_secret_key_jabvox"
-                    :type="showSecretKey ? 'text' : 'password'"
-                    custom-input-class="!pr-10 font-mono"
-                    :placeholder="
-                      t('JABVOX_AI_CHAT.DOCUMENTS.SECRET_KEY_PLACEHOLDER')
-                    "
-                  />
-                  <button
-                    type="button"
-                    class="absolute right-2 top-1/2 -translate-y-1/2 text-n-slate-10 hover:text-n-slate-12"
-                    @click="showSecretKey = !showSecretKey"
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium text-n-slate-12">
+                {{ t('JABVOX_AI_CHAT.DOCUMENTS.STORAGE_SOURCE') }}
+              </label>
+              <div class="flex items-center gap-2">
+                <select
+                  v-model="selectedStorageId"
+                  class="flex-1 h-9 px-3 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12"
+                  @change="saveStorageSelection"
+                >
+                  <option :value="null" disabled>
+                    {{ t('JABVOX_AI_CHAT.DOCUMENTS.STORAGE_PLACEHOLDER') }}
+                  </option>
+                  <option
+                    v-for="s in availableStorages"
+                    :key="s.id"
+                    :value="s.id"
                   >
-                    <span
-                      :class="
-                        showSecretKey ? 'i-lucide-eye-off' : 'i-lucide-eye'
-                      "
-                      class="size-4"
-                    />
-                  </button>
-                </div>
+                    {{ s.name }}
+                  </option>
+                </select>
+                <Button
+                  :label="t('JABVOX_AI_CHAT.DOCUMENTS.MANAGE_STORAGES')"
+                  icon="i-lucide-database"
+                  variant="outline"
+                  color="slate"
+                  size="sm"
+                  @click="storageManager?.openDialog()"
+                />
               </div>
-              <Input
-                v-model="bucketForm.bucket_region_jabvox"
-                :label="t('JABVOX_AI_CHAT.DOCUMENTS.REGION')"
-              />
-              <Input
-                v-model="bucketForm.bucket_name_jabvox"
-                :label="t('JABVOX_AI_CHAT.DOCUMENTS.BUCKET_NAME')"
-              />
+              <p class="text-xs text-n-slate-10">
+                {{ t('JABVOX_AI_CHAT.DOCUMENTS.STORAGE_SOURCE_HINT') }}
+              </p>
             </div>
           </div>
           <template #footer>
             <div class="flex flex-wrap items-center justify-end gap-2">
               <Button
-                :label="
-                  uiFlags.isSyncingDocuments
-                    ? t('JABVOX_AI_CHAT.DOCUMENTS.SYNCING')
-                    : t('JABVOX_AI_CHAT.DOCUMENTS.SYNC')
-                "
-                icon="i-lucide-refresh-cw"
-                variant="outline"
-                color="slate"
+                :label="t('JABVOX_AI_CHAT.DOCUMENTS.SELECT_FILES')"
+                icon="i-lucide-list-checks"
                 size="sm"
-                :is-loading="uiFlags.isSyncingDocuments"
-                @click="syncDocuments"
-              />
-              <Button
-                :label="t('JABVOX_AI_CHAT.DOCUMENTS.SAVE_CONFIG')"
-                size="sm"
-                :is-loading="uiFlags.isSavingConfig"
-                @click="saveBucketConfig"
+                :disabled="!selectedStorageId"
+                @click="openDocumentPicker"
               />
             </div>
           </template>
@@ -682,5 +606,10 @@ onMounted(async () => {
     <!-- Dialogs -->
     <ModelFormDialog ref="modelDialog" :is-saving="uiFlags.isSavingModel" />
     <ConfirmDialog ref="deleteDialog" @confirm="onConfirmDelete" />
+    <DocumentPickerDialog
+      ref="documentPicker"
+      @saved="store.dispatch('jabvoxAiChat/fetchDocuments')"
+    />
+    <SharedStoragesManager ref="storageManager" @changed="onStoragesChanged" />
   </div>
 </template>

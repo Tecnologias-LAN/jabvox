@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_02_000004) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_02_000007) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1020,7 +1020,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_000004) do
     t.boolean "web_search_enabled_jabvox", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "documents_storage_jabvox_id"
     t.index ["account_id"], name: "index_jabvox_ai_chat_configs_on_account_id", unique: true
+    t.index ["documents_storage_jabvox_id"], name: "index_jabvox_ai_chat_configs_on_documents_storage_jabvox_id"
   end
 
   create_table "jabvox_ai_chat_documents", force: :cascade do |t|
@@ -1062,6 +1064,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_000004) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_jabvox_ai_chat_models_on_account_id"
+  end
+
+  create_table "jabvox_ai_chat_storages", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.string "bucket_name", default: "", null: false
+    t.string "bucket_region", default: "us-east-1", null: false
+    t.string "endpoint", default: "", null: false
+    t.string "access_key", default: "", null: false
+    t.text "secret_key"
+    t.string "path_prefix", default: "", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_ai_chat_storages_on_account_id"
   end
 
   create_table "jabvox_ai_chat_user_permissions", force: :cascade do |t|
@@ -3179,6 +3195,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_000004) do
   add_foreign_key "jabvox_affiliate_ip_whitelists", "jabvox_affiliates"
   add_foreign_key "jabvox_affiliates", "accounts"
   add_foreign_key "jabvox_ai_chat_configs", "accounts"
+  add_foreign_key "jabvox_ai_chat_configs", "jabvox_ai_chat_storages", column: "documents_storage_jabvox_id", on_delete: :nullify
   add_foreign_key "jabvox_ai_chat_documents", "accounts"
   add_foreign_key "jabvox_ai_chat_messages", "accounts"
   add_foreign_key "jabvox_ai_chat_messages", "users"

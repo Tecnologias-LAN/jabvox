@@ -156,6 +156,7 @@ class Account < ApplicationRecord
   has_many :jabvox_ai_chat_messages, dependent: :destroy_async
   has_many :jabvox_ai_chat_user_permissions, dependent: :destroy_async
   has_many :jabvox_ai_chat_documents, dependent: :destroy_async
+  has_many :jabvox_ai_chat_storages, dependent: :destroy_async
   has_many :jabvox_response_bot_configs, dependent: :destroy_async
   has_many :jabvox_response_bot_documents, dependent: :destroy_async
   has_many :jabvox_management_states, dependent: :destroy_async
