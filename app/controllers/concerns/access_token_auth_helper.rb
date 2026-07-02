@@ -7,7 +7,12 @@ module AccessTokenAuthHelper
 
   def ensure_access_token
     token = request.headers[:api_access_token] || request.headers[:HTTP_API_ACCESS_TOKEN]
-    @access_token = AccessToken.find_by(token: token) if token.present?
+    return if token.blank?
+
+    access_token = AccessToken.find_by(token: token)
+    # Expired short-lived tokens (e.g. the 30-minute Bulk WhatsApp token) are treated as if
+    # they did not exist, so a leaked token stops working the moment it lapses.
+    @access_token = access_token unless access_token&.expired?
   end
 
   def authenticate_access_token!

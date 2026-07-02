@@ -1,0 +1,93 @@
+{
+  "JABVOX_LEAD_IMPORT": {
+    "TITLE": "Importar Leads",
+    "SUBTITLE": "Conecta bases de datos externas para importar y mantener sincronizados los leads.",
+    "NEW": "Nueva conexión",
+    "EMPTY": "Aún no hay conexiones. Crea una para empezar a importar leads.",
+    "SAVED": "Guardado.",
+    "SAVE_ERROR": "No se pudo guardar. Verifica los valores.",
+    "TEST_ERROR": "La prueba de conexión falló.",
+    "TEST_OK": "Conexión exitosa.",
+    "SCHEMA_ERROR": "No se pudo leer el esquema de la base de datos externa.",
+    "DELETED": "Conexión eliminada.",
+    "LOADING_SCHEMA": "Leyendo la base de datos externa…",
+    "SYNC": "Sincronizar",
+    "SYNCING": "Sincronizando…",
+    "SYNC_STARTED": "Sincronización iniciada.",
+    "SYNC_ERROR": "No se pudo iniciar la sincronización.",
+    "SYNC_NEEDS_MAPPING": "Primero mapea los campos antes de sincronizar.",
+    "SYNC_CONFIRM": "¿Ya mapeaste bien los campos? La sincronización creará y actualizará leads.",
+    "LAST_SYNC": "Última sincronización: {created} creados, {updated} actualizados, {failed} fallidos",
+    "DELETE": {
+      "TITLE": "Eliminar conexión",
+      "BODY": "¿Qué deseas hacer con los leads importados por esta conexión?",
+      "KEEP": "Eliminar conexión · conservar los leads",
+      "PURGE": "Eliminar conexión · eliminar los leads",
+      "TRASH_HINT": "Los leads eliminados van a la papelera y se pueden restaurar desde el super admin dentro de 30 días."
+    },
+    "FORM": {
+      "NEW_TITLE": "Nueva conexión",
+      "EDIT_TITLE": "Editar conexión",
+      "NAME": "Nombre",
+      "ENGINE": "Motor",
+      "HOST": "Host",
+      "PORT": "Puerto",
+      "DATABASE": "Base de datos",
+      "USERNAME": "Usuario",
+      "PASSWORD": "Contraseña",
+      "PASSWORD_KEEP": "Déjalo en blanco para conservar la contraseña actual",
+      "TEST": "Probar conexión",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar"
+    },
+    "MAP": {
+      "TITLE": "Mapear campos — {name}",
+      "BUTTON": "Mapear campos",
+      "TABLE": "Tabla externa",
+      "ID_COLUMN": "Columna de ID externo",
+      "EXTERNAL_COLUMN": "Columna externa",
+      "LEAD_FIELD": "Campo del lead",
+      "IGNORE": "No importar",
+      "CREATE_OPTION": "➕ Crear campo…",
+      "CREATE_FIELD": "Crear campo personalizado",
+      "SAVE": "Guardar mapeo",
+      "REQUIRED": "Elige una tabla y su columna de ID.",
+      "SEARCH_TABLE": "Buscar tabla…",
+      "SEARCH_COLUMN": "Buscar columna…",
+      "NO_RESULTS": "Sin resultados",
+      "FIELDS_TITLE": "Mapeo de campos",
+      "CREATE_MISSING": "Crear campos faltantes",
+      "CREATED_COUNT": "{count} campos personalizados creados y mapeados.",
+      "NOTHING_MISSING": "Todas las columnas ya están mapeadas."
+    },
+    "RELATED": {
+      "TITLE": "Tablas relacionadas",
+      "HINT": "Une otras tablas para traer también sus campos (p. ej. facturación, estado).",
+      "ADD": "Agregar tabla relacionada",
+      "TABLE": "Tabla",
+      "LOCAL_KEY": "Columna de la tabla principal",
+      "FOREIGN_KEY": "Columna de la tabla relacionada",
+      "ALIAS": "Alias"
+    },
+    "CREATE_FIELD": {
+      "TITLE": "Nuevo campo personalizado",
+      "FOR_COLUMN": "Para la columna externa: {column}",
+      "LABEL_REQUIRED": "Ingresa un nombre a mostrar.",
+      "LABEL": "Nombre visible",
+      "KEY": "Clave",
+      "KEY_HINT": "p. ej. tamano_empresa",
+      "TYPE": "Tipo",
+      "CREATE": "Crear campo"
+    },
+    "FIELD_CREATED": "Campo personalizado creado.",
+    "FIELD_ERROR": "No se pudo crear el campo personalizado.",
+    "FIELD_TYPES": {
+      "TEXT": "Texto",
+      "INTEGER": "Número",
+      "FLOAT": "Decimal",
+      "BOOLEAN": "Sí/No",
+      "DATE": "Fecha",
+      "SELECT": "Lista"
+    }
+  }
+}

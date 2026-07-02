@@ -4,6 +4,9 @@ require 'aws-sdk-s3'
 # own credentials or reuse the AI-chat (Documentos) bucket config.
 class Jabvox::AudioBucketService
   AUDIO_EXTENSIONS = %w[.mp3 .m4a .wav .ogg .opus .flac .webm].freeze
+  DOCUMENT_EXTENSIONS = %w[.pdf .doc .docx .xls .xlsx .csv .txt .ppt .pptx
+                           .png .jpg .jpeg .gif .webp .zip].freeze
+  LISTABLE_EXTENSIONS = (AUDIO_EXTENSIONS + DOCUMENT_EXTENSIONS).freeze
 
   def initialize(storage)
     @storage = storage
@@ -23,8 +26,11 @@ class Jabvox::AudioBucketService
   PAGE_SIZE = 1000
   MAX_PAGES = 50
 
-  def list_objects(prefix: '')
+  # `search` filters listed files by a case-insensitive substring of the file name
+  # (e.g. "1000532535_" matches 1000532535_1, _2, …). Folders are always shown.
+  def list_objects(prefix: '', search: '')
     full_prefix = [@creds[:path_prefix], prefix].reject(&:blank?).join
+    needle = search.to_s.strip.downcase
     folders = []
     files = []
     token = nil
@@ -37,7 +43,10 @@ class Jabvox::AudioBucketService
       )
       folders.concat(resp.common_prefixes.map(&:prefix))
       resp.contents.each do |o|
-        files << { key: o.key, size: o.size, last_modified: o.last_modified } if audio?(o.key)
+        next unless listable?(o.key)
+        next if needle.present? && !File.basename(o.key).downcase.include?(needle)
+
+        files << { key: o.key, size: o.size, last_modified: o.last_modified, kind: kind_for(o.key) }
       end
       token = resp.next_continuation_token
       break unless token
@@ -57,6 +66,32 @@ class Jabvox::AudioBucketService
     { folders: [], files: [], total_folders: 0, total_files: 0, truncated: false, error: e.message }
   end
 
+  # Short-lived presigned URL to stream/play a file directly from the bucket in
+  # the browser. Expires fast (5 min) to limit the leak window. The key is
+  # validated against this storage's allowed prefix and listable extensions, so a
+  # client cannot presign arbitrary objects (path traversal / out-of-scope keys).
+  def presigned_url(file_key, expires_in: 300)
+    return nil unless allowed_key?(file_key)
+
+    signer = Aws::S3::Presigner.new(client: client)
+    signer.presigned_url(:get_object, bucket: bucket_name, key: file_key, expires_in: expires_in)
+  rescue Aws::S3::Errors::ServiceError, StandardError => e
+    Rails.logger.error "[AudioAnalysis] presign failed: #{e.message}"
+    nil
+  end
+
+  # A key is allowed only if it is a normalized path under this storage's
+  # path_prefix and has a listable extension. Blocks "..", absolute keys, and
+  # keys pointing outside the configured prefix.
+  def allowed_key?(file_key)
+    key = file_key.to_s
+    return false if key.blank? || key.include?('..') || key.start_with?('/')
+    return false unless listable?(key)
+
+    prefix = @creds[:path_prefix].to_s
+    prefix.blank? || key.start_with?(prefix)
+  end
+
   # Downloads a file to a Tempfile (binmode). Caller must close! it.
   def download(file_key)
     tmp = Tempfile.new(['audio', File.extname(file_key).presence || '.mp3'], binmode: true)
@@ -73,6 +108,15 @@ class Jabvox::AudioBucketService
 
   def audio?(key)
     AUDIO_EXTENSIONS.include?(File.extname(key).downcase)
+  end
+
+  def listable?(key)
+    LISTABLE_EXTENSIONS.include?(File.extname(key).downcase)
+  end
+
+  # 'audio' for audio files, 'document' for everything else listable.
+  def kind_for(key)
+    audio?(key) ? 'audio' : 'document'
   end
 
   def resolve_credentials

@@ -21,7 +21,25 @@ Rails.application.config.to_prepare do
   Account.prepend Jabvox::AccountAnalyticsFeature
   Account.prepend Jabvox::AccountWhatsappTemplatesFeature
   Account.prepend Jabvox::AccountTasksFeature
+  Account.prepend Jabvox::AccountBulkWhatsappFeature
+  Account.prepend Jabvox::AccountLeadImportFeature
+  Account.prepend Jabvox::AccountDataExportFeature
+
   Contact.include Jabvox::ContactLeadsIntegration
   Note.include Jabvox::NoteManagementAnswers
   Api::V1::Accounts::ContactsController.include Jabvox::ContactFieldProtection
+end
+
+# Real-time export: mirror every exportable jabvox model to the account's external
+# DB. This must run AFTER the app is fully initialized (all models eager-loaded),
+# so the catalog's ObjectSpace scan sees every model regardless of load order.
+# Runs once at boot; in production models are already eager-loaded, in development
+# the catalog forces an eager_load! before scanning.
+Rails.application.config.after_initialize do
+  Jabvox::ExternalExport::Catalog.reset!
+  Jabvox::ExternalExport::Catalog.exportable_models.each do |model|
+    model.include Jabvox::ExportableToExternalDb
+  rescue StandardError => e
+    Rails.logger.error("[ExternalExport] could not hook #{model}: #{e.message}")
+  end
 end

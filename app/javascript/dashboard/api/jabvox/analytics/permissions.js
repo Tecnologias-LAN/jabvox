@@ -45,6 +45,20 @@ class JabvoxAnalyticsPermissionsAPI extends ApiClient {
     return axios.patch(`${this.base}/user_permissions/bulk`, payload);
   }
 
+  // Which dashboards a single user can see (per-user access panel).
+  getUserDashboardAccess(userId) {
+    return axios.get(`${this.base}/user_dashboard_access`, {
+      params: { user_id: userId },
+    });
+  }
+
+  updateUserDashboardAccess(userId, dashboardIds) {
+    return axios.patch(`${this.base}/user_dashboard_access`, {
+      user_id: userId,
+      dashboard_ids: dashboardIds,
+    });
+  }
+
   myCapabilities() {
     return axios.get(`${this.base}/my_capabilities`);
   }

@@ -1062,6 +1062,20 @@ const menuItems = computed(() => {
           : []),
         ...(isFeatureEnabledonAccount.value(
           accountId.value,
+          FEATURE_FLAGS.JABVOX_BULK_WHATSAPP
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Bulk WhatsApp',
+                label: t('SIDEBAR.JABVOX_BULK_WHATSAPP'),
+                icon: 'i-lucide-send-horizontal',
+                to: accountScopedRoute('jabvox_bulk_whatsapp_settings_index'),
+                activeOn: ['jabvox_bulk_whatsapp_settings_index'],
+              },
+            ]
+          : []),
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
           FEATURE_FLAGS.JABVOX_AUDIO_ANALYSIS
         )
           ? [
@@ -1071,6 +1085,34 @@ const menuItems = computed(() => {
                 icon: 'i-lucide-audio-lines',
                 to: accountScopedRoute('jabvox_audio_analysis_settings_index'),
                 activeOn: ['jabvox_audio_analysis_settings_index'],
+              },
+            ]
+          : []),
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_LEAD_IMPORT
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Lead Import',
+                label: t('SIDEBAR.JABVOX_LEAD_IMPORT'),
+                icon: 'i-lucide-database',
+                to: accountScopedRoute('jabvox_lead_import_settings_index'),
+                activeOn: ['jabvox_lead_import_settings_index'],
+              },
+            ]
+          : []),
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_DATA_EXPORT
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Data Export',
+                label: t('SIDEBAR.JABVOX_DATA_EXPORT'),
+                icon: 'i-lucide-database-zap',
+                to: accountScopedRoute('jabvox_data_export_settings_index'),
+                activeOn: ['jabvox_data_export_settings_index'],
               },
             ]
           : []),

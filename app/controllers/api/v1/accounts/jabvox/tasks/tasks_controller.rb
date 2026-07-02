@@ -1,9 +1,9 @@
 class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jabvox::Tasks::BaseController
-  before_action :set_task, only: %i[show update destroy move]
+  before_action :set_task, only: %i[show update destroy move activities automation_runs]
 
   # Filterable by board, lead, and date range (board view + calendar view + per-lead filter).
   def index
-    tasks = scoped.includes(:stage, :jabvox_lead, :assignee)
+    tasks = scoped.includes(:stage, :jabvox_lead, :assignee, :assignees, :automations)
     tasks = tasks.where(board_id: params[:board_id]) if params[:board_id].present?
     tasks = tasks.where(jabvox_lead_id: params[:lead_id]) if params[:lead_id].present?
     tasks = filter_by_date(tasks)
@@ -19,15 +19,23 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
     task.account = Current.account
     task.created_by = current_user
     if task.save
-      render json: serialize(task), status: :created
+      apply_assignees(task)
+      task.log_activity(:created, current_user, title: task.title_jabvox)
+      render json: serialize(task.reload), status: :created
     else
       render json: { errors: task.errors.full_messages }, status: :unprocessable_entity
     end
   end
 
   def update
+    before = task_snapshot(@task)
     if @task.update(task_params)
-      render json: serialize(@task)
+      apply_assignees(@task) if assignee_ids_param
+      # Reload stage/lead so their names reflect the new ids when logging the change.
+      @task.association(:stage).reload
+      @task.association(:jabvox_lead).reload
+      log_field_changes(@task, before)
+      render json: serialize(@task.reload)
     else
       render json: { errors: @task.errors.full_messages }, status: :unprocessable_entity
     end
@@ -42,8 +50,25 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
   # destination stage's automations via the model's after_commit hook.
   def move
     stage = Current.account.jabvox_task_stages.find(params.require(:stage_id))
+    from_stage = @task.stage
     @task.update!(stage_id: stage.id, position_jabvox: params[:position].to_i)
+    if from_stage.id != stage.id
+      @task.log_activity(:stage_changed, current_user,
+                         from: from_stage.name_jabvox, to: stage.name_jabvox)
+    end
     render json: serialize(@task.reload)
+  end
+
+  # Append-only history for a single task, newest first.
+  def activities
+    logs = @task.activities.includes(:user).reorder(created_at: :desc)
+    render json: logs.map { |a| serialize_activity(a) }
+  end
+
+  # Automation dispatch log for a single task (what was sent and when), newest first.
+  def automation_runs
+    runs = @task.automation_runs.limit(50)
+    render json: runs.map { |r| serialize_run(r) }
   end
 
   private
@@ -62,6 +87,10 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
     tasks
   end
 
+  # Note: assignee_ids is intentionally NOT permitted here. It's a has_many-through
+  # association writer, so letting it through task_params would make AR build join rows
+  # without account_id (which is NOT NULL) and raise RecordInvalid. Assignees are synced
+  # separately in #apply_assignees, which sets account_id explicitly.
   def task_params
     params.require(:task).permit(
       :board_id, :stage_id, :jabvox_lead_id, :assignee_id, :title_jabvox,
@@ -70,16 +99,118 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
     )
   end
 
+  # Raw assignee_ids from the request (nil if the key was not sent, so update leaves them alone).
+  def assignee_ids_param
+    return @assignee_ids_param if defined?(@assignee_ids_param)
+
+    raw = params.dig(:task, :assignee_ids)
+    @assignee_ids_param = raw.nil? ? nil : Array(raw)
+  end
+
+  # Sync assignees from assignee_ids (falling back to the legacy single assignee_id) and
+  # log each add/remove. Looks up names once for readable activity metadata.
+  def apply_assignees(task)
+    ids = assignee_ids_param
+    ids = [task.assignee_id].compact if ids.nil?
+    added, removed = task.sync_assignees!(ids)
+    return if added.empty? && removed.empty?
+
+    names = User.where(id: added + removed).pluck(:id, :name).to_h
+    added.each  { |uid| task.log_activity(:assignee_added, current_user, user_id: uid, user_name: names[uid]) }
+    removed.each { |uid| task.log_activity(:assignee_removed, current_user, user_id: uid, user_name: names[uid]) }
+  end
+
+  # Snapshot of the fields we track in the activity log. Lead and stage are stored with both
+  # their id and a human-readable name so the history can say what changed.
+  def task_snapshot(task)
+    {
+      status: task.status_jabvox, priority: task.priority_jabvox,
+      due_at: task.due_at_jabvox,
+      lead_id: task.jabvox_lead_id, lead_name: lead_label(task.jabvox_lead),
+      stage_id: task.stage_id, stage_name: task.stage&.name_jabvox
+    }
+  end
+
+  def log_field_changes(task, before)
+    log_status_change(task, before)
+    log_priority_change(task, before)
+    log_due_date_change(task, before)
+    log_stage_change(task, before)
+    log_lead_change(task, before)
+  end
+
+  def log_status_change(task, before)
+    return if before[:status] == task.status_jabvox
+
+    task.log_activity(:status_changed, current_user, from: before[:status], to: task.status_jabvox)
+  end
+
+  def log_priority_change(task, before)
+    return if before[:priority] == task.priority_jabvox
+
+    task.log_activity(:priority_changed, current_user, from: before[:priority], to: task.priority_jabvox)
+  end
+
+  def log_due_date_change(task, before)
+    return if before[:due_at] == task.due_at_jabvox
+
+    task.log_activity(:due_date_changed, current_user,
+                      from: before[:due_at]&.iso8601, to: task.due_at_jabvox&.iso8601)
+  end
+
+  def log_stage_change(task, before)
+    return if before[:stage_id] == task.stage_id
+
+    task.log_activity(:stage_changed, current_user,
+                      from: before[:stage_name], to: task.stage&.name_jabvox)
+  end
+
+  def log_lead_change(task, before)
+    return if before[:lead_id] == task.jabvox_lead_id
+
+    task.log_activity(:lead_changed, current_user,
+                      from: before[:lead_name], to: lead_label(task.jabvox_lead))
+  end
+
+  # Readable name for a lead (its contact name, or "Lead #<number>", or em dash when none).
+  def lead_label(lead)
+    return '—' if lead.nil?
+
+    lead.contact&.name.presence || "Lead ##{lead.lead_number}"
+  end
+
   def serialize(task)
     {
       id: task.id, board_id: task.board_id, stage_id: task.stage_id,
       jabvox_lead_id: task.jabvox_lead_id,
       lead_name: task.jabvox_lead&.contact&.name || (task.jabvox_lead && "Lead ##{task.jabvox_lead.lead_number}"),
       assignee_id: task.assignee_id, assignee_name: task.assignee&.name,
+      assignees: task.assignees.map { |u| { id: u.id, name: u.name, thumbnail: u.avatar_url } },
       title_jabvox: task.title_jabvox, description_jabvox: task.description_jabvox,
       priority_jabvox: task.priority_jabvox, status_jabvox: task.status_jabvox,
       due_at_jabvox: task.due_at_jabvox, due_dates_jabvox: task.due_dates_jabvox,
-      position_jabvox: task.position_jabvox, created_at: task.created_at
+      position_jabvox: task.position_jabvox, created_at: task.created_at,
+      automations_count: task.automations.size,
+      active_automations_count: task.automations.count(&:active_jabvox)
+    }
+  end
+
+  def serialize_run(run)
+    {
+      id: run.id, automation_id: run.automation_id, channel_jabvox: run.channel_jabvox,
+      status_jabvox: run.status_jabvox, recipients_count_jabvox: run.recipients_count_jabvox,
+      detail_jabvox: run.detail_jabvox, run_at_jabvox: run.run_at_jabvox
+    }
+  end
+
+  def serialize_activity(activity)
+    {
+      id: activity.id,
+      action: activity.action_jabvox,
+      metadata: activity.metadata_jabvox,
+      user_id: activity.user_id,
+      user_name: activity.user&.name,
+      created_at: activity.created_at
     }
   end
 end

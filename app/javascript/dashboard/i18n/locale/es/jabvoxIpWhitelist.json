@@ -1,34 +1,34 @@
 {
   "JABVOX_IP_WHITELIST": {
-    "TITLE": "Lista Blanca de IP",
+    "TITLE": "Lista blanca de IP",
     "LOADING": "Cargando...",
-    "DESCRIPTION": "Restrinja el acceso a esta cuenta a direcciones IP específicas. Agregue 0.0.0.0 para permitir todas las IPs.",
+    "DESCRIPTION": "Restringe el acceso a esta cuenta a direcciones IP específicas. Agrega 0.0.0.0 para permitir todas las IP.",
     "ADD_IP": "Agregar IP",
     "TABLE": {
       "IP": "Dirección IP",
       "COMMENT": "Comentario",
       "STATUS": "Estado",
-      "ADDED": "Agregado",
+      "ADDED": "Agregada",
       "ACTIONS": "Acciones"
     },
     "FORM": {
-      "IP_PLACEHOLDER": "Ej: 192.168.1.100",
-      "IP_HINT": "Use 0.0.0.0 para permitir todas las direcciones IP.",
-      "COMMENT_PLACEHOLDER": "Ej: Red de la oficina",
-      "ACTIVE_LABEL": "Activo"
+      "IP_PLACEHOLDER": "p. ej. 192.168.1.100",
+      "IP_HINT": "Usa 0.0.0.0 para permitir todas las direcciones IP.",
+      "COMMENT_PLACEHOLDER": "p. ej. Red de la oficina",
+      "ACTIVE_LABEL": "Activa"
     },
     "STATUS": {
-      "ACTIVE": "Activo",
-      "INACTIVE": "Inactivo"
+      "ACTIVE": "Activa",
+      "INACTIVE": "Inactiva"
     },
-    "EMPTY": "No hay IPs configuradas. Actualmente se permiten todas las direcciones IP.",
+    "EMPTY": "No hay IP configuradas. Actualmente se permiten todas las direcciones IP.",
     "CREATE_SUCCESS": "Dirección IP agregada correctamente.",
     "UPDATE_SUCCESS": "Dirección IP actualizada correctamente.",
     "DELETE_SUCCESS": "Dirección IP eliminada correctamente.",
-    "ERROR": "Ocurrió un error. Por favor, intente de nuevo.",
-    "TOGGLE": "Activar/Desactivar",
+    "ERROR": "Ocurrió un error. Inténtalo de nuevo.",
+    "TOGGLE": "Alternar",
     "DELETE": "Eliminar",
-    "CONFIRM_DELETE": "¿Está seguro de que desea eliminar esta IP?",
+    "CONFIRM_DELETE": "¿Seguro que quieres eliminar esta IP?",
     "SUBTITLE": "Restringe el acceso a tu cuenta permitiendo solo direcciones IP de confianza.",
     "COMMON": {
       "CANCEL": "Cancelar",

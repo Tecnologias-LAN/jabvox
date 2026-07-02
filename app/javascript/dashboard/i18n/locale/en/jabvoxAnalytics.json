@@ -166,10 +166,6 @@
       "FOLDER_NAME_PLACEHOLDER": "Ej. Ventas",
       "FOLDER_CREATED": "Carpeta creada",
       "FOLDER_ERROR": "No se pudo crear la carpeta",
-      "SEED_DEFAULTS": "Crear dashboards predeterminados",
-      "SEED_DEFAULTS_HELP": "Crea los dashboards Autogestión y Valiosas, ligados a las fuentes CRM_Autogestion y CRM_Valiosas si existen.",
-      "SEED_DEFAULTS_DONE": "Dashboards predeterminados creados",
-      "SEED_DEFAULTS_ERROR": "No se pudieron crear los dashboards predeterminados",
       "INTERNAL_REPORTS": "Reportes internos",
       "INTERNAL_REPORTS_HELP": "Elige qué reportes de esta cuenta quieres crear como dashboards. Cada uno usa solo los datos de esta cuenta.",
       "CREATE_SELECTED": "Crear ({count})",
@@ -277,10 +273,18 @@
       "TITLE": "Analytics Permissions",
       "TAB_MATRIX": "Users",
       "TAB_ROLES": "Roles",
+      "TAB_DASHBOARDS": "Dashboard access",
       "ADMIN_NOTICE": "Administrators automatically have full access.",
       "MATRIX": {
         "USER": "User",
         "ROLE": "Role"
+      },
+      "DASHBOARD_ACCESS": {
+        "DESCRIPTION": "Pick a user and choose which dashboards they can see. Users without access only see the dashboards granted here (plus any they created).",
+        "USER": "User",
+        "SELECT_USER": "Select a user…",
+        "SEES_ALL": "This user already sees every dashboard (account administrator or a role with \"view all data\"). Per-dashboard access below has no effect until that is changed.",
+        "EMPTY": "No dashboards exist yet."
       },
       "CAPS": {
         "access": "Access",
@@ -290,7 +294,6 @@
         "delete_own": "Delete own",
         "delete_all": "Delete all",
         "share": "Share",
-        "export": "Export",
         "view_all_data": "View all data",
         "manage_data_sources": "Manage data sources",
         "use_custom_sql": "Use custom SQL"

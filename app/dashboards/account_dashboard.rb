@@ -58,7 +58,10 @@ class AccountDashboard < Administrate::BaseDashboard
     jabvox_customization_enabled_jabvox: Field::Boolean,
     jabvox_analytics_enabled_jabvox: Field::Boolean,
     jabvox_whatsapp_templates_enabled_jabvox: Field::Boolean,
-    jabvox_tasks_enabled_jabvox: Field::Boolean
+    jabvox_tasks_enabled_jabvox: Field::Boolean,
+    jabvox_bulk_whatsapp_enabled_jabvox: Field::Boolean,
+    jabvox_lead_import_enabled_jabvox: Field::Boolean,
+    jabvox_data_export_enabled_jabvox: Field::Boolean
   }.merge(enterprise_attribute_types).freeze
 
   # COLLECTION_ATTRIBUTES
@@ -118,6 +121,9 @@ class AccountDashboard < Administrate::BaseDashboard
     jabvox_analytics_enabled_jabvox
     jabvox_whatsapp_templates_enabled_jabvox
     jabvox_tasks_enabled_jabvox
+    jabvox_bulk_whatsapp_enabled_jabvox
+    jabvox_lead_import_enabled_jabvox
+    jabvox_data_export_enabled_jabvox
   ] + enterprise_show_page_attributes).freeze
 
   # FORM_ATTRIBUTES
@@ -159,6 +165,9 @@ class AccountDashboard < Administrate::BaseDashboard
     jabvox_analytics_enabled_jabvox
     jabvox_whatsapp_templates_enabled_jabvox
     jabvox_tasks_enabled_jabvox
+    jabvox_bulk_whatsapp_enabled_jabvox
+    jabvox_lead_import_enabled_jabvox
+    jabvox_data_export_enabled_jabvox
   ] + enterprise_form_attributes).freeze
 
   # COLLECTION_FILTERS
@@ -214,6 +223,9 @@ class AccountDashboard < Administrate::BaseDashboard
     attrs << :jabvox_analytics_enabled_jabvox
     attrs << :jabvox_whatsapp_templates_enabled_jabvox
     attrs << :jabvox_tasks_enabled_jabvox
+    attrs << :jabvox_bulk_whatsapp_enabled_jabvox
+    attrs << :jabvox_lead_import_enabled_jabvox
+    attrs << :jabvox_data_export_enabled_jabvox
 
     # Add manually_managed_features to permitted attributes only for Jabvox Cloud
     attrs << { manually_managed_features: [] } if JabvoxApp.jabvox_cloud?

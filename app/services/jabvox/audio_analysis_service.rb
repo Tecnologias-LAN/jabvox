@@ -21,12 +21,13 @@ class Jabvox::AudioAnalysisService
 
     return fail!('Pipeline o almacenamiento no disponible') unless @pipeline && @storage
 
-    transcript = transcribe
+    transcript, words = transcribe
     return fail!('No se pudo transcribir el audio') if transcript.blank?
 
     stages_data, final = evaluate_stages(transcript)
     @result.update!(
       transcript: transcript,
+      transcript_words_jabvox: words || [],
       stages_data: stages_data,
       final_score: final[:score],
       passed: final[:passed],
@@ -44,19 +45,61 @@ class Jabvox::AudioAnalysisService
 
   private
 
+  # Returns [transcript_text, words_array]. words_array is [] unless the pipeline
+  # requests timestamps; for 'word' it is per-word, for 'segment' it is per-segment
+  # of segment_seconds_jabvox (built from word timings).
   def transcribe
     model = @pipeline.transcription_model || @account.jabvox_ai_chat_models.find_by(is_default_jabvox: true)
-    return nil unless model
+    return [nil, nil] unless model
 
     tmp = Jabvox::AudioBucketService.new(@storage).download(@result.file_key)
-    return nil unless tmp
-    return nil if tmp.size > MAX_AUDIO_BYTES
+    return [nil, nil] unless tmp
+    return [nil, nil] if tmp.size > MAX_AUDIO_BYTES
 
+    mode = @pipeline.timestamp_mode_jabvox
     params = { model: 'whisper-1', file: tmp, language: 'es' }
     params[:prompt] = @pipeline.transcription_prompt if @pipeline.transcription_prompt.present?
-    openai_client(model, TRANSCRIBE_TIMEOUT).audio.transcribe(parameters: params)['text'].presence
+
+    if mode == 'none'
+      text = openai_client(model, TRANSCRIBE_TIMEOUT).audio.transcribe(parameters: params)['text'].presence
+      return [text, []]
+    end
+
+    # verbose_json + word granularity gives per-word start/end times.
+    # NOTE: in multipart/form-data the param must be sent as the repeated key
+    # "timestamp_granularities[]"; ruby-openai does not expand a Ruby array into
+    # repeated multipart fields, so OpenAI would silently drop a plain array and
+    # return no `words`. Passing the bracketed key with a string value works.
+    params[:response_format] = 'verbose_json'
+    params[:'timestamp_granularities[]'] = 'word'
+    resp = openai_client(model, TRANSCRIBE_TIMEOUT).audio.transcribe(parameters: params)
+    text = resp['text'].presence
+    word_list = Array(resp['words']).map do |w|
+      { 'word' => w['word'], 'start' => w['start'], 'end' => w['end'] }
+    end
+    # Fallback: if the API returned segments instead of words (older models or
+    # when word timing is unavailable), use those so the user still sees timing.
+    if word_list.empty?
+      word_list = Array(resp['segments']).map do |s|
+        { 'word' => s['text'].to_s.strip, 'start' => s['start'], 'end' => s['end'] }
+      end
+    end
+    words = mode == 'segment' ? group_into_segments(word_list) : word_list
+    [text, words]
   ensure
     tmp&.close!
+  end
+
+  # Buckets per-word timings into fixed segments of segment_seconds_jabvox seconds,
+  # concatenating the words that fall in each bucket.
+  def group_into_segments(word_list)
+    span = @pipeline.segment_seconds_jabvox.to_i
+    span = 30 if span <= 0
+    word_list.group_by { |w| (w['start'].to_f / span).floor }
+             .map do |bucket, words|
+               { 'start' => bucket * span, 'end' => (bucket + 1) * span,
+                 'word' => words.map { |w| w['word'] }.join(' ').strip }
+             end
   end
 
   # Escalation: if a non-last stage scores below its min_score, mark it escalated and

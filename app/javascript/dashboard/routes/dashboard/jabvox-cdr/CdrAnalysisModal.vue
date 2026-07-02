@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { cdrReportsAPI } from 'dashboard/api/jabvox/cdr';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import TranscriptViewer from '../jabvox-audio-analysis/components/TranscriptViewer.vue';
 
 const props = defineProps({
   call: { type: Object, required: true },
@@ -16,6 +17,29 @@ const { t } = useI18n();
 
 const analysis = ref(props.existing || null);
 const loading = ref(false);
+
+// Recording playback: fetched once as a local blob URL. The PBX path/credentials
+// never reach the client and no public/presigned URL is created.
+const recordingUrl = ref(null);
+const loadingRecording = ref(false);
+const loadRecording = async () => {
+  if (recordingUrl.value || loadingRecording.value) return;
+  loadingRecording.value = true;
+  try {
+    recordingUrl.value = await cdrReportsAPI.recordingObjectUrl(
+      props.call.uniqueid
+    );
+  } catch {
+    recordingUrl.value = null;
+  } finally {
+    loadingRecording.value = false;
+  }
+};
+
+const close = () => {
+  if (recordingUrl.value) URL.revokeObjectURL(recordingUrl.value);
+  emit('close');
+};
 
 const runAnalysis = async (force = false) => {
   loading.value = true;
@@ -46,7 +70,7 @@ onMounted(() => {
   <!-- eslint-disable vue/no-bare-strings-in-template -- symbols (→ — /) are universal -->
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-n-alpha-black2 p-4"
-    @click.self="emit('close')"
+    @click.self="close"
   >
     <div
       class="w-full max-w-2xl max-h-[85vh] overflow-auto rounded-2xl border border-n-weak bg-n-solid-1 p-6 shadow-xl"
@@ -65,7 +89,7 @@ onMounted(() => {
           variant="ghost"
           color="slate"
           size="sm"
-          @click="emit('close')"
+          @click="close"
         />
       </div>
 
@@ -148,18 +172,48 @@ onMounted(() => {
           </ul>
         </div>
 
-        <!-- Transcript -->
-        <details class="rounded-xl border border-n-weak bg-n-alpha-1 p-3">
+        <!-- Recording playback -->
+        <div
+          v-if="analysis.has_recording"
+          class="rounded-xl border border-n-weak bg-n-alpha-1 p-3 flex flex-col gap-2"
+        >
+          <div class="flex items-center gap-2">
+            <span class="i-lucide-music-2 size-4 text-n-brand" />
+            <span class="text-sm font-medium text-n-slate-11">
+              {{ t('JABVOX_CDR.ANALYSIS.RECORDING') }}
+            </span>
+            <Button
+              v-if="!recordingUrl"
+              class="ml-auto"
+              size="sm"
+              variant="outline"
+              color="slate"
+              icon="i-lucide-play"
+              :is-loading="loadingRecording"
+              :label="t('JABVOX_CDR.ANALYSIS.LISTEN')"
+              @click="loadRecording"
+            />
+          </div>
+          <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->
+          <audio
+            v-if="recordingUrl"
+            :src="recordingUrl"
+            controls
+            class="w-full"
+          />
+        </div>
+
+        <!-- Searchable transcript (by word, or by time when timestamped). -->
+        <details class="rounded-xl border border-n-weak bg-n-alpha-1 p-3" open>
           <summary
-            class="cursor-pointer text-sm font-medium text-n-slate-11 select-none"
+            class="cursor-pointer text-sm font-medium text-n-slate-11 select-none mb-2"
           >
             {{ t('JABVOX_CDR.ANALYSIS.TRANSCRIPT') }}
           </summary>
-          <p
-            class="mt-2 text-sm whitespace-pre-wrap text-n-slate-12 max-h-64 overflow-y-auto"
-          >
-            {{ analysis.transcript }}
-          </p>
+          <TranscriptViewer
+            :words="analysis.transcript_words || []"
+            :text="analysis.transcript || ''"
+          />
         </details>
 
         <div class="flex justify-end">

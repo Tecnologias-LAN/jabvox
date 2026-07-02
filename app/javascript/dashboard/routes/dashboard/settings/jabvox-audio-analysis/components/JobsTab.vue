@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import SettingsCard from './SettingsCard.vue';
+import TranscriptViewer from '../../../jabvox-audio-analysis/components/TranscriptViewer.vue';
 
 defineProps({
   jobs: { type: Array, default: () => [] },
@@ -204,7 +205,10 @@ const STATUS_TONE = {
             </p>
 
             <!-- Transcript (collapsible) -->
-            <div v-if="r.transcript" class="mt-2 pl-5">
+            <div
+              v-if="r.transcript || r.transcript_words?.length"
+              class="mt-2 pl-5"
+            >
               <button
                 class="text-xs text-n-brand hover:underline"
                 @click="emit('toggle-transcript', r.file_key)"
@@ -215,11 +219,13 @@ const STATUS_TONE = {
                     : t('JABVOX_AUDIO.JOBS.SHOW_TRANSCRIPT')
                 }}
               </button>
-              <pre
+              <!-- Searchable transcript (by word, or by time when timestamped). -->
+              <TranscriptViewer
                 v-if="expandedResultKey === r.file_key"
-                class="mt-1 p-2.5 rounded-lg bg-n-solid-2 border border-n-weak text-xs text-n-slate-12 whitespace-pre-wrap break-words max-h-64 overflow-y-auto"
-                >{{ r.transcript }}</pre
-              >
+                class="mt-1"
+                :words="r.transcript_words || []"
+                :text="r.transcript || ''"
+              />
             </div>
           </div>
 

@@ -15,7 +15,7 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
   end
 
   def results
-    rows = @job.results.includes(:assigned_agent).order(:file_key)
+    rows = @job.results.includes(:assigned_agent, :typification).order(:file_key)
     render json: { results: rows.map { |r| serialize_result(r) } }
   end
 
@@ -46,19 +46,28 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
 
   def build_job(file_keys, pipeline, storage)
     fallback_agent_id = assigned_agent_id
-    # Each audio's responsible agent comes from its manual assignment
-    # (set in the explorer); fall back to the optional job-wide agent.
-    agent_by_key = Current.account.jabvox_audio_assignments
-                          .where(storage_id: storage.id, file_key: file_keys)
-                          .pluck(:file_key, :agent_id).to_h
+    # Each audio's responsible agent AND typification come from its manual
+    # assignment (set in the explorer); agent falls back to the job-wide agent,
+    # typification falls back to the pipeline's default typification.
+    assignments = Current.account.jabvox_audio_assignments
+                         .where(storage_id: storage.id, file_key: file_keys)
+                         .pluck(:file_key, :agent_id, :typification_id)
+    agent_by_key = assignments.to_h { |key, agent, _typ| [key, agent] }
+    typ_by_key = assignments.to_h { |key, _agent, typ| [key, typ] }
+
+    # Label is generated server-side and never trusted from the client.
     job = Current.account.jabvox_audio_jobs.create!(
       pipeline: pipeline, storage: storage, created_by: current_user,
-      status: 'pending', total_count: file_keys.size
+      status: 'pending', total_count: file_keys.size,
+      label_jabvox: JabvoxAudioJob.next_label(Current.account)
     )
+    now = Time.current
     rows = file_keys.map do |key|
       { job_id: job.id, account_id: Current.account.id, file_key: key, status: 'pending',
-        assigned_agent_id: agent_by_key[key] || fallback_agent_id, stages_data: [],
-        created_at: Time.current, updated_at: Time.current }
+        assigned_agent_id: agent_by_key[key] || fallback_agent_id,
+        typification_id: typ_by_key[key] || pipeline.typification_id,
+        stages_data: [], transcript_words_jabvox: [],
+        created_at: now, updated_at: now }
     end
     JabvoxAudioResult.insert_all(rows) # rubocop:disable Rails/SkipsModelValidations
     job
@@ -71,6 +80,7 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
   def serialize(job)
     {
       id: job.id,
+      label: job.label_jabvox,
       status: job.status,
       pipeline_id: job.pipeline_id,
       storage_id: job.storage_id,
@@ -97,10 +107,13 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
       passed: result.passed,
       sentiment: result.sentiment,
       stages_data: result.stages_data,
+      transcript_words: result.transcript_words_jabvox,
       error_message: result.error_message,
       processing_time_ms: result.processing_time_ms,
       assigned_agent_id: result.assigned_agent_id,
-      assigned_agent_name: result.assigned_agent&.name
+      assigned_agent_name: result.assigned_agent&.name,
+      typification_id: result.typification_id,
+      typification_name: result.typification&.name
     }
   end
 end

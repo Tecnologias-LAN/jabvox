@@ -4,6 +4,7 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import TablesTab from './components/TablesTab.vue';
 import ColumnsTab from './components/ColumnsTab.vue';
+import DataTab from './components/DataTab.vue';
 import ButtonsTab from './components/ButtonsTab.vue';
 
 const store = useStore();
@@ -21,6 +22,11 @@ const tabs = [
     key: 'columns',
     label: () => t('JABVOX_CUSTOMIZATION.TABS.COLUMNS'),
     icon: 'i-lucide-columns-3',
+  },
+  {
+    key: 'data',
+    label: () => t('JABVOX_CUSTOMIZATION.TABS.DATA'),
+    icon: 'i-lucide-database',
   },
   {
     key: 'buttons',
@@ -76,6 +82,7 @@ onMounted(async () => {
       <div class="rounded-2xl border border-n-weak bg-n-background p-4 sm:p-6">
         <TablesTab v-if="activeTab === 'tables'" />
         <ColumnsTab v-else-if="activeTab === 'columns'" />
+        <DataTab v-else-if="activeTab === 'data'" />
         <ButtonsTab v-else-if="activeTab === 'buttons'" />
       </div>
     </div>

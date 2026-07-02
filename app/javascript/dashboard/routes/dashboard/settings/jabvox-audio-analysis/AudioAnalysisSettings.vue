@@ -168,6 +168,8 @@ const newPipeline = () => ({
   name: '',
   transcription_prompt: '',
   is_default: false,
+  timestamp_mode_jabvox: 'none',
+  segment_seconds_jabvox: 30,
   stages: [],
 });
 const deletePipeline = async id => {
@@ -195,6 +197,9 @@ const savePipeline = async () => {
     typification_id: editingPipeline.value.typification_id,
     transcription_prompt: editingPipeline.value.transcription_prompt,
     is_default: editingPipeline.value.is_default,
+    timestamp_mode_jabvox:
+      editingPipeline.value.timestamp_mode_jabvox || 'none',
+    segment_seconds_jabvox: editingPipeline.value.segment_seconds_jabvox || 30,
     stages_attributes: editingPipeline.value.stages.map((s, i) => ({
       id: s.id,
       name: s.name,
@@ -222,10 +227,13 @@ const savePipeline = async () => {
 const selectedStorageId = ref(null);
 const selectedPipelineId = ref(null);
 const prefix = ref('');
+const search = ref('');
 const browser = ref({ folders: [], files: [], next_token: null });
 const selectedKeys = ref(new Set());
 const browsing = ref(false);
 
+// `browse` lists a folder; an optional search filters files by name within it
+// (e.g. "1000532535_" → 1000532535_1, _2, …).
 const browse = async (newPrefix = '') => {
   if (!selectedStorageId.value) return;
   browsing.value = true;
@@ -233,6 +241,7 @@ const browse = async (newPrefix = '') => {
   try {
     const { data } = await audioStoragesAPI.objects(selectedStorageId.value, {
       prefix: newPrefix,
+      search: search.value || undefined,
     });
     browser.value = data;
   } catch (e) {
@@ -240,6 +249,12 @@ const browse = async (newPrefix = '') => {
   } finally {
     browsing.value = false;
   }
+};
+
+// Re-run the listing with the current search term against the current folder.
+const runSearch = newSearch => {
+  search.value = newSearch;
+  browse(prefix.value);
 };
 const toggleKey = key => {
   if (selectedKeys.value.has(key)) selectedKeys.value.delete(key);
@@ -301,6 +316,47 @@ const assignSelected = async ({ typificationId, agentId }) => {
     });
     useAlert(t('JABVOX_AUDIO.ANALYZER.ASSIGNED'));
     selectedKeys.value = new Set();
+    await browse(prefix.value);
+  } catch (e) {
+    useAlert(apiErrorMessage(e, 'JABVOX_AUDIO.ANALYZER.ASSIGN_ERROR'));
+  }
+};
+
+// Audio playback: resolves a short-lived presigned URL on demand and plays it
+// in a small floating player. The URL is never stored or listed elsewhere.
+const playingUrl = ref(null);
+const playingName = ref('');
+const playFile = async fileKey => {
+  if (!selectedStorageId.value) return;
+  try {
+    const { data } = await audioStoragesAPI.playback(
+      selectedStorageId.value,
+      fileKey
+    );
+    playingUrl.value = data.url;
+    playingName.value = fileKey.split('/').pop();
+  } catch (e) {
+    useAlert(apiErrorMessage(e, 'JABVOX_AUDIO.ANALYZER.PLAY_ERROR'));
+  }
+};
+const stopPlaying = () => {
+  playingUrl.value = null;
+  playingName.value = '';
+};
+
+// Per-file assignment from the inline row selectors: sets a single file's
+// typification/agent without touching the multi-selection.
+const assignOne = async ({ fileKey, typificationId, agentId }) => {
+  try {
+    await audioStoragesAPI.assign(selectedStorageId.value, {
+      assignments: [
+        {
+          file_key: fileKey,
+          typification_id: typificationId || null,
+          agent_id: agentId || null,
+        },
+      ],
+    });
     await browse(prefix.value);
   } catch (e) {
     useAlert(apiErrorMessage(e, 'JABVOX_AUDIO.ANALYZER.ASSIGN_ERROR'));
@@ -469,11 +525,15 @@ onMounted(async () => {
             :selected-keys="selectedKeys"
             :active-job="activeJob"
             @browse="browse"
+            @search="runSearch"
             @toggle-key="toggleKey"
             @set-selection="setSelection"
             @clear-selection="clearSelection"
             @launch="launchJob"
             @assign="assignSelected"
+            @assign-one="assignOne"
+            @dismiss-job="activeJob = null"
+            @play="playFile"
           />
 
           <JobsTab
@@ -625,6 +685,28 @@ onMounted(async () => {
           </section>
         </aside>
       </div>
+    </div>
+
+    <!-- Floating audio player (presigned URL, expires shortly) -->
+    <div
+      v-if="playingUrl"
+      class="fixed bottom-4 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] rounded-xl bg-n-solid-1 border border-n-weak shadow-xl p-3 flex flex-col gap-2"
+    >
+      <div class="flex items-center gap-2">
+        <span class="i-lucide-music-2 size-4 text-n-brand shrink-0" />
+        <span class="flex-1 min-w-0 truncate text-sm text-n-slate-12">
+          {{ playingName }}
+        </span>
+        <button
+          type="button"
+          class="p-0.5 rounded text-n-slate-10 hover:text-n-slate-12"
+          @click="stopPlaying"
+        >
+          <span class="i-lucide-x size-4" aria-hidden="true" />
+        </button>
+      </div>
+      <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->
+      <audio :src="playingUrl" controls autoplay class="w-full" />
     </div>
   </div>
 </template>

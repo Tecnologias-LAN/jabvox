@@ -1,21 +1,21 @@
 {
   "JABVOX_SALDO": {
     "TITLE": "Saldo VoIP",
-    "DESCRIPTION": "Configure la integración de saldo para esta cuenta.",
+    "DESCRIPTION": "Configura la integración de saldo para esta cuenta.",
     "SAVE": "Guardar configuración",
-    "SAVE_SUCCESS": "Configuración de Saldo guardada correctamente.",
-    "ERROR": "Ocurrió un error. Por favor, intente de nuevo.",
+    "SAVE_SUCCESS": "La configuración de saldo se guardó correctamente.",
+    "ERROR": "Ocurrió un error. Inténtalo de nuevo.",
     "HEADER": {
       "LABEL": "Saldo"
     },
     "FORM": {
-      "TITLE": "Configuración de Saldo",
+      "TITLE": "Configuración de saldo",
       "REQUIRED": "*",
       "NAME": "Nombre",
-      "API_KEY": "API Key",
-      "API_SECRET": "API Secret",
-      "API_SECRET_HINT": "(deje en blanco para mantener el actual)",
-      "PROXY_URL": "URL del Proxy",
+      "API_KEY": "Clave de API",
+      "API_SECRET": "Secreto de API",
+      "API_SECRET_HINT": "(deja en blanco para conservar el actual)",
+      "PROXY_URL": "URL del proxy",
       "PROXY_URL_PLACEHOLDER": "http://voip.t-lan.co/mb-proxy.php",
       "ACTIVE": "Activo",
       "SECTION_GENERAL": "General",
@@ -25,9 +25,9 @@
       "ACTIVE_HINT": "Solo se consulta el saldo cuando la conexión está activa."
     },
     "STATUS": {
-      "TITLE": "Estado de la Conexión",
+      "TITLE": "Estado de la conexión",
       "REFRESH": "Actualizar",
-      "LOADING": "Verificando conexión...",
+      "LOADING": "Comprobando conexión...",
       "CONNECTED": "Conectado",
       "DISCONNECTED": "Desconectado",
       "BALANCE": "Saldo actual",

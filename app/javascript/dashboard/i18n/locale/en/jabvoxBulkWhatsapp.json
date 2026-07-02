@@ -1,0 +1,102 @@
+{
+  "JABVOX_BULK_WA": {
+    "TITLE": "Bulk WhatsApp",
+    "SUBTITLE": "Send WhatsApp template messages to many contacts at once from a CSV file.",
+    "TABS": {
+      "SEND": "Send",
+      "HISTORY": "History",
+      "SETTINGS": "Settings"
+    },
+    "SOURCE": {
+      "CSV": "CSV file",
+      "LEADS": "Leads"
+    },
+    "LEADS": {
+      "FILTER_NAME": "Name…",
+      "FILTER_PHONE": "Phone…",
+      "FILTER_COUNTRY": "Country…",
+      "FILTERS": "Filters",
+      "APPLY": "Filter",
+      "ALL": "All",
+      "LOADING": "Loading leads…",
+      "EMPTY": "No leads match the filter.",
+      "ERROR": "Could not load leads.",
+      "SELECT_ALL_FILTER": "Select all matching ({total})",
+      "SELECTED": "{count} selected",
+      "CLEAR": "Clear selection",
+      "PAGE": "Page {page} of {pages}",
+      "SELECT_INBOX_FIRST": "Select an inbox to choose how the message is sent.",
+      "TEMPLATE": "Template",
+      "TEMPLATE_PLACEHOLDER": "Select a template",
+      "LANGUAGE_PLACEHOLDER": "es",
+      "NO_TEMPLATES": "This inbox has no approved templates.",
+      "MESSAGE": "Message",
+      "MESSAGE_PLACEHOLDER": "Write the message to send…",
+      "SEND": "Send to {count} leads"
+    },
+    "COLS": {
+      "NAME": "Name",
+      "NUMBER": "Number",
+      "TEMPLATE": "Template",
+      "LANGUAGE": "Language"
+    },
+    "SEND": {
+      "INBOX": "Inbox",
+      "INBOX_PLACEHOLDER": "Select the inbox to send from",
+      "SENDER": "Send as user",
+      "SENDER_PLACEHOLDER": "Select a user",
+      "SENDER_HINT": "A temporary token (valid 30 min) is created for this user so n8n can send on their behalf. It expires automatically.",
+      "REPORT_EMAIL": "Report email",
+      "REPORT_EMAIL_PLACEHOLDER": "reports@your-company.com",
+      "REPORT_EMAIL_HINT": "Required. The send result will be emailed here.",
+      "FILE": "CSV file",
+      "FILE_HINT": "Columns: nombre, numero, template, idioma. For official WhatsApp the 'template' column is the approved template name; for API inboxes it is the plain message text.",
+      "MODE_TEMPLATE": "Official WhatsApp · approved template",
+      "MODE_TEXT": "API · plain message",
+      "SAMPLE_HINT": "Not sure about the format? Select an inbox and download a sample CSV.",
+      "SAMPLE_SELECT_INBOX": "Select an inbox first to download the sample.",
+      "DOWNLOAD_SAMPLE_TEMPLATE": "Sample (template)",
+      "DOWNLOAD_SAMPLE_TEXT": "Sample (text)",
+      "CONFIG_REQUIRED_TITLE": "Configuration required",
+      "CONFIG_REQUIRED_BODY": "Set the webhook URL and the response email in Settings before sending a bulk message.",
+      "GO_TO_SETTINGS": "Go to Settings",
+      "EMPTY_FILE": "The file is empty.",
+      "MISSING_HEADERS": "Missing columns: {cols}. Required: nombre, numero, template, idioma.",
+      "PREVIEW_COUNT": "{count} row previewed | {count} rows previewed",
+      "PREVIEW_MORE": "…and {count} more",
+      "SUBMIT": "Send messages",
+      "SUCCESS": "Sent to n8n for processing.",
+      "ERROR": "Could not send. Check the file and the webhook settings."
+    },
+    "HISTORY": {
+      "LOADING": "Loading history…",
+      "EMPTY": "No bulk sends yet.",
+      "FILE": "File",
+      "INBOX": "Inbox",
+      "MODE": "Mode",
+      "MODE_TEMPLATE": "Template",
+      "MODE_TEXT": "Message",
+      "SENDER": "Sent as",
+      "ROWS": "Rows (valid/total)",
+      "STATUS": "Status",
+      "DATE": "Date",
+      "ERROR": "Could not load the history."
+    },
+    "STATUS": {
+      "SENT": "Sent",
+      "FAILED": "Failed",
+      "PENDING": "Pending"
+    },
+    "SETTINGS": {
+      "WEBHOOK_URL": "n8n webhook URL",
+      "WEBHOOK_PLACEHOLDER": "https://n8n.your-domain.com/webhook/...",
+      "WEBHOOK_HINT": "The parsed CSV, the account id, the inbox id and the sender's API token are POSTed here.",
+      "RESPONSE_EMAIL": "Response email",
+      "RESPONSE_EMAIL_PLACEHOLDER": "reports@your-company.com",
+      "RESPONSE_EMAIL_HINT": "The send result is reported to this address. Required to enable bulk sending.",
+      "SAVE": "Save",
+      "SAVED": "Settings saved.",
+      "ERROR": "Could not save the settings."
+    }
+  }
+}

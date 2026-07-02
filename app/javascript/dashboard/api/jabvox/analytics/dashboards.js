@@ -14,10 +14,6 @@ class JabvoxAnalyticsDashboardsAPI extends ApiClient {
     return axios.get(`${this.url}/overview_stats`);
   }
 
-  seedDefaults() {
-    return axios.post(`${this.url}/seed_defaults`);
-  }
-
   internalReports() {
     return axios.get(`${this.url}/internal_reports`);
   }

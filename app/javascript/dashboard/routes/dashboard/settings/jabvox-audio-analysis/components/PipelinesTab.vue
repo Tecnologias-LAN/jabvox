@@ -50,6 +50,13 @@ const typificationOptions = computed(() => [
 const visibleStageCount = computed(
   () => editing.value?.stages?.filter(s => !s._destroy).length || 0
 );
+
+// Transcript timestamp granularity: none / per-word / per-segment.
+const timestampModeOptions = computed(() => [
+  { value: 'none', label: t('JABVOX_AUDIO.PIPELINE.TS_NONE') },
+  { value: 'word', label: t('JABVOX_AUDIO.PIPELINE.TS_WORD') },
+  { value: 'segment', label: t('JABVOX_AUDIO.PIPELINE.TS_SEGMENT') },
+]);
 </script>
 
 <template>
@@ -174,6 +181,33 @@ const visibleStageCount = computed(
           class="reset-base text-sm w-full rounded-lg border border-n-weak bg-n-alpha-black1 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-n-brand/40"
           :placeholder="t('JABVOX_AUDIO.PIPELINE.TRANSCRIPTION_PROMPT')"
         />
+      </div>
+
+      <!-- Transcript timestamps -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1.5">
+          <span class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_AUDIO.PIPELINE.TIMESTAMP_MODE') }}
+          </span>
+          <Select
+            v-model="editing.timestamp_mode_jabvox"
+            :options="timestampModeOptions"
+          />
+        </div>
+        <div
+          v-if="editing.timestamp_mode_jabvox === 'segment'"
+          class="flex flex-col gap-1.5"
+        >
+          <span class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_AUDIO.PIPELINE.SEGMENT_SECONDS') }}
+          </span>
+          <Input
+            v-model="editing.segment_seconds_jabvox"
+            type="number"
+            min="1"
+            max="600"
+          />
+        </div>
       </div>
 
       <label

@@ -15,7 +15,7 @@ class Api::V1::Accounts::Jabvox::KanbanBoardController < Api::V1::Accounts::Jabv
     @board = {
       funnel: @funnel,
       stages: stages.map do |stage|
-        entries = stage.jabvox_kanban_conversation_stages
+        entries = stage.jabvox_kanban_conversation_stages.select { |e| visible_entry?(e) }
         {
           stage: stage,
           conversations: entries.filter_map(&:conversation),
@@ -27,6 +27,22 @@ class Api::V1::Accounts::Jabvox::KanbanBoardController < Api::V1::Accounts::Jabv
   end
 
   private
+
+  # Admins see the whole funnel; an agent only sees cards that belong to them — leads
+  # assigned to them and conversations assigned to them. Mirrors the per-agent scoping the
+  # leads list uses (leads_controller#build_filter_scope), so the board can't leak leads or
+  # conversations that weren't assigned to the agent.
+  def visible_entry?(entry)
+    return true if Current.account_user&.administrator?
+
+    if entry.jabvox_lead_id.present? && entry.conversation_id.nil?
+      entry.jabvox_lead&.assignee_id == current_user.id
+    elsif entry.conversation_id.present?
+      entry.conversation&.assignee_id == current_user.id
+    else
+      false
+    end
+  end
 
   def build_lead_card(entry)
     lead = entry.jabvox_lead

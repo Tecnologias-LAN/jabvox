@@ -46,12 +46,16 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::ReportsController < Api::V1::Acc
     scope = scope.where('jabvox_audio_jobs.created_at <= ?', params[:to]) if params[:to].present?
     scope = scope.where(pipeline_id: params[:pipeline_id]) if params[:pipeline_id].present?
     scope = scope.where(created_by_id: params[:created_by_id]) if params[:created_by_id].present?
+    # Search by analysis label (e.g. "analisis3"); case-insensitive partial match.
+    if params[:label].present?
+      scope = scope.where('label_jabvox ILIKE ?', "%#{params[:label].to_s.strip}%")
+    end
     scope
   end
 
   # Per-audio results for the given jobs, with score / agent filters applied.
   def filtered_results(jobs)
-    scope = JabvoxAudioResult.where(job_id: jobs.map(&:id)).includes(:assigned_agent)
+    scope = JabvoxAudioResult.where(job_id: jobs.map(&:id)).includes(:assigned_agent, :typification)
     scope = scope.where(assigned_agent_id: params[:agent_id]) if params[:agent_id].present?
     if score_filter_active?
       value = params[:score_value].to_f
@@ -66,7 +70,7 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::ReportsController < Api::V1::Acc
 
   def job_summary(job)
     {
-      id: job.id, status: job.status, pipeline: job.pipeline&.name,
+      id: job.id, label: job.label_jabvox, status: job.status, pipeline: job.pipeline&.name,
       total_count: job.total_count, processed_count: job.processed_count,
       passed_count: job.passed_count, failed_count: job.failed_count,
       average_score: job.average_score,
@@ -80,11 +84,13 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::ReportsController < Api::V1::Acc
       file_key: result.file_key,
       status: result.status,
       transcript: result.transcript,
+      transcript_words: result.transcript_words_jabvox,
       final_score: result.final_score,
       passed: result.passed,
       sentiment: result.sentiment,
       stages_data: result.stages_data,
-      assigned_agent_name: result.assigned_agent&.name
+      assigned_agent_name: result.assigned_agent&.name,
+      typification_name: result.typification&.name
     }
   end
 

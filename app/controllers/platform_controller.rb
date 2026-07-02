@@ -16,7 +16,10 @@ class PlatformController < ActionController::API
 
   def ensure_access_token
     token = request.headers[:api_access_token] || request.headers[:HTTP_API_ACCESS_TOKEN]
-    @access_token = AccessToken.find_by(token: token) if token.present?
+    return if token.blank?
+
+    access_token = AccessToken.find_by(token: token)
+    @access_token = access_token unless access_token&.expired?
   end
 
   def set_platform_app

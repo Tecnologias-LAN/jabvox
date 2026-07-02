@@ -88,6 +88,11 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     count = leads.count
     return render json: { deleted: 0 } if count.zero?
 
+    # Snapshot to the restorable trash before deleting, so leads are never lost.
+    Jabvox::LeadImport::TrashService.new(Current.account)
+                                    .snapshot_leads(leads.includes(:contact).to_a,
+                                                    origin: 'bulk_delete', deleted_by: current_user)
+
     lead_ids = leads.pluck(:id)
     JabvoxKanbanConversationStage.where(jabvox_lead_id: lead_ids).delete_all
     Current.account.jabvox_leads.where(id: lead_ids).delete_all
@@ -180,62 +185,14 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     nil
   end
 
-  # rubocop:disable Metrics/AbcSize
+  # Delegates to the shared filter service so the leads list and the bulk-WhatsApp lead picker
+  # apply identical filters + per-agent scoping.
   def build_filter_scope
-    leads = Current.account.jabvox_leads.joins(:contact)
-    leads = leads.where(assignee_id: current_user.id) unless Current.account_user.administrator?
-    leads = leads.where(jabvox_leads: { id: params[:lead_id].to_i }) if params[:lead_id].present?
-    leads = leads.where('contacts.name ILIKE ?', "%#{params[:q]}%") if params[:q].present?
-    leads = leads.where('contacts.email ILIKE ?', "%#{params[:email]}%") if params[:email].present?
-    leads = leads.where('contacts.phone_number ILIKE ?', "%#{params[:phone]}%") if params[:phone].present?
-    leads = leads.where("contacts.additional_attributes->>'country' ILIKE ?", "%#{params[:country]}%") if params[:country].present?
-    leads = leads.where(jabvox_campaign_id: params[:campaign_id]) if params[:campaign_id].present?
-    if params[:sold].present?
-      order_contact_ids = Current.account.jabvox_orders.where.not(contact_id: nil)
-      order_contact_ids = order_contact_ids.where(doc_type: 'QUOTE') if params[:sold] == 'quotes'
-      order_contact_ids = order_contact_ids.where(doc_type: 'SALE') if params[:sold] == 'sales'
-      leads = leads.where(jabvox_leads: { contact_id: order_contact_ids.select(:contact_id) })
-    end
-    leads = leads.where(jabvox_affiliate_id: nil) if params[:affiliate_id] == 'own'
-    leads = leads.where(jabvox_affiliate_id: params[:affiliate_id]) if params[:affiliate_id].present? && params[:affiliate_id] != 'own'
-    leads = apply_conversation_filters(leads)
-    leads = apply_management_filters(leads)
-    sort_col = SORTABLE_COLUMNS[params[:sort_column]] || 'jabvox_leads.created_at'
-    sort_dir = params[:sort_direction] == 'asc' ? 'ASC' : 'DESC'
-    leads.order(Arel.sql("#{sort_col} #{sort_dir}"))
+    Jabvox::LeadsFilterService.new(
+      account: Current.account, user: current_user,
+      is_admin: Current.account_user.administrator?, filters: params
+    ).scope
   end
-  # rubocop:enable Metrics/AbcSize
-
-  # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
-  def apply_conversation_filters(leads)
-    return leads unless params[:inbox_id].present? || params[:assignee_id].present? ||
-                        params[:team_id].present? || params[:status].present?
-
-    conv_q = Current.account.conversations
-    conv_q = conv_q.where(inbox_id: params[:inbox_id]) if params[:inbox_id].present?
-    conv_q = conv_q.where(assignee_id: params[:assignee_id]) if params[:assignee_id].present?
-    conv_q = conv_q.where(team_id: params[:team_id]) if params[:team_id].present?
-    conv_q = conv_q.where(status: params[:status]) if params[:status].present?
-    leads.where(contact_id: conv_q.select(:contact_id))
-  end
-  # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
-
-  # rubocop:disable Metrics/AbcSize
-  def apply_management_filters(leads)
-    return leads unless params[:management_state].present? || params[:date_from].present? || params[:date_to].present?
-
-    msg_q = Current.account.messages.where(private: true)
-                   .where("(content_attributes #>> '{}')::json->>'jabvox_management_state_name' IS NOT NULL")
-                   .where("(content_attributes #>> '{}')::json->>'jabvox_management_state_name' <> ''")
-    if params[:management_state].present?
-      msg_q = msg_q.where("(content_attributes #>> '{}')::json->>'jabvox_management_state_name' = ?",
-                          params[:management_state])
-    end
-    msg_q = msg_q.where('messages.created_at >= ?', Date.parse(params[:date_from]).beginning_of_day) if params[:date_from].present?
-    msg_q = msg_q.where('messages.created_at <= ?', Date.parse(params[:date_to]).end_of_day) if params[:date_to].present?
-    leads.where(contact_id: Current.account.conversations.where(id: msg_q.select(:conversation_id)).select(:contact_id))
-  end
-  # rubocop:enable Metrics/AbcSize
 
   # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
   def load_conversation_data(contact_ids)

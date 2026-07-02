@@ -1,0 +1,93 @@
+{
+  "JABVOX_LEAD_IMPORT": {
+    "TITLE": "Import Leads",
+    "SUBTITLE": "Connect external databases to import and keep leads in sync.",
+    "NEW": "New connection",
+    "EMPTY": "No connections yet. Create one to start importing leads.",
+    "SAVED": "Saved.",
+    "SAVE_ERROR": "Could not save. Check the values.",
+    "TEST_ERROR": "Connection test failed.",
+    "TEST_OK": "Connection successful.",
+    "SCHEMA_ERROR": "Could not read the external database schema.",
+    "DELETED": "Connection deleted.",
+    "LOADING_SCHEMA": "Reading external database…",
+    "SYNC": "Sync",
+    "SYNCING": "Syncing…",
+    "SYNC_STARTED": "Sync started.",
+    "SYNC_ERROR": "Could not start the sync.",
+    "SYNC_NEEDS_MAPPING": "Map the fields first before syncing.",
+    "SYNC_CONFIRM": "Have you mapped the fields correctly? The sync will create and update leads.",
+    "LAST_SYNC": "Last sync: {created} created, {updated} updated, {failed} failed",
+    "DELETE": {
+      "TITLE": "Delete connection",
+      "BODY": "What do you want to do with the leads imported by this connection?",
+      "KEEP": "Delete connection · keep the leads",
+      "PURGE": "Delete connection · remove the leads",
+      "TRASH_HINT": "Removed leads go to the trash and can be restored from super admin within 30 days."
+    },
+    "FORM": {
+      "NEW_TITLE": "New connection",
+      "EDIT_TITLE": "Edit connection",
+      "NAME": "Name",
+      "ENGINE": "Engine",
+      "HOST": "Host",
+      "PORT": "Port",
+      "DATABASE": "Database",
+      "USERNAME": "Username",
+      "PASSWORD": "Password",
+      "PASSWORD_KEEP": "Leave blank to keep the current password",
+      "TEST": "Test connection",
+      "SAVE": "Save",
+      "CANCEL": "Cancel"
+    },
+    "MAP": {
+      "TITLE": "Map fields — {name}",
+      "BUTTON": "Map fields",
+      "TABLE": "External table",
+      "ID_COLUMN": "External ID column",
+      "EXTERNAL_COLUMN": "External column",
+      "LEAD_FIELD": "Lead field",
+      "IGNORE": "Do not import",
+      "CREATE_OPTION": "➕ Create field…",
+      "CREATE_FIELD": "Create custom field",
+      "SAVE": "Save mapping",
+      "REQUIRED": "Choose a table and its ID column.",
+      "SEARCH_TABLE": "Search table…",
+      "SEARCH_COLUMN": "Search column…",
+      "NO_RESULTS": "No results",
+      "FIELDS_TITLE": "Field mapping",
+      "CREATE_MISSING": "Create missing fields",
+      "CREATED_COUNT": "{count} custom fields created and mapped.",
+      "NOTHING_MISSING": "All columns are already mapped."
+    },
+    "RELATED": {
+      "TITLE": "Related tables",
+      "HINT": "Join other tables to import their fields too (e.g. billing, status).",
+      "ADD": "Add related table",
+      "TABLE": "Table",
+      "LOCAL_KEY": "Main table key",
+      "FOREIGN_KEY": "Related table key",
+      "ALIAS": "Alias"
+    },
+    "CREATE_FIELD": {
+      "TITLE": "New custom field",
+      "FOR_COLUMN": "For external column: {column}",
+      "LABEL_REQUIRED": "Enter a display name.",
+      "LABEL": "Display name",
+      "KEY": "Key",
+      "KEY_HINT": "e.g. company_size",
+      "TYPE": "Type",
+      "CREATE": "Create field"
+    },
+    "FIELD_CREATED": "Custom field created.",
+    "FIELD_ERROR": "Could not create the custom field.",
+    "FIELD_TYPES": {
+      "TEXT": "Text",
+      "INTEGER": "Number",
+      "FLOAT": "Decimal",
+      "BOOLEAN": "Yes/No",
+      "DATE": "Date",
+      "SELECT": "List"
+    }
+  }
+}

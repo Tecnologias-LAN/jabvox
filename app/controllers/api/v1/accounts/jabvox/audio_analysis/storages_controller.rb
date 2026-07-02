@@ -1,6 +1,6 @@
 class Api::V1::Accounts::Jabvox::AudioAnalysis::StoragesController < Api::V1::Accounts::Jabvox::AudioAnalysis::BaseController
   before_action :ensure_can_access
-  before_action :set_storage, only: [:update, :destroy, :objects, :assign]
+  before_action :set_storage, only: [:update, :destroy, :objects, :assign, :playback]
 
   def index
     render json: { storages: Current.account.jabvox_audio_storages.order(:name).map { |s| serialize(s) } }
@@ -36,32 +36,62 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::StoragesController < Api::V1::Ac
   # stages scored it) so the browser can show a verified/score table.
   def objects
     result = Jabvox::AudioBucketService.new(@storage).list_objects(
-      prefix: params[:prefix].to_s
+      prefix: params[:prefix].to_s,
+      search: params[:search].to_s
     )
     result[:files] = enrich_with_analysis(result[:files]) if result[:files].present?
     render json: result
   end
 
-  # POST /storages/:id/assign — bulk-assign a typification and/or agent to files
-  # without launching an analysis. Upserts one assignment row per file_key.
+  # POST /storages/:id/assign — assign typification and/or agent to files without
+  # launching an analysis. Supports two shapes (both valid):
+  #   1) Bulk:    { file_keys: [...], typification_id, agent_id }  → same for all.
+  #   2) Per-file:{ assignments: [{ file_key, typification_id, agent_id }, ...] } → one each.
+  # Upserts one assignment row per file_key.
   def assign
-    keys = Array(params[:file_keys]).map(&:to_s).reject(&:blank?)
-    return render(json: { error: 'file_keys required' }, status: :unprocessable_entity) if keys.empty?
+    rows = per_file_assignments
+    return render(json: { error: 'file_keys required' }, status: :unprocessable_entity) if rows.empty?
 
-    typification_id = params[:typification_id].presence
-    agent_id = params[:agent_id].presence
-
-    keys.each do |key|
+    rows.each do |row|
       record = Current.account.jabvox_audio_assignments
-                      .find_or_initialize_by(storage_id: @storage.id, file_key: key)
-      record.typification_id = typification_id
-      record.agent_id = agent_id
+                      .find_or_initialize_by(storage_id: @storage.id, file_key: row[:file_key])
+      record.typification_id = row[:typification_id]
+      record.agent_id = row[:agent_id]
       record.save!
     end
-    render json: { assigned: keys.size }
+    render json: { assigned: rows.size }
+  end
+
+  # GET /storages/:id/playback?file_key= — short-lived presigned URL to play a
+  # file straight from the bucket in the browser.
+  def playback
+    key = params[:file_key].to_s
+    return render(json: { error: 'file_key required' }, status: :unprocessable_entity) if key.blank?
+
+    url = Jabvox::AudioBucketService.new(@storage).presigned_url(key)
+    return render(json: { error: 'No se pudo generar el enlace' }, status: :unprocessable_entity) if url.blank?
+
+    render json: { url: url }
   end
 
   private
+
+  # Normalizes both assign() request shapes into [{ file_key, typification_id, agent_id }].
+  def per_file_assignments
+    if params[:assignments].present?
+      Array(params[:assignments]).filter_map do |a|
+        key = a[:file_key].to_s
+        next if key.blank?
+
+        { file_key: key, typification_id: a[:typification_id].presence, agent_id: a[:agent_id].presence }
+      end
+    else
+      keys = Array(params[:file_keys]).map(&:to_s).reject(&:blank?)
+      typification_id = params[:typification_id].presence
+      agent_id = params[:agent_id].presence
+      keys.map { |k| { file_key: k, typification_id: typification_id, agent_id: agent_id } }
+    end
+  end
 
   # Maps each listed file_key to its most recent analysis result + manual
   # assignment (typification/agent) for this account.

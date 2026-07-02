@@ -56,12 +56,6 @@ export const useAnalyticsDashboardsStore = defineStore('analyticsDashboards', {
       }
     },
 
-    // Create the two predefined dashboards (Autogestión + Valiosas) and reload.
-    async seedDefaults() {
-      await analyticsDashboardsAPI.seedDefaults();
-      await this.fetchDashboards();
-    },
-
     // Catalog of built-in internal reports the user can pick from.
     async fetchInternalReports() {
       const { data } = await analyticsDashboardsAPI.internalReports();

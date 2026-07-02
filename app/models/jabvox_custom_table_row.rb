@@ -30,11 +30,19 @@ class JabvoxCustomTableRow < ApplicationRecord
   belongs_to :contact, optional: true
 
   validates :jabvox_custom_table_id, presence: true
-  validate :requires_lead_or_contact
+  validate :requires_owner_when_linked
+
+  # Rows of a table linked to leads/contacts always belong to a lead or contact.
+  # Standalone tables (linked_to_jabvox nil) own their rows directly, so a row
+  # with neither is valid there.
+  scope :standalone, -> { where(jabvox_lead_id: nil, contact_id: nil) }
 
   private
 
-  def requires_lead_or_contact
-    errors.add(:base, 'Must belong to a lead or contact') if jabvox_lead_id.nil? && contact_id.nil?
+  def requires_owner_when_linked
+    return if jabvox_custom_table&.linked_to_jabvox.blank?
+    return if jabvox_lead_id.present? || contact_id.present?
+
+    errors.add(:base, 'Must belong to a lead or contact')
   end
 end

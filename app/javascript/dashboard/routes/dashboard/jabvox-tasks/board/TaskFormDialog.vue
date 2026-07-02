@@ -33,7 +33,7 @@ const priority = ref('normal');
 const status = ref('open');
 const stageId = ref(null);
 const leadId = ref(null);
-const assigneeId = ref(null);
+const assigneeIds = ref([]);
 const dueDates = ref([]);
 
 const isEdit = computed(() => Boolean(props.task));
@@ -78,7 +78,9 @@ watch(
     stageId.value =
       value?.stageId || props.defaultStageId || props.stages[0]?.id || null;
     leadId.value = value?.jabvoxLeadId || null;
-    assigneeId.value = value?.assigneeId || null;
+    assigneeIds.value = Array.isArray(value?.assignees)
+      ? value.assignees.map(a => a.id)
+      : [value?.assigneeId].filter(Boolean);
     dueDates.value = initialDueDates(value);
   },
   { immediate: true }
@@ -103,7 +105,7 @@ const onSubmit = () => {
     status_jabvox: status.value,
   };
   payload.jabvox_lead_id = leadId.value ? Number(leadId.value) : null;
-  payload.assignee_id = assigneeId.value ? Number(assigneeId.value) : null;
+  payload.assignee_ids = assigneeIds.value.map(Number);
 
   const isoDates = dueDates.value
     .filter(Boolean)
@@ -228,9 +230,9 @@ const onDelete = () => {
 
         <div class="space-y-1">
           <label class="block text-sm font-medium text-n-slate-11">
-            {{ t('JABVOX_TASKS.TASK.FORM.ASSIGNEE') }}
+            {{ t('JABVOX_TASKS.TASK.FORM.ASSIGNEES') }}
           </label>
-          <AgentSelect v-model="assigneeId" />
+          <AgentSelect v-model="assigneeIds" multiple />
         </div>
 
         <div class="space-y-1">

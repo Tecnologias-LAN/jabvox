@@ -5,6 +5,8 @@
 #  id                     :bigint           not null, primary key
 #  is_default             :boolean          default(FALSE), not null
 #  name                   :string           not null
+#  segment_seconds_jabvox :integer          default(30), not null
+#  timestamp_mode_jabvox  :string           default("none"), not null
 #  transcription_prompt   :text
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
@@ -27,6 +29,9 @@
 class JabvoxAudioPipeline < ApplicationRecord
   self.table_name = 'jabvox_audio_pipelines'
 
+  # Transcript timestamp granularity requested from the transcription model.
+  TIMESTAMP_MODES = %w[none word segment].freeze
+
   belongs_to :account
   belongs_to :transcription_model, class_name: 'JabvoxAiChatModel', optional: true
   belongs_to :typification, class_name: 'JabvoxTypification', optional: true, foreign_key: :typification_id, inverse_of: :audio_pipelines
@@ -37,6 +42,8 @@ class JabvoxAudioPipeline < ApplicationRecord
   accepts_nested_attributes_for :stages, allow_destroy: true
 
   validates :name, presence: true, length: { maximum: 150 }
+  validates :timestamp_mode_jabvox, inclusion: { in: TIMESTAMP_MODES }
+  validates :segment_seconds_jabvox, numericality: { greater_than: 0, less_than_or_equal_to: 600 }
 
   scope :ordered, -> { order(:name) }
 

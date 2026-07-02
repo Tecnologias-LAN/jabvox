@@ -19,7 +19,6 @@ const capLabels = computed(() => ({
   delete_own: t('JABVOX_ANALYTICS.PERMISSIONS.CAPS.delete_own'),
   delete_all: t('JABVOX_ANALYTICS.PERMISSIONS.CAPS.delete_all'),
   share: t('JABVOX_ANALYTICS.PERMISSIONS.CAPS.share'),
-  export: t('JABVOX_ANALYTICS.PERMISSIONS.CAPS.export'),
   view_all_data: t('JABVOX_ANALYTICS.PERMISSIONS.CAPS.view_all_data'),
   manage_data_sources: t(
     'JABVOX_ANALYTICS.PERMISSIONS.CAPS.manage_data_sources'

@@ -9,6 +9,7 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
+import TranscriptViewer from './components/TranscriptViewer.vue';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -24,6 +25,8 @@ const filters = ref({
   agent_id: '',
   score_op: '',
   score_value: '',
+  // Search by analysis label, e.g. "analisis3".
+  label: '',
 });
 
 // file_key of the result whose transcript is currently expanded
@@ -78,6 +81,7 @@ const resetFilters = () => {
     agent_id: '',
     score_op: '',
     score_value: '',
+    label: '',
   };
   load();
 };
@@ -160,6 +164,16 @@ onMounted(async () => {
             type="date"
             :label="t('JABVOX_AUDIO.REPORTS.TO')"
           />
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_AUDIO.REPORTS.LABEL') }}
+            </label>
+            <Input
+              v-model="filters.label"
+              :placeholder="t('JABVOX_AUDIO.REPORTS.LABEL_PLACEHOLDER')"
+              @keyup.enter="load"
+            />
+          </div>
           <div class="flex flex-col gap-1.5">
             <label class="text-sm font-medium text-n-slate-12">
               {{ t('JABVOX_AUDIO.REPORTS.PIPELINE') }}
@@ -359,7 +373,13 @@ onMounted(async () => {
             <div
               class="flex flex-wrap justify-between gap-2 px-4 py-2.5 text-sm bg-n-alpha-1 border-b border-n-weak"
             >
-              <span class="font-medium text-n-slate-12">
+              <span class="font-medium text-n-slate-12 flex items-center gap-2">
+                <span
+                  v-if="job.label"
+                  class="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-n-brand/10 text-n-brand"
+                >
+                  {{ job.label }}
+                </span>
                 #{{ job.id }} · {{ job.pipeline || '—' }}
               </span>
               <span class="text-n-slate-11">
@@ -437,7 +457,10 @@ onMounted(async () => {
                 </div>
 
                 <!-- Transcript (collapsible) -->
-                <div v-if="r.transcript" class="mt-2">
+                <div
+                  v-if="r.transcript || r.transcript_words?.length"
+                  class="mt-2"
+                >
                   <button
                     class="text-xs text-n-brand hover:underline inline-flex items-center gap-1"
                     @click="toggleTranscript(r.file_key)"
@@ -456,11 +479,13 @@ onMounted(async () => {
                         : t('JABVOX_AUDIO.REPORTS.SHOW_TRANSCRIPT')
                     }}
                   </button>
-                  <pre
+                  <!-- Searchable transcript (by word, or by time when timestamped). -->
+                  <TranscriptViewer
                     v-if="openTranscript === r.file_key"
-                    class="mt-1 p-3 rounded-xl bg-n-alpha-1 text-xs text-n-slate-12 whitespace-pre-wrap break-words max-h-64 overflow-y-auto"
-                    >{{ r.transcript }}</pre
-                  >
+                    class="mt-1"
+                    :words="r.transcript_words || []"
+                    :text="r.transcript || ''"
+                  />
                 </div>
               </div>
               <p

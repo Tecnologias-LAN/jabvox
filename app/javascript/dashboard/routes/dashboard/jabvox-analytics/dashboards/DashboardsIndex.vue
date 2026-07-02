@@ -73,22 +73,6 @@ const createSelectedReports = async () => {
   }
 };
 
-// Predefined dashboards (Autogestión + Valiosas)
-const seedingDefaults = ref(false);
-
-const seedDefaults = async () => {
-  if (seedingDefaults.value) return;
-  seedingDefaults.value = true;
-  try {
-    await store.seedDefaults();
-    useAlert(t('JABVOX_ANALYTICS.DASHBOARDS.SEED_DEFAULTS_DONE'));
-  } catch (error) {
-    showError(error, 'JABVOX_ANALYTICS.DASHBOARDS.SEED_DEFAULTS_ERROR');
-  } finally {
-    seedingDefaults.value = false;
-  }
-};
-
 const createFolder = async () => {
   const name = folderName.value.trim();
   if (!name || creatingFolder.value) return;
@@ -144,21 +128,6 @@ const confirmDelete = async () => {
   <div>
     <AnalyticsPageHeader :title="t('JABVOX_ANALYTICS.DASHBOARDS.TITLE')">
       <template #actions>
-        <button
-          v-if="capabilities.canCreate"
-          type="button"
-          class="inline-flex items-center gap-2 rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 text-sm font-medium text-n-slate-12 hover:bg-n-alpha-1 disabled:cursor-not-allowed disabled:opacity-50"
-          :disabled="seedingDefaults"
-          :title="t('JABVOX_ANALYTICS.DASHBOARDS.SEED_DEFAULTS_HELP')"
-          @click="seedDefaults"
-        >
-          <span
-            v-if="seedingDefaults"
-            class="i-lucide-loader-circle size-4 animate-spin"
-          />
-          <span v-else class="i-lucide-sparkles size-4" />
-          {{ t('JABVOX_ANALYTICS.DASHBOARDS.SEED_DEFAULTS') }}
-        </button>
         <button
           v-if="capabilities.canCreate"
           type="button"

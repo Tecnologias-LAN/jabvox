@@ -31,6 +31,8 @@ class Api::V1::Accounts::Jabvox::InternalChatsController < Api::V1::Accounts::Ba
 
     msg = @chat.messages.create!(sender: current_user, content: content)
     broadcast_new_message(msg)
+    # Browser push for recipients who aren't actively looking at the chat.
+    Jabvox::InternalChatPushJob.perform_later(msg.id)
     render json: serialize_message(msg)
   end
 

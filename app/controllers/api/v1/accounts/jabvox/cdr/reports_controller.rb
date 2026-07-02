@@ -48,6 +48,28 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
     render json: { analyses: records.map { |r| serialize_analysis(r) } }
   end
 
+  # GET /analysis/:uniqueid/recording — streams the call recording to the browser.
+  #
+  # Security: the client only sends the call's uniqueid (scoped to the account).
+  # The recording file name is taken from the STORED analysis row (set server-side
+  # at analysis time) — never from client input — and the bytes are proxied from
+  # the PBX over SSH. The PBX host/credentials/path are never exposed to the
+  # frontend, and there is no presigned/public URL to leak. The fetch happens once
+  # per request and nothing is persisted.
+  def recording
+    record = Current.account.jabvox_cdr_call_analyses.find_by(uniqueid: params[:uniqueid])
+    name = record&.recording_file_jabvox
+    return render(json: { error: 'Grabación no disponible' }, status: :not_found) if name.blank?
+
+    tmp = Jabvox::CdrRecordingService.new(@config).download(name)
+    return render(json: { error: 'No se pudo obtener la grabación' }, status: :unprocessable_entity) if tmp.nil?
+
+    send_data tmp.read, type: 'audio/mpeg', disposition: 'inline',
+                        filename: File.basename(name)
+  ensure
+    tmp&.close!
+  end
+
   private
 
   # Pass the account so the service can resolve raw PBX extensions to agent names
@@ -76,10 +98,13 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
       uniqueid: record.uniqueid,
       status: record.status,
       transcript: record.transcript,
+      transcript_words: record.transcript_words_jabvox,
       final_score: record.final_score,
       passed: record.passed,
       stages_data: record.stages_data,
       pipeline_id: record.pipeline_id,
+      # Whether a recording can be streamed back; the file name itself is never exposed.
+      has_recording: record.recording_file_jabvox.present?,
       error_message: record.error_message,
       updated_at: record.updated_at
     }

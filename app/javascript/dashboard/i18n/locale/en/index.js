@@ -67,6 +67,9 @@ import jabvoxForms from './jabvoxForms.json';
 import jabvoxCustomization from './jabvoxCustomization.json';
 import jabvoxClickToCall from './jabvoxClickToCall.json';
 import jabvoxWhatsappTemplates from './jabvoxWhatsappTemplates.json';
+import jabvoxBulkWhatsapp from './jabvoxBulkWhatsapp.json';
+import jabvoxLeadImport from './jabvoxLeadImport.json';
+import jabvoxDataExport from './jabvoxDataExport.json';
 
 export default {
   ...advancedFilters,
@@ -138,4 +141,7 @@ export default {
   ...jabvoxCustomization,
   ...jabvoxClickToCall,
   ...jabvoxWhatsappTemplates,
+  ...jabvoxBulkWhatsapp,
+  ...jabvoxLeadImport,
+  ...jabvoxDataExport,
 };

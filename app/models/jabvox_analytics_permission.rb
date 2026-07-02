@@ -27,7 +27,7 @@ class JabvoxAnalyticsPermission < ApplicationRecord
 
   KEYS = %w[
     access create edit_own edit_all delete_own delete_all
-    share export view_all_data manage_data_sources use_custom_sql
+    share view_all_data manage_data_sources use_custom_sql
   ].freeze
 
   belongs_to :account

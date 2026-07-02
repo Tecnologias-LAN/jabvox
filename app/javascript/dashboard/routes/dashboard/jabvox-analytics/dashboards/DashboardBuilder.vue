@@ -15,7 +15,6 @@ import DashboardGrid from './builder/DashboardGrid.vue';
 import WidgetPicker from './builder/WidgetPicker.vue';
 import WidgetConfigPanel from './builder/WidgetConfigPanel.vue';
 import GlobalFilterBar from './filters/GlobalFilterBar.vue';
-import ExportMenu from './actions/ExportMenu.vue';
 import ShareDialog from './actions/ShareDialog.vue';
 import RefreshControl from './actions/RefreshControl.vue';
 
@@ -215,7 +214,6 @@ const secondaryBtn =
             {{ t('JABVOX_ANALYTICS.DASHBOARDS.ADD_WIDGET') }}
           </button>
           <RefreshControl @refresh="refreshAll" />
-          <ExportMenu :dashboard-id="dashboardId" />
           <button
             v-if="capabilities.can('share')"
             type="button"

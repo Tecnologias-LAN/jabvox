@@ -3,6 +3,7 @@ import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 const TasksLayout = () => import('./TasksLayout.vue');
 const TasksBoardView = () => import('./TasksBoardView.vue');
+const TaskDetailView = () => import('./TaskDetailView.vue');
 
 const meta = {
   featureFlag: FEATURE_FLAGS.JABVOX_TASKS,
@@ -19,6 +20,13 @@ export const routes = [
         name: 'jabvox_tasks_index',
         meta,
         component: TasksBoardView,
+      },
+      {
+        // More specific than :boardId, so it is matched first.
+        path: 'view/:taskId',
+        name: 'jabvox_tasks_detail',
+        meta,
+        component: TaskDetailView,
       },
       {
         path: ':boardId',

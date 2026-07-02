@@ -2,18 +2,20 @@
 #
 # Table name: jabvox_cdr_call_analyses
 #
-#  id            :bigint           not null, primary key
-#  error_message :text
-#  final_score   :integer
-#  passed        :boolean          default(FALSE), not null
-#  stages_data   :jsonb            not null
-#  status        :string           default("pending"), not null
-#  transcript    :text
-#  uniqueid      :string           not null
-#  created_at    :datetime         not null
-#  updated_at    :datetime         not null
-#  account_id    :bigint           not null
-#  pipeline_id   :bigint
+#  id                      :bigint           not null, primary key
+#  error_message           :text
+#  final_score             :integer
+#  passed                  :boolean          default(FALSE), not null
+#  recording_file_jabvox   :string
+#  stages_data             :jsonb            not null
+#  status                  :string           default("pending"), not null
+#  transcript              :text
+#  transcript_words_jabvox :jsonb            not null
+#  uniqueid                :string           not null
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#  account_id              :bigint           not null
+#  pipeline_id             :bigint
 #
 # Indexes
 #

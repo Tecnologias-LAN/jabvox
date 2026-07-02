@@ -1,7 +1,9 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import { useAlert } from 'dashboard/composables';
+import { useStoreGetters } from 'dashboard/composables/store';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import TaskColumn from './TaskColumn.vue';
@@ -18,8 +20,12 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const router = useRouter();
+const getters = useStoreGetters();
 const { isAdmin } = useAdmin();
 const store = useTasksStore();
+
+const accountId = computed(() => getters.getCurrentAccountId.value);
 
 const showTaskDialog = ref(false);
 const showStageDialog = ref(false);
@@ -41,10 +47,11 @@ const openCreateTask = stage => {
   showTaskDialog.value = true;
 };
 
-const openEditTask = task => {
-  editingTask.value = task;
-  formStageId.value = task.stageId;
-  showTaskDialog.value = true;
+const openTaskDetail = task => {
+  router.push({
+    name: 'jabvox_tasks_detail',
+    params: { accountId: accountId.value, taskId: task.id },
+  });
 };
 
 const onTaskSubmit = async payload => {
@@ -52,12 +59,16 @@ const onTaskSubmit = async payload => {
     if (editingTask.value) {
       await store.updateTask(editingTask.value.id, payload);
       useAlert(t('JABVOX_TASKS.TASK.UPDATED'));
+      showTaskDialog.value = false;
+      editingTask.value = null;
     } else {
-      await store.createTask(payload);
+      const created = await store.createTask(payload);
       useAlert(t('JABVOX_TASKS.TASK.CREATED'));
+      showTaskDialog.value = false;
+      editingTask.value = null;
+      // After creating, open the detail view instead of leaving the board.
+      if (created?.id) openTaskDetail(created);
     }
-    showTaskDialog.value = false;
-    editingTask.value = null;
   } catch {
     useAlert(t('JABVOX_TASKS.TASK.ERROR'));
   }
@@ -150,7 +161,7 @@ const openAutomations = stage => {
           :key="stage.id"
           :stage="stage"
           :tasks="tasksForStage(stage.id)"
-          @open-task="openEditTask"
+          @detail-task="openTaskDetail"
           @add-task="openCreateTask"
           @edit-stage="openEditStage"
           @open-automations="openAutomations"

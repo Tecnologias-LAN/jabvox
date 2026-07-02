@@ -1,0 +1,41 @@
+{
+  "JABVOX_DATA_EXPORT": {
+    "TITLE": "Exportar Datos",
+    "SUBTITLE": "Replica los datos de esta cuenta en tu propia base de datos externa en tiempo real.",
+    "NEW": "Conectar base de datos",
+    "EMPTY": "Aún no hay base de datos de exportación conectada.",
+    "SAVED": "Guardado.",
+    "SAVE_ERROR": "No se pudo guardar. Verifica los valores.",
+    "TEST_ERROR": "La prueba de conexión falló.",
+    "TEST_OK": "Conexión exitosa.",
+    "SCHEMA_BUILT": "Tablas creadas/actualizadas en la base de datos externa.",
+    "SCHEMA_ERROR": "No se pudieron crear las tablas.",
+    "DELETE": "Eliminar",
+    "DELETE_CONFIRM": "¿Detener la exportación y quitar esta conexión? Los datos ya escritos permanecen en tu base de datos.",
+    "DELETE_HINT": "Eliminar solo detiene la exportación. Las tablas y los datos ya escritos en tu base de datos nunca se tocan.",
+    "ENABLED": "Exportación en tiempo real",
+    "STATUS": "Estado",
+    "SCHEMA": "Estructura",
+    "SCHEMA_READY": "Creada",
+    "SCHEMA_PENDING": "Sin crear",
+    "LAST_EXPORT": "Última exportación",
+    "LAST_ERROR": "Último error",
+    "BUILD_SCHEMA": "Crear/actualizar estructura",
+    "FORM": {
+      "NEW_TITLE": "Conectar base de datos de exportación",
+      "EDIT_TITLE": "Editar conexión",
+      "NAME": "Nombre",
+      "ENGINE": "Motor",
+      "HOST": "Host",
+      "PORT": "Puerto",
+      "DATABASE": "Base de datos",
+      "USERNAME": "Usuario",
+      "PASSWORD": "Contraseña",
+      "PASSWORD_KEEP": "Déjalo en blanco para conservar la contraseña actual",
+      "TEST": "Probar conexión",
+      "SAVE": "Guardar",
+      "EDIT": "Editar",
+      "CANCEL": "Cancelar"
+    }
+  }
+}

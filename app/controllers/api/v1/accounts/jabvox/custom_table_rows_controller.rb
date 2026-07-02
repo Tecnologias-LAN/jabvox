@@ -31,11 +31,16 @@ class Api::V1::Accounts::Jabvox::CustomTableRowsController < Api::V1::Accounts::
   end
 
   # PUT /jabvox/leads/:lead_id/custom_table_rows/:table_id
-  # Upserts the row for a specific table
+  # Upserts the row for a specific table. Incoming data is sanitized against the
+  # table's columns (unknown keys dropped, values coerced to their type) before
+  # being merged into the row's JSONB payload.
   def update
     table = Current.account.jabvox_custom_tables.find(params[:id])
+    result = Jabvox::CustomRowDataSanitizer.new(table, row_params).call
+    return render json: { errors: result.errors }, status: :unprocessable_entity unless result.valid?
+
     row = @lead.jabvox_custom_table_rows.find_or_initialize_by(jabvox_custom_table: table)
-    row.data_jabvox = (row.data_jabvox || {}).merge(row_params)
+    row.data_jabvox = (row.data_jabvox || {}).merge(result.data)
     row.save!
     render json: { table_id: table.id, row_id: row.id, data: row.data_jabvox }
   end
@@ -53,6 +58,6 @@ class Api::V1::Accounts::Jabvox::CustomTableRowsController < Api::V1::Accounts::
   end
 
   def row_params
-    params.require(:data).permit!.to_h
+    params.fetch(:data, {}).permit!.to_h
   end
 end

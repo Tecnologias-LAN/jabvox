@@ -41,6 +41,10 @@ class JabvoxLead < ApplicationRecord
   belongs_to :jabvox_affiliate, optional: true
   belongs_to :assignee, class_name: 'User', optional: true
   has_many :jabvox_custom_table_rows, dependent: :destroy
+  # Links to external-import sources; removed with the lead.
+  has_many :jabvox_lead_source_records, class_name: 'JabvoxLeadSourceRecord',
+                                        foreign_key: :jabvox_lead_id,
+                                        inverse_of: :jabvox_lead, dependent: :delete_all
 
   validates :contact_id, uniqueness: { scope: :account_id }
   validates :lead_number, presence: true, uniqueness: { scope: :account_id }

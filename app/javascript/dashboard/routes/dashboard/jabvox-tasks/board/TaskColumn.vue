@@ -16,7 +16,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  'openTask',
+  'detailTask',
   'addTask',
   'editStage',
   'openAutomations',
@@ -104,7 +104,7 @@ const onDrop = event => {
         v-for="task in tasks"
         :key="task.id"
         :task="task"
-        @open="emit('openTask', $event)"
+        @detail="emit('detailTask', $event)"
       />
 
       <p

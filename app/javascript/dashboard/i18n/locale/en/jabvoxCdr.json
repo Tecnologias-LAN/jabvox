@@ -64,6 +64,8 @@
       "RETRY": "Retry",
       "FINAL_SCORE": "Final score",
       "TRANSCRIPT": "Transcript",
+      "RECORDING": "Recording",
+      "LISTEN": "Listen",
       "REANALYZE": "Re-analyze"
     },
     "SETTINGS": {
@@ -108,6 +110,11 @@
         "NO_TRANSCRIPTION": "No transcription",
         "TYPIFICATION": "Typification",
         "NO_TYPIFICATION": "No typification",
+        "TIMESTAMP_MODE": "Transcript timestamps",
+        "TS_NONE": "No timestamps",
+        "TS_WORD": "Per word",
+        "TS_SEGMENT": "Per segment",
+        "SEGMENT_SECONDS": "Segment length (seconds)",
         "LLM_MODEL": "Validation model",
         "DEFAULT_MODEL": "Use default model",
         "DEFAULT": "Default",

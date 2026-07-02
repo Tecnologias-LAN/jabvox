@@ -487,6 +487,7 @@ Rails.application.routes.draw do
               post :analyze, to: 'reports#analyze'
               post :analyses_batch, to: 'reports#analyses_batch'
               get 'analysis/:uniqueid', to: 'reports#analysis', constraints: { uniqueid: %r{[^/]+} }
+              get 'analysis/:uniqueid/recording', to: 'reports#recording', constraints: { uniqueid: %r{[^/]+} }
             end
             resources :typifications, only: [:index, :create, :update, :destroy]
             namespace :click_to_call do
@@ -499,6 +500,7 @@ Rails.application.routes.draw do
                 member do
                   get :objects
                   post :assign
+                  get :playback
                 end
               end
               resources :pipelines
@@ -620,6 +622,8 @@ Rails.application.routes.draw do
             end
             resources :custom_tables, only: [:index, :show, :create, :update, :destroy] do
               resources :custom_columns, only: [:index, :create, :update, :destroy]
+              # Rows (records) of a standalone table — the "fill the table" surface.
+              resources :data, only: [:index, :create, :update, :destroy], controller: 'custom_table_data'
             end
             resources :quick_buttons, only: [:index, :create, :update, :destroy]
 
@@ -632,9 +636,60 @@ Rails.application.routes.draw do
                 end
               end
               resources :tasks do
-                member { post :move }
+                member do
+                  post :move
+                  get :activities
+                  get :automation_runs
+                end
+                resources :automations, only: %i[index create update destroy],
+                                        controller: 'automations' do
+                  member { post :run_now }
+                end
               end
               resources :lead_contacts
+            end
+
+            # Bulk WhatsApp (mass template send via CSV -> n8n webhook) module
+            namespace :bulk_whatsapp do
+              resource :config, only: [:show, :update], controller: 'config'
+              resources :batches, only: [:index, :create] do
+                collection do
+                  get :senders
+                  get :lead_fields
+                end
+              end
+            end
+
+            # Lead Import (pull leads from external databases) module
+            namespace :lead_import do
+              resources :sources, only: [:index, :show, :create, :update, :destroy] do
+                collection do
+                  post :test_connection, action: :test_connection_unsaved
+                  get :lead_fields
+                  post :create_custom_field
+                end
+                member do
+                  post :test_connection
+                  get :tables
+                  get :columns
+                  post :sync
+                  get :sync_status
+                end
+              end
+            end
+
+            # Data Export (mirror account data to an external database) module
+            namespace :data_export do
+              resources :targets, only: [:index, :show, :create, :update, :destroy] do
+                collection do
+                  post :test_connection, action: :test_connection_unsaved
+                end
+                member do
+                  post :test_connection
+                  post :build_schema
+                  post :toggle
+                end
+              end
             end
 
             # Analytics & Dashboards (BI) module
@@ -657,7 +712,6 @@ Rails.application.routes.draw do
               resources :dashboards do
                 collection do
                   get :overview_stats
-                  post :seed_defaults
                   get :internal_reports
                   post :create_internal_reports
                 end
@@ -679,6 +733,9 @@ Rails.application.routes.draw do
               resources :user_permissions, only: [:index, :create, :update, :destroy] do
                 patch :bulk, on: :collection
               end
+              # Per-user dashboard access (which dashboards a single user can see)
+              get :user_dashboard_access, to: 'user_dashboard_access#show'
+              patch :user_dashboard_access, to: 'user_dashboard_access#update'
               get :my_capabilities, to: 'capabilities#show'
               resources :audit_logs, only: [:index, :show]
             end
@@ -963,6 +1020,9 @@ Rails.application.routes.draw do
       resources :jabvox_saldo_configs, only: [:index, :new, :create, :destroy]
       resources :jabvox_response_bot_seats
       resources :jabvox_response_bot_roles
+      resources :jabvox_deleted_leads, only: [:index, :show] do
+        member { post :restore }
+      end
 
       resources :accounts, only: [:index, :new, :create, :show, :edit, :update, :destroy] do
         post :seed, on: :member

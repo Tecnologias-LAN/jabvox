@@ -5,6 +5,7 @@ class Api::V1::Accounts::Jabvox::KanbanConversationStagesController < Api::V1::A
   def update
     stage = @funnel.jabvox_kanban_stages.find(params[:stage_id])
     conversation = Current.account.conversations.find(params[:conversation_id])
+    return render_forbidden unless can_manage_conversation?(conversation)
 
     placement = JabvoxKanbanConversationStage.find_or_initialize_by(
       conversation_id: conversation.id,
@@ -24,6 +25,7 @@ class Api::V1::Accounts::Jabvox::KanbanConversationStagesController < Api::V1::A
   def update_lead
     stage = @funnel.jabvox_kanban_stages.find(params[:stage_id])
     lead = Current.account.jabvox_leads.find(params[:lead_id])
+    return render_forbidden unless can_manage_lead?(lead)
 
     placement = JabvoxKanbanConversationStage.find_or_initialize_by(
       jabvox_lead_id: lead.id,
@@ -41,6 +43,24 @@ class Api::V1::Accounts::Jabvox::KanbanConversationStagesController < Api::V1::A
   end
 
   private
+
+  # Admins can move any card; an agent may only move conversations/leads assigned to them,
+  # so an agent can't reach another agent's lead by guessing its id.
+  def can_manage_conversation?(conversation)
+    return true if Current.account_user&.administrator?
+
+    conversation.assignee_id == current_user.id
+  end
+
+  def can_manage_lead?(lead)
+    return true if Current.account_user&.administrator?
+
+    lead.assignee_id == current_user.id
+  end
+
+  def render_forbidden
+    render json: { error: 'No tienes acceso a este registro' }, status: :forbidden
+  end
 
   def fetch_funnel
     funnel_id = params[:funnel_id] || params[:kanban_funnel_id]

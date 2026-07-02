@@ -3,7 +3,15 @@
     "SIDEBAR_LABEL": "Plantillas WA",
     "SETTINGS": {
       "TITLE": "Plantillas de WhatsApp",
-      "SUBTITLE": "Gestión empresarial de plantillas de WhatsApp Business API."
+      "SUBTITLE": "Gestión empresarial de plantillas de la API de WhatsApp Business."
+    },
+    "HEADER": {
+      "TITLE": "Plantillas de WhatsApp",
+      "SUBTITLE": "Gestiona, crea y monitorea plantillas de mensajes aprobadas por Meta.",
+      "CREATE": "Crear plantilla",
+      "SYNC": "Sincronizar plantillas",
+      "IMPORT": "Importar",
+      "EXPORT": "Exportar"
     },
     "TABS": {
       "OVERVIEW": "Resumen",
@@ -16,15 +24,16 @@
       "PENDING": "Pendientes",
       "REJECTED": "Rechazadas",
       "PAUSED": "Pausadas",
-      "DISABLED": "Desactivadas",
+      "DISABLED": "Deshabilitadas",
       "QUALITY_HIGH": "Calidad alta",
       "QUALITY_MEDIUM": "Calidad media",
-      "QUALITY_LOW": "Calidad baja"
+      "QUALITY_LOW": "Calidad baja",
+      "USAGE_MONTH": "Uso este mes"
     },
     "INBOX": {
-      "ALL": "Todos los inboxes",
-      "LABEL": "Inbox / WABA",
-      "NONE": "No hay inboxes de WhatsApp Cloud API.",
+      "ALL": "Todas las bandejas",
+      "LABEL": "Bandeja / WABA",
+      "NONE": "No se encontraron bandejas de WhatsApp Cloud API.",
       "LAST_SYNCED": "Última sincronización",
       "SYNC": "Sincronizar todo",
       "SYNCING": "Sincronizando…",
@@ -32,25 +41,59 @@
     },
     "FILTERS": {
       "SEARCH": "Buscar por nombre o contenido…",
+      "SEARCH_PLACEHOLDER": "Buscar por nombre, categoría, idioma o ID de Meta",
+      "META_ID_PLACEHOLDER": "ID de plantilla de Meta",
+      "ALL_LANGUAGES": "Todos los idiomas",
       "STATUS": "Estado",
       "CATEGORY": "Categoría",
       "LANGUAGE": "Idioma",
       "DATE_FROM": "Desde",
       "DATE_TO": "Hasta",
-      "ALL": "Todos",
+      "ALL": "Todas",
       "CLEAR": "Limpiar filtros",
-      "APPLY": "Aplicar"
+      "APPLY": "Aplicar",
+      "TITLE": "Buscar y filtrar",
+      "INBOX_LABEL": "Bandeja",
+      "LANGUAGE_LABEL": "Idioma",
+      "STATUS_GROUP": "Estado",
+      "CATEGORY_GROUP": "Categoría",
+      "ACTIVE_BADGE": "Filtros activos",
+      "RESULTS": "{count} plantillas"
+    },
+    "BULK": {
+      "SELECTED": "{count} plantillas seleccionadas",
+      "SYNC": "Sincronizar",
+      "DUPLICATE": "Duplicar",
+      "EXPORT": "Exportar",
+      "DELETE": "Eliminar",
+      "DELETE_CONFIRM": "¿Eliminar {count} plantillas?"
+    },
+    "GALLERY": {
+      "PAGINATION": "{page} / {pages} ({total})",
+      "SELECT_ALL": "Seleccionar todas las plantillas visibles",
+      "VARIABLES": "Variables",
+      "BUTTONS": "Botones",
+      "CREATED": "Creada",
+      "UPDATED": "Actualizada",
+      "NO_META_ID": "Sin ID de Meta",
+      "EMPTY_TITLE": "Aún no se ha creado ninguna plantilla",
+      "EMPTY_BODY": "Crea tu primera plantilla de Meta para empezar a enviar mensajes aprobados de WhatsApp.",
+      "EMPTY_CTA": "Crear primera plantilla"
+    },
+    "OVERVIEW": {
+      "WABA_LABELED": "WABA: {value}",
+      "NO_WABA": "—"
     },
     "TABLE": {
       "NAME": "Nombre",
-      "META_ID": "ID Meta",
+      "META_ID": "ID de Meta",
       "INBOX": "Bandeja",
       "LANGUAGE": "Idioma",
       "CATEGORY": "Categoría",
       "STATUS": "Estado",
       "QUALITY": "Calidad",
       "CREATED": "Creada",
-      "UPDATED": "Modificada",
+      "UPDATED": "Actualizada",
       "ACTIONS": ""
     },
     "STATUS": {
@@ -58,7 +101,7 @@
       "PENDING": "Pendiente",
       "REJECTED": "Rechazada",
       "PAUSED": "Pausada",
-      "DISABLED": "Desactivada"
+      "DISABLED": "Deshabilitada"
     },
     "QUALITY": {
       "GREEN": "Alta",
@@ -69,7 +112,8 @@
     "CATEGORIES": {
       "MARKETING": "Marketing",
       "UTILITY": "Utilidad",
-      "AUTHENTICATION": "Autenticación"
+      "AUTHENTICATION": "Autenticación",
+      "SERVICE": "Servicio"
     },
     "ACTIONS": {
       "VIEW": "Ver",
@@ -77,7 +121,7 @@
       "DUPLICATE": "Duplicar",
       "EXPORT_JSON": "Exportar JSON",
       "DELETE": "Eliminar",
-      "SYNC": "Sincronizar con Meta",
+      "SYNC": "Sincronizar desde Meta",
       "HISTORY": "Historial"
     },
     "CREATE": {
@@ -87,20 +131,20 @@
       "SECTION_CONTENT": "Contenido",
       "SECTION_BUTTONS": "Botones",
       "NAME_LABEL": "Nombre interno",
-      "NAME_PLACEHOLDER": "ej. confirmacion_pedido",
+      "NAME_PLACEHOLDER": "ej. order_confirmation",
       "NAME_HINT": "Solo letras minúsculas, números y guiones bajos.",
       "CATEGORY_LABEL": "Categoría",
       "LANGUAGE_LABEL": "Idioma",
-      "INBOX_LABEL": "Bandeja WhatsApp (WABA)",
+      "INBOX_LABEL": "Bandeja de WhatsApp (WABA)",
       "HEADER_LABEL": "Encabezado",
       "HEADER_NONE": "Ninguno",
       "HEADER_TYPE_LABEL": "Tipo de encabezado",
       "HEADER_TEXT_PH": "Texto del encabezado (máx. 60 caracteres)",
-      "HEADER_MEDIA_NOTE": "La URL del archivo se requiere al momento de enviar.",
+      "HEADER_MEDIA_NOTE": "Se requiere una URL de medios al enviar.",
       "BODY_LABEL": "Cuerpo *",
       "BODY_PH": "Cuerpo del mensaje. Usa {{1}}, {{2}} para variables.",
-      "FOOTER_LABEL": "Pie",
-      "FOOTER_PH": "Nota de pie opcional",
+      "FOOTER_LABEL": "Pie de página",
+      "FOOTER_PH": "Nota opcional del pie de página",
       "VARS_TITLE": "Variables detectadas",
       "VAR_DESC_PH": "Descripción (ej. Nombre del cliente)",
       "BUTTONS_LABEL": "Botones (máx. 3)",
@@ -108,32 +152,77 @@
       "BUTTON_TYPE": "Tipo",
       "BUTTON_TEXT": "Texto del botón",
       "BUTTON_URL": "URL",
-      "BUTTON_PHONE": "Número telefónico",
+      "BUTTON_PHONE": "Número de teléfono",
       "PREVIEW_TITLE": "Vista previa en vivo",
       "SUBMIT": "Enviar a Meta",
       "UPDATE": "Actualizar",
       "CANCEL": "Cancelar",
-      "SUBMITTING": "Enviando…"
+      "SUBMITTING": "Enviando…",
+      "BACK": "Atrás",
+      "NEXT": "Siguiente",
+      "STEPS": {
+        "BASIC": "Información básica",
+        "CONTENT": "Contenido",
+        "VARIABLES": "Variables",
+        "BUTTONS": "Botones",
+        "PREVIEW": "Vista previa",
+        "SUBMIT": "Enviar"
+      },
+      "VARS_MANAGER": "Administrador de variables",
+      "VARS_EMPTY": "Aún no se detectan variables. Agrega marcadores numerados en el cuerpo para crear variables.",
+      "PREVIEW_HEADING": "Vista previa en vivo",
+      "PREVIEW_NOTE": "Revisa exactamente cómo se verá tu plantilla en WhatsApp antes de enviarla a Meta.",
+      "SUMMARY_TITLE": "Resumen de la plantilla",
+      "SUMMARY_CATEGORY": "Categoría:",
+      "SUMMARY_LANGUAGE": "Idioma:",
+      "SUMMARY_VARIABLES": "Variables:",
+      "SUMMARY_BUTTONS": "Botones:",
+      "SUBMIT_HEADING": "Enviar a Meta",
+      "SUBMIT_NOTE": "Esta acción enviará la plantilla a Meta para su revisión, manteniendo todos los flujos de aprobación actuales.",
+      "SUBMIT_HINT": "Asegúrate de que los ejemplos de variables y los botones sean válidos antes de enviar."
     },
     "DETAIL": {
-      "TITLE": "Detalle de plantilla",
+      "TITLE": "Detalle de la plantilla",
       "COMPONENTS": "Componentes",
       "VARIABLES": "Variables",
-      "META_JSON": "JSON original de Meta",
+      "ANALYTICS": "Analíticas",
+      "META_JSON": "JSON de Meta sin procesar",
       "HISTORY": "Historial de cambios",
       "VERSIONS": "Versiones",
       "RESTORE": "Restaurar esta versión",
       "RESTORE_CONFIRM": "¿Restaurar la plantilla a la versión {v}?",
-      "DUPLICATE_NAME": "Nombre de la plantilla duplicada",
-      "CLOSE": "Cerrar"
+      "DUPLICATE_NAME": "Nombre de la nueva plantilla (copia)",
+      "CLOSE": "Cerrar",
+      "REJECTED_REASON": "Motivo del rechazo:",
+      "META_ID": "ID de Meta",
+      "WABA_ID": "ID de WABA",
+      "INBOX": "Bandeja",
+      "QUALITY": "Calidad",
+      "HEADER": "Encabezado",
+      "HEADER_WITH_TYPE": "Encabezado ({type})",
+      "BODY": "Cuerpo",
+      "FOOTER": "Pie de página",
+      "BUTTONS": "Botones",
+      "MEDIA": "(medios)",
+      "EMPTY_VALUE": "—"
+    },
+    "ANALYTICS": {
+      "SENT": "Enviados",
+      "DELIVERED": "Entregados",
+      "READ": "Leídos",
+      "REPLIED": "Respondidos",
+      "FAILED": "Fallidos",
+      "BLOCKED": "Bloqueados"
     },
     "IMPORT": {
       "TITLE": "Importar plantillas",
-      "JSON_LABEL": "Pega el array JSON de Meta",
-      "JSON_PH": "[ { \"name\": \"nombre_plantilla\", ... }, ... ]",
+      "JSON_LABEL": "Pega el arreglo JSON de Meta",
+      "JSON_PH": "[ { \"name\": \"template_name\", ... }, ... ]",
       "SUBMIT": "Importar",
       "SUCCESS": "Se importaron {count} plantillas.",
-      "ERRORS": "Algunos elementos tuvieron errores:"
+      "ERRORS": "Algunas filas tuvieron errores:",
+      "SELECT_INBOX_FIRST": "Selecciona primero una bandeja.",
+      "INVALID_JSON": "JSON inválido."
     },
     "EXPORT": {
       "JSON": "Exportar JSON",
@@ -142,20 +231,20 @@
     "DELETE_CONFIRM": "¿Eliminar la plantilla \"{name}\"? No se puede deshacer.",
     "DUPLICATE_CONFIRM": "¿Duplicar \"{name}\"?",
     "SYNCED": "Sincronizado correctamente.",
-    "CREATED": "Plantilla enviada a Meta para revisión.",
+    "CREATED": "Plantilla enviada a Meta para su revisión.",
     "UPDATED": "Plantilla actualizada.",
     "DELETED": "Plantilla eliminada.",
     "DUPLICATED": "Plantilla duplicada.",
     "RESTORED": "Versión restaurada.",
     "PERMISSIONS": {
       "TITLE": "Permisos de acceso",
-      "DESCRIPTION": "Los administradores siempre tienen acceso completo.",
+      "DESCRIPTION": "Los administradores siempre tienen acceso completo. Otorga a otros usuarios la capacidad de gestionar plantillas.",
       "SAVE": "Guardar",
       "SAVED": "Permisos guardados."
     },
-    "ERROR": "Ocurrió un error. Intenta de nuevo.",
+    "ERROR": "Ocurrió un error. Por favor, inténtalo de nuevo.",
     "LOADING": "Cargando…",
     "EMPTY": "No se encontraron plantillas.",
-    "NO_INBOXES": "No hay inboxes de WhatsApp Cloud API configurados."
+    "NO_INBOXES": "No hay bandejas de WhatsApp Cloud API configuradas."
   }
 }

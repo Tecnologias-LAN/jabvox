@@ -1,0 +1,331 @@
+{
+  "JABVOX_ANALYTICS": {
+    "TITLE": "Analítica y Dashboards",
+    "NO_ACCESS": "No tienes acceso al módulo de Analítica.",
+    "NAV": {
+      "DATA_SOURCES": "Fuentes de datos",
+      "DASHBOARDS": "Dashboards",
+      "PERMISSIONS": "Permisos",
+      "OVERVIEW": "Resumen"
+    },
+    "COMMON": {
+      "CANCEL": "Cancelar",
+      "SAVE": "Guardar",
+      "CREATE": "Crear",
+      "EDIT": "Editar",
+      "DELETE": "Eliminar",
+      "CONFIRM": "Confirmar",
+      "LOADING": "Cargando…",
+      "SEARCH": "Buscar",
+      "ACTIONS": "Acciones",
+      "NAME": "Nombre",
+      "STATUS": "Estado",
+      "CREATED_AT": "Creado",
+      "NONE": "Ninguno",
+      "RETRY": "Reintentar"
+    },
+    "DATA_SOURCES": {
+      "TITLE": "Fuentes de datos",
+      "NEW": "Nueva fuente de datos",
+      "EMPTY_TITLE": "Aún no hay fuentes de datos",
+      "EMPTY_BODY": "Conecta una base de datos externa para empezar a explorar y construir dashboards.",
+      "EMPTY_ACTION": "Agregar fuente de datos",
+      "FORM": {
+        "NAME": "Nombre",
+        "NAME_PLACEHOLDER": "p. ej. CRM Producción",
+        "ENGINE": "Motor",
+        "HOST": "Host",
+        "PORT": "Puerto",
+        "USERNAME": "Usuario",
+        "PASSWORD": "Contraseña",
+        "PASSWORD_KEEP": "Déjalo en blanco para conservar la contraseña actual",
+        "DATABASE": "Base de datos",
+        "SQLITE_PATH": "Ruta del archivo SQLite",
+        "SSL_MODE": "Modo SSL",
+        "ALLOW_PRIVATE": "Permitir direcciones de red privada (admin)",
+        "ALLOW_PRIVATE_HELP": "Permite conectar a IPs internas/privadas. Úsalo con cuidado.",
+        "MAX_ROWS": "Límite de filas",
+        "TIMEOUT": "Tiempo de espera de consulta (ms)",
+        "CREATE": "Crear fuente de datos",
+        "TEST": "Probar conexión",
+        "REQUIRED": "Este campo es obligatorio",
+        "TEST_OPTIONAL": "Probar la conexión es opcional — puedes guardar sin conectar."
+      },
+      "TEST": {
+        "TESTING": "Probando conexión…",
+        "CONNECTED": "Conectado",
+        "ERROR": "Error de conexión",
+        "LATENCY": "Tiempo de respuesta: {ms} ms"
+      },
+      "LIST": {
+        "ENGINE": "Motor",
+        "HOST": "Host",
+        "LAST_CONNECTION": "Última conexión",
+        "VIEW_TABLES": "Ver tablas",
+        "SYNC": "Sincronizar"
+      },
+      "DELETE": {
+        "CONFIRM_TITLE": "Eliminar fuente de datos",
+        "CONFIRM_BODY": "Esto eliminará permanentemente \"{name}\" y cualquier widget que dependa de ella.",
+        "SUCCESS": "Fuente de datos eliminada",
+        "ERROR": "No se pudo eliminar la fuente de datos"
+      },
+      "SAVED": "Fuente de datos guardada",
+      "SAVE_ERROR": "No se pudo guardar la fuente de datos"
+    },
+    "SCHEMA": {
+      "TABLES": "Tablas",
+      "VIEWS": "Vistas",
+      "PROCEDURES": "Procedimientos",
+      "COLUMNS": "Columnas",
+      "TYPE": "Tipo",
+      "NULLABLE": "Acepta nulos",
+      "PRIMARY_KEY": "PK",
+      "FOREIGN_KEY": "FK",
+      "LENGTH": "Longitud",
+      "LENGTH_VALUE": "Longitud: {length}",
+      "EMPTY": "No se encontraron tablas",
+      "VIEW_DATA": "Ver registros"
+    },
+    "VIEWER": {
+      "TITLE": "Registros",
+      "ROWS_PER_PAGE": "Filas por página",
+      "NO_ROWS": "Sin registros",
+      "PAGE": "Página {page}",
+      "PAGE_OF": "Página {page} / {total}"
+    },
+    "QUERY_BUILDER": {
+      "TITLE": "Constructor de consultas",
+      "TABLE": "Tabla",
+      "COLUMNS": "Columnas",
+      "FILTERS": "Filtros",
+      "AGGREGATIONS": "Agregaciones",
+      "GROUP_BY": "Agrupar por",
+      "DATE_BUCKET": "Agrupación por fecha",
+      "RUN": "Ejecutar consulta",
+      "PREVIEW": "Vista previa",
+      "OPERATORS": {
+        "eq": "igual a",
+        "neq": "distinto de",
+        "gt": "mayor que",
+        "gte": "mayor o igual",
+        "lt": "menor que",
+        "lte": "menor o igual",
+        "contains": "contiene",
+        "in": "en lista",
+        "starts_with": "empieza con"
+      }
+    },
+    "SQL": {
+      "TITLE": "SQL personalizado",
+      "READ_ONLY_NOTICE": "Solo se permiten consultas SELECT de solo lectura.",
+      "RUN": "Ejecutar",
+      "VALIDATE": "Validar",
+      "VALID": "La consulta es válida",
+      "INVALID": "Consulta rechazada",
+      "NO_PERMISSION": "No tienes autorización para ejecutar SQL personalizado."
+    },
+    "DASHBOARDS": {
+      "TITLE": "Dashboards",
+      "NEW": "Nuevo dashboard",
+      "EMPTY_TITLE": "Aún no hay dashboards",
+      "EMPTY_BODY": "Crea un dashboard para visualizar tus datos.",
+      "ALL_FOLDERS": "Todos los dashboards",
+      "OPEN": "Abrir",
+      "BACK": "Volver a dashboards",
+      "FORM": {
+        "TITLE": "Nuevo dashboard",
+        "NAME": "Nombre",
+        "NAME_PLACEHOLDER": "p. ej. Resumen de ventas",
+        "DESCRIPTION": "Descripción",
+        "FOLDER": "Carpeta",
+        "DATA_SOURCE": "Fuente de datos",
+        "NO_FOLDER": "Sin carpeta",
+        "REQUIRED": "Este campo es obligatorio"
+      },
+      "DELETE": {
+        "CONFIRM_TITLE": "Eliminar dashboard",
+        "CONFIRM_BODY": "Esto eliminará permanentemente \"{name}\".",
+        "SUCCESS": "Dashboard eliminado",
+        "ERROR": "No se pudo eliminar el dashboard"
+      },
+      "SAVED": "Dashboard guardado",
+      "SAVE_ERROR": "No se pudo guardar el dashboard",
+      "EDIT_MODE": "Editar",
+      "VIEW_MODE": "Ver",
+      "ADD_WIDGET": "Agregar widget",
+      "EXPORT": "Exportar",
+      "SHARE": "Compartir",
+      "REFRESH": "Actualizar",
+      "NOT_FOUND": "Dashboard no encontrado",
+      "NO_WIDGETS_TITLE": "Aún no hay widgets",
+      "NO_WIDGETS_BODY": "Agrega un widget para empezar a visualizar tus datos.",
+      "FOLDERS_TITLE": "Carpetas",
+      "NEW_FOLDER": "Nueva carpeta",
+      "FOLDER_NAME": "Nombre de la carpeta",
+      "FOLDER_NAME_PLACEHOLDER": "Ej. Ventas",
+      "FOLDER_CREATED": "Carpeta creada",
+      "FOLDER_ERROR": "No se pudo crear la carpeta",
+      "INTERNAL_REPORTS": "Reportes internos",
+      "INTERNAL_REPORTS_HELP": "Elige qué reportes de esta cuenta quieres crear como dashboards. Cada uno usa solo los datos de esta cuenta.",
+      "CREATE_SELECTED": "Crear ({count})",
+      "REPORTS_CREATED": "Reportes creados",
+      "REPORTS_ERROR": "No se pudieron crear los reportes"
+    },
+    "WIDGETS": {
+      "TYPES": {
+        "table": "Tabla",
+        "pivot_table": "Tabla dinámica",
+        "number": "Tarjeta KPI",
+        "indicator": "Indicador",
+        "ranking": "Ranking",
+        "comparative": "Comparativo",
+        "line": "Líneas",
+        "area": "Área",
+        "time_series": "Serie temporal",
+        "bar": "Barras",
+        "stacked_bar": "Barras apiladas",
+        "pie": "Circular",
+        "donut": "Dona",
+        "scatter": "Dispersión",
+        "gauge": "Medidor",
+        "heatmap": "Mapa de calor",
+        "treemap": "Treemap",
+        "funnel": "Embudo",
+        "map": "Mapa",
+        "text_markdown": "Texto"
+      },
+      "DUPLICATE": "Duplicar",
+      "REMOVE": "Quitar",
+      "REFRESH": "Actualizar",
+      "CONFIGURE": "Configurar",
+      "NO_DATA": "Sin datos",
+      "ERROR": "No se pudo cargar el widget",
+      "PICKER": {
+        "TITLE": "Agregar widget",
+        "SUBTITLE": "Elige un tipo de widget para agregar a este dashboard."
+      },
+      "CONFIG": {
+        "TITLE": "Configurar widget",
+        "WIDGET_TITLE": "Título",
+        "WIDGET_TITLE_PLACEHOLDER": "p. ej. Total de llamadas",
+        "DATA_SOURCE": "Fuente de datos",
+        "TABLE": "Tabla",
+        "MEASURE": "Columna de medida",
+        "GROUP_BY": "Agrupar por",
+        "CUSTOM_SQL": "Usar SQL personalizado",
+        "SQL_PLACEHOLDER": "SELECT ...",
+        "MARKDOWN": "Contenido Markdown",
+        "MARKDOWN_PLACEHOLDER": "Escribe texto usando Markdown…"
+      },
+      "MAP_PLACEHOLDER": "La visualización de mapa no está configurada.",
+      "DELTA_UP": "vs anterior",
+      "DELTA_DOWN": "vs anterior"
+    },
+    "FILTERS": {
+      "DATE_FROM": "Fecha desde",
+      "DATE_TO": "Fecha hasta",
+      "APPLY": "Aplicar",
+      "CLEAR": "Limpiar",
+      "CHIP": "{key}: {value}"
+    },
+    "SHARE": {
+      "TITLE": "Compartir dashboard",
+      "WITH": "Compartir con",
+      "SUBJECT_TYPE": "Tipo",
+      "SUBJECT_ID": "ID",
+      "ACCESS_LEVEL": "Acceso",
+      "ADD": "Agregar",
+      "CURRENT": "Compartidos actuales",
+      "EMPTY": "Aún no se ha compartido con nadie.",
+      "ADDED": "Compartido agregado",
+      "ADD_ERROR": "No se pudo agregar el compartido",
+      "REMOVED": "Compartido eliminado",
+      "REMOVE_ERROR": "No se pudo eliminar el compartido",
+      "USER": "Usuario",
+      "ROLE": "Rol",
+      "TEAM": "Equipo",
+      "ACCESS": {
+        "view": "Puede ver",
+        "edit": "Puede editar",
+        "admin": "Puede administrar"
+      },
+      "SUBJECT": "Destinatario",
+      "SELECT": "Selecciona…"
+    },
+    "EXPORT": {
+      "TITLE": "Exportar",
+      "PDF": "Exportar como PDF",
+      "EXCEL": "Exportar como Excel",
+      "CSV": "Exportar como CSV",
+      "PREPARING": "Preparando exportación…",
+      "READY": "Exportación lista",
+      "FAILED": "La exportación falló"
+    },
+    "REFRESH_CONTROL": {
+      "REFRESH": "Actualizar",
+      "AUTO": "Actualización automática",
+      "OFF": "Desactivada",
+      "30S": "Cada 30s",
+      "60S": "Cada 60s"
+    },
+    "PERMISSIONS": {
+      "TITLE": "Permisos de Analítica",
+      "TAB_MATRIX": "Usuarios",
+      "TAB_ROLES": "Roles",
+      "ADMIN_NOTICE": "Los administradores tienen acceso total automáticamente.",
+      "MATRIX": {
+        "USER": "Usuario",
+        "ROLE": "Rol"
+      },
+      "CAPS": {
+        "access": "Acceso",
+        "create": "Crear dashboards",
+        "edit_own": "Editar propios",
+        "edit_all": "Editar todos",
+        "delete_own": "Eliminar propios",
+        "delete_all": "Eliminar todos",
+        "share": "Compartir",
+        "export": "Exportar",
+        "view_all_data": "Ver todos los datos",
+        "manage_data_sources": "Gestionar fuentes de datos",
+        "use_custom_sql": "Usar SQL personalizado"
+      },
+      "ROLES": {
+        "SYSTEM": "Rol del sistema",
+        "NEW": "Nuevo rol",
+        "NAME": "Nombre del rol",
+        "DESCRIPTION": "Descripción"
+      },
+      "SAVED": "Permisos actualizados",
+      "SAVE_ERROR": "No se pudieron actualizar los permisos"
+    },
+    "AUDIT": {
+      "TITLE": "Registro de auditoría",
+      "USER": "Usuario",
+      "DATE": "Fecha",
+      "IP": "IP",
+      "ACTION": "Acción",
+      "RESULT": "Resultado"
+    },
+    "BRAND": "Analítica",
+    "BRAND_SUB": "Inteligencia de negocio",
+    "OVERVIEW": {
+      "TITLE": "Centro de Inteligencia",
+      "SUBTITLE": "Vista general de tu plataforma de analítica",
+      "DASHBOARDS": "Dashboards",
+      "DATA_SOURCES": "Fuentes de datos",
+      "SOURCES_OK": "Fuentes activas",
+      "WIDGETS": "Widgets",
+      "FOLDERS": "Carpetas",
+      "SHARED": "Dashboards compartidos",
+      "USERS_ACCESS": "Usuarios con acceso",
+      "ACTIONS_TODAY": "Acciones hoy",
+      "EXPORTS": "Exportaciones",
+      "QUICK": "Accesos rápidos",
+      "GO_DASHBOARDS": "Ver dashboards",
+      "GO_SOURCES": "Gestionar fuentes",
+      "GO_PERMISSIONS": "Permisos"
+    }
+  }
+}

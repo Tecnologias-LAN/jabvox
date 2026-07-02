@@ -12,8 +12,8 @@
     "DELETE": "Eliminar",
     "SAVE_SUCCESS": "Guardado correctamente",
     "DELETE_SUCCESS": "Eliminado correctamente",
-    "DELETE_CONFIRM": "¿Está seguro de que desea eliminar \"{name}\"?",
-    "ERROR": "Ocurrió un error. Por favor, intente de nuevo.",
+    "DELETE_CONFIRM": "¿Seguro que deseas eliminar \"{name}\"?",
+    "ERROR": "Ocurrió un error. Inténtalo de nuevo.",
     "PAGE_INFO": "Página {page} de {total}",
     "TABS": {
       "PRODUCTS": "Productos",
@@ -22,8 +22,8 @@
       "INTEGRATION": "Integración",
       "CONFIG": "Configuración",
       "PDF": "PDF",
-      "SALES_REPORTS": "Reportes de Ventas",
-      "REPORT_ACCESS": "Acceso a Reportes"
+      "SALES_REPORTS": "Informes de ventas",
+      "REPORT_ACCESS": "Acceso a informes"
     },
     "COLS": {
       "NAME": "Nombre",
@@ -34,13 +34,13 @@
     "PRODUCTS": {
       "TITLE": "Productos",
       "NEW_BUTTON": "Nuevo producto",
-      "EMPTY": "No hay productos aún. Cree su primer producto.",
+      "EMPTY": "Aún no hay productos. Crea tu primer producto.",
       "CREATE_SUCCESS": "Producto creado correctamente",
       "UPDATE_SUCCESS": "Producto actualizado correctamente",
-      "DELETE_CONFIRM": "¿Está seguro de que desea eliminar \"{name}\"?",
-      "IMPORT_BUTTON": "Importar desde app contable",
+      "DELETE_CONFIRM": "¿Seguro que deseas eliminar \"{name}\"?",
+      "IMPORT_BUTTON": "Importar desde la app de contabilidad",
       "IMPORT_SUCCESS": "Productos importados correctamente",
-      "IMPORT_ERROR": "No se pudieron importar los productos. Verifique la configuración de integración.",
+      "IMPORT_ERROR": "No se pudieron importar los productos. Revisa la configuración de tu integración.",
       "COLS": {
         "NAME": "Nombre",
         "TYPE": "Tipo",
@@ -53,7 +53,7 @@
         "NEW": "Nuevo producto",
         "EDIT": "Editar producto",
         "NAME": "Nombre",
-        "NAME_REQUIRED": "El nombre es requerido",
+        "NAME_REQUIRED": "El nombre es obligatorio",
         "DESCRIPTION": "Descripción",
         "PRICE": "Precio",
         "TAX": "Impuesto (%)",
@@ -61,7 +61,7 @@
         "TYPE_PRODUCT": "Producto",
         "TYPE_SERVICE": "Servicio",
         "CURRENCY": "Moneda",
-        "ITEM_TYPE": "Tipo de ítem",
+        "ITEM_TYPE": "Tipo de artículo",
         "UNIT": "Unidad de medida"
       },
       "SEARCH_PLACEHOLDER": "Buscar productos...",
@@ -77,12 +77,12 @@
     },
     "DISCOUNTS": {
       "TITLE": "Descuentos",
-      "EMPTY": "No hay descuentos aún. Cree su primer descuento.",
+      "EMPTY": "Aún no hay descuentos. Crea tu primer descuento.",
       "COLS": {
         "PERCENTAGE": "Porcentaje"
       },
       "FORM": {
-        "NAME_REQUIRED": "El nombre es requerido"
+        "NAME_REQUIRED": "El nombre es obligatorio"
       },
       "SEARCH_PLACEHOLDER": "Buscar descuentos...",
       "COUNT": "{count} descuentos",
@@ -93,7 +93,7 @@
     },
     "STATUSES": {
       "TITLE": "Estados de pedido",
-      "EMPTY": "No hay estados aún. Cree su primer estado.",
+      "EMPTY": "Aún no hay estados. Crea tu primer estado.",
       "COLS": {
         "KEY": "Clave",
         "LABEL": "Etiqueta",
@@ -101,8 +101,8 @@
         "ORDER": "Orden"
       },
       "FORM": {
-        "REQUIRED": "La clave y la etiqueta son requeridas",
-        "KEY_PLACEHOLDER": "PENDIENTE"
+        "REQUIRED": "La clave y la etiqueta son obligatorias",
+        "KEY_PLACEHOLDER": "PENDING"
       },
       "SEARCH_PLACEHOLDER": "Buscar estados...",
       "COUNT": "{count} estados",
@@ -113,18 +113,18 @@
     },
     "INTEGRATION": {
       "TITLE": "Integración contable",
-      "DESCRIPTION": "Conecte su sistema contable para sincronizar productos y facturas.",
+      "DESCRIPTION": "Conecta tu sistema contable para sincronizar productos y facturas.",
       "SYSTEM": "Sistema contable",
       "EMAIL": "Correo de la cuenta",
-      "TOKEN": "Token API",
-      "TOKEN_HINT": "Deje en blanco para mantener el token actual.",
+      "TOKEN": "Token de API",
+      "TOKEN_HINT": "Déjalo en blanco para conservar el token actual.",
       "CONNECT": "Conectar",
       "CONNECTED_LABEL": "Conectado",
       "NOT_CONNECTED_LABEL": "No conectado",
       "CONNECTED_DESC": "Sincronizando con {system} usando la cuenta {email}",
       "EDIT_CONNECTION": "Editar",
       "DISCONNECT": "Desconectar",
-      "DISCONNECT_CONFIRM": "¿Está seguro de que desea desconectar la integración? Esto no eliminará sus productos.",
+      "DISCONNECT_CONFIRM": "¿Seguro que deseas desconectar la integración? Esto no eliminará tus productos.",
       "DISCONNECT_SUCCESS": "Integración desconectada correctamente.",
       "CANCEL": "Cancelar",
       "SECTION_DESC": "Conecta tu sistema de facturación para sincronizar ventas."
@@ -132,7 +132,7 @@
     "CONFIG": {
       "TITLE": "Configuración",
       "CURRENCIES": "Monedas",
-      "ITEM_TYPES": "Tipos de ítem",
+      "ITEM_TYPES": "Tipos de artículo",
       "UNITS": "Unidades de medida",
       "TAX_RATES": "Tasas de impuesto",
       "SYMBOL": "Símbolo",
@@ -140,7 +140,7 @@
       "ABBREVIATION": "Abreviatura",
       "ABBREVIATION_PLACEHOLDER": "kg",
       "PERCENTAGE": "Porcentaje (%)",
-      "EMPTY": "No hay ítems aún.",
+      "EMPTY": "Aún no hay elementos.",
       "DELETE_TITLE": "Eliminar elemento",
       "DELETE_BODY": "¿Eliminar \"{name}\"?",
       "SUBTABS": {
@@ -151,34 +151,34 @@
       }
     },
     "PDF": {
-      "TITLE": "Configuración de PDF",
+      "TITLE": "Configuración del PDF",
       "DESCRIPTION": "Estos datos aparecen en el encabezado de todas las cotizaciones y facturas generadas. La configuración es exclusiva de esta cuenta.",
       "LOGO": "Logo de la empresa",
       "CHANGE_LOGO": "Cambiar logo",
-      "LOGO_TOO_LARGE": "El archivo del logo debe ser menor a 2 MB",
+      "LOGO_TOO_LARGE": "El archivo del logo debe pesar menos de 2 MB",
       "LOGO_FORMATS": "PNG, JPG, SVG — máx 2 MB",
       "COMPANY_NAME": "Nombre de la empresa",
-      "NIT": "NIT / ID Tributario",
+      "NIT": "NIT / Identificación fiscal",
       "NIT_PREFIX": "NIT",
       "ADDRESS": "Dirección",
       "PHONE": "Teléfono",
       "WEBSITE": "Sitio web",
-      "EMAIL": "Correo",
+      "EMAIL": "Correo electrónico",
       "PREVIEW": "Vista previa del encabezado",
       "QUOTE_LABEL": "Cotización",
-      "QUOTE_NUMBER_PREVIEW": "No. 1",
+      "QUOTE_NUMBER_PREVIEW": "N.º 1",
       "SECTION_DESC": "Datos de tu empresa que aparecerán en las cotizaciones y facturas PDF.",
       "PREVIEW_TITLE": "Vista previa"
     },
     "REPORTS": {
-      "TITLE": "Reportes de ventas",
+      "TITLE": "Informes de ventas",
       "PERMISSIONS_TAB": "Permisos de acceso",
-      "PERMISSIONS_TITLE": "Acceso a reportes",
-      "PERMISSIONS_DESC": "Seleccione qué agentes pueden ver los reportes de ventas.",
+      "PERMISSIONS_TITLE": "Acceso a informes",
+      "PERMISSIONS_DESC": "Selecciona qué agentes pueden ver los informes de ventas.",
       "NO_AGENTS": "No se encontraron agentes para esta cuenta.",
       "COLS": {
         "AGENT": "Agente",
-        "EMAIL": "Correo",
+        "EMAIL": "Correo electrónico",
         "ACCESS": "Acceso"
       },
       "SEARCH_PLACEHOLDER": "Buscar agentes...",
@@ -188,28 +188,28 @@
       "TAB_CHAT": "Chat",
       "TAB_PRODUCTS": "Productos",
       "TAB_HISTORY": "Historial",
-      "PRODUCTS_TITLE": "Cotizaciones y Ventas",
-      "PRODUCTS_EMPTY": "No hay cotizaciones ni ventas aún.",
-      "NEW_QUOTE": "Nueva Cotización",
-      "NEW_SALE": "Nueva Venta",
+      "PRODUCTS_TITLE": "Cotizaciones y ventas",
+      "PRODUCTS_EMPTY": "Aún no hay cotizaciones ni ventas.",
+      "NEW_QUOTE": "Nueva cotización",
+      "NEW_SALE": "Nueva venta",
       "QUANTITY": "Cant.",
       "UNIT_PRICE": "Precio",
       "DISCOUNT": "Desc. %",
-      "TAX": "Imp. %",
+      "TAX": "Impuesto %",
       "NOTES": "Notas",
       "ADD_ITEM": "Agregar producto",
       "ORDER_SAVED": "Pedido guardado correctamente.",
       "ORDER_DELETE_CONFIRM": "¿Eliminar este pedido? Esta acción no se puede deshacer.",
-      "ITEMS_REQUIRED": "Agregue al menos un producto antes de guardar.",
+      "ITEMS_REQUIRED": "Agrega al menos un producto antes de guardar.",
       "DOWNLOAD_PDF": "Descargar PDF",
-      "SEND_TO_ALEGRA": "Enviar a app contable",
+      "SEND_TO_ALEGRA": "Enviar a la app de contabilidad",
       "SENT_TO_ALEGRA": "Enviado a Alegra correctamente.",
       "ALREADY_SENT": "Ya enviado a Alegra",
-      "HISTORY_TITLE": "Historial del Contacto",
+      "HISTORY_TITLE": "Historial del contacto",
       "HISTORY_EMPTY": "No hay historial disponible para este contacto."
     },
     "SALES_REPORTS": {
-      "TITLE": "Reportes de Ventas",
+      "TITLE": "Informes de ventas",
       "FILTER_FROM": "Desde",
       "FILTER_TO": "Hasta",
       "FILTER_PRODUCT": "Producto",
@@ -225,10 +225,10 @@
         "SALES": "Ventas"
       },
       "STATS": {
-        "TOTAL_QUOTES": "Total Cotizaciones",
-        "TOTAL_SALES": "Total Ventas",
-        "TOTAL_REVENUE": "Ingresos Totales",
-        "CONVERSION": "Tasa de Conversión"
+        "TOTAL_QUOTES": "Total de cotizaciones",
+        "TOTAL_SALES": "Total de ventas",
+        "TOTAL_REVENUE": "Ingresos totales",
+        "CONVERSION": "Tasa de conversión"
       },
       "COLS": {
         "ID": "#",
@@ -241,11 +241,11 @@
         "TOTAL": "Total",
         "PDF": "PDF"
       },
-      "BY_PRODUCT": "Por Producto",
-      "BY_AGENT": "Por Agente",
-      "BY_STATUS": "Por Estado",
+      "BY_PRODUCT": "Por producto",
+      "BY_AGENT": "Por agente",
+      "BY_STATUS": "Por estado",
       "EMPTY": "No hay registros para el período seleccionado.",
-      "LOADING": "Cargando reporte...",
+      "LOADING": "Cargando informe...",
       "NO_RESULTS": "Sin resultados para los filtros."
     },
     "SUBTITLE": "Gestiona tu catálogo, descuentos, estados de pedido e integraciones de facturación.",

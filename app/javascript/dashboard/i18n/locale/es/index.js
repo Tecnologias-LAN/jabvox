@@ -27,6 +27,7 @@ import jabvoxAffiliatePortal from './jabvoxAffiliatePortal.json';
 import jabvoxAffiliates from './jabvoxAffiliates.json';
 import jabvoxAiChat from './jabvoxAiChat.json';
 import jabvoxAudioAnalysis from './jabvoxAudioAnalysis.json';
+import jabvoxAnalytics from './jabvoxAnalytics.json';
 import jabvoxCdr from './jabvoxCdr.json';
 import jabvoxCalendar from './jabvoxCalendar.json';
 import jabvoxDialer from './jabvoxDialer.json';
@@ -45,6 +46,10 @@ import jabvoxForms from './jabvoxForms.json';
 import jabvoxClickToCall from './jabvoxClickToCall.json';
 import jabvoxCustomization from './jabvoxCustomization.json';
 import jabvoxWhatsappTemplates from './jabvoxWhatsappTemplates.json';
+import jabvoxTasks from './jabvoxTasks.json';
+import jabvoxBulkWhatsapp from './jabvoxBulkWhatsapp.json';
+import jabvoxLeadImport from './jabvoxLeadImport.json';
+import jabvoxDataExport from './jabvoxDataExport.json';
 import jabvoxSaldo from './jabvoxSaldo.json';
 import jabvoxSms from './jabvoxSms.json';
 import jabvoxVoip from './jabvoxVoip.json';
@@ -91,6 +96,7 @@ export default {
   ...jabvoxAffiliates,
   ...jabvoxAiChat,
   ...jabvoxAudioAnalysis,
+  ...jabvoxAnalytics,
   ...jabvoxCdr,
   ...jabvoxCalendar,
   ...jabvoxDialer,
@@ -109,6 +115,10 @@ export default {
   ...jabvoxClickToCall,
   ...jabvoxCustomization,
   ...jabvoxWhatsappTemplates,
+  ...jabvoxTasks,
+  ...jabvoxBulkWhatsapp,
+  ...jabvoxLeadImport,
+  ...jabvoxDataExport,
   ...jabvoxSaldo,
   ...jabvoxSms,
   ...jabvoxVoip,

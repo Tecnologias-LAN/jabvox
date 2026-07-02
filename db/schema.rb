@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_01_020002) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -24,6 +24,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.string "token"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "expires_at"
+    t.index ["expires_at"], name: "index_access_tokens_on_expires_at"
     t.index ["owner_type", "owner_id"], name: "index_access_tokens_on_owner_type_and_owner_id"
     t.index ["token"], name: "index_access_tokens_on_token", unique: true
   end
@@ -101,6 +103,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.boolean "jabvox_analytics_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_whatsapp_templates_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_tasks_enabled_jabvox", default: false, null: false
+    t.boolean "jabvox_bulk_whatsapp_enabled_jabvox", default: false, null: false
+    t.boolean "jabvox_lead_import_enabled_jabvox", default: false, null: false
+    t.boolean "jabvox_data_export_enabled_jabvox", default: false, null: false
     t.index ["status"], name: "index_accounts_on_status"
   end
 
@@ -1342,6 +1347,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.integer "average_score"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "label_jabvox"
+    t.index ["account_id", "label_jabvox"], name: "index_jabvox_audio_jobs_on_account_and_label"
     t.index ["account_id"], name: "index_jabvox_audio_jobs_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_audio_jobs_on_created_by_id"
     t.index ["pipeline_id"], name: "index_jabvox_audio_jobs_on_pipeline_id"
@@ -1369,6 +1376,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "typification_id"
+    t.string "timestamp_mode_jabvox", default: "none", null: false
+    t.integer "segment_seconds_jabvox", default: 30, null: false
     t.index ["account_id"], name: "index_jabvox_audio_pipelines_on_account_id"
     t.index ["transcription_model_id"], name: "index_jabvox_audio_pipelines_on_transcription_model_id"
     t.index ["typification_id"], name: "index_jabvox_audio_pipelines_on_typification_id"
@@ -1389,10 +1398,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "assigned_agent_id"
+    t.bigint "typification_id"
+    t.jsonb "transcript_words_jabvox", default: [], null: false
     t.index ["account_id"], name: "index_jabvox_audio_results_on_account_id"
     t.index ["assigned_agent_id"], name: "index_jabvox_audio_results_on_assigned_agent_id"
     t.index ["job_id", "file_key"], name: "index_jabvox_audio_results_on_job_id_and_file_key"
     t.index ["job_id"], name: "index_jabvox_audio_results_on_job_id"
+    t.index ["typification_id"], name: "index_jabvox_audio_results_on_typification_id"
   end
 
   create_table "jabvox_audio_stages", force: :cascade do |t|
@@ -1422,6 +1434,42 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_jabvox_audio_storages_on_account_id"
+  end
+
+  create_table "jabvox_bulk_whatsapp_batches", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id"
+    t.bigint "sender_user_id"
+    t.bigint "created_by_id"
+    t.integer "total_rows_jabvox", default: 0, null: false
+    t.integer "valid_rows_jabvox", default: 0, null: false
+    t.string "status_jabvox", default: "pending", null: false
+    t.text "error_jabvox"
+    t.string "file_name_jabvox", default: "", null: false
+    t.datetime "sent_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "access_token_id_jabvox"
+    t.datetime "token_expires_at_jabvox"
+    t.string "mode_jabvox", default: "template", null: false
+    t.string "response_email_jabvox", default: "", null: false
+    t.jsonb "payload_jabvox", default: {}, null: false
+    t.integer "attempts_jabvox", default: 0, null: false
+    t.index ["account_id", "created_at"], name: "idx_on_account_id_created_at_793a6e41e6"
+    t.index ["account_id", "status_jabvox"], name: "idx_on_account_id_status_jabvox_8e3a4a349f"
+    t.index ["account_id"], name: "index_jabvox_bulk_whatsapp_batches_on_account_id"
+    t.index ["created_by_id"], name: "index_jabvox_bulk_whatsapp_batches_on_created_by_id"
+    t.index ["inbox_id"], name: "index_jabvox_bulk_whatsapp_batches_on_inbox_id"
+    t.index ["sender_user_id"], name: "index_jabvox_bulk_whatsapp_batches_on_sender_user_id"
+  end
+
+  create_table "jabvox_bulk_whatsapp_configs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.text "webhook_url_jabvox", default: "", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "response_email_jabvox", default: "", null: false
+    t.index ["account_id"], name: "index_jabvox_bulk_whatsapp_configs_on_account_id", unique: true
   end
 
   create_table "jabvox_calendar_event_participants", force: :cascade do |t|
@@ -1533,6 +1581,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.jsonb "stages_data", default: [], null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "transcript_words_jabvox", default: [], null: false
+    t.string "recording_file_jabvox"
     t.index ["account_id", "uniqueid"], name: "index_jabvox_cdr_call_analyses_on_account_id_and_uniqueid", unique: true
     t.index ["account_id"], name: "index_jabvox_cdr_call_analyses_on_account_id"
     t.index ["pipeline_id"], name: "index_jabvox_cdr_call_analyses_on_pipeline_id"
@@ -1580,6 +1630,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "typification_id"
+    t.string "timestamp_mode_jabvox", default: "none", null: false
+    t.integer "segment_seconds_jabvox", default: 30, null: false
     t.index ["account_id"], name: "index_jabvox_cdr_pipelines_on_account_id"
     t.index ["transcription_model_id"], name: "index_jabvox_cdr_pipelines_on_transcription_model_id"
     t.index ["typification_id"], name: "index_jabvox_cdr_pipelines_on_typification_id"
@@ -1660,6 +1712,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.index ["account_id", "linked_to_jabvox"], name: "idx_jabvox_custom_tables_linked_to", unique: true, where: "(linked_to_jabvox IS NOT NULL)"
     t.index ["account_id", "name_jabvox"], name: "index_jabvox_custom_tables_on_account_id_and_name_jabvox", unique: true
     t.index ["account_id"], name: "index_jabvox_custom_tables_on_account_id"
+  end
+
+  create_table "jabvox_deleted_leads", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "original_lead_id_jabvox"
+    t.string "source_name_jabvox"
+    t.string "external_id_jabvox"
+    t.jsonb "snapshot_jabvox", default: {}, null: false
+    t.datetime "deleted_at_jabvox", null: false
+    t.bigint "deleted_by_id"
+    t.datetime "restored_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "deleted_at_jabvox"], name: "index_jabvox_deleted_leads_on_account_id_and_deleted_at_jabvox"
+    t.index ["account_id"], name: "index_jabvox_deleted_leads_on_account_id"
+    t.index ["deleted_by_id"], name: "index_jabvox_deleted_leads_on_deleted_by_id"
   end
 
   create_table "jabvox_dialer_accesses", force: :cascade do |t|
@@ -1807,6 +1875,32 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.datetime "updated_at", null: false
     t.index ["account_id", "name"], name: "index_jabvox_email_templates_on_account_id_and_name", unique: true
     t.index ["account_id"], name: "index_jabvox_email_templates_on_account_id"
+  end
+
+  create_table "jabvox_export_targets", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name_jabvox", null: false
+    t.string "engine_jabvox", null: false
+    t.string "host_jabvox"
+    t.integer "port_jabvox"
+    t.string "database_jabvox"
+    t.string "username_jabvox"
+    t.text "password_jabvox"
+    t.string "ssl_mode_jabvox", default: "prefer", null: false
+    t.boolean "allow_private_network_jabvox", default: false, null: false
+    t.integer "query_timeout_ms_jabvox", default: 15000, null: false
+    t.boolean "enabled_jabvox", default: false, null: false
+    t.datetime "schema_built_at_jabvox"
+    t.string "status_jabvox", default: "untested", null: false
+    t.datetime "last_tested_at_jabvox"
+    t.datetime "last_export_at_jabvox"
+    t.string "last_error_jabvox"
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "name_jabvox"], name: "index_jabvox_export_targets_on_account_id_and_name_jabvox", unique: true
+    t.index ["account_id"], name: "index_jabvox_export_targets_on_account_id"
+    t.index ["created_by_id"], name: "index_jabvox_export_targets_on_created_by_id"
   end
 
   create_table "jabvox_field_visibilities", force: :cascade do |t|
@@ -2028,6 +2122,48 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.index ["auto_advance_target_stage_id"], name: "index_jabvox_kanban_stages_on_auto_advance_target"
     t.index ["jabvox_kanban_funnel_id", "position_jabvox"], name: "index_jabvox_stages_funnel_position"
     t.index ["jabvox_kanban_funnel_id"], name: "index_jabvox_kanban_stages_on_jabvox_kanban_funnel_id"
+  end
+
+  create_table "jabvox_lead_source_records", force: :cascade do |t|
+    t.bigint "lead_source_id", null: false
+    t.bigint "account_id", null: false
+    t.string "external_id_jabvox", null: false
+    t.bigint "jabvox_lead_id", null: false
+    t.datetime "last_synced_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_lead_source_records_on_account_id"
+    t.index ["jabvox_lead_id"], name: "index_jabvox_lead_source_records_on_jabvox_lead_id"
+    t.index ["lead_source_id", "external_id_jabvox"], name: "index_jabvox_lead_source_records_on_source_and_external_id", unique: true
+    t.index ["lead_source_id"], name: "index_jabvox_lead_source_records_on_lead_source_id"
+  end
+
+  create_table "jabvox_lead_sources", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name_jabvox", null: false
+    t.string "engine_jabvox", null: false
+    t.string "host_jabvox"
+    t.integer "port_jabvox"
+    t.string "database_jabvox"
+    t.string "username_jabvox"
+    t.text "password_jabvox"
+    t.string "ssl_mode_jabvox", default: "prefer", null: false
+    t.boolean "allow_private_network_jabvox", default: false, null: false
+    t.integer "query_timeout_ms_jabvox", default: 30000, null: false
+    t.string "table_jabvox"
+    t.string "external_id_column_jabvox"
+    t.jsonb "field_mapping_jabvox", default: {}, null: false
+    t.string "status_jabvox", default: "untested", null: false
+    t.datetime "last_tested_at_jabvox"
+    t.datetime "last_synced_at_jabvox"
+    t.jsonb "last_sync_result_jabvox", default: {}, null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "related_tables_jabvox", default: [], null: false
+    t.index ["account_id", "name_jabvox"], name: "index_jabvox_lead_sources_on_account_id_and_name_jabvox", unique: true
+    t.index ["account_id"], name: "index_jabvox_lead_sources_on_account_id"
+    t.index ["created_by_id"], name: "index_jabvox_lead_sources_on_created_by_id"
   end
 
   create_table "jabvox_leads", force: :cascade do |t|
@@ -2333,6 +2469,80 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
     t.boolean "calendar_reminders_enabled", default: false, null: false
     t.text "calendar_reminder_minutes"
     t.index ["account_id"], name: "index_jabvox_smtp_configs_on_account_id", unique: true
+  end
+
+  create_table "jabvox_task_activities", force: :cascade do |t|
+    t.bigint "task_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "user_id"
+    t.string "action_jabvox", null: false
+    t.jsonb "metadata_jabvox", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["account_id", "task_id", "created_at"], name: "index_jabvox_task_activities_on_account_task_created"
+    t.index ["account_id"], name: "index_jabvox_task_activities_on_account_id"
+    t.index ["task_id"], name: "index_jabvox_task_activities_on_task_id"
+    t.index ["user_id"], name: "index_jabvox_task_activities_on_user_id"
+  end
+
+  create_table "jabvox_task_assignees", force: :cascade do |t|
+    t.bigint "task_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "account_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_task_assignees_on_account_id"
+    t.index ["task_id", "user_id"], name: "index_jabvox_task_assignees_on_task_and_user", unique: true
+    t.index ["task_id"], name: "index_jabvox_task_assignees_on_task_id"
+    t.index ["user_id"], name: "index_jabvox_task_assignees_on_user_id"
+  end
+
+  create_table "jabvox_task_automation_runs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "task_id", null: false
+    t.bigint "automation_id"
+    t.string "channel_jabvox", null: false
+    t.string "status_jabvox", default: "sent", null: false
+    t.integer "recipients_count_jabvox", default: 0, null: false
+    t.text "detail_jabvox"
+    t.datetime "run_at_jabvox", null: false
+    t.index ["account_id", "task_id", "run_at_jabvox"], name: "idx_on_account_id_task_id_run_at_jabvox_83a99062cf"
+    t.index ["account_id"], name: "index_jabvox_task_automation_runs_on_account_id"
+    t.index ["automation_id"], name: "index_jabvox_task_automation_runs_on_automation_id"
+    t.index ["task_id"], name: "index_jabvox_task_automation_runs_on_task_id"
+  end
+
+  create_table "jabvox_task_automations", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "task_id", null: false
+    t.string "name_jabvox", default: "", null: false
+    t.string "channel_jabvox", null: false
+    t.string "recipients_jabvox", default: "lead", null: false
+    t.string "manual_email_jabvox", default: "", null: false
+    t.string "manual_phone_jabvox", default: "", null: false
+    t.string "interval_unit_jabvox", default: "day", null: false
+    t.integer "interval_count_jabvox", default: 1, null: false
+    t.bigint "email_template_id"
+    t.bigint "inbox_id"
+    t.bigint "sms_provider_id"
+    t.string "subject_jabvox", default: "", null: false
+    t.text "body_jabvox"
+    t.boolean "active_jabvox", default: true, null: false
+    t.datetime "start_at_jabvox"
+    t.datetime "end_at_jabvox"
+    t.datetime "next_run_at_jabvox"
+    t.datetime "last_run_at_jabvox"
+    t.integer "runs_count_jabvox", default: 0, null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "task_id"], name: "index_jabvox_task_automations_on_account_id_and_task_id"
+    t.index ["account_id"], name: "index_jabvox_task_automations_on_account_id"
+    t.index ["active_jabvox", "next_run_at_jabvox"], name: "idx_on_active_jabvox_next_run_at_jabvox_c67e09e205"
+    t.index ["created_by_id"], name: "index_jabvox_task_automations_on_created_by_id"
+    t.index ["email_template_id"], name: "index_jabvox_task_automations_on_email_template_id"
+    t.index ["inbox_id"], name: "index_jabvox_task_automations_on_inbox_id"
+    t.index ["sms_provider_id"], name: "index_jabvox_task_automations_on_sms_provider_id"
+    t.index ["task_id"], name: "index_jabvox_task_automations_on_task_id"
   end
 
   create_table "jabvox_task_boards", force: :cascade do |t|
@@ -3024,10 +3234,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
   add_foreign_key "jabvox_audio_pipelines", "jabvox_typifications", column: "typification_id"
   add_foreign_key "jabvox_audio_results", "accounts"
   add_foreign_key "jabvox_audio_results", "jabvox_audio_jobs", column: "job_id"
+  add_foreign_key "jabvox_audio_results", "jabvox_typifications", column: "typification_id"
   add_foreign_key "jabvox_audio_results", "users", column: "assigned_agent_id"
   add_foreign_key "jabvox_audio_stages", "jabvox_ai_chat_models", column: "llm_model_id"
   add_foreign_key "jabvox_audio_stages", "jabvox_audio_pipelines", column: "pipeline_id"
   add_foreign_key "jabvox_audio_storages", "accounts"
+  add_foreign_key "jabvox_bulk_whatsapp_batches", "accounts"
+  add_foreign_key "jabvox_bulk_whatsapp_batches", "inboxes"
+  add_foreign_key "jabvox_bulk_whatsapp_batches", "users", column: "created_by_id"
+  add_foreign_key "jabvox_bulk_whatsapp_batches", "users", column: "sender_user_id"
+  add_foreign_key "jabvox_bulk_whatsapp_configs", "accounts"
   add_foreign_key "jabvox_calendar_event_participants", "jabvox_calendar_events"
   add_foreign_key "jabvox_calendar_event_participants", "jabvox_calendar_external_people"
   add_foreign_key "jabvox_calendar_event_participants", "users"
@@ -3063,6 +3279,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
   add_foreign_key "jabvox_custom_table_rows", "jabvox_custom_tables"
   add_foreign_key "jabvox_custom_table_rows", "jabvox_leads"
   add_foreign_key "jabvox_custom_tables", "accounts"
+  add_foreign_key "jabvox_deleted_leads", "accounts"
+  add_foreign_key "jabvox_deleted_leads", "users", column: "deleted_by_id"
   add_foreign_key "jabvox_dialer_call_logs", "accounts"
   add_foreign_key "jabvox_dialer_call_logs", "jabvox_dialer_campaign_contacts"
   add_foreign_key "jabvox_dialer_call_logs", "jabvox_dialer_campaigns"
@@ -3076,6 +3294,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
   add_foreign_key "jabvox_email_send_logs", "accounts"
   add_foreign_key "jabvox_email_send_logs", "users"
   add_foreign_key "jabvox_email_templates", "accounts"
+  add_foreign_key "jabvox_export_targets", "accounts"
+  add_foreign_key "jabvox_export_targets", "users", column: "created_by_id"
   add_foreign_key "jabvox_field_visibilities", "accounts"
   add_foreign_key "jabvox_field_visibilities", "users"
   add_foreign_key "jabvox_form_configs", "accounts"
@@ -3112,6 +3332,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
   add_foreign_key "jabvox_kanban_stages", "accounts"
   add_foreign_key "jabvox_kanban_stages", "jabvox_kanban_funnels"
   add_foreign_key "jabvox_kanban_stages", "jabvox_kanban_stages", column: "auto_advance_target_stage_id", name: "fk_jabvox_kanban_stages_auto_advance_target"
+  add_foreign_key "jabvox_lead_source_records", "accounts"
+  add_foreign_key "jabvox_lead_source_records", "jabvox_lead_sources", column: "lead_source_id"
+  add_foreign_key "jabvox_lead_source_records", "jabvox_leads"
+  add_foreign_key "jabvox_lead_sources", "accounts"
+  add_foreign_key "jabvox_lead_sources", "users", column: "created_by_id"
   add_foreign_key "jabvox_leads", "accounts"
   add_foreign_key "jabvox_leads", "contacts"
   add_foreign_key "jabvox_leads", "jabvox_affiliates"
@@ -3153,6 +3378,21 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_23_000001) do
   add_foreign_key "jabvox_sms_messages", "jabvox_sms_providers"
   add_foreign_key "jabvox_sms_providers", "accounts"
   add_foreign_key "jabvox_smtp_configs", "accounts"
+  add_foreign_key "jabvox_task_activities", "accounts"
+  add_foreign_key "jabvox_task_activities", "jabvox_tasks", column: "task_id"
+  add_foreign_key "jabvox_task_activities", "users"
+  add_foreign_key "jabvox_task_assignees", "accounts"
+  add_foreign_key "jabvox_task_assignees", "jabvox_tasks", column: "task_id"
+  add_foreign_key "jabvox_task_assignees", "users"
+  add_foreign_key "jabvox_task_automation_runs", "accounts"
+  add_foreign_key "jabvox_task_automation_runs", "jabvox_task_automations", column: "automation_id"
+  add_foreign_key "jabvox_task_automation_runs", "jabvox_tasks", column: "task_id"
+  add_foreign_key "jabvox_task_automations", "accounts"
+  add_foreign_key "jabvox_task_automations", "inboxes"
+  add_foreign_key "jabvox_task_automations", "jabvox_email_templates", column: "email_template_id"
+  add_foreign_key "jabvox_task_automations", "jabvox_sms_providers", column: "sms_provider_id"
+  add_foreign_key "jabvox_task_automations", "jabvox_tasks", column: "task_id"
+  add_foreign_key "jabvox_task_automations", "users", column: "created_by_id"
   add_foreign_key "jabvox_task_boards", "accounts"
   add_foreign_key "jabvox_task_boards", "users", column: "created_by_id"
   add_foreign_key "jabvox_task_lead_contacts", "accounts"

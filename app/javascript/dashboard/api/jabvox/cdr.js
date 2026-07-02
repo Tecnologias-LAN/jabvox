@@ -14,6 +14,16 @@ export const cdrReportsAPI = {
     axios.get(`${base}/analysis/${encodeURIComponent(uniqueid)}`),
   analysesBatch: uniqueids =>
     axios.post(`${base}/analyses_batch`, { uniqueids }),
+  // Fetches the recording as a blob and returns a one-shot object URL for an
+  // <audio> element. The PBX path/credentials never reach the client; the blob
+  // URL is local to this tab and should be revoked when playback closes.
+  recordingObjectUrl: async uniqueid => {
+    const { data } = await axios.get(
+      `${base}/analysis/${encodeURIComponent(uniqueid)}/recording`,
+      { responseType: 'blob' }
+    );
+    return URL.createObjectURL(data);
+  },
 };
 
 export const cdrConfigAPI = {

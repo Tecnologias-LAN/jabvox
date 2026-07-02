@@ -13,14 +13,15 @@
     "WAITING_CALL": "Esperando llamada entrante...",
     "MY_CAMPAIGNS_HINT": "Selecciona una campaña activa para conectarte al dialer.",
     "NO_ASSIGNED_CAMPAIGNS": "No tienes campañas activas asignadas. Pide al administrador que te asigne a una.",
-    "DIALING_HINT": "Esperando que el cliente conteste",
     "DIALING": "Marcando...",
+    "DIALING_HINT": "Esperando que el cliente conteste",
     "WRAPUP": {
       "TITLE": "Tiempo de gestión",
       "HINT": "Agrega una nota o gestión antes de la siguiente llamada.",
       "NEXT": "Siguiente",
       "NOTE_PLACEHOLDER": "Agrega una nota de gestión...",
-      "NO_CONVERSATION": "Sin conversación activa — la nota no se guardará."
+      "NO_CONVERSATION": "Sin conversación activa — la nota no se guardará.",
+      "TYPIFICATION_PLACEHOLDER": "Seleccionar tipificación..."
     },
     "HISTORY": {
       "TITLE": "Historial de gestiones"
@@ -116,7 +117,9 @@
       "INBOXES_PLACEHOLDER": "Selecciona bandejas...",
       "INBOXES_SEARCH": "Buscar bandeja",
       "LEAD_COUNT_LABEL": "Leads que coinciden con estos filtros",
-      "LEAD_COUNT_UNIT": "leads"
+      "LEAD_COUNT_UNIT": "leads",
+      "WAIT_IN_QUEUE": "Esperar en cola si no hay agente disponible",
+      "WAIT_IN_QUEUE_HINT": "Activo: el lead espera en cola hasta que un agente se libere. Inactivo: la llamada cuelga si no hay agentes disponibles."
     },
     "CONTACTS": {
       "EMPTY": "No hay contactos en esta campaña. Importa contactos desde la configuración.",
@@ -219,6 +222,24 @@
       "NO_RESULTS": "Ningún agente coincide con tu búsqueda.",
       "GRANTED": "Con acceso"
     },
+    "REPORT": {
+      "BUTTON": "Reporte",
+      "TITLE": "Reporte de llamadas",
+      "FROM": "Desde",
+      "TO": "Hasta",
+      "FROM_HOUR": "Desde hora",
+      "TO_HOUR": "Hasta hora",
+      "SEARCH": "Buscar",
+      "BACK_TO_DAILY": "← Ver por días",
+      "EMPTY": "No hay llamadas en el período seleccionado.",
+      "TOTAL": "Total",
+      "ANSWERED": "Contestadas",
+      "NO_ANSWER": "No contestó",
+      "NO_AGENT": "Sin agente",
+      "AGENTS": "Agentes",
+      "COL_PERIOD": "Período",
+      "PERIOD": "Periodo"
+    },
     "ACCESS_DENIED": {
       "TITLE": "Acceso restringido",
       "DESCRIPTION": "No tienes permiso para acceder al Marcador Predictivo. Contacta al administrador."
@@ -228,9 +249,6 @@
       "DELETE": "Eliminar",
       "SAVE": "Guardar",
       "SEARCH": "Buscar..."
-    },
-    "REPORT": {
-      "PERIOD": "Periodo"
     }
   }
 }

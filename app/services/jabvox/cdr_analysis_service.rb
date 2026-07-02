@@ -42,7 +42,7 @@ class Jabvox::CdrAnalysisService
   private
 
   def run(analysis, pipeline)
-    transcript = transcribe(pipeline)
+    transcript, words = transcribe(pipeline)
     raise TranscriptionError, 'La transcripción quedó vacía.' if transcript.blank?
 
     stages_data = pipeline.stages.map { |stage| run_stage(stage, transcript) }
@@ -52,6 +52,8 @@ class Jabvox::CdrAnalysisService
 
     analysis.update!(
       transcript: transcript,
+      transcript_words_jabvox: words || [],
+      recording_file_jabvox: @recording_name,
       stages_data: stages_data,
       final_score: final_score,
       passed: passed,
@@ -80,10 +82,12 @@ class Jabvox::CdrAnalysisService
     @account.jabvox_cdr_pipelines.find_by(typification_id: typification_id)
   end
 
+  # Returns [transcript_text, words_array]. words_array is [] unless the pipeline
+  # requests timestamps (per-word or per-segment).
   def transcribe(pipeline)
     model = transcription_model(pipeline)
     tmp = download_recording
-    transcribe_audio(model, tmp)
+    transcribe_audio(model, tmp, pipeline)
   ensure
     tmp&.close!
   end
@@ -98,10 +102,12 @@ class Jabvox::CdrAnalysisService
   end
 
   # Fetches the recording into a temp file, raising a specific reason on each failure point.
+  # Stashes the resolved file name so the analysis row can reference it for playback.
   def download_recording
     recording_name = Jabvox::CdrMysqlService.new(@config).recording_file(@uniqueid)
     raise TranscriptionError, 'La llamada no tiene grabación registrada en el PBX (campo recordingfile vacío).' if recording_name.blank?
 
+    @recording_name = recording_name
     tmp = Jabvox::CdrRecordingService.new(@config).download(recording_name)
     raise TranscriptionError, download_failed_message(recording_name) if tmp.nil?
     raise TranscriptionError, 'La grabación supera el tamaño máximo permitido (25 MB).' if tmp.size > MAX_AUDIO_BYTES
@@ -117,12 +123,46 @@ class Jabvox::CdrAnalysisService
     "No se pudo descargar la grabación del PBX (#{recording_name}). Revisa el acceso SSH y la ruta de grabaciones."
   end
 
-  def transcribe_audio(model, file)
+  # Transcribes the recording, returning [text, words]. Words are requested only
+  # when the pipeline asks for timestamps. See AudioAnalysisService for the
+  # multipart "timestamp_granularities[]" caveat.
+  def transcribe_audio(model, file, pipeline)
     client = openai_client(model)
-    response = client.audio.transcribe(parameters: { model: transcription_model_name(model), file: file, language: 'es' })
-    response['text'].presence
+    mode = pipeline.timestamp_mode_jabvox
+    params = { model: transcription_model_name(model), file: file, language: 'es' }
+
+    if mode == 'none'
+      response = client.audio.transcribe(parameters: params)
+      return [response['text'].presence, []]
+    end
+
+    params[:response_format] = 'verbose_json'
+    params[:'timestamp_granularities[]'] = 'word'
+    response = client.audio.transcribe(parameters: params)
+    text = response['text'].presence
+    word_list = Array(response['words']).map do |w|
+      { 'word' => w['word'], 'start' => w['start'], 'end' => w['end'] }
+    end
+    if word_list.empty?
+      word_list = Array(response['segments']).map do |s|
+        { 'word' => s['text'].to_s.strip, 'start' => s['start'], 'end' => s['end'] }
+      end
+    end
+    words = mode == 'segment' ? group_into_segments(word_list, pipeline) : word_list
+    [text, words]
   rescue Faraday::Error, OpenAI::Error => e
     raise TranscriptionError, "El servicio de transcripción rechazó la solicitud: #{e.message}"
+  end
+
+  # Buckets per-word timings into fixed segments of N seconds.
+  def group_into_segments(word_list, pipeline)
+    span = pipeline.segment_seconds_jabvox.to_i
+    span = 30 if span <= 0
+    word_list.group_by { |w| (w['start'].to_f / span).floor }
+             .map do |bucket, words|
+               { 'start' => bucket * span, 'end' => (bucket + 1) * span,
+                 'word' => words.map { |w| w['word'] }.join(' ').strip }
+             end
   end
 
   # The Whisper-style transcription model name; falls back to whisper-1.

@@ -86,3 +86,24 @@ jabvox_task_time_automations_job:
   cron: '*/15 * * * *'
   class: 'Jabvox::TaskTimeAutomationsJob'
   queue: scheduled_jobs
+
+# Jabvox Tasks: dispatch due recurring per-task automations (email/sms/message), hourly so a
+# day/week/month schedule fires near its configured hour.
+jabvox_task_automations_dispatch_job:
+  cron: '0 * * * *'
+  class: 'Jabvox::TaskAutomationsDispatchJob'
+  queue: scheduled_jobs
+
+# Safety net: purge any expired short-lived access tokens (e.g. Bulk WhatsApp) every 15
+# minutes, in case a per-token cleanup job was missed. Never touches non-expiring tokens.
+jabvox_expired_access_tokens_sweeper_job:
+  cron: '*/15 * * * *'
+  class: 'Jabvox::ExpiredAccessTokensSweeperJob'
+  queue: scheduled_jobs
+
+# executed daily at 2300 UTC — permanently purges trashed imported leads whose
+# 30-day retention window has passed (restore is only possible before then).
+jabvox_lead_import_purge_trash_job:
+  cron: '0 23 * * *'
+  class: 'Jabvox::LeadImport::PurgeTrashJob'
+  queue: scheduled_jobs

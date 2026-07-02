@@ -15,15 +15,18 @@
 #  jabvox_ai_chat_max_open_chats_jabvox     :integer          default(0), not null
 #  jabvox_analytics_enabled_jabvox          :boolean          default(FALSE), not null
 #  jabvox_audio_analysis_enabled_jabvox     :boolean          default(FALSE), not null
+#  jabvox_bulk_whatsapp_enabled_jabvox      :boolean          default(FALSE), not null
 #  jabvox_calendar_enabled_jabvox           :boolean          default(FALSE), not null
 #  jabvox_cdr_enabled_jabvox                :boolean          default(FALSE), not null
 #  jabvox_click_to_call_enabled_jabvox      :boolean          default(FALSE), not null
 #  jabvox_customization_enabled_jabvox      :boolean          default(FALSE), not null
+#  jabvox_data_export_enabled_jabvox        :boolean          default(FALSE), not null
 #  jabvox_dialer_enabled_jabvox             :boolean          default(FALSE), not null
 #  jabvox_email_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_forms_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_internal_chat_enabled_jabvox      :boolean          default(FALSE), not null
 #  jabvox_kanban_enabled_jabvox             :boolean          default(FALSE), not null
+#  jabvox_lead_import_enabled_jabvox        :boolean          default(FALSE), not null
 #  jabvox_leads_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_products_enabled_jabvox           :boolean          default(FALSE), not null
 #  jabvox_response_bot_enabled_jabvox       :boolean          default(FALSE), not null
@@ -201,6 +204,14 @@ class Account < ApplicationRecord
   has_many :jabvox_tasks, dependent: :destroy
   has_many :jabvox_task_lead_contacts, dependent: :destroy
   has_many :jabvox_task_webhook_deliveries, dependent: :delete_all
+  has_many :jabvox_task_automations, dependent: :destroy
+  has_many :jabvox_task_automation_runs, dependent: :delete_all
+  has_one :jabvox_bulk_whatsapp_config, dependent: :destroy
+  has_many :jabvox_bulk_whatsapp_batches, dependent: :delete_all
+  has_many :jabvox_lead_sources, dependent: :destroy
+  has_many :jabvox_lead_source_records, dependent: :delete_all
+  has_many :jabvox_deleted_leads, dependent: :delete_all
+  has_many :jabvox_export_targets, dependent: :destroy
   has_many :portals, dependent: :destroy_async, class_name: '::Portal'
   has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
   has_many :teams, dependent: :destroy_async

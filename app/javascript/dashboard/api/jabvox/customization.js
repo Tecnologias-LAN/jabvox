@@ -30,6 +30,15 @@ export default {
   deleteColumn: (tableId, columnId) =>
     axios.delete(`${tablesClient.url}/${tableId}/custom_columns/${columnId}`),
 
+  // Standalone table rows (records). Nested under a table's /data endpoint.
+  getTableData: tableId => axios.get(`${tablesClient.url}/${tableId}/data`),
+  createRow: (tableId, data) =>
+    axios.post(`${tablesClient.url}/${tableId}/data`, { data }),
+  updateRow: (tableId, rowId, data) =>
+    axios.patch(`${tablesClient.url}/${tableId}/data/${rowId}`, { data }),
+  deleteRow: (tableId, rowId) =>
+    axios.delete(`${tablesClient.url}/${tableId}/data/${rowId}`),
+
   // Lead custom fields (JSONB inline on jabvox_leads)
   updateLeadCustomFields: (leadId, customFields) => {
     const leadsClient = new ApiClient(`jabvox/leads/${leadId}/custom_fields`, {

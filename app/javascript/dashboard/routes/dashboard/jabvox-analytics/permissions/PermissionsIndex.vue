@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import AnalyticsPageHeader from '../components/AnalyticsPageHeader.vue';
 import PermissionsMatrix from './PermissionsMatrix.vue';
 import RoleManagement from './RoleManagement.vue';
+import UserDashboardAccess from './UserDashboardAccess.vue';
 import AuditLogTable from './AuditLogTable.vue';
 
 const { t } = useI18n();
@@ -13,6 +14,10 @@ const { t } = useI18n();
 const tabs = computed(() => [
   { key: 'matrix', label: t('JABVOX_ANALYTICS.PERMISSIONS.TAB_MATRIX') },
   { key: 'roles', label: t('JABVOX_ANALYTICS.PERMISSIONS.TAB_ROLES') },
+  {
+    key: 'dashboards',
+    label: t('JABVOX_ANALYTICS.PERMISSIONS.TAB_DASHBOARDS'),
+  },
   { key: 'audit', label: t('JABVOX_ANALYTICS.AUDIT.TITLE') },
 ]);
 const activeTab = ref('matrix');
@@ -44,6 +49,7 @@ const activeTab = ref('matrix');
 
     <PermissionsMatrix v-if="activeTab === 'matrix'" />
     <RoleManagement v-else-if="activeTab === 'roles'" />
+    <UserDashboardAccess v-else-if="activeTab === 'dashboards'" />
     <AuditLogTable v-else />
   </div>
 </template>

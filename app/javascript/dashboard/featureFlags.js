@@ -70,6 +70,9 @@ export const FEATURE_FLAGS = {
   JABVOX_CLICK_TO_CALL: 'jabvox_click_to_call',
   JABVOX_ANALYTICS: 'jabvox_analytics',
   JABVOX_TASKS: 'jabvox_tasks',
+  JABVOX_BULK_WHATSAPP: 'jabvox_bulk_whatsapp',
+  JABVOX_LEAD_IMPORT: 'jabvox_lead_import',
+  JABVOX_DATA_EXPORT: 'jabvox_data_export',
 };
 
 export const PREMIUM_FEATURES = [

@@ -1,0 +1,41 @@
+{
+  "JABVOX_DATA_EXPORT": {
+    "TITLE": "Export Data",
+    "SUBTITLE": "Mirror this account's data to your own external database in real time.",
+    "NEW": "Connect database",
+    "EMPTY": "No export database connected yet.",
+    "SAVED": "Saved.",
+    "SAVE_ERROR": "Could not save. Check the values.",
+    "TEST_ERROR": "Connection test failed.",
+    "TEST_OK": "Connection successful.",
+    "SCHEMA_BUILT": "Tables created/updated in the external database.",
+    "SCHEMA_ERROR": "Could not create the tables.",
+    "DELETE": "Delete",
+    "DELETE_CONFIRM": "Stop exporting and remove this connection? Data already written stays in your database.",
+    "DELETE_HINT": "Deleting only stops the export. The tables and data already written to your database are never touched.",
+    "ENABLED": "Real-time export",
+    "STATUS": "Status",
+    "SCHEMA": "Structure",
+    "SCHEMA_READY": "Created",
+    "SCHEMA_PENDING": "Not created",
+    "LAST_EXPORT": "Last export",
+    "LAST_ERROR": "Last error",
+    "BUILD_SCHEMA": "Create/update structure",
+    "FORM": {
+      "NEW_TITLE": "Connect export database",
+      "EDIT_TITLE": "Edit connection",
+      "NAME": "Name",
+      "ENGINE": "Engine",
+      "HOST": "Host",
+      "PORT": "Port",
+      "DATABASE": "Database",
+      "USERNAME": "Username",
+      "PASSWORD": "Password",
+      "PASSWORD_KEEP": "Leave blank to keep the current password",
+      "TEST": "Test connection",
+      "SAVE": "Save",
+      "EDIT": "Edit",
+      "CANCEL": "Cancel"
+    }
+  }
+}

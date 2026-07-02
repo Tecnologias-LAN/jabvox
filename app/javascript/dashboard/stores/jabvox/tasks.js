@@ -189,6 +189,51 @@ export const useTasksStore = defineStore('jabvoxTasks', {
       this.tasks = this.tasks.filter(tk => tk.id !== Number(id));
     },
 
+    // Fetch a single task (used by the detail/history view).
+    async getTask(id) {
+      const { data } = await tasksAPI.show(id);
+      const idx = this.tasks.findIndex(tk => tk.id === Number(id));
+      if (idx !== -1) this.tasks.splice(idx, 1, data);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    // Append-only activity history for a task (newest first).
+    async fetchTaskActivities(id) {
+      const { data } = await tasksAPI.activities(id);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    // Recurring per-task automations -----------------------------------
+    async fetchTaskAutomations(taskId) {
+      const { data } = await tasksAPI.listAutomations(taskId);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async createTaskAutomation(taskId, payload) {
+      const { data } = await tasksAPI.createAutomation(taskId, payload);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async updateTaskAutomation(taskId, id, payload) {
+      const { data } = await tasksAPI.updateAutomation(taskId, id, payload);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async deleteTaskAutomation(taskId, id) {
+      await tasksAPI.destroyAutomation(taskId, id);
+    },
+
+    async runTaskAutomationNow(taskId, id) {
+      const { data } = await tasksAPI.runAutomationNow(taskId, id);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    // Dispatch log (what each automation has sent) for the task.
+    async fetchTaskAutomationRuns(taskId) {
+      const { data } = await tasksAPI.automationRuns(taskId);
+      return camelcaseKeys(data, { deep: true });
+    },
+
     // Lead contacts ----------------------------------------------------
     async fetchLeadContacts(leadId) {
       this.uiFlags.fetchingContacts = true;

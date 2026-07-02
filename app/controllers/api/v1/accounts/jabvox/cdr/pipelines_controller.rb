@@ -34,6 +34,7 @@ class Api::V1::Accounts::Jabvox::Cdr::PipelinesController < Api::V1::Accounts::J
   def pipeline_params
     params.require(:pipeline).permit(
       :name, :transcription_model_id, :typification_id, :is_default,
+      :timestamp_mode_jabvox, :segment_seconds_jabvox,
       stages_attributes: [:id, :name, :prompt, :llm_model_id, :position, :min_score, :_destroy]
     )
   end
@@ -45,6 +46,8 @@ class Api::V1::Accounts::Jabvox::Cdr::PipelinesController < Api::V1::Accounts::J
       transcription_model_id: pipeline.transcription_model_id,
       typification_id: pipeline.typification_id,
       is_default: pipeline.is_default,
+      timestamp_mode_jabvox: pipeline.timestamp_mode_jabvox,
+      segment_seconds_jabvox: pipeline.segment_seconds_jabvox,
       stages: pipeline.stages.map do |stage|
         {
           id: stage.id,

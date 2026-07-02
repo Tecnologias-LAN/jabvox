@@ -42,6 +42,17 @@
       "NOV": "Noviembre",
       "DEC": "Diciembre"
     },
+    "TABS": {
+      "CALENDAR": "Calendario",
+      "SETTINGS": "Configuración"
+    },
+    "FILTERS": {
+      "CALENDARS": "Calendarios",
+      "TEAM": "Equipo",
+      "MINE": "Míos",
+      "ALL_AGENTS": "Todos los agentes"
+    },
+    "CREATED_MULTIPLE": "Se crearon {count} citas",
     "FORM": {
       "TITLE_LABEL": "Título",
       "TITLE_PLACEHOLDER": "Nombre del evento",
@@ -52,7 +63,34 @@
       "ALL_DAY": "Todo el día",
       "TYPE_LABEL": "Tipo",
       "COLOR_LABEL": "Color",
-      "STATUS_LABEL": "Estado"
+      "STATUS_LABEL": "Estado",
+      "SLOTS_LABEL": "Franjas horarias",
+      "ADD_SLOT": "Añadir franja",
+      "SLOTS_HINT": "Añade varias franjas para crear la cita en varios horarios (ej. lun 3-4, mar 5-8).",
+      "PARTICIPANTS_LABEL": "Participantes",
+      "PARTICIPANT_NOTE": "Nota para esta persona...",
+      "TEAM": "Equipo",
+      "EXTERNAL": "Externo",
+      "SELECT_AGENT": "Selecciona un agente",
+      "SELECT_EXTERNAL": "Selecciona una persona",
+      "ADD": "Añadir",
+      "NOTE_LABEL": "Nota automática",
+      "NOTE_PLACEHOLDER": "Nota que se enviará a los participantes..."
+    },
+    "SETTINGS": {
+      "TITLE": "Personas externas",
+      "SUBTITLE": "Crea personas externas y asígnalas como participantes en tus citas. Recibirán la nota por correo.",
+      "NEW_PERSON": "Nueva persona",
+      "EDIT_PERSON": "Editar persona",
+      "EMPTY": "Aún no has creado personas externas.",
+      "NAME_LABEL": "Nombre",
+      "EMAIL_LABEL": "Correo",
+      "PHONE_LABEL": "Teléfono",
+      "NOTES_LABEL": "Notas",
+      "EVENTS_COUNT": "{count} citas",
+      "SAVED": "Persona guardada",
+      "DELETED": "Persona eliminada",
+      "DELETE_CONFIRM": "¿Eliminar esta persona externa?"
     },
     "TYPES": {
       "reminder": "Recordatorio",

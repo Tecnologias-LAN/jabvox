@@ -159,6 +159,38 @@ const actions = {
     commit('REMOVE_BUTTON', id);
   },
 
+  // Standalone table rows (records). Kept component-local (no global state):
+  // these actions are thin pass-throughs to the API so the data editor owns
+  // its list for the currently-selected table.
+  async fetchTableData(_ctx, tableId) {
+    const { data } = await api.getTableData(tableId);
+    return data;
+  },
+
+  async createRow({ commit }, { tableId, rowData }) {
+    commit('SET_UI_FLAGS', { isSaving: true });
+    try {
+      const { data } = await api.createRow(tableId, rowData);
+      return data;
+    } finally {
+      commit('SET_UI_FLAGS', { isSaving: false });
+    }
+  },
+
+  async updateRow({ commit }, { tableId, rowId, rowData }) {
+    commit('SET_UI_FLAGS', { isSaving: true });
+    try {
+      const { data } = await api.updateRow(tableId, rowId, rowData);
+      return data;
+    } finally {
+      commit('SET_UI_FLAGS', { isSaving: false });
+    }
+  },
+
+  async deleteRow(_ctx, { tableId, rowId }) {
+    await api.deleteRow(tableId, rowId);
+  },
+
   async updateLeadCustomFields({ commit }, { leadId, customFields }) {
     commit('SET_UI_FLAGS', { isSaving: true });
     try {

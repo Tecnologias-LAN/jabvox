@@ -21,7 +21,7 @@
       "SOLD_ANY": "Ambas",
       "ALL_ASSIGNEES": "Asignado a",
       "ALL_TEAMS": "Grupo",
-      "ALL_MANAGEMENT_STATES": "Última Gestión",
+      "ALL_MANAGEMENT_STATES": "Última gestión",
       "DATE_RANGE": "Últ. gestión",
       "DATE_FROM": "Desde",
       "DATE_TO": "Hasta",
@@ -48,7 +48,7 @@
       "AFFILIATE_OWN": "Propio",
       "CAMPAIGN": "Campaña",
       "INBOX": "Bandeja",
-      "MANAGEMENT_STATE": "Última Gestión",
+      "MANAGEMENT_STATE": "Última gestión",
       "MANAGEMENT_DATE": "Fecha última gestión",
       "ASSIGNEE": "Asignado a",
       "ACTIONS": "Acciones"
@@ -67,6 +67,10 @@
       "CONFIRM_UNASSIGN": "¿Desasignar {n} leads seleccionados?",
       "CONFIRM": "Confirmar",
       "CANCEL": "Cancelar",
+      "DELETE_BUTTON": "Eliminar",
+      "CONFIRM_DELETE": "¿Eliminar {n} leads y sus contactos permanentemente? Esta acción no se puede deshacer.",
+      "DELETING": "Eliminando...",
+      "DELETE_SUCCESS": "{n} leads y contactos eliminados.",
       "SELECT_PAGE": "Seleccionar esta página",
       "CLEAR": "Limpiar selección"
     },
@@ -83,8 +87,8 @@
       "CANCEL": "Cancelar",
       "YES": "Sí",
       "NO": "No",
-      "CUSTOM_FIELDS_SAVED": "Cambios guardados",
-      "CUSTOM_FIELDS_ERROR": "No se pudieron guardar los cambios",
+      "CUSTOM_FIELDS_SAVED": "Campos guardados.",
+      "CUSTOM_FIELDS_ERROR": "No se pudieron guardar los campos.",
       "LOADING": "Cargando lead...",
       "NOT_FOUND": "Lead no encontrado",
       "PREV": "Lead anterior",
@@ -107,11 +111,13 @@
       "NOTE_PLACEHOLDER": "Escribe una nota privada... (Enter para guardar)",
       "LOAD_MESSAGES_ERROR": "No se pudieron cargar los mensajes",
       "SEND_ERROR": "No se pudo enviar el mensaje",
+      "SAVE_CUSTOM_FIELDS": "Guardar",
       "TABS": {
         "CHAT": "Chat",
         "NOTES": "Notas",
         "PRODUCTS": "Productos",
-        "HISTORY": "Historial"
+        "HISTORY": "Historial",
+        "DATA": "Datos"
       },
       "INFO": {
         "LEAD_ID": "ID Lead",

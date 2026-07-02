@@ -9,7 +9,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['open']);
+const emit = defineEmits(['detail']);
 
 const { t } = useI18n();
 
@@ -37,6 +37,16 @@ const priorityClass = computed(
 
 const isDone = computed(() => props.task.statusJabvox === 'done');
 
+// Number of active recurring automations on this task (shown as a small badge).
+const automationsCount = computed(() => props.task.activeAutomationsCount || 0);
+
+// Responsibles to show on the card: prefer the multi-assignee list, fall back to legacy single.
+const assigneeNames = computed(() => {
+  const list = props.task.assignees;
+  if (Array.isArray(list) && list.length) return list.map(a => a.name);
+  return props.task.assigneeName ? [props.task.assigneeName] : [];
+});
+
 const dueLabel = computed(() => {
   if (!props.task.dueAtJabvox) return '';
   const date = new Date(props.task.dueAtJabvox);
@@ -56,9 +66,9 @@ const onDragStart = event => {
 <template>
   <div
     draggable="true"
-    class="flex flex-col gap-2 p-3 rounded-lg bg-n-solid-1 border border-n-weak cursor-grab hover:border-n-strong transition-colors"
+    class="flex flex-col gap-2 p-3 rounded-lg bg-n-solid-1 border border-n-weak cursor-pointer hover:border-n-strong hover:shadow-sm transition-all"
     @dragstart="onDragStart"
-    @click="emit('open', task)"
+    @click="emit('detail', task)"
   >
     <div class="flex items-start justify-between gap-2">
       <p
@@ -84,11 +94,12 @@ const onDragStart = event => {
         {{ task.leadName }}
       </span>
       <span
-        v-if="task.assigneeName"
+        v-for="name in assigneeNames"
+        :key="name"
         class="inline-flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 bg-n-alpha-1 text-n-slate-10"
       >
         <span class="i-lucide-circle-user size-4 scale-75" aria-hidden="true" />
-        {{ task.assigneeName }}
+        {{ name }}
       </span>
       <span
         v-if="dueLabel"
@@ -96,6 +107,14 @@ const onDragStart = event => {
       >
         <span class="i-lucide-calendar size-4 scale-75" aria-hidden="true" />
         {{ dueLabel }}
+      </span>
+      <span
+        v-if="automationsCount"
+        class="inline-flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 bg-n-iris-3 text-n-iris-11"
+        :title="t('JABVOX_TASKS.AUTOMATION.CARD_BADGE', automationsCount)"
+      >
+        <span class="i-lucide-zap size-4 scale-75" aria-hidden="true" />
+        {{ automationsCount }}
       </span>
     </div>
   </div>

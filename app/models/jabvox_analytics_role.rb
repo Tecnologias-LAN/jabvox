@@ -31,9 +31,9 @@ class JabvoxAnalyticsRole < ApplicationRecord
     {
       'admin' => { name: 'Admin', permissions: JabvoxAnalyticsPermission::KEYS },
       'supervisor' => { name: 'Supervisor',
-                        permissions: %w[access create edit_own edit_all delete_own share export view_all_data manage_data_sources use_custom_sql] },
-      'analyst' => { name: 'Analyst', permissions: %w[access create edit_own delete_own export use_custom_sql] },
-      'viewer' => { name: 'Viewer', permissions: %w[access export] }
+                        permissions: %w[access create edit_own edit_all delete_own share view_all_data manage_data_sources use_custom_sql] },
+      'analyst' => { name: 'Analyst', permissions: %w[access create edit_own delete_own use_custom_sql] },
+      'viewer' => { name: 'Viewer', permissions: %w[access] }
     }
   end
 

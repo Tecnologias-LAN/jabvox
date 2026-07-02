@@ -83,19 +83,6 @@ class Api::V1::Accounts::Jabvox::Analytics::DashboardsController < Api::V1::Acco
     render json: created.compact.map { |d| serialize(d) }, status: :created
   end
 
-  # Create the two predefined dashboards (Autogestión + Valiosas) and link them
-  # to the external data sources named CRM_Autogestion / CRM_Valiosas if present.
-  # Idempotent: existing dashboards with those names are left untouched.
-  def seed_defaults
-    authorize!(:create)
-    dashboards = Jabvox::Analytics::DefaultDashboardSeeder.new(
-      account: Current.account,
-      user: current_user
-    ).call
-    audit!(action: 'dashboard.seed_defaults', auditable: dashboards.first)
-    render json: dashboards.compact.map { |d| serialize(d) }, status: :created
-  end
-
   private
 
   def overview_counters(acc)

@@ -38,6 +38,7 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::PipelinesController < Api::V1::A
   def pipeline_params
     params.require(:pipeline).permit(
       :name, :transcription_model_id, :typification_id, :transcription_prompt, :is_default,
+      :timestamp_mode_jabvox, :segment_seconds_jabvox,
       stages_attributes: [:id, :name, :prompt, :llm_model_id, :position, :min_score, :_destroy]
     )
   end
@@ -50,6 +51,8 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::PipelinesController < Api::V1::A
       typification_id: pipeline.typification_id,
       transcription_prompt: pipeline.transcription_prompt,
       is_default: pipeline.is_default,
+      timestamp_mode_jabvox: pipeline.timestamp_mode_jabvox,
+      segment_seconds_jabvox: pipeline.segment_seconds_jabvox,
       stages: pipeline.stages.map do |stage|
         {
           id: stage.id, name: stage.name, prompt: stage.prompt,

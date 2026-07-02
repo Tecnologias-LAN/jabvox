@@ -40,6 +40,11 @@ const llmOptions = computed(() => [
   { value: null, label: t('JABVOX_CDR.SETTINGS.PIPELINE.DEFAULT_MODEL') },
   ...props.aiModels.map(m => ({ value: m.id, label: m.name_jabvox })),
 ]);
+const timestampModeOptions = computed(() => [
+  { value: 'none', label: t('JABVOX_CDR.SETTINGS.PIPELINE.TS_NONE') },
+  { value: 'word', label: t('JABVOX_CDR.SETTINGS.PIPELINE.TS_WORD') },
+  { value: 'segment', label: t('JABVOX_CDR.SETTINGS.PIPELINE.TS_SEGMENT') },
+]);
 
 const visibleStages = computed(() =>
   (editing.value?.stages || []).filter(s => !s._destroy)
@@ -51,6 +56,8 @@ const openCreate = () => {
     is_default: false,
     transcription_model_id: null,
     typification_id: null,
+    timestamp_mode_jabvox: 'none',
+    segment_seconds_jabvox: 30,
     stages: [],
   };
   open.value = true;
@@ -98,6 +105,8 @@ const handleSave = async () => {
     is_default: editing.value.is_default,
     transcription_model_id: editing.value.transcription_model_id,
     typification_id: editing.value.typification_id,
+    timestamp_mode_jabvox: editing.value.timestamp_mode_jabvox || 'none',
+    segment_seconds_jabvox: editing.value.segment_seconds_jabvox || 30,
     stages_attributes: editing.value.stages.map((s, i) => ({
       id: s.id,
       name: s.name,
@@ -157,6 +166,33 @@ defineExpose({ openCreate, openEdit, close });
             />
           </div>
         </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_CDR.SETTINGS.PIPELINE.TIMESTAMP_MODE') }}
+            </label>
+            <Select
+              v-model="editing.timestamp_mode_jabvox"
+              :options="timestampModeOptions"
+            />
+          </div>
+          <div
+            v-if="editing.timestamp_mode_jabvox === 'segment'"
+            class="flex flex-col gap-1.5"
+          >
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_CDR.SETTINGS.PIPELINE.SEGMENT_SECONDS') }}
+            </label>
+            <input
+              v-model="editing.segment_seconds_jabvox"
+              type="number"
+              min="1"
+              max="600"
+              class="reset-base text-sm w-full rounded-lg border border-n-weak bg-n-alpha-black1 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-n-brand/40"
+            />
+          </div>
+        </div>
+
         <div
           class="flex items-center justify-between gap-3 rounded-xl border border-n-weak bg-n-alpha-1 px-4 py-3"
         >

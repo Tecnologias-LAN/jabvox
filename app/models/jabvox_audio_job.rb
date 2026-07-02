@@ -6,6 +6,7 @@
 #  average_score   :integer
 #  error_count     :integer          default(0), not null
 #  failed_count    :integer          default(0), not null
+#  label_jabvox    :string
 #  negative_count  :integer          default(0), not null
 #  neutral_count   :integer          default(0), not null
 #  passed_count    :integer          default(0), not null
@@ -22,10 +23,11 @@
 #
 # Indexes
 #
-#  index_jabvox_audio_jobs_on_account_id     (account_id)
-#  index_jabvox_audio_jobs_on_created_by_id  (created_by_id)
-#  index_jabvox_audio_jobs_on_pipeline_id    (pipeline_id)
-#  index_jabvox_audio_jobs_on_storage_id     (storage_id)
+#  index_jabvox_audio_jobs_on_account_and_label  (account_id,label_jabvox)
+#  index_jabvox_audio_jobs_on_account_id         (account_id)
+#  index_jabvox_audio_jobs_on_created_by_id      (created_by_id)
+#  index_jabvox_audio_jobs_on_pipeline_id        (pipeline_id)
+#  index_jabvox_audio_jobs_on_storage_id         (storage_id)
 #
 # Foreign Keys
 #
@@ -48,6 +50,20 @@ class JabvoxAudioJob < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
 
   scope :recent, -> { order(created_at: :desc) }
+
+  LABEL_PREFIX = 'analisis'.freeze
+  LABEL_PATTERN = /\Aanalisis(\d+)\z/
+
+  # Server-generated incremental label per account: analisis1, analisis2, …
+  # Derived from the highest existing number so it can't be spoofed or set by the client.
+  def self.next_label(account)
+    last = account.jabvox_audio_jobs
+                  .where("label_jabvox ~ ?", '^analisis[0-9]+$')
+                  .pluck(:label_jabvox)
+                  .filter_map { |l| l[LABEL_PATTERN, 1]&.to_i }
+                  .max || 0
+    "#{LABEL_PREFIX}#{last + 1}"
+  end
 
   # Recomputes counters from results and flips status to completed when done.
   def refresh_progress!

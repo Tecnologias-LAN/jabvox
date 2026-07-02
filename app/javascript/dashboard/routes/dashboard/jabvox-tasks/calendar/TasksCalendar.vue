@@ -198,10 +198,15 @@ watch([cursor, () => props.leadId, () => props.boardId], fetch, {
                 v-for="task in tasksForDay(day)"
                 :key="task.id"
                 type="button"
-                class="block w-full text-left text-[11px] px-1.5 py-1 rounded bg-n-blue-3 text-n-blue-11 truncate hover:bg-n-alpha-2"
+                class="flex items-center gap-1 w-full text-left text-[11px] px-1.5 py-1 rounded bg-n-blue-3 text-n-blue-11 hover:bg-n-alpha-2"
                 @click="emit('openTask', task)"
               >
-                {{ task.titleJabvox }}
+                <span
+                  v-if="task.activeAutomationsCount"
+                  class="i-lucide-zap size-3 shrink-0 text-n-iris-11"
+                  aria-hidden="true"
+                />
+                <span class="truncate">{{ task.titleJabvox }}</span>
               </button>
             </div>
           </template>
