@@ -39,6 +39,12 @@ class Api::V1::ProfilesController < Api::BaseController
   end
 
   def reset_access_token
+    # Security: only users a super admin has enabled may regenerate their token.
+    unless @user.can_view_access_token_jabvox?
+      return render json: { error: I18n.t('errors.access_token_disabled', default: 'Access token is disabled for this user.') },
+                    status: :forbidden
+    end
+
     @user.access_token.regenerate_token
     @user.reload
   end

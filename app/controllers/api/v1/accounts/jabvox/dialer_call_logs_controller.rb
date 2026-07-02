@@ -1,4 +1,7 @@
 class Api::V1::Accounts::Jabvox::DialerCallLogsController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
+  before_action :ensure_module_permission
   before_action :check_authorization
 
   def index
@@ -47,6 +50,14 @@ class Api::V1::Accounts::Jabvox::DialerCallLogsController < Api::V1::Accounts::J
 
   def check_authorization
     authorize :jabvox_dialer_call_log
+  end
+
+  # Gate solo si el usuario tiene un custom role: sin rol personalizado se
+  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_dialer_use')
   end
 
   def build_call_log(contact)

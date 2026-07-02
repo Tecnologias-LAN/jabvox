@@ -11,6 +11,8 @@ import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
 import { vOnClickOutside } from '@vueuse/components';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useAdmin } from 'dashboard/composables/useAdmin';
+import { usePolicy } from 'dashboard/composables/usePolicy';
+import { useJabvoxPermissions } from 'dashboard/composables/useJabvoxPermissions';
 import { useWindowSize, useEventListener } from '@vueuse/core';
 
 const props = defineProps({
@@ -41,6 +43,8 @@ import ComposeConversation from 'dashboard/components-next/NewConversation/Compo
 
 const { accountScopedRoute, isOnJabvoxCloud } = useAccount();
 const { isAdmin } = useAdmin();
+const { checkPermissions } = usePolicy();
+const { jabvoxCan } = useJabvoxPermissions();
 const store = useStore();
 const route = useRoute();
 const searchShortcut = useKbd([`$mod`, 'k']);
@@ -208,6 +212,15 @@ onMounted(() => {
     )
   ) {
     store.dispatch('jabvoxProducts/fetchMyReportAccess');
+  }
+  // Load the internal-chat unread total so the sidebar badge shows without opening the chat.
+  if (
+    isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_INTERNAL_CHAT
+    )
+  ) {
+    store.dispatch('jabvoxInternalChat/fetchUnreadCount');
   }
   store.dispatch('jabvoxFieldVisibilities/fetchMyVisibilities');
   store.dispatch('jabvoxAppStates/fetchStates');
@@ -549,6 +562,20 @@ const menuItems = computed(() => {
               'jabvox_analytics_dashboards',
               'jabvox_analytics_permissions',
             ],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_CUSTOMIZATION
+    ) && checkPermissions(['administrator', 'jabvox_custom_data_manage'])
+      ? [
+          {
+            name: 'Jabvox Custom Data',
+            label: t('SIDEBAR.JABVOX_CUSTOM_DATA'),
+            icon: 'i-lucide-database',
+            to: accountScopedRoute('jabvox_custom_data_index'),
+            activeOn: ['jabvox_custom_data_index'],
           },
         ]
       : []),
@@ -969,7 +996,7 @@ const menuItems = computed(() => {
           icon: 'i-lucide-credit-card',
           to: accountScopedRoute('billing_settings_index'),
         },
-        ...(isAdmin.value
+        ...(jabvoxCan('jabvox_field_visibilities_manage')
           ? [
               {
                 name: 'Settings Jabvox Field Security',
@@ -999,7 +1026,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value &&
+        ...(jabvoxCan('jabvox_products_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_PRODUCTS
@@ -1014,7 +1041,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value &&
+        ...(jabvoxCan('jabvox_voip_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_VOIP
@@ -1029,7 +1056,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value &&
+        ...(jabvoxCan('jabvox_cdr_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_CDR
@@ -1130,7 +1157,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value &&
+        ...(jabvoxCan('jabvox_saldo_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_SALDO
@@ -1145,7 +1172,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value &&
+        ...(jabvoxCan('jabvox_sms_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_SMS
@@ -1160,7 +1187,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value
+        ...(jabvoxCan('jabvox_ip_whitelist_manage')
           ? [
               {
                 name: 'Settings Jabvox IP Whitelist',
@@ -1171,7 +1198,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value &&
+        ...(jabvoxCan('jabvox_ai_chat_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_AI_CHAT
@@ -1186,7 +1213,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value
+        ...(jabvoxCan('jabvox_management_states_manage')
           ? [
               {
                 name: 'Settings Jabvox Management States',
@@ -1197,7 +1224,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value &&
+        ...(jabvoxCan('jabvox_dialer_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_DIALER
@@ -1240,7 +1267,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value &&
+        ...(jabvoxCan('jabvox_email_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_EMAIL
@@ -1255,7 +1282,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value &&
+        ...(jabvoxCan('jabvox_forms_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_FORMS
@@ -1270,7 +1297,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isAdmin.value &&
+        ...(jabvoxCan('jabvox_custom_data_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_CUSTOMIZATION

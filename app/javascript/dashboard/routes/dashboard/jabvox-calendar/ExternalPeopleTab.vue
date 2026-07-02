@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const { t } = useI18n();
 const store = useStore();
@@ -20,6 +21,7 @@ const form = ref({
   color: '#0EA5E9',
 });
 const isSaving = ref(false);
+const confirmDialog = ref(null);
 
 onMounted(() => store.dispatch('jabvoxCalendar/fetchExternalPeople'));
 
@@ -67,10 +69,18 @@ async function save() {
   }
 }
 
-async function remove(person) {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(t('JABVOX_CALENDAR.SETTINGS.DELETE_CONFIRM'))) return;
-  await store.dispatch('jabvoxCalendar/deleteExternalPerson', person.id);
+function remove(person) {
+  confirmDialog.value?.open({
+    title: t('JABVOX_CALENDAR.SETTINGS.DELETE_TITLE'),
+    description: t('JABVOX_CALENDAR.SETTINGS.DELETE_CONFIRM'),
+    confirmLabel: t('JABVOX_CALENDAR.SETTINGS.DELETE'),
+    cancelLabel: t('JABVOX_CALENDAR.SETTINGS.CANCEL'),
+    data: person.id,
+  });
+}
+
+async function doRemove(personId) {
+  await store.dispatch('jabvoxCalendar/deleteExternalPerson', personId);
   useAlert(t('JABVOX_CALENDAR.SETTINGS.DELETED'));
 }
 </script>
@@ -246,5 +256,7 @@ async function remove(person) {
         </div>
       </div>
     </Teleport>
+
+    <ConfirmDialog ref="confirmDialog" @confirm="doRemove" />
   </div>
 </template>

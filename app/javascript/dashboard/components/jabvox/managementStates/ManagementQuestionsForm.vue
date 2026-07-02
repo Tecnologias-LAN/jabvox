@@ -41,8 +41,7 @@ defineExpose({ isValid });
 </script>
 
 <template>
-  <!-- eslint-disable-next-line vue/no-root-v-if -->
-  <div v-if="questions.length" class="space-y-3">
+  <div v-show="questions.length" class="space-y-3">
     <div v-for="question in questions" :key="question.id" class="flex flex-col">
       <label class="text-xs font-medium text-n-slate-11 mb-1">
         {{ question.label }}

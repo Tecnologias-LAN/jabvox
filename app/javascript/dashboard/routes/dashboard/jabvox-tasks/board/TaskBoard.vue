@@ -11,6 +11,7 @@ import TaskFormDialog from './TaskFormDialog.vue';
 import StageFormDialog from './StageFormDialog.vue';
 import StageAutomationsDialog from './StageAutomationsDialog.vue';
 import TasksEmptyState from '../components/TasksEmptyState.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 
 const props = defineProps({
   boardId: {
@@ -34,6 +35,7 @@ const editingTask = ref(null);
 const editingStage = ref(null);
 const formStageId = ref(null);
 const automationsStage = ref(null);
+const confirmDialog = ref(null);
 
 const stages = computed(() => store.stages);
 const tasksByStage = computed(() => store.tasksByStage);
@@ -74,11 +76,17 @@ const onTaskSubmit = async payload => {
   }
 };
 
-const onTaskDelete = async task => {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(t('JABVOX_TASKS.TASK.DELETE_CONFIRM'))) return;
+const onTaskDelete = task => {
+  confirmDialog.value?.open({
+    title: t('JABVOX_TASKS.TASK.DELETE'),
+    description: t('JABVOX_TASKS.TASK.DELETE_CONFIRM'),
+    data: task.id,
+  });
+};
+
+const doTaskDelete = async taskId => {
   try {
-    await store.deleteTask(task.id);
+    await store.deleteTask(taskId);
     useAlert(t('JABVOX_TASKS.TASK.DELETED'));
     showTaskDialog.value = false;
     editingTask.value = null;
@@ -206,5 +214,7 @@ const openAutomations = stage => {
       :stages="stages"
       @close="showAutomationsDialog = false"
     />
+
+    <ConfirmDialog ref="confirmDialog" @confirm="doTaskDelete" />
   </div>
 </template>

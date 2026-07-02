@@ -71,19 +71,6 @@ function selectSession(sessionId) {
   store.dispatch('jabvoxAiChat/fetchMessages', sessionId);
 }
 
-onMounted(async () => {
-  await Promise.all([
-    store.dispatch('jabvoxAiChat/fetchMyAccess'),
-    store.dispatch('jabvoxAiChat/fetchSessions'),
-    store.dispatch('jabvoxAiChat/fetchModels'),
-    store.dispatch('jabvoxAiChat/fetchDocuments'),
-  ]);
-  // eslint-disable-next-line no-use-before-define
-  syncPushStatus();
-  if (defaultModel.value) selectedModelId.value = defaultModel.value.id;
-  if (sessions.value.length > 0) selectSession(sessions.value[0].session_id);
-});
-
 function syncPushStatus() {
   if (!pushSupported.value || !hasPushPermissions()) {
     pushEnabled.value = false;
@@ -109,6 +96,18 @@ function enablePushNotifications() {
     },
   });
 }
+
+onMounted(async () => {
+  await Promise.all([
+    store.dispatch('jabvoxAiChat/fetchMyAccess'),
+    store.dispatch('jabvoxAiChat/fetchSessions'),
+    store.dispatch('jabvoxAiChat/fetchModels'),
+    store.dispatch('jabvoxAiChat/fetchDocuments'),
+  ]);
+  syncPushStatus();
+  if (defaultModel.value) selectedModelId.value = defaultModel.value.id;
+  if (sessions.value.length > 0) selectSession(sessions.value[0].session_id);
+});
 
 watch(
   [hasModels, hasDocuments],

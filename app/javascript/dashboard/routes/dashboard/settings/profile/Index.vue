@@ -327,6 +327,7 @@ export default {
       </SectionLayout>
     </Policy>
     <SectionLayout
+      v-if="currentUser.can_view_access_token_jabvox"
       with-border
       :title="$t('PROFILE_SETTINGS.FORM.ACCESS_TOKEN.TITLE')"
       :description="

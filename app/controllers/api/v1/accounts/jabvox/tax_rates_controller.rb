@@ -1,4 +1,7 @@
 class Api::V1::Accounts::Jabvox::TaxRatesController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
+  before_action :ensure_module_permission
   before_action :fetch_tax_rate, only: [:show, :update, :destroy]
   before_action :check_authorization
 
@@ -23,6 +26,14 @@ class Api::V1::Accounts::Jabvox::TaxRatesController < Api::V1::Accounts::Jabvox:
   end
 
   private
+
+  # Custom-role gate: users without a custom role keep historical access;
+  # users with a custom role must be granted the capability (admins always pass).
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_products_manage')
+  end
 
   def fetch_tax_rate
     @tax_rate = Current.account.jabvox_tax_rates.find(params[:id])

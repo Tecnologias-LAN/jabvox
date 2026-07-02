@@ -7,6 +7,7 @@ import { useAlert } from 'dashboard/composables';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import BoardFormDialog from './BoardFormDialog.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -18,6 +19,7 @@ const store = useTasksStore();
 const showBoardDialog = ref(false);
 const editingBoard = ref(null);
 const showBoardsDrawer = ref(false); // mobile
+const confirmDialog = ref(null);
 
 const accountId = computed(() => getters.getCurrentAccountId.value);
 const boards = computed(() => store.boardList);
@@ -61,9 +63,15 @@ const onBoardSubmit = async payload => {
   }
 };
 
-const onBoardDelete = async board => {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(t('JABVOX_TASKS.BOARDS.DELETE_CONFIRM'))) return;
+const onBoardDelete = board => {
+  confirmDialog.value?.open({
+    title: t('JABVOX_TASKS.BOARDS.DELETE'),
+    description: t('JABVOX_TASKS.BOARDS.DELETE_CONFIRM'),
+    data: board,
+  });
+};
+
+const doBoardDelete = async board => {
   try {
     const wasActive = activeBoardId.value === board.id;
     await store.deleteBoard(board.id);
@@ -223,5 +231,7 @@ onMounted(async () => {
       @submit="onBoardSubmit"
       @close="showBoardDialog = false"
     />
+
+    <ConfirmDialog ref="confirmDialog" @confirm="doBoardDelete" />
   </div>
 </template>

@@ -3,6 +3,9 @@
 class Api::V1::Accounts::Jabvox::Tasks::AutomationsController < Api::V1::Accounts::Jabvox::Tasks::BaseController
   before_action :set_task
   before_action :set_automation, only: %i[update destroy run_now]
+  # Managing task automations is custom-role gated; standard agents keep historical behavior,
+  # admins always pass.
+  before_action -> { jabvox_gate!('jabvox_tasks_manage') }, only: %i[create update destroy run_now]
 
   def index
     render json: @task.automations.order(created_at: :desc).map { |a| serialize(a) }

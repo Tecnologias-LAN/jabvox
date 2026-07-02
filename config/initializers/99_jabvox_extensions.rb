@@ -28,6 +28,10 @@ Rails.application.config.to_prepare do
   # feature sits at bit >= 64 (upstream Chatwoot has > 63 features). Keeps
   # account creation from 500-ing regardless of the DB feature-defaults config.
   Account.prepend Jabvox::AccountFeatureFlagGuard
+  # Virtual `jabvox_modules` reader for the Super Admin grouped module tiles.
+  Account.include Jabvox::AccountModulesAdmin
+  # Backfill CDR <-> Audio pipelines when both modules become enabled.
+  Account.include Jabvox::AccountPipelineSync
 
   Contact.include Jabvox::ContactLeadsIntegration
   Note.include Jabvox::NoteManagementAnswers

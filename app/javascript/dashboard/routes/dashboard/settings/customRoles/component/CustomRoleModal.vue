@@ -6,7 +6,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useAlert } from 'dashboard/composables';
 import {
-  AVAILABLE_CUSTOM_ROLE_PERMISSIONS,
+  JABVOX_PERMISSION_GROUPS,
   MANAGE_ALL_CONVERSATION_PERMISSIONS,
   CONVERSATION_UNASSIGNED_PERMISSIONS,
   CONVERSATION_PARTICIPATING_PERMISSIONS,
@@ -27,6 +27,15 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close']);
+
+const BASE_CUSTOM_ROLE_PERMISSIONS = [
+  'conversation_manage',
+  'conversation_unassigned_manage',
+  'conversation_participating_manage',
+  'contact_manage',
+  'report_manage',
+  'knowledge_base_manage',
+];
 
 const store = useStore();
 const { t } = useI18n();
@@ -189,23 +198,59 @@ const isSubmitDisabled = computed(
         <label :class="{ 'text-n-ruby-9': v$.selectedPermissions.$error }">
           {{ $t('CUSTOM_ROLE.FORM.PERMISSIONS.LABEL') }}
         </label>
-        <div class="flex flex-col gap-2.5 mb-4 mt-2">
+        <div class="flex flex-col gap-4 mb-4 mt-2">
+          <div class="flex flex-col gap-2.5">
+            <h4 class="text-sm font-medium text-n-slate-12 mb-0">
+              {{ $t('CUSTOM_ROLE.PERMISSIONS.MODULES.GENERAL') }}
+            </h4>
+            <div
+              v-for="permission in BASE_CUSTOM_ROLE_PERMISSIONS"
+              :key="permission"
+              class="flex items-center"
+            >
+              <input
+                :id="permission"
+                v-model="selectedPermissions"
+                type="checkbox"
+                :value="permission"
+                name="permissions"
+                class="ltr:mr-2 rtl:ml-2"
+              />
+              <label :for="permission" class="text-sm font-normal">
+                {{ $t(`CUSTOM_ROLE.PERMISSIONS.${permission.toUpperCase()}`) }}
+              </label>
+            </div>
+          </div>
+
           <div
-            v-for="permission in AVAILABLE_CUSTOM_ROLE_PERMISSIONS"
-            :key="permission"
-            class="flex items-center"
+            v-for="group in JABVOX_PERMISSION_GROUPS"
+            :key="group.module"
+            class="flex flex-col gap-2.5"
           >
-            <input
-              :id="permission"
-              v-model="selectedPermissions"
-              type="checkbox"
-              :value="permission"
-              name="permissions"
-              class="ltr:mr-2 rtl:ml-2"
-            />
-            <label :for="permission" class="text-sm font-normal">
-              {{ $t(`CUSTOM_ROLE.PERMISSIONS.${permission.toUpperCase()}`) }}
-            </label>
+            <h4 class="text-sm font-medium text-n-slate-12 mb-0">
+              {{
+                $t(
+                  `CUSTOM_ROLE.PERMISSIONS.MODULES.${group.module.toUpperCase()}`
+                )
+              }}
+            </h4>
+            <div
+              v-for="permission in group.permissions"
+              :key="permission"
+              class="flex items-center"
+            >
+              <input
+                :id="permission"
+                v-model="selectedPermissions"
+                type="checkbox"
+                :value="permission"
+                name="permissions"
+                class="ltr:mr-2 rtl:ml-2"
+              />
+              <label :for="permission" class="text-sm font-normal">
+                {{ $t(`CUSTOM_ROLE.PERMISSIONS.${permission.toUpperCase()}`) }}
+              </label>
+            </div>
           </div>
         </div>
       </div>

@@ -7,14 +7,19 @@ import {
   wtTemplatesAPI,
   wtExportAPI,
   wtImportAPI,
-  wtPermissionsAPI,
 } from 'dashboard/api/jabvox/whatsappTemplates';
+import ConfirmDialog from './components/ConfirmDialog.vue';
+import PromptDialog from './components/PromptDialog.vue';
 
 const { t } = useI18n();
 
 // ─── Tabs ────────────────────────────────────────────────────────────────────
 const activeTab = ref('templates');
 const stickyHeaderRef = ref(null);
+
+// Confirmation / prompt dialogs (replace native window.confirm / window.prompt).
+const confirmDialog = ref(null);
+const promptDialog = ref(null);
 
 // ─── Inboxes ─────────────────────────────────────────────────────────────────
 const inboxes = ref([]);
@@ -124,42 +129,42 @@ const summaryKpis = computed(() => {
       label: t('JABVOX_WA_TEMPLATES.METRICS.TOTAL'),
       value: m.total ?? 0,
       icon: 'i-lucide-layout-template',
-      accent: 'text-n-brand',
+      accent: 'text-[#6C5DD3]',
     },
     {
       key: 'approved',
       label: t('JABVOX_WA_TEMPLATES.METRICS.APPROVED'),
       value: m.approved ?? 0,
       icon: 'i-lucide-badge-check',
-      accent: 'text-n-teal-11',
+      accent: 'text-[#3DDC97]',
     },
     {
       key: 'pending',
       label: t('JABVOX_WA_TEMPLATES.METRICS.PENDING'),
       value: m.pending ?? 0,
       icon: 'i-lucide-clock-3',
-      accent: 'text-n-amber-11',
+      accent: 'text-[#F5A623]',
     },
     {
       key: 'rejected',
       label: t('JABVOX_WA_TEMPLATES.METRICS.REJECTED'),
       value: m.rejected ?? 0,
       icon: 'i-lucide-shield-x',
-      accent: 'text-n-ruby-11',
+      accent: 'text-[#F06767]',
     },
     {
       key: 'disabled',
       label: t('JABVOX_WA_TEMPLATES.METRICS.DISABLED'),
       value: m.disabled ?? 0,
       icon: 'i-lucide-pause-circle',
-      accent: 'text-n-slate-11',
+      accent: 'text-[#8A90A2]',
     },
     {
       key: 'usage_month',
       label: t('JABVOX_WA_TEMPLATES.METRICS.USAGE_MONTH'),
       value: usage,
       icon: 'i-lucide-chart-column',
-      accent: 'text-n-brand',
+      accent: 'text-[#6C5DD3]',
     },
   ];
 });
@@ -175,7 +180,6 @@ const VERSION_PREFIX = 'v';
 const mainTabs = computed(() => [
   { key: 'overview', label: t('JABVOX_WA_TEMPLATES.TABS.OVERVIEW') },
   { key: 'templates', label: t('JABVOX_WA_TEMPLATES.TABS.TEMPLATES') },
-  { key: 'permissions', label: t('JABVOX_WA_TEMPLATES.TABS.PERMISSIONS') },
 ]);
 
 const overviewMetrics = computed(() => [
@@ -288,18 +292,18 @@ const bulkDuplicate = async () => {
   }
 };
 
-const bulkDelete = async () => {
+const bulkDelete = () => {
   if (!selectedTemplates.value.length) return;
-  // eslint-disable-next-line no-alert
-  if (
-    !window.confirm(
-      t('JABVOX_WA_TEMPLATES.BULK.DELETE_CONFIRM', {
-        count: selectedTemplates.value.length,
-      })
-    )
-  )
-    return;
+  confirmDialog.value?.open({
+    title: t('JABVOX_WA_TEMPLATES.BULK.DELETE'),
+    description: t('JABVOX_WA_TEMPLATES.BULK.DELETE_CONFIRM', {
+      count: selectedTemplates.value.length,
+    }),
+    data: { action: 'bulkDelete' },
+  });
+};
 
+const performBulkDelete = async () => {
   try {
     await Promise.all(
       selectedTemplates.value.map(tpl => wtTemplatesAPI.destroy(tpl.id))
@@ -339,15 +343,15 @@ const bulkExportSelected = () => {
 const statusClass = s => {
   switch ((s || '').toUpperCase()) {
     case 'APPROVED':
-      return 'bg-n-teal-3 text-n-teal-11';
+      return 'bg-[#3DDC97]/15 text-[#3DDC97] ring-1 ring-inset ring-[#3DDC97]/30';
     case 'PENDING':
-      return 'bg-n-amber-3 text-n-amber-11';
+      return 'bg-[#F5A623]/15 text-[#F5A623] ring-1 ring-inset ring-[#F5A623]/30';
     case 'REJECTED':
-      return 'bg-n-ruby-3 text-n-ruby-11';
+      return 'bg-[#F06767]/15 text-[#F06767] ring-1 ring-inset ring-[#F06767]/30';
     case 'PAUSED':
-      return 'bg-n-amber-3 text-n-amber-11';
+      return 'bg-[#F5A623]/15 text-[#F5A623] ring-1 ring-inset ring-[#F5A623]/30';
     default:
-      return 'bg-n-alpha-2 text-n-slate-11';
+      return 'bg-white/5 text-[#8A90A2] ring-1 ring-inset ring-white/10';
   }
 };
 const qualityClass = q => {
@@ -466,12 +470,15 @@ const detailTabLabel = dt => {
 };
 
 // ─── Template actions ─────────────────────────────────────────────────────────
-const deleteTemplate = async tpl => {
-  // eslint-disable-next-line no-alert
-  if (
-    !window.confirm(t('JABVOX_WA_TEMPLATES.DELETE_CONFIRM', { name: tpl.name }))
-  )
-    return;
+const deleteTemplate = tpl => {
+  confirmDialog.value?.open({
+    title: t('JABVOX_WA_TEMPLATES.ACTIONS.DELETE'),
+    description: t('JABVOX_WA_TEMPLATES.DELETE_CONFIRM', { name: tpl.name }),
+    data: { action: 'deleteTemplate', tpl },
+  });
+};
+
+const performDeleteTemplate = async tpl => {
   try {
     await wtTemplatesAPI.destroy(tpl.id);
     useAlert(t('JABVOX_WA_TEMPLATES.DELETED'));
@@ -544,6 +551,9 @@ const showForm = ref(false);
 const editingTemplate = ref(null);
 const formInboxId = ref(null);
 const saving = ref(false);
+// Current step of the create/edit wizard (declared here so openCreate/openEdit
+// can reset it without a forward reference).
+const wizardStep = ref(1);
 
 const LANGUAGES = [
   { value: 'es', label: 'Español' },
@@ -597,7 +607,6 @@ const openCreate = () => {
   editingTemplate.value = null;
   form.value = emptyForm();
   formInboxId.value = selectedInboxId.value || (inboxes.value[0]?.id ?? null);
-  // eslint-disable-next-line no-use-before-define
   wizardStep.value = 1;
   showForm.value = true;
 };
@@ -618,7 +627,6 @@ const openEdit = tpl => {
     ),
   };
   formInboxId.value = tpl.inbox_id;
-  // eslint-disable-next-line no-use-before-define
   wizardStep.value = 1;
   showForm.value = true;
 };
@@ -656,7 +664,6 @@ const submitForm = async () => {
   }
 };
 
-const wizardStep = ref(1);
 const wizardSteps = [
   { id: 1, label: t('JABVOX_WA_TEMPLATES.CREATE.STEPS.BASIC') },
   { id: 2, label: t('JABVOX_WA_TEMPLATES.CREATE.STEPS.CONTENT') },
@@ -674,8 +681,11 @@ const previousWizardStep = () => {
   if (wizardStep.value > 1) wizardStep.value -= 1;
 };
 
+// Selected template shown in the detail drawer (declared before the analytics
+// computed that reads it, to avoid a forward reference).
+const detailTemplate = ref(null);
+
 const templateAnalytics = computed(() => {
-  // eslint-disable-next-line no-use-before-define
   const raw = detailTemplate.value?.meta_json?.analytics || {};
   return {
     sent: raw.sent || 0,
@@ -688,7 +698,6 @@ const templateAnalytics = computed(() => {
 });
 
 // ─── Detail / History / Versions ────────────────────────────────────────────
-const detailTemplate = ref(null);
 const detailHistory = ref([]);
 const detailVersions = ref([]);
 const detailTab = ref('components');
@@ -717,14 +726,17 @@ const closeDetail = () => {
   detailTemplate.value = null;
 };
 
-const restoreVersion = async ver => {
-  // eslint-disable-next-line no-alert
-  if (
-    !window.confirm(
-      t('JABVOX_WA_TEMPLATES.DETAIL.RESTORE_CONFIRM', { v: ver.version })
-    )
-  )
-    return;
+const restoreVersion = ver => {
+  confirmDialog.value?.open({
+    title: t('JABVOX_WA_TEMPLATES.DETAIL.RESTORE'),
+    description: t('JABVOX_WA_TEMPLATES.DETAIL.RESTORE_CONFIRM', {
+      v: ver.version,
+    }),
+    data: { action: 'restoreVersion', ver },
+  });
+};
+
+const performRestoreVersion = async ver => {
   try {
     await wtTemplatesAPI.restoreVersion(detailTemplate.value.id, ver.id);
     useAlert(t('JABVOX_WA_TEMPLATES.RESTORED'));
@@ -735,12 +747,22 @@ const restoreVersion = async ver => {
   }
 };
 
-const duplicateTemplate = async tpl => {
-  // eslint-disable-next-line no-alert
-  const newName = window.prompt(
-    t('JABVOX_WA_TEMPLATES.DETAIL.DUPLICATE_NAME'),
-    `${tpl.name}_copy`
-  );
+// Dispatches the confirmed action from ConfirmDialog to its handler.
+const onConfirmAction = data => {
+  if (data?.action === 'bulkDelete') performBulkDelete();
+  else if (data?.action === 'deleteTemplate') performDeleteTemplate(data.tpl);
+  else if (data?.action === 'restoreVersion') performRestoreVersion(data.ver);
+};
+
+const duplicateTemplate = tpl => {
+  promptDialog.value?.open({
+    title: t('JABVOX_WA_TEMPLATES.DETAIL.DUPLICATE_NAME'),
+    initialValue: `${tpl.name}_copy`,
+    data: tpl,
+  });
+};
+
+const performDuplicate = async ({ value: newName, data: tpl }) => {
   if (!newName) return;
   try {
     await wtTemplatesAPI.duplicate(tpl.id, newName);
@@ -752,30 +774,8 @@ const duplicateTemplate = async tpl => {
   }
 };
 
-// ─── Permissions ─────────────────────────────────────────────────────────────
-const permissions = ref([]);
-const loadPermissions = async () => {
-  try {
-    const { data } = await wtPermissionsAPI.getAll();
-    permissions.value = data.permissions || [];
-  } catch {
-    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
-  }
-};
-const savePermissions = async () => {
-  const ids = permissions.value.filter(p => p.can_manage).map(p => p.user_id);
-  try {
-    await wtPermissionsAPI.bulk(ids);
-    useAlert(t('JABVOX_WA_TEMPLATES.PERMISSIONS.SAVED'));
-  } catch {
-    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
-  }
-};
-
-const switchTab = async key => {
+const switchTab = key => {
   activeTab.value = key;
-  if (key === 'permissions' && !permissions.value.length)
-    await loadPermissions();
   if (key === 'templates') {
     selectedTemplateIds.value = [];
   }
@@ -793,35 +793,31 @@ onMounted(async () => {
 });
 </script>
 
-<!-- eslint-disable vue/no-bare-strings-in-template -->
 <template>
-  <div class="flex flex-col flex-1 h-full overflow-hidden bg-n-bg-1">
-    <div
-      ref="stickyHeaderRef"
-      class="sticky top-0 z-20 border-b border-n-weak bg-n-surface-1/95 backdrop-blur"
-    >
+  <div class="wa-shell flex flex-col flex-1 h-full overflow-hidden">
+    <div ref="stickyHeaderRef" class="wa-glass-header sticky top-0 z-20">
       <div class="flex flex-col gap-4 px-4 sm:px-6 py-4">
         <div
           class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
         >
           <div>
-            <h1 class="text-xl sm:text-2xl font-semibold text-n-slate-12">
+            <h1 class="wa-title text-xl sm:text-2xl font-semibold">
               {{ t('JABVOX_WA_TEMPLATES.HEADER.TITLE') }}
             </h1>
-            <p class="text-xs sm:text-sm text-n-slate-10 mt-1 max-w-2xl">
+            <p class="text-xs sm:text-sm text-[#8A90A2] mt-1 max-w-2xl">
               {{ t('JABVOX_WA_TEMPLATES.HEADER.SUBTITLE') }}
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <button
-              class="px-3 py-1.5 text-xs rounded-lg bg-n-brand text-white hover:opacity-90 flex items-center gap-1.5 transition-opacity"
+              class="wa-btn-primary px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5"
               @click="openCreate"
             >
               <span class="i-lucide-plus size-3.5" />
               {{ t('JABVOX_WA_TEMPLATES.HEADER.CREATE') }}
             </button>
             <button
-              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5 disabled:opacity-50 transition-colors"
+              class="wa-btn-ghost px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 disabled:opacity-50"
               :disabled="syncing || !selectedInboxId"
               @click="syncInbox"
             >
@@ -836,14 +832,14 @@ onMounted(async () => {
               {{ t('JABVOX_WA_TEMPLATES.HEADER.SYNC') }}
             </button>
             <button
-              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5 transition-colors"
+              class="wa-btn-ghost px-3 py-2 text-xs rounded-xl flex items-center gap-1.5"
               @click="showImport = true"
             >
               <span class="i-lucide-upload size-3.5" />
               {{ t('JABVOX_WA_TEMPLATES.HEADER.IMPORT') }}
             </button>
             <button
-              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1.5 transition-colors"
+              class="wa-btn-ghost px-3 py-2 text-xs rounded-xl flex items-center gap-1.5"
               @click="exportJson"
             >
               <span class="i-lucide-download size-3.5" />
@@ -858,15 +854,15 @@ onMounted(async () => {
           <div
             v-for="kpi in summaryKpis"
             :key="kpi.key"
-            class="group rounded-2xl border border-n-weak bg-n-surface-1 px-3 py-3.5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+            class="wa-kpi group rounded-2xl px-3 py-3.5"
           >
             <div class="flex items-start justify-between">
-              <p class="text-[11px] uppercase tracking-wide text-n-slate-10">
+              <p class="text-[11px] uppercase tracking-wide text-[#8A90A2]">
                 {{ kpi.label }}
               </p>
               <span :class="[kpi.icon, kpi.accent]" class="size-4" />
             </div>
-            <p class="mt-2 text-xl sm:text-2xl font-semibold text-n-slate-12">
+            <p class="mt-2 text-xl sm:text-2xl font-semibold text-white">
               {{ kpi.value }}
             </p>
           </div>
@@ -874,18 +870,12 @@ onMounted(async () => {
       </div>
 
       <!-- Tabs -->
-      <div
-        class="flex gap-0 border-t border-n-weak bg-n-surface-1 px-4 sm:px-6 shrink-0"
-      >
+      <div class="flex gap-1 px-4 sm:px-6 pb-1 shrink-0">
         <button
           v-for="tab in mainTabs"
           :key="tab.key"
-          class="px-4 py-2.5 text-sm -mb-px border-b-2 transition-colors"
-          :class="
-            activeTab === tab.key
-              ? 'border-n-brand text-n-brand font-medium'
-              : 'border-transparent text-n-slate-11 hover:text-n-slate-12'
-          "
+          class="wa-tab px-4 py-2 text-sm rounded-lg transition-all"
+          :class="activeTab === tab.key ? 'wa-tab-active' : ''"
           @click="switchTab(tab.key)"
         >
           {{ tab.label }}
@@ -1169,32 +1159,29 @@ onMounted(async () => {
           v-if="loadingTemplates"
           class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
         >
-          <div
-            v-for="n in 8"
-            :key="n"
-            class="rounded-2xl border border-n-weak bg-n-surface-1 p-4 animate-pulse"
-          >
-            <div class="h-4 w-2/3 bg-n-alpha-2 rounded mb-2" />
-            <div class="h-3 w-1/2 bg-n-alpha-2 rounded mb-4" />
-            <div class="h-40 bg-n-alpha-2 rounded-xl mb-3" />
-            <div class="h-3 w-1/3 bg-n-alpha-2 rounded" />
+          <div v-for="n in 8" :key="n" class="wa-card p-4 wa-skeleton">
+            <div class="h-4 w-2/3 rounded mb-2 wa-shimmer" />
+            <div class="h-3 w-1/2 rounded mb-4 wa-shimmer" />
+            <div class="h-40 rounded-xl mb-3 wa-shimmer" />
+            <div class="h-3 w-1/3 rounded wa-shimmer" />
           </div>
         </div>
 
-        <div
-          v-else-if="!templates.length"
-          class="rounded-2xl border border-dashed border-n-weak bg-n-surface-1 py-20 text-center"
-        >
-          <p class="text-base font-medium text-n-slate-12">
+        <div v-else-if="!templates.length" class="wa-empty py-20 text-center">
+          <div class="wa-empty-icon mx-auto mb-4">
+            <span class="i-lucide-layout-template size-7 text-[#6C5DD3]" />
+          </div>
+          <p class="text-base font-semibold text-white">
             {{ t('JABVOX_WA_TEMPLATES.GALLERY.EMPTY_TITLE') }}
           </p>
-          <p class="text-sm text-n-slate-10 mt-1 max-w-md mx-auto">
+          <p class="text-sm text-[#8A90A2] mt-1.5 max-w-md mx-auto">
             {{ t('JABVOX_WA_TEMPLATES.GALLERY.EMPTY_BODY') }}
           </p>
           <button
-            class="mt-4 px-4 py-2 text-sm rounded-lg bg-n-brand text-white hover:opacity-90 transition-opacity"
+            class="wa-btn-primary mt-5 px-4 py-2 text-sm rounded-xl inline-flex items-center gap-1.5"
             @click="openCreate"
           >
+            <span class="i-lucide-plus size-4" />
             {{ t('JABVOX_WA_TEMPLATES.GALLERY.EMPTY_CTA') }}
           </button>
         </div>
@@ -1204,12 +1191,12 @@ onMounted(async () => {
           class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
         >
           <label
-            class="col-span-full flex items-center gap-2 text-xs text-n-slate-10"
+            class="col-span-full flex items-center gap-2 text-xs text-[#8A90A2]"
           >
             <input
               :checked="allVisibleSelected"
               type="checkbox"
-              class="size-4"
+              class="size-4 accent-[#6C5DD3]"
               @change="toggleSelectAll($event.target.checked)"
             />
             {{ t('JABVOX_WA_TEMPLATES.GALLERY.SELECT_ALL') }}
@@ -1218,16 +1205,16 @@ onMounted(async () => {
           <article
             v-for="tpl in templates"
             :key="tpl.id"
-            class="group rounded-2xl border border-n-weak bg-n-surface-1 p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+            class="wa-card wa-card-hover group p-4"
           >
             <div class="flex items-start justify-between gap-2 mb-3">
               <label
-                class="inline-flex items-center gap-2 text-xs text-n-slate-11"
+                class="inline-flex items-center gap-2 text-xs text-[#8A90A2]"
               >
                 <input
                   :checked="selectedTemplateIds.includes(tpl.id)"
                   type="checkbox"
-                  class="size-4"
+                  class="size-4 accent-[#6C5DD3]"
                   @change="toggleSelectOne(tpl.id, $event.target.checked)"
                 />
               </label>
@@ -1240,10 +1227,10 @@ onMounted(async () => {
             </div>
 
             <button class="w-full text-left" @click="openDetail(tpl)">
-              <h3 class="text-sm font-semibold text-n-slate-12 truncate">
+              <h3 class="text-sm font-semibold text-white truncate">
                 {{ tpl.name }}
               </h3>
-              <p class="text-xs text-n-slate-10 mt-0.5">
+              <p class="text-xs text-[#8A90A2] mt-0.5">
                 {{ tpl.language }} {{ DOT }} {{ categoryLabel(tpl.category) }}
                 {{ DOT }}
                 {{
@@ -1285,61 +1272,52 @@ onMounted(async () => {
 
               <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <p class="text-n-slate-9">
+                  <p class="text-[#5B6172]">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.VARIABLES') }}
                   </p>
-                  <p class="text-n-slate-12 font-medium">
+                  <p class="text-white/90 font-medium">
                     {{ Object.keys(tpl.variables_json || {}).length }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-n-slate-9">
+                  <p class="text-[#5B6172]">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.BUTTONS') }}
                   </p>
-                  <p class="text-n-slate-12 font-medium">
+                  <p class="text-white/90 font-medium">
                     {{ (tpl.buttons_json || []).length }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-n-slate-9">
+                  <p class="text-[#5B6172]">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.CREATED') }}
                   </p>
-                  <p class="text-n-slate-12 font-medium">
+                  <p class="text-white/90 font-medium">
                     {{ new Date(tpl.created_at).toLocaleDateString() }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-n-slate-9">
+                  <p class="text-[#5B6172]">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.UPDATED') }}
                   </p>
-                  <p class="text-n-slate-12 font-medium">
+                  <p class="text-white/90 font-medium">
                     {{ new Date(tpl.updated_at).toLocaleDateString() }}
                   </p>
                 </div>
               </div>
             </button>
 
-            <div class="mt-3 flex items-center gap-1.5">
-              <button
-                class="p-1.5 rounded hover:bg-n-alpha-2 text-n-slate-11"
-                @click="openEdit(tpl)"
-              >
+            <div class="mt-3 flex items-center gap-1.5 wa-card-actions">
+              <button class="wa-icon-btn" @click="openEdit(tpl)">
                 <span class="i-lucide-pencil size-3.5" />
               </button>
-              <button
-                class="p-1.5 rounded hover:bg-n-alpha-2 text-n-slate-11"
-                @click="duplicateTemplate(tpl)"
-              >
+              <button class="wa-icon-btn" @click="duplicateTemplate(tpl)">
                 <span class="i-lucide-copy size-3.5" />
               </button>
-              <button
-                class="p-1.5 rounded hover:bg-n-alpha-2 text-n-slate-11"
-                @click="syncTemplate(tpl)"
-              >
+              <button class="wa-icon-btn" @click="syncTemplate(tpl)">
                 <span class="i-lucide-refresh-cw size-3.5" />
               </button>
               <button
-                class="p-1.5 rounded hover:bg-n-alpha-2 text-n-ruby-11"
+                class="wa-icon-btn wa-icon-btn-danger"
                 @click="deleteTemplate(tpl)"
               >
                 <span class="i-lucide-trash-2 size-3.5" />
@@ -1378,30 +1356,6 @@ onMounted(async () => {
           </button>
         </div>
       </div>
-    </div>
-
-    <!-- ── PERMISSIONS TAB ───────────────────────────────────────────── -->
-    <div v-else class="flex-1 overflow-auto p-6 max-w-2xl">
-      <p class="text-sm text-n-slate-11 mb-4">
-        {{ t('JABVOX_WA_TEMPLATES.PERMISSIONS.DESCRIPTION') }}
-      </p>
-      <div
-        v-for="perm in permissions"
-        :key="perm.user_id"
-        class="flex items-center justify-between p-2.5 border-b border-n-weak"
-      >
-        <div>
-          <span class="text-sm text-n-slate-12">{{ perm.name }}</span>
-          <span class="ml-2 text-xs text-n-slate-10">{{ perm.email }}</span>
-        </div>
-        <input v-model="perm.can_manage" type="checkbox" class="size-4" />
-      </div>
-      <button
-        class="mt-4 px-4 py-2 text-sm rounded-lg bg-n-brand text-white"
-        @click="savePermissions"
-      >
-        {{ t('JABVOX_WA_TEMPLATES.PERMISSIONS.SAVE') }}
-      </button>
     </div>
 
     <!-- ── CREATE / EDIT FORM MODAL ──────────────────────────────────── -->
@@ -2202,5 +2156,201 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <ConfirmDialog ref="confirmDialog" @confirm="onConfirmAction" />
+    <PromptDialog ref="promptDialog" @submit="performDuplicate" />
   </div>
 </template>
+
+<style scoped>
+/* ─── Futuristic dark-first shell (brief palette) ──────────────────────────
+   NOTE: this module intentionally uses fixed hex colors and a scoped stylesheet
+   for a dark, glassmorphism look requested for WhatsApp Templates. It does not
+   follow the app's theme tokens; it is dark-first by design. */
+.wa-shell {
+  background: radial-gradient(
+      1200px 600px at 15% -10%,
+      rgba(108, 93, 211, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at 100% 0%,
+      rgba(61, 220, 151, 0.08),
+      transparent 55%
+    ),
+    #0b0f19;
+  color: #e6e8ee;
+}
+
+/* Header: glass panel that floats over the shell */
+.wa-glass-header {
+  background: rgba(14, 17, 26, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Gradient brand title */
+.wa-title {
+  background: linear-gradient(90deg, #ffffff 0%, #b9b3ec 60%, #6c5dd3 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.01em;
+}
+
+/* Primary action with soft glow */
+.wa-btn-primary {
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(180deg, #7b6ce0, #6c5dd3);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 6px 20px rgba(108, 93, 211, 0.35);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+}
+.wa-btn-primary:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 10px 28px rgba(108, 93, 211, 0.5);
+  transform: translateY(-1px);
+}
+
+/* Ghost action */
+.wa-btn-ghost {
+  color: #c5c9d4;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+.wa-btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+/* KPI glass tiles */
+.wa-kpi {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+.wa-kpi:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(108, 93, 211, 0.4);
+}
+
+/* Tabs (pill style) */
+.wa-tab {
+  color: #8a90a2;
+  background: transparent;
+  border: 1px solid transparent;
+}
+.wa-tab:hover {
+  color: #e6e8ee;
+}
+.wa-tab-active {
+  color: #fff;
+  background: rgba(108, 93, 211, 0.16);
+  border-color: rgba(108, 93, 211, 0.4);
+}
+
+/* Template cards: glass with glowing border on hover */
+.wa-card {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+}
+.wa-card-hover {
+  transition:
+    transform 0.24s ease,
+    border-color 0.24s ease,
+    box-shadow 0.24s ease;
+}
+.wa-card-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(108, 93, 211, 0.55);
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(108, 93, 211, 0.25),
+    0 0 26px rgba(108, 93, 211, 0.22);
+}
+
+/* Card action icons — revealed/brightened on card hover */
+.wa-card-actions {
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+.wa-card-hover:hover .wa-card-actions {
+  opacity: 1;
+}
+.wa-icon-btn {
+  padding: 6px;
+  border-radius: 8px;
+  color: #c5c9d4;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+.wa-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.wa-icon-btn-danger {
+  color: #f06767;
+}
+.wa-icon-btn-danger:hover {
+  background: rgba(240, 103, 103, 0.14);
+  color: #ff8585;
+}
+
+/* Empty state */
+.wa-empty {
+  border-radius: 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.02);
+}
+.wa-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: rgba(108, 93, 211, 0.14);
+  border: 1px solid rgba(108, 93, 211, 0.3);
+  box-shadow: 0 0 30px rgba(108, 93, 211, 0.22);
+}
+
+/* Skeleton shimmer */
+.wa-skeleton {
+  pointer-events: none;
+}
+.wa-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 37%,
+    rgba(255, 255, 255, 0.04) 63%
+  );
+  background-size: 400% 100%;
+  animation: wa-shimmer 1.4s ease infinite;
+}
+@keyframes wa-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+</style>

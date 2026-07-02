@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Jabvox::InternalChatsController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_enabled
+  before_action :ensure_module_permission
   before_action :set_chat, only: %i[messages send_message mark_read]
 
   def index
@@ -78,6 +81,14 @@ class Api::V1::Accounts::Jabvox::InternalChatsController < Api::V1::Accounts::Ba
 
   def check_enabled
     render json: { error: 'Internal chat not enabled' }, status: :forbidden unless Current.account.jabvox_internal_chat_enabled_jabvox?
+  end
+
+  # Gate solo si el usuario tiene un custom role: sin rol personalizado se
+  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_internal_chat_use')
   end
 
   def set_chat

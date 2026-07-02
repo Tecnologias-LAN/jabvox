@@ -1,5 +1,4 @@
 <script setup>
-/* eslint-disable no-underscore-dangle */
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
@@ -8,6 +7,7 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import { DESTROY_KEY } from 'dashboard/helper/jabvox/nestedAttributes';
 import SideDrawer from './SideDrawer.vue';
 
 const props = defineProps({
@@ -47,7 +47,7 @@ const timestampModeOptions = computed(() => [
 ]);
 
 const visibleStages = computed(() =>
-  (editing.value?.stages || []).filter(s => !s._destroy)
+  (editing.value?.stages || []).filter(s => !s[DESTROY_KEY])
 );
 
 const openCreate = () => {
@@ -56,6 +56,7 @@ const openCreate = () => {
     is_default: false,
     transcription_model_id: null,
     typification_id: null,
+    transcription_prompt: '',
     timestamp_mode_jabvox: 'none',
     segment_seconds_jabvox: 30,
     stages: [],
@@ -84,7 +85,7 @@ const addStage = () => {
 
 const removeStage = stage => {
   if (stage.id) {
-    stage._destroy = true;
+    stage[DESTROY_KEY] = true;
   } else {
     editing.value.stages = editing.value.stages.filter(s => s !== stage);
   }
@@ -105,6 +106,7 @@ const handleSave = async () => {
     is_default: editing.value.is_default,
     transcription_model_id: editing.value.transcription_model_id,
     typification_id: editing.value.typification_id,
+    transcription_prompt: editing.value.transcription_prompt || '',
     timestamp_mode_jabvox: editing.value.timestamp_mode_jabvox || 'none',
     segment_seconds_jabvox: editing.value.segment_seconds_jabvox || 30,
     stages_attributes: editing.value.stages.map((s, i) => ({
@@ -114,7 +116,7 @@ const handleSave = async () => {
       min_score: s.min_score,
       llm_model_id: s.llm_model_id,
       position: i,
-      _destroy: s._destroy,
+      [DESTROY_KEY]: s[DESTROY_KEY],
     })),
   };
   try {
@@ -165,6 +167,19 @@ defineExpose({ openCreate, openEdit, close });
               :options="typificationOptions"
             />
           </div>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_CDR.SETTINGS.PIPELINE.TRANSCRIPTION_PROMPT') }}
+          </label>
+          <textarea
+            v-model="editing.transcription_prompt"
+            rows="2"
+            class="reset-base text-sm w-full rounded-lg border border-n-weak bg-n-alpha-black1 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-n-brand/40"
+            :placeholder="
+              t('JABVOX_CDR.SETTINGS.PIPELINE.TRANSCRIPTION_PROMPT')
+            "
+          />
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="flex flex-col gap-1.5">

@@ -1,5 +1,12 @@
 class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_leads_enabled
+  # Custom-role gates: only enforced when the user has a custom role assigned, so plain
+  # agents/admins keep their historical behavior (admins always pass via jabvox_gate!).
+  before_action -> { jabvox_gate!('jabvox_leads_assign') }, only: %i[bulk_assign bulk_unassign]
+  before_action -> { jabvox_gate!('jabvox_leads_delete') }, only: :bulk_destroy
+  before_action -> { jabvox_gate!('jabvox_leads_edit') }, only: :update_details
 
   PER_PAGE_OPTIONS = [10, 25, 50, 100, 200].freeze
   DEFAULT_PER_PAGE = 25
@@ -135,6 +142,15 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
 
   private
 
+  # Enforce a custom-role permission ONLY for users who actually have a custom role.
+  # Users on a standard role (custom_role nil) keep the historical flow untouched;
+  # admins always pass because jabvox_authorize! bypasses for administrators.
+  def jabvox_gate!(key)
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!(key)
+  end
+
   def update_contact_fields(lead)
     return if params[:contact].blank? || lead.contact.blank?
 
@@ -190,7 +206,7 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   def build_filter_scope
     Jabvox::LeadsFilterService.new(
       account: Current.account, user: current_user,
-      is_admin: Current.account_user.administrator?, filters: params
+      is_admin: jabvox_can?('jabvox_leads_view_all'), filters: params
     ).scope
   end
 

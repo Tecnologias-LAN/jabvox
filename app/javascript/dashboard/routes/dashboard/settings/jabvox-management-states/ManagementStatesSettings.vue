@@ -1,6 +1,4 @@
 <script setup>
-/* eslint-disable no-underscore-dangle */
-// _destroy is the Rails accepts_nested_attributes_for convention.
 import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
@@ -11,6 +9,7 @@ import StateListPanel from './components/StateListPanel.vue';
 import ManagementStateDrawer from './components/ManagementStateDrawer.vue';
 import SimpleStateDrawer from './components/SimpleStateDrawer.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
+import { DESTROY_KEY } from 'dashboard/helper/jabvox/nestedAttributes';
 
 const store = useStore();
 const { t } = useI18n();
@@ -78,7 +77,7 @@ const buildManagementPayload = (form, index) => ({
       position: i,
     };
     if (q.id) attrs.id = q.id;
-    if (q._destroy) attrs._destroy = true;
+    if (q[DESTROY_KEY]) attrs[DESTROY_KEY] = true;
     return attrs;
   }),
 });

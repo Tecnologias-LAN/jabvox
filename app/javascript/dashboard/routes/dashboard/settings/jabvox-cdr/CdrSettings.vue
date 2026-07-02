@@ -2,19 +2,14 @@
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
-import {
-  cdrConfigAPI,
-  cdrPipelinesAPI,
-  cdrPermissionsAPI,
-} from 'dashboard/api/jabvox/cdr';
+import { cdrConfigAPI, cdrPipelinesAPI } from 'dashboard/api/jabvox/cdr';
 import { aiChatModelsAPI } from 'dashboard/api/jabvox/aiChat';
 import { typificationsAPI } from 'dashboard/api/jabvox/clickToCall';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
-import Switch from 'dashboard/components-next/switch/Switch.vue';
 import Label from 'dashboard/components-next/label/Label.vue';
-import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import { DESTROY_KEY } from 'dashboard/helper/jabvox/nestedAttributes';
 import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import SectionCard from './components/SectionCard.vue';
 import PipelineDrawer from './components/PipelineDrawer.vue';
@@ -36,11 +31,6 @@ const tabs = [
     key: 'pipelines',
     icon: 'i-lucide-workflow',
     label: () => t('JABVOX_CDR.SETTINGS.TABS.PIPELINES'),
-  },
-  {
-    key: 'permissions',
-    icon: 'i-lucide-shield-check',
-    label: () => t('JABVOX_CDR.SETTINGS.TABS.PERMISSIONS'),
   },
 ];
 
@@ -171,7 +161,7 @@ const filteredPipelines = computed(() => {
   return pipelines.value.filter(p => p.name?.toLowerCase().includes(q));
 });
 
-const stageCount = p => (p.stages || []).filter(s => !s._destroy).length; // eslint-disable-line no-underscore-dangle
+const stageCount = p => (p.stages || []).filter(s => !s[DESTROY_KEY]).length;
 
 const loadPipelines = async () => {
   if (!aiModels.value.length) {
@@ -204,44 +194,9 @@ const doDeletePipeline = async id => {
   }
 };
 
-// ── permissions ──
-const permissions = ref([]);
-const permSearch = ref('');
-const savingPerms = ref(false);
-
-const grantedCount = computed(
-  () => permissions.value.filter(p => p.can_view).length
-);
-const filteredPermissions = computed(() => {
-  const q = permSearch.value.trim().toLowerCase();
-  if (!q) return permissions.value;
-  return permissions.value.filter(
-    p => p.name?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q)
-  );
-});
-
-const loadPermissions = async () => {
-  const { data } = await cdrPermissionsAPI.getAll();
-  permissions.value = data.permissions || [];
-};
-const savePermissions = async () => {
-  savingPerms.value = true;
-  const ids = permissions.value.filter(p => p.can_view).map(p => p.user_id);
-  try {
-    await cdrPermissionsAPI.bulk(ids);
-    useAlert(t('JABVOX_CDR.SETTINGS.SAVED'));
-  } catch {
-    useAlert(t('JABVOX_CDR.SETTINGS.SAVE_ERROR'));
-  } finally {
-    savingPerms.value = false;
-  }
-};
-
 const switchTab = async key => {
   activeTab.value = key;
   if (key === 'pipelines' && !pipelines.value.length) await loadPipelines();
-  if (key === 'permissions' && !permissions.value.length)
-    await loadPermissions();
 };
 
 onMounted(async () => {
@@ -644,93 +599,6 @@ onMounted(async () => {
                   @click="askDeletePipeline(p)"
                 />
               </div>
-            </div>
-          </div>
-        </template>
-      </div>
-
-      <!-- ── PERMISSIONS ── -->
-      <div v-else class="flex flex-col gap-5">
-        <div
-          class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
-        >
-          <div>
-            <h2 class="text-base font-semibold text-n-slate-12">
-              {{ t('JABVOX_CDR.SETTINGS.PERMISSIONS.TITLE') }}
-            </h2>
-            <p class="mt-1 text-sm text-n-slate-11 max-w-2xl">
-              {{ t('JABVOX_CDR.SETTINGS.PERMISSIONS.DESC') }}
-            </p>
-          </div>
-          <Button
-            :label="t('JABVOX_CDR.SETTINGS.SAVE')"
-            icon="i-lucide-save"
-            size="sm"
-            class="shrink-0"
-            :is-loading="savingPerms"
-            @click="savePermissions"
-          />
-        </div>
-
-        <div
-          v-if="!permissions.length"
-          class="rounded-xl border border-dashed border-n-weak py-12 text-center text-sm text-n-slate-11"
-        >
-          {{ t('JABVOX_CDR.SETTINGS.PERMISSIONS.EMPTY') }}
-        </div>
-
-        <template v-else>
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="relative w-full sm:w-64">
-              <Input
-                v-model="permSearch"
-                :placeholder="
-                  t('JABVOX_CDR.SETTINGS.PERMISSIONS.SEARCH_PLACEHOLDER')
-                "
-                custom-input-class="!pl-9"
-              >
-                <template #prefix>
-                  <span
-                    class="i-lucide-search size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                  />
-                </template>
-              </Input>
-            </div>
-            <span class="text-xs text-n-slate-10">
-              {{ grantedCount }} / {{ permissions.length }}
-              {{ t('JABVOX_CDR.SETTINGS.PERMISSIONS.GRANTED') }}
-            </span>
-          </div>
-
-          <div
-            v-if="!filteredPermissions.length"
-            class="rounded-xl border border-dashed border-n-weak py-10 text-center text-sm text-n-slate-11"
-          >
-            {{ t('JABVOX_CDR.SETTINGS.PERMISSIONS.NO_RESULTS') }}
-          </div>
-
-          <div
-            v-else
-            class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm divide-y divide-n-weak overflow-hidden"
-          >
-            <div
-              v-for="perm in filteredPermissions"
-              :key="perm.user_id"
-              class="flex items-center gap-3 px-4 py-3"
-            >
-              <Avatar
-                :name="perm.name"
-                :src="perm.thumbnail"
-                :size="32"
-                rounded-full
-              />
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-n-slate-12 truncate">
-                  {{ perm.name }}
-                </p>
-                <p class="text-xs text-n-slate-10 truncate">{{ perm.email }}</p>
-              </div>
-              <Switch v-model="perm.can_view" />
             </div>
           </div>
         </template>

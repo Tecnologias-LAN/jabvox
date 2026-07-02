@@ -1,4 +1,7 @@
 class Api::V1::Accounts::Jabvox::TypificationsController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
+  before_action :ensure_module_permission
   before_action :set_typification, only: [:update, :destroy]
 
   # Shared across click-to-call, CDR and Audio Analysis pipelines.
@@ -24,6 +27,14 @@ class Api::V1::Accounts::Jabvox::TypificationsController < Api::V1::Accounts::Ba
   end
 
   private
+
+  # Custom-role gate: users without a custom role keep historical access;
+  # users with a custom role must be granted the capability (admins always pass).
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_typifications_manage')
+  end
 
   def set_typification
     @typification = Current.account.jabvox_typifications.find(params[:id])

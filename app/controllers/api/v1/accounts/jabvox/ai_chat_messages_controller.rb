@@ -1,12 +1,14 @@
 class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_feature_enabled
 
   def my_access
-    perm = JabvoxAiChatUserPermission.for(Current.account.id, current_user.id)
+    can_manage = jabvox_can?('jabvox_ai_chat_manage')
     render json: {
-      can_use: perm.persisted? ? perm.can_use_jabvox : true,
-      can_use_models: perm.persisted? ? perm.can_use_models_jabvox : true,
-      can_use_documents: perm.persisted? ? perm.can_use_documents_jabvox : true
+      can_use: jabvox_can?('jabvox_ai_chat_use'),
+      can_use_models: can_manage,
+      can_use_documents: can_manage
     }
   end
 
@@ -99,9 +101,9 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
   end
 
   def check_access!
-    perm = JabvoxAiChatUserPermission.for(Current.account.id, current_user.id)
-    can_use = perm.persisted? ? perm.can_use_jabvox : true
-    render json: { error: 'No tienes acceso al Chat IA.' }, status: :forbidden and return unless can_use
+    return if jabvox_can?('jabvox_ai_chat_use')
+
+    render json: { error: 'No tienes acceso al Chat IA.' }, status: :forbidden
   end
 
   def check_open_chats_limit!

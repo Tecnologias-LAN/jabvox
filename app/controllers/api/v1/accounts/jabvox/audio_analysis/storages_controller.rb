@@ -1,5 +1,7 @@
 class Api::V1::Accounts::Jabvox::AudioAnalysis::StoragesController < Api::V1::Accounts::Jabvox::AudioAnalysis::BaseController
   before_action :ensure_can_access
+  # Write/config actions require the manage capability (read access is not enough).
+  before_action :ensure_can_manage, only: [:create, :update, :destroy, :test, :assign]
   before_action :set_storage, only: [:update, :destroy, :objects, :assign, :playback]
 
   def index

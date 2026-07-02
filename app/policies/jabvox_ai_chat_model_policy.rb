@@ -1,8 +1,14 @@
 class JabvoxAiChatModelPolicy < ApplicationPolicy
-  def index?    = @account_user.administrator?
-  def create?   = @account_user.administrator?
-  def update?   = @account_user.administrator?
-  def destroy?  = @account_user.administrator?
-  def set_default? = @account_user.administrator?
-  def test_connection? = @account_user.administrator?
+  # Admins always pass; a custom role granting jabvox_ai_chat_manage also passes.
+  def can_manage?
+    @account_user.administrator? ||
+      @account_user.custom_role&.grants?('jabvox_ai_chat_manage') || false
+  end
+
+  def index?    = can_manage?
+  def create?   = can_manage?
+  def update?   = can_manage?
+  def destroy?  = can_manage?
+  def set_default? = can_manage?
+  def test_connection? = can_manage?
 end

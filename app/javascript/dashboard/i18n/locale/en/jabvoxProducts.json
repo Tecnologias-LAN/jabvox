@@ -166,6 +166,7 @@
       "EMAIL": "Email",
       "PREVIEW": "Header preview",
       "QUOTE_LABEL": "Quote",
+      "QUOTE_BADGE": "COTIZACIÓN",
       "QUOTE_NUMBER_PREVIEW": "No. 1",
       "SECTION_DESC": "Datos de tu empresa que aparecerán en las cotizaciones y facturas PDF.",
       "PREVIEW_TITLE": "Vista previa"
@@ -206,7 +207,22 @@
       "SENT_TO_ALEGRA": "Sent to Alegra successfully.",
       "ALREADY_SENT": "Already sent to Alegra",
       "HISTORY_TITLE": "Contact History",
-      "HISTORY_EMPTY": "No history available for this contact."
+      "HISTORY_EMPTY": "No history available for this contact.",
+      "TOTAL_LABEL": "Total:",
+      "ORDERS_COUNT": "{count} order(s)",
+      "MESSAGES_COUNT": "{count} message(s)",
+      "NOTES_COUNT": "{count} note(s)",
+      "SECTION_ORDERS": "Orders",
+      "SECTION_CHAT": "Chat",
+      "SECTION_NOTES": "Notes",
+      "COL_PRODUCT": "Product",
+      "COL_QTY": "Qty",
+      "COL_PRICE": "Price",
+      "COL_DISCOUNT": "Disc.",
+      "COL_TAX": "Tax",
+      "COL_TOTAL": "Total",
+      "ROLE_AGENT": "Agent",
+      "ROLE_CONTACT": "Contact"
     },
     "SALES_REPORTS": {
       "TITLE": "Sales Reports",

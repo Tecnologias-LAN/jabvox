@@ -2,6 +2,9 @@
 # creates real contacts/leads, never used to place calls.
 class Api::V1::Accounts::Jabvox::Tasks::LeadContactsController < Api::V1::Accounts::Jabvox::Tasks::BaseController
   before_action :set_contact, only: %i[update destroy]
+  # Editing a lead's reference contacts is custom-role gated; standard agents keep historical
+  # behavior, admins always pass.
+  before_action -> { jabvox_gate!('jabvox_tasks_manage') }, only: %i[create update destroy]
 
   def index
     contacts = scoped

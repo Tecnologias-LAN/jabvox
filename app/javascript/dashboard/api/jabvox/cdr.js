@@ -40,9 +40,3 @@ export const cdrPipelinesAPI = {
     axios.patch(`${base}/pipelines/${id}`, { pipeline }),
   destroy: id => axios.delete(`${base}/pipelines/${id}`),
 };
-
-export const cdrPermissionsAPI = {
-  getAll: () => axios.get(`${base}/permissions`),
-  bulk: userIds =>
-    axios.patch(`${base}/permissions/bulk`, { user_ids: userIds }),
-};

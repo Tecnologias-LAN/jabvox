@@ -1,4 +1,6 @@
 class Api::V1::Accounts::Jabvox::KanbanBoardController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
   before_action :fetch_funnel
   before_action :check_authorization
 
@@ -34,6 +36,8 @@ class Api::V1::Accounts::Jabvox::KanbanBoardController < Api::V1::Accounts::Jabv
   # conversations that weren't assigned to the agent.
   def visible_entry?(entry)
     return true if Current.account_user&.administrator?
+    # Custom role that grants the whole board sees every card, like an admin.
+    return true if jabvox_can?('jabvox_kanban_view_all')
 
     if entry.jabvox_lead_id.present? && entry.conversation_id.nil?
       entry.jabvox_lead&.assignee_id == current_user.id

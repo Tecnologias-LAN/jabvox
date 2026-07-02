@@ -12,6 +12,8 @@
 #   - Row data is run through CustomRowDataSanitizer, which drops unknown keys,
 #     coerces values to each column's type, and enforces required columns.
 class Api::V1::Accounts::Jabvox::CustomTableDataController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_customization_enabled
   before_action :ensure_admin
   before_action :set_table
@@ -55,8 +57,10 @@ class Api::V1::Accounts::Jabvox::CustomTableDataController < Api::V1::Accounts::
     render json: { error: 'Customization module not enabled' }, status: :forbidden
   end
 
+  # Admins keep full access (jabvox_can? bypasses for admins); a custom role may
+  # also manage this data via jabvox_custom_data_manage.
   def ensure_admin
-    return if Current.account_user&.administrator?
+    return if jabvox_can?('jabvox_custom_data_manage')
 
     render json: { error: 'Solo los administradores pueden gestionar datos de tablas' }, status: :forbidden
   end

@@ -1,5 +1,7 @@
 class Api::V1::Accounts::Jabvox::AudioAnalysis::PipelinesController < Api::V1::Accounts::Jabvox::AudioAnalysis::BaseController
   before_action :ensure_can_access
+  # Write actions require the manage capability (read access alone is not enough).
+  before_action :ensure_can_manage, only: [:create, :update, :destroy]
   before_action :set_pipeline, only: [:show, :update, :destroy]
 
   def index

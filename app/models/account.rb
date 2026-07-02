@@ -201,8 +201,10 @@ class Account < ApplicationRecord
   has_many :jabvox_analytics_audit_logs, dependent: :delete_all
   # Jabvox Tasks (kanban) module
   has_many :jabvox_task_boards, dependent: :destroy
+  has_many :jabvox_task_stages, dependent: :destroy
   has_many :jabvox_tasks, dependent: :destroy
   has_many :jabvox_task_lead_contacts, dependent: :destroy
+  has_many :jabvox_task_activities, dependent: :delete_all
   has_many :jabvox_task_webhook_deliveries, dependent: :delete_all
   has_many :jabvox_task_automations, dependent: :destroy
   has_many :jabvox_task_automation_runs, dependent: :delete_all

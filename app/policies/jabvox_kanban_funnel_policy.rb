@@ -1,4 +1,10 @@
 class JabvoxKanbanFunnelPolicy < ApplicationPolicy
+  # Admins always pass; a custom role granting jabvox_kanban_manage also passes.
+  def can_manage?
+    @account_user.administrator? ||
+      @account_user.custom_role&.grants?('jabvox_kanban_manage') || false
+  end
+
   def index?
     @account_user.administrator? || @account_user.agent?
   end
@@ -8,14 +14,14 @@ class JabvoxKanbanFunnelPolicy < ApplicationPolicy
   end
 
   def create?
-    @account_user.administrator?
+    can_manage?
   end
 
   def update?
-    @account_user.administrator?
+    can_manage?
   end
 
   def destroy?
-    @account_user.administrator?
+    can_manage?
   end
 end

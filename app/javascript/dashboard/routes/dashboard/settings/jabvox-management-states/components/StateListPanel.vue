@@ -1,10 +1,10 @@
 <script setup>
-/* eslint-disable no-underscore-dangle */
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Label from 'dashboard/components-next/label/Label.vue';
 import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
+import { DESTROY_KEY } from 'dashboard/helper/jabvox/nestedAttributes';
 import KpiCard from './KpiCard.vue';
 import FilterBar from './FilterBar.vue';
 
@@ -35,7 +35,7 @@ const nameOf = it => it[props.nameField] ?? '';
 const colorOf = it => it[props.colorField] || '#64748b';
 const activeOf = it =>
   props.withActive ? (it[props.activeField] ?? true) : true;
-const questionsOf = it => (it.questions || []).filter(q => !q._destroy);
+const questionsOf = it => (it.questions || []).filter(q => !q[DESTROY_KEY]);
 
 const total = computed(() => props.items.length);
 const activeCount = computed(

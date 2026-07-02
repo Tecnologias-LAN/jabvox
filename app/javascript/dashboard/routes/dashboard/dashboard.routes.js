@@ -21,6 +21,7 @@ import { routes as jabvoxCdrRoutes } from './jabvox-cdr/routes';
 import { routes as jabvoxAudioAnalysisRoutes } from './jabvox-audio-analysis/routes';
 import { routes as jabvoxAnalyticsRoutes } from './jabvox-analytics/routes';
 import { routes as jabvoxTasksRoutes } from './jabvox-tasks/routes';
+import { routes as jabvoxCustomDataRoutes } from './jabvox-custom-data/routes';
 import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
 import NoAccounts from './noAccounts/Index.vue';
@@ -53,6 +54,7 @@ export default {
         ...jabvoxAudioAnalysisRoutes,
         ...jabvoxAnalyticsRoutes,
         ...jabvoxTasksRoutes,
+        ...jabvoxCustomDataRoutes,
       ],
     },
     {

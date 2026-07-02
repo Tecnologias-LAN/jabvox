@@ -90,7 +90,10 @@
       "EVENTS_COUNT": "{count} citas",
       "SAVED": "Persona guardada",
       "DELETED": "Persona eliminada",
-      "DELETE_CONFIRM": "¿Eliminar esta persona externa?"
+      "DELETE_CONFIRM": "¿Eliminar esta persona externa?",
+      "DELETE_TITLE": "Eliminar persona externa",
+      "DELETE": "Eliminar",
+      "CANCEL": "Cancelar"
     },
     "TYPES": {
       "reminder": "Recordatorio",

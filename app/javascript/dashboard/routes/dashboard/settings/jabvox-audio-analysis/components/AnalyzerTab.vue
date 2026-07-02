@@ -230,7 +230,6 @@ const goNext = () => {
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-bare-strings-in-template -- emoji/symbols are universal -->
   <div class="flex flex-col gap-5">
     <!-- Analyzer: storage origin only -->
     <SettingsCard

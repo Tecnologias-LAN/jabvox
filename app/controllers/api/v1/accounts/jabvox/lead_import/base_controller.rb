@@ -1,4 +1,6 @@
 class Api::V1::Accounts::Jabvox::LeadImport::BaseController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_feature_enabled
   # Managing external DB connections is admin-only (credentials, network access).
   before_action :ensure_admin
@@ -12,8 +14,10 @@ class Api::V1::Accounts::Jabvox::LeadImport::BaseController < Api::V1::Accounts:
            status: :forbidden
   end
 
+  # Admins keep full access (jabvox_can? bypasses for admins); a custom role may
+  # also manage imports via jabvox_lead_import_manage.
   def ensure_admin
-    return if Current.account_user&.administrator?
+    return if jabvox_can?('jabvox_lead_import_manage')
 
     render json: { error: 'Solo los administradores pueden gestionar la importación de leads' },
            status: :forbidden

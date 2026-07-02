@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
+  # Report views are gated by jabvox_reports_view. set_dialer_state is excluded:
+  # it lets the current user set their OWN presence, which any agent may do.
+  before_action :ensure_reports_permission, except: [:set_dialer_state]
+
   def products
     orders = Current.account.jabvox_orders
     orders = orders.where(doc_type: params[:doc_type]) if params[:doc_type].present?
@@ -168,6 +174,14 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
   end
 
   private
+
+  # Gate only applies to users with a custom role; users without one keep the
+  # historical behavior (admins always pass via jabvox_can?).
+  def ensure_reports_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_reports_view')
+  end
 
   def build_date_range
     from = params[:date_from].present? ? params[:date_from].to_date.beginning_of_day : 30.days.ago

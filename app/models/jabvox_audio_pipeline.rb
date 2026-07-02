@@ -48,6 +48,10 @@ class JabvoxAudioPipeline < ApplicationRecord
   scope :ordered, -> { order(:name) }
 
   after_save :ensure_single_default, if: :saved_change_to_is_default?
+  # Mirror to the CDR module (only when both modules are enabled). after_commit
+  # so stages are already persisted and the write happens outside this transaction.
+  after_commit :mirror_to_other_module, on: %i[create update]
+  after_commit :remove_other_module_mirror, on: :destroy
 
   private
 
@@ -55,5 +59,13 @@ class JabvoxAudioPipeline < ApplicationRecord
     return unless is_default?
 
     account.jabvox_audio_pipelines.where.not(id: id).update_all(is_default: false)
+  end
+
+  def mirror_to_other_module
+    Jabvox::PipelineSyncService.mirror(self)
+  end
+
+  def remove_other_module_mirror
+    Jabvox::PipelineSyncService.remove_mirror(self)
   end
 end

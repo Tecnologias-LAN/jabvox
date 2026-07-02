@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_02_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_02_000004) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1632,6 +1632,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_000001) do
     t.bigint "typification_id"
     t.string "timestamp_mode_jabvox", default: "none", null: false
     t.integer "segment_seconds_jabvox", default: 30, null: false
+    t.text "transcription_prompt"
     t.index ["account_id"], name: "index_jabvox_cdr_pipelines_on_account_id"
     t.index ["transcription_model_id"], name: "index_jabvox_cdr_pipelines_on_transcription_model_id"
     t.index ["typification_id"], name: "index_jabvox_cdr_pipelines_on_typification_id"
@@ -3131,6 +3132,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_000001) do
     t.integer "consumed_timestep"
     t.boolean "otp_required_for_login", default: false
     t.text "otp_backup_codes"
+    t.boolean "can_view_access_token_jabvox", default: false, null: false
     t.index ["email"], name: "index_users_on_email"
     t.index ["otp_required_for_login"], name: "index_users_on_otp_required_for_login"
     t.index ["otp_secret"], name: "index_users_on_otp_secret", unique: true

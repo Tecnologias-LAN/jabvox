@@ -8,6 +8,7 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const { t } = useI18n();
 
@@ -23,6 +24,7 @@ const testing = ref(false);
 const mapping = ref(null); // { source, tables, columns, leadFields, table, externalIdColumn, map }
 const loadingSchema = ref(false);
 const syncingId = ref(null);
+const confirmDialog = ref(null);
 let pollTimer = null;
 
 const engineOptions = computed(() => [
@@ -367,17 +369,25 @@ const isMapped = source =>
   source.field_mapping_jabvox &&
   Object.keys(source.field_mapping_jabvox).length > 0;
 
-const syncSource = async source => {
+const syncSource = source => {
   if (!isMapped(source)) {
     useAlert(t('JABVOX_LEAD_IMPORT.SYNC_NEEDS_MAPPING'));
     return;
   }
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(t('JABVOX_LEAD_IMPORT.SYNC_CONFIRM'))) return;
+  confirmDialog.value?.open({
+    title: t('JABVOX_LEAD_IMPORT.SYNC'),
+    description: t('JABVOX_LEAD_IMPORT.SYNC_CONFIRM'),
+    confirmLabel: t('JABVOX_LEAD_IMPORT.SYNC'),
+    cancelLabel: t('JABVOX_LEAD_IMPORT.FORM.CANCEL'),
+    data: source.id,
+  });
+};
+
+const doSync = async sourceId => {
   try {
-    await leadSourcesAPI.sync(source.id);
-    syncingId.value = source.id;
-    pollSync(source.id);
+    await leadSourcesAPI.sync(sourceId);
+    syncingId.value = sourceId;
+    pollSync(sourceId);
     useAlert(t('JABVOX_LEAD_IMPORT.SYNC_STARTED'));
   } catch (e) {
     useAlert(apiError(e, 'JABVOX_LEAD_IMPORT.SYNC_ERROR'));
@@ -843,5 +853,7 @@ onUnmounted(() => clearInterval(pollTimer));
         </p>
       </div>
     </div>
+
+    <ConfirmDialog ref="confirmDialog" @confirm="doSync" />
   </div>
 </template>

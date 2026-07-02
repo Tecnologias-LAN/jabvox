@@ -110,6 +110,7 @@
         "NO_TRANSCRIPTION": "No transcription",
         "TYPIFICATION": "Typification",
         "NO_TYPIFICATION": "No typification",
+        "TRANSCRIPTION_PROMPT": "Transcription prompt (optional)",
         "TIMESTAMP_MODE": "Transcript timestamps",
         "TS_NONE": "No timestamps",
         "TS_WORD": "Per word",

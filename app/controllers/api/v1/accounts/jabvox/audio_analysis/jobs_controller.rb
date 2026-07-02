@@ -1,5 +1,7 @@
 class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accounts::Jabvox::AudioAnalysis::BaseController
   before_action :ensure_can_access
+  # Launching an analysis job requires the manage capability.
+  before_action :ensure_can_manage, only: [:create]
   before_action :set_job, only: [:show, :results]
 
   MAX_FILES = 500

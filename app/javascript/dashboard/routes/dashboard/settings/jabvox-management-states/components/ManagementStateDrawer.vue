@@ -1,11 +1,11 @@
 <script setup>
-/* eslint-disable no-underscore-dangle */
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import { DESTROY_KEY } from 'dashboard/helper/jabvox/nestedAttributes';
 import SideDrawer from './SideDrawer.vue';
 
 defineProps({
@@ -61,7 +61,7 @@ const questionTypeOptions = computed(() => [
 ]);
 
 const visibleQuestions = computed(() =>
-  form.value.questions.filter(q => !q._destroy)
+  form.value.questions.filter(q => !q[DESTROY_KEY])
 );
 
 const openNew = () => {
@@ -103,7 +103,7 @@ const addQuestion = () => {
 
 const removeQuestion = q => {
   if (q.id) {
-    q._destroy = true;
+    q[DESTROY_KEY] = true;
   } else {
     form.value.questions = form.value.questions.filter(x => x !== q);
   }

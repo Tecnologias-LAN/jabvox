@@ -13,9 +13,6 @@ const configClient = new ApiClient('jabvox/ai_chat_configs', {
 const documentsClient = new ApiClient('jabvox/ai_chat_documents', {
   accountScoped: true,
 });
-const permissionsClient = new ApiClient('jabvox/ai_chat_permissions', {
-  accountScoped: true,
-});
 
 export const aiChatAPI = {
   getMyAccess: () => axios.get(`${chatClient.url}/my_access`),
@@ -50,12 +47,4 @@ export const aiChatDocumentsAPI = {
       jabvox_ai_chat_document: data,
     }),
   destroy: id => axios.delete(`${documentsClient.url}/${id}`),
-};
-
-export const aiChatPermissionsAPI = {
-  getAll: () => axios.get(permissionsClient.url),
-  update: (userId, data) =>
-    axios.patch(`${permissionsClient.url}/${userId}`, { permission: data }),
-  bulkUpdate: permissions =>
-    axios.patch(`${permissionsClient.url}/bulk_update`, { permissions }),
 };

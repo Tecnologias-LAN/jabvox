@@ -3,6 +3,8 @@
 # Receives real-time dialer events from the isabell backend and forwards them
 # to the relevant agent via ActionCable.
 class Api::V1::Accounts::Jabvox::DialerEventsController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
   before_action :require_admin
 
   def create
@@ -25,8 +27,12 @@ class Api::V1::Accounts::Jabvox::DialerEventsController < Api::V1::Accounts::Jab
 
   private
 
+  # Admins always pass (jabvox_can? bypasses for admins); a custom role may also
+  # access dialer events via jabvox_dialer_manage.
   def require_admin
-    render json: { error: 'forbidden' }, status: :forbidden unless current_user.administrator?
+    return if jabvox_can?('jabvox_dialer_manage')
+
+    render json: { error: 'forbidden' }, status: :forbidden
   end
 
   def enrich_call_assigned(data) # rubocop:disable Metrics/MethodLength

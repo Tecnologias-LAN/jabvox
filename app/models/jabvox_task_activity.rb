@@ -34,7 +34,7 @@ class JabvoxTaskActivity < ApplicationRecord
   # Recognized activity kinds. Free-form metadata carries the specifics (from/to, names…).
   ACTIONS = %w[
     created stage_changed status_changed priority_changed
-    due_date_changed assignee_added assignee_removed updated
+    due_date_changed assignee_added assignee_removed lead_changed updated
   ].freeze
 
   belongs_to :account

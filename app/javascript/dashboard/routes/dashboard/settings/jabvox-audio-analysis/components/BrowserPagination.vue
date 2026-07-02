@@ -46,7 +46,6 @@ const { t } = useI18n();
         :disabled="page <= 1"
         @click="emit('prev')"
       />
-      <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
       <span class="text-xs text-n-slate-11 tabular-nums">
         {{ page }} / {{ totalPages }}
       </span>

@@ -1,5 +1,8 @@
 class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jabvox::Tasks::BaseController
   before_action :set_task, only: %i[show update destroy move activities automation_runs]
+  # Creating/editing/moving/deleting tasks is a management action (custom-role gated;
+  # standard agents keep historical behavior, admins always pass).
+  before_action -> { jabvox_gate!('jabvox_tasks_manage') }, only: %i[create update destroy move]
 
   # Filterable by board, lead, and date range (board view + calendar view + per-lead filter).
   def index
@@ -124,6 +127,7 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
   # their id and a human-readable name so the history can say what changed.
   def task_snapshot(task)
     {
+      title: task.title_jabvox, description: task.description_jabvox,
       status: task.status_jabvox, priority: task.priority_jabvox,
       due_at: task.due_at_jabvox,
       lead_id: task.jabvox_lead_id, lead_name: lead_label(task.jabvox_lead),
@@ -132,11 +136,25 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
   end
 
   def log_field_changes(task, before)
+    log_title_change(task, before)
+    log_description_change(task, before)
     log_status_change(task, before)
     log_priority_change(task, before)
     log_due_date_change(task, before)
     log_stage_change(task, before)
     log_lead_change(task, before)
+  end
+
+  def log_title_change(task, before)
+    return if before[:title] == task.title_jabvox
+
+    task.log_activity(:title_changed, current_user, from: before[:title], to: task.title_jabvox)
+  end
+
+  def log_description_change(task, before)
+    return if before[:description].to_s == task.description_jabvox.to_s
+
+    task.log_activity(:description_changed, current_user)
   end
 
   def log_status_change(task, before)

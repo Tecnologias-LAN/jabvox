@@ -1,6 +1,4 @@
 <script setup>
-/* eslint-disable no-underscore-dangle */
-// _destroy is the Rails accepts_nested_attributes_for convention.
 import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
@@ -10,19 +8,19 @@ import {
   audioStoragesAPI,
   audioPipelinesAPI,
   audioJobsAPI,
-  audioAccessAPI,
   audioReportsAPI,
 } from 'dashboard/api/jabvox/audioAnalysis';
 import { aiChatModelsAPI } from 'dashboard/api/jabvox/aiChat';
 import { typificationsAPI } from 'dashboard/api/jabvox/clickToCall';
+import { DESTROY_KEY } from 'dashboard/helper/jabvox/nestedAttributes';
 
 import Breadcrumb from 'dashboard/components-next/breadcrumb/Breadcrumb.vue';
 import StoragesTab from './components/StoragesTab.vue';
 import PipelinesTab from './components/PipelinesTab.vue';
 import AnalyzerTab from './components/AnalyzerTab.vue';
 import JobsTab from './components/JobsTab.vue';
-import AccessTab from './components/AccessTab.vue';
 import StatusRow from './components/StatusRow.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const { t } = useI18n();
 const store = useStore();
@@ -34,6 +32,7 @@ const agents = useMapGetter('agents/getAgents');
 // Editor refs (declared up top so setEditorClean can resolve them by key).
 const editingStorage = ref(null);
 const editingPipeline = ref(null);
+const confirmDialog = ref(null);
 watch(editingStorage, () => markDirty(), { deep: true });
 watch(editingPipeline, () => markDirty(), { deep: true });
 
@@ -85,12 +84,6 @@ const baseTabs = [
     icon: 'i-lucide-database',
     adminOnly: true,
   },
-  {
-    key: 'access',
-    label: () => t('JABVOX_AUDIO.TABS.ACCESS'),
-    icon: 'i-lucide-shield-check',
-    adminOnly: true,
-  },
 ];
 const tabs = computed(() =>
   baseTabs.filter(tab => !tab.adminOnly || access.value.is_admin)
@@ -135,9 +128,17 @@ const testStorage = async () => {
     useAlert(apiErrorMessage(e, 'JABVOX_AUDIO.TEST_ERROR'));
   }
 };
-const deleteStorage = async id => {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(t('JABVOX_AUDIO.CONFIRM_DELETE'))) return;
+const deleteStorage = id => {
+  confirmDialog.value?.open({
+    title: t('JABVOX_AUDIO.DELETE'),
+    description: t('JABVOX_AUDIO.CONFIRM_DELETE'),
+    confirmLabel: t('JABVOX_AUDIO.DELETE'),
+    cancelLabel: t('JABVOX_AUDIO.CANCEL'),
+    data: { kind: 'storage', id },
+  });
+};
+
+const doDeleteStorage = async id => {
   await audioStoragesAPI.destroy(id);
   await loadStorages();
 };
@@ -172,24 +173,37 @@ const newPipeline = () => ({
   segment_seconds_jabvox: 30,
   stages: [],
 });
-const deletePipeline = async id => {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(t('JABVOX_AUDIO.CONFIRM_DELETE'))) return;
+const deletePipeline = id => {
+  confirmDialog.value?.open({
+    title: t('JABVOX_AUDIO.DELETE'),
+    description: t('JABVOX_AUDIO.CONFIRM_DELETE'),
+    confirmLabel: t('JABVOX_AUDIO.DELETE'),
+    cancelLabel: t('JABVOX_AUDIO.CANCEL'),
+    data: { kind: 'pipeline', id },
+  });
+};
+
+const doDeletePipeline = async id => {
   await audioPipelinesAPI.destroy(id);
   await loadPipelines();
+};
+
+const onConfirmDelete = ({ kind, id }) => {
+  if (kind === 'storage') doDeleteStorage(id);
+  else if (kind === 'pipeline') doDeletePipeline(id);
 };
 const addStage = () => {
   editingPipeline.value.stages.push({ name: '', prompt: '', min_score: 60 });
 };
 const removeStage = index => {
   const stage = editingPipeline.value.stages[index];
-  if (stage.id) stage._destroy = true;
+  if (stage.id) stage[DESTROY_KEY] = true;
   else editingPipeline.value.stages.splice(index, 1);
 };
 const savePipeline = async () => {
   if (!editingPipeline.value.name)
     return useAlert(t('JABVOX_AUDIO.PIPELINE.NAME_REQUIRED'));
-  if (!editingPipeline.value.stages.filter(s => !s._destroy).length)
+  if (!editingPipeline.value.stages.filter(s => !s[DESTROY_KEY]).length)
     return useAlert(t('JABVOX_AUDIO.PIPELINE.STAGES_REQUIRED'));
   const payload = {
     name: editingPipeline.value.name,
@@ -207,7 +221,7 @@ const savePipeline = async () => {
       min_score: s.min_score,
       llm_model_id: s.llm_model_id,
       position: i,
-      _destroy: s._destroy,
+      [DESTROY_KEY]: s[DESTROY_KEY],
     })),
   };
   try {
@@ -400,30 +414,11 @@ const toggleTranscript = key => {
   expandedResultKey.value = expandedResultKey.value === key ? null : key;
 };
 
-// ---------- Access ----------
-const users = ref([]);
-const loadUsers = async () => {
-  const { data } = await audioAccessAPI.users();
-  users.value = data.users || [];
-};
-const updateUser = async user => {
-  try {
-    await audioAccessAPI.updateUser({
-      user_id: user.user_id,
-      can_access: user.can_access,
-      can_view_reports: user.can_view_reports,
-    });
-  } catch (e) {
-    useAlert(apiErrorMessage(e, 'JABVOX_AUDIO.SAVE_ERROR'));
-  }
-};
-
 const switchTab = async key => {
   activeTab.value = key;
   if (key === 'storages' && !storages.value.length) await loadStorages();
   if (key === 'pipelines' && !pipelines.value.length) await loadPipelines();
   if (key === 'jobs') await loadJobs();
-  if (key === 'access' && !users.value.length) await loadUsers();
   if (key === 'analyzer') {
     if (!storages.value.length) await loadStorages();
     if (!pipelines.value.length) await loadPipelines();
@@ -575,12 +570,6 @@ onMounted(async () => {
             @test="testStorage"
             @cancel="setEditorClean('storage', null)"
           />
-
-          <AccessTab
-            v-else-if="activeTab === 'access'"
-            :users="users"
-            @update-user="updateUser"
-          />
         </main>
 
         <!-- Sidebar -->
@@ -705,8 +694,11 @@ onMounted(async () => {
           <span class="i-lucide-x size-4" aria-hidden="true" />
         </button>
       </div>
-      <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->
-      <audio :src="playingUrl" controls autoplay class="w-full" />
+      <audio :src="playingUrl" controls autoplay class="w-full">
+        <track kind="captions" />
+      </audio>
     </div>
+
+    <ConfirmDialog ref="confirmDialog" @confirm="onConfirmDelete" />
   </div>
 </template>

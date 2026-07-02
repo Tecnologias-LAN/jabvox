@@ -49,9 +49,3 @@ export const wtImportAPI = {
   importJson: (inboxId, templates) =>
     axios.post(`${base}/import`, { inbox_id: inboxId, templates }),
 };
-
-export const wtPermissionsAPI = {
-  getAll: () => axios.get(`${base}/permissions`),
-  bulk: userIds =>
-    axios.patch(`${base}/permissions/bulk`, { user_ids: userIds }),
-};

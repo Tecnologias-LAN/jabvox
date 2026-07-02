@@ -28,7 +28,8 @@ class CustomRole < ApplicationRecord
   belongs_to :account
   has_many :account_users, dependent: :nullify
 
-  PERMISSIONS = %w[
+  # Chatwoot base permissions.
+  BASE_PERMISSIONS = %w[
     conversation_manage
     conversation_unassigned_manage
     conversation_participating_manage
@@ -37,6 +38,76 @@ class CustomRole < ApplicationRecord
     knowledge_base_manage
   ].freeze
 
+  # Per-module Jabvox permissions, grouped by module. Each entry gates a real
+  # action in that module's controllers/scoping (see JabvoxPermissions concern).
+  # Naming: jabvox_<module>_<capability>.
+  JABVOX_PERMISSIONS = %w[
+    jabvox_leads_view_all
+    jabvox_leads_assign
+    jabvox_leads_edit
+    jabvox_leads_delete
+    jabvox_kanban_view_all
+    jabvox_kanban_manage
+    jabvox_tasks_view_all
+    jabvox_tasks_manage
+    jabvox_cdr_view_reports
+    jabvox_cdr_manage
+    jabvox_audio_access
+    jabvox_audio_view_reports
+    jabvox_audio_manage
+    jabvox_ai_chat_use
+    jabvox_ai_chat_manage
+    jabvox_whatsapp_templates_manage
+    jabvox_analytics_access
+    jabvox_analytics_manage
+    jabvox_lead_import_manage
+    jabvox_data_export_manage
+    jabvox_bulk_whatsapp_send
+    jabvox_custom_data_manage
+    jabvox_dialer_use
+    jabvox_dialer_manage
+    jabvox_click_to_call_use
+    jabvox_internal_chat_use
+    jabvox_calendar_manage
+    jabvox_response_bot_manage
+    jabvox_forms_manage
+    jabvox_sms_view
+    jabvox_sms_manage
+    jabvox_email_manage
+    jabvox_saldo_manage
+    jabvox_voip_manage
+    jabvox_integration_manage
+    jabvox_ip_whitelist_manage
+    jabvox_products_manage
+    jabvox_orders_manage
+    jabvox_typifications_manage
+    jabvox_management_states_manage
+    jabvox_field_visibilities_manage
+    jabvox_sales_reports_manage
+    jabvox_campaigns_manage
+    jabvox_affiliates_manage
+    jabvox_app_states_manage
+    jabvox_reports_view
+  ].freeze
+
+  PERMISSIONS = (BASE_PERMISSIONS + JABVOX_PERMISSIONS).freeze
+
   validates :name, presence: true
-  validates :permissions, inclusion: { in: PERMISSIONS }
+  validate :permissions_within_catalog
+
+  # Convenience: does this role grant the given permission key?
+  def grants?(permission)
+    permissions.include?(permission.to_s)
+  end
+
+  private
+
+  # Each entry must be a known permission (array-inclusion validates the whole
+  # array, so we check element-by-element for clearer errors and correctness).
+  def permissions_within_catalog
+    invalid = Array(permissions) - PERMISSIONS
+    return if invalid.empty?
+
+    errors.add(:permissions, "contains unknown permissions: #{invalid.join(', ')}")
+  end
 end

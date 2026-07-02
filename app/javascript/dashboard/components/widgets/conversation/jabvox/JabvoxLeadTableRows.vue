@@ -84,22 +84,22 @@ onMounted(() => {
 });
 </script>
 
-<!-- eslint-disable vue/no-bare-strings-in-template -->
 <template>
   <div class="flex flex-col gap-4 p-4">
     <div
       v-if="uiFlags.isFetchingRows"
       class="text-sm text-slate-400 py-8 text-center"
     >
-      Cargando...
+      {{ $t('JABVOX_CUSTOMIZATION.LOADING') }}
     </div>
 
     <div
       v-else-if="!tableRows.length"
       class="text-sm text-slate-400 py-8 text-center border border-dashed border-slate-200 dark:border-slate-700 rounded-xl"
     >
-      No hay tablas personalizadas configuradas. Crea una en
-      <strong>Configuración → Personalización</strong>.
+      {{ $t('JABVOX_CUSTOMIZATION.LEAD_ROWS.EMPTY_TEXT') }}
+      <strong>{{ $t('JABVOX_CUSTOMIZATION.LEAD_ROWS.EMPTY_LINK') }}</strong
+      >.
     </div>
 
     <div
@@ -124,7 +124,8 @@ onMounted(() => {
             v-if="savedTables.has(row.table_id)"
             class="text-xs text-green-600 flex items-center gap-1"
           >
-            <span class="i-lucide-check size-3" /> Guardado
+            <span class="i-lucide-check size-3" />
+            {{ $t('JABVOX_CUSTOMIZATION.LEAD_ROWS.SAVED') }}
           </span>
           <Button
             v-if="isDirty(row.table_id)"
@@ -145,7 +146,7 @@ onMounted(() => {
 
       <!-- Columns / fields -->
       <div v-if="!row.columns.length" class="px-4 py-3 text-sm text-slate-400">
-        Esta tabla no tiene columnas. Agrégalas en Personalización → Columnas.
+        {{ $t('JABVOX_CUSTOMIZATION.LEAD_ROWS.NO_COLUMNS') }}
       </div>
       <div v-else class="grid grid-cols-2 gap-x-6 gap-y-3 p-4">
         <div
@@ -186,7 +187,9 @@ onMounted(() => {
               v-model="drafts[row.table_id][col.name_jabvox]"
               class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-woot-500"
             >
-              <option value="">— sin valor —</option>
+              <option value="">
+                {{ $t('JABVOX_CUSTOMIZATION.LEAD_ROWS.SELECT_EMPTY') }}
+              </option>
               <option
                 v-for="opt in col.options_jabvox || []"
                 :key="opt"

@@ -1,4 +1,7 @@
 class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::Jabvox::BaseController # rubocop:disable Metrics/ClassLength
+  include JabvoxPermissions
+
+  before_action :ensure_module_permission
   before_action :check_authorization
   before_action :set_campaign, only: [:show, :update, :destroy, :start, :pause, :stop, :contacts, :call_logs, :retry_contacts, :report]
 
@@ -187,6 +190,14 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
 
   def check_authorization
     authorize @campaign || JabvoxDialerCampaign
+  end
+
+  # Gate solo si el usuario tiene un custom role: sin rol personalizado se
+  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_dialer_manage')
   end
 
   def live_lead_count(campaign)

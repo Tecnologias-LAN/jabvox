@@ -50,6 +50,40 @@ export class DashboardAudioNotificationHelper {
     return this.audioConfig.audio.load();
   };
 
+  // Browsers block audio.play() that isn't triggered by a user gesture, so a sound fired from
+  // a websocket event (internal/AI chat) is silently rejected until the audio has been "armed"
+  // once inside a real interaction. We register one-shot listeners for the first click/key/tap
+  // and prime the audio element there, so later playSimpleAlert() calls are allowed.
+  registerAudioUnlock = () => {
+    if (this.audioUnlockRegistered) return;
+    this.audioUnlockRegistered = true;
+
+    const unlock = () => {
+      if (!this.audioConfig.audio) this.intializeAudio();
+      const audio = this.audioConfig.audio;
+      const prevMuted = audio.muted;
+      audio.muted = true;
+      audio
+        .play()
+        .then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.muted = prevMuted;
+          this.audioUnlocked = true;
+        })
+        .catch(() => {
+          audio.muted = prevMuted;
+        });
+      ['click', 'keydown', 'touchstart'].forEach(evt =>
+        document.removeEventListener(evt, unlock)
+      );
+    };
+
+    ['click', 'keydown', 'touchstart'].forEach(evt =>
+      document.addEventListener(evt, unlock, { once: true, passive: true })
+    );
+  };
+
   playAudioAlert = async () => {
     try {
       await this.audioConfig.audio.play();
@@ -109,6 +143,9 @@ export class DashboardAudioNotificationHelper {
     if (previousAudioTone !== audioAlertTone || !this.audioConfig.audio) {
       this.intializeAudio();
     }
+
+    // Arm audio on the first user gesture so websocket-triggered chimes can play.
+    this.registerAudioUnlock();
 
     initFaviconSwitcher();
     this.clearRecurringTimer();

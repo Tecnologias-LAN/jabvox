@@ -142,7 +142,7 @@
       "HEADER_TEXT_PH": "Texto del encabezado (máx. 60 caracteres)",
       "HEADER_MEDIA_NOTE": "Se requiere una URL de medios al enviar.",
       "BODY_LABEL": "Cuerpo *",
-      "BODY_PH": "Cuerpo del mensaje. Usa {{1}}, {{2}} para variables.",
+      "BODY_PH": "Cuerpo del mensaje. Usa {'{'}{'{'}1{'}'}{'}'}, {'{'}{'{'}2{'}'}{'}'} para variables.",
       "FOOTER_LABEL": "Pie de página",
       "FOOTER_PH": "Nota opcional del pie de página",
       "VARS_TITLE": "Variables detectadas",
@@ -217,7 +217,7 @@
     "IMPORT": {
       "TITLE": "Importar plantillas",
       "JSON_LABEL": "Pega el arreglo JSON de Meta",
-      "JSON_PH": "[ { \"name\": \"template_name\", ... }, ... ]",
+      "JSON_PH": "[ {'{'} \"name\": \"template_name\", ... {'}'}, ... ]",
       "SUBMIT": "Importar",
       "SUCCESS": "Se importaron {count} plantillas.",
       "ERRORS": "Algunas filas tuvieron errores:",

@@ -1,5 +1,11 @@
 class JabvoxAiChatDocumentPolicy < ApplicationPolicy
+  # Admins always pass; a custom role granting jabvox_ai_chat_manage also passes.
+  def can_manage?
+    @account_user.administrator? ||
+      @account_user.custom_role&.grants?('jabvox_ai_chat_manage') || false
+  end
+
   def index?   = true
-  def update?  = administrator?
-  def destroy? = administrator?
+  def update?  = can_manage?
+  def destroy? = can_manage?
 end

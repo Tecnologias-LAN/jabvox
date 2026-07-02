@@ -110,6 +110,7 @@
         "NO_TRANSCRIPTION": "Sin transcripción",
         "TYPIFICATION": "Tipificación",
         "NO_TYPIFICATION": "Sin tipificación",
+        "TRANSCRIPTION_PROMPT": "Prompt de transcripción (opcional)",
         "TIMESTAMP_MODE": "Marcas de tiempo de la transcripción",
         "TS_NONE": "Sin marcas de tiempo",
         "TS_WORD": "Por palabra",

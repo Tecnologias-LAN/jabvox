@@ -156,10 +156,25 @@ const resetForm = () => {
   if (fileInput.value) fileInput.value.value = '';
 };
 
+// ── History ───────────────────────────────────────────────────────────────
+const batches = ref([]);
+const loadingBatches = ref(false);
+
+const loadBatches = async () => {
+  loadingBatches.value = true;
+  try {
+    const { data } = await bulkWhatsappAPI.getBatches();
+    batches.value = data;
+  } catch {
+    useAlert(t('JABVOX_BULK_WA.HISTORY.ERROR'));
+  } finally {
+    loadingBatches.value = false;
+  }
+};
+
 // After a leads-based send, jump to the history tab and refresh it.
 const onLeadsSent = () => {
   activeTab.value = 'history';
-  // eslint-disable-next-line no-use-before-define
   loadBatches();
 };
 
@@ -176,28 +191,11 @@ const onSend = async () => {
     useAlert(t('JABVOX_BULK_WA.SEND.SUCCESS'));
     resetForm();
     activeTab.value = 'history';
-    // eslint-disable-next-line no-use-before-define
     loadBatches();
   } catch (error) {
     useAlert(error?.response?.data?.error || t('JABVOX_BULK_WA.SEND.ERROR'));
   } finally {
     sending.value = false;
-  }
-};
-
-// ── History ───────────────────────────────────────────────────────────────
-const batches = ref([]);
-const loadingBatches = ref(false);
-
-const loadBatches = async () => {
-  loadingBatches.value = true;
-  try {
-    const { data } = await bulkWhatsappAPI.getBatches();
-    batches.value = data;
-  } catch {
-    useAlert(t('JABVOX_BULK_WA.HISTORY.ERROR'));
-  } finally {
-    loadingBatches.value = false;
   }
 };
 

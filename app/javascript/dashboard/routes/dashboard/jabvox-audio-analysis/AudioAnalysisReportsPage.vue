@@ -14,6 +14,11 @@ import TranscriptViewer from './components/TranscriptViewer.vue';
 const { t } = useI18n();
 const router = useRouter();
 
+// Decorative sentiment emojis (positive / neutral / negative).
+const EMOJI_POSITIVE = '🙂';
+const EMOJI_NEUTRAL = '😐';
+const EMOJI_NEGATIVE = '🙁';
+
 const loading = ref(false);
 const days = ref([]);
 const summary = ref(null);
@@ -120,7 +125,6 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-bare-strings-in-template -- emoji/symbols are universal -->
   <div class="w-full h-full overflow-y-auto bg-n-background">
     <div
       class="mx-auto w-full max-w-5xl flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
@@ -313,7 +317,8 @@ onMounted(async () => {
                 {{ t('JABVOX_AUDIO.REPORTS.SENTIMENT') }}
               </p>
               <p class="text-sm text-n-slate-12 pt-1">
-                🙂 {{ summary.positive }} · 😐 {{ summary.neutral }} · 🙁
+                {{ EMOJI_POSITIVE }} {{ summary.positive }} ·
+                {{ EMOJI_NEUTRAL }} {{ summary.neutral }} · {{ EMOJI_NEGATIVE }}
                 {{ summary.negative }}
               </p>
             </div>
@@ -358,8 +363,9 @@ onMounted(async () => {
                 {{ t('JABVOX_AUDIO.REPORTS.SENTIMENT') }}
               </p>
               <p class="text-sm text-n-slate-12">
-                🙂 {{ day.totals.positive }} · 😐 {{ day.totals.neutral }} · 🙁
-                {{ day.totals.negative }}
+                {{ EMOJI_POSITIVE }} {{ day.totals.positive }} ·
+                {{ EMOJI_NEUTRAL }} {{ day.totals.neutral }} ·
+                {{ EMOJI_NEGATIVE }} {{ day.totals.negative }}
               </p>
             </div>
           </div>

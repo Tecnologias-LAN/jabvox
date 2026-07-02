@@ -1,4 +1,6 @@
 class Api::V1::Accounts::Jabvox::AudioAnalysis::BaseController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_feature_enabled
 
   private
@@ -9,20 +11,15 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::BaseController < Api::V1::Accoun
     render json: { error: 'Jabvox Audio Analysis feature is not enabled for this account' }, status: :forbidden
   end
 
-  def permission
-    @permission ||= JabvoxAudioPermission.find_by(account_id: Current.account.id, user_id: current_user.id)
-  end
-
-  def admin?
-    Current.account_user&.administrator? || false
-  end
-
+  # All predicates below rely on the JabvoxPermissions concern, which grants
+  # every capability to administrators and otherwise checks the account user's
+  # custom role.
   def can_access?
-    admin? || permission&.can_access
+    jabvox_can?('jabvox_audio_access')
   end
 
   def can_view_reports?
-    admin? || permission&.can_view_reports
+    jabvox_can?('jabvox_audio_view_reports')
   end
 
   # Storages / pipelines / jobs / access management require module access.
@@ -38,9 +35,13 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::BaseController < Api::V1::Accoun
     render json: { error: 'No tienes permiso para ver los reportes de audio' }, status: :forbidden
   end
 
-  def ensure_admin
-    return if admin?
+  # Managing pipelines / storages / jobs / assignments requires the manage
+  # capability (admins always pass via the concern). Read access alone is not
+  # enough to create/update/destroy configuration.
+  def ensure_can_manage
+    return if jabvox_can?('jabvox_audio_manage')
 
-    render json: { error: 'Solo los administradores pueden gestionar esta configuración' }, status: :forbidden
+    render json: { error: 'No tienes permiso para gestionar el análisis de audios' }, status: :forbidden
   end
+  alias ensure_admin ensure_can_manage
 end

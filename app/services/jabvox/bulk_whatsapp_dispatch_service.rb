@@ -193,9 +193,10 @@ class Jabvox::BulkWhatsappDispatchService
   end
 
   def resolve_leads_scope(sel)
+    sender_account_user = @account.account_users.find_by(user_id: @sender_user.id)
     base = Jabvox::LeadsFilterService.new(
       account: @account, user: @sender_user,
-      is_admin: @account.account_users.find_by(user_id: @sender_user.id)&.administrator?,
+      is_admin: JabvoxPermissions.user_grants_permission?(sender_account_user, 'jabvox_leads_view_all'),
       filters: sel[:filters] || {}
     ).scope
 

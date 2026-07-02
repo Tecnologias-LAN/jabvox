@@ -1,0 +1,13 @@
+<div class="field-unit__label">
+  <label>Módulos Jabvox</label>
+</div>
+<div class="field-unit__field">
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <% field.modules.each do |column, display_name, enabled| %>
+      <label class="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm outline outline-1 outline-n-container cursor-pointer">
+        <span class="text-sm text-slate-700"><%= display_name %></span>
+        <%= f.check_box column, checked: enabled, class: "h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-600" %>
+      </label>
+    <% end %>
+  </div>
+</div>

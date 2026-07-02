@@ -7,6 +7,7 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const { t } = useI18n();
 const apiError = (e, fallback) => e?.response?.data?.error || t(fallback);
@@ -16,6 +17,7 @@ const editing = ref(null); // the form model when creating/editing
 const testResult = ref(null);
 const testing = ref(false);
 const building = ref(false);
+const confirmDialog = ref(null);
 
 const engineOptions = computed(() => [
   { value: 'postgresql', label: 'PostgreSQL' },
@@ -84,10 +86,18 @@ const save = async () => {
   }
 };
 
-const remove = async () => {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(t('JABVOX_DATA_EXPORT.DELETE_CONFIRM'))) return;
-  await dataExportAPI.destroy(target.value.id);
+const remove = () => {
+  confirmDialog.value?.open({
+    title: t('JABVOX_DATA_EXPORT.DELETE'),
+    description: t('JABVOX_DATA_EXPORT.DELETE_CONFIRM'),
+    confirmLabel: t('JABVOX_DATA_EXPORT.DELETE'),
+    cancelLabel: t('JABVOX_DATA_EXPORT.FORM.CANCEL'),
+    data: target.value.id,
+  });
+};
+
+const doRemove = async id => {
+  await dataExportAPI.destroy(id);
   await load();
 };
 
@@ -348,5 +358,7 @@ onMounted(load);
         </p>
       </section>
     </div>
+
+    <ConfirmDialog ref="confirmDialog" @confirm="doRemove" />
   </div>
 </template>

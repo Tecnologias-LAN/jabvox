@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Jabvox::AppStatesController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :require_admin, only: %i[create update destroy]
   before_action :set_app_state, only: %i[update destroy]
 
@@ -46,8 +48,12 @@ class Api::V1::Accounts::Jabvox::AppStatesController < Api::V1::Accounts::BaseCo
 
   private
 
+  # Admins always pass (jabvox_can? bypasses for admins); a custom role may also
+  # manage app states via jabvox_app_states_manage.
   def require_admin
-    render json: { error: 'forbidden' }, status: :forbidden unless current_user.administrator?
+    return if jabvox_can?('jabvox_app_states_manage')
+
+    render json: { error: 'forbidden' }, status: :forbidden
   end
 
   def set_app_state

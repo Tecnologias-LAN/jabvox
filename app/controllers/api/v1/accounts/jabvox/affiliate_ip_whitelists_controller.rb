@@ -1,4 +1,7 @@
 class Api::V1::Accounts::Jabvox::AffiliateIpWhitelistsController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
+  before_action :ensure_module_permission
   before_action :fetch_affiliate
   before_action :fetch_entry, only: [:update, :destroy]
 
@@ -27,6 +30,14 @@ class Api::V1::Accounts::Jabvox::AffiliateIpWhitelistsController < Api::V1::Acco
   end
 
   private
+
+  # Custom-role gate: users without a custom role keep historical access;
+  # users with a custom role must be granted the capability (admins always pass).
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_affiliates_manage')
+  end
 
   def fetch_affiliate
     @affiliate = Current.account.jabvox_affiliates.find(params[:affiliate_id])

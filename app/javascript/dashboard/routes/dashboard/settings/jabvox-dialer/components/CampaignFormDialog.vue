@@ -392,7 +392,6 @@ defineExpose({ openCreate, openEdit, close });
           {{ leadCount.toLocaleString() }}
           {{ t('JABVOX_DIALER.FORM.LEAD_COUNT_UNIT') }}
         </span>
-        <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
         <span v-else class="text-sm text-n-slate-10">—</span>
       </div>
     </div>

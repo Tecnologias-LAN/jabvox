@@ -8,6 +8,7 @@
     "TABS": {
       "TABLES": "Tablas",
       "COLUMNS": "Columnas",
+      "DATA": "Datos",
       "BUTTONS": "Botones"
     },
     "COMMON": {
@@ -94,6 +95,32 @@
         "date": "Fecha",
         "select": "Lista de opciones"
       }
+    },
+    "DATA": {
+      "TITLE": "Datos de las tablas",
+      "SUBTITLE": "Llena tus tablas personalizadas con registros. Selecciona una tabla y añade, edita o elimina filas.",
+      "SELECT_TABLE": "Selecciona una tabla…",
+      "ADD_ROW": "Añadir registro",
+      "EDIT": "Editar",
+      "DELETE": "Eliminar",
+      "DELETE_CONFIRM": "¿Eliminar este registro? Esta acción no se puede deshacer.",
+      "DELETE_SUCCESS": "Registro eliminado.",
+      "SAVE_SUCCESS": "Registro guardado.",
+      "LOADING": "Cargando registros…",
+      "YES": "Sí",
+      "NO": "No",
+      "EMPTY_ROWS": "Esta tabla aún no tiene registros. Añade el primero.",
+      "EMPTY_NO_TABLE": "Selecciona una tabla",
+      "EMPTY_NO_TABLE_SUB": "Elige una de tus tablas personalizadas para ver y llenar sus registros.",
+      "EMPTY_NO_COLUMNS": "Esta tabla no tiene columnas",
+      "EMPTY_NO_COLUMNS_SUB": "Define primero las columnas en la pestaña Columnas para poder añadir registros.",
+      "NEW_TITLE": "Nuevo registro",
+      "EDIT_TITLE": "Editar registro",
+      "FORM_DESCRIPTION": "Completa los campos según las columnas definidas para esta tabla.",
+      "SELECT_OPTION": "Selecciona una opción…",
+      "NO_COLUMNS_FORM": "Esta tabla no tiene columnas definidas.",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar"
     },
     "BUTTONS": {
       "INACTIVE": "Inactivo",

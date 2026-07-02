@@ -1,10 +1,15 @@
 class JabvoxSmsCampaignPolicy < ApplicationPolicy
-  def index? = @account_user.administrator?
-  def show? = @account_user.administrator?
-  def create? = @account_user.administrator?
-  def update? = @account_user.administrator?
-  def destroy? = @account_user.administrator?
-  def send_bulk? = @account_user.administrator?
-  def contacts? = @account_user.administrator?
-  def lead_count? = @account_user.administrator?
+  def can_manage?
+    @account_user.administrator? ||
+      @account_user.custom_role&.grants?('jabvox_sms_manage') || false
+  end
+
+  def index? = can_manage?
+  def show? = can_manage?
+  def create? = can_manage?
+  def update? = can_manage?
+  def destroy? = can_manage?
+  def send_bulk? = can_manage?
+  def contacts? = can_manage?
+  def lead_count? = can_manage?
 end

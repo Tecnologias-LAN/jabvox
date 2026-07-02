@@ -1,0 +1,19 @@
+<div class="w-full">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-base font-semibold text-n-slate-12">Módulos Jabvox</h3>
+    <span class="text-sm text-n-slate-11">
+      <%= field.enabled_count %> / <%= field.modules.size %> activos
+    </span>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <% field.modules.each do |_column, display_name, enabled| %>
+      <div class="flex items-center justify-between p-3 bg-white rounded-md outline outline-n-container outline-1 shadow-sm">
+        <span class="text-sm text-n-slate-12"><%= display_name %></span>
+        <span class="<%= enabled ? 'bg-green-400 text-white' : 'bg-slate-50 text-slate-800' %> rounded-full p-1 inline-flex">
+          <svg width="12" height="12"><use xlink:href="#icon-tick-line" /></svg>
+        </span>
+      </div>
+    <% end %>
+  </div>
+</div>

@@ -112,6 +112,8 @@
         "TITLE": "Historial",
         "EMPTY": "Aún no hay actividad.",
         "CREATED": "creó la tarea",
+        "TITLE_CHANGED": "cambió el título de \"{from}\" a \"{to}\"",
+        "DESCRIPTION_CHANGED": "actualizó la descripción",
         "STAGE_CHANGED": "movió la tarea de {from} a {to}",
         "STATUS_CHANGED": "cambió el estado de {from} a {to}",
         "PRIORITY_CHANGED": "cambió la prioridad de {from} a {to}",

@@ -3,7 +3,6 @@ import {
   aiChatModelsAPI,
   aiChatConfigAPI,
   aiChatDocumentsAPI,
-  aiChatPermissionsAPI,
 } from 'dashboard/api/jabvox/aiChat';
 
 const state = {
@@ -12,7 +11,6 @@ const state = {
   models: [],
   config: null,
   documents: [],
-  permissions: [],
   myAccess: null,
   uiFlags: {
     isFetchingSessions: false,
@@ -22,8 +20,6 @@ const state = {
     isFetchingConfig: false,
     isSavingConfig: false,
     isSyncingDocuments: false,
-    isFetchingPermissions: false,
-    isSavingPermissions: false,
   },
 };
 
@@ -33,7 +29,6 @@ const getters = {
   getModels: s => s.models,
   getConfig: s => s.config,
   getDocuments: s => s.documents,
-  getPermissions: s => s.permissions,
   getMyAccess: s => s.myAccess,
   getUIFlags: s => s.uiFlags,
 };
@@ -82,9 +77,6 @@ const mutations = {
   REMOVE_DOCUMENT(s, id) {
     s.documents = s.documents.filter(d => d.id !== id);
   },
-  SET_PERMISSIONS(s, perms) {
-    s.permissions = perms;
-  },
   SET_MY_ACCESS(s, access) {
     s.myAccess = access;
   },
@@ -98,7 +90,10 @@ const actions = {
     try {
       const { data } = await aiChatAPI.getMyAccess();
       commit('SET_MY_ACCESS', data);
-    } catch {} // eslint-disable-line no-empty
+    } catch (e) {
+      // Access is best-effort; on failure keep the previous value.
+      e?.toString();
+    }
   },
 
   async fetchSessions({ commit }) {
@@ -115,7 +110,10 @@ const actions = {
     try {
       const { data } = await aiChatAPI.getMessages(sessionId);
       commit('SET_MESSAGES', { sessionId, messages: data });
-    } catch {} // eslint-disable-line no-empty
+    } catch (e) {
+      // Messages load opportunistically; ignore fetch failures.
+      e?.toString();
+    }
   },
 
   async sendMessage({ commit }, payload) {
@@ -216,32 +214,15 @@ const actions = {
     try {
       const { data } = await aiChatDocumentsAPI.getAll();
       commit('SET_DOCUMENTS', data);
-    } catch {} // eslint-disable-line no-empty
+    } catch (e) {
+      // Documents load opportunistically; ignore fetch failures.
+      e?.toString();
+    }
   },
 
   async toggleDocument({ commit }, { id, is_enabled_jabvox }) {
     const { data } = await aiChatDocumentsAPI.update(id, { is_enabled_jabvox });
     commit('UPDATE_DOCUMENT', data);
-  },
-
-  async fetchPermissions({ commit }) {
-    commit('SET_UI_FLAG', { isFetchingPermissions: true });
-    try {
-      const { data } = await aiChatPermissionsAPI.getAll();
-      commit('SET_PERMISSIONS', data);
-    } finally {
-      commit('SET_UI_FLAG', { isFetchingPermissions: false });
-    }
-  },
-
-  async savePermissions({ commit }, permissions) {
-    commit('SET_UI_FLAG', { isSavingPermissions: true });
-    try {
-      await aiChatPermissionsAPI.bulkUpdate(permissions);
-      commit('SET_PERMISSIONS', permissions);
-    } finally {
-      commit('SET_UI_FLAG', { isSavingPermissions: false });
-    }
   },
 };
 

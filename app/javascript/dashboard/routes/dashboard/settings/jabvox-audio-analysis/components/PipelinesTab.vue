@@ -1,6 +1,4 @@
 <script setup>
-/* eslint-disable no-underscore-dangle */
-// _destroy is the Rails accepts_nested_attributes_for convention.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Input from 'dashboard/components-next/input/Input.vue';
@@ -9,6 +7,7 @@ import Switch from 'dashboard/components-next/switch/Switch.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Label from 'dashboard/components-next/label/Label.vue';
 import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
+import { DESTROY_KEY } from 'dashboard/helper/jabvox/nestedAttributes';
 import SettingsCard from './SettingsCard.vue';
 
 const props = defineProps({
@@ -48,7 +47,7 @@ const typificationOptions = computed(() => [
 ]);
 
 const visibleStageCount = computed(
-  () => editing.value?.stages?.filter(s => !s._destroy).length || 0
+  () => editing.value?.stages?.filter(s => !s[DESTROY_KEY]).length || 0
 );
 
 // Transcript timestamp granularity: none / per-word / per-segment.
@@ -240,7 +239,7 @@ const timestampModeOptions = computed(() => [
 
         <div
           v-for="(stage, index) in editing.stages"
-          v-show="!stage._destroy"
+          v-show="!stage['_destroy']"
           :key="index"
           class="rounded-xl border border-n-weak bg-n-alpha-1 p-4 flex flex-col gap-3"
         >

@@ -1,4 +1,7 @@
 class Api::V1::Accounts::Jabvox::SmsCampaignsController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
+  before_action :ensure_module_permission
   before_action :check_authorization
   before_action :set_campaign, only: [:show, :update, :destroy, :send_bulk]
 
@@ -71,6 +74,14 @@ class Api::V1::Accounts::Jabvox::SmsCampaignsController < Api::V1::Accounts::Jab
 
   def check_authorization
     authorize :jabvox_sms_campaign
+  end
+
+  # Gate solo si el usuario tiene un custom role: sin rol personalizado se
+  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_sms_manage')
   end
 
   def set_campaign

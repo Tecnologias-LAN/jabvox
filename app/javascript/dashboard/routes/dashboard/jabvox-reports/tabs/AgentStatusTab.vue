@@ -88,7 +88,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-bare-strings-in-template -- symbols (—) are universal -->
   <div class="flex flex-col gap-4">
     <!-- Loading -->
     <div

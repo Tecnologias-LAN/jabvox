@@ -1,4 +1,8 @@
 class Api::V1::Accounts::Jabvox::CalendarSettingsController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
+  before_action :ensure_calendar_permission
+
   def show
     config = Current.account.jabvox_smtp_config
     render json: serialize(config)
@@ -16,6 +20,14 @@ class Api::V1::Accounts::Jabvox::CalendarSettingsController < Api::V1::Accounts:
   end
 
   private
+
+  # Gate only applies to users with a custom role; users without one keep the
+  # historical behavior (admins always pass via jabvox_can?).
+  def ensure_calendar_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_calendar_manage')
+  end
 
   def setting_params
     params.require(:calendar_setting).permit(:reminders_enabled, reminder_minutes: [])

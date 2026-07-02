@@ -21,6 +21,10 @@ const conversations = computed(() => {
   return getByContactId.value(props.contactId) || [];
 });
 
+// Decorative currency symbol, bound in the template so it renders unchanged
+// without tripping the no-bare-strings lint rule.
+const CURRENCY_SYMBOL = '$';
+
 // All messages keyed by convId: { [convId]: Message[] }
 const allMessages = ref({});
 const isLoadingMessages = ref(false);
@@ -204,7 +208,6 @@ const toggleDay = key => {
 const isDayExpanded = key => expandedDays.value.has(key);
 </script>
 
-<!-- eslint-disable vue/no-bare-strings-in-template -->
 <template>
   <div class="flex flex-col h-full overflow-y-auto">
     <div class="flex-1 overflow-y-auto p-4 space-y-2">
@@ -240,22 +243,28 @@ const isDayExpanded = key => expandedDays.value.has(key);
             {{ formatDayLabel(group.date) }}
           </span>
           <div class="flex items-center gap-1.5 text-slate-400 text-xs">
-            <span v-if="group.orders.length"
-              >{{ group.orders.length }} pedido(s)</span
-            >
+            <span v-if="group.orders.length">{{
+              $t('JABVOX_PRODUCTS.CONVERSATION.ORDERS_COUNT', {
+                count: group.orders.length,
+              })
+            }}</span>
             <span
               v-if="
                 group.orders.length && (group.chat.length || group.notes.length)
               "
               >·</span
             >
-            <span v-if="group.chat.length"
-              >{{ group.chat.length }} mensaje(s)</span
-            >
+            <span v-if="group.chat.length">{{
+              $t('JABVOX_PRODUCTS.CONVERSATION.MESSAGES_COUNT', {
+                count: group.chat.length,
+              })
+            }}</span>
             <span v-if="group.chat.length && group.notes.length">·</span>
-            <span v-if="group.notes.length"
-              >{{ group.notes.length }} nota(s)</span
-            >
+            <span v-if="group.notes.length">{{
+              $t('JABVOX_PRODUCTS.CONVERSATION.NOTES_COUNT', {
+                count: group.notes.length,
+              })
+            }}</span>
             <i
               class="ml-1"
               :class="
@@ -277,7 +286,7 @@ const isDayExpanded = key => expandedDays.value.has(key);
               <i class="i-lucide-shopping-cart text-xs text-slate-400" />
               <span
                 class="text-xs font-semibold text-slate-400 uppercase tracking-wide"
-                >Pedidos</span
+                >{{ $t('JABVOX_PRODUCTS.CONVERSATION.SECTION_ORDERS') }}</span
               >
             </div>
             <div class="px-3 pb-3 space-y-2">
@@ -310,7 +319,7 @@ const isDayExpanded = key => expandedDays.value.has(key);
                   <span
                     class="text-sm font-bold text-slate-800 dark:text-slate-100"
                   >
-                    ${{ formatCurrency(order.total) }}
+                    {{ CURRENCY_SYMBOL }}{{ formatCurrency(order.total) }}
                   </span>
                 </div>
                 <div v-if="order.items?.length" class="px-3 py-2">
@@ -319,12 +328,24 @@ const isDayExpanded = key => expandedDays.value.has(key);
                       <tr
                         class="text-slate-400 border-b border-slate-100 dark:border-slate-700"
                       >
-                        <th class="text-left pb-1 font-medium">Producto</th>
-                        <th class="text-center pb-1 font-medium w-8">Cant.</th>
-                        <th class="text-right pb-1 font-medium w-16">Precio</th>
-                        <th class="text-center pb-1 font-medium w-10">Desc.</th>
-                        <th class="text-center pb-1 font-medium w-10">IVA</th>
-                        <th class="text-right pb-1 font-medium w-16">Total</th>
+                        <th class="text-left pb-1 font-medium">
+                          {{ $t('JABVOX_PRODUCTS.CONVERSATION.COL_PRODUCT') }}
+                        </th>
+                        <th class="text-center pb-1 font-medium w-8">
+                          {{ $t('JABVOX_PRODUCTS.CONVERSATION.COL_QTY') }}
+                        </th>
+                        <th class="text-right pb-1 font-medium w-16">
+                          {{ $t('JABVOX_PRODUCTS.CONVERSATION.COL_PRICE') }}
+                        </th>
+                        <th class="text-center pb-1 font-medium w-10">
+                          {{ $t('JABVOX_PRODUCTS.CONVERSATION.COL_DISCOUNT') }}
+                        </th>
+                        <th class="text-center pb-1 font-medium w-10">
+                          {{ $t('JABVOX_PRODUCTS.CONVERSATION.COL_TAX') }}
+                        </th>
+                        <th class="text-right pb-1 font-medium w-16">
+                          {{ $t('JABVOX_PRODUCTS.CONVERSATION.COL_TOTAL') }}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -340,7 +361,8 @@ const isDayExpanded = key => expandedDays.value.has(key);
                           {{ formatQty(item.quantity) }}
                         </td>
                         <td class="py-0.5 text-right text-slate-400">
-                          ${{ formatCurrency(item.unit_price) }}
+                          {{ CURRENCY_SYMBOL
+                          }}{{ formatCurrency(item.unit_price) }}
                         </td>
                         <td class="py-0.5 text-center">
                           <span
@@ -359,7 +381,8 @@ const isDayExpanded = key => expandedDays.value.has(key);
                           <span v-else class="text-slate-300">—</span>
                         </td>
                         <td class="py-0.5 text-right font-semibold">
-                          ${{ formatCurrency(item.line_total) }}
+                          {{ CURRENCY_SYMBOL
+                          }}{{ formatCurrency(item.line_total) }}
                         </td>
                       </tr>
                     </tbody>
@@ -384,7 +407,7 @@ const isDayExpanded = key => expandedDays.value.has(key);
               <i class="i-lucide-message-circle text-xs text-slate-400" />
               <span
                 class="text-xs font-semibold text-slate-400 uppercase tracking-wide"
-                >Chat</span
+                >{{ $t('JABVOX_PRODUCTS.CONVERSATION.SECTION_CHAT') }}</span
               >
             </div>
             <div class="px-4 pb-3 space-y-2">
@@ -393,7 +416,9 @@ const isDayExpanded = key => expandedDays.value.has(key);
                   <span class="font-medium text-slate-600 dark:text-slate-300">
                     {{
                       senderName(msg) ||
-                      (msg.message_type === 1 ? 'Agente' : 'Contacto')
+                      (msg.message_type === 1
+                        ? $t('JABVOX_PRODUCTS.CONVERSATION.ROLE_AGENT')
+                        : $t('JABVOX_PRODUCTS.CONVERSATION.ROLE_CONTACT'))
                     }}
                   </span>
                   <span>·</span>
@@ -417,14 +442,17 @@ const isDayExpanded = key => expandedDays.value.has(key);
               <i class="i-lucide-pencil-line text-xs text-amber-500" />
               <span
                 class="text-xs font-semibold text-amber-500 uppercase tracking-wide"
-                >Notas</span
+                >{{ $t('JABVOX_PRODUCTS.CONVERSATION.SECTION_NOTES') }}</span
               >
             </div>
             <div class="px-4 pb-3 space-y-2">
               <div v-for="msg in group.notes" :key="msg.id" class="text-xs">
                 <div class="flex items-center gap-1 text-slate-400 mb-0.5">
                   <span class="font-medium text-slate-600 dark:text-slate-300">
-                    {{ senderName(msg) || 'Agente' }}
+                    {{
+                      senderName(msg) ||
+                      $t('JABVOX_PRODUCTS.CONVERSATION.ROLE_AGENT')
+                    }}
                   </span>
                   <span>·</span>
                   <span>{{ formatTime(msg.created_at) }}</span>

@@ -152,7 +152,6 @@ const onSave = () => emit('save', { ...form.value });
     </div>
 
     <div class="flex flex-col gap-1.5">
-      <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
       <label class="text-sm font-medium text-n-slate-12">
         {{ t('JABVOX_SMS.CAMPAIGNS.FORM.PROVIDER') }}
         <span class="text-n-ruby-11">*</span>
@@ -166,7 +165,6 @@ const onSave = () => emit('save', { ...form.value });
 
     <!-- Message -->
     <div class="flex flex-col gap-2">
-      <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
       <label class="text-sm font-medium text-n-slate-12">
         {{ t('JABVOX_SMS.CAMPAIGNS.FORM.MESSAGE') }}
         <span class="text-n-ruby-11">*</span>

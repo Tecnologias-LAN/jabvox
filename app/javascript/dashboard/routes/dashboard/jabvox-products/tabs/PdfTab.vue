@@ -67,7 +67,6 @@ const onSave = async () => {
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-bare-strings-in-template -- preview mockup labels -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <!-- Form -->
     <SectionCard
@@ -178,7 +177,8 @@ const onSave = async () => {
             </p>
             <div class="text-[10px] leading-snug text-slate-500">
               <p v-if="form.company_nit_jabvox">
-                NIT {{ form.company_nit_jabvox }}
+                {{ t('JABVOX_PRODUCTS.PDF.NIT_PREFIX') }}
+                {{ form.company_nit_jabvox }}
               </p>
               <p v-if="form.company_address_jabvox">
                 {{ form.company_address_jabvox }}
@@ -195,7 +195,7 @@ const onSave = async () => {
             <span
               class="inline-block rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500"
             >
-              COTIZACIÓN
+              {{ t('JABVOX_PRODUCTS.PDF.QUOTE_BADGE') }}
             </span>
           </div>
         </div>

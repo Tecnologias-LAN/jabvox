@@ -15,6 +15,9 @@ const emit = defineEmits(['close', 'updated']);
 
 const { t } = useI18n();
 
+// Decorative separator between source and destination numbers.
+const ARROW = '→';
+
 const analysis = ref(props.existing || null);
 const loading = ref(false);
 
@@ -67,7 +70,6 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-bare-strings-in-template -- symbols (→ — /) are universal -->
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-n-alpha-black2 p-4"
     @click.self="close"
@@ -81,7 +83,7 @@ onMounted(() => {
             {{ t('JABVOX_CDR.ANALYSIS.TITLE') }}
           </h2>
           <p class="text-sm text-n-slate-11 truncate">
-            {{ call.src }} → {{ call.dst }}
+            {{ call.src }} {{ ARROW }} {{ call.dst }}
           </p>
         </div>
         <Button
@@ -194,13 +196,14 @@ onMounted(() => {
               @click="loadRecording"
             />
           </div>
-          <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->
           <audio
             v-if="recordingUrl"
             :src="recordingUrl"
             controls
             class="w-full"
-          />
+          >
+            <track kind="captions" />
+          </audio>
         </div>
 
         <!-- Searchable transcript (by word, or by time when timestamped). -->

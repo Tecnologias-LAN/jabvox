@@ -124,6 +124,11 @@
       "SYNC": "Sync from Meta",
       "HISTORY": "History"
     },
+    "CONFIRM": {
+      "DELETE": "Delete",
+      "CANCEL": "Cancel",
+      "OK": "Confirm"
+    },
     "CREATE": {
       "TITLE": "New template",
       "EDIT_TITLE": "Edit template",
@@ -142,7 +147,7 @@
       "HEADER_TEXT_PH": "Header text (max 60 chars)",
       "HEADER_MEDIA_NOTE": "Media URL required when sending.",
       "BODY_LABEL": "Body *",
-      "BODY_PH": "Message body. Use {{1}}, {{2}} for variables.",
+      "BODY_PH": "Message body. Use {'{'}{'{'}1{'}'}{'}'}, {'{'}{'{'}2{'}'}{'}'} for variables.",
       "FOOTER_LABEL": "Footer",
       "FOOTER_PH": "Optional footer note",
       "VARS_TITLE": "Detected variables",
@@ -217,7 +222,7 @@
     "IMPORT": {
       "TITLE": "Import templates",
       "JSON_LABEL": "Paste Meta JSON array",
-      "JSON_PH": "[ { \"name\": \"template_name\", ... }, ... ]",
+      "JSON_PH": "[ {'{'} \"name\": \"template_name\", ... {'}'}, ... ]",
       "SUBMIT": "Import",
       "SUCCESS": "Imported {count} templates.",
       "ERRORS": "Some rows had errors:",

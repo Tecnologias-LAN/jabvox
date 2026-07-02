@@ -1,5 +1,8 @@
 module Api::V1::Accounts::Jabvox
   class OrdersController < Api::V1::Accounts::BaseController
+    include JabvoxPermissions
+
+    before_action :ensure_module_permission
     before_action :set_order, only: [:show, :update, :destroy, :send_to_alegra]
 
     def index
@@ -51,6 +54,14 @@ module Api::V1::Accounts::Jabvox
     end
 
     private
+
+    # Custom-role gate: users without a custom role keep historical access;
+    # users with a custom role must be granted the capability (admins always pass).
+    def ensure_module_permission
+      return if Current.account_user&.custom_role.nil?
+
+      jabvox_authorize!('jabvox_orders_manage')
+    end
 
     def set_order
       @order = Current.account.jabvox_orders.find(params[:id])

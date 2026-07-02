@@ -1,6 +1,11 @@
 class Api::V1::Accounts::Jabvox::KanbanConversationStagesController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
   before_action :fetch_funnel
   before_action :check_authorization
+  # Moving cards is a management action. Enforced only for users on a custom role so plain
+  # agents keep moving their own cards; admins always pass via jabvox_authorize!.
+  before_action -> { jabvox_gate!('jabvox_kanban_manage') }, only: %i[update update_lead]
 
   def update
     stage = @funnel.jabvox_kanban_stages.find(params[:stage_id])
@@ -44,16 +49,27 @@ class Api::V1::Accounts::Jabvox::KanbanConversationStagesController < Api::V1::A
 
   private
 
-  # Admins can move any card; an agent may only move conversations/leads assigned to them,
-  # so an agent can't reach another agent's lead by guessing its id.
+  # Enforce a custom-role permission ONLY for users who actually have a custom role, so
+  # standard agents keep their historical flow and admins always pass.
+  def jabvox_gate!(key)
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!(key)
+  end
+
+  # Admins (or a custom role that grants the whole board) can move any card; an agent may only
+  # move conversations/leads assigned to them, so an agent can't reach another agent's card by
+  # guessing its id.
   def can_manage_conversation?(conversation)
     return true if Current.account_user&.administrator?
+    return true if jabvox_can?('jabvox_kanban_view_all')
 
     conversation.assignee_id == current_user.id
   end
 
   def can_manage_lead?(lead)
     return true if Current.account_user&.administrator?
+    return true if jabvox_can?('jabvox_kanban_view_all')
 
     lead.assignee_id == current_user.id
   end

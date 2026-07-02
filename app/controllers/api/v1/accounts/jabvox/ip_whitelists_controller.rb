@@ -1,7 +1,10 @@
 class Api::V1::Accounts::Jabvox::IpWhitelistsController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   skip_before_action :check_jabvox_ip_whitelist
   before_action :fetch_entry, only: [:update, :destroy]
   before_action :authorize_entry
+  before_action :ensure_module_permission
 
   def index
     @entries = Current.account.jabvox_ip_whitelists.ordered
@@ -27,6 +30,14 @@ class Api::V1::Accounts::Jabvox::IpWhitelistsController < Api::V1::Accounts::Bas
   end
 
   private
+
+  # Custom-role gate: users without a custom role keep historical access;
+  # users with a custom role must be granted the capability (admins always pass).
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_ip_whitelist_manage')
+  end
 
   def fetch_entry
     @entry = Current.account.jabvox_ip_whitelists.find(params[:id])

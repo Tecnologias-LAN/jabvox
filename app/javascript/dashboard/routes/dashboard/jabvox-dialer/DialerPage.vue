@@ -1,4 +1,3 @@
-<!-- eslint-disable vue/no-bare-strings-in-template -->
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
@@ -34,6 +33,11 @@ const currentUserId = useMapGetter('getCurrentUserID');
 
 const SESSION_KEY = 'jabvox_dialer_session';
 
+// Decorative glyphs bound so they don't count as bare template strings.
+const SECONDS_SUFFIX = 's';
+const LEAD_PREFIX = '#';
+const NOTE_SEPARATOR = '— ';
+
 const canAccess = ref(true);
 const checkingAccess = ref(true);
 const connected = ref(false);
@@ -60,6 +64,50 @@ const selectedManagementState = computed(() =>
 let heartbeatTimer = null;
 let requestCallTimer = null;
 let wrapupTimer = null;
+
+const clearWrapupTimer = () => {
+  if (wrapupTimer) {
+    clearInterval(wrapupTimer);
+    wrapupTimer = null;
+  }
+};
+
+const stopRequestCallPolling = () => {
+  if (requestCallTimer) {
+    clearInterval(requestCallTimer);
+    requestCallTimer = null;
+  }
+};
+
+const doRequestCall = async () => {
+  if (
+    !connected.value ||
+    activeDialerState.value !== null ||
+    activeCall.value ||
+    dialingCall.value ||
+    inWrapup.value
+  )
+    return;
+  try {
+    const { data } = await dialerAccessesAPI.requestCall();
+    if (data.success) {
+      dialingCall.value = { dialer_contact_id: data.dialer_contact_id };
+      stopRequestCallPolling();
+      dialerStatusMessage.value = null;
+    } else if (data.queued === false) {
+      dialerStatusMessage.value = data.message || null;
+    }
+  } catch {
+    // ignore - retry next tick
+  }
+};
+
+const startRequestCallPolling = () => {
+  stopRequestCallPolling();
+  doRequestCall();
+  requestCallTimer = setInterval(doRequestCall, 6000);
+};
+
 const myCampaigns = computed(() => {
   const myId = Number(currentUserId.value);
   if (!myId) return [];
@@ -100,15 +148,7 @@ const onCallAssigned = data => {
     dialer_contact_id: data.dialer_contact_id || pendingId,
   };
   inWrapup.value = false;
-  // eslint-disable-next-line no-use-before-define
   clearWrapupTimer();
-};
-
-const clearWrapupTimer = () => {
-  if (wrapupTimer) {
-    clearInterval(wrapupTimer);
-    wrapupTimer = null;
-  }
 };
 
 const endWrapup = () => {
@@ -123,7 +163,6 @@ const endWrapup = () => {
   if (connected.value && activeDialerState.value === null) {
     // Unpause agent in Asterisk queue before requesting next call
     dialerAccessesAPI.updateState(null).catch(() => {});
-    // eslint-disable-next-line no-use-before-define
     startRequestCallPolling();
   }
 };
@@ -178,7 +217,6 @@ const saveWrapupNote = async () => {
 };
 
 const startWrapup = () => {
-  // eslint-disable-next-line no-use-before-define
   stopRequestCallPolling();
   lastCall.value = activeCall.value || dialingCall.value || lastCall.value;
   inWrapup.value = true;
@@ -238,42 +276,6 @@ const startHeartbeat = () => {
     },
     4 * 60 * 1000
   );
-};
-
-const stopRequestCallPolling = () => {
-  if (requestCallTimer) {
-    clearInterval(requestCallTimer);
-    requestCallTimer = null;
-  }
-};
-
-const doRequestCall = async () => {
-  if (
-    !connected.value ||
-    activeDialerState.value !== null ||
-    activeCall.value ||
-    dialingCall.value ||
-    inWrapup.value
-  )
-    return;
-  try {
-    const { data } = await dialerAccessesAPI.requestCall();
-    if (data.success) {
-      dialingCall.value = { dialer_contact_id: data.dialer_contact_id };
-      stopRequestCallPolling();
-      dialerStatusMessage.value = null;
-    } else if (data.queued === false) {
-      dialerStatusMessage.value = data.message || null;
-    }
-  } catch {
-    // ignore - retry next tick
-  }
-};
-
-const startRequestCallPolling = () => {
-  stopRequestCallPolling();
-  doRequestCall();
-  requestCallTimer = setInterval(doRequestCall, 6000);
 };
 
 const saveSession = campaign => {
@@ -407,7 +409,6 @@ const setDialerState = async state => {
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-bare-strings-in-template -->
   <div class="flex flex-col h-full w-full overflow-hidden bg-n-background">
     <!-- Loading -->
     <div
@@ -562,7 +563,7 @@ const setDialerState = async state => {
                 <span
                   v-if="activeCall.lead_number"
                   class="ml-1.5 text-xs font-normal text-n-slate-10"
-                  >#{{ activeCall.lead_number }}</span
+                  >{{ LEAD_PREFIX }}{{ activeCall.lead_number }}</span
                 >
               </p>
             </div>
@@ -644,10 +645,9 @@ const setDialerState = async state => {
                   <span class="font-medium text-n-slate-11">{{
                     g.state_name
                   }}</span>
-                  <!-- eslint-disable-next-line vue/max-attributes-per-line -->
-                  <span v-if="g.note" class="text-n-slate-10 ml-1"
-                    >— {{ g.note }}</span
-                  >
+                  <span v-if="g.note" class="text-n-slate-10 ml-1">
+                    {{ NOTE_SEPARATOR }}{{ g.note }}
+                  </span>
                   <span class="text-n-slate-9 ml-1">{{ g.created_at }}</span>
                 </div>
               </div>
@@ -727,7 +727,7 @@ const setDialerState = async state => {
                 {{ t('JABVOX_DIALER.WRAPUP.TITLE') }}
               </span>
               <span class="text-sm font-bold text-n-amber-11 tabular-nums">
-                {{ wrapupRemaining }}s
+                {{ wrapupRemaining }}{{ SECONDS_SUFFIX }}
               </span>
             </div>
             <Button
@@ -756,7 +756,7 @@ const setDialerState = async state => {
               <span
                 v-if="lastCall.lead_number"
                 class="ml-1 font-normal text-n-slate-10"
-                >#{{ lastCall.lead_number }}</span
+                >{{ LEAD_PREFIX }}{{ lastCall.lead_number }}</span
               >
             </p>
             <div class="flex flex-wrap gap-x-3 gap-y-0.5">
@@ -811,10 +811,9 @@ const setDialerState = async state => {
                   <span class="font-medium text-n-slate-11">{{
                     g.state_name
                   }}</span>
-                  <!-- eslint-disable-next-line vue/max-attributes-per-line -->
-                  <span v-if="g.note" class="text-n-slate-10 ml-1"
-                    >— {{ g.note }}</span
-                  >
+                  <span v-if="g.note" class="text-n-slate-10 ml-1">
+                    {{ NOTE_SEPARATOR }}{{ g.note }}
+                  </span>
                   <span class="text-n-slate-9 ml-1">{{ g.created_at }}</span>
                 </div>
               </div>

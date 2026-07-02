@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
+import ConfirmDialog from './ConfirmDialog.vue';
 
 const props = defineProps({
   taskId: { type: [Number, String], required: true },
@@ -20,6 +21,7 @@ const showForm = ref(false);
 const editing = ref(null);
 const saving = ref(false);
 const runningId = ref(null);
+const confirmDialog = ref(null);
 
 const inboxes = useMapGetter('inboxes/getInboxes');
 const smsProviders = useMapGetter('jabvoxSms/getProviders');
@@ -180,11 +182,19 @@ const toggleActive = async a => {
   }
 };
 
-const onDelete = async a => {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(t('JABVOX_TASKS.AUTOMATION.DELETE_CONFIRM'))) return;
+const onDelete = a => {
+  confirmDialog.value?.open({
+    title: t('JABVOX_TASKS.AUTOMATION.DELETE'),
+    description: t('JABVOX_TASKS.AUTOMATION.DELETE_CONFIRM'),
+    confirmLabel: t('JABVOX_TASKS.AUTOMATION.DELETE'),
+    cancelLabel: t('JABVOX_TASKS.AUTOMATION.CANCEL'),
+    data: a.id,
+  });
+};
+
+const doDelete = async automationId => {
   try {
-    await store.deleteTaskAutomation(props.taskId, a.id);
+    await store.deleteTaskAutomation(props.taskId, automationId);
     await load();
   } catch {
     useAlert(t('JABVOX_TASKS.AUTOMATION.ERROR'));
@@ -656,5 +666,7 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <ConfirmDialog ref="confirmDialog" @confirm="doDelete" />
   </section>
 </template>

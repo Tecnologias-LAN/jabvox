@@ -1,4 +1,9 @@
 class JabvoxSmsMessagePolicy < ApplicationPolicy
-  def index? = @account_user.administrator?
-  def stats? = @account_user.administrator?
+  def can_manage?
+    @account_user.administrator? ||
+      @account_user.custom_role&.grants?('jabvox_sms_view') || false
+  end
+
+  def index? = can_manage?
+  def stats? = can_manage?
 end

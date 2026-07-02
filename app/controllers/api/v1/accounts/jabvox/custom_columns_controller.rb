@@ -1,5 +1,8 @@
 class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_customization_enabled
+  before_action :ensure_module_permission
   before_action :set_table
   before_action :set_column, only: [:update, :destroy]
 
@@ -29,6 +32,14 @@ class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::Ba
     return if Current.account.jabvox_customization_enabled_jabvox?
 
     render json: { error: 'Customization module not enabled' }, status: :forbidden
+  end
+
+  # Custom-role gate: users without a custom role keep historical access;
+  # users with a custom role must be granted the capability (admins always pass).
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_custom_data_manage')
   end
 
   def set_table

@@ -1,6 +1,9 @@
 module Api::V1::Accounts::Jabvox
   class FieldVisibilitiesController < Api::V1::Accounts::BaseController
+    include JabvoxPermissions
+
     before_action :check_admin!, except: [:me]
+    before_action :ensure_module_permission, except: [:me]
 
     # GET /api/v1/accounts/:account_id/jabvox/field_visibilities
     def index
@@ -53,6 +56,14 @@ module Api::V1::Accounts::Jabvox
       return if current_user.administrator?
 
       render json: { error: 'Unauthorized' }, status: :unauthorized
+    end
+
+    # Custom-role gate: users without a custom role keep historical access;
+    # users with a custom role must be granted the capability (admins always pass).
+    def ensure_module_permission
+      return if Current.account_user&.custom_role.nil?
+
+      jabvox_authorize!('jabvox_field_visibilities_manage')
     end
   end
 end

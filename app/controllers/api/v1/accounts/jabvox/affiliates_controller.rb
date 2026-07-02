@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Jabvox::AffiliatesController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_affiliates_enabled
+  before_action :ensure_module_permission
   before_action :set_affiliate, only: %i[update destroy regenerate_token regenerate_code]
 
   def index
@@ -48,6 +51,14 @@ class Api::V1::Accounts::Jabvox::AffiliatesController < Api::V1::Accounts::BaseC
 
   def check_affiliates_enabled
     render json: { error: 'Affiliates module not enabled' }, status: :forbidden unless Current.account.jabvox_affiliates_enabled_jabvox?
+  end
+
+  # Custom-role gate: users without a custom role keep historical access;
+  # users with a custom role must be granted the capability (admins always pass).
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_affiliates_manage')
   end
 
   def set_affiliate

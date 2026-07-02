@@ -1,5 +1,8 @@
 class Api::V1::Accounts::Jabvox::CampaignsController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_leads_enabled
+  before_action :ensure_module_permission
   before_action :set_campaign, only: [:update, :destroy]
 
   def index
@@ -26,6 +29,14 @@ class Api::V1::Accounts::Jabvox::CampaignsController < Api::V1::Accounts::BaseCo
   end
 
   private
+
+  # Custom-role gate: users without a custom role keep historical access;
+  # users with a custom role must be granted the capability (admins always pass).
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_campaigns_manage')
+  end
 
   def set_campaign
     @campaign = Current.account.jabvox_campaigns.find(params[:id])

@@ -1,5 +1,6 @@
 class Api::V1::Accounts::Jabvox::Analytics::BaseController < Api::V1::Accounts::BaseController
   include Jabvox::Analytics::Auditable
+  include JabvoxPermissions
 
   before_action :check_feature_enabled
   before_action :ensure_roles_seeded
@@ -37,9 +38,11 @@ class Api::V1::Accounts::Jabvox::Analytics::BaseController < Api::V1::Accounts::
     render json: { error: "No tienes permiso para esta acción (#{key})" }, status: :forbidden
   end
 
-  # Admin-only sections (roles, permissions, audit logs).
+  # Management sections (roles, permissions, audit logs): admins always pass
+  # (jabvox_can? bypasses for admins); a custom role may also manage via
+  # jabvox_analytics_manage.
   def ensure_admin
-    return if Current.account_user&.administrator?
+    return if jabvox_can?('jabvox_analytics_manage')
 
     render json: { error: 'Solo los administradores pueden gestionar esta sección' }, status: :forbidden
   end

@@ -25,7 +25,8 @@ class Jabvox::LeadsFilterService
   # rubocop:disable Metrics/AbcSize
   def scope
     leads = @account.jabvox_leads.joins(:contact)
-    # Non-admins only ever see their own leads — same rule as the leads list and kanban.
+    # `@is_admin` is really "may view all leads" (admin OR the jabvox_leads_view_all custom-role
+    # grant). Everyone else only ever sees their own leads — same rule as the leads list and kanban.
     leads = leads.where(assignee_id: @user.id) unless @is_admin
     leads = leads.where(jabvox_leads: { id: @filters[:lead_id].to_i }) if @filters[:lead_id].present?
     leads = leads.where('contacts.name ILIKE ?', "%#{@filters[:q]}%") if @filters[:q].present?

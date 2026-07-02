@@ -151,7 +151,9 @@ RSpec.describe 'Custom Roles API', type: :request do
                headers: administrator.create_new_auth_token
 
         expect(response).to have_http_status(:success)
-        expect(CustomRole.count).to eq(0)
+        # Scope to this account so the assertion is not affected by custom roles
+        # other specs may leave behind (the global count is order-dependent/flaky).
+        expect(account.custom_roles.count).to eq(0)
       end
     end
 

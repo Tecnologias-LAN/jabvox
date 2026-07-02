@@ -8,6 +8,7 @@ import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import AgentSelect from './components/AgentSelect.vue';
 import LeadSelect from './components/LeadSelect.vue';
 import TaskAutomationsPanel from './components/TaskAutomationsPanel.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -20,6 +21,7 @@ const activities = ref([]);
 const isLoading = ref(true);
 const isEditing = ref(false);
 const isSaving = ref(false);
+const confirmDialog = ref(null);
 
 const accountId = computed(() => getters.getCurrentAccountId.value);
 const taskId = computed(() => route.params.taskId);
@@ -44,6 +46,8 @@ const PRIORITY_CLASS = {
 };
 const ACTIVITY_ICON = {
   created: 'i-lucide-sparkles',
+  title_changed: 'i-lucide-type',
+  description_changed: 'i-lucide-align-left',
   stage_changed: 'i-lucide-arrow-right-left',
   status_changed: 'i-lucide-circle-check',
   priority_changed: 'i-lucide-flag',
@@ -116,6 +120,13 @@ const activityText = activity => {
   switch (activity.action) {
     case 'created':
       return t('JABVOX_TASKS.TASK.HISTORY.CREATED');
+    case 'title_changed':
+      return t('JABVOX_TASKS.TASK.HISTORY.TITLE_CHANGED', {
+        from: m.from,
+        to: m.to,
+      });
+    case 'description_changed':
+      return t('JABVOX_TASKS.TASK.HISTORY.DESCRIPTION_CHANGED');
     case 'stage_changed':
       return t('JABVOX_TASKS.TASK.HISTORY.STAGE_CHANGED', {
         from: m.from,
@@ -234,11 +245,18 @@ const toggleDone = async () => {
   }
 };
 
-const onDelete = async () => {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(t('JABVOX_TASKS.TASK.DELETE_CONFIRM'))) return;
+const onDelete = () => {
+  if (!task.value) return;
+  confirmDialog.value?.open({
+    title: t('JABVOX_TASKS.TASK.DELETE'),
+    description: t('JABVOX_TASKS.TASK.DELETE_CONFIRM'),
+    data: task.value.id,
+  });
+};
+
+const doDelete = async taskIdToDelete => {
   try {
-    await store.deleteTask(task.value.id);
+    await store.deleteTask(taskIdToDelete);
     useAlert(t('JABVOX_TASKS.TASK.DELETED'));
     goBack();
   } catch {
@@ -686,5 +704,7 @@ watch(taskId, () => load(), { immediate: true });
         {{ t('JABVOX_TASKS.TASK.NOT_FOUND') }}
       </p>
     </div>
+
+    <ConfirmDialog ref="confirmDialog" @confirm="doDelete" />
   </div>
 </template>

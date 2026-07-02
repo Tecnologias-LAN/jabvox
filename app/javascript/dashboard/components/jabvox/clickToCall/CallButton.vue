@@ -43,9 +43,8 @@ const onClick = () => {
 </script>
 
 <template>
-  <!-- eslint-disable-next-line vue/no-root-v-if -->
   <button
-    v-if="isEnabled"
+    v-show="isEnabled"
     v-tooltip="t('JABVOX_CLICK_TO_CALL.CALL')"
     class="flex items-center gap-1 px-2 py-1 rounded-lg text-sm bg-n-alpha-2 text-n-slate-12 hover:bg-n-alpha-3 disabled:opacity-50"
     :disabled="isBusy"

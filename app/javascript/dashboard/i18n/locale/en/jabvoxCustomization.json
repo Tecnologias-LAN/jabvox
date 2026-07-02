@@ -151,6 +151,13 @@
       "DELETE_SUCCESS": "Botón eliminado."
     },
     "ERROR": "Ocurrió un error. Intenta de nuevo.",
-    "LOADING": "Cargando..."
+    "LOADING": "Cargando...",
+    "LEAD_ROWS": {
+      "EMPTY_TEXT": "No hay tablas personalizadas configuradas. Crea una en",
+      "EMPTY_LINK": "Configuración → Personalización",
+      "SAVED": "Guardado",
+      "NO_COLUMNS": "Esta tabla no tiene columnas. Agrégalas en Personalización → Columnas.",
+      "SELECT_EMPTY": "— sin valor —"
+    }
   }
 }

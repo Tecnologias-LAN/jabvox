@@ -57,7 +57,7 @@ const excludedIds = ref(new Set());
 
 // ── Message body ──────────────────────────────────────────────────────────
 const templateName = ref('');
-const language = ref('es');
+const language = ref('');
 const text = ref('');
 const sending = ref(false);
 
@@ -104,7 +104,9 @@ const canSend = computed(
     !!props.senderUserId &&
     !!props.mode &&
     selectedCount.value > 0 &&
-    (props.mode === 'template' ? !!templateName.value : !!text.value.trim())
+    (props.mode === 'template'
+      ? !!templateName.value && !!language.value
+      : !!text.value.trim())
 );
 
 const loadLeads = async () => {
@@ -115,8 +117,10 @@ const loadLeads = async () => {
       page: page.value,
       per_page: PER_PAGE,
     });
-    leads.value = data.leads || data || [];
-    total.value = data.meta?.total ?? leads.value.length;
+    // The leads index responds with { data: [...], meta: { total } }.
+    const list = Array.isArray(data?.data) ? data.data : data;
+    leads.value = Array.isArray(list) ? list : [];
+    total.value = data?.meta?.total ?? leads.value.length;
   } catch {
     useAlert(t('JABVOX_BULK_WA.LEADS.ERROR'));
   } finally {
@@ -196,8 +200,17 @@ watch(
   () => props.inboxId,
   () => {
     templateName.value = '';
+    language.value = '';
   }
 );
+
+// The language is a property of the selected template in Meta, so it must
+// match exactly. Derive it from the chosen template instead of letting the
+// user type a value that could mismatch and fail the send.
+watch(templateName, name => {
+  const tpl = inboxTemplates.value.find(tp => tp.name === name);
+  language.value = tpl?.language || '';
+});
 
 const loadCustomFields = async () => {
   try {
@@ -470,10 +483,14 @@ onMounted(() => {
               t('JABVOX_BULK_WA.COLS.LANGUAGE')
             }}</label>
             <input
-              v-model="language"
-              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
-              :placeholder="t('JABVOX_BULK_WA.LEADS.LANGUAGE_PLACEHOLDER')"
+              :value="language"
+              readonly
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-2 px-3 py-2 text-n-slate-11 cursor-default"
+              :placeholder="t('JABVOX_BULK_WA.LEADS.LANGUAGE_AUTO')"
             />
+            <span class="text-[11px] text-n-slate-9">
+              {{ t('JABVOX_BULK_WA.LEADS.LANGUAGE_HINT') }}
+            </span>
           </div>
         </div>
       </template>

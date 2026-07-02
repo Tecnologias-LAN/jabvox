@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Jabvox::DialerStatesController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
+  before_action :ensure_module_permission
   before_action :require_admin, only: %i[create update destroy]
   before_action :set_state, only: %i[update destroy]
 
@@ -31,6 +34,14 @@ class Api::V1::Accounts::Jabvox::DialerStatesController < Api::V1::Accounts::Jab
 
   def require_admin
     render json: { error: 'forbidden' }, status: :forbidden unless current_user.administrator?
+  end
+
+  # Gate solo si el usuario tiene un custom role: sin rol personalizado se
+  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_dialer_manage')
   end
 
   def set_state

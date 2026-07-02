@@ -41,8 +41,3 @@ export const audioReportsAPI = {
   daily: params => axios.get(`${base}/reports/daily`, { params }),
   filterOptions: () => axios.get(`${base}/reports/filter_options`),
 };
-
-export const audioAccessAPI = {
-  users: () => axios.get(`${base}/access/users`),
-  updateUser: payload => axios.post(`${base}/access/users`, payload),
-};

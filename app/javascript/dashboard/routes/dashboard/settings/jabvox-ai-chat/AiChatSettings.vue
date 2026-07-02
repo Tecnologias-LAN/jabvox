@@ -13,7 +13,6 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
 import Label from 'dashboard/components-next/label/Label.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
-import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import SectionCard from './components/SectionCard.vue';
 import ModelFormDialog from './components/ModelFormDialog.vue';
@@ -31,7 +30,6 @@ const tabs = [
   { key: 'models', icon: 'i-lucide-cpu' },
   { key: 'documents', icon: 'i-lucide-file-text' },
   { key: 'config', icon: 'i-lucide-settings-2' },
-  { key: 'permissions', icon: 'i-lucide-shield-check' },
 ];
 
 watch(activeTab, val => sessionStorage.setItem(ACTIVE_TAB_KEY, val), {
@@ -42,9 +40,6 @@ watch(activeTab, val => sessionStorage.setItem(ACTIVE_TAB_KEY, val), {
 const models = computed(() => store.getters['jabvoxAiChat/getModels']);
 const config = computed(() => store.getters['jabvoxAiChat/getConfig']);
 const documents = computed(() => store.getters['jabvoxAiChat/getDocuments']);
-const permissions = computed(
-  () => store.getters['jabvoxAiChat/getPermissions']
-);
 const uiFlags = computed(() => store.getters['jabvoxAiChat/getUIFlags']);
 
 // ─── models ───
@@ -214,43 +209,6 @@ const saveConfig = async () => {
   useAlert(t('JABVOX_AI_CHAT.CONFIG.SAVE'));
 };
 
-// ─── permissions ───
-const localPermissions = ref([]);
-const permSearch = ref('');
-const permDirty = ref(false);
-
-watch(
-  permissions,
-  async val => {
-    localPermissions.value = val.map(p => ({ ...p }));
-    permDirty.value = false;
-    await nextTick();
-    markClean();
-  },
-  { immediate: true }
-);
-
-const filteredPermissions = computed(() => {
-  const q = permSearch.value.trim().toLowerCase();
-  if (!q) return localPermissions.value;
-  return localPermissions.value.filter(
-    p => p.name?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q)
-  );
-});
-
-const onPermissionChange = () => {
-  permDirty.value = true;
-  markDirty();
-};
-
-const savePermissions = async () => {
-  await store.dispatch('jabvoxAiChat/savePermissions', localPermissions.value);
-  permDirty.value = false;
-  await nextTick();
-  markClean();
-  useAlert(t('JABVOX_AI_CHAT.PERMISSIONS.SAVED'));
-};
-
 // ─── shared delete handler ───
 const onConfirmDelete = async ({ kind, id }) => {
   try {
@@ -282,7 +240,6 @@ const formatBytes = bytes => {
 onMounted(async () => {
   store.dispatch('jabvoxAiChat/fetchModels');
   store.dispatch('jabvoxAiChat/fetchDocuments');
-  store.dispatch('jabvoxAiChat/fetchPermissions');
   await store.dispatch('jabvoxAiChat/fetchConfig');
   if (!config.value) return;
   if (!savedBucket) {
@@ -719,185 +676,6 @@ onMounted(async () => {
             </div>
           </template>
         </SectionCard>
-      </div>
-
-      <!-- ── PERMISSIONS ── -->
-      <div v-else class="flex flex-col gap-5">
-        <div
-          class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
-        >
-          <div>
-            <h2 class="text-base font-semibold text-n-slate-12">
-              {{ t('JABVOX_AI_CHAT.PERMISSIONS.TITLE') }}
-            </h2>
-            <p class="mt-1 text-sm text-n-slate-11 max-w-2xl">
-              {{ t('JABVOX_AI_CHAT.PERMISSIONS.DESC') }}
-            </p>
-          </div>
-          <Button
-            :label="t('JABVOX_AI_CHAT.PERMISSIONS.SAVE')"
-            icon="i-lucide-save"
-            size="sm"
-            class="shrink-0"
-            :disabled="!permDirty"
-            :is-loading="uiFlags.isSavingPermissions"
-            @click="savePermissions"
-          />
-        </div>
-
-        <div class="relative w-full sm:w-64">
-          <Input
-            v-model="permSearch"
-            :placeholder="t('JABVOX_AI_CHAT.PERMISSIONS.SEARCH_PLACEHOLDER')"
-            custom-input-class="!pl-9"
-          >
-            <template #prefix>
-              <span
-                class="i-lucide-search size-4 text-n-slate-10 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              />
-            </template>
-          </Input>
-        </div>
-
-        <div
-          v-if="!filteredPermissions.length"
-          class="rounded-xl border border-dashed border-n-weak py-12 text-center text-sm text-n-slate-11"
-        >
-          {{ t('JABVOX_AI_CHAT.PERMISSIONS.NO_RESULTS') }}
-        </div>
-
-        <!-- Desktop table -->
-        <div
-          v-else
-          class="hidden md:block rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden overflow-x-auto"
-        >
-          <table class="min-w-full text-sm">
-            <thead
-              class="bg-n-alpha-1 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
-            >
-              <tr>
-                <th class="text-left px-4 py-2.5">
-                  {{ t('JABVOX_AI_CHAT.PERMISSIONS.USER') }}
-                </th>
-                <th class="text-center px-4 py-2.5">
-                  {{ t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE') }}
-                </th>
-                <th class="text-center px-4 py-2.5">
-                  {{ t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE_MODELS') }}
-                </th>
-                <th class="text-center px-4 py-2.5">
-                  {{ t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE_DOCUMENTS') }}
-                </th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-n-weak">
-              <tr
-                v-for="perm in filteredPermissions"
-                :key="perm.user_id ?? perm.id"
-                class="hover:bg-n-alpha-1 transition-colors"
-              >
-                <td class="px-4 py-3">
-                  <div class="flex items-center gap-3 min-w-0">
-                    <Avatar
-                      :name="perm.name"
-                      :src="perm.thumbnail"
-                      :size="32"
-                      rounded-full
-                    />
-                    <div class="min-w-0">
-                      <p class="font-medium text-n-slate-12 truncate">
-                        {{ perm.name }}
-                      </p>
-                      <p class="text-xs text-n-slate-10 truncate">
-                        {{ perm.email }}
-                      </p>
-                    </div>
-                  </div>
-                </td>
-                <td class="px-4 py-3">
-                  <div class="flex justify-center">
-                    <Switch
-                      v-model="perm.can_use"
-                      @update:model-value="onPermissionChange"
-                    />
-                  </div>
-                </td>
-                <td class="px-4 py-3">
-                  <div class="flex justify-center">
-                    <Switch
-                      v-model="perm.can_use_models"
-                      @update:model-value="onPermissionChange"
-                    />
-                  </div>
-                </td>
-                <td class="px-4 py-3">
-                  <div class="flex justify-center">
-                    <Switch
-                      v-model="perm.can_use_documents"
-                      @update:model-value="onPermissionChange"
-                    />
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Mobile cards -->
-        <div
-          v-if="filteredPermissions.length"
-          class="flex flex-col gap-3 md:hidden"
-        >
-          <div
-            v-for="perm in filteredPermissions"
-            :key="perm.user_id ?? perm.id"
-            class="flex flex-col gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm"
-          >
-            <div class="flex items-center gap-3 min-w-0">
-              <Avatar
-                :name="perm.name"
-                :src="perm.thumbnail"
-                :size="36"
-                rounded-full
-              />
-              <div class="min-w-0">
-                <p class="text-sm font-medium text-n-slate-12 truncate">
-                  {{ perm.name }}
-                </p>
-                <p class="text-xs text-n-slate-10 truncate">{{ perm.email }}</p>
-              </div>
-            </div>
-            <div class="flex flex-col gap-2 rounded-xl bg-n-alpha-1 p-3">
-              <label class="flex items-center justify-between gap-2">
-                <span class="text-sm text-n-slate-12">{{
-                  t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE')
-                }}</span>
-                <Switch
-                  v-model="perm.can_use"
-                  @update:model-value="onPermissionChange"
-                />
-              </label>
-              <label class="flex items-center justify-between gap-2">
-                <span class="text-sm text-n-slate-12">{{
-                  t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE_MODELS')
-                }}</span>
-                <Switch
-                  v-model="perm.can_use_models"
-                  @update:model-value="onPermissionChange"
-                />
-              </label>
-              <label class="flex items-center justify-between gap-2">
-                <span class="text-sm text-n-slate-12">{{
-                  t('JABVOX_AI_CHAT.PERMISSIONS.CAN_USE_DOCUMENTS')
-                }}</span>
-                <Switch
-                  v-model="perm.can_use_documents"
-                  @update:model-value="onPermissionChange"
-                />
-              </label>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 

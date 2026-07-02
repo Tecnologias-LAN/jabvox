@@ -457,9 +457,6 @@ Rails.application.routes.draw do
               get :inboxes, to: 'inboxes#index'
               post 'inboxes/:inbox_id/sync', to: 'inboxes#sync'
               get :metrics, to: 'inboxes#metrics'
-              resources :permissions, only: [:index] do
-                patch :bulk, on: :collection
-              end
               resources :templates do
                 member do
                   post :duplicate
@@ -478,9 +475,6 @@ Rails.application.routes.draw do
               post 'config/test', to: 'configs#test'
               post 'config/test_ssh', to: 'configs#test_ssh'
               resources :pipelines
-              resources :permissions, only: [:index] do
-                patch :bulk, on: :collection
-              end
               get :my_access, to: 'reports#my_access'
               get :records, to: 'reports#records'
               get :summary, to: 'reports#summary'
@@ -510,8 +504,6 @@ Rails.application.routes.draw do
               get 'reports/daily', to: 'reports#daily'
               get 'reports/filter_options', to: 'reports#filter_options'
               get 'access/my', to: 'reports#my_access'
-              get 'access/users', to: 'access#users'
-              post 'access/users', to: 'access#update_users'
             end
             resource :saldo_config, only: [:show, :update]
             get :saldo_balance, to: 'saldo_configs#status'
@@ -583,11 +575,6 @@ Rails.application.routes.draw do
               collection do
                 get :my_access
                 get :sessions
-              end
-            end
-            resources :ai_chat_permissions, only: [:index, :update] do
-              collection do
-                patch :bulk_update
               end
             end
             resources :ai_chat_documents, only: [:index, :update, :destroy]

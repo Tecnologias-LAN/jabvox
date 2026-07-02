@@ -1,4 +1,9 @@
-json.access_token resource.access_token.token
+# Security: the API access token is only serialized when a super admin has
+# explicitly enabled it for this user (can_view_access_token_jabvox). Disabled by
+# default, so the token never leaves the backend — not even in the JSON payload —
+# until it is turned on. This is the real gate; the profile UI is only cosmetic.
+json.access_token resource.access_token.token if resource.can_view_access_token_jabvox?
+json.can_view_access_token_jabvox resource.can_view_access_token_jabvox?
 json.account_id resource.active_account_user&.account_id
 json.available_name resource.available_name
 json.avatar_url resource.avatar_url

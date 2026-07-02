@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::Jabvox::BaseController # rubocop:disable Metrics/ClassLength
+  include JabvoxPermissions
+
+  before_action :ensure_module_permission
   before_action :require_admin, except: %i[me connect disconnect update_state heartbeat request_call end_call]
 
   AGENT_TTL = 10.minutes.to_i
@@ -224,6 +227,14 @@ private
 
   def require_admin
     render json: { error: 'forbidden' }, status: :forbidden unless current_user.administrator?
+  end
+
+  # Gate solo si el usuario tiene un custom role: sin rol personalizado se
+  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_dialer_manage')
   end
 
   def agent_cache_key_for(uid = current_user.id)

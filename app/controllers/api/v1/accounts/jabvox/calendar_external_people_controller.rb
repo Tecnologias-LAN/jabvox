@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Jabvox::CalendarExternalPeopleController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_calendar_access
+  before_action :ensure_module_permission
   before_action :set_person, only: %i[show update destroy]
 
   def index
@@ -40,6 +43,14 @@ class Api::V1::Accounts::Jabvox::CalendarExternalPeopleController < Api::V1::Acc
     return if Current.account.jabvox_smtp_config.present?
 
     render json: { error: 'Calendar module not enabled' }, status: :forbidden
+  end
+
+  # Gate solo si el usuario tiene un custom role: sin rol personalizado se
+  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_calendar_manage')
   end
 
   def set_person

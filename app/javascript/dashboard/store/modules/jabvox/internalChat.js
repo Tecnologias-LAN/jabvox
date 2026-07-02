@@ -74,13 +74,30 @@ const actions = {
   setCurrentChat: ({ commit }, chatId) => {
     commit('SET_CURRENT_CHAT_ID', chatId);
   },
-  receiveMessage: ({ commit, state: s }, { chat_id: chatId, message }) => {
-    if (s.currentChatId === chatId) {
+  receiveMessage: (
+    { commit, state: s, rootGetters },
+    { chat_id: chatId, message }
+  ) => {
+    const isOpenChat = s.currentChatId === chatId;
+    if (isOpenChat) {
       commit('ADD_MESSAGE', message);
     }
-    commit('INCREMENT_UNREAD', chatId);
     commit('UPDATE_CHAT_LAST_MESSAGE', { chatId, message });
-    commit('REFRESH_UNREAD_TOTAL');
+
+    // Don't bump unread for our own messages, or for the chat that's currently open.
+    const currentUserId = rootGetters.getCurrentUser?.id;
+    if (message?.sender?.id === currentUserId || isOpenChat) return;
+
+    const known = s.chats.some(c => c.id === chatId);
+    if (known) {
+      // The chat list is loaded: update the per-chat count and recompute the total.
+      commit('INCREMENT_UNREAD', chatId);
+      commit('REFRESH_UNREAD_TOTAL');
+    } else {
+      // Outside the chat page the list isn't loaded — bump the total directly so the
+      // sidebar badge still increments in real time.
+      commit('SET_UNREAD_TOTAL', s.unreadTotal + 1);
+    }
   },
 };
 

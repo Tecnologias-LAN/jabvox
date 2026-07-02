@@ -1,4 +1,7 @@
 class Api::V1::Accounts::Jabvox::ResponseBotDocumentsController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
+  before_action :ensure_module_permission
   before_action :set_document, only: [:update, :destroy]
 
   def index
@@ -47,6 +50,14 @@ class Api::V1::Accounts::Jabvox::ResponseBotDocumentsController < Api::V1::Accou
   end
 
   private
+
+  # Gate solo si el usuario tiene un custom role: sin rol personalizado se
+  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_response_bot_manage')
+  end
 
   def set_document
     @document = Current.account.jabvox_response_bot_documents.find(params[:id])

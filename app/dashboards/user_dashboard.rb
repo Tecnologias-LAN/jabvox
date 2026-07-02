@@ -37,7 +37,8 @@ class UserDashboard < Administrate::BaseDashboard
     pubsub_token: Field::String,
     type: Field::Select.with_options(collection: [nil, 'SuperAdmin']),
     accounts: CountField,
-    access_token: Field::HasOne
+    access_token: Field::HasOne,
+    can_view_access_token_jabvox: Field::Boolean
   }.freeze
 
   # COLLECTION_ATTRIBUTES
@@ -69,6 +70,7 @@ class UserDashboard < Administrate::BaseDashboard
     confirmed_at
     account_users
     access_token
+    can_view_access_token_jabvox
   ].freeze
 
   # FORM_ATTRIBUTES
@@ -82,6 +84,7 @@ class UserDashboard < Administrate::BaseDashboard
     password
     confirmed_at
     type
+    can_view_access_token_jabvox
   ].freeze
 
   # COLLECTION_FILTERS

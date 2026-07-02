@@ -6,6 +6,7 @@ import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import LeadContactFormDialog from './LeadContactFormDialog.vue';
 import LeadSelect from './components/LeadSelect.vue';
 import TasksEmptyState from './components/TasksEmptyState.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const { t } = useI18n();
 const store = useTasksStore();
@@ -13,6 +14,7 @@ const store = useTasksStore();
 const showDialog = ref(false);
 const editingContact = ref(null);
 const selectedLeadId = ref(null);
+const confirmDialog = ref(null);
 
 const contacts = computed(() => store.contactList);
 const isLoading = computed(() => store.uiFlags.fetchingContacts);
@@ -60,11 +62,17 @@ const onSubmit = async payload => {
   }
 };
 
-const onDelete = async contact => {
-  // eslint-disable-next-line no-alert
-  if (!window.confirm(t('JABVOX_TASKS.CONTACTS.DELETE_CONFIRM'))) return;
+const onDelete = contact => {
+  confirmDialog.value?.open({
+    title: t('JABVOX_TASKS.CONTACTS.DELETE'),
+    description: t('JABVOX_TASKS.CONTACTS.DELETE_CONFIRM'),
+    data: contact.id,
+  });
+};
+
+const doDelete = async contactId => {
   try {
-    await store.deleteLeadContact(contact.id);
+    await store.deleteLeadContact(contactId);
     useAlert(t('JABVOX_TASKS.CONTACTS.DELETED'));
   } catch {
     useAlert(t('JABVOX_TASKS.CONTACTS.ERROR'));
@@ -181,5 +189,7 @@ const onDelete = async contact => {
       @submit="onSubmit"
       @close="showDialog = false"
     />
+
+    <ConfirmDialog ref="confirmDialog" @confirm="doDelete" />
   </aside>
 </template>

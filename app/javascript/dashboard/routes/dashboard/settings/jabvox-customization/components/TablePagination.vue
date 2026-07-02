@@ -52,7 +52,6 @@ const sizeOptions = computed(() =>
         :disabled="page <= 1"
         @click="emit('prev')"
       />
-      <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
       <span
         class="text-xs text-n-slate-11 tabular-nums min-w-[3rem] text-center"
       >

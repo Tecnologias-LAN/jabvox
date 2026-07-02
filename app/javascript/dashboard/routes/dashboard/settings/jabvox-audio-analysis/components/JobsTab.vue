@@ -17,6 +17,14 @@ const emit = defineEmits(['toggle-job', 'toggle-transcript']);
 
 const { t } = useI18n();
 
+// Decorative sentiment/status glyphs (not user-facing prose).
+const EMOJI_POSITIVE = '🙂';
+const EMOJI_NEUTRAL = '😐';
+const EMOJI_NEGATIVE = '🙁';
+const EMOJI_AUDIO = '🎵';
+const CHECK = '✓';
+const CROSS = '✗';
+
 const fileName = key => key.split('/').pop();
 
 const SENTIMENT_EMOJI = { positive: '🙂', negative: '🙁', neutral: '😐' };
@@ -31,7 +39,6 @@ const STATUS_TONE = {
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-bare-strings-in-template -- emoji/symbols are universal -->
   <SettingsCard
     :title="t('JABVOX_AUDIO.JOBS.TITLE')"
     :description="t('JABVOX_AUDIO.JOBS.SUBTITLE')"
@@ -86,9 +93,9 @@ const STATUS_TONE = {
             <span class="text-n-teal-11">✅ {{ job.passed_count }}</span>
             <span class="text-n-ruby-11">❌ {{ job.failed_count }}</span>
             <span class="ml-auto flex items-center gap-2">
-              <span>🙂 {{ job.positive_count }}</span>
-              <span>😐 {{ job.neutral_count }}</span>
-              <span>🙁 {{ job.negative_count }}</span>
+              <span>{{ EMOJI_POSITIVE }} {{ job.positive_count }}</span>
+              <span>{{ EMOJI_NEUTRAL }} {{ job.neutral_count }}</span>
+              <span>{{ EMOJI_NEGATIVE }} {{ job.negative_count }}</span>
             </span>
           </div>
         </button>
@@ -115,7 +122,7 @@ const STATUS_TONE = {
               <span
                 class="text-sm text-n-slate-12 truncate flex items-center gap-1.5 min-w-0"
               >
-                🎵 {{ fileName(r.file_key) }}
+                {{ EMOJI_AUDIO }} {{ fileName(r.file_key) }}
               </span>
               <span class="flex items-center gap-2 shrink-0 text-xs">
                 <span
@@ -182,7 +189,7 @@ const STATUS_TONE = {
                     :key="`h${hi}`"
                     class="text-xs text-n-teal-11"
                   >
-                    ✓ {{ h }}
+                    {{ CHECK }} {{ h }}
                   </li>
                 </ul>
                 <ul
@@ -194,7 +201,7 @@ const STATUS_TONE = {
                     :key="`i${ii}`"
                     class="text-xs text-n-ruby-11"
                   >
-                    ✗ {{ iss }}
+                    {{ CROSS }} {{ iss }}
                   </li>
                 </ul>
               </div>

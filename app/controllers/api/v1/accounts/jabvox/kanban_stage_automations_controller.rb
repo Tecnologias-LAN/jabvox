@@ -1,4 +1,7 @@
 class Api::V1::Accounts::Jabvox::KanbanStageAutomationsController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
+  before_action :ensure_module_permission
   before_action :set_stage
   before_action :set_automation, only: [:show, :update, :destroy]
 
@@ -26,6 +29,14 @@ class Api::V1::Accounts::Jabvox::KanbanStageAutomationsController < Api::V1::Acc
   end
 
   private
+
+  # Custom-role gate: users without a custom role keep historical access;
+  # users with a custom role must be granted the capability (admins always pass).
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_kanban_manage')
+  end
 
   def set_stage
     funnel = Current.account.jabvox_kanban_funnels.find(params[:kanban_funnel_id])

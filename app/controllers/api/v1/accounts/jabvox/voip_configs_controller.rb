@@ -2,7 +2,10 @@ require 'socket'
 require 'timeout'
 
 class Api::V1::Accounts::Jabvox::VoipConfigsController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
   before_action :check_authorization
+  before_action :ensure_module_permission
 
   def show
     @config = Current.account.jabvox_voip_config || JabvoxVoipConfig.new
@@ -49,6 +52,14 @@ class Api::V1::Accounts::Jabvox::VoipConfigsController < Api::V1::Accounts::Jabv
   end
 
   private
+
+  # Custom-role gate: users without a custom role keep historical access;
+  # users with a custom role must be granted the capability (admins always pass).
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_voip_manage')
+  end
 
   def check_authorization
     authorize :jabvox_voip_config

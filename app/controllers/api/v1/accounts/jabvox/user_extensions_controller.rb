@@ -1,4 +1,6 @@
 class Api::V1::Accounts::Jabvox::UserExtensionsController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_admin, only: [:index, :create, :destroy]
 
   # GET all extensions for this account (admin)
@@ -39,8 +41,10 @@ class Api::V1::Accounts::Jabvox::UserExtensionsController < Api::V1::Accounts::B
 
   private
 
+  # Admins always pass (jabvox_can? bypasses for admins); a custom role may also
+  # manage extensions via jabvox_dialer_manage.
   def check_admin
-    return if Current.account_user&.administrator?
+    return if jabvox_can?('jabvox_dialer_manage')
 
     render json: { error: 'Unauthorized' }, status: :forbidden
   end

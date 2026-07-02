@@ -76,9 +76,29 @@ class Jabvox::Analytics::PermissionResolver
   private
 
   def build_capabilities
-    caps = role&.grants || {}
+    # Custom-role grants form the base layer: a role granting jabvox_analytics_access
+    # gives entry access; jabvox_analytics_manage grants the management capabilities.
+    # Analytics' own role/overrides (finer-grained) merge on top, so nothing is lost.
+    caps = custom_role_capabilities
+    caps = caps.merge(role.grants) if role&.grants.present?
     caps = caps.merge(overrides) if overrides.present?
     caps.transform_values { |v| ActiveModel::Type::Boolean.new.cast(v) }
+  end
+
+  # Maps the two Jabvox custom-role analytics permissions onto Analytics'
+  # capability keys. Only turns capabilities ON (never off), so it can only
+  # widen access from the custom role, never remove Analytics-native grants.
+  def custom_role_capabilities
+    role = account_user&.custom_role
+    return {} if role.nil?
+
+    caps = {}
+    caps['access'] = true if role.grants?('jabvox_analytics_access')
+    if role.grants?('jabvox_analytics_manage')
+      %w[access create edit_own edit_all delete_own delete_all share
+         view_all_data manage_data_sources].each { |k| caps[k] = true }
+    end
+    caps
   end
 
   def user_permission

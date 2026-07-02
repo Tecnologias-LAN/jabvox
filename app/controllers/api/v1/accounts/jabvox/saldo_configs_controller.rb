@@ -1,6 +1,9 @@
 class Api::V1::Accounts::Jabvox::SaldoConfigsController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :authorize_config
   before_action :check_feature_enabled
+  before_action :ensure_module_permission
 
   def show
     @config = Current.account.jabvox_saldo_config || Current.account.build_jabvox_saldo_config
@@ -24,6 +27,14 @@ class Api::V1::Accounts::Jabvox::SaldoConfigsController < Api::V1::Accounts::Bas
   end
 
   private
+
+  # Custom-role gate: users without a custom role keep historical access;
+  # users with a custom role must be granted the capability (admins always pass).
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_saldo_manage')
+  end
 
   def authorize_config
     authorize :jabvox_saldo_config

@@ -1,4 +1,7 @@
 class Api::V1::Accounts::Jabvox::EmailTemplatesController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
+  before_action :ensure_module_permission
   before_action :set_template, only: [:show, :update, :destroy, :test_send, :send_to_contact]
 
   def index
@@ -67,6 +70,14 @@ class Api::V1::Accounts::Jabvox::EmailTemplatesController < Api::V1::Accounts::J
   end
 
   private
+
+  # Gate solo si el usuario tiene un custom role: sin rol personalizado se
+  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_email_manage')
+  end
 
   def set_template
     @template = Current.account.jabvox_email_templates.find(params[:id])

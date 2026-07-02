@@ -1,6 +1,9 @@
 class Api::V1::Accounts::Jabvox::FormsController < Api::V1::Accounts::BaseController
+  include JabvoxPermissions
+
   before_action :check_authorization
   before_action :check_feature_enabled
+  before_action :ensure_module_permission
   before_action :set_form, only: [:show, :update, :destroy]
 
   def index
@@ -35,6 +38,14 @@ class Api::V1::Accounts::Jabvox::FormsController < Api::V1::Accounts::BaseContro
     return if Current.account.feature_enabled?('jabvox_forms')
 
     render json: { error: 'Jabvox Forms feature is not enabled for this account' }, status: :forbidden
+  end
+
+  # Gate solo si el usuario tiene un custom role: sin rol personalizado se
+  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_forms_manage')
   end
 
   def set_form

@@ -35,33 +35,12 @@ class AccountDashboard < Administrate::BaseDashboard
     status: Field::Select.with_options(collection: [%w[Active active], %w[Suspended suspended]]),
     account_users: Field::HasMany,
     custom_attributes: Field::String,
-    jabvox_kanban_enabled_jabvox: Field::Boolean,
-    jabvox_products_enabled_jabvox: Field::Boolean,
-    jabvox_voip_enabled_jabvox: Field::Boolean,
-    jabvox_saldo_enabled_jabvox: Field::Boolean,
-    jabvox_sms_enabled_jabvox: Field::Boolean,
-    jabvox_ai_chat_enabled_jabvox: Field::Boolean,
+    # All per-account Jabvox module toggles rendered as one grid of tiles.
+    jabvox_modules: JabvoxModulesField,
+    # Numeric limits kept as standalone fields (not on/off toggles).
     jabvox_ai_chat_max_documents_jabvox: Field::Number,
     jabvox_ai_chat_max_open_chats_jabvox: Field::Number,
-    jabvox_dialer_enabled_jabvox: Field::Boolean,
-    jabvox_leads_enabled_jabvox: Field::Boolean,
-    jabvox_affiliates_enabled_jabvox: Field::Boolean,
-    jabvox_calendar_enabled_jabvox: Field::Boolean,
-    jabvox_internal_chat_enabled_jabvox: Field::Boolean,
-    jabvox_response_bot_enabled_jabvox: Field::Boolean,
-    jabvox_email_enabled_jabvox: Field::Boolean,
-    jabvox_forms_enabled_jabvox: Field::Boolean,
-    max_forms_jabvox: Field::Number,
-    jabvox_cdr_enabled_jabvox: Field::Boolean,
-    jabvox_audio_analysis_enabled_jabvox: Field::Boolean,
-    jabvox_click_to_call_enabled_jabvox: Field::Boolean,
-    jabvox_customization_enabled_jabvox: Field::Boolean,
-    jabvox_analytics_enabled_jabvox: Field::Boolean,
-    jabvox_whatsapp_templates_enabled_jabvox: Field::Boolean,
-    jabvox_tasks_enabled_jabvox: Field::Boolean,
-    jabvox_bulk_whatsapp_enabled_jabvox: Field::Boolean,
-    jabvox_lead_import_enabled_jabvox: Field::Boolean,
-    jabvox_data_export_enabled_jabvox: Field::Boolean
+    max_forms_jabvox: Field::Number
   }.merge(enterprise_attribute_types).freeze
 
   # COLLECTION_ATTRIBUTES
@@ -97,33 +76,10 @@ class AccountDashboard < Administrate::BaseDashboard
     status
     conversations
     account_users
-    jabvox_kanban_enabled_jabvox
-    jabvox_products_enabled_jabvox
-    jabvox_voip_enabled_jabvox
-    jabvox_saldo_enabled_jabvox
-    jabvox_sms_enabled_jabvox
-    jabvox_ai_chat_enabled_jabvox
+    jabvox_modules
     jabvox_ai_chat_max_documents_jabvox
     jabvox_ai_chat_max_open_chats_jabvox
-    jabvox_dialer_enabled_jabvox
-    jabvox_leads_enabled_jabvox
-    jabvox_affiliates_enabled_jabvox
-    jabvox_calendar_enabled_jabvox
-    jabvox_internal_chat_enabled_jabvox
-    jabvox_response_bot_enabled_jabvox
-    jabvox_email_enabled_jabvox
-    jabvox_forms_enabled_jabvox
     max_forms_jabvox
-    jabvox_cdr_enabled_jabvox
-    jabvox_audio_analysis_enabled_jabvox
-    jabvox_click_to_call_enabled_jabvox
-    jabvox_customization_enabled_jabvox
-    jabvox_analytics_enabled_jabvox
-    jabvox_whatsapp_templates_enabled_jabvox
-    jabvox_tasks_enabled_jabvox
-    jabvox_bulk_whatsapp_enabled_jabvox
-    jabvox_lead_import_enabled_jabvox
-    jabvox_data_export_enabled_jabvox
   ] + enterprise_show_page_attributes).freeze
 
   # FORM_ATTRIBUTES
@@ -141,33 +97,10 @@ class AccountDashboard < Administrate::BaseDashboard
     name
     locale
     status
-    jabvox_kanban_enabled_jabvox
-    jabvox_products_enabled_jabvox
-    jabvox_voip_enabled_jabvox
-    jabvox_saldo_enabled_jabvox
-    jabvox_sms_enabled_jabvox
-    jabvox_ai_chat_enabled_jabvox
+    jabvox_modules
     jabvox_ai_chat_max_documents_jabvox
     jabvox_ai_chat_max_open_chats_jabvox
-    jabvox_dialer_enabled_jabvox
-    jabvox_leads_enabled_jabvox
-    jabvox_affiliates_enabled_jabvox
-    jabvox_calendar_enabled_jabvox
-    jabvox_internal_chat_enabled_jabvox
-    jabvox_response_bot_enabled_jabvox
-    jabvox_email_enabled_jabvox
-    jabvox_forms_enabled_jabvox
     max_forms_jabvox
-    jabvox_cdr_enabled_jabvox
-    jabvox_audio_analysis_enabled_jabvox
-    jabvox_click_to_call_enabled_jabvox
-    jabvox_customization_enabled_jabvox
-    jabvox_analytics_enabled_jabvox
-    jabvox_whatsapp_templates_enabled_jabvox
-    jabvox_tasks_enabled_jabvox
-    jabvox_bulk_whatsapp_enabled_jabvox
-    jabvox_lead_import_enabled_jabvox
-    jabvox_data_export_enabled_jabvox
   ] + enterprise_form_attributes).freeze
 
   # COLLECTION_FILTERS
@@ -197,35 +130,18 @@ class AccountDashboard < Administrate::BaseDashboard
   # We do not use the action parameter but we still need to define it
   # to prevent an error from being raised (wrong number of arguments)
   # Reference: https://github.com/thoughtbot/administrate/pull/2356/files#diff-4e220b661b88f9a19ac527c50d6f1577ef6ab7b0bed2bfdf048e22e6bfa74a05R204
+  # Numeric per-account limits (not module on/off toggles).
+  JABVOX_NUMERIC_ATTRS = %i[
+    jabvox_ai_chat_max_documents_jabvox
+    jabvox_ai_chat_max_open_chats_jabvox
+    max_forms_jabvox
+  ].freeze
+
   def permitted_attributes(action)
     attrs = super + [limits: {}]
-    attrs << :jabvox_kanban_enabled_jabvox
-    attrs << :jabvox_products_enabled_jabvox
-    attrs << :jabvox_voip_enabled_jabvox
-    attrs << :jabvox_saldo_enabled_jabvox
-    attrs << :jabvox_sms_enabled_jabvox
-    attrs << :jabvox_ai_chat_enabled_jabvox
-    attrs << :jabvox_ai_chat_max_documents_jabvox
-    attrs << :jabvox_ai_chat_max_open_chats_jabvox
-    attrs << :jabvox_dialer_enabled_jabvox
-    attrs << :jabvox_leads_enabled_jabvox
-    attrs << :jabvox_affiliates_enabled_jabvox
-    attrs << :jabvox_calendar_enabled_jabvox
-    attrs << :jabvox_internal_chat_enabled_jabvox
-    attrs << :jabvox_response_bot_enabled_jabvox
-    attrs << :jabvox_email_enabled_jabvox
-    attrs << :jabvox_forms_enabled_jabvox
-    attrs << :max_forms_jabvox
-    attrs << :jabvox_cdr_enabled_jabvox
-    attrs << :jabvox_audio_analysis_enabled_jabvox
-    attrs << :jabvox_click_to_call_enabled_jabvox
-    attrs << :jabvox_customization_enabled_jabvox
-    attrs << :jabvox_analytics_enabled_jabvox
-    attrs << :jabvox_whatsapp_templates_enabled_jabvox
-    attrs << :jabvox_tasks_enabled_jabvox
-    attrs << :jabvox_bulk_whatsapp_enabled_jabvox
-    attrs << :jabvox_lead_import_enabled_jabvox
-    attrs << :jabvox_data_export_enabled_jabvox
+    # Module toggles are derived from the single source of truth in the field.
+    attrs.concat(JabvoxModulesField::MODULES.map(&:first))
+    attrs.concat(JABVOX_NUMERIC_ATTRS)
 
     # Add manually_managed_features to permitted attributes only for Jabvox Cloud
     attrs << { manually_managed_features: [] } if JabvoxApp.jabvox_cloud?

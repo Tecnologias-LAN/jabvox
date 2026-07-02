@@ -1,6 +1,10 @@
 {
   "JABVOX_TASKS": {
     "TITLE": "Tasks",
+    "COMMON": {
+      "DELETE": "Delete",
+      "CANCEL": "Cancel"
+    },
     "BOARDS": {
       "HEADER": "Boards",
       "NEW": "New board",
@@ -112,6 +116,8 @@
         "TITLE": "History",
         "EMPTY": "No activity yet.",
         "CREATED": "created the task",
+        "TITLE_CHANGED": "changed the title from \"{from}\" to \"{to}\"",
+        "DESCRIPTION_CHANGED": "updated the description",
         "STAGE_CHANGED": "moved the task from {from} to {to}",
         "STATUS_CHANGED": "changed status from {from} to {to}",
         "PRIORITY_CHANGED": "changed priority from {from} to {to}",

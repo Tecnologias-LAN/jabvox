@@ -1,6 +1,8 @@
 class Api::V1::Accounts::Jabvox::Tasks::StagesController < Api::V1::Accounts::Jabvox::Tasks::BaseController
   before_action :set_board
   before_action :set_stage, only: %i[update destroy]
+  # Managing stages is custom-role gated; standard agents keep historical behavior, admins pass.
+  before_action -> { jabvox_gate!('jabvox_tasks_manage') }, only: %i[create update destroy]
 
   def index
     render json: @board.stages.ordered.map { |s| serialize(s) }

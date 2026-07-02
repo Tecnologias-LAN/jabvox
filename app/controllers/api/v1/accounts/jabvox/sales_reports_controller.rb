@@ -1,5 +1,8 @@
 class Api::V1::Accounts::Jabvox::SalesReportsController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
   before_action :check_authorization
+  before_action :ensure_module_permission
 
   def show
     scope = build_scope
@@ -13,6 +16,14 @@ class Api::V1::Accounts::Jabvox::SalesReportsController < Api::V1::Accounts::Jab
   end
 
   private
+
+  # Custom-role gate: users without a custom role keep historical access;
+  # users with a custom role must be granted the capability (admins always pass).
+  def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
+    jabvox_authorize!('jabvox_sales_reports_manage')
+  end
 
   def check_authorization
     authorize :jabvox_sales_report
