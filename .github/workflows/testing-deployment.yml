@@ -1,9 +1,6 @@
 name: Testing Deployment
 
 on:
-  push:
-    branches: ["Testing"]
-
   workflow_dispatch:
     inputs:
       confirm_deployment:
