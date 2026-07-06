@@ -1,0 +1,97 @@
+name: Testing Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_deployment:
+        description: 'Type "yes" to confirm deployment to Testing VM'
+        required: true
+        default: 'no'
+
+permissions:
+  contents: read
+
+jobs:
+  ci-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install Dependencies
+        run: corepack enable && pnpm install --frozen-lockfile
+
+      - name: Verify SDK Build
+        run: pnpm build:sdk
+
+  deploy:
+    needs: ci-check
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_deployment == 'yes' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST_TESTING }}
+          username: ${{ secrets.VM_USERNAME_TESTING }}
+          key: ${{ secrets.VM_SSH_KEY_TESTING }}
+          port: ${{ secrets.VM_SSH_PORT_TESTING }}
+          script_stop: true
+          script: |
+            sudo -u jabvox bash -lc '
+              set -e
+              PROJECT_DIR="/home/jabvox/jabvox"
+              BACKUP_DIR="$PROJECT_DIR/backups"
+              cd "$PROJECT_DIR"
+
+              # --- STEP 1: DATABASE BACKUP ---
+              echo "Starting Database Backup..."
+              mkdir -p "$BACKUP_DIR"
+
+              set -a
+              source <(grep -E "^(POSTGRES_|DATABASE_URL=)" .env)
+              set +a
+
+              FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
+              PGPASSWORD=$POSTGRES_PASSWORD pg_dump \
+                -h ${POSTGRES_HOST:-127.0.0.1} \
+                -p ${POSTGRES_PORT:-5432} \
+                -U ${POSTGRES_USERNAME:-jabvox} \
+                ${POSTGRES_DATABASE:-jabvox_testing} > "$BACKUP_DIR/$FILE"
+
+              echo "Backup saved: $FILE"
+              find "$BACKUP_DIR" -name "backup_*.sql" -mtime +7 -delete
+
+              # --- STEP 2: UPDATE CODE ---
+              echo "Pulling latest code from Testing branch..."
+              git remote set-url origin git@github.com:Tecnologias-LAN/Jabvox-complete.git
+              git fetch origin Testing
+              git reset --hard origin/Testing
+
+              # --- STEP 3: INSTALL DEPENDENCIES ---
+              echo "Installing dependencies..."
+              export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+              eval "$(rbenv init -)"
+              export CFLAGS="-I/usr/lib/gcc/x86_64-linux-gnu/15/include"
+              export CXXFLAGS="-I/usr/lib/gcc/x86_64-linux-gnu/15/include"
+              bundle install
+              pnpm install --no-frozen-lockfile --force
+
+              # --- STEP 4: MIGRATIONS & ASSETS ---
+              echo "Running DB migrations and assets precompile..."
+              DISABLE_DATABASE_ENVIRONMENT_CHECK=1 RAILS_ENV=production bundle exec rake db:migrate
+              RAILS_ENV=production bundle exec rake assets:precompile
+            '
+
+            # --- STEP 5: RESTART APPLICATION ---
+            echo "Restarting services..."
+            sudo -n /usr/bin/systemctl restart jabvox-web.1.service
+            sudo -n /usr/bin/systemctl restart jabvox-worker.1.service
+
+            echo "Deployment Complete!"
