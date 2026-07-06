@@ -34,7 +34,7 @@ jobs:
 
   deploy:
     needs: ci-check
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_deployment == 'yes' || github.event_name == 'push' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_deployment == 'yes' }}
     runs-on: ubuntu-latest
 
     steps:
