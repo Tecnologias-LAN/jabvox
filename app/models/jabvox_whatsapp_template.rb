@@ -38,7 +38,7 @@
 #
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (created_by_id => users.id)
-#  fk_rails_...  (inbox_id => inboxes.id)
+#  fk_rails_...  (inbox_id => inboxes.id) ON DELETE => cascade
 #
 class JabvoxWhatsappTemplate < ApplicationRecord
   self.table_name = 'jabvox_whatsapp_templates'

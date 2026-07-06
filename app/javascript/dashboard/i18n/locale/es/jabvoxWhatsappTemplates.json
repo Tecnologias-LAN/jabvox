@@ -66,9 +66,7 @@
       "SELECTED": "{count} plantillas seleccionadas",
       "SYNC": "Sincronizar",
       "DUPLICATE": "Duplicar",
-      "EXPORT": "Exportar",
-      "DELETE": "Eliminar",
-      "DELETE_CONFIRM": "¿Eliminar {count} plantillas?"
+      "EXPORT": "Exportar"
     },
     "GALLERY": {
       "PAGINATION": "{page} / {pages} ({total})",
@@ -122,7 +120,6 @@
       "EDIT": "Editar",
       "DUPLICATE": "Duplicar",
       "EXPORT_JSON": "Exportar JSON",
-      "DELETE": "Eliminar",
       "SYNC": "Sincronizar desde Meta",
       "HISTORY": "Historial"
     },
@@ -142,7 +139,9 @@
       "HEADER_NONE": "Ninguno",
       "HEADER_TYPE_LABEL": "Tipo de encabezado",
       "HEADER_TEXT_PH": "Texto del encabezado (máx. 60 caracteres)",
-      "HEADER_MEDIA_NOTE": "Se requiere una URL de medios al enviar.",
+      "HEADER_MEDIA_URL_LABEL": "URL de medios",
+      "HEADER_MEDIA_URL_PH": "https://ejemplo.com/imagen.jpg",
+      "HEADER_MEDIA_NOTE": "URL de medios de ejemplo para enviar la plantilla a aprobación.",
       "BODY_LABEL": "Cuerpo *",
       "BODY_PH": "Cuerpo del mensaje. Usa {'{'}{'{'}1{'}'}{'}'}, {'{'}{'{'}2{'}'}{'}'} para variables.",
       "FOOTER_LABEL": "Pie de página",
@@ -230,7 +229,6 @@
       "JSON": "Exportar JSON",
       "CSV": "Exportar CSV"
     },
-    "DELETE_CONFIRM": "¿Eliminar la plantilla \"{name}\"? No se puede deshacer.",
     "DUPLICATE_CONFIRM": "¿Duplicar \"{name}\"?",
     "SYNCED": "Sincronizado correctamente.",
     "CREATED": "Plantilla enviada a Meta para su revisión.",

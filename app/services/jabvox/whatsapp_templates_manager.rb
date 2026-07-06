@@ -2,7 +2,8 @@ require 'httparty'
 require 'csv'
 
 class Jabvox::WhatsappTemplatesManager
-  WHATSAPP_API_VERSION = 'v14.0'.freeze
+  # Graph API version, overridable via env to stay in step with the rest of the app.
+  DEFAULT_API_VERSION = 'v22.0'.freeze
   PER_PAGE = 50
 
   def initialize(account, user: nil)
@@ -44,6 +45,29 @@ class Jabvox::WhatsappTemplatesManager
       quality_medium: quality['YELLOW'] || 0,
       quality_low: quality['RED'] || 0
     }
+  end
+
+  # How long a channel's synced templates are considered fresh; auto-sync skips channels
+  # refreshed more recently than this to avoid hammering Meta on every page load.
+  STALE_AFTER = 2.minutes
+
+  # Syncs every WhatsApp Cloud inbox of the account with Meta, so template statuses
+  # (pending -> approved/rejected) refresh without picking a specific inbox. Isolated per
+  # inbox so one failing inbox doesn't abort the rest. Pass only_stale: true (used by the
+  # on-open auto-sync) to skip channels that were refreshed within STALE_AFTER.
+  def sync_all_inboxes(only_stale: false)
+    total = 0
+    synced_inboxes = 0
+    whatsapp_cloud_inboxes.find_each do |inbox|
+      next if only_stale && fresh?(inbox.channel)
+
+      result = sync_inbox(inbox)
+      if result[:success]
+        total += result[:synced].to_i
+        synced_inboxes += 1
+      end
+    end
+    { success: true, synced: total, inboxes: synced_inboxes }
   end
 
   def sync_inbox(inbox)
@@ -117,7 +141,9 @@ class Jabvox::WhatsappTemplatesManager
   end
 
   def update(template, params)
-    channel = template.inbox.channel
+    channel = template.inbox&.channel
+    return { success: false, error: 'Not a WhatsApp Cloud inbox' } unless cloud_channel?(channel)
+
     components = build_components(params)
     body = { components: components }
 
@@ -148,18 +174,9 @@ class Jabvox::WhatsappTemplatesManager
     { success: false, error: e.message }
   end
 
-  def destroy(template)
-    channel = template.inbox.channel
-    HTTParty.delete(
-      "#{business_path(channel)}/message_templates?name=#{template.name}",
-      headers: api_headers(channel)
-    )
-    write_log(template, 'deleted', "Template '#{template.name}' deleted")
-    template.destroy!
-    { success: true }
-  rescue StandardError => e
-    { success: false, error: e.message }
-  end
+  # NOTE: deleting templates from Jabvox is intentionally not supported — templates are managed
+  # at Meta and must be deleted there. Jabvox only mirrors them; removing a WhatsApp inbox
+  # cascades away its local copies (see the FK on_delete: :cascade migration).
 
   def duplicate(template, new_name: nil)
     dup = @account.jabvox_whatsapp_templates.create!(
@@ -187,16 +204,19 @@ class Jabvox::WhatsappTemplatesManager
   end
 
   def sync_single(template)
-    channel = template.inbox.channel
+    channel = template.inbox&.channel
     return { success: false, error: 'Not a Cloud API channel' } unless cloud_channel?(channel)
 
+    query = { name: template.name, access_token: channel.provider_config['api_key'] }
     response = HTTParty.get(
-      "#{business_path(channel)}/message_templates?name=#{template.name}",
-      headers: api_headers(channel)
+      "#{business_path(channel)}/message_templates",
+      headers: api_headers(channel), query: query
     )
     return { success: false, error: 'Meta request failed' } unless response.success?
 
-    data = response.parsed_response&.dig('data')&.first
+    list = Array(response.parsed_response&.dig('data'))
+    # A name can exist in several languages; pick the one matching this template.
+    data = list.find { |d| d['language'] == template.language } || list.first
     return { success: false, error: 'Not found in Meta' } unless data
 
     template.update!(
@@ -260,9 +280,19 @@ class Jabvox::WhatsappTemplatesManager
 
   private
 
+  # Fields we explicitly request so Meta returns everything we persist (by default the API
+  # omits several of these). Cap at Meta's max page size and follow paging.next.
+  META_TEMPLATE_FIELDS = 'id,name,language,category,status,quality_score,components,rejected_reason'.freeze
+
   def fetch_all_from_meta(channel, url = nil)
-    url ||= "#{business_path(channel)}/message_templates"
-    response = HTTParty.get(url, headers: api_headers(channel))
+    if url.nil?
+      url = "#{business_path(channel)}/message_templates"
+      query = { fields: META_TEMPLATE_FIELDS, limit: 200, access_token: channel.provider_config['api_key'] }
+      response = HTTParty.get(url, headers: api_headers(channel), query: query)
+    else
+      # paging.next is a fully-formed URL (already includes fields/limit/token).
+      response = HTTParty.get(url, headers: api_headers(channel))
+    end
     return [] unless response.success?
 
     data = response.parsed_response['data'] || []
@@ -284,12 +314,12 @@ class Jabvox::WhatsappTemplatesManager
       waba_id: channel.provider_config['business_account_id'],
       phone_number_id: channel.provider_config['phone_number_id'],
       language: raw['language'],
-      category: raw['category'] || 'UTILITY',
-      status: raw['status'] || 'PENDING',
+      category: normalize_category(raw['category']),
+      status: normalize_status(raw['status']),
       quality_score: raw.dig('quality_score', 'score'),
       rejected_reason: raw['rejected_reason'],
       header_type: header&.dig('format'),
-      header_content: header&.dig('text'),
+      header_content: header_content_from(header),
       body_content: body_c&.dig('text'),
       footer_content: footer_c&.dig('text'),
       buttons_json: buttons_c&.dig('buttons') || [],
@@ -307,38 +337,110 @@ class Jabvox::WhatsappTemplatesManager
     end
   end
 
+  # Builds the components array in the exact shape the WhatsApp Cloud API expects. Meta rejects
+  # a template unless every placeholder has a matching example:
+  #   - BODY   with {{n}} -> example.body_text = [[v1, v2, ...]]
+  #   - HEADER TEXT with {{1}} -> example.header_text = [v1]
+  #   - HEADER media (IMAGE/VIDEO/DOCUMENT) -> example.header_handle = [sample_url]
+  #   - BUTTON URL with {{1}} -> button.example = [v1]
+  # See developers.facebook.com/docs/whatsapp/business-management-api/message-templates.
   def build_components(params)
     components = []
-    if params[:header_type].present? && params[:header_type] != 'NONE'
-      h = { type: 'HEADER', format: params[:header_type] }
-      h[:text] = params[:header_content] if params[:header_type] == 'TEXT'
-      components << h
-    end
-    components << { type: 'BODY', text: params[:body] } if params[:body].present?
+    header = build_header_component(params)
+    components << header if header
+    body = build_body_component(params[:body])
+    components << body if body
     components << { type: 'FOOTER', text: params[:footer] } if params[:footer].present?
-    if Array(params[:buttons]).any?
-      components << {
-        type: 'BUTTONS',
-        buttons: params[:buttons].map do |b|
-          btn = { type: b[:type] || b['type'], text: b[:text] || b['text'] }
-          btn[:url] = b[:url] || b['url'] if btn[:type] == 'URL'
-          btn[:phone_number] = b[:phone_number] || b['phone_number'] if btn[:type] == 'PHONE_NUMBER'
-          btn
-        end
-      }
-    end
+    buttons = build_buttons_component(params[:buttons])
+    components << buttons if buttons
     components
   end
 
-  def extract_variables(text)
-    return {} if text.blank?
+  def build_header_component(params)
+    type = params[:header_type]
+    return nil if type.blank? || type == 'NONE'
 
-    vars = text.scan(/\{\{(\d+)\}\}/).flatten.map(&:to_i).uniq.sort
-    vars.each_with_object({}) { |n, h| h[n.to_s] = '' }
+    h = { type: 'HEADER', format: type }
+    if type == 'TEXT'
+      h[:text] = params[:header_content]
+      vars = placeholders(params[:header_content])
+      # Header text supports a single {{1}} variable; provide one sample if present.
+      h[:example] = { header_text: [sample_value(vars.first)] } if vars.any?
+    elsif params[:header_content].present?
+      # Media headers need a sample media URL (or uploaded media handle) for approval.
+      h[:example] = { header_handle: [params[:header_content]] }
+    end
+    h
+  end
+
+  def build_body_component(text)
+    return nil if text.blank?
+
+    body = { type: 'BODY', text: text }
+    vars = placeholders(text)
+    # Meta requires one example value per {{n}} in the body, as a single-row matrix.
+    body[:example] = { body_text: [vars.map { |n| sample_value(n) }] } if vars.any?
+    body
+  end
+
+  def build_buttons_component(buttons)
+    list = Array(buttons).select { |b| (b[:text] || b['text']).to_s.present? }
+    return nil if list.empty?
+
+    {
+      type: 'BUTTONS',
+      buttons: list.map do |b|
+        type = (b[:type] || b['type']).to_s
+        btn = { type: type, text: b[:text] || b['text'] }
+        if type == 'URL'
+          url = (b[:url] || b['url']).to_s
+          btn[:url] = url
+          # A dynamic URL ({{1}}) requires an example value.
+          btn[:example] = [sample_value(placeholders(url).first)] if placeholders(url).any?
+        elsif type == 'PHONE_NUMBER'
+          btn[:phone_number] = b[:phone_number] || b['phone_number']
+        end
+        btn
+      end
+    }
+  end
+
+  # Ordered, unique {{n}} placeholder numbers found in a piece of text.
+  def placeholders(text)
+    text.to_s.scan(/\{\{\s*(\d+)\s*\}\}/).flatten.map(&:to_i).uniq.sort
+  end
+
+  # A harmless sample value Meta accepts for placeholder {{n}} during approval.
+  def sample_value(_n)
+    'ejemplo'
+  end
+
+  def extract_variables(text)
+    placeholders(text).each_with_object({}) { |n, h| h[n.to_s] = '' }
   end
 
   def sanitize_name(name)
     name.to_s.downcase.gsub(/[^a-z0-9_]/, '_').squeeze('_').strip
+  end
+
+  # Meta may return categories/statuses outside our enum (legacy values like SERVICE, or new
+  # ones). Map them to the closest allowed value so a sync never fails the model validation.
+  def normalize_category(value)
+    v = value.to_s.upcase
+    JabvoxWhatsappTemplate::CATEGORIES.include?(v) ? v : 'UTILITY'
+  end
+
+  def normalize_status(value)
+    v = value.to_s.upcase
+    JabvoxWhatsappTemplate::STATUSES.include?(v) ? v : 'PENDING'
+  end
+
+  # For a media header Meta returns the sample under example.header_handle, not text.
+  def header_content_from(header)
+    return nil if header.nil?
+    return header['text'] if header['format'] == 'TEXT'
+
+    Array(header.dig('example', 'header_handle')).first
   end
 
   def save_version(template)
@@ -367,8 +469,24 @@ class Jabvox::WhatsappTemplatesManager
     channel.is_a?(Channel::Whatsapp) && channel.provider == 'whatsapp_cloud'
   end
 
+  def whatsapp_cloud_inboxes
+    @account.inboxes
+            .joins("INNER JOIN channel_whatsapp ON inboxes.channel_id = channel_whatsapp.id " \
+                   "AND inboxes.channel_type = 'Channel::Whatsapp'")
+            .where("channel_whatsapp.provider = 'whatsapp_cloud'")
+  end
+
+  def fresh?(channel)
+    ts = channel.message_templates_last_updated
+    ts.present? && ts > STALE_AFTER.ago
+  end
+
+  def api_version
+    ENV.fetch('WHATSAPP_API_VERSION', DEFAULT_API_VERSION)
+  end
+
   def business_path(channel)
-    "#{api_base}/#{WHATSAPP_API_VERSION}/#{channel.provider_config['business_account_id']}"
+    "#{api_base}/#{api_version}/#{channel.provider_config['business_account_id']}"
   end
 
   def api_headers(channel)

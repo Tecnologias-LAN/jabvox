@@ -1,5 +1,5 @@
 class Api::V1::Accounts::Jabvox::WhatsappTemplates::TemplatesController < Api::V1::Accounts::Jabvox::WhatsappTemplates::BaseController
-  before_action :set_template, only: [:show, :update, :destroy, :duplicate, :sync, :history, :versions, :restore_version]
+  before_action :set_template, only: [:show, :update, :duplicate, :sync, :history, :versions, :restore_version]
 
   def index
     result = manager.list(
@@ -33,15 +33,6 @@ class Api::V1::Accounts::Jabvox::WhatsappTemplates::TemplatesController < Api::V
     result = manager.update(@template, template_params)
     if result[:success]
       render json: serialize(result[:template], full: true)
-    else
-      render json: { error: result[:error] }, status: :unprocessable_entity
-    end
-  end
-
-  def destroy
-    result = manager.destroy(@template)
-    if result[:success]
-      head :no_content
     else
       render json: { error: result[:error] }, status: :unprocessable_entity
     end

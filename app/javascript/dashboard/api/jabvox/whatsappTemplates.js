@@ -9,6 +9,10 @@ const base = client.url;
 export const wtInboxesAPI = {
   getAll: () => axios.get(`${base}/inboxes`),
   sync: inboxId => axios.post(`${base}/inboxes/${inboxId}/sync`),
+  // Sync every WhatsApp Cloud inbox with Meta (no inbox needs to be selected).
+  syncAll: () => axios.post(`${base}/sync_all`),
+  // Background sync, triggered when the module opens.
+  syncAllAsync: () => axios.post(`${base}/sync_all_async`),
   metrics: inboxId =>
     axios.get(`${base}/metrics`, {
       params: inboxId ? { inbox_id: inboxId } : {},
@@ -20,7 +24,6 @@ export const wtTemplatesAPI = {
   get: id => axios.get(`${base}/templates/${id}`),
   create: data => axios.post(`${base}/templates`, data),
   update: (id, data) => axios.patch(`${base}/templates/${id}`, data),
-  destroy: id => axios.delete(`${base}/templates/${id}`),
   duplicate: (id, newName) =>
     axios.post(`${base}/templates/${id}/duplicate`, { new_name: newName }),
   sync: id => axios.post(`${base}/templates/${id}/sync`),
@@ -30,22 +33,4 @@ export const wtTemplatesAPI = {
     axios.post(`${base}/templates/${id}/restore_version`, {
       version_id: versionId,
     }),
-};
-
-export const wtExportAPI = {
-  exportJson: inboxId =>
-    axios.get(`${base}/export.json`, {
-      params: inboxId ? { inbox_id: inboxId } : {},
-      responseType: 'blob',
-    }),
-  exportCsv: inboxId =>
-    axios.get(`${base}/export.csv`, {
-      params: inboxId ? { inbox_id: inboxId } : {},
-      responseType: 'blob',
-    }),
-};
-
-export const wtImportAPI = {
-  importJson: (inboxId, templates) =>
-    axios.post(`${base}/import`, { inbox_id: inboxId, templates }),
 };

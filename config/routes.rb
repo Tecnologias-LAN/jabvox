@@ -456,8 +456,12 @@ Rails.application.routes.draw do
             namespace :whatsapp_templates do
               get :inboxes, to: 'inboxes#index'
               post 'inboxes/:inbox_id/sync', to: 'inboxes#sync'
+              post :sync_all, to: 'inboxes#sync_all'
+              post :sync_all_async, to: 'inboxes#sync_all_async'
               get :metrics, to: 'inboxes#metrics'
-              resources :templates do
+              # Templates are managed at Meta; Jabvox can view/create/update/duplicate/sync
+              # but NOT delete them (deletion is done from Meta). No :destroy route.
+              resources :templates, except: [:destroy] do
                 member do
                   post :duplicate
                   post :sync
@@ -466,9 +470,6 @@ Rails.application.routes.draw do
                   post :restore_version
                 end
               end
-              get 'export.json', to: 'export#json'
-              get 'export.csv', to: 'export#csv'
-              post :import, to: 'import#create'
             end
             namespace :cdr do
               resource :config, only: [:show, :update], controller: 'configs'

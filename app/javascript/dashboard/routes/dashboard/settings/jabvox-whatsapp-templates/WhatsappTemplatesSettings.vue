@@ -1,12 +1,10 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import {
   wtInboxesAPI,
   wtTemplatesAPI,
-  wtExportAPI,
-  wtImportAPI,
 } from 'dashboard/api/jabvox/whatsappTemplates';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import PromptDialog from './components/PromptDialog.vue';
@@ -40,7 +38,8 @@ const metrics = ref({});
 
 const loadMetrics = async () => {
   try {
-    const { data } = await wtInboxesAPI.metrics(selectedInboxId.value);
+    // Account-wide KPI totals; the inbox selector only filters the template list.
+    const { data } = await wtInboxesAPI.metrics();
     metrics.value = data;
   } catch {
     /* non-blocking */
@@ -91,11 +90,27 @@ const loadTemplates = async () => {
   }
 };
 
-const syncInbox = async () => {
-  if (!selectedInboxId.value) return;
+// Sync all WhatsApp Cloud inboxes with Meta — works without selecting an inbox — then reload
+// so approved/rejected statuses show right away.
+const syncAll = async () => {
   syncing.value = true;
   try {
-    await wtInboxesAPI.sync(selectedInboxId.value);
+    await wtInboxesAPI.syncAll();
+    useAlert(t('JABVOX_WA_TEMPLATES.SYNCED'));
+    await loadTemplates();
+    await loadMetrics();
+  } catch {
+    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
+  } finally {
+    syncing.value = false;
+  }
+};
+
+// Sync a single inbox (used by the per-inbox button in the overview cards).
+const syncOneInbox = async inboxId => {
+  syncing.value = true;
+  try {
+    await wtInboxesAPI.sync(inboxId);
     useAlert(t('JABVOX_WA_TEMPLATES.SYNCED'));
     await loadTemplates();
     await loadMetrics();
@@ -292,52 +307,6 @@ const bulkDuplicate = async () => {
   }
 };
 
-const bulkDelete = () => {
-  if (!selectedTemplates.value.length) return;
-  confirmDialog.value?.open({
-    title: t('JABVOX_WA_TEMPLATES.BULK.DELETE'),
-    description: t('JABVOX_WA_TEMPLATES.BULK.DELETE_CONFIRM', {
-      count: selectedTemplates.value.length,
-    }),
-    data: { action: 'bulkDelete' },
-  });
-};
-
-const performBulkDelete = async () => {
-  try {
-    await Promise.all(
-      selectedTemplates.value.map(tpl => wtTemplatesAPI.destroy(tpl.id))
-    );
-    useAlert(t('JABVOX_WA_TEMPLATES.DELETED'));
-    selectedTemplateIds.value = [];
-    await loadTemplates();
-    await loadMetrics();
-  } catch {
-    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
-  }
-};
-
-const bulkExportSelected = () => {
-  if (!selectedTemplates.value.length) return;
-  const payload = selectedTemplates.value.map(tpl => ({
-    id: tpl.id,
-    name: tpl.name,
-    category: tpl.category,
-    language: tpl.language,
-    status: tpl.status,
-    meta_template_id: tpl.meta_template_id,
-  }));
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'wa_templates_selected.json';
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
 // ─── Status / quality helpers ────────────────────────────────────────────────
 // Design-system status tokens (theme-aware, no hardcoded palette colors).
 const statusClass = s => {
@@ -351,7 +320,7 @@ const statusClass = s => {
     case 'PAUSED':
       return 'bg-n-amber-11/15 text-n-amber-11 ring-1 ring-inset ring-n-amber-11/30';
     default:
-      return 'bg-white/5 text-n-slate-10 ring-1 ring-inset ring-white/10';
+      return 'bg-n-alpha-2 text-n-slate-11 ring-1 ring-inset ring-n-weak';
   }
 };
 const qualityClass = q => {
@@ -470,25 +439,6 @@ const detailTabLabel = dt => {
 };
 
 // ─── Template actions ─────────────────────────────────────────────────────────
-const deleteTemplate = tpl => {
-  confirmDialog.value?.open({
-    title: t('JABVOX_WA_TEMPLATES.ACTIONS.DELETE'),
-    description: t('JABVOX_WA_TEMPLATES.DELETE_CONFIRM', { name: tpl.name }),
-    data: { action: 'deleteTemplate', tpl },
-  });
-};
-
-const performDeleteTemplate = async tpl => {
-  try {
-    await wtTemplatesAPI.destroy(tpl.id);
-    useAlert(t('JABVOX_WA_TEMPLATES.DELETED'));
-    loadTemplates();
-    loadMetrics();
-  } catch (err) {
-    useAlert(err?.response?.data?.error || t('JABVOX_WA_TEMPLATES.ERROR'));
-  }
-};
-
 const syncTemplate = async tpl => {
   try {
     await wtTemplatesAPI.sync(tpl.id);
@@ -496,53 +446,6 @@ const syncTemplate = async tpl => {
     loadTemplates();
   } catch {
     useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
-  }
-};
-
-const exportJson = async () => {
-  try {
-    const { data } = await wtExportAPI.exportJson(selectedInboxId.value);
-    const url = URL.createObjectURL(
-      new Blob([data], { type: 'application/json' })
-    );
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'wa_templates.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch {
-    useAlert(t('JABVOX_WA_TEMPLATES.ERROR'));
-  }
-};
-
-// ─── Import ──────────────────────────────────────────────────────────────────
-const showImport = ref(false);
-const importJsonText = ref('');
-const importing = ref(false);
-
-const submitImport = async () => {
-  if (!selectedInboxId.value) {
-    useAlert(t('JABVOX_WA_TEMPLATES.IMPORT.SELECT_INBOX_FIRST'));
-    return;
-  }
-  importing.value = true;
-  try {
-    const parsed = JSON.parse(importJsonText.value);
-    const { data } = await wtImportAPI.importJson(
-      selectedInboxId.value,
-      parsed
-    );
-    useAlert(t('JABVOX_WA_TEMPLATES.IMPORT.SUCCESS', { count: data.imported }));
-    showImport.value = false;
-    importJsonText.value = '';
-    loadTemplates();
-    loadMetrics();
-  } catch (err) {
-    useAlert(
-      err?.response?.data?.error || t('JABVOX_WA_TEMPLATES.IMPORT.INVALID_JSON')
-    );
-  } finally {
-    importing.value = false;
   }
 };
 
@@ -583,6 +486,18 @@ const emptyForm = () => ({
   var_descriptions: {},
 });
 const form = ref(emptyForm());
+
+// header_content doubles as the text (TEXT header) or the media URL (IMAGE/VIDEO/DOCUMENT).
+// Clear it when switching between those kinds so a text value isn't sent as a URL or vice versa.
+watch(
+  () => form.value.header_type,
+  (next, prev) => {
+    if (next === prev) return;
+    const wasText = prev === 'TEXT';
+    const isText = next === 'TEXT';
+    if (wasText !== isText) form.value.header_content = '';
+  }
+);
 
 const detectedVars = computed(() => {
   const matches = (form.value.body || '').match(/\{\{(\d+)\}\}/g) || [];
@@ -749,9 +664,7 @@ const performRestoreVersion = async ver => {
 
 // Dispatches the confirmed action from ConfirmDialog to its handler.
 const onConfirmAction = data => {
-  if (data?.action === 'bulkDelete') performBulkDelete();
-  else if (data?.action === 'deleteTemplate') performDeleteTemplate(data.tpl);
-  else if (data?.action === 'restoreVersion') performRestoreVersion(data.ver);
+  if (data?.action === 'restoreVersion') performRestoreVersion(data.ver);
 };
 
 const duplicateTemplate = tpl => {
@@ -781,15 +694,36 @@ const switchTab = key => {
   }
 };
 
+// Inbox is a list filter only: changing it re-filters the templates but leaves the KPI metrics
+// as the account-wide totals.
 watch(selectedInboxId, () => {
   page.value = 1;
   loadTemplates();
-  loadMetrics();
 });
+
+let autoSyncTimers = [];
 
 onMounted(async () => {
   await loadInboxes();
   await Promise.all([loadTemplates(), loadMetrics()]);
+  // Kick off a background refresh from Meta (only stale inboxes) so approved/rejected
+  // statuses update automatically without blocking the page or hitting Meta every visit.
+  // Reload a couple of times shortly after so the fresh statuses appear once the job runs.
+  try {
+    await wtInboxesAPI.syncAllAsync();
+    autoSyncTimers = [4000, 10000].map(ms =>
+      setTimeout(() => {
+        loadTemplates();
+        loadMetrics();
+      }, ms)
+    );
+  } catch {
+    // ignore — keep showing whatever we already loaded
+  }
+});
+
+onBeforeUnmount(() => {
+  autoSyncTimers.forEach(clearTimeout);
 });
 </script>
 
@@ -810,16 +744,16 @@ onMounted(async () => {
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <button
-              class="wa-btn-primary px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5"
+              class="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-lg bg-n-brand text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-n-brand transition-opacity"
               @click="openCreate"
             >
-              <span class="i-lucide-plus size-3.5" />
+              <span class="i-lucide-plus size-4" aria-hidden="true" />
               {{ t('JABVOX_WA_TEMPLATES.HEADER.CREATE') }}
             </button>
             <button
-              class="wa-btn-ghost px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 disabled:opacity-50"
-              :disabled="syncing || !selectedInboxId"
-              @click="syncInbox"
+              class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-n-weak bg-n-solid-1 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              :disabled="syncing"
+              @click="syncAll"
             >
               <span
                 :class="
@@ -827,23 +761,10 @@ onMounted(async () => {
                     ? 'i-lucide-loader-2 animate-spin'
                     : 'i-lucide-refresh-cw'
                 "
-                class="size-3.5"
+                class="size-4"
+                aria-hidden="true"
               />
               {{ t('JABVOX_WA_TEMPLATES.HEADER.SYNC') }}
-            </button>
-            <button
-              class="wa-btn-ghost px-3 py-2 text-xs rounded-xl flex items-center gap-1.5"
-              @click="showImport = true"
-            >
-              <span class="i-lucide-upload size-3.5" />
-              {{ t('JABVOX_WA_TEMPLATES.HEADER.IMPORT') }}
-            </button>
-            <button
-              class="wa-btn-ghost px-3 py-2 text-xs rounded-xl flex items-center gap-1.5"
-              @click="exportJson"
-            >
-              <span class="i-lucide-download size-3.5" />
-              {{ t('JABVOX_WA_TEMPLATES.HEADER.EXPORT') }}
             </button>
           </div>
         </div>
@@ -895,7 +816,7 @@ onMounted(async () => {
         <div
           v-for="m in overviewMetrics"
           :key="m.key"
-          class="rounded-xl border border-n-weak bg-n-surface-1 p-4"
+          class="rounded-xl border border-n-weak bg-n-solid-1 p-4"
         >
           <p class="text-xs text-n-slate-10 mb-1">{{ m.label }}</p>
           <p class="text-2xl font-semibold text-n-slate-12">
@@ -913,7 +834,7 @@ onMounted(async () => {
         <div
           v-for="inbox in inboxes"
           :key="inbox.id"
-          class="rounded-xl border border-n-weak bg-n-surface-1 p-4 flex items-center justify-between"
+          class="rounded-xl border border-n-weak bg-n-solid-1 p-4 flex items-center justify-between"
         >
           <div>
             <p class="font-medium text-n-slate-12 text-sm">{{ inbox.name }}</p>
@@ -932,14 +853,11 @@ onMounted(async () => {
             </p>
           </div>
           <button
-            class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1"
+            class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 flex items-center gap-1 disabled:opacity-50"
             :disabled="syncing"
-            @click="
-              selectedInboxId = inbox.id;
-              syncInbox();
-            "
+            @click="syncOneInbox(inbox.id)"
           >
-            <span class="i-lucide-refresh-cw size-3" />
+            <span class="i-lucide-refresh-cw size-3" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -1173,18 +1091,6 @@ onMounted(async () => {
           >
             {{ t('JABVOX_WA_TEMPLATES.BULK.DUPLICATE') }}
           </button>
-          <button
-            class="px-2.5 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
-            @click="bulkExportSelected"
-          >
-            {{ t('JABVOX_WA_TEMPLATES.BULK.EXPORT') }}
-          </button>
-          <button
-            class="px-2.5 py-1.5 text-xs rounded-lg bg-n-ruby-3 text-n-ruby-11 hover:bg-n-ruby-4 transition-colors"
-            @click="bulkDelete"
-          >
-            {{ t('JABVOX_WA_TEMPLATES.BULK.DELETE') }}
-          </button>
         </div>
       </div>
 
@@ -1206,7 +1112,7 @@ onMounted(async () => {
           <div class="wa-empty-icon mx-auto mb-4">
             <span class="i-lucide-layout-template size-7 text-n-brand" />
           </div>
-          <p class="text-base font-semibold text-white">
+          <p class="text-base font-semibold text-n-slate-12">
             {{ t('JABVOX_WA_TEMPLATES.GALLERY.EMPTY_TITLE') }}
           </p>
           <p class="text-sm text-n-slate-10 mt-1.5 max-w-md mx-auto">
@@ -1262,7 +1168,7 @@ onMounted(async () => {
             </div>
 
             <button class="w-full text-left" @click="openDetail(tpl)">
-              <h3 class="text-sm font-semibold text-white truncate">
+              <h3 class="text-sm font-semibold text-n-slate-12 truncate">
                 {{ tpl.name }}
               </h3>
               <p class="text-xs text-n-slate-10 mt-0.5">
@@ -1310,7 +1216,7 @@ onMounted(async () => {
                   <p class="text-n-slate-11">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.VARIABLES') }}
                   </p>
-                  <p class="text-white/90 font-medium">
+                  <p class="text-n-slate-12 font-medium">
                     {{ Object.keys(tpl.variables_json || {}).length }}
                   </p>
                 </div>
@@ -1318,7 +1224,7 @@ onMounted(async () => {
                   <p class="text-n-slate-11">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.BUTTONS') }}
                   </p>
-                  <p class="text-white/90 font-medium">
+                  <p class="text-n-slate-12 font-medium">
                     {{ (tpl.buttons_json || []).length }}
                   </p>
                 </div>
@@ -1326,7 +1232,7 @@ onMounted(async () => {
                   <p class="text-n-slate-11">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.CREATED') }}
                   </p>
-                  <p class="text-white/90 font-medium">
+                  <p class="text-n-slate-12 font-medium">
                     {{ new Date(tpl.created_at).toLocaleDateString() }}
                   </p>
                 </div>
@@ -1334,7 +1240,7 @@ onMounted(async () => {
                   <p class="text-n-slate-11">
                     {{ t('JABVOX_WA_TEMPLATES.GALLERY.UPDATED') }}
                   </p>
-                  <p class="text-white/90 font-medium">
+                  <p class="text-n-slate-12 font-medium">
                     {{ new Date(tpl.updated_at).toLocaleDateString() }}
                   </p>
                 </div>
@@ -1350,12 +1256,6 @@ onMounted(async () => {
               </button>
               <button class="wa-icon-btn" @click="syncTemplate(tpl)">
                 <span class="i-lucide-refresh-cw size-3.5" />
-              </button>
-              <button
-                class="wa-icon-btn wa-icon-btn-danger"
-                @click="deleteTemplate(tpl)"
-              >
-                <span class="i-lucide-trash-2 size-3.5" />
               </button>
             </div>
           </article>
@@ -1397,7 +1297,7 @@ onMounted(async () => {
     <div v-if="showForm" class="fixed inset-0 z-50 flex">
       <div class="absolute inset-0 bg-black/50" @click="showForm = false" />
       <div
-        class="relative ml-auto w-full md:max-w-[900px] h-full bg-n-surface-1 shadow-xl flex overflow-hidden"
+        class="relative ml-auto w-full md:max-w-[900px] h-full bg-n-solid-1 shadow-xl flex overflow-hidden"
       >
         <!-- Left: form -->
         <div class="flex-1 flex flex-col overflow-hidden">
@@ -1429,7 +1329,7 @@ onMounted(async () => {
                 :class="
                   wizardStep >= step.id
                     ? 'border-n-brand bg-n-brand text-white'
-                    : 'border-n-weak text-n-slate-10 bg-n-surface-1'
+                    : 'border-n-weak text-n-slate-10 bg-n-solid-1'
                 "
                 @click="wizardStep = step.id"
               >
@@ -1536,12 +1436,25 @@ onMounted(async () => {
                 :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.HEADER_TEXT_PH')"
                 maxlength="60"
               />
-              <p
+              <div
                 v-else-if="form.header_type && form.header_type !== 'NONE'"
-                class="text-xs text-n-slate-10"
+                class="flex flex-col gap-1"
               >
-                {{ t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_NOTE') }}
-              </p>
+                <label class="text-xs text-n-slate-11">{{
+                  t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_URL_LABEL')
+                }}</label>
+                <input
+                  v-model="form.header_content"
+                  type="url"
+                  class="reset-base text-sm w-full"
+                  :placeholder="
+                    t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_URL_PH')
+                  "
+                />
+                <p class="text-[11px] text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_NOTE') }}
+                </p>
+              </div>
               <div class="flex flex-col gap-1">
                 <label class="text-xs text-n-slate-11">{{
                   t('JABVOX_WA_TEMPLATES.CREATE.BODY_LABEL')
@@ -1824,7 +1737,7 @@ onMounted(async () => {
     <div v-if="detailTemplate" class="fixed inset-0 z-50 flex justify-end">
       <div class="absolute inset-0 bg-black/40" @click="closeDetail" />
       <div
-        class="relative w-full md:max-w-[900px] h-full bg-n-surface-1 shadow-2xl flex flex-col overflow-hidden"
+        class="relative w-full md:max-w-[900px] h-full bg-n-solid-1 shadow-2xl flex flex-col overflow-hidden"
       >
         <div
           class="flex items-center justify-between px-5 py-3.5 border-b border-n-weak shrink-0"
@@ -2128,66 +2041,6 @@ onMounted(async () => {
               >{{ JSON.stringify(detailTemplate.meta_json, null, 2) }}</pre
             >
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── IMPORT MODAL ──────────────────────────────────────────────── -->
-    <div
-      v-if="showImport"
-      class="fixed inset-0 z-50 flex items-center justify-center"
-    >
-      <div class="absolute inset-0 bg-black/50" @click="showImport = false" />
-      <div
-        class="relative bg-n-surface-1 rounded-xl shadow-2xl w-full max-w-lg p-5 space-y-4"
-      >
-        <div class="flex items-center justify-between">
-          <h2 class="font-semibold text-n-slate-12">
-            {{ t('JABVOX_WA_TEMPLATES.IMPORT.TITLE') }}
-          </h2>
-          <button @click="showImport = false">
-            <span class="i-lucide-x size-5 text-n-slate-11" />
-          </button>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs text-n-slate-11">{{
-            t('JABVOX_WA_TEMPLATES.INBOX.LABEL')
-          }}</label>
-          <select v-model="selectedInboxId" class="reset-base text-sm">
-            <option v-for="i in inboxes" :key="i.id" :value="i.id">
-              {{ i.name }}
-            </option>
-          </select>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs text-n-slate-11">{{
-            t('JABVOX_WA_TEMPLATES.IMPORT.JSON_LABEL')
-          }}</label>
-          <textarea
-            v-model="importJsonText"
-            rows="10"
-            class="reset-base text-xs font-mono w-full resize-none"
-            :placeholder="t('JABVOX_WA_TEMPLATES.IMPORT.JSON_PH')"
-          />
-        </div>
-        <div class="flex gap-3">
-          <button
-            class="px-4 py-2 text-sm rounded-lg bg-n-brand text-white disabled:opacity-50"
-            :disabled="importing || !importJsonText.trim() || !selectedInboxId"
-            @click="submitImport"
-          >
-            {{
-              importing
-                ? t('JABVOX_WA_TEMPLATES.LOADING')
-                : t('JABVOX_WA_TEMPLATES.IMPORT.SUBMIT')
-            }}
-          </button>
-          <button
-            class="px-4 py-2 text-sm rounded-lg bg-n-alpha-2 text-n-slate-11"
-            @click="showImport = false"
-          >
-            {{ t('JABVOX_WA_TEMPLATES.CREATE.CANCEL') }}
-          </button>
         </div>
       </div>
     </div>
