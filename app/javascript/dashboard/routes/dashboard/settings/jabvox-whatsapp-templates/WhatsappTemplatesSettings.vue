@@ -548,13 +548,19 @@ const openEdit = tpl => {
 
 const submitForm = async () => {
   saving.value = true;
+  // A TEXT header with no content is invalid for Meta: treat it as "no header".
+  const hasHeaderContent = form.value.header_content?.trim();
+  const headerType =
+    form.value.header_type === 'NONE' ||
+    (form.value.header_type === 'TEXT' && !hasHeaderContent)
+      ? null
+      : form.value.header_type;
   const payload = {
     name: form.value.name,
     category: form.value.category,
     language: form.value.language,
-    header_type:
-      form.value.header_type !== 'NONE' ? form.value.header_type : null,
-    header_content: form.value.header_content,
+    header_type: headerType,
+    header_content: headerType ? form.value.header_content : null,
     body: form.value.body,
     footer: form.value.footer,
     buttons: form.value.buttons.filter(b => b.text),

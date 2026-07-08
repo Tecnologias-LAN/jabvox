@@ -106,10 +106,7 @@ class Jabvox::WhatsappTemplatesManager
       body: body.to_json
     )
 
-    unless response.success?
-      error_msg = response.parsed_response&.dig('error', 'message') || response.body
-      return { success: false, error: error_msg }
-    end
+    return { success: false, error: meta_error(response) } unless response.success?
 
     meta_id = response['id']
     template = @account.jabvox_whatsapp_templates.create!(
@@ -153,10 +150,7 @@ class Jabvox::WhatsappTemplatesManager
       body: body.merge(id: template.meta_template_id).to_json
     )
 
-    unless response.success?
-      error_msg = response.parsed_response&.dig('error', 'message') || response.body
-      return { success: false, error: error_msg }
-    end
+    return { success: false, error: meta_error(response) } unless response.success?
 
     template.update!(
       body_content: params[:body] || template.body_content,
@@ -360,17 +354,21 @@ class Jabvox::WhatsappTemplatesManager
     type = params[:header_type]
     return nil if type.blank? || type == 'NONE'
 
-    h = { type: 'HEADER', format: type }
     if type == 'TEXT'
-      h[:text] = params[:header_content]
-      vars = placeholders(params[:header_content])
+      # A TEXT header MUST carry text; without it Meta rejects with "Invalid
+      # parameter", so we simply omit the header instead of sending it empty.
+      text = params[:header_content].to_s
+      return nil if text.blank?
+
+      h = { type: 'HEADER', format: 'TEXT', text: text }
+      vars = placeholders(text)
       # Header text supports a single {{1}} variable; provide one sample if present.
       h[:example] = { header_text: [sample_value(vars.first)] } if vars.any?
+      h
     elsif params[:header_content].present?
       # Media headers need a sample media URL (or uploaded media handle) for approval.
-      h[:example] = { header_handle: [params[:header_content]] }
+      { type: 'HEADER', format: type, example: { header_handle: [params[:header_content]] } }
     end
-    h
   end
 
   def build_body_component(text)
@@ -420,7 +418,21 @@ class Jabvox::WhatsappTemplatesManager
   end
 
   def sanitize_name(name)
-    name.to_s.downcase.gsub(/[^a-z0-9_]/, '_').squeeze('_').strip
+    name.to_s.downcase.gsub(/[^a-z0-9_]/, '_').squeeze('_').gsub(/\A_+|_+\z/, '')
+  end
+
+  # Builds the clearest possible error string from a failed Meta response,
+  # preferring the human-readable fields Meta returns (error_user_title/msg,
+  # error_data.details) over the generic "Invalid parameter".
+  def meta_error(response)
+    err = response.parsed_response&.dig('error') || {}
+    parts = [
+      err['error_user_title'],
+      err['error_user_msg'],
+      err.dig('error_data', 'details'),
+      err['message']
+    ].compact.uniq
+    parts.any? ? parts.join(' — ') : (response.body.presence || 'Meta request failed')
   end
 
   # Meta may return categories/statuses outside our enum (legacy values like SERVICE, or new
