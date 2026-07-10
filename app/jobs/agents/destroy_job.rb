@@ -9,6 +9,7 @@ class Agents::DestroyJob < ApplicationJob
       remove_user_from_teams(account, user)
       remove_user_from_inboxes(account, user)
       unassign_conversations(account, user)
+      nullify_jabvox_assignments(account, user)
     end
   end
 
@@ -34,6 +35,13 @@ class Agents::DestroyJob < ApplicationJob
   def unassign_conversations(account, user)
     # rubocop:disable Rails/SkipsModelValidations
     user.assigned_conversations.where(account: account).in_batches.update_all(assignee_id: nil)
+    # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  def nullify_jabvox_assignments(account, user)
+    # rubocop:disable Rails/SkipsModelValidations
+    account.jabvox_leads.where(assignee_id: user.id).update_all(assignee_id: nil)
+    account.jabvox_tasks.where(assignee_id: user.id).update_all(assignee_id: nil)
     # rubocop:enable Rails/SkipsModelValidations
   end
 end

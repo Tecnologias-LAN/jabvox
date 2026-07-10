@@ -24,9 +24,7 @@ class Api::V1::Accounts::Jabvox::CalendarSettingsController < Api::V1::Accounts:
   # Gate only applies to users with a custom role; users without one keep the
   # historical behavior (admins always pass via jabvox_can?).
   def ensure_calendar_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_calendar_manage')
+    jabvox_authorize_write!('jabvox_calendar_manage')
   end
 
   def setting_params

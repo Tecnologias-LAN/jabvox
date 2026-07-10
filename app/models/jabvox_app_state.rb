@@ -25,6 +25,7 @@
 class JabvoxAppState < ApplicationRecord
   belongs_to :account
   has_many :account_users, foreign_key: :jabvox_app_state_id, inverse_of: :jabvox_app_state, dependent: :nullify
+  has_many :jabvox_app_state_logs, foreign_key: :app_state_id, inverse_of: :jabvox_app_state, dependent: :nullify
 
   validates :name, presence: true
 

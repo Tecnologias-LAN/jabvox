@@ -102,6 +102,15 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
 
     lead_ids = leads.pluck(:id)
     JabvoxKanbanConversationStage.where(jabvox_lead_id: lead_ids).delete_all
+    # Clear every child FK before delete_all (which skips model callbacks):
+    # call logs and tasks keep their history detached; join/source rows go away.
+    # rubocop:disable Rails/SkipsModelValidations
+    JabvoxCallLog.where(jabvox_lead_id: lead_ids).update_all(jabvox_lead_id: nil)
+    JabvoxTask.where(jabvox_lead_id: lead_ids).update_all(jabvox_lead_id: nil)
+    # rubocop:enable Rails/SkipsModelValidations
+    JabvoxTaskLeadContact.where(jabvox_lead_id: lead_ids).delete_all
+    JabvoxLeadSourceRecord.where(jabvox_lead_id: lead_ids).delete_all
+    JabvoxCustomTableRow.where(jabvox_lead_id: lead_ids).delete_all
     Current.account.jabvox_leads.where(id: lead_ids).delete_all
 
     contact_ids.each do |contact_id|
@@ -120,8 +129,10 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
 
   def custom_fields
     lead = Current.account.jabvox_leads.find(params[:id])
-    merged = (lead.custom_fields_jabvox || {}).merge(params.require(:custom_fields).permit!.to_h)
-    lead.update!(custom_fields_jabvox: merged)
+    result = sanitize_custom_fields(lead)
+    return render json: { error: result.errors.join(', ') }, status: :unprocessable_entity unless result.valid?
+
+    lead.update!(custom_fields_jabvox: result.data)
     render json: { id: lead.id, custom_fields_jabvox: lead.custom_fields_jabvox }
   end
 
@@ -146,8 +157,6 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   # Users on a standard role (custom_role nil) keep the historical flow untouched;
   # admins always pass because jabvox_authorize! bypasses for administrators.
   def jabvox_gate!(key)
-    return if Current.account_user&.custom_role.nil?
-
     jabvox_authorize!(key)
   end
 
@@ -179,8 +188,23 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   def update_custom_fields(lead)
     return if params[:custom_fields].blank?
 
-    merged = (lead.custom_fields_jabvox || {}).merge(params.require(:custom_fields).permit!.to_h)
-    lead.update!(custom_fields_jabvox: merged)
+    result = sanitize_custom_fields(lead)
+    raise ActiveRecord::RecordInvalid, invalid_custom_fields_record(lead, result.errors) unless result.valid?
+
+    lead.update!(custom_fields_jabvox: result.data)
+  end
+
+  def sanitize_custom_fields(lead)
+    Jabvox::LeadCustomFieldsSanitizer.new(
+      Current.account, lead.custom_fields_jabvox, params.require(:custom_fields).permit!.to_h
+    ).call
+  end
+
+  # Wraps sanitizer errors in the RecordInvalid shape update_details already
+  # rescues, so they surface as a 422 with the messages joined.
+  def invalid_custom_fields_record(lead, errors)
+    errors.each { |message| lead.errors.add(:base, message) }
+    lead
   end
 
   def check_leads_enabled

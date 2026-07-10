@@ -5,15 +5,42 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   before_action :check_authorization
   before_action :set_campaign, only: [:show, :update, :destroy, :start, :pause, :stop, :contacts, :call_logs, :retry_contacts, :report]
 
-  def lead_count # rubocop:disable Metrics/AbcSize
-    filters = {
-      jabvox_campaign_id: params[:jabvox_campaign_id],
-      countries: Array(params[:countries]).compact.reject(&:blank?),
-      management_state_ids: Array(params[:management_state_ids]).compact.reject(&:blank?),
-      affiliate_ids: Array(params[:affiliate_ids]).compact.map(&:to_i).select(&:positive?),
-      inbox_ids: Array(params[:inbox_ids]).compact.map(&:to_i).select(&:positive?)
+  PREVIEW_PER_PAGE = 25
+
+  def lead_count
+    render json: { count: filter_leads(request_filters).count }
+  end
+
+  # Paginated list of the leads the current filters target, so the campaign
+  # form can show them and let the admin deselect specific ones.
+  def preview_leads
+    page = [params[:page].to_i, 1].max
+    scope = filter_leads(request_filters.except(:excluded_lead_ids))
+            .includes(:contact, :jabvox_campaign)
+            .order('jabvox_leads.lead_number ASC')
+    total = scope.count
+    leads = scope.offset((page - 1) * PREVIEW_PER_PAGE).limit(PREVIEW_PER_PAGE)
+    mgmt_by_contact = latest_management_for(leads.filter_map(&:contact_id))
+    render json: {
+      total: total,
+      page: page,
+      per_page: PREVIEW_PER_PAGE,
+      leads: leads.map { |lead| preview_lead_json(lead, mgmt_by_contact[lead.contact_id]) }
     }
-    render json: { count: filter_leads(filters).count }
+  end
+
+  # The account's lead custom-field definitions, so the campaign form can offer
+  # a filter per custom column without depending on the customization module's
+  # own endpoints/permissions.
+  def lead_fields
+    table = Current.account.jabvox_custom_tables.for_leads.first
+    columns = table ? table.jabvox_custom_columns.ordered : []
+    render json: {
+      custom: columns.map do |c|
+        { key: c.name_jabvox, label: c.label_jabvox, column_type: c.column_type_jabvox,
+          options: c.options_jabvox }
+      end
+    }
   end
 
   def index
@@ -195,92 +222,124 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   # Gate solo si el usuario tiene un custom role: sin rol personalizado se
   # conserva el comportamiento histórico (acceso). El admin siempre pasa.
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_dialer_manage')
+    jabvox_authorize_write!('jabvox_dialer_manage')
   end
 
   def live_lead_count(campaign)
-    filter_leads(
-      jabvox_campaign_id: campaign.jabvox_campaign_id,
-      countries: (campaign.countries_jabvox || []).map(&:to_s).reject(&:blank?),
-      management_state_ids: (campaign.management_state_ids_jabvox || []).map(&:to_s).reject(&:blank?),
-      affiliate_ids: (campaign.affiliate_ids_jabvox || []).map(&:to_i).select(&:positive?),
-      inbox_ids: (campaign.inbox_ids_jabvox || []).map(&:to_i).select(&:positive?)
-    ).count
+    Jabvox::DialerLeadsFilterService.for_campaign(Current.account, campaign).scope.count
   rescue StandardError
     campaign.leads_count_jabvox
   end
 
-  def filter_leads(filters) # rubocop:disable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
-    leads = Current.account.jabvox_leads.joins(:contact)
-    leads = leads.where(jabvox_leads: { jabvox_campaign_id: filters[:jabvox_campaign_id].to_i }) if filters[:jabvox_campaign_id].present?
+  # Normalized filters from query/body params — same shape the service accepts.
+  def request_filters
+    {
+      jabvox_campaign_id: params[:jabvox_campaign_id],
+      countries: Array(params[:countries]).compact.reject(&:blank?),
+      management_state_ids: Array(params[:management_state_ids]).compact.reject(&:blank?),
+      affiliate_ids: Array(params[:affiliate_ids]).compact.map(&:to_i).select(&:positive?),
+      inbox_ids: Array(params[:inbox_ids]).compact.map(&:to_i).select(&:positive?),
+      q: params[:q].to_s,
+      email: params[:email].to_s,
+      phone: params[:phone].to_s,
+      custom: custom_filters_param,
+      excluded_lead_ids: Array(params[:excluded_lead_ids]).map(&:to_i).select(&:positive?)
+    }
+  end
 
-    countries = filters[:countries]
-    if countries.any?
-      conds = countries.map { "contacts.additional_attributes->>'country' ILIKE ?" }.join(' OR ')
-      leads = leads.where(conds, *countries)
+  # Dynamic custom-field filters arrive as custom[key]=value; only string
+  # values pass through (keys are slug-sanitized inside the filter service).
+  def custom_filters_param
+    raw = params[:custom]
+    raw = raw.permit!.to_h if raw.respond_to?(:permit!)
+    return {} unless raw.is_a?(Hash)
+
+    raw.transform_values(&:to_s)
+  end
+
+  def preview_lead_json(lead, last_management_state = nil)
+    contact = lead.contact
+    {
+      id: lead.id,
+      lead_number: lead.lead_number,
+      name: contact&.name.to_s,
+      phone: contact&.phone_number.to_s,
+      email: contact&.email.to_s,
+      campaign: lead.jabvox_campaign&.name_jabvox.to_s,
+      document: lead_document(lead, contact),
+      last_management_state: last_management_state.to_s
+    }
+  end
+
+  # Latest gestión (management-state private note) per contact for one page of
+  # leads — same definition the leads list uses.
+  def latest_management_for(contact_ids)
+    ids = contact_ids.map(&:to_i).select(&:positive?)
+    return {} if ids.empty?
+
+    sql = <<~SQL.squish
+      SELECT DISTINCT ON (c.contact_id) c.contact_id,
+        (m.content_attributes #>> '{}')::json->>'jabvox_management_state_name' AS last_management_state
+      FROM conversations c
+      JOIN messages m ON m.conversation_id = c.id
+      WHERE c.account_id = #{Current.account.id.to_i}
+        AND c.contact_id IN (#{ids.join(', ')})
+        AND m.private = true
+        AND (m.content_attributes #>> '{}')::json->>'jabvox_management_state_name' IS NOT NULL
+        AND (m.content_attributes #>> '{}')::json->>'jabvox_management_state_name' <> ''
+      ORDER BY c.contact_id, m.created_at DESC
+    SQL
+    ApplicationRecord.connection.execute(sql)
+                     .each_with_object({}) { |r, h| h[r['contact_id'].to_i] = r['last_management_state'] }
+  end
+
+  # "Documento": custom field first (documento/document/cedula/dni/nit),
+  # then the contact identifier.
+  def lead_document(lead, contact)
+    custom = lead.custom_fields_jabvox || {}
+    %w[documento document cedula dni nit].each do |key|
+      value = custom[key].to_s
+      return value if value.present?
     end
+    contact&.identifier.to_s
+  end
 
-    state_ids = filters[:management_state_ids]
-    if state_ids.any?
-      include_none = state_ids.include?('none')
-      numeric_ids = state_ids.reject { |id| id == 'none' }.map(&:to_i).select(&:positive?)
-      state_names = numeric_ids.any? ? Current.account.jabvox_management_states.where(id: numeric_ids).pluck(:name_jabvox) : []
-      msgs_base = Current.account.messages.where(private: true)
-                         .where("(content_attributes #>> '{}')::json->>'jabvox_management_state_name' IS NOT NULL")
-                         .where("(content_attributes #>> '{}')::json->>'jabvox_management_state_name' <> ''")
-      contact_ids_with_any_state = Current.account.conversations
-                                          .where(id: msgs_base.select(:conversation_id))
-                                          .select(:contact_id)
-      if state_names.any?
-        # Per contact, find the latest (highest ID) management-state message.
-        # This ensures we match the LAST gestión, not any historical one.
-        latest_per_contact = msgs_base
-                               .joins('INNER JOIN conversations ON conversations.id = messages.conversation_id')
-                               .unscope(:order)
-                               .group('conversations.contact_id')
-                               .select('conversations.contact_id, MAX(messages.id) AS max_id')
-        name_conds = state_names.map { "((content_attributes #>> '{}')::json->>'jabvox_management_state_name' = ?)" }.join(' OR ')
-        contact_ids_matching = Current.account.messages
-                                      .joins("INNER JOIN (#{latest_per_contact.to_sql}) lpc ON messages.id = lpc.max_id")
-                                      .joins('INNER JOIN conversations ON conversations.id = messages.conversation_id')
-                                      .where(name_conds, *state_names)
-                                      .select('conversations.contact_id')
-        leads = if include_none
-                  leads.where("jabvox_leads.contact_id IN (#{contact_ids_matching.to_sql}) OR " \
-                              "jabvox_leads.contact_id NOT IN (#{contact_ids_with_any_state.to_sql})")
-                else
-                  leads.where(contact_id: contact_ids_matching)
-                end
-      elsif include_none
-        leads = leads.where("jabvox_leads.contact_id NOT IN (#{contact_ids_with_any_state.to_sql})")
-      end
-    end
-
-    affiliate_ids = filters[:affiliate_ids]
-    leads = leads.where(jabvox_affiliate_id: affiliate_ids) if affiliate_ids.any?
-
-    inbox_ids = filters[:inbox_ids]
-    if inbox_ids.any?
-      contact_ids_in_inboxes = Current.account.conversations.where(inbox_id: inbox_ids).select(:contact_id)
-      leads = leads.where(contact_id: contact_ids_in_inboxes)
-    end
-
-    leads
+  def filter_leads(filters)
+    Jabvox::DialerLeadsFilterService.new(Current.account, filters).scope
   end
 
   def campaign_params
-    params.require(:campaign).permit(
+    permitted = params.require(:campaign).permit(
       :name_jabvox, :description_jabvox, :status_jabvox,
       :caller_id_jabvox, :max_concurrent_jabvox,
       :retry_count_jabvox, :retry_interval_jabvox,
       :calling_hours_start_jabvox, :calling_hours_end_jabvox,
+      :schedule_start_date_jabvox, :schedule_end_date_jabvox,
       :jabvox_campaign_id, :wrapup_time_jabvox, :lines_per_agent_jabvox, :leads_count_jabvox,
-      :wait_in_queue_jabvox,
+      :wait_in_queue_jabvox, :dial_mode_jabvox,
       countries_jabvox: [], management_state_ids_jabvox: [], agent_ids_jabvox: [],
-      affiliate_ids_jabvox: [], inbox_ids_jabvox: []
+      affiliate_ids_jabvox: [], inbox_ids_jabvox: [], excluded_lead_ids_jabvox: []
     )
+    permitted[:excluded_lead_ids_jabvox] = permitted[:excluded_lead_ids_jabvox].map(&:to_i).select(&:positive?) if permitted.key?(:excluded_lead_ids_jabvox)
+    permitted.merge(lead_filters_jabvox: lead_filters_param)
+  end
+
+  # lead_filters_jabvox has dynamic custom keys, so it can't go through a
+  # static permit list; whitelist its shape by hand instead.
+  def lead_filters_param
+    raw = params.dig(:campaign, :lead_filters_jabvox)
+    return {} if raw.blank?
+
+    raw = raw.permit!.to_h if raw.respond_to?(:permit!)
+    return {} unless raw.is_a?(Hash)
+
+    custom = raw['custom'].is_a?(Hash) ? raw['custom'].transform_values(&:to_s).reject { |_k, v| v.blank? } : {}
+    {
+      'q' => raw['q'].to_s,
+      'email' => raw['email'].to_s,
+      'phone' => raw['phone'].to_s,
+      'custom' => custom
+    }.reject { |k, v| k != 'custom' && v.blank? }
   end
 
   def contact_json(contact)

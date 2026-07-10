@@ -185,7 +185,8 @@
       "SUMMARY_BUTTONS": "Buttons:",
       "SUBMIT_HEADING": "Send to Meta",
       "SUBMIT_NOTE": "This action will submit the template to Meta for review keeping all current approval workflows.",
-      "SUBMIT_HINT": "Ensure variable examples and buttons are valid before submission."
+      "SUBMIT_HINT": "Ensure variable examples and buttons are valid before submission.",
+      "MISSING_REQUIRED": "Required fields still missing:"
     },
     "DETAIL": {
       "TITLE": "Template detail",

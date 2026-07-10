@@ -74,7 +74,10 @@ class Jabvox::BulkWhatsappDispatchService
     @inbox = batch.inbox
     @sender_user = batch.sender_user
     messages = expand_messages(batch.payload_jabvox)
-    return finalize(batch, status: 'failed', error: 'Sin destinatarios válidos.') if messages.empty?
+    if messages.empty?
+      return finalize(batch, status: 'failed',
+                      error: 'Sin destinatarios válidos: ninguno de los leads seleccionados tiene número de teléfono.')
+    end
 
     token = mint_ephemeral_token
     begin
@@ -111,17 +114,42 @@ class Jabvox::BulkWhatsappDispatchService
   end
 
   # ── Phase 1 helpers: snapshot what to send ──────────────────────────────────
+  # Lead ids are resolved HERE, with the permissions of the user who picked them
+  # in the UI (@actor) — so what the picker showed is exactly what gets sent,
+  # and an empty selection fails the request immediately instead of the job.
   def build_payload_snapshot
     if @leads_selection
-      { 'kind' => 'leads', 'selection' => @leads_selection,
+      ids = resolved_lead_ids
+      @total_rows = ids.size
+      { 'kind' => 'leads', 'lead_ids' => ids, 'selection' => @leads_selection,
         'template_name' => @template_name, 'language' => @language, 'text' => @text }
     else
       { 'kind' => 'csv', 'rows' => parse_rows }
     end
   end
 
+  def resolved_lead_ids
+    sel = (@leads_selection || {}).with_indifferent_access
+    actor_account_user = @account.account_users.find_by(user_id: @actor.id)
+    base = Jabvox::LeadsFilterService.new(
+      account: @account, user: @actor,
+      is_admin: JabvoxPermissions.user_grants_permission?(actor_account_user, 'jabvox_leads_view_all'),
+      filters: sel[:filters] || {}
+    ).scope
+
+    scope = if ActiveModel::Type::Boolean.new.cast(sel[:all])
+              excluded = Array(sel[:excluded_ids]).map(&:to_i)
+              excluded.any? ? base.where.not(jabvox_leads: { id: excluded }) : base
+            else
+              base.where(jabvox_leads: { id: Array(sel[:lead_ids]).map(&:to_i) })
+            end
+    scope.limit(MAX_ROWS).pluck(:id)
+  end
+
   def payload_empty?(payload)
-    payload['kind'] == 'csv' && payload['rows'].blank?
+    return payload['rows'].blank? if payload['kind'] == 'csv'
+
+    payload['lead_ids'].blank?
   end
 
   def create_pending_batch(payload)
@@ -178,18 +206,41 @@ class Jabvox::BulkWhatsappDispatchService
   end
 
   def messages_from_leads(payload)
-    sel = (payload[:selection] || {}).with_indifferent_access
-    scope = resolve_leads_scope(sel).includes(:contact).limit(MAX_ROWS)
+    ids = Array(payload[:lead_ids]).map(&:to_i)
+    # Batches created before ids were snapshotted still carry only a selection.
+    if ids.empty? && payload[:selection].present?
+      sel = payload[:selection].with_indifferent_access
+      ids = resolve_leads_scope(sel).limit(MAX_ROWS).pluck(:id)
+    end
+
     body = payload[:template_name] || payload[:text]
     lang = (payload[:language].presence || 'es')
+    scope = @account.jabvox_leads.where(id: ids).includes(:contact, :jabvox_campaign, :assignee)
 
     scope.filter_map do |lead|
       number = digits(lead.contact&.phone_number)
       next nil if number.blank? || body.to_s.strip.blank?
 
-      { 'nombre' => lead.contact&.name.to_s, 'numero' => number,
-        'template' => body.to_s.strip, 'idioma' => lang, 'lead_id' => lead.id }
+      lead_message(lead, number, body, lang)
     end
+  end
+
+  # Full lead snapshot per recipient so n8n can personalize, route and report
+  # without extra API round-trips.
+  def lead_message(lead, number, body, lang)
+    contact = lead.contact
+    {
+      'nombre' => contact&.name.to_s, 'numero' => number,
+      'template' => body.to_s.strip, 'idioma' => lang,
+      'lead_id' => lead.id, 'lead_number' => lead.lead_number,
+      'contact_id' => contact&.id,
+      'email' => contact&.email.to_s,
+      'country' => contact&.additional_attributes&.dig('country').to_s,
+      'campaign' => lead.jabvox_campaign&.name_jabvox.to_s,
+      'assignee_name' => lead.assignee&.name.to_s,
+      'assignee_email' => lead.assignee&.email.to_s,
+      'custom_fields' => lead.custom_fields_jabvox || {}
+    }
   end
 
   def resolve_leads_scope(sel)
@@ -217,7 +268,7 @@ class Jabvox::BulkWhatsappDispatchService
     total_chunks = (messages.size.to_f / CHUNK_SIZE).ceil
 
     messages.each_slice(CHUNK_SIZE).with_index do |chunk, idx|
-      post_chunk_with_retries(url, payload_body(chunk, api_token, idx, total_chunks))
+      post_chunk_with_retries(url, payload_body(batch, chunk, api_token, idx, total_chunks))
     end
     batch.update!(total_rows_jabvox: messages.size, valid_rows_jabvox: messages.size)
   end
@@ -242,20 +293,30 @@ class Jabvox::BulkWhatsappDispatchService
     [2**attempt, 8].min
   end
 
-  def payload_body(messages, api_token, chunk_index, total_chunks)
+  # base_url lets one n8n workflow serve every account and installation without
+  # hardcoding the app host; batch_id ties every chunk back to its send.
+  def payload_body(batch, messages, api_token, chunk_index, total_chunks)
     {
+      base_url: base_url,
       account_id: @account.id,
+      batch_id: batch.id,
       inbox_id: @inbox&.id,
+      inbox_name: @inbox&.name,
       mode: send_mode,
       channel_type: @inbox&.channel_type,
       api_token: api_token,
       token_expires_at: TOKEN_TTL.from_now.iso8601,
       response_email: @response_email,
       sent_by: @actor&.id,
+      sent_by_name: @actor&.name,
       chunk_index: chunk_index,
       total_chunks: total_chunks,
       messages: messages
     }
+  end
+
+  def base_url
+    ENV.fetch('FRONTEND_URL', 'http://localhost:3000').to_s.chomp('/')
   end
 
   def send_mode

@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import messageAPI from 'dashboard/api/inbox/message';
 import Button from 'dashboard/components-next/button/Button.vue';
 import JabvoxCallButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxCallButton.vue';
@@ -10,10 +11,14 @@ import JabvoxEmailButton from 'dashboard/components/widgets/conversation/jabvox/
 import JabvoxSmsButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxSmsButton.vue';
 import JabvoxConversationProducts from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationProducts.vue';
 import JabvoxConversationHistory from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationHistory.vue';
+import JabvoxLeadRecordsByContact from 'dashboard/components/widgets/conversation/jabvox/JabvoxLeadRecordsByContact.vue';
+import JabvoxConversationNotes from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationNotes.vue';
 import ManagementQuestionsForm from 'dashboard/components/jabvox/managementStates/ManagementQuestionsForm.vue';
 import {
-  isManagementValid,
   buildManagementContentAttributes,
+  stateGroups,
+  statesInGroup,
+  hasGroups,
 } from 'dashboard/composables/jabvox/useManagementState';
 
 const props = defineProps({
@@ -38,12 +43,32 @@ const newMessage = ref('');
 const isNote = ref(false);
 const isSending = ref(false);
 const managementStateId = ref(null);
+const managementGroup = ref(null);
 const managementAnswers = ref({});
 const messagesContainer = ref(null);
 
 const selectedManagementState = computed(() =>
   managementStates.value.find(s => s.id === managementStateId.value)
 );
+
+// Two-level picker (Estado → Subestado) when any active state has a group.
+const managementHasGroups = computed(() => hasGroups(managementStates.value));
+const managementGroups = computed(() => stateGroups(managementStates.value));
+const managementGroupStates = computed(() =>
+  managementGroup.value === null
+    ? []
+    : statesInGroup(managementStates.value, managementGroup.value)
+);
+
+// Changing the group invalidates a substate that belongs to another group.
+watch(managementGroup, () => {
+  const state = selectedManagementState.value;
+  if (
+    state &&
+    (state.state_group_jabvox || '') !== (managementGroup.value || '')
+  )
+    managementStateId.value = null;
+});
 
 const contactName = computed(
   () => props.conversation.contact?.name || t('JABVOX_KANBAN.UNKNOWN_CONTACT')
@@ -60,6 +85,16 @@ const contactIdentification = computed(() => {
       ?.jabvox_identification_number;
   return id ? mask('identification', id) : '';
 });
+const contactType = computed(
+  () =>
+    props.conversation.contact?.additional_attributes?.jabvox_contact_type ||
+    'persona'
+);
+const contactTypeLabel = computed(() =>
+  contactType.value === 'empresa'
+    ? t('JABVOX_KANBAN.CONTACT_TYPE_COMPANY')
+    : t('JABVOX_KANBAN.CONTACT_TYPE_PERSON')
+);
 const avatarUrl = computed(() => props.conversation.contact?.avatar_url || '');
 const assigneeName = computed(
   () => props.conversation.assignee?.name || t('JABVOX_KANBAN.UNASSIGNED')
@@ -69,23 +104,59 @@ const contactId = computed(
   () => props.conversation.contact?.id || props.conversation.meta?.sender?.id
 );
 
-const TABS = [
-  {
-    key: 'chat',
-    label: 'JABVOX_PRODUCTS.CONVERSATION.TAB_CHAT',
-    icon: 'i-lucide-message-circle',
-  },
-  {
-    key: 'products',
-    label: 'JABVOX_PRODUCTS.CONVERSATION.TAB_PRODUCTS',
-    icon: 'i-lucide-shopping-cart',
-  },
-  {
+const currentAccountId = useMapGetter('getCurrentAccountId');
+const isProductsEnabled = computed(() =>
+  store.getters['accounts/isFeatureEnabledonAccount'](
+    currentAccountId.value,
+    FEATURE_FLAGS.JABVOX_PRODUCTS
+  )
+);
+
+const hasMultiTables = computed(() => {
+  try {
+    return (
+      (store.getters['jabvoxCustomization/getMultiTables'] || []).length > 0
+    );
+  } catch {
+    return false;
+  }
+});
+
+const TABS = computed(() => {
+  const tabs = [
+    {
+      key: 'chat',
+      label: 'JABVOX_PRODUCTS.CONVERSATION.TAB_CHAT',
+      icon: 'i-lucide-message-circle',
+    },
+  ];
+  if (isProductsEnabled.value) {
+    tabs.push({
+      key: 'products',
+      label: 'JABVOX_PRODUCTS.CONVERSATION.TAB_PRODUCTS',
+      icon: 'i-lucide-shopping-cart',
+    });
+  }
+  // Notes tab (with gestión) — the chat itself no longer carries the picker.
+  tabs.push({
+    key: 'notes',
+    label: 'JABVOX_CUSTOMIZATION.LEAD_ROWS.NOTES_TAB',
+    icon: 'i-lucide-sticky-note',
+  });
+  if (hasMultiTables.value) {
+    tabs.push({
+      key: 'records',
+      label: 'JABVOX_CUSTOMIZATION.LEAD_ROWS.TAB',
+      icon: 'i-lucide-list',
+    });
+  }
+  tabs.push({
     key: 'history',
     label: 'JABVOX_PRODUCTS.CONVERSATION.TAB_HISTORY',
     icon: 'i-lucide-clock',
-  },
-];
+  });
+  return tabs;
+});
 
 const sortedMessages = computed(() =>
   [...messages.value].sort(
@@ -121,6 +192,7 @@ const loadMessages = async () => {
 
 onMounted(() => {
   store.dispatch('jabvoxManagementStates/fetchStates');
+  store.dispatch('jabvoxCustomization/fetchTables').catch(() => {});
   loadMessages();
 });
 watch(
@@ -128,6 +200,7 @@ watch(
   () => {
     activeTab.value = 'chat';
     managementStateId.value = null;
+    managementGroup.value = null;
     managementAnswers.value = {};
     loadMessages();
   }
@@ -158,24 +231,8 @@ const alignClass = msg =>
 const sendMessage = async () => {
   const content = newMessage.value.trim();
   if (!content || isSending.value) return;
-  if (
-    isNote.value &&
-    managementStates.value.length > 0 &&
-    !managementStateId.value
-  )
-    return;
-  if (
-    isNote.value &&
-    selectedManagementState.value &&
-    !isManagementValid(
-      selectedManagementState.value,
-      managementAnswers.value,
-      content
-    )
-  ) {
-    useAlert(t('JABVOX_MANAGEMENT_STATES.QUESTIONS.INCOMPLETE'));
-    return;
-  }
+  // Gestión is captured in the Notes tab, not the chat. A chat private note is
+  // just the note text — no gestión required or attached here.
   isSending.value = true;
   try {
     const payload = {
@@ -195,6 +252,7 @@ const sendMessage = async () => {
     messages.value.push(response.data);
     newMessage.value = '';
     managementStateId.value = null;
+    managementGroup.value = null;
     managementAnswers.value = {};
     scrollToBottom();
   } catch {
@@ -267,8 +325,13 @@ const onKeydown = event => {
             v-if="contactIdentification"
             class="text-xs text-slate-500 dark:text-slate-400 font-mono"
           >
-            {{ contactIdentification }}
+            {{ t('JABVOX_KANBAN.DOCUMENT_LABEL') }}: {{ contactIdentification }}
           </p>
+          <span
+            class="inline-flex items-center mt-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 w-fit"
+          >
+            {{ contactTypeLabel }}
+          </span>
         </div>
         <div class="flex items-center gap-1">
           <JabvoxCallButton
@@ -414,31 +477,99 @@ const onKeydown = event => {
             {{ $t('JABVOX_KANBAN.ADD_NOTE') }}
           </button>
         </div>
-        <div
-          v-if="isNote && managementStates.length > 0"
-          class="flex items-center gap-2 mb-2"
-        >
-          <label
-            class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0"
+        <!-- Gestión picker removed from chat: notes here are plain text.
+             Gestión is done from the Notes tab. -->
+        <div v-if="false" class="mb-2">
+          <!-- Two-level picker: Estado (grupo) → Subestado -->
+          <template v-if="managementHasGroups">
+            <div class="flex items-center gap-2">
+              <label
+                class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0"
+              >
+                {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.GROUP_LABEL') }}
+              </label>
+              <select
+                v-model="managementGroup"
+                class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+                :class="
+                  managementGroup !== null
+                    ? 'border-slate-200 dark:border-slate-600'
+                    : 'border-amber-400 dark:border-amber-500'
+                "
+              >
+                <option :value="null" disabled>
+                  {{
+                    $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.GROUP_PLACEHOLDER')
+                  }}
+                </option>
+                <option v-for="g in managementGroups" :key="g" :value="g">
+                  {{ g || $t('JABVOX_MANAGEMENT_STATES.UNGROUPED') }}
+                </option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2 mt-2">
+              <label
+                class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0"
+              >
+                {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.SUBSTATE_LABEL') }}
+              </label>
+              <select
+                v-model="managementStateId"
+                :disabled="managementGroup === null"
+                class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-60"
+                :class="
+                  managementStateId
+                    ? 'border-slate-200 dark:border-slate-600'
+                    : 'border-amber-400 dark:border-amber-500'
+                "
+              >
+                <option :value="null" disabled>
+                  {{
+                    $t(
+                      'JABVOX_MANAGEMENT_STATES.REPLY_BOX.SUBSTATE_PLACEHOLDER'
+                    )
+                  }}
+                </option>
+                <option
+                  v-for="s in managementGroupStates"
+                  :key="s.id"
+                  :value="s.id"
+                >
+                  {{ s.name_jabvox }}
+                </option>
+              </select>
+            </div>
+          </template>
+          <!-- Flat picker (accounts without groups) -->
+          <div v-else class="flex items-center gap-2">
+            <label
+              class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0"
+            >
+              {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.LABEL') }}
+            </label>
+            <select
+              v-model="managementStateId"
+              class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+              :class="
+                managementStateId
+                  ? 'border-slate-200 dark:border-slate-600'
+                  : 'border-amber-400 dark:border-amber-500'
+              "
+            >
+              <option :value="null" disabled>
+                {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.PLACEHOLDER') }}
+              </option>
+              <option v-for="s in managementStates" :key="s.id" :value="s.id">
+                {{ s.name_jabvox }}
+              </option>
+            </select>
+          </div>
+          <p
+            v-if="selectedManagementState?.usage_info_jabvox"
+            class="mt-1 text-xs text-slate-500 dark:text-slate-400"
           >
-            {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.LABEL') }}
-          </label>
-          <select
-            v-model="managementStateId"
-            class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200"
-            :class="
-              managementStateId
-                ? 'border-slate-200 dark:border-slate-600'
-                : 'border-amber-400 dark:border-amber-500'
-            "
-          >
-            <option :value="null" disabled>
-              {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.PLACEHOLDER') }}
-            </option>
-            <option v-for="s in managementStates" :key="s.id" :value="s.id">
-              {{ s.name_jabvox }}
-            </option>
-          </select>
+            {{ selectedManagementState.usage_info_jabvox }}
+          </p>
         </div>
         <ManagementQuestionsForm
           v-if="isNote && selectedManagementState"
@@ -487,6 +618,19 @@ const onKeydown = event => {
       class="flex-1 flex items-center justify-center text-sm text-slate-400"
     >
       {{ $t('JABVOX_PRODUCTS.CONVERSATION.HISTORY_EMPTY') }}
+    </div>
+
+    <!-- Notes tab (with gestión) -->
+    <JabvoxConversationNotes
+      v-else-if="activeTab === 'notes'"
+      :contact-id="contactId"
+      :conversation-id="conversation.id"
+      :conversation-display-id="conversation.display_id"
+    />
+
+    <!-- Records tab: multi-row custom tables (Asesorías, Casos…) -->
+    <div v-else-if="activeTab === 'records'" class="flex-1 overflow-y-auto">
+      <JabvoxLeadRecordsByContact :contact-id="contactId" />
     </div>
   </div>
 </template>

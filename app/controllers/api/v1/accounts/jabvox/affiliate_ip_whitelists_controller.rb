@@ -34,9 +34,7 @@ class Api::V1::Accounts::Jabvox::AffiliateIpWhitelistsController < Api::V1::Acco
   # Custom-role gate: users without a custom role keep historical access;
   # users with a custom role must be granted the capability (admins always pass).
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_affiliates_manage')
+    jabvox_authorize_write!('jabvox_affiliates_manage')
   end
 
   def fetch_affiliate

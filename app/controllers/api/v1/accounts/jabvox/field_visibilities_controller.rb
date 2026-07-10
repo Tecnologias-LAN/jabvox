@@ -61,8 +61,6 @@ module Api::V1::Accounts::Jabvox
     # Custom-role gate: users without a custom role keep historical access;
     # users with a custom role must be granted the capability (admins always pass).
     def ensure_module_permission
-      return if Current.account_user&.custom_role.nil?
-
       jabvox_authorize!('jabvox_field_visibilities_manage')
     end
   end

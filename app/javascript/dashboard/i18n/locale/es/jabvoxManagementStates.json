@@ -8,6 +8,16 @@
       "APP": "Estados de la App",
       "CAMPAIGNS": "Campañas"
     },
+    "EXPORT": {
+      "BUTTON": "Descargar JSON"
+    },
+    "IMPORT": {
+      "BUTTON": "Cargar JSON",
+      "SUCCESS": "Importación completa: {created} creados, {updated} actualizados.",
+      "ERROR": "No se pudo importar el archivo.",
+      "INVALID_JSON": "El archivo no es un JSON válido.",
+      "TOO_BIG": "El archivo supera el tamaño máximo (2 MB)."
+    },
     "CAMPAIGNS": {
       "DESCRIPTION": "Configura las campañas para clasificar y segmentar tus leads.",
       "NEW": "Nueva Campaña",
@@ -68,6 +78,17 @@
     "FORM": {
       "NAME": "Nombre",
       "NAME_PLACEHOLDER": "Ej: No contesta, Interesado, Cita agendada...",
+      "SUBSTATE": "Subestado",
+      "GROUP": "Estado (grupo)",
+      "GROUP_PLACEHOLDER": "Ej: Llamada, Whatsapp... (vacío = sin grupo)",
+      "USAGE_INFO": "¿En qué caso se usa?",
+      "USAGE_INFO_PLACEHOLDER": "Guía para el agente sobre cuándo usar este estado...",
+      "MANAGED": "Gestionado",
+      "CONTACT": "Contacto",
+      "EFFECTIVE_CONTACT": "Contacto efectivo",
+      "ADVISORY": "Asesoría",
+      "SERVICE_TYPE": "Es servicio",
+      "POSITIVITY_LEVEL": "Estado más positivo (nivel 0-100)",
       "COLOR": "Color",
       "PREVIEW": "Vista previa",
       "ACTIVE": "Activo",
@@ -76,9 +97,25 @@
       "NOTE_REQUIRED": "Obligatoria",
       "NOTE_HIDDEN": "No mostrar"
     },
+    "FLAGS": {
+      "MANAGED": "Gestionado",
+      "MANAGED_ABBR": "G",
+      "CONTACT": "Contacto",
+      "CONTACT_ABBR": "C",
+      "EFFECTIVE_CONTACT": "Contacto efectivo",
+      "EFFECTIVE_CONTACT_ABBR": "CE",
+      "ADVISORY": "Asesoría",
+      "ADVISORY_ABBR": "A",
+      "LEVEL": "Nivel {level}"
+    },
+    "UNGROUPED": "Sin grupo",
     "REPLY_BOX": {
       "LABEL": "Estado de gestión",
       "PLACEHOLDER": "Selecciona un estado...",
+      "GROUP_LABEL": "Estado",
+      "GROUP_PLACEHOLDER": "Selecciona un estado...",
+      "SUBSTATE_LABEL": "Subestado",
+      "SUBSTATE_PLACEHOLDER": "Selecciona un subestado...",
       "REQUIRED": "Debes seleccionar un estado de gestión para la nota privada."
     },
     "QUESTIONS": {
@@ -94,7 +131,11 @@
       "OPTIONS_PLACEHOLDER": "Una opción por línea",
       "SELECT": "Selecciona...",
       "YES": "Sí",
-      "INCOMPLETE": "Por favor responde las preguntas obligatorias de la gestión."
+      "INCOMPLETE": "Por favor responde las preguntas obligatorias de la gestión.",
+      "NO": "No",
+      "GROUP_INFO": "Información de gestión",
+      "GROUP_RESULT": "Resultado de interacción",
+      "PROGRESS": "{answered} de {total}"
     },
     "HEADER_DESCRIPTION": "Configura y administra los estados de flujo de trabajo usados en la plataforma.",
     "COUNT": "{count} estados",

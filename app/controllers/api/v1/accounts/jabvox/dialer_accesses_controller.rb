@@ -27,6 +27,15 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
   def connect
     user_ext = Current.account.jabvox_user_extensions.find_by(user_id: current_user.id)
     campaign_id = params[:campaign_id]&.to_i
+
+    # An agent may only connect to a campaign inside its management window.
+    if campaign_id&.positive?
+      campaign = Current.account.jabvox_dialer_campaigns.find_by(id: campaign_id)
+      if campaign && !campaign.in_schedule?
+        return render json: { error: 'Campaign out of schedule', out_of_schedule: true },
+                      status: :unprocessable_entity
+      end
+    end
     agent_data = {
       user_id: current_user.id,
       campaign_id: campaign_id,
@@ -100,6 +109,11 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
       return render json: { queued: false, message: 'No active campaign' }
     end
 
+    unless campaign.in_schedule?
+      Rails.logger.info "⏰ [Dialer] Campaña fuera de horario | campaña=#{campaign.name_jabvox} (id=#{campaign.id}) cuenta=#{Current.account.id}"
+      return render json: { queued: false, message: 'Campaign out of schedule', out_of_schedule: true }
+    end
+
     if agent[:extension].blank?
       Rails.logger.info "🔴 [Dialer] Agente sin extensión configurada | usuario=#{current_user.id} cuenta=#{Current.account.id}"
       return render json: { queued: false, message: 'No extension configured' }
@@ -160,12 +174,12 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     ActionCable.server.broadcast(
       current_user.pubsub_token,
       { event: 'jabvox.dialer.call_ended', data: { user_id: current_user.id,
-                                                    dialer_contact_id: params[:dialer_contact_id] } }
+                                                   dialer_contact_id: params[:dialer_contact_id] } }
     )
     head :ok
   end
 
-private
+  private
 
   def sync_queue_membership(campaign_id, extension, add:)
     return unless campaign_id.present? && extension.present?
@@ -207,13 +221,21 @@ private
     Rails.logger.warn "⚠️ [Dialer] hangup_agent_call failed | #{e.message}"
   end
 
+  # When a dialer call reaches the agent, the lead is auto-assigned to them so
+  # they can manage it from Leads. Uses update_columns to skip validations/
+  # callbacks — assignment must never fail because of an unrelated lead
+  # validation, and we log if it somehow does instead of swallowing silently.
   def assign_lead_to_agent(contact, user)
     return unless contact.contact_id
 
     lead = Current.account.jabvox_leads.find_by(contact_id: contact.contact_id)
-    lead&.update(assignee_id: user.id)
-  rescue StandardError
-    nil
+    return unless lead
+
+    # rubocop:disable Rails/SkipsModelValidations
+    lead.update_columns(assignee_id: user.id, updated_at: Time.current)
+    # rubocop:enable Rails/SkipsModelValidations
+  rescue StandardError => e
+    Rails.logger.error("[Dialer] assign_lead_to_agent failed | lead_contact=#{contact.contact_id} #{e.class}: #{e.message}")
   end
 
   def log_connect(account_id, user_id, extension, campaign_id)
@@ -229,12 +251,13 @@ private
     render json: { error: 'forbidden' }, status: :forbidden unless current_user.administrator?
   end
 
-  # Gate solo si el usuario tiene un custom role: sin rol personalizado se
-  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  # Agents operating the dialer need either grant; admin-only actions are
+  # additionally guarded by require_admin. Admins always pass.
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
+    return if jabvox_can?('jabvox_dialer_use') || jabvox_can?('jabvox_dialer_manage')
 
-    jabvox_authorize!('jabvox_dialer_manage')
+    render json: { error: I18n.t('jabvox.permissions.denied', default: 'You do not have permission for this action.') },
+           status: :forbidden
   end
 
   def agent_cache_key_for(uid = current_user.id)

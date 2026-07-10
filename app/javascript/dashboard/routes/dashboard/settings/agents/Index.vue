@@ -12,6 +12,7 @@ import {
 
 import AddAgent from './AddAgent.vue';
 import EditAgent from './EditAgent.vue';
+import DeleteAgentModal from './DeleteAgentModal.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -27,16 +28,6 @@ const showEditPopup = ref(false);
 const agentAPI = ref({ message: '' });
 const currentAgent = ref({});
 const searchQuery = ref('');
-
-const deleteConfirmText = computed(
-  () => `${t('AGENT_MGMT.DELETE.CONFIRM.YES')} ${currentAgent.value.name}`
-);
-const deleteRejectText = computed(() => {
-  return `${t('AGENT_MGMT.DELETE.CONFIRM.NO')} ${currentAgent.value.name}`;
-});
-const deleteMessage = computed(() => {
-  return ` ${currentAgent.value.name}?`;
-});
 
 const agentList = computed(() => getters['agents/getAgents'].value);
 
@@ -129,18 +120,18 @@ const closeDeletePopup = () => {
   showDeletePopup.value = false;
 };
 
-const deleteAgent = async id => {
+const deleteAgent = async (id, reassignToId) => {
   try {
-    await store.dispatch('agents/delete', id);
+    await store.dispatch('agents/delete', { agentId: id, reassignToId });
     showAlertMessage(t('AGENT_MGMT.DELETE.API.SUCCESS_MESSAGE'));
   } catch (error) {
     showAlertMessage(t('AGENT_MGMT.DELETE.API.ERROR_MESSAGE'));
   }
 };
-const confirmDeletion = () => {
+const confirmDeletion = reassignToId => {
   loading.value[currentAgent.value.id] = true;
   closeDeletePopup();
-  deleteAgent(currentAgent.value.id);
+  deleteAgent(currentAgent.value.id, reassignToId);
 };
 </script>
 
@@ -295,15 +286,13 @@ const confirmDeletion = () => {
       />
     </woot-modal>
 
-    <woot-delete-modal
-      v-model:show="showDeletePopup"
-      :on-close="closeDeletePopup"
-      :on-confirm="confirmDeletion"
-      :title="$t('AGENT_MGMT.DELETE.CONFIRM.TITLE')"
-      :message="$t('AGENT_MGMT.DELETE.CONFIRM.MESSAGE')"
-      :message-value="deleteMessage"
-      :confirm-text="deleteConfirmText"
-      :reject-text="deleteRejectText"
-    />
+    <woot-modal v-model:show="showDeletePopup" :on-close="closeDeletePopup">
+      <DeleteAgentModal
+        v-if="showDeletePopup"
+        :agent="currentAgent"
+        @confirm="confirmDeletion"
+        @close="closeDeletePopup"
+      />
+    </woot-modal>
   </SettingsLayout>
 </template>

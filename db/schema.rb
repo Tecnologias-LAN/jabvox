@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_10_010001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -28,6 +28,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
     t.index ["expires_at"], name: "index_access_tokens_on_expires_at"
     t.index ["owner_type", "owner_id"], name: "index_access_tokens_on_owner_type_and_owner_id"
     t.index ["token"], name: "index_access_tokens_on_token", unique: true
+  end
+
+  create_table "account_automation_configs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.boolean "enabled", default: false, null: false
+    t.bigint "remote_account_id"
+    t.datetime "last_provisioned_at"
+    t.string "last_status"
+    t.text "last_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_account_automation_configs_on_account_id_unique", unique: true
   end
 
   create_table "account_saml_settings", force: :cascade do |t|
@@ -881,6 +893,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
     t.index ["name", "account_id"], name: "index_email_templates_on_name_and_account_id", unique: true
   end
 
+  create_table "ext_leads_stress", id: :serial, force: :cascade do |t|
+    t.string "nombre", limit: 120
+    t.string "telefono", limit: 30
+    t.string "correo", limit: 120
+    t.integer "activo"
+    t.date "fecha_creacion"
+    t.string "documento", limit: 20
+  end
+
   create_table "folders", force: :cascade do |t|
     t.integer "account_id", null: false
     t.integer "category_id", null: false
@@ -1712,8 +1733,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["contact_id"], name: "index_jabvox_custom_table_rows_on_contact_id"
-    t.index ["jabvox_custom_table_id", "contact_id"], name: "idx_custom_table_rows_table_contact", unique: true, where: "(contact_id IS NOT NULL)"
-    t.index ["jabvox_custom_table_id", "jabvox_lead_id"], name: "idx_custom_table_rows_table_lead", unique: true, where: "(jabvox_lead_id IS NOT NULL)"
     t.index ["jabvox_custom_table_id"], name: "index_jabvox_custom_table_rows_on_jabvox_custom_table_id"
     t.index ["jabvox_lead_id"], name: "index_jabvox_custom_table_rows_on_jabvox_lead_id"
   end
@@ -1726,6 +1745,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "linked_to_jabvox"
+    t.string "kind_jabvox", default: "single", null: false
     t.index ["account_id", "linked_to_jabvox"], name: "idx_jabvox_custom_tables_linked_to", unique: true, where: "(linked_to_jabvox IS NOT NULL)"
     t.index ["account_id", "name_jabvox"], name: "index_jabvox_custom_tables_on_account_id_and_name_jabvox", unique: true
     t.index ["account_id"], name: "index_jabvox_custom_tables_on_account_id"
@@ -1807,8 +1827,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
     t.integer "max_concurrent_jabvox", default: 1, null: false
     t.integer "retry_count_jabvox", default: 0, null: false
     t.integer "retry_interval_jabvox", default: 60, null: false
-    t.string "calling_hours_start_jabvox", default: "08:00"
-    t.string "calling_hours_end_jabvox", default: "18:00"
+    t.string "calling_hours_start_jabvox"
+    t.string "calling_hours_end_jabvox"
     t.integer "total_contacts_jabvox", default: 0, null: false
     t.integer "dialed_count_jabvox", default: 0, null: false
     t.integer "answered_count_jabvox", default: 0, null: false
@@ -1825,6 +1845,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
     t.jsonb "inbox_ids_jabvox", default: []
     t.integer "leads_count_jabvox", default: 0, null: false
     t.boolean "wait_in_queue_jabvox", default: true, null: false
+    t.jsonb "lead_filters_jabvox", default: {}, null: false
+    t.jsonb "excluded_lead_ids_jabvox", default: [], null: false
+    t.date "schedule_start_date_jabvox"
+    t.date "schedule_end_date_jabvox"
+    t.string "dial_mode_jabvox", default: "last_state", null: false
     t.index ["account_id"], name: "index_jabvox_dialer_campaigns_on_account_id"
     t.index ["jabvox_campaign_id"], name: "index_jabvox_dialer_campaigns_on_jabvox_campaign_id"
   end
@@ -2178,6 +2203,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "related_tables_jabvox", default: [], null: false
+    t.jsonb "filters_jabvox", default: [], null: false
+    t.string "phone_prefix_jabvox", default: "", null: false
     t.index ["account_id", "name_jabvox"], name: "index_jabvox_lead_sources_on_account_id_and_name_jabvox", unique: true
     t.index ["account_id"], name: "index_jabvox_lead_sources_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_lead_sources_on_created_by_id"
@@ -2200,6 +2227,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
     t.index ["account_id"], name: "index_jabvox_leads_on_account_id"
     t.index ["assignee_id"], name: "index_jabvox_leads_on_assignee_id"
     t.index ["contact_id"], name: "index_jabvox_leads_on_contact_id"
+    t.index ["custom_fields_jabvox"], name: "index_jabvox_leads_on_custom_fields_jabvox", using: :gin
     t.index ["is_sold_jabvox"], name: "index_jabvox_leads_on_is_sold_jabvox"
     t.index ["jabvox_affiliate_id"], name: "index_jabvox_leads_on_jabvox_affiliate_id"
     t.index ["jabvox_campaign_id"], name: "index_jabvox_leads_on_jabvox_campaign_id"
@@ -2247,6 +2275,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "note_mode", default: "optional", null: false
+    t.string "state_group_jabvox", default: "", null: false
+    t.text "usage_info_jabvox", default: "", null: false
+    t.boolean "managed_jabvox", default: true, null: false
+    t.boolean "contact_jabvox", default: false, null: false
+    t.boolean "effective_contact_jabvox", default: false, null: false
+    t.boolean "advisory_jabvox", default: false, null: false
+    t.string "service_type_jabvox", default: "No", null: false
+    t.integer "positivity_level_jabvox", default: 0, null: false
+    t.index ["account_id", "state_group_jabvox"], name: "idx_jabvox_mgmt_states_on_account_and_group"
     t.index ["account_id"], name: "index_jabvox_management_states_on_account_id"
   end
 
@@ -3186,6 +3223,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
     t.index ["inbox_id"], name: "index_working_hours_on_inbox_id"
   end
 
+  add_foreign_key "account_automation_configs", "accounts"
   add_foreign_key "account_users", "jabvox_app_states", on_delete: :nullify
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
@@ -3294,9 +3332,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010001) do
   add_foreign_key "jabvox_cdr_stages", "jabvox_cdr_pipelines", column: "pipeline_id"
   add_foreign_key "jabvox_currencies", "accounts"
   add_foreign_key "jabvox_custom_columns", "jabvox_custom_tables"
-  add_foreign_key "jabvox_custom_table_rows", "contacts"
+  add_foreign_key "jabvox_custom_table_rows", "contacts", on_delete: :cascade
   add_foreign_key "jabvox_custom_table_rows", "jabvox_custom_tables"
-  add_foreign_key "jabvox_custom_table_rows", "jabvox_leads"
+  add_foreign_key "jabvox_custom_table_rows", "jabvox_leads", on_delete: :cascade
   add_foreign_key "jabvox_custom_tables", "accounts"
   add_foreign_key "jabvox_deleted_leads", "accounts"
   add_foreign_key "jabvox_deleted_leads", "users", column: "deleted_by_id"

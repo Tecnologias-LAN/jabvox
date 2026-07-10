@@ -23,10 +23,12 @@ const formDialog = ref(null);
 const deleteDialog = ref(null);
 
 // Only standalone tables have their own free-standing records. Lead-linked
-// tables (and the system Leads table) are filled from the lead detail, so we
-// keep them out of this data editor.
+// tables, the system Leads table, and multi-row tables (Asesorías, Casos…) are
+// all filled from the lead detail, so we keep them out of this data editor.
 const standaloneTables = computed(() =>
-  tables.value.filter(tbl => !tbl.linked_to_jabvox)
+  tables.value.filter(
+    tbl => !tbl.linked_to_jabvox && tbl.kind_jabvox !== 'multi'
+  )
 );
 
 const tableOptions = computed(() =>

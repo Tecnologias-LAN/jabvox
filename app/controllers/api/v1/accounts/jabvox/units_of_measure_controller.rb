@@ -30,9 +30,7 @@ class Api::V1::Accounts::Jabvox::UnitsOfMeasureController < Api::V1::Accounts::J
   # Custom-role gate: users without a custom role keep historical access;
   # users with a custom role must be granted the capability (admins always pass).
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_products_manage')
+    jabvox_authorize_write!('jabvox_products_manage')
   end
 
   def fetch_unit

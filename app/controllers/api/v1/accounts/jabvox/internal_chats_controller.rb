@@ -86,9 +86,7 @@ class Api::V1::Accounts::Jabvox::InternalChatsController < Api::V1::Accounts::Ba
   # Gate solo si el usuario tiene un custom role: sin rol personalizado se
   # conserva el comportamiento histórico (acceso). El admin siempre pasa.
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_internal_chat_use')
+    jabvox_authorize_write!('jabvox_internal_chat_use')
   end
 
   def set_chat

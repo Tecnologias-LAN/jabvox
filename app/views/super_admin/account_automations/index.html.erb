@@ -1,0 +1,81 @@
+<% content_for(:title) { "Automations – #{@account.name}" } %>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title">
+    Automations — <%= @account.name %>
+  </h1>
+  <%= link_to 'Back to Account', super_admin_account_path(@account), class: 'button' %>
+</header>
+
+<section class="main-content__body">
+  <% if notice %>
+    <p class="flash flash--notice"><%= notice %></p>
+  <% end %>
+  <% if alert %>
+    <p class="flash flash--error"><%= alert %></p>
+  <% end %>
+
+  <% unless Automations::ProvisioningService.configured? %>
+    <div style="margin-bottom:24px; padding:16px; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px;">
+      <p style="font-size:13px; color:#9a3412; margin:0;">
+        Automations no está configurado a nivel global.
+        <%= link_to 'Configúralo aquí', super_admin_automations_config_path %> antes de activarlo por cuenta.
+      </p>
+    </div>
+  <% end %>
+
+  <div style="padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+      <div>
+        <h3 style="font-weight:600; font-size:14px; margin-bottom:6px;">Conexión con Jabvox Automations</h3>
+        <p style="font-size:13px; color:#374151; margin:0;">
+          Estado:
+          <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500;
+                       background:<%= @config.enabled? ? '#dcfce7' : '#fee2e2' %>;
+                       color:<%= @config.enabled? ? '#166534' : '#991b1b' %>;">
+            <%= @config.enabled? ? 'Activo' : 'Inactivo' %>
+          </span>
+        </p>
+      </div>
+      <%= button_to @config.enabled? ? 'Desactivar' : 'Activar',
+            toggle_super_admin_account_account_automations_path(@account),
+            method: :patch,
+            data: { confirm: @config.enabled? ? '¿Desactivar Automations para esta cuenta?' : '¿Activar y aprovisionar Automations para esta cuenta?' },
+            class: 'button' %>
+    </div>
+
+    <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:16px;">
+      <tbody>
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:8px 4px; color:#6b7280;">Remote account ID</td>
+          <td style="padding:8px 4px; font-family:monospace;"><%= @config.remote_account_id || '—' %></td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:8px 4px; color:#6b7280;">Último estado</td>
+          <td style="padding:8px 4px;"><%= @config.last_status.presence || '—' %></td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:8px 4px; color:#6b7280;">Último aprovisionamiento</td>
+          <td style="padding:8px 4px;"><%= @config.last_provisioned_at&.strftime('%Y-%m-%d %H:%M') || '—' %></td>
+        </tr>
+        <% if @config.last_error.present? %>
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:8px 4px; color:#6b7280;">Último error</td>
+            <td style="padding:8px 4px; color:#991b1b;"><%= @config.last_error %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+
+    <% if @remote_status&.success? && @remote_status.data.is_a?(Hash) %>
+      <p style="margin-top:12px; font-size:12px; color:#6b7280;">
+        Estado remoto — exists: <strong><%= @remote_status.data['exists'] %></strong>,
+        active: <strong><%= @remote_status.data['active'] %></strong>
+      </p>
+    <% elsif @remote_status && !@remote_status.success? %>
+      <p style="margin-top:12px; font-size:12px; color:#991b1b;">
+        No se pudo consultar el estado remoto: <%= @remote_status.error %>
+      </p>
+    <% end %>
+  </div>
+</section>

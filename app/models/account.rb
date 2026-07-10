@@ -143,6 +143,7 @@ class Account < ApplicationRecord
   has_many :jabvox_call_logs, dependent: :destroy_async
   has_one :jabvox_voip_config, dependent: :destroy
   has_one :jabvox_saldo_config, dependent: :destroy
+  has_one :account_automation_config, dependent: :destroy
   has_many :jabvox_sms_providers, dependent: :destroy_async
   has_many :jabvox_sms_campaigns, dependent: :destroy_async
   has_many :jabvox_sms_messages, dependent: :destroy_async

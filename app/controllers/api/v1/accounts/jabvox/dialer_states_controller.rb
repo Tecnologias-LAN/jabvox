@@ -39,9 +39,7 @@ class Api::V1::Accounts::Jabvox::DialerStatesController < Api::V1::Accounts::Jab
   # Gate solo si el usuario tiene un custom role: sin rol personalizado se
   # conserva el comportamiento histórico (acceso). El admin siempre pasa.
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_dialer_manage')
+    jabvox_authorize_write!('jabvox_dialer_manage')
   end
 
   def set_state

@@ -28,6 +28,11 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   end
 
   def destroy
+    reassign_to_id = params[:reassign_to_id].presence&.to_i
+    # Reassign BEFORE destroying the account_user: that destroy triggers
+    # Agents::DestroyJob which nullifies this agent's lead/task assignments, so
+    # reassigning first guarantees the target keeps them (no async race).
+    reassign_jabvox_resources(@agent, reassign_to_id)
     @agent.current_account_user.destroy!
     delete_user_record(@agent)
     head :ok
@@ -107,6 +112,17 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
 
   def delete_user_record(agent)
     DeleteObjectJob.perform_later(agent) if agent.reload.account_users.blank?
+  end
+
+  def reassign_jabvox_resources(agent, reassign_to_id)
+    target_id = if reassign_to_id && Current.account.users.exists?(reassign_to_id)
+                  reassign_to_id
+                end
+
+    # rubocop:disable Rails/SkipsModelValidations
+    Current.account.jabvox_leads.where(assignee_id: agent.id).update_all(assignee_id: target_id)
+    Current.account.jabvox_tasks.where(assignee_id: agent.id).update_all(assignee_id: target_id)
+    # rubocop:enable Rails/SkipsModelValidations
   end
 end
 

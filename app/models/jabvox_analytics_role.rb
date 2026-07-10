@@ -42,6 +42,10 @@ class JabvoxAnalyticsRole < ApplicationRecord
                          foreign_key: :role_id, dependent: :destroy, inverse_of: :role
   has_many :user_permissions, class_name: 'JabvoxAnalyticsUserPermission',
                               foreign_key: :role_id, dependent: :nullify, inverse_of: :role
+  # Data-source grants tied to this role clear their role reference on deletion
+  # (nullable FK), so a custom role that was granted access can still be deleted.
+  has_many :data_source_permissions, class_name: 'JabvoxAnalyticsDataSourcePermission',
+                                     foreign_key: :role_id, dependent: :nullify, inverse_of: :role
 
   validates :name_jabvox, presence: true
   validates :slug_jabvox, presence: true, uniqueness: { scope: :account_id }

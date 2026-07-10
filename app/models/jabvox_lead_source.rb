@@ -11,12 +11,14 @@
 #  engine_jabvox                :string           not null
 #  external_id_column_jabvox    :string
 #  field_mapping_jabvox         :jsonb            not null
+#  filters_jabvox               :jsonb            not null
 #  host_jabvox                  :string
 #  last_sync_result_jabvox      :jsonb            not null
 #  last_synced_at_jabvox        :datetime
 #  last_tested_at_jabvox        :datetime
 #  name_jabvox                  :string           not null
 #  password_jabvox              :text
+#  phone_prefix_jabvox          :string           default(""), not null
 #  port_jabvox                  :integer
 #  query_timeout_ms_jabvox      :integer          default(30000), not null
 #  related_tables_jabvox        :jsonb            not null

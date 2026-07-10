@@ -22,6 +22,7 @@
 #  index_jabvox_leads_on_account_id_and_lead_number         (account_id,lead_number) UNIQUE
 #  index_jabvox_leads_on_assignee_id                        (assignee_id)
 #  index_jabvox_leads_on_contact_id                         (contact_id)
+#  index_jabvox_leads_on_custom_fields_jabvox               (custom_fields_jabvox) USING gin
 #  index_jabvox_leads_on_is_sold_jabvox                     (is_sold_jabvox)
 #  index_jabvox_leads_on_jabvox_affiliate_id                (jabvox_affiliate_id)
 #  index_jabvox_leads_on_jabvox_campaign_id                 (jabvox_campaign_id)
@@ -45,6 +46,11 @@ class JabvoxLead < ApplicationRecord
   has_many :jabvox_lead_source_records, class_name: 'JabvoxLeadSourceRecord',
                                         foreign_key: :jabvox_lead_id,
                                         inverse_of: :jabvox_lead, dependent: :delete_all
+  # Call logs and tasks keep their history when the lead goes away; the
+  # task-lead-contact join rows have a NOT NULL lead FK so they must be removed.
+  has_many :jabvox_call_logs, dependent: :nullify
+  has_many :jabvox_tasks, dependent: :nullify
+  has_many :jabvox_task_lead_contacts, dependent: :delete_all
 
   validates :contact_id, uniqueness: { scope: :account_id }
   validates :lead_number, presence: true, uniqueness: { scope: :account_id }

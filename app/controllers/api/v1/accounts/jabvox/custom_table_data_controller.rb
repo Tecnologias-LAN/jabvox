@@ -65,11 +65,12 @@ class Api::V1::Accounts::Jabvox::CustomTableDataController < Api::V1::Accounts::
     render json: { error: 'Solo los administradores pueden gestionar datos de tablas' }, status: :forbidden
   end
 
-  # Standalone tables only. Lead-linked and the system Leads table are rejected
-  # here — their data is per-lead and lives on the lead detail view.
+  # Standalone tables only. Lead-linked tables, the system Leads table, and
+  # multi-row tables (Asesorías, Casos…) are rejected here — their data is
+  # per-lead and lives on the lead detail view.
   def set_table
     @table = Current.account.jabvox_custom_tables.find(params[:custom_table_id])
-    return if @table.linked_to_jabvox.blank?
+    return if @table.linked_to_jabvox.blank? && !@table.multi?
 
     render json: { error: 'Esta tabla guarda datos por lead/contacto; edítala desde el detalle del lead' },
            status: :unprocessable_entity

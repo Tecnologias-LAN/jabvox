@@ -9,6 +9,12 @@ json.array! @campaigns do |campaign|
   json.retry_interval_jabvox campaign.retry_interval_jabvox
   json.calling_hours_start_jabvox campaign.calling_hours_start_jabvox
   json.calling_hours_end_jabvox campaign.calling_hours_end_jabvox
+  json.schedule_start_date_jabvox campaign.schedule_start_date_jabvox
+  json.schedule_end_date_jabvox campaign.schedule_end_date_jabvox
+  json.in_schedule campaign.in_schedule?
+  json.lead_filters_jabvox campaign.lead_filters_jabvox || {}
+  json.excluded_lead_ids_jabvox campaign.excluded_lead_ids_jabvox || []
+  json.dial_mode_jabvox campaign.dial_mode_jabvox
   json.jabvox_campaign_id campaign.jabvox_campaign_id
   json.countries_jabvox campaign.countries_jabvox || []
   json.wrapup_time_jabvox campaign.wrapup_time_jabvox

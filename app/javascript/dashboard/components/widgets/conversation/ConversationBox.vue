@@ -6,6 +6,8 @@ import EmptyState from './EmptyState/EmptyState.vue';
 import MessagesView from './MessagesView.vue';
 import JabvoxConversationProducts from './jabvox/JabvoxConversationProducts.vue';
 import JabvoxConversationHistory from './jabvox/JabvoxConversationHistory.vue';
+import JabvoxLeadRecordsByContact from './jabvox/JabvoxLeadRecordsByContact.vue';
+import JabvoxConversationNotes from './jabvox/JabvoxConversationNotes.vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 export default {
@@ -16,6 +18,8 @@ export default {
     MessagesView,
     JabvoxConversationProducts,
     JabvoxConversationHistory,
+    JabvoxLeadRecordsByContact,
+    JabvoxConversationNotes,
   },
   props: {
     inboxId: {
@@ -55,24 +59,58 @@ export default {
         FEATURE_FLAGS.JABVOX_PRODUCTS
       );
     },
+    isJabvoxCustomizationEnabled() {
+      return this.isFeatureEnabledonAccount(
+        this.getCurrentAccountId,
+        FEATURE_FLAGS.JABVOX_CUSTOMIZATION
+      );
+    },
+    // Multi-row tables (Asesorías, Casos…) → the Records tab.
+    hasJabvoxMultiTables() {
+      const tables =
+        this.$store.getters['jabvoxCustomization/getMultiTables'] || [];
+      return this.isJabvoxCustomizationEnabled && tables.length > 0;
+    },
+    // The Jabvox tab bar shows whenever ANY of its tabs beyond chat is
+    // available (products / notes / records) — not only when products is on.
+    showJabvoxTabs() {
+      return this.jabvoxTabs.length > 1 && this.currentChat.id;
+    },
     jabvoxTabs() {
-      return [
+      const tabs = [
         {
           key: 'chat',
           label: this.$t('JABVOX_PRODUCTS.CONVERSATION.TAB_CHAT'),
           icon: 'i-lucide-message-circle',
         },
-        {
+      ];
+      if (this.isJabvoxProductsEnabled) {
+        tabs.push({
           key: 'products',
           label: this.$t('JABVOX_PRODUCTS.CONVERSATION.TAB_PRODUCTS'),
           icon: 'i-lucide-shopping-cart',
-        },
-        {
-          key: 'history',
-          label: this.$t('JABVOX_PRODUCTS.CONVERSATION.TAB_HISTORY'),
-          icon: 'i-lucide-clock',
-        },
-      ];
+        });
+      }
+      // Notes tab (with gestión) — always available; the chat reply box no
+      // longer carries the gestión picker, so gestión lives here.
+      tabs.push({
+        key: 'notes',
+        label: this.$t('JABVOX_CUSTOMIZATION.LEAD_ROWS.NOTES_TAB'),
+        icon: 'i-lucide-sticky-note',
+      });
+      if (this.hasJabvoxMultiTables) {
+        tabs.push({
+          key: 'records',
+          label: this.$t('JABVOX_CUSTOMIZATION.LEAD_ROWS.TAB'),
+          icon: 'i-lucide-list',
+        });
+      }
+      tabs.push({
+        key: 'history',
+        label: this.$t('JABVOX_PRODUCTS.CONVERSATION.TAB_HISTORY'),
+        icon: 'i-lucide-clock',
+      });
+      return tabs;
     },
     dashboardAppTabs() {
       return [
@@ -113,6 +151,10 @@ export default {
   mounted() {
     this.fetchLabels();
     this.$store.dispatch('dashboardApps/get');
+    // Needed to know whether to show the Records tab (multi-row tables).
+    if (this.isJabvoxCustomizationEnabled) {
+      this.$store.dispatch('jabvoxCustomization/fetchTables').catch(() => {});
+    }
   },
   methods: {
     fetchLabels() {
@@ -144,9 +186,9 @@ export default {
       }"
     />
 
-    <!-- Jabvox product tabs: Chat | Products | History -->
+    <!-- Jabvox tabs: Chat | Products* | Notes | Records* | History -->
     <div
-      v-if="isJabvoxProductsEnabled && currentChat.id"
+      v-if="showJabvoxTabs"
       class="flex shrink-0 border-b border-slate-200 dark:border-slate-700 overflow-x-auto"
     >
       <button
@@ -165,8 +207,8 @@ export default {
       </button>
     </div>
 
-    <!-- Chat tab (or full chat when jabvox not enabled) -->
-    <template v-if="!isJabvoxProductsEnabled || jabvoxTab === 'chat'">
+    <!-- Chat tab (or full chat when no jabvox tabs are shown) -->
+    <template v-if="!showJabvoxTabs || jabvoxTab === 'chat'">
       <woot-tabs
         v-if="dashboardApps.length && currentChat.id"
         :index="activeIndex"
@@ -211,6 +253,22 @@ export default {
       :contact-id="currentContactId"
       :conversation-id="currentChat.id"
     />
+
+    <!-- Notes tab (with gestión picker) -->
+    <JabvoxConversationNotes
+      v-else-if="jabvoxTab === 'notes'"
+      :contact-id="currentContactId"
+      :conversation-id="currentChat.id"
+      :conversation-display-id="currentChat.display_id"
+    />
+
+    <!-- Records tab (multi-row custom tables) -->
+    <div
+      v-else-if="jabvoxTab === 'records'"
+      class="flex flex-col h-full overflow-y-auto bg-n-background"
+    >
+      <JabvoxLeadRecordsByContact :contact-id="currentContactId" />
+    </div>
 
     <!-- History tab -->
     <JabvoxConversationHistory

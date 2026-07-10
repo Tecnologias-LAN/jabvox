@@ -33,6 +33,10 @@ class JabvoxTaskStage < ApplicationRecord
                    dependent: :nullify, inverse_of: :stage
   has_many :automations, class_name: 'JabvoxTaskStageAutomation', foreign_key: :stage_id,
                          dependent: :destroy, inverse_of: :stage
+  # Automations on other stages that move tasks INTO this stage lose their
+  # target instead of blocking the deletion.
+  has_many :incoming_automations, class_name: 'JabvoxTaskStageAutomation', foreign_key: :target_stage_id,
+                                  dependent: :nullify, inverse_of: false
 
   validates :name_jabvox, presence: true
 

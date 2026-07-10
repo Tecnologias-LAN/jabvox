@@ -26,9 +26,7 @@ class Api::V1::Accounts::Jabvox::IntegrationConfigsController < Api::V1::Account
   # Custom-role gate: users without a custom role keep historical access;
   # users with a custom role must be granted the capability (admins always pass).
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_integration_manage')
+    jabvox_authorize_write!('jabvox_integration_manage')
   end
 
   def check_authorization

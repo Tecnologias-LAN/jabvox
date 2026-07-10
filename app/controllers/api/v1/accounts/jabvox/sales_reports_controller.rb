@@ -20,9 +20,7 @@ class Api::V1::Accounts::Jabvox::SalesReportsController < Api::V1::Accounts::Jab
   # Custom-role gate: users without a custom role keep historical access;
   # users with a custom role must be granted the capability (admins always pass).
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_sales_reports_manage')
+    jabvox_authorize_write!('jabvox_sales_reports_manage')
   end
 
   def check_authorization

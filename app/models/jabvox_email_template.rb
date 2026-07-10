@@ -23,6 +23,18 @@
 class JabvoxEmailTemplate < ApplicationRecord
   belongs_to :account
 
+  # Automations that send this template simply lose it (send nothing) instead
+  # of blocking the deletion.
+  has_many :kanban_stage_automations, class_name: 'JabvoxKanbanStageAutomation',
+                                      foreign_key: :jabvox_email_template_id,
+                                      dependent: :nullify, inverse_of: false
+  has_many :task_automations, class_name: 'JabvoxTaskAutomation',
+                              foreign_key: :email_template_id,
+                              dependent: :nullify, inverse_of: false
+  has_many :task_stage_automations, class_name: 'JabvoxTaskStageAutomation',
+                                    foreign_key: :email_template_id,
+                                    dependent: :nullify, inverse_of: false
+
   validates :name, presence: true, uniqueness: { scope: :account_id }
   validates :subject, presence: true
   validates :body, length: { maximum: 5_000_000 }, allow_nil: true

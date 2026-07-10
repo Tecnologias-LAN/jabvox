@@ -4,12 +4,14 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import { managementStatesAPI } from 'dashboard/api/jabvox/managementStates';
 import Button from 'dashboard/components-next/button/Button.vue';
 import StateListPanel from './components/StateListPanel.vue';
 import ManagementStateDrawer from './components/ManagementStateDrawer.vue';
 import SimpleStateDrawer from './components/SimpleStateDrawer.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import { DESTROY_KEY } from 'dashboard/helper/jabvox/nestedAttributes';
+import { stateGroups } from 'dashboard/composables/jabvox/useManagementState';
 
 const store = useStore();
 const { t } = useI18n();
@@ -62,11 +64,27 @@ const onCreate = () => {
 };
 
 // ─── management states ───
+// Existing (non-empty) group names offered as suggestions in the drawer.
+const existingGroups = computed(() =>
+  stateGroups(states.value).filter(Boolean)
+);
+
 const buildManagementPayload = (form, index) => ({
   name_jabvox: form.name_jabvox,
+  state_group_jabvox: form.state_group_jabvox || '',
+  usage_info_jabvox: form.usage_info_jabvox || '',
   color_jabvox: form.color_jabvox,
   is_active_jabvox: form.is_active_jabvox,
   note_mode: form.note_mode,
+  managed_jabvox: form.managed_jabvox !== false,
+  contact_jabvox: form.contact_jabvox === true,
+  effective_contact_jabvox: form.effective_contact_jabvox === true,
+  advisory_jabvox: form.advisory_jabvox === true,
+  service_type_jabvox: form.service_type_jabvox || 'No',
+  positivity_level_jabvox: Math.min(
+    100,
+    Math.max(0, Number(form.positivity_level_jabvox) || 0)
+  ),
   position: index,
   questions_attributes: form.questions.map((q, i) => {
     const attrs = {
@@ -167,6 +185,77 @@ const doDelete = async () => {
   }
 };
 
+// ─── JSON export / import (management states only) ───
+// Security model: the file is DATA only. It's parsed with JSON.parse (which
+// never executes code), size/type-checked here, and the backend re-validates
+// every field against a strict whitelist before touching the DB.
+const MAX_IMPORT_BYTES = 2 * 1024 * 1024; // 2 MB
+const importInput = ref(null);
+const importing = ref(false);
+
+const onExport = async () => {
+  try {
+    const { data } = await managementStatesAPI.export();
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `jabvox-estados-gestion-${stamp}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    useAlert(t('JABVOX_MANAGEMENT_STATES.ERROR'));
+  }
+};
+
+const onImportClick = () => importInput.value?.click();
+
+const onImportFile = async event => {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  if (file.size > MAX_IMPORT_BYTES) {
+    useAlert(t('JABVOX_MANAGEMENT_STATES.IMPORT.TOO_BIG'));
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch {
+    useAlert(t('JABVOX_MANAGEMENT_STATES.IMPORT.INVALID_JSON'));
+    return;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    useAlert(t('JABVOX_MANAGEMENT_STATES.IMPORT.INVALID_JSON'));
+    return;
+  }
+
+  importing.value = true;
+  try {
+    const { data } = await managementStatesAPI.import(parsed);
+    useAlert(
+      t('JABVOX_MANAGEMENT_STATES.IMPORT.SUCCESS', {
+        created: data.created,
+        updated: data.updated,
+      })
+    );
+    store.dispatch('jabvoxManagementStates/fetchStates');
+  } catch (error) {
+    const serverErrors = error?.response?.data?.errors;
+    useAlert(
+      Array.isArray(serverErrors) && serverErrors.length
+        ? serverErrors.slice(0, 3).join(' · ')
+        : t('JABVOX_MANAGEMENT_STATES.IMPORT.ERROR')
+    );
+  } finally {
+    importing.value = false;
+  }
+};
+
 onMounted(() => {
   store.dispatch('jabvoxManagementStates/fetchStates');
   store.dispatch('jabvoxAppStates/fetchStates');
@@ -204,6 +293,28 @@ onMounted(() => {
               t('JABVOX_MANAGEMENT_STATES.COUNT', { count: totalForActiveTab })
             }}
           </span>
+          <template v-if="activeTab === 'management'">
+            <Button
+              :label="t('JABVOX_MANAGEMENT_STATES.IMPORT.BUTTON')"
+              icon="i-lucide-upload"
+              slate
+              :is-loading="importing"
+              @click="onImportClick"
+            />
+            <Button
+              :label="t('JABVOX_MANAGEMENT_STATES.EXPORT.BUTTON')"
+              icon="i-lucide-download"
+              slate
+              @click="onExport"
+            />
+            <input
+              ref="importInput"
+              type="file"
+              accept=".json,application/json"
+              class="hidden"
+              @change="onImportFile"
+            />
+          </template>
           <Button
             :label="t('JABVOX_MANAGEMENT_STATES.NEW')"
             icon="i-lucide-plus"
@@ -282,6 +393,7 @@ onMounted(() => {
     <ManagementStateDrawer
       ref="mgmtDrawer"
       :is-saving="uiFlags.isCreating || uiFlags.isUpdating"
+      :group-suggestions="existingGroups"
       @submit="onSubmitManagement"
     />
     <SimpleStateDrawer

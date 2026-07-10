@@ -6,6 +6,8 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
   # Report views are gated by jabvox_reports_view. set_dialer_state is excluded:
   # it lets the current user set their OWN presence, which any agent may do.
   before_action :ensure_reports_permission, except: [:set_dialer_state]
+  # The products report only exists while the products module is active.
+  before_action :ensure_products_module, only: [:products]
 
   def products
     orders = Current.account.jabvox_orders
@@ -175,12 +177,17 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
 
   private
 
-  # Gate only applies to users with a custom role; users without one keep the
-  # historical behavior (admins always pass via jabvox_can?).
+  # Admins always pass (inside jabvox_can?); everyone else needs the
+  # jabvox_reports_view permission from their custom role. Agents without a
+  # custom role are denied — reports are opt-in per role.
   def ensure_reports_permission
-    return if Current.account_user&.custom_role.nil?
-
     jabvox_authorize!('jabvox_reports_view')
+  end
+
+  def ensure_products_module
+    return if Current.account.feature_enabled?('jabvox_products')
+
+    render json: { error: 'Products module is not enabled for this account' }, status: :forbidden
   end
 
   def build_date_range

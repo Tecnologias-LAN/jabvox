@@ -15,8 +15,6 @@ class Api::V1::Accounts::Jabvox::ClickToCall::BaseController < Api::V1::Accounts
   # Gate solo si el usuario tiene un custom role: sin rol personalizado se
   # conserva el comportamiento histórico (acceso). El admin siempre pasa.
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
     jabvox_authorize!('jabvox_click_to_call_use')
   end
 end

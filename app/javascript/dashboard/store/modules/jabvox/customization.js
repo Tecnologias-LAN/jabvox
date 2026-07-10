@@ -15,7 +15,11 @@ const getters = {
   getButtons: s => s.buttons,
   getActiveButtons: s => s.buttons.filter(b => b.active_jabvox),
   getLeadsTable: s =>
-    s.tables.find(t => t.linked_to_jabvox === 'leads') || null,
+    s.tables.find(
+      t => t.linked_to_jabvox === 'leads' && t.kind_jabvox !== 'multi'
+    ) || null,
+  // Multi-row tables (Asesorías, Casos…) shown in the lead detail.
+  getMultiTables: s => s.tables.filter(t => t.kind_jabvox === 'multi'),
   getUIFlags: s => s.uiFlags,
 };
 
@@ -199,6 +203,42 @@ const actions = {
     } finally {
       commit('SET_UI_FLAGS', { isSaving: false });
     }
+  },
+
+  // Multi-row tables per lead (Asesorías, Casos…). Data is component-local
+  // (belongs to the currently-open lead), so these are thin pass-throughs.
+  async fetchLeadTableRows(_ctx, leadId) {
+    const { data } = await api.getLeadTableRows(leadId);
+    return data;
+  },
+
+  async createLeadTableRow({ commit }, { leadId, tableId, rowData }) {
+    commit('SET_UI_FLAGS', { isSaving: true });
+    try {
+      const { data } = await api.createLeadTableRow(leadId, tableId, rowData);
+      return data;
+    } finally {
+      commit('SET_UI_FLAGS', { isSaving: false });
+    }
+  },
+
+  async updateLeadTableRow({ commit }, { leadId, tableId, rowId, rowData }) {
+    commit('SET_UI_FLAGS', { isSaving: true });
+    try {
+      const { data } = await api.updateLeadTableRow(
+        leadId,
+        tableId,
+        rowId,
+        rowData
+      );
+      return data;
+    } finally {
+      commit('SET_UI_FLAGS', { isSaving: false });
+    }
+  },
+
+  async deleteLeadTableRow(_ctx, { leadId, tableId, rowId }) {
+    await api.deleteLeadTableRow(leadId, tableId, rowId);
   },
 };
 

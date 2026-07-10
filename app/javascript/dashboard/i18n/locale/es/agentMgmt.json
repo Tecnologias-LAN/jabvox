@@ -59,6 +59,14 @@
         "MESSAGE": "¿Está seguro de eliminar ",
         "YES": "Sí, eliminar ",
         "NO": "No, mantenerlo "
+      },
+      "REASSIGN": {
+        "TITLE": "Eliminar agente",
+        "DESCRIPTION": "El agente <strong>{name}</strong> tiene leads y tareas asignadas. Antes de eliminarlo puedes reasignarlos a otro agente o dejarlos sin asignar.",
+        "REASSIGN_LABEL": "Reasignar leads y tareas a",
+        "REASSIGN_PLACEHOLDER": "Dejar sin asignar",
+        "CANCEL": "Cancelar",
+        "CONFIRM": "Eliminar agente"
       }
     },
     "EDIT": {

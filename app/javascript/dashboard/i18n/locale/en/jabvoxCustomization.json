@@ -49,7 +49,11 @@
       "COLUMNS_COUNT": "Sin columnas | 1 columna | {count} columnas",
       "LEADS_LINK_TOGGLE": "Usar como campos del lead",
       "LEADS_LINK_CONFLICT": "Ya hay una tabla vinculada a leads. Desvincúlala primero.",
-      "LEADS_LINKED_BADGE": "Campos del lead"
+      "LEADS_LINKED_BADGE": "Campos del lead",
+      "MULTI_LABEL": "Múltiples registros por lead",
+      "MULTI_HINT": "Un lead puede tener varios registros (ej. Asesorías, Casos). Se muestran en el detalle del lead.",
+      "MULTI_LOCKED": "El tipo de tabla no se puede cambiar después de crearla.",
+      "MULTI_BADGE": "Multi-registro"
     },
     "COLUMNS": {
       "TITLE": "Columnas",
@@ -153,11 +157,25 @@
     "ERROR": "Ocurrió un error. Intenta de nuevo.",
     "LOADING": "Cargando...",
     "LEAD_ROWS": {
-      "EMPTY_TEXT": "No hay tablas personalizadas configuradas. Crea una en",
+      "TAB": "Registros",
+      "NOTES_TAB": "Notas",
+      "NOTES_EMPTY": "Aún no hay notas.",
+      "NOTE_PLACEHOLDER": "Escribe una nota…",
+      "ADD": "Añadir",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "SAVED": "Registro guardado.",
+      "DELETED": "Registro eliminado.",
+      "SAVE_ERROR": "No se pudo guardar el registro.",
+      "DELETE_CONFIRM": "¿Eliminar este registro? Esta acción no se puede deshacer.",
+      "SELECT_EMPTY": "Selecciona una opción…",
+      "NO_RECORDS": "Sin registros aún.",
+      "EMPTY_TEXT": "No hay tablas de múltiples registros configuradas.",
+      "NO_LEAD": "Este contacto no tiene un lead asociado.",
+      "YES": "Sí",
+      "NO": "No",
       "EMPTY_LINK": "Configuración → Personalización",
-      "SAVED": "Guardado",
-      "NO_COLUMNS": "Esta tabla no tiene columnas. Agrégalas en Personalización → Columnas.",
-      "SELECT_EMPTY": "— sin valor —"
+      "NO_COLUMNS": "Esta tabla no tiene columnas. Agrégalas en Personalización → Columnas."
     }
   }
 }

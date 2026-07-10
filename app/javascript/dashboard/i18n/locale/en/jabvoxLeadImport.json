@@ -54,6 +54,8 @@
       "REQUIRED": "Choose a table and its ID column.",
       "SEARCH_TABLE": "Search table…",
       "SEARCH_COLUMN": "Search column…",
+      "NO_COLUMNS": "No columns match your search.",
+      "SEARCH_COLUMN": "Search column…",
       "NO_RESULTS": "No results",
       "FIELDS_TITLE": "Field mapping",
       "CREATE_MISSING": "Create missing fields",
@@ -68,6 +70,32 @@
       "LOCAL_KEY": "Main table key",
       "FOREIGN_KEY": "Related table key",
       "ALIAS": "Alias"
+    },
+    "PHONE_PREFIX": {
+      "LABEL": "Phone prefix (country)",
+      "HINT": "E.g. 57 — prepended to numbers without a country code, and the + is added automatically (E.164 for WhatsApp/calls)."
+    },
+    "FILTERS": {
+      "TITLE": "Sync filters",
+      "HINT": "Only rows matching ALL filters will be imported.",
+      "ADD": "Add filter",
+      "COLUMN": "Column",
+      "OPERATOR": "Operator",
+      "VALUE": "Value",
+      "VALUE2": "and",
+      "BETWEEN_REQUIRED": "Range filters require both values.",
+      "OPS": {
+        "EQ": "Equals (=)",
+        "NEQ": "Not equal (≠)",
+        "GT": "Greater than (>)",
+        "GTE": "Greater or equal (>=)",
+        "LT": "Less than (<)",
+        "LTE": "Less or equal (<=)",
+        "BETWEEN": "Between (range)",
+        "CONTAINS": "Contains",
+        "NULL": "Is null",
+        "NOT_NULL": "Is not null"
+      }
     },
     "CREATE_FIELD": {
       "TITLE": "New custom field",
@@ -88,6 +116,16 @@
       "BOOLEAN": "Yes/No",
       "DATE": "Date",
       "SELECT": "List"
+    },
+    "SUMMARY": {
+      "TITLE": "Mapped fields",
+      "MAPPED": "{count} mapped",
+      "UNMAPPED": "{count} unmapped",
+      "SOURCE_COLUMN": "Source column",
+      "SOURCE_TYPE": "Source type",
+      "DEST_FIELD": "Lead field",
+      "DEST_TYPE": "Target type",
+      "EMPTY": "You haven't mapped any column yet."
     }
   }
 }

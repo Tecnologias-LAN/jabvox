@@ -27,6 +27,8 @@ class JabvoxTypification < ApplicationRecord
   has_many :dialer_call_logs, class_name: 'JabvoxDialerCallLog', dependent: :nullify, foreign_key: :typification_id, inverse_of: :typification
   has_many :cdr_pipelines, class_name: 'JabvoxCdrPipeline', dependent: :nullify, foreign_key: :typification_id, inverse_of: :typification
   has_many :audio_pipelines, class_name: 'JabvoxAudioPipeline', dependent: :nullify, foreign_key: :typification_id, inverse_of: :typification
+  has_many :audio_assignments, class_name: 'JabvoxAudioAssignment', dependent: :nullify, foreign_key: :typification_id, inverse_of: false
+  has_many :audio_results, class_name: 'JabvoxAudioResult', dependent: :nullify, foreign_key: :typification_id, inverse_of: false
 
   validates :name, presence: true, length: { maximum: 150 }, uniqueness: { scope: :account_id }
 

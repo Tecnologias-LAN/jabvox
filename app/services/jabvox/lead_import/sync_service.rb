@@ -72,9 +72,13 @@ class Jabvox::LeadImport::SyncService
   def each_page
     adapter = Jabvox::Analytics::AdapterFactory.for(@source)
     select_sql = build_select_sql(adapter)
+    # A stable ORDER BY is REQUIRED: without it LIMIT/OFFSET may repeat or skip
+    # rows across pages (SQL gives no order guarantee), silently losing leads.
+    # We order by the external id — always present and unique per row.
+    order_sql = "ORDER BY #{adapter.quote_identifier(@source.table_jabvox)}.#{adapter.quote_identifier(external_id_column)}"
     offset = 0
     MAX_PAGES.times do
-      result = adapter.execute("#{select_sql} LIMIT #{PAGE_SIZE} OFFSET #{offset}",
+      result = adapter.execute("#{select_sql} #{order_sql} LIMIT #{PAGE_SIZE} OFFSET #{offset}",
                                row_limit: PAGE_SIZE)
       rows = result.rows.map { |r| result.columns.zip(r).to_h }
       break if rows.empty?
@@ -93,7 +97,7 @@ class Jabvox::LeadImport::SyncService
     main = @source.table_jabvox
     joins = related_tables
 
-    return "SELECT * FROM #{q.call(main)}" if joins.empty?
+    return with_where("SELECT * FROM #{q.call(main)}", adapter) if joins.empty?
 
     select_parts = ["#{q.call(main)}.*"]
     join_parts = []
@@ -108,11 +112,66 @@ class Jabvox::LeadImport::SyncService
       column_names(adapter, tbl).each do |col|
         select_parts << "#{q.call(als)}.#{q.call(col)} AS #{q.call("#{als}.#{col}")}"
       end
+      # local_key may reference the main table (e.g. "id") or a previously
+      # joined alias (e.g. "cstm.mg_c") — this enables chained joins.
+      left_ref, left_col = split_local_key(local, main)
       join_parts << "LEFT JOIN #{q.call(tbl)} AS #{q.call(als)} " \
-                    "ON #{q.call(als)}.#{q.call(foreign)} = #{q.call(main)}.#{q.call(local)}"
+                    "ON #{q.call(als)}.#{q.call(foreign)} = #{q.call(left_ref)}.#{q.call(left_col)}"
     end
 
-    "SELECT #{select_parts.join(', ')} FROM #{q.call(main)} #{join_parts.join(' ')}"
+    with_where("SELECT #{select_parts.join(', ')} FROM #{q.call(main)} #{join_parts.join(' ')}", adapter)
+  end
+
+  def with_where(sql, adapter)
+    where = build_where_sql(adapter)
+    where.present? ? "#{sql} WHERE #{where}" : sql
+  end
+
+  # Filter operators exposed in the mapping UI. Only these reach the SQL.
+  FILTER_OPS = {
+    'eq' => '=', 'neq' => '<>', 'gt' => '>', 'gte' => '>=', 'lt' => '<', 'lte' => '<='
+  }.freeze
+
+  # Builds the WHERE clause from the source's configured row filters.
+  # Identifiers are quoted; values are single-quote-escaped literals and any
+  # value carrying a backslash or NUL is rejected outright, so no external
+  # input can break out of the literal on either MySQL or PostgreSQL.
+  def build_where_sql(adapter)
+    filters = Array(@source.filters_jabvox).select { |f| f.is_a?(Hash) }
+    clauses = filters.filter_map do |f|
+      column = f['column'].to_s
+      op = f['op'].to_s
+      next if column.blank?
+
+      ref, col = split_local_key(column, @source.table_jabvox)
+      lhs = "#{adapter.quote_identifier(ref)}.#{adapter.quote_identifier(col)}"
+      build_filter_clause(lhs, op, f['value'], f['value2'])
+    end
+    clauses.join(' AND ')
+  end
+
+  def build_filter_clause(lhs, operator, value, value2)
+    case operator
+    when *FILTER_OPS.keys
+      "#{lhs} #{FILTER_OPS[operator]} #{quote_value(value)}"
+    when 'between'
+      "#{lhs} BETWEEN #{quote_value(value)} AND #{quote_value(value2)}"
+    when 'contains'
+      "#{lhs} LIKE #{quote_value("%#{value}%")}"
+    when 'null' then "#{lhs} IS NULL"
+    when 'not_null' then "#{lhs} IS NOT NULL"
+    end
+  end
+
+  # Safe SQL literal: numbers pass as-is; strings get '' doubling. Backslashes
+  # and NUL bytes are rejected (raise) — they are never legitimate filter input
+  # and MySQL treats backslash as an escape character inside literals.
+  def quote_value(value)
+    str = value.to_s
+    raise Error, 'valor de filtro inválido' if str.include?('\\') || str.include?("\0")
+    return str if str.match?(/\A-?\d+(\.\d+)?\z/)
+
+    "'#{str.gsub("'", "''")}'"
   end
 
   # Validated related-table configs (only well-formed entries).
@@ -132,6 +191,18 @@ class Jabvox::LeadImport::SyncService
   # An alias must be a bare identifier; strip anything unsafe.
   def safe_alias(name)
     name.to_s.gsub(/[^a-zA-Z0-9_]/, '')
+  end
+
+  # Splits a local_key into [table_ref, column]. "cstm.mg_c" joins against the
+  # alias "cstm"; a bare "id" joins against the main table. The alias is
+  # sanitized so only safe identifiers reach the SQL.
+  def split_local_key(local, main)
+    if local.to_s.include?('.')
+      als, col = local.to_s.split('.', 2)
+      [safe_alias(als), col]
+    else
+      [main, local]
+    end
   end
 
   # Returns :created or :updated.
@@ -155,10 +226,13 @@ class Jabvox::LeadImport::SyncService
     creating ? :created : :updated
   end
 
-  # Finds a contact by phone (mapped) or creates one with whatever the row brings.
+  # Finds a contact by phone, then by email (mapped), or creates one with
+  # whatever the row brings. Matching on both keys avoids duplicate contacts
+  # when a source row shares an email but not a phone with an existing one.
   def build_lead_for(row)
     phone = normalized_phone(mapped_value(row, 'phone'))
-    contact = find_contact_by_phone(phone)
+    email = normalized_email(mapped_value(row, 'email'))
+    contact = find_contact_by_phone(phone) || find_contact_by_email(email)
     contact ||= create_contact(row, phone)
     @account.jabvox_leads.find_or_create_by!(contact: contact)
   end
@@ -169,7 +243,19 @@ class Jabvox::LeadImport::SyncService
     @account.contacts.find_by(phone_number: phone)
   end
 
+  def find_contact_by_email(email)
+    return nil if email.blank?
+
+    @account.contacts.find_by(email: email)
+  end
+
+  def normalized_email(value)
+    email = value.to_s.strip.downcase
+    email.present? && email.match?(Devise.email_regexp) ? email : nil
+  end
+
   def create_contact(row, phone)
+    email = normalized_email(mapped_value(row, 'email'))
     contact = @account.contacts.new(
       name: mapped_value(row, 'name').to_s.presence || 'Sin nombre',
       contact_type: :lead,
@@ -178,10 +264,17 @@ class Jabvox::LeadImport::SyncService
       additional_attributes: {}, custom_attributes: {}
     )
     contact.phone_number = phone if phone.present?
-    email = mapped_value(row, 'email').to_s.strip
-    contact.email = email.downcase if email.present? && email.match?(Devise.email_regexp)
-    save_contact(contact)
-    contact
+    contact.email = email if email.present?
+    begin
+      save_contact(contact)
+      contact
+    rescue ActiveRecord::RecordInvalid
+      # Lost a race / a matching contact already exists → reuse it instead of
+      # creating a duplicate. Falls back to a validation-free insert only if we
+      # genuinely can't find the existing one.
+      find_contact_by_phone(phone) || find_contact_by_email(email) ||
+        contact.tap { |c| c.save!(validate: false) }
+    end
   end
 
   # Applies the field mapping. A lead is backed by a Contact, so standard fields
@@ -205,10 +298,14 @@ class Jabvox::LeadImport::SyncService
       when 'email' then assign_email(contact, value)
       when 'phone' then assign_phone(contact, value)
       when 'custom' then custom[key] = value if key.present?
-      when /\Aattr:(.+)\z/ then attrs[Regexp.last_match(1)] = value.to_s if value.present?
+      when /\Aattr:(.+)\z/ then assign_attr(attrs, Regexp.last_match(1), value)
       when /\Asocial:(.+)\z/ then socials[Regexp.last_match(1)] = value.to_s if value.present?
       end
     end
+
+    # Los leads importados desde una BD externa siempre son personas: si el
+    # contacto aún no tiene tipo definido, lo dejamos en "persona" por defecto.
+    attrs['jabvox_contact_type'] = 'persona' if attrs['jabvox_contact_type'].blank?
 
     attrs['social_profiles'] = socials if socials.any?
     contact.additional_attributes = attrs
@@ -229,12 +326,20 @@ class Jabvox::LeadImport::SyncService
     end
   end
 
-  # Saves the contact tolerantly: try with validations first (so uniqueness and
-  # normalization run); if an invalid value blocks it, persist what we have so a
-  # row is never dropped for missing/odd fields.
+  # Saves the contact tolerantly. Validations run first (uniqueness +
+  # normalization). If ONLY a uniqueness error blocks a NEW contact, we don't
+  # force a duplicate with validate:false — that would defeat dedup; instead we
+  # let the caller keep the record it has (already-persisted contacts just save
+  # their changes). Any other invalid value still persists so a row is never
+  # dropped for a missing/odd field.
   def save_contact(contact)
     contact.save!
-  rescue ActiveRecord::RecordInvalid
+  rescue ActiveRecord::RecordInvalid => e
+    only_uniqueness = e.record.errors.details.values.flatten.all? { |d| d[:error] == :taken }
+    # A brand-new contact blocked purely by uniqueness means a match already
+    # exists — skip the forced insert rather than create a duplicate.
+    raise e if only_uniqueness && contact.new_record?
+
     contact.save!(validate: false)
   end
 
@@ -264,15 +369,44 @@ class Jabvox::LeadImport::SyncService
   end
 
   # Casts an imported value to the declared custom-column type for correct storage.
+  # Unparseable numbers/dates become nil instead of raising, so a single bad row
+  # never aborts the whole sync.
   def cast_value(value, type)
-    return nil if value.nil?
+    return nil if value.nil? || value == ''
 
     case type
-    when 'integer' then Integer(value, exception: false)
-    when 'float' then Float(value, exception: false)
-    when 'boolean' then [true, 'true', 1, '1', 't', 'yes', 'sí', 'si'].include?(value.is_a?(String) ? value.downcase : value)
+    when 'integer' then Integer(value.to_s.strip.delete(','), exception: false)
+    when 'float' then Float(value.to_s.strip.delete(',')) rescue nil
+    when 'boolean' then cast_boolean(value)
+    when 'date' then cast_date(value)
     else value.to_s
     end
+  end
+
+  def cast_boolean(value)
+    [true, 'true', 1, '1', 't', 'yes', 'sí', 'si', 'x'].include?(
+      value.is_a?(String) ? value.strip.downcase : value
+    )
+  end
+
+  # Accepts ISO, "DD/MM/YYYY" and "DD/MM/YYYY hh:mm[ am/pm]" (SuiteCRM formats).
+  # Stored as ISO date string; returns nil if nothing parses.
+  def cast_date(value)
+    str = value.to_s.strip
+    return nil if str.blank?
+    return str if str.match?(/\A\d{4}-\d{2}-\d{2}/)
+
+    m = str.match(%r{\A(\d{1,2})/(\d{1,2})/(\d{4})})
+    return nil unless m
+
+    Date.new(m[3].to_i, m[2].to_i, m[1].to_i).iso8601
+  rescue ArgumentError
+    nil
+  end
+
+  # Writes an additional_attributes key only when the source has a value.
+  def assign_attr(attrs, key, value)
+    attrs[key] = value.to_s if value.present?
   end
 
   # Value of the mapped external column for a given standard field kind.
@@ -285,11 +419,28 @@ class Jabvox::LeadImport::SyncService
   end
 
   # Best-effort E.164 normalization; returns nil if it can't be made valid.
+  # With a configured country prefix (e.g. "57") it covers the three shapes
+  # external DBs bring: "+573207038072" (kept), "573207038072" (adds +),
+  # "3207038072" (adds +57). Local numbers with leading zeros are trimmed.
   def normalized_phone(value)
     digits = value.to_s.gsub(/[^\d+]/, '')
     return nil if digits.blank?
 
-    digits = "+#{digits}" unless digits.start_with?('+')
+    unless digits.start_with?('+')
+      prefix = @source.phone_prefix_jabvox.to_s.gsub(/\D/, '')
+      if prefix.present?
+        digits = digits.sub(/\A0+/, '')
+        # Already carries the country code when it starts with the prefix AND
+        # is longer than a bare local number could be with it prepended.
+        digits = if digits.start_with?(prefix) && digits.length > prefix.length + 6
+                   "+#{digits}"
+                 else
+                   "+#{prefix}#{digits}"
+                 end
+      else
+        digits = "+#{digits}"
+      end
+    end
     digits.match?(/\A\+[1-9]\d{1,14}\z/) ? digits : nil
   end
 end

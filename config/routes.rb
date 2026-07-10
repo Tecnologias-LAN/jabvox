@@ -404,7 +404,12 @@ Rails.application.routes.draw do
             end
             resources :discounts
             resources :order_status_configs
-            resources :management_states
+            resources :management_states do
+              collection do
+                get :export
+                post :import
+              end
+            end
             resources :app_states, only: [:index, :create, :update, :destroy] do
               collection { patch :set_presence }
             end
@@ -428,7 +433,13 @@ Rails.application.routes.draw do
                 get 'for_contact/:contact_id', action: :for_contact, as: :for_contact
                 patch 'for_contact/:contact_id', action: :update_contact_lead, as: :update_contact_lead
               end
-              resources :custom_table_rows, only: [:index, :update], controller: 'custom_table_rows'
+              # Multi-row custom tables for a lead. The path id is the TABLE id
+              # (a lead can have many rows per table); the specific row is passed
+              # as row_id in the body/query for update/destroy.
+              get 'custom_table_rows', to: 'custom_table_rows#index'
+              post 'custom_table_rows/:id', to: 'custom_table_rows#create'
+              patch 'custom_table_rows/:id', to: 'custom_table_rows#update'
+              delete 'custom_table_rows/:id', to: 'custom_table_rows#destroy'
               member do
                 patch :custom_fields
                 patch :update_details
@@ -526,7 +537,11 @@ Rails.application.routes.draw do
             end
             resources :ip_whitelists, only: [:index, :create, :update, :destroy]
             resources :dialer_campaigns do
-              collection { get :lead_count }
+              collection do
+                get :lead_count
+                get :preview_leads
+                get :lead_fields
+              end
               member do
                 patch :start
                 patch :pause
@@ -1006,6 +1021,9 @@ Rails.application.routes.draw do
       root to: 'dashboard#index'
 
       resource :app_config, only: [:show, :create]
+      resource :automations_config, only: [:show, :create] do
+        get :health, on: :collection
+      end
       resource :push_diagnostics, only: [:show, :create] do
         post :destroy_subscriptions, on: :collection
       end
@@ -1026,6 +1044,9 @@ Rails.application.routes.draw do
         resource :jabvox_saldo_config, only: [:show, :update]
         resources :jabvox_ip_whitelists, only: [:index, :create, :destroy] do
           patch :toggle, on: :member
+        end
+        resources :account_automations, only: [:index] do
+          patch :toggle, on: :collection
         end
         resources :jabvox_user_extensions, only: [:index, :create, :destroy]
       end

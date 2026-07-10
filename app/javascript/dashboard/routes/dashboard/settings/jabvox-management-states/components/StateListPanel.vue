@@ -67,6 +67,49 @@ const resetFilters = () => {
   sort.value = 'position';
 };
 
+// ── grouping by state_group_jabvox (management states only) ──
+// Headers only appear when at least one state has a group; ungrouped states
+// then fall under a trailing "Sin grupo" section.
+const showGrouped = computed(
+  () =>
+    props.kind === 'management' && props.items.some(it => it.state_group_jabvox)
+);
+
+const sections = computed(() => {
+  if (!showGrouped.value) return [{ key: '__all__', items: filtered.value }];
+  const byGroup = new Map();
+  filtered.value.forEach(it => {
+    const group = it.state_group_jabvox || '';
+    if (!byGroup.has(group)) byGroup.set(group, []);
+    byGroup.get(group).push(it);
+  });
+  const result = [...byGroup.entries()]
+    .filter(([group]) => group !== '')
+    .map(([group, list]) => ({ key: group, items: list }));
+  if (byGroup.has('')) result.push({ key: '', items: byGroup.get('') });
+  return result;
+});
+
+const sectionLabel = sec =>
+  sec.key === '' ? t('JABVOX_MANAGEMENT_STATES.UNGROUPED') : sec.key;
+
+// ── compact classification badges (management states only) ──
+const FLAG_DEFS = [
+  ['managed_jabvox', 'MANAGED'],
+  ['contact_jabvox', 'CONTACT'],
+  ['effective_contact_jabvox', 'EFFECTIVE_CONTACT'],
+  ['advisory_jabvox', 'ADVISORY'],
+];
+const activeFlags = it =>
+  FLAG_DEFS.filter(([field]) =>
+    field === 'managed_jabvox' ? it[field] !== false : it[field] === true
+  );
+const levelOf = it => Number(it.positivity_level_jabvox) || 0;
+const serviceOf = it =>
+  it.service_type_jabvox && it.service_type_jabvox !== 'No'
+    ? it.service_type_jabvox
+    : '';
+
 const noteModeColor = mode =>
   ({ required: 'ruby', optional: 'slate', hidden: 'amber' })[mode] || 'slate';
 const noteModeLabel = mode =>
@@ -152,86 +195,134 @@ const noteModeLabel = mode =>
       </div>
 
       <!-- Card view -->
-      <div
-        v-else-if="view === 'cards'"
-        class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
-      >
-        <div
-          v-for="it in filtered"
-          :key="it.id"
-          class="group flex flex-col gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
+      <div v-else-if="view === 'cards'" class="flex flex-col gap-6">
+        <section
+          v-for="sec in sections"
+          :key="sec.key"
+          class="flex flex-col gap-3"
         >
-          <div class="flex items-start justify-between gap-2">
-            <div class="flex items-center gap-2 min-w-0">
-              <span
-                v-if="withColor"
-                class="size-3 rounded-full shrink-0 ring-1 ring-inset ring-n-weak"
-                :style="{ backgroundColor: colorOf(it) }"
-              />
-              <span
-                v-else
-                class="i-lucide-megaphone size-4 text-n-slate-10 shrink-0"
-              />
-              <p class="text-sm font-medium text-n-slate-12 truncate">
-                {{ nameOf(it) }}
-              </p>
-            </div>
-            <Label
-              v-if="withActive"
-              :label="
-                activeOf(it)
-                  ? t('JABVOX_MANAGEMENT_STATES.KPI.ACTIVE')
-                  : t('JABVOX_MANAGEMENT_STATES.INACTIVE')
-              "
-              :color="activeOf(it) ? 'teal' : 'slate'"
-              compact
-            />
-          </div>
-
-          <!-- Management meta -->
-          <div
-            v-if="kind === 'management'"
-            class="flex flex-wrap items-center gap-2"
+          <h4
+            v-if="showGrouped"
+            class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-n-slate-10"
           >
-            <Label
-              :label="`${t('JABVOX_MANAGEMENT_STATES.CARD.NOTE_MODE_LABEL')}: ${noteModeLabel(it.note_mode)}`"
-              :color="noteModeColor(it.note_mode)"
-              compact
-            />
-            <span
-              v-if="questionsOf(it).length"
-              class="inline-flex items-center gap-1 text-xs text-n-slate-11"
-            >
-              <span class="i-lucide-list-checks size-3.5" />
-              {{
-                t('JABVOX_MANAGEMENT_STATES.CARD.QUESTIONS_COUNT', {
-                  count: questionsOf(it).length,
-                })
-              }}
+            <span class="i-lucide-folder size-3.5 shrink-0" />
+            {{ sectionLabel(sec) }}
+            <span class="font-normal normal-case text-n-slate-9">
+              ({{ sec.items.length }})
             </span>
-          </div>
+          </h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div
+              v-for="it in sec.items"
+              :key="it.id"
+              class="group flex flex-col gap-3 rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span
+                    v-if="withColor"
+                    class="size-3 rounded-full shrink-0 ring-1 ring-inset ring-n-weak"
+                    :style="{ backgroundColor: colorOf(it) }"
+                  />
+                  <span
+                    v-else
+                    class="i-lucide-megaphone size-4 text-n-slate-10 shrink-0"
+                  />
+                  <p class="text-sm font-medium text-n-slate-12 truncate">
+                    {{ nameOf(it) }}
+                  </p>
+                </div>
+                <Label
+                  v-if="withActive"
+                  :label="
+                    activeOf(it)
+                      ? t('JABVOX_MANAGEMENT_STATES.KPI.ACTIVE')
+                      : t('JABVOX_MANAGEMENT_STATES.INACTIVE')
+                  "
+                  :color="activeOf(it) ? 'teal' : 'slate'"
+                  compact
+                />
+              </div>
 
-          <div
-            class="flex items-center justify-end gap-1 pt-2 border-t border-n-weak"
-          >
-            <Button
-              icon="i-lucide-pencil"
-              variant="ghost"
-              color="slate"
-              size="sm"
-              :title="t('JABVOX_MANAGEMENT_STATES.EDIT')"
-              @click="emit('edit', it)"
-            />
-            <Button
-              icon="i-lucide-trash-2"
-              variant="ghost"
-              color="ruby"
-              size="sm"
-              :title="t('JABVOX_MANAGEMENT_STATES.COMMON.DELETE')"
-              @click="emit('delete', it)"
-            />
+              <!-- Management meta -->
+              <div
+                v-if="kind === 'management'"
+                class="flex flex-wrap items-center gap-2"
+              >
+                <Label
+                  :label="`${t('JABVOX_MANAGEMENT_STATES.CARD.NOTE_MODE_LABEL')}: ${noteModeLabel(it.note_mode)}`"
+                  :color="noteModeColor(it.note_mode)"
+                  compact
+                />
+                <span
+                  v-if="questionsOf(it).length"
+                  class="inline-flex items-center gap-1 text-xs text-n-slate-11"
+                >
+                  <span class="i-lucide-list-checks size-3.5" />
+                  {{
+                    t('JABVOX_MANAGEMENT_STATES.CARD.QUESTIONS_COUNT', {
+                      count: questionsOf(it).length,
+                    })
+                  }}
+                </span>
+              </div>
+
+              <!-- Classification badges -->
+              <div
+                v-if="kind === 'management'"
+                class="flex flex-wrap items-center gap-1.5"
+              >
+                <span
+                  v-if="levelOf(it) > 0"
+                  class="inline-flex items-center rounded-full bg-n-alpha-2 px-2 py-0.5 text-[11px] font-medium text-n-slate-11 tabular-nums"
+                >
+                  {{
+                    t('JABVOX_MANAGEMENT_STATES.FLAGS.LEVEL', {
+                      level: levelOf(it),
+                    })
+                  }}
+                </span>
+                <span
+                  v-if="serviceOf(it)"
+                  class="inline-flex items-center gap-1 rounded-full bg-n-alpha-2 px-2 py-0.5 text-[11px] font-medium text-n-slate-11"
+                >
+                  <span class="i-lucide-briefcase size-3 shrink-0" />
+                  {{ serviceOf(it) }}
+                </span>
+                <span
+                  v-for="[field, labelKey] in activeFlags(it)"
+                  :key="field"
+                  class="inline-flex items-center gap-1 rounded-full bg-n-alpha-2 px-1.5 py-0.5 text-[10px] font-semibold text-n-slate-11"
+                  :title="t(`JABVOX_MANAGEMENT_STATES.FLAGS.${labelKey}`)"
+                >
+                  <span class="size-1.5 rounded-full bg-n-teal-9" />
+                  {{ t(`JABVOX_MANAGEMENT_STATES.FLAGS.${labelKey}_ABBR`) }}
+                </span>
+              </div>
+
+              <div
+                class="flex items-center justify-end gap-1 pt-2 border-t border-n-weak"
+              >
+                <Button
+                  icon="i-lucide-pencil"
+                  variant="ghost"
+                  color="slate"
+                  size="sm"
+                  :title="t('JABVOX_MANAGEMENT_STATES.EDIT')"
+                  @click="emit('edit', it)"
+                />
+                <Button
+                  icon="i-lucide-trash-2"
+                  variant="ghost"
+                  color="ruby"
+                  size="sm"
+                  :title="t('JABVOX_MANAGEMENT_STATES.COMMON.DELETE')"
+                  @click="emit('delete', it)"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
       </div>
 
       <!-- Table view -->
@@ -260,66 +351,112 @@ const noteModeLabel = mode =>
             </tr>
           </thead>
           <tbody class="divide-y divide-n-weak">
-            <tr
-              v-for="it in filtered"
-              :key="it.id"
-              class="hover:bg-n-alpha-1 transition-colors"
-            >
-              <td class="px-4 py-3">
-                <div class="flex items-center gap-2">
-                  <span
-                    v-if="withColor"
-                    class="size-3 rounded-full shrink-0 ring-1 ring-inset ring-n-weak"
-                    :style="{ backgroundColor: colorOf(it) }"
-                  />
-                  <span class="font-medium text-n-slate-12">{{
-                    nameOf(it)
-                  }}</span>
-                </div>
-              </td>
-              <td v-if="withActive" class="px-4 py-3">
-                <Label
-                  :label="
-                    activeOf(it)
-                      ? t('JABVOX_MANAGEMENT_STATES.KPI.ACTIVE')
-                      : t('JABVOX_MANAGEMENT_STATES.INACTIVE')
-                  "
-                  :color="activeOf(it) ? 'teal' : 'slate'"
-                  compact
-                />
-              </td>
-              <td v-if="kind === 'management'" class="px-4 py-3">
-                <Label
-                  :label="noteModeLabel(it.note_mode)"
-                  :color="noteModeColor(it.note_mode)"
-                  compact
-                />
-              </td>
-              <td
-                v-if="kind === 'management'"
-                class="px-4 py-3 text-center text-n-slate-11 tabular-nums"
+            <template v-for="sec in sections" :key="sec.key">
+              <tr v-if="showGrouped" class="bg-n-alpha-1">
+                <td
+                  colspan="5"
+                  class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
+                >
+                  <span class="inline-flex items-center gap-1.5">
+                    <span class="i-lucide-folder size-3.5 shrink-0" />
+                    {{ sectionLabel(sec) }}
+                    <span class="font-normal normal-case text-n-slate-9">
+                      ({{ sec.items.length }})
+                    </span>
+                  </span>
+                </td>
+              </tr>
+              <tr
+                v-for="it in sec.items"
+                :key="it.id"
+                class="hover:bg-n-alpha-1 transition-colors"
               >
-                {{ questionsOf(it).length || '—' }}
-              </td>
-              <td class="px-4 py-3">
-                <div class="flex items-center justify-end gap-1">
-                  <Button
-                    icon="i-lucide-pencil"
-                    variant="ghost"
-                    color="slate"
-                    size="sm"
-                    @click="emit('edit', it)"
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2">
+                    <span
+                      v-if="withColor"
+                      class="size-3 rounded-full shrink-0 ring-1 ring-inset ring-n-weak"
+                      :style="{ backgroundColor: colorOf(it) }"
+                    />
+                    <span class="font-medium text-n-slate-12">{{
+                      nameOf(it)
+                    }}</span>
+                    <template v-if="kind === 'management'">
+                      <span
+                        v-if="levelOf(it) > 0"
+                        class="inline-flex items-center rounded-full bg-n-alpha-2 px-2 py-0.5 text-[11px] font-medium text-n-slate-11 tabular-nums"
+                      >
+                        {{
+                          t('JABVOX_MANAGEMENT_STATES.FLAGS.LEVEL', {
+                            level: levelOf(it),
+                          })
+                        }}
+                      </span>
+                      <span
+                        v-if="serviceOf(it)"
+                        class="inline-flex items-center gap-1 rounded-full bg-n-alpha-2 px-2 py-0.5 text-[11px] font-medium text-n-slate-11"
+                      >
+                        <span class="i-lucide-briefcase size-3 shrink-0" />
+                        {{ serviceOf(it) }}
+                      </span>
+                      <span
+                        v-for="[field, labelKey] in activeFlags(it)"
+                        :key="field"
+                        class="inline-flex items-center gap-1 rounded-full bg-n-alpha-2 px-1.5 py-0.5 text-[10px] font-semibold text-n-slate-11"
+                        :title="t(`JABVOX_MANAGEMENT_STATES.FLAGS.${labelKey}`)"
+                      >
+                        <span class="size-1.5 rounded-full bg-n-teal-9" />
+                        {{
+                          t(`JABVOX_MANAGEMENT_STATES.FLAGS.${labelKey}_ABBR`)
+                        }}
+                      </span>
+                    </template>
+                  </div>
+                </td>
+                <td v-if="withActive" class="px-4 py-3">
+                  <Label
+                    :label="
+                      activeOf(it)
+                        ? t('JABVOX_MANAGEMENT_STATES.KPI.ACTIVE')
+                        : t('JABVOX_MANAGEMENT_STATES.INACTIVE')
+                    "
+                    :color="activeOf(it) ? 'teal' : 'slate'"
+                    compact
                   />
-                  <Button
-                    icon="i-lucide-trash-2"
-                    variant="ghost"
-                    color="ruby"
-                    size="sm"
-                    @click="emit('delete', it)"
+                </td>
+                <td v-if="kind === 'management'" class="px-4 py-3">
+                  <Label
+                    :label="noteModeLabel(it.note_mode)"
+                    :color="noteModeColor(it.note_mode)"
+                    compact
                   />
-                </div>
-              </td>
-            </tr>
+                </td>
+                <td
+                  v-if="kind === 'management'"
+                  class="px-4 py-3 text-center text-n-slate-11 tabular-nums"
+                >
+                  {{ questionsOf(it).length || '—' }}
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center justify-end gap-1">
+                    <Button
+                      icon="i-lucide-pencil"
+                      variant="ghost"
+                      color="slate"
+                      size="sm"
+                      @click="emit('edit', it)"
+                    />
+                    <Button
+                      icon="i-lucide-trash-2"
+                      variant="ghost"
+                      color="ruby"
+                      size="sm"
+                      @click="emit('delete', it)"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>

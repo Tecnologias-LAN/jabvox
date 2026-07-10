@@ -4,9 +4,6 @@ import ApiClient from '../ApiClient';
 const productsClient = new ApiClient('jabvox/products', {
   accountScoped: true,
 });
-const salesReportsClient = new ApiClient('jabvox/sales_reports', {
-  accountScoped: true,
-});
 const discountsClient = new ApiClient('jabvox/discounts', {
   accountScoped: true,
 });
@@ -28,9 +25,6 @@ const taxRatesClient = new ApiClient('jabvox/tax_rates', {
 const integrationConfigClient = new ApiClient('jabvox/integration_config', {
   accountScoped: true,
 });
-const salesReportAccessClient = new ApiClient('jabvox/sales_report_accesses', {
-  accountScoped: true,
-});
 const voipConfigClient = new ApiClient('jabvox/voip_config', {
   accountScoped: true,
 });
@@ -42,10 +36,6 @@ export const productsAPI = {
   update: (id, data) => axios.patch(`${productsClient.url}/${id}`, data),
   destroy: id => axios.delete(`${productsClient.url}/${id}`),
   import: () => axios.post(`${productsClient.url}/import`),
-};
-
-export const salesReportsAPI = {
-  get: (params = {}) => axios.get(salesReportsClient.url, { params }),
 };
 
 export const discountsAPI = {
@@ -94,15 +84,6 @@ export const integrationConfigAPI = {
   get: () => axios.get(integrationConfigClient.url),
   update: data => axios.patch(integrationConfigClient.url, data),
   destroy: () => axios.delete(integrationConfigClient.url),
-};
-
-export const salesReportAccessAPI = {
-  getAll: () => axios.get(salesReportAccessClient.url),
-  me: () => axios.get(`${salesReportAccessClient.url}/me`),
-  update: (userId, canView) =>
-    axios.patch(`${salesReportAccessClient.url}/${userId}`, {
-      can_view_reports: canView,
-    }),
 };
 
 export const voipConfigAPI = {

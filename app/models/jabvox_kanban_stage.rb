@@ -36,6 +36,14 @@ class JabvoxKanbanStage < ApplicationRecord
   belongs_to :auto_advance_target_stage, class_name: 'JabvoxKanbanStage', optional: true
   has_many :jabvox_kanban_conversation_stages, dependent: :nullify
   has_many :jabvox_kanban_stage_automations, dependent: :destroy
+  # References from other rows pointing INTO this stage (as automation target
+  # or auto-advance destination) are cleared instead of blocking the deletion.
+  has_many :incoming_stage_automations, class_name: 'JabvoxKanbanStageAutomation',
+                                        foreign_key: :target_stage_id,
+                                        dependent: :nullify, inverse_of: false
+  has_many :auto_advance_source_stages, class_name: 'JabvoxKanbanStage',
+                                        foreign_key: :auto_advance_target_stage_id,
+                                        dependent: :nullify, inverse_of: :auto_advance_target_stage
 
   validates :name_jabvox,
             presence: { message: I18n.t('errors.validations.presence') },

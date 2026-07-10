@@ -21,9 +21,7 @@
       "STATUSES": "Statuses",
       "INTEGRATION": "Integration",
       "CONFIG": "Configuration",
-      "PDF": "PDF",
-      "SALES_REPORTS": "Sales Reports",
-      "REPORT_ACCESS": "Report Access"
+      "PDF": "PDF"
     },
     "COLS": {
       "NAME": "Name",
@@ -171,20 +169,6 @@
       "SECTION_DESC": "Datos de tu empresa que aparecerán en las cotizaciones y facturas PDF.",
       "PREVIEW_TITLE": "Vista previa"
     },
-    "REPORTS": {
-      "TITLE": "Sales reports",
-      "PERMISSIONS_TAB": "Access permissions",
-      "PERMISSIONS_TITLE": "Report access",
-      "PERMISSIONS_DESC": "Select which agents can view the sales reports.",
-      "NO_AGENTS": "No agents found for this account.",
-      "COLS": {
-        "AGENT": "Agent",
-        "EMAIL": "Email",
-        "ACCESS": "Access"
-      },
-      "SEARCH_PLACEHOLDER": "Buscar agentes...",
-      "GRANTED": "con acceso"
-    },
     "CONVERSATION": {
       "TAB_CHAT": "Chat",
       "TAB_PRODUCTS": "Products",
@@ -223,46 +207,6 @@
       "COL_TOTAL": "Total",
       "ROLE_AGENT": "Agent",
       "ROLE_CONTACT": "Contact"
-    },
-    "SALES_REPORTS": {
-      "TITLE": "Sales Reports",
-      "FILTER_FROM": "From",
-      "FILTER_TO": "To",
-      "FILTER_PRODUCT": "Product",
-      "FILTER_AGENT": "Agent",
-      "FILTER_TYPE": "Type",
-      "FILTER_ALL": "All",
-      "FILTER_QUOTES": "Quotes",
-      "FILTER_SALES": "Sales",
-      "APPLY": "Apply",
-      "TABS": {
-        "SUMMARY": "Summary",
-        "QUOTES": "Quotes",
-        "SALES": "Sales"
-      },
-      "STATS": {
-        "TOTAL_QUOTES": "Total Quotes",
-        "TOTAL_SALES": "Total Sales",
-        "TOTAL_REVENUE": "Total Revenue",
-        "CONVERSION": "Conversion Rate"
-      },
-      "COLS": {
-        "ID": "#",
-        "TYPE": "Type",
-        "DATE": "Date",
-        "CONTACT": "Contact",
-        "AGENT": "Agent",
-        "PRODUCTS": "Products",
-        "STATUS": "Status",
-        "TOTAL": "Total",
-        "PDF": "PDF"
-      },
-      "BY_PRODUCT": "By Product",
-      "BY_AGENT": "By Agent",
-      "BY_STATUS": "By Status",
-      "EMPTY": "No records for the selected period.",
-      "LOADING": "Loading report...",
-      "NO_RESULTS": "Sin resultados para los filtros."
     },
     "SUBTITLE": "Gestiona tu catálogo, descuentos, estados de pedido e integraciones de facturación.",
     "COMMON": {

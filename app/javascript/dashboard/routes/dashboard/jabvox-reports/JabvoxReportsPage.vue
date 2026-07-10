@@ -1,20 +1,38 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useMapGetter } from 'dashboard/composables/store';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import ProductsReportTab from './tabs/ProductsReportTab.vue';
 import AgentsReportTab from './tabs/AgentsReportTab.vue';
 import DialerReportTab from './tabs/DialerReportTab.vue';
 import AgentStatusTab from './tabs/AgentStatusTab.vue';
 
 const { t } = useI18n();
-const activeTab = ref('products');
 
-const tabs = [
-  {
-    key: 'products',
-    label: () => t('JABVOX_REPORTS.TABS.PRODUCTS'),
-    icon: 'i-lucide-package',
-  },
+const accountId = useMapGetter('getCurrentAccountId');
+const isFeatureEnabledonAccount = useMapGetter(
+  'accounts/isFeatureEnabledonAccount'
+);
+// The products report only exists while the products module is active
+// (mirrors the API, which rejects reports#products when the flag is off).
+const productsEnabled = computed(() =>
+  isFeatureEnabledonAccount.value(
+    accountId.value,
+    FEATURE_FLAGS.JABVOX_PRODUCTS
+  )
+);
+
+const tabs = computed(() => [
+  ...(productsEnabled.value
+    ? [
+        {
+          key: 'products',
+          label: () => t('JABVOX_REPORTS.TABS.PRODUCTS'),
+          icon: 'i-lucide-package',
+        },
+      ]
+    : []),
   {
     key: 'agents',
     label: () => t('JABVOX_REPORTS.TABS.AGENTS'),
@@ -30,7 +48,14 @@ const tabs = [
     label: () => t('JABVOX_REPORTS.TABS.AGENT_STATUS'),
     icon: 'i-lucide-activity',
   },
-];
+]);
+
+const activeTab = ref(null);
+// First visible tab is the default; also covers products being disabled.
+const currentTab = computed(() => {
+  const keys = tabs.value.map(tab => tab.key);
+  return keys.includes(activeTab.value) ? activeTab.value : keys[0];
+});
 </script>
 
 <template>
@@ -60,7 +85,7 @@ const tabs = [
             :key="tab.key"
             class="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap"
             :class="
-              activeTab === tab.key
+              currentTab === tab.key
                 ? 'border-n-brand text-n-brand'
                 : 'border-transparent text-n-slate-10 hover:text-n-slate-12 hover:border-n-weak'
             "
@@ -76,10 +101,10 @@ const tabs = [
     <!-- Tab content -->
     <div class="flex-1 overflow-y-auto min-h-0">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-        <ProductsReportTab v-if="activeTab === 'products'" />
-        <AgentsReportTab v-else-if="activeTab === 'agents'" />
-        <DialerReportTab v-else-if="activeTab === 'dialer'" />
-        <AgentStatusTab v-else-if="activeTab === 'agent_status'" />
+        <ProductsReportTab v-if="currentTab === 'products'" />
+        <AgentsReportTab v-else-if="currentTab === 'agents'" />
+        <DialerReportTab v-else-if="currentTab === 'dialer'" />
+        <AgentStatusTab v-else-if="currentTab === 'agent_status'" />
       </div>
     </div>
   </div>

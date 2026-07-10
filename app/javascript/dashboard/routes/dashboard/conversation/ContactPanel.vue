@@ -20,6 +20,7 @@ import CustomAttributes from './customAttributes/CustomAttributes.vue';
 import Draggable from 'vuedraggable';
 import MacrosList from './Macros/List.vue';
 import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
+import JabvoxLeadRecordsByContact from 'dashboard/components/widgets/conversation/jabvox/JabvoxLeadRecordsByContact.vue';
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
@@ -91,6 +92,11 @@ const channelType = computed(() => currentChat.value.meta?.channel);
 const contactGetter = useMapGetter('contacts/getContact');
 const contactId = computed(() => currentChat.value.meta?.sender?.id);
 const contact = computed(() => contactGetter.value(contactId.value));
+// Multi-row custom tables (Asesorías, Casos…) shown for the lead in the sidebar.
+const jabvoxMultiTables = useMapGetter('jabvoxCustomization/getMultiTables');
+const hasJabvoxMultiTables = computed(
+  () => (jabvoxMultiTables.value || []).length > 0
+);
 const contactAdditionalAttributes = computed(
   () => contact.value.additional_attributes || {}
 );
@@ -127,6 +133,8 @@ onMounted(() => {
   store.dispatch('attributes/get', 0);
   // Load integrations to ensure linear integration state is available
   store.dispatch('integrations/get', 'linear');
+  // Multi-row custom tables for the lead-records accordion.
+  store.dispatch('jabvoxCustomization/fetchTables').catch(() => {});
 });
 </script>
 
@@ -299,6 +307,17 @@ onMounted(() => {
           </div>
         </template>
       </Draggable>
+
+      <!-- Lead records: multi-row custom tables (Asesorías, Casos…) -->
+      <AccordionItem
+        v-if="hasJabvoxMultiTables && contactId"
+        :title="$t('JABVOX_CUSTOMIZATION.LEAD_ROWS.TAB')"
+        :is-open="isContactSidebarItemOpen('is_jabvox_records_open')"
+        compact
+        @toggle="value => toggleSidebarUIState('is_jabvox_records_open', value)"
+      >
+        <JabvoxLeadRecordsByContact :contact-id="contactId" />
+      </AccordionItem>
     </div>
   </div>
 </template>

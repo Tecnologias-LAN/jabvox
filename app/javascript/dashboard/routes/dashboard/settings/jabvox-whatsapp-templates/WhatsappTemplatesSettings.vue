@@ -585,6 +585,47 @@ const submitForm = async () => {
   }
 };
 
+// Visual validation state for the wizard fields: red border when a required
+// field is empty, green when it has content, neutral for optional empty ones.
+const fieldClass = (value, required = false) => {
+  const filled = String(value ?? '').trim() !== '';
+  if (filled) return 'wa-field wa-field-valid';
+  return required ? 'wa-field wa-field-invalid' : 'wa-field';
+};
+
+// Required-field checklist: drives the submit gate and the pending list shown
+// on the final step. Once a header type is chosen, its content is required —
+// removing the header is done by picking NONE, not by leaving it empty.
+const missingRequiredFields = computed(() => {
+  const blank = v => String(v ?? '').trim() === '';
+  const missing = [];
+  if (!editingTemplate.value) {
+    if (!formInboxId.value)
+      missing.push(t('JABVOX_WA_TEMPLATES.CREATE.INBOX_LABEL'));
+    if (blank(form.value.name))
+      missing.push(t('JABVOX_WA_TEMPLATES.CREATE.NAME_LABEL'));
+  }
+  if (blank(form.value.body))
+    missing.push(t('JABVOX_WA_TEMPLATES.CREATE.BODY_LABEL'));
+  if (form.value.header_type === 'TEXT' && blank(form.value.header_content))
+    missing.push(t('JABVOX_WA_TEMPLATES.CREATE.HEADER_TYPE_LABEL'));
+  if (
+    form.value.header_type &&
+    !['NONE', 'TEXT'].includes(form.value.header_type) &&
+    blank(form.value.header_content)
+  )
+    missing.push(t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_URL_LABEL'));
+  form.value.buttons.forEach((b, i) => {
+    if (blank(b.text))
+      missing.push(`${t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')} ${i + 1}`);
+    if (b.type === 'URL' && blank(b.url))
+      missing.push(`${t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_URL')} ${i + 1}`);
+    if (b.type === 'PHONE_NUMBER' && blank(b.phone_number))
+      missing.push(`${t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_PHONE')} ${i + 1}`);
+  });
+  return missing;
+});
+
 const wizardSteps = [
   { id: 1, label: t('JABVOX_WA_TEMPLATES.CREATE.STEPS.BASIC') },
   { id: 2, label: t('JABVOX_WA_TEMPLATES.CREATE.STEPS.CONTENT') },
@@ -929,7 +970,7 @@ onBeforeUnmount(() => {
                 />
                 <input
                   v-model="filters.q"
-                  class="reset-base text-sm w-full pl-9"
+                  class="reset-base wa-field text-sm w-full pl-9"
                   :placeholder="
                     t('JABVOX_WA_TEMPLATES.FILTERS.SEARCH_PLACEHOLDER')
                   "
@@ -948,7 +989,7 @@ onBeforeUnmount(() => {
                 />
                 <input
                   v-model="filters.meta_id"
-                  class="reset-base text-sm w-full pl-9"
+                  class="reset-base wa-field text-sm w-full pl-9"
                   :placeholder="
                     t('JABVOX_WA_TEMPLATES.FILTERS.META_ID_PLACEHOLDER')
                   "
@@ -962,7 +1003,7 @@ onBeforeUnmount(() => {
               </label>
               <select
                 v-model="selectedInboxId"
-                class="reset-base text-sm w-full"
+                class="reset-base wa-field text-sm w-full"
               >
                 <option :value="null">
                   {{ t('JABVOX_WA_TEMPLATES.INBOX.ALL') }}
@@ -978,7 +1019,7 @@ onBeforeUnmount(() => {
               </label>
               <select
                 v-model="filters.language"
-                class="reset-base text-sm w-full"
+                class="reset-base wa-field text-sm w-full"
               >
                 <option value="">
                   {{ t('JABVOX_WA_TEMPLATES.FILTERS.ALL_LANGUAGES') }}
@@ -1361,22 +1402,29 @@ onBeforeUnmount(() => {
                   v-if="!editingTemplate"
                   class="col-span-2 flex flex-col gap-1"
                 >
-                  <label class="text-xs text-n-slate-11">{{
-                    t('JABVOX_WA_TEMPLATES.CREATE.INBOX_LABEL')
-                  }}</label>
-                  <select v-model="formInboxId" class="reset-base text-sm">
+                  <label class="text-xs text-n-slate-11">
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.INBOX_LABEL') }}
+                    <span class="text-n-ruby-11">*</span>
+                  </label>
+                  <select
+                    v-model="formInboxId"
+                    class="reset-base text-sm"
+                    :class="fieldClass(formInboxId, true)"
+                  >
                     <option v-for="i in inboxes" :key="i.id" :value="i.id">
                       {{ i.name }} {{ DASH }} {{ i.phone_number }}
                     </option>
                   </select>
                 </div>
                 <div v-if="!editingTemplate" class="flex flex-col gap-1">
-                  <label class="text-xs text-n-slate-11">{{
-                    t('JABVOX_WA_TEMPLATES.CREATE.NAME_LABEL')
-                  }}</label>
+                  <label class="text-xs text-n-slate-11">
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.NAME_LABEL') }}
+                    <span class="text-n-ruby-11">*</span>
+                  </label>
                   <input
                     v-model="form.name"
                     class="reset-base text-sm"
+                    :class="fieldClass(form.name, true)"
                     :placeholder="
                       t('JABVOX_WA_TEMPLATES.CREATE.NAME_PLACEHOLDER')
                     "
@@ -1386,20 +1434,30 @@ onBeforeUnmount(() => {
                   }}</span>
                 </div>
                 <div class="flex flex-col gap-1">
-                  <label class="text-xs text-n-slate-11">{{
-                    t('JABVOX_WA_TEMPLATES.CREATE.CATEGORY_LABEL')
-                  }}</label>
-                  <select v-model="form.category" class="reset-base text-sm">
+                  <label class="text-xs text-n-slate-11">
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.CATEGORY_LABEL') }}
+                    <span class="text-n-ruby-11">*</span>
+                  </label>
+                  <select
+                    v-model="form.category"
+                    class="reset-base text-sm"
+                    :class="fieldClass(form.category, true)"
+                  >
                     <option v-for="c in CATEGORIES" :key="c" :value="c">
                       {{ categoryLabel(c) }}
                     </option>
                   </select>
                 </div>
                 <div class="flex flex-col gap-1">
-                  <label class="text-xs text-n-slate-11">{{
-                    t('JABVOX_WA_TEMPLATES.CREATE.LANGUAGE_LABEL')
-                  }}</label>
-                  <select v-model="form.language" class="reset-base text-sm">
+                  <label class="text-xs text-n-slate-11">
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.LANGUAGE_LABEL') }}
+                    <span class="text-n-ruby-11">*</span>
+                  </label>
+                  <select
+                    v-model="form.language"
+                    class="reset-base text-sm"
+                    :class="fieldClass(form.language, true)"
+                  >
                     <option
                       v-for="l in LANGUAGES"
                       :key="l.value"
@@ -1425,6 +1483,7 @@ onBeforeUnmount(() => {
                 <select
                   v-model="form.header_type"
                   class="reset-base text-sm w-40"
+                  :class="fieldClass(form.header_type)"
                 >
                   <option v-for="f in HEADER_FORMATS" :key="f" :value="f">
                     {{
@@ -1439,6 +1498,7 @@ onBeforeUnmount(() => {
                 v-if="form.header_type === 'TEXT'"
                 v-model="form.header_content"
                 class="reset-base text-sm w-full"
+                :class="fieldClass(form.header_content, true)"
                 :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.HEADER_TEXT_PH')"
                 maxlength="60"
               />
@@ -1446,13 +1506,15 @@ onBeforeUnmount(() => {
                 v-else-if="form.header_type && form.header_type !== 'NONE'"
                 class="flex flex-col gap-1"
               >
-                <label class="text-xs text-n-slate-11">{{
-                  t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_URL_LABEL')
-                }}</label>
+                <label class="text-xs text-n-slate-11">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_URL_LABEL') }}
+                  <span class="text-n-ruby-11">*</span>
+                </label>
                 <input
                   v-model="form.header_content"
                   type="url"
                   class="reset-base text-sm w-full"
+                  :class="fieldClass(form.header_content, true)"
                   :placeholder="
                     t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_URL_PH')
                   "
@@ -1462,13 +1524,15 @@ onBeforeUnmount(() => {
                 </p>
               </div>
               <div class="flex flex-col gap-1">
-                <label class="text-xs text-n-slate-11">{{
-                  t('JABVOX_WA_TEMPLATES.CREATE.BODY_LABEL')
-                }}</label>
+                <label class="text-xs text-n-slate-11">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.BODY_LABEL') }}
+                  <span class="text-n-ruby-11">*</span>
+                </label>
                 <textarea
                   v-model="form.body"
                   rows="5"
                   class="reset-base text-sm w-full resize-none"
+                  :class="fieldClass(form.body, true)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BODY_PH')"
                 />
               </div>
@@ -1479,6 +1543,7 @@ onBeforeUnmount(() => {
                 <input
                   v-model="form.footer"
                   class="reset-base text-sm w-full"
+                  :class="fieldClass(form.footer)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.FOOTER_PH')"
                 />
               </div>
@@ -1510,6 +1575,7 @@ onBeforeUnmount(() => {
                   <input
                     v-model="form.var_descriptions[n]"
                     class="reset-base text-xs flex-1"
+                    :class="fieldClass(form.var_descriptions[n])"
                     :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.VAR_DESC_PH')"
                   />
                 </div>
@@ -1542,7 +1608,11 @@ onBeforeUnmount(() => {
                 :key="i"
                 class="flex flex-wrap gap-2 items-center p-2.5 rounded-lg bg-n-alpha-1"
               >
-                <select v-model="btn.type" class="reset-base text-xs w-32">
+                <select
+                  v-model="btn.type"
+                  class="reset-base text-xs w-32"
+                  :class="fieldClass(btn.type)"
+                >
                   <option v-for="bt in BUTTON_TYPES" :key="bt" :value="bt">
                     {{ bt }}
                   </option>
@@ -1550,18 +1620,21 @@ onBeforeUnmount(() => {
                 <input
                   v-model="btn.text"
                   class="reset-base text-xs flex-1 min-w-24"
+                  :class="fieldClass(btn.text, true)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')"
                 />
                 <input
                   v-if="btn.type === 'URL'"
                   v-model="btn.url"
                   class="reset-base text-xs flex-1 min-w-36"
+                  :class="fieldClass(btn.url, true)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_URL')"
                 />
                 <input
                   v-if="btn.type === 'PHONE_NUMBER'"
                   v-model="btn.phone_number"
                   class="reset-base text-xs flex-1 min-w-36"
+                  :class="fieldClass(btn.phone_number, true)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_PHONE')"
                 />
                 <button class="text-n-ruby-11 p-1" @click="removeButton(i)">
@@ -1626,6 +1699,19 @@ onBeforeUnmount(() => {
                   {{ t('JABVOX_WA_TEMPLATES.CREATE.SUBMIT_HINT') }}
                 </p>
               </div>
+              <div
+                v-if="missingRequiredFields.length"
+                class="rounded-xl border border-n-ruby-6 bg-n-ruby-2 p-4 space-y-1.5"
+              >
+                <p class="text-sm font-medium text-n-ruby-11">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.MISSING_REQUIRED') }}
+                </p>
+                <ul class="list-disc ltr:pl-5 rtl:pr-5 text-xs text-n-ruby-11">
+                  <li v-for="field in missingRequiredFields" :key="field">
+                    {{ field }}
+                  </li>
+                </ul>
+              </div>
             </section>
           </div>
           <div class="flex gap-3 px-5 py-3.5 border-t border-n-weak shrink-0">
@@ -1646,7 +1732,7 @@ onBeforeUnmount(() => {
             <button
               v-if="wizardStep === 6"
               class="px-4 py-2 text-sm rounded-lg bg-n-brand text-white disabled:opacity-50"
-              :disabled="saving || !form.body"
+              :disabled="saving || missingRequiredFields.length > 0"
               @click="submitForm"
             >
               {{
@@ -2105,6 +2191,44 @@ onBeforeUnmount(() => {
   background: var(--color-background);
   border-color: var(--color-border);
   color: var(--color-heading);
+}
+
+/* Wizard form fields: reset-base strips native styling, so every field gets
+   an explicit visible border. Validation state is color-coded — red when a
+   required field is empty, green when it has content. */
+.wa-field {
+  background: var(--color-background-light);
+  color: var(--color-body);
+  border: 1.5px solid var(--color-border, #94a3b8);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.wa-field:focus {
+  outline: none;
+  border-color: var(--color-woot);
+  box-shadow: 0 0 0 3px rgba(31, 147, 255, 0.15);
+}
+.wa-field::placeholder {
+  color: var(--color-body);
+  opacity: 0.45;
+}
+.wa-field-invalid {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.04);
+}
+.wa-field-invalid:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+.wa-field-valid {
+  border-color: #22c55e;
+}
+.wa-field-valid:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
 }
 
 /* KPI tiles */

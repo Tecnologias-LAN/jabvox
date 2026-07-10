@@ -7,8 +7,6 @@ import {
   unitsOfMeasureAPI,
   taxRatesAPI,
   integrationConfigAPI,
-  salesReportAccessAPI,
-  salesReportsAPI,
 } from '../../../api/jabvox/products';
 
 const state = {
@@ -20,9 +18,6 @@ const state = {
   unitsOfMeasure: [],
   taxRates: [],
   integrationConfig: null,
-  salesReportAccesses: [],
-  salesReports: null,
-  myReportAccess: null,
   uiFlags: {
     isFetchingProducts: false,
     isSavingProduct: false,
@@ -40,9 +35,6 @@ const state = {
     isSavingTaxRate: false,
     isFetchingConfig: false,
     isSavingConfig: false,
-    isFetchingAccesses: false,
-    isSavingAccess: false,
-    isFetchingReports: false,
     isImportingProducts: false,
   },
 };
@@ -215,50 +207,6 @@ export const actions = {
     }
   },
 
-  fetchSalesReportAccesses: async ({ commit }) => {
-    commit('SET_UI_FLAG', { isFetchingAccesses: true });
-    try {
-      const { data } = await salesReportAccessAPI.getAll();
-      commit('SET_LIST', {
-        key: 'salesReportAccesses',
-        items: Array.isArray(data) ? data : [],
-      });
-    } catch {
-      // ignore
-    } finally {
-      commit('SET_UI_FLAG', { isFetchingAccesses: false });
-    }
-  },
-
-  fetchMyReportAccess: async ({ commit }) => {
-    try {
-      const { data } = await salesReportAccessAPI.me();
-      const canView = data && data.can_view === true;
-      commit('SET_MY_REPORT_ACCESS', canView);
-      return canView;
-    } catch {
-      commit('SET_MY_REPORT_ACCESS', false);
-      return false;
-    }
-  },
-
-  updateSalesReportAccess: async (
-    { commit, dispatch },
-    { userId, canView }
-  ) => {
-    commit('SET_UI_FLAG', { isSavingAccess: true });
-    try {
-      const { data } = await salesReportAccessAPI.update(userId, canView);
-      commit('UPSERT_ACCESS', data);
-      await dispatch('fetchMyReportAccess');
-      return data;
-    } catch (error) {
-      throw new Error(error?.response?.data?.message || error.message);
-    } finally {
-      commit('SET_UI_FLAG', { isSavingAccess: false });
-    }
-  },
-
   importProducts: async ({ commit, dispatch }) => {
     commit('SET_UI_FLAG', { isImportingProducts: true });
     try {
@@ -278,19 +226,6 @@ export const actions = {
       );
     } finally {
       commit('SET_UI_FLAG', { isImportingProducts: false });
-    }
-  },
-
-  fetchSalesReports: async ({ commit }, params = {}) => {
-    commit('SET_UI_FLAG', { isFetchingReports: true });
-    try {
-      const { data } = await salesReportsAPI.get(params);
-      commit('SET_SALES_REPORTS', data);
-    } catch (error) {
-      commit('SET_SALES_REPORTS', null);
-      throw new Error(error?.response?.data?.message || error.message);
-    } finally {
-      commit('SET_UI_FLAG', { isFetchingReports: false });
     }
   },
 };
@@ -315,19 +250,6 @@ export const mutations = {
   SET_INTEGRATION_CONFIG(_state, config) {
     _state.integrationConfig = config;
   },
-  SET_SALES_REPORTS(_state, data) {
-    _state.salesReports = data;
-  },
-  SET_MY_REPORT_ACCESS(_state, val) {
-    _state.myReportAccess = val;
-  },
-  UPSERT_ACCESS(_state, access) {
-    const idx = _state.salesReportAccesses.findIndex(
-      a => a.user_id === access.user_id
-    );
-    if (idx !== -1) _state.salesReportAccesses.splice(idx, 1, access);
-    else _state.salesReportAccesses.push(access);
-  },
 };
 
 export const getters = {
@@ -339,9 +261,6 @@ export const getters = {
   getUnitsOfMeasure: s => s.unitsOfMeasure,
   getTaxRates: s => s.taxRates,
   getIntegrationConfig: s => s.integrationConfig,
-  getSalesReportAccesses: s => s.salesReportAccesses,
-  getSalesReports: s => s.salesReports,
-  getMyReportAccess: s => s.myReportAccess,
   getUIFlags: s => s.uiFlags,
 };
 

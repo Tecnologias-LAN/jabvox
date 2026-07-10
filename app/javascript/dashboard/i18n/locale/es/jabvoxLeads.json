@@ -117,12 +117,17 @@
         "NOTES": "Notas",
         "PRODUCTS": "Productos",
         "HISTORY": "Historial",
-        "DATA": "Datos"
+        "DATA": "Datos",
+        "RECORDS": "Registros"
       },
       "INFO": {
         "LEAD_ID": "ID Lead",
         "CONTACT": "Contacto",
         "EMAIL": "Email",
+        "DOCUMENT": "Documento",
+        "CONTACT_TYPE": "Tipo de persona",
+        "CONTACT_TYPE_PERSON": "Persona",
+        "CONTACT_TYPE_COMPANY": "Empresa",
         "PHONE": "Teléfono",
         "COUNTRY": "País",
         "CAMPAIGN": "Campaña",

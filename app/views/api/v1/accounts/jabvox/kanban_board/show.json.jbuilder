@@ -25,11 +25,17 @@ json.stages @board[:stages] do |stage_data|
 
     json.contact do
       contact = conversation.contact
-      json.id contact.id
-      json.name jabvox_mask('name', contact.name)
-      json.email jabvox_mask('email', contact.email)
-      json.phone_number jabvox_mask('phone', contact.phone_number)
-      json.avatar_url contact.avatar_url
+      # A conversation can exist without a contact — guard so the board never
+      # 500s on one bad row.
+      if contact
+        json.id contact.id
+        json.name jabvox_mask('name', contact.name)
+        json.email jabvox_mask('email', contact.email)
+        json.phone_number jabvox_mask('phone', contact.phone_number)
+        json.avatar_url contact.avatar_url
+      else
+        json.null!
+      end
     end
 
     json.assignee do
@@ -43,9 +49,13 @@ json.stages @board[:stages] do |stage_data|
     end
 
     json.inbox do
-      json.id conversation.inbox.id
-      json.name conversation.inbox.name
-      json.channel_type conversation.inbox.channel_type
+      if conversation.inbox
+        json.id conversation.inbox.id
+        json.name conversation.inbox.name
+        json.channel_type conversation.inbox.channel_type
+      else
+        json.null!
+      end
     end
 
     json.labels conversation.labels

@@ -1,0 +1,87 @@
+<% content_for(:title) { 'Jabvox Automations' } %>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title" id="page-title">Jabvox Automations</h1>
+</header>
+
+<section class="main-content__body">
+  <% if notice %>
+    <p class="flash flash--notice"><%= notice %></p>
+  <% end %>
+  <% if alert %>
+    <p class="flash flash--error"><%= alert %></p>
+  <% end %>
+
+  <div style="margin-bottom:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+    <p style="font-size:13px; color:#374151; margin:0;">
+      Configuración global de la integración con la plataforma externa
+      <strong>Jabvox Automations</strong>. Estos valores se usan para aprovisionar
+      cada cuenta individualmente desde su ficha en el super admin.
+    </p>
+  </div>
+
+  <%= form_with url: super_admin_automations_config_path, method: :post do |form| %>
+    <div class="flex mb-8">
+      <div class="field-unit__label">
+        <%= form.label 'app_config[AUTOMATIONS_SERVICE_URL]', 'Service URL' %>
+      </div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_field 'app_config[AUTOMATIONS_SERVICE_URL]', value: @app_config['AUTOMATIONS_SERVICE_URL'] %>
+        <p class="pt-2 text-xs italic text-slate-400">
+          Base URL de la API (p.ej. http://host.docker.internal:3001/api/v1). Nunca uses un dominio público en local.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex mb-8">
+      <div class="field-unit__label">
+        <%= form.label 'app_config[AUTOMATIONS_PROVISION_KEY]', 'Provision Key (maestra)' %>
+      </div>
+      <div class="-mt-2 field-unit__field">
+        <% _key_set = @app_config['AUTOMATIONS_PROVISION_KEY'].present? %>
+        <%= form.password_field 'app_config[AUTOMATIONS_PROVISION_KEY]',
+              value: '',
+              placeholder: _key_set ? '•••••••• (configurada — deja en blanco para conservar)' : 'Sin configurar',
+              class: 'mt-2 border border-slate-100 p-1.5 rounded-md w-full' %>
+        <p class="pt-2 text-xs italic text-slate-400">
+          API key maestra de aprovisionamiento. Estado:
+          <strong><%= _key_set ? 'configurada' : 'sin configurar' %></strong>.
+          Por seguridad no se muestra el valor actual.
+        </p>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <%= form.submit 'Guardar' %>
+    </div>
+  <% end %>
+
+  <hr class="my-8 border-n-weak">
+
+  <div style="padding:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+      <h3 style="font-weight:600; font-size:14px; margin:0;">Estado del servicio</h3>
+      <%= link_to 'Probar conexión', health_super_admin_automations_config_path, class: 'button' %>
+    </div>
+
+    <% if @health %>
+      <% if @health.success? %>
+        <% _h = @health.data.is_a?(Hash) ? @health.data : {} %>
+        <p style="margin-top:12px; font-size:13px; color:#166534;">
+          Conectado — status: <strong><%= _h['status'] || 'ok' %></strong>,
+          db: <strong><%= _h['db'] %></strong>,
+          version: <strong><%= _h['version'] %></strong>,
+          uptime: <strong><%= _h['uptime'] %></strong>
+        </p>
+      <% else %>
+        <p style="margin-top:12px; font-size:13px; color:#991b1b;">
+          Error: <%= @health.error %>
+        </p>
+      <% end %>
+    <% else %>
+      <p style="margin-top:12px; font-size:13px; color:#6b7280;">
+        Pulsa "Probar conexión" para consultar el <code>/health</code> del servicio.
+      </p>
+    <% end %>
+  </div>
+</section>

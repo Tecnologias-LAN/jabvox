@@ -3,6 +3,8 @@ module RequestExceptionHandler
 
   included do
     rescue_from ActiveRecord::RecordInvalid, with: :render_record_invalid
+    rescue_from ActiveRecord::InvalidForeignKey, with: :render_foreign_key_conflict
+    rescue_from ActiveRecord::RecordNotDestroyed, with: :render_record_invalid
   end
 
   private
@@ -41,6 +43,13 @@ module RequestExceptionHandler
 
   def render_internal_server_error(message)
     render json: { error: message }, status: :internal_server_error
+  end
+
+  def render_foreign_key_conflict(exception)
+    log_handled_error(exception)
+    render json: {
+      error: 'This record is referenced by other records and cannot be deleted'
+    }, status: :conflict
   end
 
   def render_record_invalid(exception)

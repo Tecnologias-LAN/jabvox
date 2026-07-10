@@ -143,6 +143,10 @@ class DeleteObjectJob < ApplicationJob
     return if lead_ids.empty?
 
     JabvoxKanbanConversationStage.where(jabvox_lead_id: lead_ids).delete_all
+    # Custom-table rows (Asesorías, Casos…) belong to the lead; clear them
+    # before the callback-free delete_all. The FK is ON DELETE CASCADE too, so
+    # this is belt-and-suspenders — the delete can never be blocked.
+    JabvoxCustomTableRow.where(jabvox_lead_id: lead_ids).delete_all
     inbox.account.jabvox_leads.where(id: lead_ids).delete_all
 
     contact_ids.each_slice(BATCH_SIZE) do |slice|

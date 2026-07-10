@@ -42,6 +42,10 @@ class JabvoxAnalyticsDashboard < ApplicationRecord
                      dependent: :destroy, inverse_of: :dashboard
   has_many :shares, class_name: 'JabvoxAnalyticsShare', foreign_key: :dashboard_id,
                     dependent: :destroy, inverse_of: :dashboard
+  # Past export records keep their history detached (nullable FK) so a
+  # previously-exported dashboard can still be deleted.
+  has_many :exports, class_name: 'JabvoxAnalyticsExport', foreign_key: :dashboard_id,
+                     dependent: :nullify, inverse_of: :dashboard
 
   validates :name_jabvox, presence: true
   validates :cache_ttl_seconds_jabvox, numericality: { only_integer: true, greater_than_or_equal_to: 0 }

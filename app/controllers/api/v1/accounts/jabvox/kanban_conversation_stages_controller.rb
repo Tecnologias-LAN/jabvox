@@ -52,8 +52,6 @@ class Api::V1::Accounts::Jabvox::KanbanConversationStagesController < Api::V1::A
   # Enforce a custom-role permission ONLY for users who actually have a custom role, so
   # standard agents keep their historical flow and admins always pass.
   def jabvox_gate!(key)
-    return if Current.account_user&.custom_role.nil?
-
     jabvox_authorize!(key)
   end
 

@@ -125,10 +125,6 @@ export const JABVOX_PERMISSION_GROUPS = [
     permissions: ['jabvox_field_visibilities_manage'],
   },
   {
-    module: 'sales_reports',
-    permissions: ['jabvox_sales_reports_manage'],
-  },
-  {
     module: 'campaigns',
     permissions: ['jabvox_campaigns_manage'],
   },

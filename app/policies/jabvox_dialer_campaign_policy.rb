@@ -10,6 +10,11 @@ class JabvoxDialerCampaignPolicy < ApplicationPolicy
   def update?       = can_manage?
   def destroy?      = can_manage?
   def lead_count?   = @account_user.administrator? || @account_user.agent?
+  # Exposes lead PII (phone/email/document) for building the campaign list:
+  # restricted to users who can manage campaigns.
+  def preview_leads? = can_manage?
+  # Field definitions only (no lead data), needed by the campaign form.
+  def lead_fields?  = can_manage?
   def start?        = can_manage?
   def pause?        = can_manage?
   def stop?         = can_manage?

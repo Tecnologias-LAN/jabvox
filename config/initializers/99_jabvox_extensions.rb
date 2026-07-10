@@ -1,5 +1,7 @@
 Rails.application.config.to_prepare do
   Conversation.include Jabvox::KanbanConversationHooks
+  # Assigning a conversation also assigns (and creates, if missing) the contact's lead.
+  Conversation.include Jabvox::ConversationLeadAssignment
   Account.prepend Jabvox::AccountKanbanFeature
   Account.prepend Jabvox::AccountProductsFeature
   Account.prepend Jabvox::AccountVoipFeature

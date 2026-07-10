@@ -180,7 +180,8 @@
       "SUMMARY_BUTTONS": "Botones:",
       "SUBMIT_HEADING": "Enviar a Meta",
       "SUBMIT_NOTE": "Esta acción enviará la plantilla a Meta para su revisión, manteniendo todos los flujos de aprobación actuales.",
-      "SUBMIT_HINT": "Asegúrate de que los ejemplos de variables y los botones sean válidos antes de enviar."
+      "SUBMIT_HINT": "Asegúrate de que los ejemplos de variables y los botones sean válidos antes de enviar.",
+      "MISSING_REQUIRED": "Faltan campos requeridos:"
     },
     "DETAIL": {
       "TITLE": "Detalle de la plantilla",

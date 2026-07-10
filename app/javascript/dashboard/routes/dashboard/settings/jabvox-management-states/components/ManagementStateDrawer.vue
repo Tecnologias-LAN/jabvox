@@ -10,6 +10,8 @@ import SideDrawer from './SideDrawer.vue';
 
 defineProps({
   isSaving: { type: Boolean, default: false },
+  // Existing group names, offered as datalist suggestions (typing a new one is allowed).
+  groupSuggestions: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['submit']);
@@ -20,9 +22,17 @@ const editingId = ref(null);
 
 const emptyForm = () => ({
   name_jabvox: '',
+  state_group_jabvox: '',
+  usage_info_jabvox: '',
   color_jabvox: '#64748b',
   is_active_jabvox: true,
   note_mode: 'optional',
+  managed_jabvox: true,
+  contact_jabvox: false,
+  effective_contact_jabvox: false,
+  advisory_jabvox: false,
+  service_type_jabvox: 'No',
+  positivity_level_jabvox: 0,
   questions: [],
 });
 const form = ref(emptyForm());
@@ -45,6 +55,23 @@ const noteModeOptions = computed(() => [
   },
   { value: 'hidden', label: t('JABVOX_MANAGEMENT_STATES.FORM.NOTE_HIDDEN') },
 ]);
+
+// Stored as-is on service_type_jabvox (backend expects these exact strings).
+const SERVICE_TYPES = [
+  'No',
+  'Asesoría 1:1',
+  'Asesoría Express',
+  'Asesoria Grupal',
+  'Toma de pedido',
+  'Recordatorio de fechas',
+  'Rechazos',
+  'Atencion NE WA',
+  'Llamada digital',
+];
+const serviceTypeOptions = SERVICE_TYPES.map(value => ({
+  value,
+  label: value,
+}));
 
 const questionTypeOptions = computed(() => [
   { value: 'text', label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.TYPE_TEXT') },
@@ -74,9 +101,17 @@ const openEdit = state => {
   editingId.value = state.id;
   form.value = {
     name_jabvox: state.name_jabvox,
+    state_group_jabvox: state.state_group_jabvox || '',
+    usage_info_jabvox: state.usage_info_jabvox || '',
     color_jabvox: state.color_jabvox || '#64748b',
     is_active_jabvox: state.is_active_jabvox ?? true,
     note_mode: state.note_mode || 'optional',
+    managed_jabvox: state.managed_jabvox !== false,
+    contact_jabvox: state.contact_jabvox === true,
+    effective_contact_jabvox: state.effective_contact_jabvox === true,
+    advisory_jabvox: state.advisory_jabvox === true,
+    service_type_jabvox: state.service_type_jabvox || 'No',
+    positivity_level_jabvox: state.positivity_level_jabvox ?? 0,
     questions: (state.questions || []).map(q => ({
       id: q.id,
       label: q.label,
@@ -160,12 +195,40 @@ defineExpose({ openNew, openEdit, close });
         >
           {{ t('JABVOX_MANAGEMENT_STATES.DRAWER.SECTION_GENERAL') }}
         </h3>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_MANAGEMENT_STATES.FORM.GROUP') }}
+          </label>
+          <input
+            v-model="form.state_group_jabvox"
+            type="text"
+            list="jabvox-mgmt-group-suggestions"
+            :placeholder="t('JABVOX_MANAGEMENT_STATES.FORM.GROUP_PLACEHOLDER')"
+            class="w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
+          />
+          <datalist id="jabvox-mgmt-group-suggestions">
+            <option v-for="g in groupSuggestions" :key="g" :value="g" />
+          </datalist>
+        </div>
         <Input
           v-model="form.name_jabvox"
-          :label="t('JABVOX_MANAGEMENT_STATES.FORM.NAME')"
+          :label="t('JABVOX_MANAGEMENT_STATES.FORM.SUBSTATE')"
           :placeholder="t('JABVOX_MANAGEMENT_STATES.FORM.NAME_PLACEHOLDER')"
           autofocus
         />
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_MANAGEMENT_STATES.FORM.USAGE_INFO') }}
+          </label>
+          <textarea
+            v-model="form.usage_info_jabvox"
+            rows="3"
+            :placeholder="
+              t('JABVOX_MANAGEMENT_STATES.FORM.USAGE_INFO_PLACEHOLDER')
+            "
+            class="w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand resize-y"
+          />
+        </div>
       </section>
 
       <!-- Appearance -->
@@ -223,6 +286,39 @@ defineExpose({ openNew, openEdit, close });
           </label>
           <Select v-model="form.note_mode" :options="noteModeOptions" />
         </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <label
+            v-for="flag in [
+              ['managed_jabvox', 'MANAGED'],
+              ['contact_jabvox', 'CONTACT'],
+              ['effective_contact_jabvox', 'EFFECTIVE_CONTACT'],
+              ['advisory_jabvox', 'ADVISORY'],
+            ]"
+            :key="flag[0]"
+            class="flex items-center justify-between gap-2 rounded-xl border border-n-weak bg-n-alpha-1 px-3 py-2.5 cursor-pointer"
+          >
+            <span class="text-sm text-n-slate-12">
+              {{ t(`JABVOX_MANAGEMENT_STATES.FORM.${flag[1]}`) }}
+            </span>
+            <Switch v-model="form[flag[0]]" />
+          </label>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_MANAGEMENT_STATES.FORM.SERVICE_TYPE') }}
+          </label>
+          <Select
+            v-model="form.service_type_jabvox"
+            :options="serviceTypeOptions"
+          />
+        </div>
+        <Input
+          v-model="form.positivity_level_jabvox"
+          type="number"
+          min="0"
+          max="100"
+          :label="t('JABVOX_MANAGEMENT_STATES.FORM.POSITIVITY_LEVEL')"
+        />
       </section>
 
       <!-- Questions -->

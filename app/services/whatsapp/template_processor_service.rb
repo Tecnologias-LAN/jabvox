@@ -105,23 +105,42 @@ class Whatsapp::TemplateProcessorService
     footer_params.present? ? [{ type: 'footer', parameters: footer_params }] : []
   end
 
+  # Meta only accepts a button component when the button actually carries a
+  # runtime parameter: a URL button with a {{var}}, or a COPY_CODE coupon.
+  # Static QUICK_REPLY buttons (and any button with no parameter) must NOT emit
+  # a component — sending one triggers Meta error #131009 "Parameter value is
+  # not valid". We keep the button's real index so it maps to the right button.
   def process_button_components(processed_params)
     return [] if processed_params['buttons'].blank?
 
-    button_params = processed_params['buttons'].filter_map.with_index do |button, index|
+    button_params = processed_params['buttons'].each_with_index.filter_map do |button, index|
       next if button.blank?
+      next unless dynamic_button?(button)
 
-      if button['type'] == 'url' || button['parameter'].present?
-        {
-          type: 'button',
-          sub_type: button['type'] || 'url',
-          index: index,
-          parameters: [parameter_builder.build_button_parameter(button)]
-        }
-      end
+      {
+        type: 'button',
+        sub_type: button_sub_type(button),
+        index: index,
+        parameters: [parameter_builder.build_button_parameter(button)]
+      }
     end
 
     button_params.compact
+  end
+
+  # A button needs a send-time parameter only when it's a COPY_CODE coupon or a
+  # URL button whose value is non-blank (the dynamic URL suffix). Everything
+  # else — quick replies, static URLs, phone buttons — carries no parameter.
+  def dynamic_button?(button)
+    type = button['type'].to_s
+    return true if type == 'copy_code'
+    return button['parameter'].to_s.strip.present? if type == 'url'
+
+    false
+  end
+
+  def button_sub_type(button)
+    button['type'].to_s == 'copy_code' ? 'copy_code' : 'url'
   end
 
   def parameter_builder

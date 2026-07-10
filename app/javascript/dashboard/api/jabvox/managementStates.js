@@ -21,6 +21,14 @@ class JabvoxManagementStatesAPI extends ApiClient {
   destroy(id) {
     return axios.delete(`${this.url}/${id}`);
   }
+
+  export() {
+    return axios.get(`${this.url}/export`);
+  }
+
+  import(data) {
+    return axios.post(`${this.url}/import`, { data });
+  }
 }
 
 export const managementStatesAPI = new JabvoxManagementStatesAPI();

@@ -12,6 +12,12 @@ class Agents extends ApiClient {
       emails,
     });
   }
+
+  delete(id, { reassignToId } = {}) {
+    return axios.delete(`${this.url}/${id}`, {
+      data: reassignToId ? { reassign_to_id: reassignToId } : undefined,
+    });
+  }
 }
 
 export default new Agents();

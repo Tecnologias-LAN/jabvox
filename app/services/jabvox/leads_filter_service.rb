@@ -29,10 +29,10 @@ class Jabvox::LeadsFilterService
     # grant). Everyone else only ever sees their own leads — same rule as the leads list and kanban.
     leads = leads.where(assignee_id: @user.id) unless @is_admin
     leads = leads.where(jabvox_leads: { id: @filters[:lead_id].to_i }) if @filters[:lead_id].present?
-    leads = leads.where('contacts.name ILIKE ?', "%#{@filters[:q]}%") if @filters[:q].present?
-    leads = leads.where('contacts.email ILIKE ?', "%#{@filters[:email]}%") if @filters[:email].present?
-    leads = leads.where('contacts.phone_number ILIKE ?', "%#{@filters[:phone]}%") if @filters[:phone].present?
-    leads = leads.where("contacts.additional_attributes->>'country' ILIKE ?", "%#{@filters[:country]}%") if @filters[:country].present?
+    leads = leads.where('contacts.name ILIKE ?', "%#{like(@filters[:q])}%") if @filters[:q].present?
+    leads = leads.where('contacts.email ILIKE ?', "%#{like(@filters[:email])}%") if @filters[:email].present?
+    leads = leads.where('contacts.phone_number ILIKE ?', "%#{like(@filters[:phone])}%") if @filters[:phone].present?
+    leads = leads.where("contacts.additional_attributes->>'country' ILIKE ?", "%#{like(@filters[:country])}%") if @filters[:country].present?
     leads = leads.where(jabvox_campaign_id: @filters[:campaign_id]) if @filters[:campaign_id].present?
     leads = apply_sold_filter(leads)
     leads = apply_affiliate_filter(leads)
@@ -44,6 +44,12 @@ class Jabvox::LeadsFilterService
   # rubocop:enable Metrics/AbcSize
 
   private
+
+  # Escapes LIKE/ILIKE wildcards so a user typing % or _ searches for the
+  # literal character instead of forcing a broad (and slow) match.
+  def like(value)
+    ActiveRecord::Base.sanitize_sql_like(value.to_s)
+  end
 
   # Filter by lead custom fields stored in custom_fields_jabvox (jsonb key => value). `custom`
   # is a hash of { field_key => value }; each is matched case-insensitively as a substring.
@@ -104,11 +110,20 @@ class Jabvox::LeadsFilterService
     if @filters[:management_state].present?
       msg_q = msg_q.where("(content_attributes #>> '{}')::json->>'jabvox_management_state_name' = ?", @filters[:management_state])
     end
-    msg_q = msg_q.where('messages.created_at >= ?', Date.parse(@filters[:date_from]).beginning_of_day) if @filters[:date_from].present?
-    msg_q = msg_q.where('messages.created_at <= ?', Date.parse(@filters[:date_to]).end_of_day) if @filters[:date_to].present?
+    from = safe_date(@filters[:date_from])
+    to = safe_date(@filters[:date_to])
+    msg_q = msg_q.where('messages.created_at >= ?', from.beginning_of_day) if from
+    msg_q = msg_q.where('messages.created_at <= ?', to.end_of_day) if to
     leads.where(contact_id: @account.conversations.where(id: msg_q.select(:conversation_id)).select(:contact_id))
   end
   # rubocop:enable Metrics/AbcSize
+
+  # A malformed date filter must narrow nothing, not crash the request.
+  def safe_date(value)
+    value.present? ? Date.parse(value.to_s) : nil
+  rescue ArgumentError, TypeError
+    nil
+  end
 
   def order_clause
     sort_col = SORTABLE_COLUMNS[@filters[:sort_column]] || 'jabvox_leads.created_at'

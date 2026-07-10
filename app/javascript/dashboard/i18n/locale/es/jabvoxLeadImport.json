@@ -54,6 +54,7 @@
       "REQUIRED": "Elige una tabla y su columna de ID.",
       "SEARCH_TABLE": "Buscar tabla…",
       "SEARCH_COLUMN": "Buscar columna…",
+      "NO_COLUMNS": "Ninguna columna coincide con la búsqueda.",
       "NO_RESULTS": "Sin resultados",
       "FIELDS_TITLE": "Mapeo de campos",
       "CREATE_MISSING": "Crear campos faltantes",
@@ -68,6 +69,32 @@
       "LOCAL_KEY": "Columna de la tabla principal",
       "FOREIGN_KEY": "Columna de la tabla relacionada",
       "ALIAS": "Alias"
+    },
+    "PHONE_PREFIX": {
+      "LABEL": "Prefijo telefónico (país)",
+      "HINT": "Ej: 57 — se antepone a números sin código de país y se agrega el + automáticamente (E.164 para WhatsApp/llamadas)."
+    },
+    "FILTERS": {
+      "TITLE": "Filtros de sincronización",
+      "HINT": "Solo se importarán las filas que cumplan TODOS los filtros.",
+      "ADD": "Agregar filtro",
+      "COLUMN": "Columna",
+      "OPERATOR": "Operador",
+      "VALUE": "Valor",
+      "VALUE2": "y",
+      "BETWEEN_REQUIRED": "Los filtros de rango necesitan ambos valores.",
+      "OPS": {
+        "EQ": "Igual a (=)",
+        "NEQ": "Distinto de (≠)",
+        "GT": "Mayor que (>)",
+        "GTE": "Mayor o igual (>=)",
+        "LT": "Menor que (<)",
+        "LTE": "Menor o igual (<=)",
+        "BETWEEN": "Entre (rango)",
+        "CONTAINS": "Contiene",
+        "NULL": "Es nulo",
+        "NOT_NULL": "No es nulo"
+      }
     },
     "CREATE_FIELD": {
       "TITLE": "Nuevo campo personalizado",
@@ -88,6 +115,16 @@
       "BOOLEAN": "Sí/No",
       "DATE": "Fecha",
       "SELECT": "Lista"
+    },
+    "SUMMARY": {
+      "TITLE": "Campos mapeados",
+      "MAPPED": "{count} mapeados",
+      "UNMAPPED": "{count} sin mapear",
+      "SOURCE_COLUMN": "Columna origen",
+      "SOURCE_TYPE": "Tipo origen",
+      "DEST_FIELD": "Campo del lead",
+      "DEST_TYPE": "Tipo destino",
+      "EMPTY": "Aún no has mapeado ninguna columna."
     }
   }
 }

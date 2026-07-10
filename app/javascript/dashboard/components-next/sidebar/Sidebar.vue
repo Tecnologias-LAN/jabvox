@@ -1,6 +1,5 @@
 <script setup>
-import { h, ref, computed, onMounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { h, ref, computed, onMounted } from 'vue';
 import { provideSidebarContext, useSidebarResize } from './provider';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
@@ -10,7 +9,6 @@ import { useI18n } from 'vue-i18n';
 import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
 import { vOnClickOutside } from '@vueuse/components';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
-import { useAdmin } from 'dashboard/composables/useAdmin';
 import { usePolicy } from 'dashboard/composables/usePolicy';
 import { useJabvoxPermissions } from 'dashboard/composables/useJabvoxPermissions';
 import { useWindowSize, useEventListener } from '@vueuse/core';
@@ -42,11 +40,9 @@ import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 
 const { accountScopedRoute, isOnJabvoxCloud } = useAccount();
-const { isAdmin } = useAdmin();
 const { checkPermissions } = usePolicy();
 const { jabvoxCan } = useJabvoxPermissions();
 const store = useStore();
-const route = useRoute();
 const searchShortcut = useKbd([`$mod`, 'k']);
 const { t } = useI18n();
 
@@ -64,8 +60,9 @@ const isFeatureEnabledonAccount = useMapGetter(
 );
 const saldoStatus = useMapGetter('jabvoxSaldo/getStatus');
 
-const myReportAccess = useMapGetter('jabvoxProducts/getMyReportAccess');
-const canViewJabvoxReports = computed(() => myReportAccess.value === true);
+// Reports visibility mirrors the API gate: admins always, otherwise the
+// jabvox_reports_view permission from the user's custom role.
+const canViewJabvoxReports = computed(() => jabvoxCan('jabvox_reports_view'));
 
 const isSaldoEnabled = computed(() =>
   isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.JABVOX_SALDO)
@@ -205,14 +202,6 @@ onMounted(() => {
   if (isSaldoEnabled.value) {
     store.dispatch('jabvoxSaldo/fetchStatus');
   }
-  if (
-    isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_PRODUCTS
-    )
-  ) {
-    store.dispatch('jabvoxProducts/fetchMyReportAccess');
-  }
   // Load the internal-chat unread total so the sidebar badge shows without opening the chat.
   if (
     isFeatureEnabledonAccount.value(
@@ -225,21 +214,6 @@ onMounted(() => {
   store.dispatch('jabvoxFieldVisibilities/fetchMyVisibilities');
   store.dispatch('jabvoxAppStates/fetchStates');
 });
-
-watch(
-  () => route.name,
-  () => {
-    if (
-      isFeatureEnabledonAccount.value(
-        accountId.value,
-        FEATURE_FLAGS.JABVOX_PRODUCTS
-      ) &&
-      !isAdmin.value
-    ) {
-      store.dispatch('jabvoxProducts/fetchMyReportAccess');
-    }
-  }
-);
 
 const sortedInboxes = computed(() =>
   inboxes.value.slice().sort((a, b) => a.name.localeCompare(b.name))
@@ -504,10 +478,7 @@ const menuItems = computed(() => {
           },
         ]
       : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_PRODUCTS
-    ) && canViewJabvoxReports.value
+    ...(canViewJabvoxReports.value
       ? [
           {
             name: 'Jabvox Reports',

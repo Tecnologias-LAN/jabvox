@@ -59,6 +59,14 @@
         "MESSAGE": "Are you sure to delete ",
         "YES": "Yes, Delete ",
         "NO": "No, Keep "
+      },
+      "REASSIGN": {
+        "TITLE": "Delete agent",
+        "DESCRIPTION": "The agent <strong>{name}</strong> has leads and tasks assigned. Before deleting, you can reassign them to another agent or leave them unassigned.",
+        "REASSIGN_LABEL": "Reassign leads and tasks to",
+        "REASSIGN_PLACEHOLDER": "Leave unassigned",
+        "CANCEL": "Cancel",
+        "CONFIRM": "Delete agent"
       }
     },
     "EDIT": {

@@ -33,6 +33,16 @@ class Jabvox::Analytics::HostGuardService
 
   DEFAULT_ALLOWED_PORTS = [5432, 3306, 5433, 3307].freeze
 
+  # With the explicit private-network override (an admin-only, per-connection
+  # opt-in) any unprivileged port is accepted — real customer DBs often listen
+  # on custom ports. Without it, only the standard DB ports pass, which keeps
+  # the SSRF surface minimal for arbitrary external hosts.
+  def port_allowed?
+    return @port.to_i.between?(1024, 65_535) if @allow_private
+
+    @allowed_ports.include?(@port.to_i)
+  end
+
   def initialize(host:, port: nil, allow_private: false, allowed_ports: DEFAULT_ALLOWED_PORTS)
     @host = host.to_s.strip
     @port = port
@@ -42,7 +52,7 @@ class Jabvox::Analytics::HostGuardService
 
   def call
     return deny('Host vacío') if @host.blank?
-    return deny("Puerto #{@port} no permitido") if @port.present? && @allowed_ports.exclude?(@port.to_i)
+    return deny("Puerto #{@port} no permitido") if @port.present? && !port_allowed?
 
     ips = resolve
     return deny('No se pudo resolver el host') if ips.empty?

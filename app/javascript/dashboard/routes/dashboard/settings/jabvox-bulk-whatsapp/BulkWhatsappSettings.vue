@@ -3,14 +3,21 @@ import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import bulkWhatsappAPI from 'dashboard/api/jabvox/bulkWhatsapp';
 import LeadsPickerTab from './LeadsPickerTab.vue';
 
 const { t } = useI18n();
 const rootStore = useStore();
+const { isAdmin } = useAdmin();
+const currentUserId = useMapGetter('getCurrentUserID');
 
 const activeTab = ref('send');
-const TABS = ['send', 'history', 'settings'];
+// Only real administrators manage the webhook config; custom-role senders get
+// the send + history tabs (matches the backend split in ConfigController).
+const TABS = computed(() =>
+  isAdmin.value ? ['send', 'history', 'settings'] : ['send', 'history']
+);
 
 // Within the Send tab: choose the recipient source (CSV upload or existing leads).
 const source = ref('csv');
@@ -243,7 +250,14 @@ const saveConfig = async () => {
 const loadSenders = async () => {
   try {
     const { data } = await bulkWhatsappAPI.getSenders();
-    senders.value = data;
+    // Non-admins can only send as themselves (enforced by the backend too),
+    // so the picker offers just their own user, preselected.
+    if (isAdmin.value) {
+      senders.value = data;
+    } else {
+      senders.value = data.filter(u => u.id === currentUserId.value);
+      selectedSenderId.value = currentUserId.value;
+    }
   } catch {
     // non-fatal for the screen
   }
@@ -315,6 +329,7 @@ onMounted(() => {
               {{ t('JABVOX_BULK_WA.SEND.CONFIG_REQUIRED_BODY') }}
             </p>
             <button
+              v-if="isAdmin"
               type="button"
               class="mt-2 text-xs font-medium text-n-brand hover:underline"
               @click="activeTab = 'settings'"

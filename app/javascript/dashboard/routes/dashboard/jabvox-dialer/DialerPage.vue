@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -12,12 +12,16 @@ import {
 import { typificationsAPI } from 'dashboard/api/jabvox/clickToCall';
 import messageAPI from 'dashboard/api/inbox/message';
 import ManagementQuestionsForm from 'dashboard/components/jabvox/managementStates/ManagementQuestionsForm.vue';
+import JabvoxLeadTableRows from 'dashboard/components/widgets/conversation/jabvox/JabvoxLeadTableRows.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import {
   isManagementValid,
   buildManagementContentAttributes,
+  stateGroups,
+  statesInGroup,
+  hasGroups,
 } from 'dashboard/composables/jabvox/useManagementState';
 import { useAlert } from 'dashboard/composables';
 
@@ -30,6 +34,8 @@ const dialerStates = useMapGetter('jabvoxDialer/getDialerStates');
 const managementStates = useMapGetter('jabvoxManagementStates/getActiveStates');
 const uiFlags = useMapGetter('jabvoxDialer/getUIFlags');
 const currentUserId = useMapGetter('getCurrentUserID');
+const multiTables = useMapGetter('jabvoxCustomization/getMultiTables');
+const hasMultiTables = computed(() => (multiTables.value || []).length > 0);
 
 const SESSION_KEY = 'jabvox_dialer_session';
 
@@ -53,6 +59,7 @@ const wrapupRemaining = ref(0);
 const inWrapup = ref(false);
 const wrapupNote = ref('');
 const wrapupStateId = ref(null);
+const wrapupGroup = ref(null);
 const managementAnswers = ref({});
 const isSavingNote = ref(false);
 const typifications = ref([]);
@@ -61,6 +68,26 @@ const wrapupTypificationId = ref(null);
 const selectedManagementState = computed(() =>
   (managementStates.value || []).find(s => s.id === wrapupStateId.value)
 );
+
+// Two-level picker (Estado → Subestado) when any active state has a group.
+const managementHasGroups = computed(() => hasGroups(managementStates.value));
+const managementGroups = computed(() => stateGroups(managementStates.value));
+const wrapupGroupStates = computed(() =>
+  wrapupGroup.value === null
+    ? []
+    : statesInGroup(managementStates.value, wrapupGroup.value)
+);
+
+const selectWrapupGroup = group => {
+  wrapupGroup.value = wrapupGroup.value === group ? null : group;
+};
+
+// Changing the group invalidates a substate that belongs to another group.
+watch(wrapupGroup, () => {
+  const state = selectedManagementState.value;
+  if (state && (state.state_group_jabvox || '') !== (wrapupGroup.value || ''))
+    wrapupStateId.value = null;
+});
 let heartbeatTimer = null;
 let requestCallTimer = null;
 let wrapupTimer = null;
@@ -119,6 +146,20 @@ const myCampaigns = computed(() => {
   );
 });
 
+// "(08:00–18:00 · 2026-07-01 → 2026-07-15)" for the out-of-schedule note.
+const scheduleLabel = c => {
+  const parts = [];
+  if (c.calling_hours_start_jabvox && c.calling_hours_end_jabvox) {
+    parts.push(`${c.calling_hours_start_jabvox}–${c.calling_hours_end_jabvox}`);
+  }
+  if (c.schedule_start_date_jabvox || c.schedule_end_date_jabvox) {
+    parts.push(
+      `${c.schedule_start_date_jabvox || ''} → ${c.schedule_end_date_jabvox || ''}`.trim()
+    );
+  }
+  return parts.length ? `(${parts.join(' · ')})` : '';
+};
+
 const isAvailable = computed(
   () =>
     connected.value &&
@@ -158,6 +199,7 @@ const endWrapup = () => {
   lastCall.value = null;
   wrapupNote.value = '';
   wrapupStateId.value = null;
+  wrapupGroup.value = null;
   wrapupTypificationId.value = null;
   managementAnswers.value = {};
   if (connected.value && activeDialerState.value === null) {
@@ -314,6 +356,7 @@ onMounted(async () => {
     store.dispatch('jabvoxDialer/fetchCampaigns'),
     store.dispatch('jabvoxDialer/fetchDialerStates'),
     store.dispatch('jabvoxManagementStates/fetchStates'),
+    store.dispatch('jabvoxCustomization/fetchTables').catch(() => {}),
   ]);
   try {
     const { data } = await typificationsAPI.getAll(true);
@@ -392,6 +435,7 @@ const onDisconnect = async () => {
   wrapupRemaining.value = 0;
   wrapupNote.value = '';
   wrapupStateId.value = null;
+  wrapupGroup.value = null;
   managementAnswers.value = {};
   stateDropdownOpen.value = false;
 };
@@ -654,33 +698,90 @@ const setDialerState = async state => {
             </div>
           </div>
 
+          <!-- Multi-row custom tables (Asesorías, Casos…) for the lead on call -->
+          <div
+            v-if="activeCall.lead_id && hasMultiTables"
+            class="pt-2 mt-1 border-t border-n-weak"
+          >
+            <JabvoxLeadTableRows :lead-id="activeCall.lead_id" />
+          </div>
+
           <!-- Gestión note (fill during call, persists into wrapup) -->
           <div class="pl-8 pt-2 mt-1 border-t border-n-weak space-y-2">
-            <div
-              v-if="managementStates.length > 0"
-              class="flex flex-wrap gap-1.5"
-            >
-              <button
-                v-for="s in managementStates"
-                :key="s.id"
-                class="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                :class="
-                  wrapupStateId === s.id
-                    ? 'text-white border-transparent'
-                    : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
-                "
-                :style="
-                  wrapupStateId === s.id
-                    ? {
-                        backgroundColor: s.color_jabvox || '#6b7280',
-                        borderColor: s.color_jabvox || '#6b7280',
-                      }
-                    : {}
-                "
-                @click="wrapupStateId = wrapupStateId === s.id ? null : s.id"
+            <div v-if="managementStates.length > 0" class="space-y-1.5">
+              <!-- Two-level picker: Estado (grupo) → Subestado -->
+              <template v-if="managementHasGroups">
+                <div class="flex flex-wrap gap-1.5">
+                  <button
+                    v-for="g in managementGroups"
+                    :key="`group-${g}`"
+                    class="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                    :class="
+                      wrapupGroup === g
+                        ? 'bg-n-brand text-white border-transparent'
+                        : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+                    "
+                    @click="selectWrapupGroup(g)"
+                  >
+                    {{ g || t('JABVOX_MANAGEMENT_STATES.UNGROUPED') }}
+                  </button>
+                </div>
+                <div v-if="wrapupGroup !== null" class="flex flex-wrap gap-1.5">
+                  <button
+                    v-for="s in wrapupGroupStates"
+                    :key="s.id"
+                    class="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                    :class="
+                      wrapupStateId === s.id
+                        ? 'text-white border-transparent'
+                        : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+                    "
+                    :style="
+                      wrapupStateId === s.id
+                        ? {
+                            backgroundColor: s.color_jabvox || '#6b7280',
+                            borderColor: s.color_jabvox || '#6b7280',
+                          }
+                        : {}
+                    "
+                    @click="
+                      wrapupStateId = wrapupStateId === s.id ? null : s.id
+                    "
+                  >
+                    {{ s.name_jabvox }}
+                  </button>
+                </div>
+              </template>
+              <!-- Flat picker (accounts without groups) -->
+              <div v-else class="flex flex-wrap gap-1.5">
+                <button
+                  v-for="s in managementStates"
+                  :key="s.id"
+                  class="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                  :class="
+                    wrapupStateId === s.id
+                      ? 'text-white border-transparent'
+                      : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+                  "
+                  :style="
+                    wrapupStateId === s.id
+                      ? {
+                          backgroundColor: s.color_jabvox || '#6b7280',
+                          borderColor: s.color_jabvox || '#6b7280',
+                        }
+                      : {}
+                  "
+                  @click="wrapupStateId = wrapupStateId === s.id ? null : s.id"
+                >
+                  {{ s.name_jabvox }}
+                </button>
+              </div>
+              <p
+                v-if="selectedManagementState?.usage_info_jabvox"
+                class="text-xs text-n-slate-10"
               >
-                {{ s.name_jabvox }}
-              </button>
+                {{ selectedManagementState.usage_info_jabvox }}
+              </p>
             </div>
             <ManagementQuestionsForm
               v-if="selectedManagementState"
@@ -823,31 +924,80 @@ const setDialerState = async state => {
           <!-- Gestión note form -->
           <div class="space-y-2">
             <!-- Management state selector -->
-            <div
-              v-if="managementStates.length > 0"
-              class="flex flex-wrap gap-1.5"
-            >
-              <button
-                v-for="s in managementStates"
-                :key="s.id"
-                class="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                :class="
-                  wrapupStateId === s.id
-                    ? 'text-white border-transparent'
-                    : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
-                "
-                :style="
-                  wrapupStateId === s.id
-                    ? {
-                        backgroundColor: s.color_jabvox || '#6b7280',
-                        borderColor: s.color_jabvox || '#6b7280',
-                      }
-                    : {}
-                "
-                @click="wrapupStateId = wrapupStateId === s.id ? null : s.id"
+            <div v-if="managementStates.length > 0" class="space-y-1.5">
+              <!-- Two-level picker: Estado (grupo) → Subestado -->
+              <template v-if="managementHasGroups">
+                <div class="flex flex-wrap gap-1.5">
+                  <button
+                    v-for="g in managementGroups"
+                    :key="`group-${g}`"
+                    class="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                    :class="
+                      wrapupGroup === g
+                        ? 'bg-n-brand text-white border-transparent'
+                        : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+                    "
+                    @click="selectWrapupGroup(g)"
+                  >
+                    {{ g || t('JABVOX_MANAGEMENT_STATES.UNGROUPED') }}
+                  </button>
+                </div>
+                <div v-if="wrapupGroup !== null" class="flex flex-wrap gap-1.5">
+                  <button
+                    v-for="s in wrapupGroupStates"
+                    :key="s.id"
+                    class="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                    :class="
+                      wrapupStateId === s.id
+                        ? 'text-white border-transparent'
+                        : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+                    "
+                    :style="
+                      wrapupStateId === s.id
+                        ? {
+                            backgroundColor: s.color_jabvox || '#6b7280',
+                            borderColor: s.color_jabvox || '#6b7280',
+                          }
+                        : {}
+                    "
+                    @click="
+                      wrapupStateId = wrapupStateId === s.id ? null : s.id
+                    "
+                  >
+                    {{ s.name_jabvox }}
+                  </button>
+                </div>
+              </template>
+              <!-- Flat picker (accounts without groups) -->
+              <div v-else class="flex flex-wrap gap-1.5">
+                <button
+                  v-for="s in managementStates"
+                  :key="s.id"
+                  class="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                  :class="
+                    wrapupStateId === s.id
+                      ? 'text-white border-transparent'
+                      : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+                  "
+                  :style="
+                    wrapupStateId === s.id
+                      ? {
+                          backgroundColor: s.color_jabvox || '#6b7280',
+                          borderColor: s.color_jabvox || '#6b7280',
+                        }
+                      : {}
+                  "
+                  @click="wrapupStateId = wrapupStateId === s.id ? null : s.id"
+                >
+                  {{ s.name_jabvox }}
+                </button>
+              </div>
+              <p
+                v-if="selectedManagementState?.usage_info_jabvox"
+                class="text-xs text-n-slate-10"
               >
-                {{ s.name_jabvox }}
-              </button>
+                {{ selectedManagementState.usage_info_jabvox }}
+              </p>
             </div>
 
             <ManagementQuestionsForm
@@ -1015,11 +1165,19 @@ const setDialerState = async state => {
             <div
               v-for="c in myCampaigns"
               :key="c.id"
-              class="rounded-2xl border border-n-weak bg-n-solid-1 p-5 shadow-sm flex items-center justify-between gap-4 transition-all hover:shadow-md"
+              class="rounded-2xl border border-n-weak bg-n-solid-1 p-5 shadow-sm flex items-center justify-between gap-4 transition-all"
+              :class="
+                c.in_schedule === false ? 'opacity-60' : 'hover:shadow-md'
+              "
             >
               <div class="flex items-center gap-3 min-w-0">
                 <span
-                  class="i-lucide-megaphone size-9 shrink-0 rounded-xl bg-n-alpha-1 p-2 text-n-slate-11"
+                  class="size-9 shrink-0 rounded-xl bg-n-alpha-1 p-2"
+                  :class="
+                    c.in_schedule === false
+                      ? 'i-lucide-clock-alert text-n-amber-11'
+                      : 'i-lucide-megaphone text-n-slate-11'
+                  "
                 />
                 <div class="min-w-0">
                   <p class="text-sm font-semibold text-n-slate-12 truncate">
@@ -1029,14 +1187,26 @@ const setDialerState = async state => {
                     {{ c.leads_count_jabvox }}
                     {{ t('JABVOX_DIALER.STATS.LEADS') }}
                   </p>
+                  <p
+                    v-if="c.in_schedule === false"
+                    class="text-xs text-n-amber-11 mt-0.5"
+                  >
+                    {{ t('JABVOX_DIALER.OUT_OF_SCHEDULE') }}
+                    {{ scheduleLabel(c) }}
+                  </p>
                 </div>
               </div>
               <Button
-                :label="t('JABVOX_DIALER.CONNECT')"
+                :label="
+                  c.in_schedule === false
+                    ? t('JABVOX_DIALER.OUT_OF_SCHEDULE_SHORT')
+                    : t('JABVOX_DIALER.CONNECT')
+                "
                 icon="i-lucide-plug"
                 size="sm"
                 class="shrink-0"
                 :is-loading="connecting"
+                :disabled="c.in_schedule === false"
                 @click="onConnect(c)"
               />
             </div>

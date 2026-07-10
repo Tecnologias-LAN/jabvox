@@ -37,9 +37,7 @@ class Api::V1::Accounts::Jabvox::QuickButtonsController < Api::V1::Accounts::Bas
   # Custom-role gate: users without a custom role keep historical access;
   # users with a custom role must be granted the capability (admins always pass).
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_custom_data_manage')
+    jabvox_authorize_write!('jabvox_custom_data_manage')
   end
 
   def set_button

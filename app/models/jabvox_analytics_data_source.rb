@@ -51,6 +51,10 @@ class JabvoxAnalyticsDataSource < ApplicationRecord
                                      foreign_key: :data_source_id, dependent: :destroy, inverse_of: :data_source
   has_many :widgets, class_name: 'JabvoxAnalyticsDashboardWidget',
                      foreign_key: :data_source_id, dependent: :nullify, inverse_of: :data_source
+  # Cached query results are disposable; drop them with the data source so
+  # deletion doesn't fail on the FK.
+  has_many :query_cache_entries, class_name: 'JabvoxAnalyticsQueryCacheEntry',
+                                 foreign_key: :data_source_id, dependent: :delete_all, inverse_of: :data_source
 
   encrypts :password_jabvox if Jabvox.encryption_configured?
   encrypts :ssl_ca_jabvox if Jabvox.encryption_configured?

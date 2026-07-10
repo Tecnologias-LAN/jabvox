@@ -1,6 +1,9 @@
-# Per-account Bulk WhatsApp config: the n8n webhook URL. Admin-only.
+# Per-account Bulk WhatsApp config: the n8n webhook URL. Custom-role senders may
+# READ it (the send form needs to know the webhook is configured), but only real
+# administrators may change where the account's messages are POSTed.
 class Api::V1::Accounts::Jabvox::BulkWhatsapp::ConfigController < Api::V1::Accounts::Jabvox::BulkWhatsapp::BaseController
-  before_action :ensure_admin
+  before_action :ensure_admin, only: :show
+  before_action :ensure_real_admin, only: :update
 
   def show
     render json: serialize(config)
@@ -16,6 +19,12 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::ConfigController < Api::V1::Accou
   end
 
   private
+
+  def ensure_real_admin
+    return if Current.account_user&.administrator?
+
+    render json: { error: 'Solo los administradores pueden cambiar la configuración' }, status: :forbidden
+  end
 
   def config
     @config ||= Current.account.jabvox_bulk_whatsapp_config ||

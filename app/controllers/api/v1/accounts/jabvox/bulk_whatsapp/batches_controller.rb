@@ -34,6 +34,13 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     inbox = Current.account.inboxes.find(params[:inbox_id])
     sender = Current.account.users.find(params[:sender_user_id])
 
+    # A custom-role sender mints a token in the sender's name: only real admins
+    # may send on behalf of someone else.
+    unless Current.account_user&.administrator? || sender.id == current_user.id
+      return render json: { error: 'Solo un administrador puede enviar en nombre de otro usuario.' },
+                    status: :forbidden
+    end
+
     batch = params[:source].to_s == 'leads' ? dispatch_from_leads(inbox, sender) : dispatch_from_csv(inbox, sender)
     return if performed?
 

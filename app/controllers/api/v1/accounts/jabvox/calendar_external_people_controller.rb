@@ -48,9 +48,7 @@ class Api::V1::Accounts::Jabvox::CalendarExternalPeopleController < Api::V1::Acc
   # Gate solo si el usuario tiene un custom role: sin rol personalizado se
   # conserva el comportamiento histórico (acceso). El admin siempre pasa.
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_calendar_manage')
+    jabvox_authorize_write!('jabvox_calendar_manage')
   end
 
   def set_person

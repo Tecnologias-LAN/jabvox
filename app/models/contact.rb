@@ -64,6 +64,9 @@ class Contact < ApplicationRecord
   has_many :inboxes, through: :contact_inboxes
   has_many :messages, as: :sender, dependent: :destroy_async
   has_many :notes, dependent: :destroy_async
+  # Contact-linked custom rows go away with the contact (the FK is also
+  # ON DELETE CASCADE, so a bulk delete_all can't be blocked either).
+  has_many :jabvox_custom_table_rows, dependent: :delete_all
   before_validation :prepare_contact_attributes
   after_create_commit :dispatch_create_event, :ip_lookup
   after_update_commit :dispatch_update_event

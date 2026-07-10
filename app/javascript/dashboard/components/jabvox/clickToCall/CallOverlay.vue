@@ -14,6 +14,9 @@ import {
   noteRule,
   isManagementValid,
   buildManagementContentAttributes,
+  stateGroups,
+  statesInGroup,
+  hasGroups,
 } from 'dashboard/composables/jabvox/useManagementState';
 
 const { t } = useI18n();
@@ -26,6 +29,7 @@ const managementStates = useMapGetter('jabvoxManagementStates/getActiveStates');
 const typifications = ref([]);
 const selectedTypificationId = ref(null);
 const managementStateId = ref(null);
+const managementGroup = ref(null);
 const managementAnswers = ref({});
 const note = ref('');
 
@@ -35,6 +39,25 @@ const selectedManagementState = computed(
       s => s.id === managementStateId.value
     ) || null
 );
+
+// Two-level picker (Estado → Subestado) when any active state has a group.
+const managementHasGroups = computed(() => hasGroups(managementStates.value));
+const managementGroups = computed(() => stateGroups(managementStates.value));
+const managementGroupStates = computed(() =>
+  managementGroup.value === null
+    ? []
+    : statesInGroup(managementStates.value, managementGroup.value)
+);
+
+// Changing the group invalidates a substate that belongs to another group.
+watch(managementGroup, () => {
+  const state = selectedManagementState.value;
+  if (
+    state &&
+    (state.state_group_jabvox || '') !== (managementGroup.value || '')
+  )
+    managementStateId.value = null;
+});
 
 // The chosen management state decides whether the note is hidden / optional / required.
 const noteVisible = computed(
@@ -70,6 +93,7 @@ watch(phase, value => {
   if (value === null) {
     selectedTypificationId.value = null;
     managementStateId.value = null;
+    managementGroup.value = null;
     managementAnswers.value = {};
     note.value = '';
   }
@@ -156,20 +180,63 @@ const accept = () => {
         </label>
 
         <!-- Management type (gestión) — appears after typification -->
-        <label
-          v-if="managementStates.length"
-          class="flex flex-col text-xs text-n-slate-11"
-        >
-          {{ t('JABVOX_CLICK_TO_CALL.MANAGEMENT_TYPE') }}
-          <select v-model="managementStateId" class="reset-base mt-1 text-sm">
-            <option :value="null">
-              {{ t('JABVOX_CLICK_TO_CALL.SELECT_MANAGEMENT') }}
-            </option>
-            <option v-for="s in managementStates" :key="s.id" :value="s.id">
-              {{ s.name_jabvox }}
-            </option>
-          </select>
-        </label>
+        <template v-if="managementStates.length">
+          <!-- Two-level picker: Estado (grupo) → Subestado -->
+          <template v-if="managementHasGroups">
+            <label class="flex flex-col text-xs text-n-slate-11">
+              {{ t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.GROUP_LABEL') }}
+              <select v-model="managementGroup" class="reset-base mt-1 text-sm">
+                <option :value="null">
+                  {{
+                    t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.GROUP_PLACEHOLDER')
+                  }}
+                </option>
+                <option v-for="g in managementGroups" :key="g" :value="g">
+                  {{ g || t('JABVOX_MANAGEMENT_STATES.UNGROUPED') }}
+                </option>
+              </select>
+            </label>
+            <label class="flex flex-col text-xs text-n-slate-11">
+              {{ t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.SUBSTATE_LABEL') }}
+              <select
+                v-model="managementStateId"
+                :disabled="managementGroup === null"
+                class="reset-base mt-1 text-sm disabled:opacity-60"
+              >
+                <option :value="null">
+                  {{
+                    t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.SUBSTATE_PLACEHOLDER')
+                  }}
+                </option>
+                <option
+                  v-for="s in managementGroupStates"
+                  :key="s.id"
+                  :value="s.id"
+                >
+                  {{ s.name_jabvox }}
+                </option>
+              </select>
+            </label>
+          </template>
+          <!-- Flat picker (accounts without groups) -->
+          <label v-else class="flex flex-col text-xs text-n-slate-11">
+            {{ t('JABVOX_CLICK_TO_CALL.MANAGEMENT_TYPE') }}
+            <select v-model="managementStateId" class="reset-base mt-1 text-sm">
+              <option :value="null">
+                {{ t('JABVOX_CLICK_TO_CALL.SELECT_MANAGEMENT') }}
+              </option>
+              <option v-for="s in managementStates" :key="s.id" :value="s.id">
+                {{ s.name_jabvox }}
+              </option>
+            </select>
+          </label>
+          <p
+            v-if="selectedManagementState?.usage_info_jabvox"
+            class="text-xs text-n-slate-10"
+          >
+            {{ selectedManagementState.usage_info_jabvox }}
+          </p>
+        </template>
 
         <!-- Dynamic questions for the chosen management state -->
         <ManagementQuestionsForm

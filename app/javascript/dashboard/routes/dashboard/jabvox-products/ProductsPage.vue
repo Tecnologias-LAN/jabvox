@@ -6,7 +6,6 @@ import StatusesTab from './tabs/StatusesTab.vue';
 import IntegrationTab from './tabs/IntegrationTab.vue';
 import ConfigTab from './tabs/ConfigTab.vue';
 import PdfTab from './tabs/PdfTab.vue';
-import SalesReportAccessTab from './tabs/SalesReportAccessTab.vue';
 
 const activeTab = ref('products');
 
@@ -37,11 +36,6 @@ const TABS = [
     icon: 'i-lucide-settings',
   },
   { key: 'pdf', label: 'JABVOX_PRODUCTS.TABS.PDF', icon: 'i-lucide-file-text' },
-  {
-    key: 'sales_reports',
-    label: 'JABVOX_PRODUCTS.TABS.REPORT_ACCESS',
-    icon: 'i-lucide-shield-check',
-  },
 ];
 </script>
 
@@ -92,7 +86,6 @@ const TABS = [
       <IntegrationTab v-else-if="activeTab === 'integration'" />
       <ConfigTab v-else-if="activeTab === 'config'" />
       <PdfTab v-else-if="activeTab === 'pdf'" />
-      <SalesReportAccessTab v-else-if="activeTab === 'sales_reports'" />
     </div>
   </div>
 </template>

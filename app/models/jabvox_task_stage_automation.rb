@@ -53,6 +53,10 @@ class JabvoxTaskStageAutomation < ApplicationRecord
   belongs_to :email_template, class_name: 'JabvoxEmailTemplate', optional: true
   belongs_to :sms_provider, class_name: 'JabvoxSmsProvider', optional: true
   belongs_to :target_stage, class_name: 'JabvoxTaskStage', optional: true
+  # Webhook delivery logs are removed with the automation so deletion doesn't
+  # fail on their FK.
+  has_many :webhook_deliveries, class_name: 'JabvoxTaskWebhookDelivery',
+                                foreign_key: :automation_id, dependent: :delete_all, inverse_of: :automation
 
   encrypts :webhook_secret_jabvox if Jabvox.encryption_configured?
 

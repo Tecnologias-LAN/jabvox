@@ -23,14 +23,14 @@ class Api::V1::Accounts::Jabvox::CustomTablesController < Api::V1::Accounts::Bas
   end
 
   def update
-    return render_system_table_locked if @table.linked_to_jabvox == 'leads'
+    return render_system_table_locked if @table.system_leads_table?
 
     @table.update!(table_params)
     render json: table_json(@table)
   end
 
   def destroy
-    return render_system_table_locked if @table.linked_to_jabvox == 'leads'
+    return render_system_table_locked if @table.system_leads_table?
 
     @table.destroy!
     head :no_content
@@ -47,9 +47,7 @@ class Api::V1::Accounts::Jabvox::CustomTablesController < Api::V1::Accounts::Bas
   # Custom-role gate: users without a custom role keep historical access;
   # users with a custom role must be granted the capability (admins always pass).
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_custom_data_manage')
+    jabvox_authorize_write!('jabvox_custom_data_manage')
   end
 
   # The "Leads" table is a fixed system table that always exists and cannot be
@@ -73,17 +71,18 @@ class Api::V1::Accounts::Jabvox::CustomTablesController < Api::V1::Accounts::Bas
   end
 
   def table_params
-    params.require(:table).permit(:name_jabvox, :description_jabvox, :position_jabvox, :linked_to_jabvox)
+    params.require(:table).permit(:name_jabvox, :description_jabvox, :position_jabvox, :linked_to_jabvox, :kind_jabvox)
   end
 
   def table_json(table)
-    is_leads = table.linked_to_jabvox == 'leads'
+    is_leads = table.system_leads_table?
     {
       id: table.id,
       name_jabvox: is_leads ? 'Leads' : table.name_jabvox,
       description_jabvox: table.description_jabvox,
       position_jabvox: table.position_jabvox,
       linked_to_jabvox: table.linked_to_jabvox,
+      kind_jabvox: table.kind_jabvox,
       system: is_leads,
       columns: table.jabvox_custom_columns.map { |c| column_json(c) },
       created_at: table.created_at

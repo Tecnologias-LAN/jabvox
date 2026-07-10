@@ -47,6 +47,33 @@ export default {
     return axios.patch(leadsClient.url, { custom_fields: customFields });
   },
 
+  // Multi-row tables (Asesorías, Casos…) attached to a lead. Each row is an
+  // independent record; a lead can have many per table.
+  getLeadTableRows: leadId => {
+    const c = new ApiClient(`jabvox/leads/${leadId}/custom_table_rows`, {
+      accountScoped: true,
+    });
+    return axios.get(c.url);
+  },
+  createLeadTableRow: (leadId, tableId, data) => {
+    const c = new ApiClient(`jabvox/leads/${leadId}/custom_table_rows`, {
+      accountScoped: true,
+    });
+    return axios.post(`${c.url}/${tableId}`, { data });
+  },
+  updateLeadTableRow: (leadId, tableId, rowId, data) => {
+    const c = new ApiClient(`jabvox/leads/${leadId}/custom_table_rows`, {
+      accountScoped: true,
+    });
+    return axios.patch(`${c.url}/${tableId}`, { row_id: rowId, data });
+  },
+  deleteLeadTableRow: (leadId, tableId, rowId) => {
+    const c = new ApiClient(`jabvox/leads/${leadId}/custom_table_rows`, {
+      accountScoped: true,
+    });
+    return axios.delete(`${c.url}/${tableId}`, { params: { row_id: rowId } });
+  },
+
   // Quick Buttons
   getButtons: () => axios.get(buttonsClient.url),
   createButton: data => axios.post(buttonsClient.url, { button: data }),

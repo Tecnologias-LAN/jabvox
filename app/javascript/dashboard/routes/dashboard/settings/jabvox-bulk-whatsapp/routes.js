@@ -9,7 +9,9 @@ export const routes = [
     name: 'jabvox_bulk_whatsapp_settings_index',
     meta: {
       featureFlag: FEATURE_FLAGS.JABVOX_BULK_WHATSAPP,
-      permissions: ['administrator'],
+      // Admins always; custom roles enter with the send grant (backend enforces
+      // the same key in BulkWhatsapp::BaseController#ensure_admin).
+      permissions: ['administrator', 'jabvox_bulk_whatsapp_send'],
     },
     component: BulkWhatsappSettings,
   },

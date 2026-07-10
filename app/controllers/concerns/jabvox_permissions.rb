@@ -37,4 +37,16 @@ module JabvoxPermissions
     render json: { error: message || I18n.t('jabvox.permissions.denied', default: 'You do not have permission for this action.') },
            status: :forbidden
   end
+
+  # Gate that ONLY applies to writes: any GET/HEAD request (index/show and every
+  # custom read action — metrics, contacts, summary, history, …) passes for all
+  # account members, while state-changing verbs (POST/PATCH/PUT/DELETE) require
+  # the module permission. Admins always pass via jabvox_can?. Keying off the
+  # HTTP verb (not an action-name list) keeps future read endpoints open by
+  # default and every write endpoint gated.
+  def jabvox_authorize_write!(key, message = nil)
+    return if request.get? || request.head?
+
+    jabvox_authorize!(key, message)
+  end
 end

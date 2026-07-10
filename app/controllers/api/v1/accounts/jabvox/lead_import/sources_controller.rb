@@ -165,6 +165,7 @@ class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accoun
       { key: 'city', label: 'Ciudad', kind: 'attr:city' },
       { key: 'country_code', label: 'País (código ISO)', kind: 'attr:country_code' },
       { key: 'company_name', label: 'Empresa', kind: 'attr:company_name' },
+      { key: 'identification_number', label: 'Documento / Identificación', kind: 'attr:jabvox_identification_number' },
       { key: 'description', label: 'Biografía', kind: 'attr:description' },
       { key: 'linkedin', label: 'LinkedIn', kind: 'social:linkedin' },
       { key: 'facebook', label: 'Facebook', kind: 'social:facebook' },
@@ -194,8 +195,10 @@ class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accoun
       :name_jabvox, :engine_jabvox, :host_jabvox, :port_jabvox, :database_jabvox,
       :username_jabvox, :password_jabvox, :ssl_mode_jabvox, :allow_private_network_jabvox,
       :query_timeout_ms_jabvox, :table_jabvox, :external_id_column_jabvox,
+      :phone_prefix_jabvox,
       field_mapping_jabvox: {},
-      related_tables_jabvox: [%i[table local_key foreign_key alias]]
+      related_tables_jabvox: [%i[table local_key foreign_key alias]],
+      filters_jabvox: [%i[column op value value2]]
     )
   end
 
@@ -216,6 +219,8 @@ class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accoun
       external_id_column_jabvox: source.external_id_column_jabvox,
       field_mapping_jabvox: source.field_mapping_jabvox,
       related_tables_jabvox: source.related_tables_jabvox,
+      filters_jabvox: source.filters_jabvox,
+      phone_prefix_jabvox: source.phone_prefix_jabvox,
       status_jabvox: source.status_jabvox,
       last_tested_at_jabvox: source.last_tested_at_jabvox,
       last_synced_at_jabvox: source.last_synced_at_jabvox,

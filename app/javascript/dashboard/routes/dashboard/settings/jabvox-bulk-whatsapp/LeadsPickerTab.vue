@@ -24,7 +24,27 @@ const rootStore = useStore();
 const PER_PAGE = 25;
 
 // ── Filters ────────────────────────────────────────────────────────────────
-const filters = ref({ q: '', phone: '', country: '', campaign_id: '' });
+// Mirrors every filter the leads list supports (Jabvox::LeadsFilterService).
+const filters = ref({
+  q: '',
+  email: '',
+  phone: '',
+  country: '',
+  campaign_id: '',
+  assignee_id: '',
+  team_id: '',
+  inbox_id: '',
+  affiliate_id: '',
+  management_state: '',
+  sold: '',
+  status: '',
+  date_from: '',
+  date_to: '',
+});
+// Select options returned by the leads index (campaigns, assignees, teams…).
+const filterOptions = ref({});
+const SOLD_OPTIONS = ['quotes', 'sales'];
+const STATUS_OPTIONS = ['open', 'pending', 'snoozed', 'resolved'];
 // Lead custom-field definitions + the current filter value for each one.
 const customFields = ref([]);
 const customValues = ref({});
@@ -117,10 +137,11 @@ const loadLeads = async () => {
       page: page.value,
       per_page: PER_PAGE,
     });
-    // The leads index responds with { data: [...], meta: { total } }.
+    // The leads index responds with { data: [...], meta: { total }, filter_options }.
     const list = Array.isArray(data?.data) ? data.data : data;
     leads.value = Array.isArray(list) ? list : [];
     total.value = data?.meta?.total ?? leads.value.length;
+    if (data?.filter_options) filterOptions.value = data.filter_options;
   } catch {
     useAlert(t('JABVOX_BULK_WA.LEADS.ERROR'));
   } finally {
@@ -135,6 +156,14 @@ const applyFilters = () => {
   selectedIds.value = new Set();
   excludedIds.value = new Set();
   loadLeads();
+};
+
+const clearFilters = () => {
+  Object.keys(filters.value).forEach(k => {
+    filters.value[k] = '';
+  });
+  customValues.value = {};
+  applyFilters();
 };
 
 const goToPage = p => {
@@ -275,32 +304,238 @@ onMounted(() => {
 
       <div v-show="filtersOpen" class="px-4 pb-4 space-y-3">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <input
-            v-model="filters.q"
-            class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
-            :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_NAME')"
-            @keyup.enter="applyFilters"
-          />
-          <input
-            v-model="filters.phone"
-            class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
-            :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_PHONE')"
-            @keyup.enter="applyFilters"
-          />
-          <input
-            v-model="filters.country"
-            class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
-            :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_COUNTRY')"
-            @keyup.enter="applyFilters"
-          />
-          <button
-            type="button"
-            class="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3"
-            @click="applyFilters"
-          >
-            <span class="i-lucide-search size-4" aria-hidden="true" />
-            {{ t('JABVOX_BULK_WA.LEADS.APPLY') }}
-          </button>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_NAME') }}
+            </label>
+            <input
+              v-model="filters.q"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_NAME')"
+              @keyup.enter="applyFilters"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_EMAIL') }}
+            </label>
+            <input
+              v-model="filters.email"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_EMAIL')"
+              @keyup.enter="applyFilters"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_PHONE') }}
+            </label>
+            <input
+              v-model="filters.phone"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_PHONE')"
+              @keyup.enter="applyFilters"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_COUNTRY') }}
+            </label>
+            <input
+              v-model="filters.country"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_COUNTRY')"
+              @keyup.enter="applyFilters"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_CAMPAIGN') }}
+            </label>
+            <select
+              v-model="filters.campaign_id"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              @change="applyFilters"
+            >
+              <option value="">{{ t('JABVOX_BULK_WA.LEADS.ALL') }}</option>
+              <option
+                v-for="c in filterOptions.campaigns || []"
+                :key="c.id"
+                :value="c.id"
+              >
+                {{ c.name }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_ASSIGNEE') }}
+            </label>
+            <select
+              v-model="filters.assignee_id"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              @change="applyFilters"
+            >
+              <option value="">{{ t('JABVOX_BULK_WA.LEADS.ALL') }}</option>
+              <option
+                v-for="a in filterOptions.assignees || []"
+                :key="a.id"
+                :value="a.id"
+              >
+                {{ a.name }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_TEAM') }}
+            </label>
+            <select
+              v-model="filters.team_id"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              @change="applyFilters"
+            >
+              <option value="">{{ t('JABVOX_BULK_WA.LEADS.ALL') }}</option>
+              <option
+                v-for="team in filterOptions.teams || []"
+                :key="team.id"
+                :value="team.id"
+              >
+                {{ team.name }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_INBOX') }}
+            </label>
+            <select
+              v-model="filters.inbox_id"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              @change="applyFilters"
+            >
+              <option value="">{{ t('JABVOX_BULK_WA.LEADS.ALL') }}</option>
+              <option
+                v-for="i in filterOptions.inboxes || []"
+                :key="i.id"
+                :value="i.id"
+              >
+                {{ i.name }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_AFFILIATE') }}
+            </label>
+            <select
+              v-model="filters.affiliate_id"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              @change="applyFilters"
+            >
+              <option value="">{{ t('JABVOX_BULK_WA.LEADS.ALL') }}</option>
+              <option value="own">
+                {{ t('JABVOX_BULK_WA.LEADS.AFFILIATE_OWN') }}
+              </option>
+              <option
+                v-for="aff in filterOptions.affiliates || []"
+                :key="aff.id"
+                :value="aff.id"
+              >
+                {{ aff.name }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_STATE') }}
+            </label>
+            <select
+              v-model="filters.management_state"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              @change="applyFilters"
+            >
+              <option value="">{{ t('JABVOX_BULK_WA.LEADS.ALL') }}</option>
+              <option
+                v-for="ms in filterOptions.management_states || []"
+                :key="ms.id"
+                :value="ms.id"
+              >
+                {{ ms.name }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_SOLD') }}
+            </label>
+            <select
+              v-model="filters.sold"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              @change="applyFilters"
+            >
+              <option value="">{{ t('JABVOX_BULK_WA.LEADS.ALL') }}</option>
+              <option v-for="opt in SOLD_OPTIONS" :key="opt" :value="opt">
+                {{ t(`JABVOX_BULK_WA.LEADS.SOLD_${opt.toUpperCase()}`) }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_STATUS') }}
+            </label>
+            <select
+              v-model="filters.status"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              @change="applyFilters"
+            >
+              <option value="">{{ t('JABVOX_BULK_WA.LEADS.ALL') }}</option>
+              <option v-for="st in STATUS_OPTIONS" :key="st" :value="st">
+                {{ t(`JABVOX_BULK_WA.LEADS.STATUS_${st.toUpperCase()}`) }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_DATE_FROM') }}
+            </label>
+            <input
+              v-model="filters.date_from"
+              type="date"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              @change="applyFilters"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_DATE_TO') }}
+            </label>
+            <input
+              v-model="filters.date_to"
+              type="date"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              @change="applyFilters"
+            />
+          </div>
+          <div class="flex items-end gap-2 lg:col-span-2">
+            <button
+              type="button"
+              class="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-n-brand text-white hover:opacity-90"
+              @click="applyFilters"
+            >
+              <span class="i-lucide-search size-4" aria-hidden="true" />
+              {{ t('JABVOX_BULK_WA.LEADS.APPLY') }}
+            </button>
+            <button
+              v-if="activeFilterCount"
+              type="button"
+              class="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3"
+              @click="clearFilters"
+            >
+              <span class="i-lucide-x size-4" aria-hidden="true" />
+              {{ t('JABVOX_BULK_WA.LEADS.CLEAR_FILTERS') }}
+            </button>
+          </div>
         </div>
 
         <!-- Custom-field filters (dynamic, from the account's lead custom columns) -->

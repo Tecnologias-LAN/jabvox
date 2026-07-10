@@ -21,9 +21,7 @@
       "STATUSES": "Estados",
       "INTEGRATION": "Integración",
       "CONFIG": "Configuración",
-      "PDF": "PDF",
-      "SALES_REPORTS": "Informes de ventas",
-      "REPORT_ACCESS": "Acceso a informes"
+      "PDF": "PDF"
     },
     "COLS": {
       "NAME": "Nombre",
@@ -170,20 +168,6 @@
       "SECTION_DESC": "Datos de tu empresa que aparecerán en las cotizaciones y facturas PDF.",
       "PREVIEW_TITLE": "Vista previa"
     },
-    "REPORTS": {
-      "TITLE": "Informes de ventas",
-      "PERMISSIONS_TAB": "Permisos de acceso",
-      "PERMISSIONS_TITLE": "Acceso a informes",
-      "PERMISSIONS_DESC": "Selecciona qué agentes pueden ver los informes de ventas.",
-      "NO_AGENTS": "No se encontraron agentes para esta cuenta.",
-      "COLS": {
-        "AGENT": "Agente",
-        "EMAIL": "Correo electrónico",
-        "ACCESS": "Acceso"
-      },
-      "SEARCH_PLACEHOLDER": "Buscar agentes...",
-      "GRANTED": "con acceso"
-    },
     "CONVERSATION": {
       "TAB_CHAT": "Chat",
       "TAB_PRODUCTS": "Productos",
@@ -207,46 +191,6 @@
       "ALREADY_SENT": "Ya enviado a Alegra",
       "HISTORY_TITLE": "Historial del contacto",
       "HISTORY_EMPTY": "No hay historial disponible para este contacto."
-    },
-    "SALES_REPORTS": {
-      "TITLE": "Informes de ventas",
-      "FILTER_FROM": "Desde",
-      "FILTER_TO": "Hasta",
-      "FILTER_PRODUCT": "Producto",
-      "FILTER_AGENT": "Agente",
-      "FILTER_TYPE": "Tipo",
-      "FILTER_ALL": "Todos",
-      "FILTER_QUOTES": "Cotizaciones",
-      "FILTER_SALES": "Ventas",
-      "APPLY": "Aplicar",
-      "TABS": {
-        "SUMMARY": "Resumen",
-        "QUOTES": "Cotizaciones",
-        "SALES": "Ventas"
-      },
-      "STATS": {
-        "TOTAL_QUOTES": "Total de cotizaciones",
-        "TOTAL_SALES": "Total de ventas",
-        "TOTAL_REVENUE": "Ingresos totales",
-        "CONVERSION": "Tasa de conversión"
-      },
-      "COLS": {
-        "ID": "#",
-        "TYPE": "Tipo",
-        "DATE": "Fecha",
-        "CONTACT": "Contacto",
-        "AGENT": "Agente",
-        "PRODUCTS": "Productos",
-        "STATUS": "Estado",
-        "TOTAL": "Total",
-        "PDF": "PDF"
-      },
-      "BY_PRODUCT": "Por producto",
-      "BY_AGENT": "Por agente",
-      "BY_STATUS": "Por estado",
-      "EMPTY": "No hay registros para el período seleccionado.",
-      "LOADING": "Cargando informe...",
-      "NO_RESULTS": "Sin resultados para los filtros."
     },
     "SUBTITLE": "Gestiona tu catálogo, descuentos, estados de pedido e integraciones de facturación.",
     "COMMON": {

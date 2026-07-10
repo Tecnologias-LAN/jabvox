@@ -26,7 +26,10 @@ const canRetry = computed(() => {
 
 <template>
   <div class="text-xs text-n-ruby-11 flex items-center gap-1.5">
-    <span>{{ t('CHAT_LIST.FAILED_TO_SEND') }}</span>
+    <!-- Show the real provider error (e.g. Meta "#131049 ...") inline so the
+         agent sees the actual cause, not just a generic label. Falls back to
+         the generic message when no provider error is present. -->
+    <span>{{ error || t('CHAT_LIST.FAILED_TO_SEND') }}</span>
     <div class="relative group">
       <div
         class="bg-n-alpha-2 rounded-md size-5 grid place-content-center cursor-pointer"

@@ -164,6 +164,13 @@ const openMapping = async source => {
       externalIdColumn: source.external_id_column_jabvox || '',
       map: { ...(source.field_mapping_jabvox || {}) },
       related: (source.related_tables_jabvox || []).map(r => ({ ...r })),
+      phonePrefix: source.phone_prefix_jabvox || '',
+      filters: (source.filters_jabvox || []).map(f => ({
+        column: f.column || '',
+        op: f.op || 'eq',
+        value: f.value ?? '',
+        value2: f.value2 ?? '',
+      })),
     };
   } catch (e) {
     useAlert(apiError(e, 'JABVOX_LEAD_IMPORT.SCHEMA_ERROR'));
@@ -196,6 +203,16 @@ const currentTableColumns = computed(() => {
   return [...own, ...related];
 });
 
+// Search box to filter the external columns (left side of the mapping table).
+const columnSearch = ref('');
+const filteredTableColumns = computed(() => {
+  const term = columnSearch.value.trim().toLowerCase();
+  if (!term) return currentTableColumns.value;
+  return currentTableColumns.value.filter(c =>
+    c.name.toLowerCase().includes(term)
+  );
+});
+
 const tableOptions = computed(() =>
   (mapping.value?.tables || []).map(x => ({ value: x.name, label: x.name }))
 );
@@ -223,14 +240,63 @@ const leadFieldOptions = computed(() => [
 // map holds { externalColumn: { target, kind } }; the Select's value is target (key).
 const mapValueFor = col => mapping.value.map[col]?.target || '';
 
+// Human label + destination type for a mapped target key (for the summary table).
+const leadFieldByKey = key =>
+  (mapping.value?.leadFields || []).find(f => f.key === key);
+const destLabelFor = key => leadFieldByKey(key)?.label || key;
+const destTypeFor = key => {
+  const f = leadFieldByKey(key);
+  if (!f) return '';
+  // Custom fields carry their own column_type; standard ones map to a friendly type.
+  const type = f.kind === 'custom' ? f.column_type || 'text' : 'text';
+  return t(`JABVOX_LEAD_IMPORT.FIELD_TYPES.${type.toUpperCase()}`);
+};
+const externalTypeFor = colName => {
+  const col = currentTableColumns.value.find(c => c.name === colName);
+  return col?.type || '';
+};
+
+// Every column that already has a destination field, for the summary table.
+const mappedEntries = computed(() =>
+  Object.entries(mapping.value?.map || {})
+    .filter(([, v]) => v && v.target)
+    .map(([col, v]) => ({
+      column: col,
+      externalType: externalTypeFor(col),
+      target: v.target,
+      destLabel: destLabelFor(v.target),
+      destType: destTypeFor(v.target),
+    }))
+);
+const unmappedCount = computed(
+  () => currentTableColumns.value.length - mappedEntries.value.length
+);
+const clearMapping = col => {
+  delete mapping.value.map[col];
+};
+
 // Create a new custom field on the fly and select it for this column. Prefills
 // the label with the external column name for convenience.
 const creatingFieldFor = ref(null);
 const newField = ref({ name: '', label: '', column_type: 'text' });
+// Infers a sensible field type from the external column's DB type so the user
+// doesn't have to pick it manually (and imports don't fail on bad casts).
+const inferFieldType = colName => {
+  const raw = (externalTypeFor(colName) || '').toLowerCase();
+  if (/int|serial|bigint|smallint/.test(raw)) return 'integer';
+  if (/decimal|numeric|float|double|real|money/.test(raw)) return 'float';
+  if (/bool|bit|tinyint\(1\)/.test(raw)) return 'boolean';
+  if (/date|time/.test(raw)) return 'date';
+  return 'text';
+};
 const startCreateField = col => {
   creatingFieldFor.value = col;
   const base = String(col).split('.').pop();
-  newField.value = { name: base, label: base, column_type: 'text' };
+  newField.value = {
+    name: base,
+    label: base,
+    column_type: inferFieldType(col),
+  };
 };
 
 // Selecting a lead field for a column. Choosing "Create field…" opens the modal
@@ -296,9 +362,24 @@ const cancelCreateField = () => {
 const allTableOptions = computed(() =>
   (mapping.value?.tables || []).map(x => ({ value: x.name, label: x.name }))
 );
-const mainTableColumnOptions = computed(() =>
-  columnsOf(mapping.value?.table).map(c => ({ value: c.name, label: c.name }))
-);
+// Options for the "Main table key" of a related table at position `index`.
+// It can reference a column of the main table (e.g. "id") OR a column of any
+// related table defined BEFORE it (e.g. "cstm.mg_c") — this enables chained
+// joins like leads → leads_cstm → lk_mail_plan.
+const mainTableKeyOptions = index => {
+  const opts = columnsOf(mapping.value?.table).map(c => ({
+    value: c.name,
+    label: c.name,
+  }));
+  (mapping.value?.related || []).slice(0, index).forEach(rel => {
+    const als = (rel.alias || rel.table || '').replace(/[^a-zA-Z0-9_]/g, '');
+    if (!rel.table || !als) return;
+    columnsOf(rel.table).forEach(c => {
+      opts.push({ value: `${als}.${c.name}`, label: `${als}.${c.name}` });
+    });
+  });
+  return opts;
+};
 const relatedColumnOptions = rel => {
   if (!rel.table) return [];
   return columnsOf(rel.table).map(c => ({ value: c.name, label: c.name }));
@@ -315,6 +396,34 @@ const removeRelated = index => {
   mapping.value.related.splice(index, 1);
 };
 
+// ---------- Sync filters ----------
+// Operators that filter by presence only — no value input is shown or sent.
+const OPS_WITHOUT_VALUE = ['null', 'not_null'];
+const filterOpOptions = computed(() =>
+  [
+    'eq',
+    'neq',
+    'gt',
+    'gte',
+    'lt',
+    'lte',
+    'between',
+    'contains',
+    'null',
+    'not_null',
+  ].map(op => ({
+    value: op,
+    label: t(`JABVOX_LEAD_IMPORT.FILTERS.OPS.${op.toUpperCase()}`),
+  }))
+);
+const filterNeedsValue = op => !OPS_WITHOUT_VALUE.includes(op);
+const addFilter = () => {
+  mapping.value.filters.push({ column: '', op: 'eq', value: '', value2: '' });
+};
+const removeFilter = index => {
+  mapping.value.filters.splice(index, 1);
+};
+
 const saveMapping = async () => {
   const m = mapping.value;
   if (!m.table || !m.externalIdColumn) {
@@ -325,12 +434,31 @@ const saveMapping = async () => {
   const related = (m.related || []).filter(
     r => r.table && r.local_key && r.foreign_key
   );
+  // Keep only complete filter rows; `between` needs both bounds, and the
+  // presence operators (null / not_null) are sent without values.
+  const filterRows = (m.filters || []).filter(f => f.column && f.op);
+  if (
+    filterRows.some(
+      f => f.op === 'between' && (f.value === '' || f.value2 === '')
+    )
+  ) {
+    useAlert(t('JABVOX_LEAD_IMPORT.FILTERS.BETWEEN_REQUIRED'));
+    return;
+  }
+  const filters = filterRows.map(f => ({
+    column: f.column,
+    op: f.op,
+    value: filterNeedsValue(f.op) ? f.value : '',
+    value2: f.op === 'between' ? f.value2 : '',
+  }));
   try {
     await leadSourcesAPI.update(m.source.id, {
       table_jabvox: m.table,
       external_id_column_jabvox: m.externalIdColumn,
       field_mapping_jabvox: m.map,
       related_tables_jabvox: related,
+      phone_prefix_jabvox: m.phonePrefix,
+      filters_jabvox: filters,
     });
     mapping.value = null;
     await loadSources();
@@ -577,7 +705,7 @@ onUnmounted(() => clearInterval(pollTimer));
               </span>
               <ComboBox
                 v-model="rel.local_key"
-                :options="mainTableColumnOptions"
+                :options="mainTableKeyOptions(i)"
                 :search-placeholder="t('JABVOX_LEAD_IMPORT.MAP.SEARCH_COLUMN')"
                 :empty-state="t('JABVOX_LEAD_IMPORT.MAP.NO_RESULTS')"
               />
@@ -607,32 +735,211 @@ onUnmounted(() => clearInterval(pollTimer));
           </div>
         </div>
 
-        <!-- Column → field mapping -->
-        <div
-          v-if="mapping.table"
-          class="rounded-xl border border-n-weak divide-y divide-n-weak"
-        >
-          <div
-            class="grid grid-cols-[1fr_1fr] gap-3 px-3 py-2 bg-n-alpha-1 text-[11px] font-semibold uppercase text-n-slate-10"
-          >
-            <span>{{ t('JABVOX_LEAD_IMPORT.MAP.EXTERNAL_COLUMN') }}</span>
-            <span>{{ t('JABVOX_LEAD_IMPORT.MAP.LEAD_FIELD') }}</span>
-          </div>
-          <div
-            v-for="col in currentTableColumns"
-            :key="col.name"
-            class="grid grid-cols-[1fr_1fr] gap-3 items-center px-3 py-2 text-sm"
-          >
-            <span class="text-n-slate-12 truncate">
-              {{ col.name }}
-              <span class="text-n-slate-10 text-xs">({{ col.type }})</span>
-            </span>
-            <Select
-              :model-value="mapValueFor(col.name)"
-              :options="leadFieldOptions"
-              @update:model-value="setMapValue(col.name, $event)"
+        <!-- Phone prefix (E.164 normalization) -->
+        <div v-if="mapping.table" class="flex flex-col gap-1.5">
+          <Input
+            v-model="mapping.phonePrefix"
+            class="max-w-[12rem]"
+            :label="t('JABVOX_LEAD_IMPORT.PHONE_PREFIX.LABEL')"
+            placeholder="57"
+          />
+          <p class="text-xs text-n-slate-11">
+            {{ t('JABVOX_LEAD_IMPORT.PHONE_PREFIX.HINT') }}
+          </p>
+        </div>
+
+        <!-- Sync filters (rows must match ALL of them) -->
+        <div v-if="mapping.table" class="flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-n-slate-12">
+                {{ t('JABVOX_LEAD_IMPORT.FILTERS.TITLE') }}
+              </p>
+              <p class="text-xs text-n-slate-11">
+                {{ t('JABVOX_LEAD_IMPORT.FILTERS.HINT') }}
+              </p>
+            </div>
+            <Button
+              :label="t('JABVOX_LEAD_IMPORT.FILTERS.ADD')"
+              variant="outline"
+              color="slate"
+              size="sm"
+              icon="i-lucide-plus"
+              @click="addFilter"
             />
           </div>
+
+          <div
+            v-for="(f, i) in mapping.filters"
+            :key="i"
+            class="grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto] gap-2 items-end rounded-xl border border-n-weak p-3"
+          >
+            <div class="flex flex-col gap-1">
+              <span class="text-xs text-n-slate-10">
+                {{ t('JABVOX_LEAD_IMPORT.FILTERS.COLUMN') }}
+              </span>
+              <ComboBox
+                v-model="f.column"
+                :options="idColumnOptions"
+                :search-placeholder="t('JABVOX_LEAD_IMPORT.MAP.SEARCH_COLUMN')"
+                :empty-state="t('JABVOX_LEAD_IMPORT.MAP.NO_RESULTS')"
+              />
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-xs text-n-slate-10">
+                {{ t('JABVOX_LEAD_IMPORT.FILTERS.OPERATOR') }}
+              </span>
+              <Select v-model="f.op" :options="filterOpOptions" />
+            </div>
+            <Input
+              v-if="filterNeedsValue(f.op)"
+              v-model="f.value"
+              :label="t('JABVOX_LEAD_IMPORT.FILTERS.VALUE')"
+            />
+            <div v-else />
+            <Input
+              v-if="f.op === 'between'"
+              v-model="f.value2"
+              :label="t('JABVOX_LEAD_IMPORT.FILTERS.VALUE2')"
+            />
+            <div v-else />
+            <Button
+              variant="ghost"
+              color="ruby"
+              size="sm"
+              icon="i-lucide-trash-2"
+              @click="removeFilter(i)"
+            />
+          </div>
+        </div>
+
+        <!-- Column → field mapping -->
+        <div v-if="mapping.table" class="flex flex-col gap-2">
+          <Input
+            v-model="columnSearch"
+            :placeholder="t('JABVOX_LEAD_IMPORT.MAP.SEARCH_COLUMN')"
+            class="max-w-xs"
+          />
+          <div class="rounded-xl border border-n-weak divide-y divide-n-weak">
+            <div
+              class="grid grid-cols-[1fr_1fr] gap-3 px-3 py-2 bg-n-alpha-1 text-[11px] font-semibold uppercase text-n-slate-10"
+            >
+              <span>{{ t('JABVOX_LEAD_IMPORT.MAP.EXTERNAL_COLUMN') }}</span>
+              <span>{{ t('JABVOX_LEAD_IMPORT.MAP.LEAD_FIELD') }}</span>
+            </div>
+            <div
+              v-for="col in filteredTableColumns"
+              :key="col.name"
+              class="grid grid-cols-[1fr_1fr] gap-3 items-center px-3 py-2 text-sm"
+            >
+              <span class="text-n-slate-12 truncate">
+                {{ col.name }}
+                <span class="text-n-slate-10 text-xs">({{ col.type }})</span>
+              </span>
+              <ComboBox
+                :model-value="mapValueFor(col.name)"
+                :options="leadFieldOptions"
+                :placeholder="t('JABVOX_LEAD_IMPORT.MAP.LEAD_FIELD')"
+                @update:model-value="setMapValue(col.name, $event)"
+              />
+            </div>
+            <div
+              v-if="!filteredTableColumns.length"
+              class="px-3 py-4 text-sm text-n-slate-10 text-center"
+            >
+              {{ t('JABVOX_LEAD_IMPORT.MAP.NO_COLUMNS') }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary of what has been mapped so far -->
+        <div v-if="mapping.table" class="flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <h4 class="text-sm font-semibold text-n-slate-12">
+              {{ t('JABVOX_LEAD_IMPORT.SUMMARY.TITLE') }}
+            </h4>
+            <span
+              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-n-teal-3 text-n-teal-11"
+            >
+              {{
+                t('JABVOX_LEAD_IMPORT.SUMMARY.MAPPED', {
+                  count: mappedEntries.length,
+                })
+              }}
+            </span>
+            <span
+              v-if="unmappedCount > 0"
+              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-n-amber-3 text-n-amber-11"
+            >
+              {{
+                t('JABVOX_LEAD_IMPORT.SUMMARY.UNMAPPED', {
+                  count: unmappedCount,
+                })
+              }}
+            </span>
+          </div>
+          <div
+            v-if="mappedEntries.length"
+            class="rounded-xl border border-n-weak overflow-hidden"
+          >
+            <table class="w-full text-sm">
+              <thead>
+                <tr
+                  class="bg-n-alpha-1 text-[11px] font-semibold uppercase text-n-slate-10 text-left"
+                >
+                  <th class="px-3 py-2">
+                    {{ t('JABVOX_LEAD_IMPORT.SUMMARY.SOURCE_COLUMN') }}
+                  </th>
+                  <th class="px-3 py-2">
+                    {{ t('JABVOX_LEAD_IMPORT.SUMMARY.SOURCE_TYPE') }}
+                  </th>
+                  <th class="px-3 py-2">
+                    {{ t('JABVOX_LEAD_IMPORT.SUMMARY.DEST_FIELD') }}
+                  </th>
+                  <th class="px-3 py-2">
+                    {{ t('JABVOX_LEAD_IMPORT.SUMMARY.DEST_TYPE') }}
+                  </th>
+                  <th class="px-3 py-2 w-10" />
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-n-weak">
+                <tr v-for="row in mappedEntries" :key="row.column">
+                  <td class="px-3 py-2 font-mono text-n-slate-12">
+                    {{ row.column }}
+                  </td>
+                  <td class="px-3 py-2 text-n-slate-10 text-xs">
+                    {{ row.externalType || '—' }}
+                  </td>
+                  <td class="px-3 py-2 text-n-slate-12">
+                    <span
+                      class="inline-flex items-center gap-1 before:content-['→'] before:text-n-slate-9"
+                    >
+                      {{ row.destLabel }}
+                    </span>
+                  </td>
+                  <td class="px-3 py-2">
+                    <span
+                      class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-n-alpha-1 text-n-slate-11"
+                    >
+                      {{ row.destType }}
+                    </span>
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <Button
+                      variant="ghost"
+                      color="ruby"
+                      size="sm"
+                      icon="i-lucide-x"
+                      @click="clearMapping(row.column)"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p v-else class="text-sm text-n-slate-10">
+            {{ t('JABVOX_LEAD_IMPORT.SUMMARY.EMPTY') }}
+          </p>
         </div>
 
         <div class="flex items-center gap-2">

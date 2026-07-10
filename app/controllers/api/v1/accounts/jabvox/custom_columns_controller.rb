@@ -17,12 +17,15 @@ class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::Ba
   end
 
   def update
+    old_name = @column.name_jabvox
     @column.update!(column_params)
+    migrate_stored_key(old_name, @column.name_jabvox) if @column.name_jabvox != old_name
     render json: column_json(@column)
   end
 
   def destroy
     @column.destroy!
+    purge_stored_key(@column.name_jabvox)
     head :no_content
   end
 
@@ -37,9 +40,7 @@ class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::Ba
   # Custom-role gate: users without a custom role keep historical access;
   # users with a custom role must be granted the capability (admins always pass).
   def ensure_module_permission
-    return if Current.account_user&.custom_role.nil?
-
-    jabvox_authorize!('jabvox_custom_data_manage')
+    jabvox_authorize_write!('jabvox_custom_data_manage')
   end
 
   def set_table
@@ -49,6 +50,37 @@ class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::Ba
   def set_column
     @column = @table.jabvox_custom_columns.find(params[:id])
   end
+
+  # Values live in jsonb payloads (row data_jabvox and, for lead-linked
+  # tables, jabvox_leads.custom_fields_jabvox). Definitions and stored values
+  # only stay consistent if keys are pruned/renamed alongside the column;
+  # otherwise every lead keeps orphaned keys forever.
+  # rubocop:disable Rails/SkipsModelValidations
+  def purge_stored_key(key)
+    @table.jabvox_custom_table_rows
+          .where('jsonb_exists(data_jabvox, :key)', key: key)
+          .update_all(['data_jabvox = data_jabvox - :key', { key: key }])
+    return unless @table.linked_to_jabvox == 'leads'
+
+    Current.account.jabvox_leads
+           .where('jsonb_exists(custom_fields_jabvox, :key)', key: key)
+           .update_all(['custom_fields_jabvox = custom_fields_jabvox - :key', { key: key }])
+  end
+
+  def migrate_stored_key(old_key, new_key)
+    @table.jabvox_custom_table_rows
+          .where('jsonb_exists(data_jabvox, :old)', old: old_key)
+          .update_all(['data_jabvox = (data_jabvox - :old) || jsonb_build_object(:new, data_jabvox -> :old)',
+                       { old: old_key, new: new_key }])
+    return unless @table.linked_to_jabvox == 'leads'
+
+    Current.account.jabvox_leads
+           .where('jsonb_exists(custom_fields_jabvox, :old)', old: old_key)
+           .update_all(['custom_fields_jabvox = (custom_fields_jabvox - :old) || ' \
+                        'jsonb_build_object(:new, custom_fields_jabvox -> :old)',
+                        { old: old_key, new: new_key }])
+  end
+  # rubocop:enable Rails/SkipsModelValidations
 
   def column_params
     params.require(:column).permit(

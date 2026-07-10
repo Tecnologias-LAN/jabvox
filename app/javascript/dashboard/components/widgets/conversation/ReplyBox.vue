@@ -23,6 +23,9 @@ import {
   noteRule,
   isManagementValid,
   buildManagementContentAttributes,
+  stateGroups,
+  statesInGroup,
+  hasGroups,
 } from 'dashboard/composables/jabvox/useManagementState';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
@@ -143,6 +146,7 @@ export default {
       hasRecordedAudio: false,
       copilotAcceptedMessages: {},
       jabvoxManagementStateId: null,
+      jabvoxManagementGroup: null,
       jabvoxManagementAnswers: {},
     };
   },
@@ -229,7 +233,11 @@ export default {
       );
     },
     jabvoxManagementStatesEnabled() {
-      return this.jabvoxManagementStates.length > 0;
+      // Gestión is no longer captured from the chat reply box — a private note
+      // here is just the note text. Gestión lives in the Notes tab and in
+      // click-to-call. Returning false hides the picker AND drops the
+      // "must pick a gestión" validation on chat private notes.
+      return false;
     },
     jabvoxManagementStateRequired() {
       return this.isOnPrivateNote && this.jabvoxManagementStatesEnabled;
@@ -237,6 +245,20 @@ export default {
     jabvoxSelectedState() {
       return this.jabvoxManagementStates.find(
         s => s.id === this.jabvoxManagementStateId
+      );
+    },
+    // Two-level picker (Estado → Subestado) when any active state has a group.
+    jabvoxManagementHasGroups() {
+      return hasGroups(this.jabvoxManagementStates);
+    },
+    jabvoxManagementGroups() {
+      return stateGroups(this.jabvoxManagementStates);
+    },
+    jabvoxManagementGroupStates() {
+      if (this.jabvoxManagementGroup === null) return [];
+      return statesInGroup(
+        this.jabvoxManagementStates,
+        this.jabvoxManagementGroup
       );
     },
     jabvoxNoteRule() {
@@ -475,6 +497,13 @@ export default {
     },
   },
   watch: {
+    // Changing the group invalidates a substate that belongs to another group.
+    jabvoxManagementGroup(group) {
+      const state = this.jabvoxSelectedState;
+      if (state && (state.state_group_jabvox || '') !== (group || '')) {
+        this.jabvoxManagementStateId = null;
+      }
+    },
     currentChat(conversation, oldConversation) {
       const { can_reply: canReply } = conversation;
       if (oldConversation && oldConversation.id !== conversation.id) {
@@ -1006,6 +1035,7 @@ export default {
       this.attachedFiles = [];
       this.isRecordingAudio = false;
       this.jabvoxManagementStateId = null;
+      this.jabvoxManagementGroup = null;
       this.jabvoxManagementAnswers = {};
       this.resetReplyToMessage();
       this.resetAudioRecorderInput();
@@ -1421,33 +1451,102 @@ export default {
 
         <div
           v-if="isOnPrivateNote && jabvoxManagementStatesEnabled"
-          class="flex items-center gap-2 px-1 pb-1"
+          class="px-1 pb-1"
         >
-          <label
-            class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap flex-shrink-0"
-          >
-            {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.LABEL') }}
-          </label>
-          <select
-            v-model="jabvoxManagementStateId"
-            class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200"
-            :class="
-              jabvoxManagementStateId
-                ? 'border-slate-200 dark:border-slate-600'
-                : 'border-amber-400 dark:border-amber-500'
-            "
-          >
-            <option :value="null" disabled>
-              {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.PLACEHOLDER') }}
-            </option>
-            <option
-              v-for="s in jabvoxManagementStates"
-              :key="s.id"
-              :value="s.id"
+          <!-- Two-level picker: Estado (grupo) → Subestado -->
+          <template v-if="jabvoxManagementHasGroups">
+            <div class="flex items-center gap-2">
+              <label
+                class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap flex-shrink-0"
+              >
+                {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.GROUP_LABEL') }}
+              </label>
+              <select
+                v-model="jabvoxManagementGroup"
+                class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+                :class="
+                  jabvoxManagementGroup !== null
+                    ? 'border-slate-200 dark:border-slate-600'
+                    : 'border-amber-400 dark:border-amber-500'
+                "
+              >
+                <option :value="null" disabled>
+                  {{
+                    $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.GROUP_PLACEHOLDER')
+                  }}
+                </option>
+                <option v-for="g in jabvoxManagementGroups" :key="g" :value="g">
+                  {{ g || $t('JABVOX_MANAGEMENT_STATES.UNGROUPED') }}
+                </option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2 mt-1">
+              <label
+                class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap flex-shrink-0"
+              >
+                {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.SUBSTATE_LABEL') }}
+              </label>
+              <select
+                v-model="jabvoxManagementStateId"
+                :disabled="jabvoxManagementGroup === null"
+                class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-60"
+                :class="
+                  jabvoxManagementStateId
+                    ? 'border-slate-200 dark:border-slate-600'
+                    : 'border-amber-400 dark:border-amber-500'
+                "
+              >
+                <option :value="null" disabled>
+                  {{
+                    $t(
+                      'JABVOX_MANAGEMENT_STATES.REPLY_BOX.SUBSTATE_PLACEHOLDER'
+                    )
+                  }}
+                </option>
+                <option
+                  v-for="s in jabvoxManagementGroupStates"
+                  :key="s.id"
+                  :value="s.id"
+                >
+                  {{ s.name_jabvox }}
+                </option>
+              </select>
+            </div>
+          </template>
+          <!-- Flat picker (accounts without groups) -->
+          <div v-else class="flex items-center gap-2">
+            <label
+              class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap flex-shrink-0"
             >
-              {{ s.name_jabvox }}
-            </option>
-          </select>
+              {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.LABEL') }}
+            </label>
+            <select
+              v-model="jabvoxManagementStateId"
+              class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+              :class="
+                jabvoxManagementStateId
+                  ? 'border-slate-200 dark:border-slate-600'
+                  : 'border-amber-400 dark:border-amber-500'
+              "
+            >
+              <option :value="null" disabled>
+                {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.PLACEHOLDER') }}
+              </option>
+              <option
+                v-for="s in jabvoxManagementStates"
+                :key="s.id"
+                :value="s.id"
+              >
+                {{ s.name_jabvox }}
+              </option>
+            </select>
+          </div>
+          <p
+            v-if="jabvoxSelectedState && jabvoxSelectedState.usage_info_jabvox"
+            class="mt-1 text-xs text-slate-500 dark:text-slate-400"
+          >
+            {{ jabvoxSelectedState.usage_info_jabvox }}
+          </p>
         </div>
 
         <ManagementQuestionsForm
