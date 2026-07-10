@@ -1,4 +1,5 @@
 class Api::V1::Accounts::Jabvox::DialerCallLogsController < Api::V1::Accounts::Jabvox::BaseController
+  jabvox_feature 'jabvox_dialer'
   include JabvoxPermissions
 
   before_action :ensure_module_permission

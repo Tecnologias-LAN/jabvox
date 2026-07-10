@@ -84,6 +84,74 @@ const doDelete = async id => {
     useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.SAVE_ERROR'));
   }
 };
+
+// ─── JSON export / import ───
+// The file is DATA only: parsed with JSON.parse (never executes code),
+// size/type-checked here, and re-validated field-by-field on the backend.
+const MAX_IMPORT_BYTES = 2 * 1024 * 1024; // 2 MB
+const importInput = ref(null);
+const importing = ref(false);
+
+const onExport = async () => {
+  try {
+    const { data } = await typificationsAPI.export();
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `jabvox-tipificaciones-${stamp}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.SAVE_ERROR'));
+  }
+};
+
+const onImportClick = () => importInput.value?.click();
+
+const onImportFile = async event => {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  if (file.size > MAX_IMPORT_BYTES) {
+    useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.IMPORT_TOO_BIG'));
+    return;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch {
+    useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.IMPORT_INVALID_JSON'));
+    return;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    useAlert(t('JABVOX_CLICK_TO_CALL.SETTINGS.IMPORT_INVALID_JSON'));
+    return;
+  }
+  importing.value = true;
+  try {
+    const { data } = await typificationsAPI.import(parsed);
+    useAlert(
+      t('JABVOX_CLICK_TO_CALL.SETTINGS.IMPORT_SUCCESS', {
+        created: data.created,
+        updated: data.updated,
+      })
+    );
+    await load();
+  } catch (error) {
+    const errs = error?.response?.data?.errors;
+    useAlert(
+      Array.isArray(errs) && errs.length
+        ? errs.slice(0, 3).join(' · ')
+        : t('JABVOX_CLICK_TO_CALL.SETTINGS.IMPORT_ERROR')
+    );
+  } finally {
+    importing.value = false;
+  }
+};
 </script>
 
 <template>
@@ -108,12 +176,33 @@ const doDelete = async id => {
             </p>
           </div>
         </div>
-        <Button
-          :label="t('JABVOX_CLICK_TO_CALL.SETTINGS.NEW')"
-          icon="i-lucide-plus"
-          class="shrink-0"
-          @click="formDialog?.openCreate()"
-        />
+        <div class="flex items-center gap-2 shrink-0">
+          <Button
+            :label="t('JABVOX_CLICK_TO_CALL.SETTINGS.IMPORT')"
+            icon="i-lucide-upload"
+            slate
+            :is-loading="importing"
+            @click="onImportClick"
+          />
+          <Button
+            :label="t('JABVOX_CLICK_TO_CALL.SETTINGS.EXPORT')"
+            icon="i-lucide-download"
+            slate
+            @click="onExport"
+          />
+          <input
+            ref="importInput"
+            type="file"
+            accept=".json,application/json"
+            class="hidden"
+            @change="onImportFile"
+          />
+          <Button
+            :label="t('JABVOX_CLICK_TO_CALL.SETTINGS.NEW')"
+            icon="i-lucide-plus"
+            @click="formDialog?.openCreate()"
+          />
+        </div>
       </div>
 
       <!-- Loading -->

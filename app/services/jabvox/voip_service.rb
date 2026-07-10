@@ -10,6 +10,7 @@ module Jabvox
     end
 
     def originate(extension:, phone:, caller_id: nil)
+      phone = Jabvox::PhoneNormalizer.for_dialing(phone)
       with_ami do |socket|
         params = {
           channel: "SIP/#{extension}",
@@ -31,6 +32,7 @@ module Jabvox
     # Inherited __CTCALL_* variables let the AMI listener correlate the Hangup
     # back to the call log (and capture the recording uniqueid).
     def originate_click_to_call(extension:, phone:, call_log_id:, user_id:, caller_id: nil)
+      phone = Jabvox::PhoneNormalizer.for_dialing(phone)
       with_ami do |socket|
         params = {
           channel: "SIP/#{extension}",

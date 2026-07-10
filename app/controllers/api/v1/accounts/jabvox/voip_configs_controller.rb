@@ -2,6 +2,7 @@ require 'socket'
 require 'timeout'
 
 class Api::V1::Accounts::Jabvox::VoipConfigsController < Api::V1::Accounts::Jabvox::BaseController
+  jabvox_feature 'jabvox_voip'
   include JabvoxPermissions
 
   before_action :check_authorization

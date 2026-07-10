@@ -1,4 +1,5 @@
 class Api::V1::Accounts::Jabvox::SmtpConfigsController < Api::V1::Accounts::Jabvox::BaseController
+  jabvox_feature 'jabvox_email'
   include JabvoxPermissions
 
   before_action :ensure_module_permission

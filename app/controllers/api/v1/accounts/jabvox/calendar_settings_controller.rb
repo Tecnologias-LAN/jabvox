@@ -1,4 +1,5 @@
 class Api::V1::Accounts::Jabvox::CalendarSettingsController < Api::V1::Accounts::Jabvox::BaseController
+  jabvox_feature 'jabvox_calendar'
   include JabvoxPermissions
 
   before_action :ensure_calendar_permission

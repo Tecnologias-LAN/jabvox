@@ -495,7 +495,12 @@ Rails.application.routes.draw do
               get 'analysis/:uniqueid', to: 'reports#analysis', constraints: { uniqueid: %r{[^/]+} }
               get 'analysis/:uniqueid/recording', to: 'reports#recording', constraints: { uniqueid: %r{[^/]+} }
             end
-            resources :typifications, only: [:index, :create, :update, :destroy]
+            resources :typifications, only: [:index, :create, :update, :destroy] do
+              collection do
+                get :export
+                post :import
+              end
+            end
             namespace :click_to_call do
               resources :calls, only: [:create, :destroy]
               resources :call_logs, only: [:index, :show, :update]

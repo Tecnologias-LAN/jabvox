@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::BaseController
+  # Multi-module report panel: gated by per-action permissions (reports_view)
+  # and per-action module checks (ensure_products_module), not a single flag.
+  jabvox_feature :none
   include JabvoxPermissions
 
   # Report views are gated by jabvox_reports_view. set_dialer_state is excluded:

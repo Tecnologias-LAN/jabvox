@@ -1,4 +1,7 @@
 class Api::V1::Accounts::Jabvox::ManagementStatesController < Api::V1::Accounts::Jabvox::BaseController
+  # Management states are not a toggleable module; access is gated by the
+  # jabvox_management_states_manage permission, not by a feature flag.
+  jabvox_feature :none
   include JabvoxPermissions
 
   skip_before_action :check_feature_enabled

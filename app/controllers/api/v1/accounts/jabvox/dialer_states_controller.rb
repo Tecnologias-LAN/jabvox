@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Jabvox::DialerStatesController < Api::V1::Accounts::Jabvox::BaseController
+  jabvox_feature 'jabvox_dialer'
   include JabvoxPermissions
 
   before_action :ensure_module_permission

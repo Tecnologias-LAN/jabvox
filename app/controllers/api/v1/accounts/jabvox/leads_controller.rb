@@ -66,6 +66,8 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     leads = Current.account.jabvox_leads.where(id: params[:lead_ids])
     count = leads.count
     leads.update_all(assignee_id: assignee.id)
+    # Keep the contacts' open conversations owned by the same agent.
+    Jabvox::LeadConversationAssignmentSync.new(Current.account).sync_leads(leads.to_a, assignee)
     ActionCable.server.broadcast(
       "account_#{Current.account.id}",
       {
@@ -177,6 +179,9 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
 
     assignee = params[:assignee_id].present? ? Current.account.users.find(params[:assignee_id]) : nil
     lead.update!(assignee: assignee)
+    # Follow the lead's new owner on the contact's open conversations (no-op if
+    # unassigned — we don't pull conversations away from an agent on unassign).
+    Jabvox::LeadConversationAssignmentSync.new(Current.account).sync_lead(lead, assignee)
   end
 
   def update_campaign(lead)

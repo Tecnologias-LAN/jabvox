@@ -1,4 +1,5 @@
 class Api::V1::Accounts::Jabvox::SalesReportsController < Api::V1::Accounts::Jabvox::BaseController
+  jabvox_feature 'jabvox_products'
   include JabvoxPermissions
 
   before_action :check_authorization

@@ -3,6 +3,7 @@
 # Receives real-time dialer events from the isabell backend and forwards them
 # to the relevant agent via ActionCable.
 class Api::V1::Accounts::Jabvox::DialerEventsController < Api::V1::Accounts::Jabvox::BaseController
+  jabvox_feature 'jabvox_dialer'
   include JabvoxPermissions
 
   before_action :require_admin

@@ -1,4 +1,5 @@
 class Api::V1::Accounts::Jabvox::KanbanBoardController < Api::V1::Accounts::Jabvox::BaseController
+  jabvox_feature 'jabvox_kanban'
   include JabvoxPermissions
 
   before_action :fetch_funnel

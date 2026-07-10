@@ -26,12 +26,47 @@ class Api::V1::Accounts::Jabvox::TypificationsController < Api::V1::Accounts::Ba
     head :no_content
   end
 
+  # Portable JSON of every typification (no DB ids), the same shape `import`
+  # accepts — export from one account, import into another.
+  def export
+    typifications = Current.account.jabvox_typifications.ordered
+    render json: {
+      version: 1,
+      exported_at: Time.current.iso8601,
+      typifications: typifications.map do |tp|
+        { name: tp.name, description: tp.description, is_active: tp.is_active }
+      end
+    }
+  end
+
+  # Imports typifications from an uploaded JSON. The service re-validates every
+  # field against a strict whitelist; the file is data only (nothing executes).
+  def import
+    result = Jabvox::TypificationsImportService.new(Current.account, import_payload).call
+    if result.valid?
+      render json: { created: result.created, updated: result.updated }
+    else
+      render json: { errors: result.errors }, status: :unprocessable_entity
+    end
+  end
+
   private
 
-  # Custom-role gate: users without a custom role keep historical access;
-  # users with a custom role must be granted the capability (admins always pass).
+  def import_payload
+    raw = params[:data]
+    raw = raw.permit!.to_h if raw.respond_to?(:permit!)
+    raw.is_a?(Hash) ? raw : {}
+  end
+
+  # Writes require the manage permission; export/import are management actions
+  # too (they pull or replace the whole catalog), so they require it as well.
+  # index stays open to any account member. Admins always pass.
   def ensure_module_permission
-    jabvox_authorize_write!('jabvox_typifications_manage')
+    if %w[export import].include?(action_name)
+      jabvox_authorize!('jabvox_typifications_manage')
+    else
+      jabvox_authorize_write!('jabvox_typifications_manage')
+    end
   end
 
   def set_typification

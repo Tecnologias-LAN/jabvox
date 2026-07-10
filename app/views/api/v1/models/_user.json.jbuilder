@@ -30,6 +30,10 @@ json.accounts do
     json.active_at account_user.active_at
     json.role account_user.role
     json.permissions account_user.permissions
+    # Enabled feature flags per account, used by the router guard to block
+    # direct-URL access to disabled Jabvox modules before the accounts store
+    # is populated.
+    json.features account_user.account.enabled_features
     # the actual availability user has configured
     json.availability account_user.availability
     # availability derived from presence

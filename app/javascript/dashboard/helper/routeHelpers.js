@@ -17,6 +17,25 @@ export const routeIsAccessibleFor = (route, userPermissions = []) => {
   return hasPermissions(routePermissions, userPermissions);
 };
 
+// A route may declare `meta.featureFlag` to require that a module be enabled
+// for the current account. This blocks direct-URL navigation (not just hiding
+// the sidebar link) when the module is disabled for the account. The account's
+// enabled features are read from the authenticated user's account list, which
+// is available on the very first navigation (see _user.json.jbuilder).
+export const routeFeatureFlagEnabled = (route, user, accountId) => {
+  const { meta: { featureFlag } = {} } = route;
+  if (!featureFlag) {
+    return true;
+  }
+  const currentAccount = getCurrentAccount(user, Number(accountId));
+  // Fail-open only when the account payload is genuinely absent; if features
+  // are present we honor them strictly so a disabled module stays blocked.
+  if (!currentAccount || currentAccount.features === undefined) {
+    return true;
+  }
+  return currentAccount.features[featureFlag] === true;
+};
+
 export const defaultRedirectPage = (to, permissions) => {
   const { accountId } = to.params;
 
@@ -50,7 +69,17 @@ const validateActiveAccountRoutes = (to, user) => {
 
   const isAccessible = routeIsAccessibleFor(to, userPermissions);
   // If the route is not accessible for the user, return to dashboard screen
-  return isAccessible ? null : defaultRedirectPage(to, userPermissions);
+  if (!isAccessible) {
+    return defaultRedirectPage(to, userPermissions);
+  }
+
+  // If the route requires a module (feature flag) that is disabled for the
+  // account, block direct-URL navigation and redirect to the dashboard.
+  if (!routeFeatureFlagEnabled(to, user, to.params.accountId)) {
+    return defaultRedirectPage(to, userPermissions);
+  }
+
+  return null;
 };
 
 export const validateLoggedInRoutes = (to, user) => {

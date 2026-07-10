@@ -1,4 +1,5 @@
 class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::Jabvox::BaseController # rubocop:disable Metrics/ClassLength
+  jabvox_feature 'jabvox_dialer'
   include JabvoxPermissions
 
   before_action :ensure_module_permission

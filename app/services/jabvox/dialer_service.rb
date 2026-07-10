@@ -224,6 +224,9 @@ class Jabvox::DialerService
   end
 
   def build_originate_params(phone, extension, context, caller_id, campaign, contact, user_id, call_log_id) # rubocop:disable Metrics/ParameterLists, Metrics/MethodLength
+    # Dial with the country prefix but WITHOUT the leading "+" (see PhoneNormalizer):
+    # Asterisk's dial plan expects bare digits, so "+573054473380" -> "573054473380".
+    phone   = Jabvox::PhoneNormalizer.for_dialing(phone)
     trunk   = @config.dialer_trunk.presence
     channel = trunk ? "SIP/#{phone}@#{trunk}" : "SIP/#{extension}"
     exten   = trunk ? 's' : phone

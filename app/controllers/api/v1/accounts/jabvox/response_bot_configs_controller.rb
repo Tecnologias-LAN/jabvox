@@ -1,4 +1,5 @@
 class Api::V1::Accounts::Jabvox::ResponseBotConfigsController < Api::V1::Accounts::Jabvox::BaseController
+  jabvox_feature 'jabvox_response_bot'
   include JabvoxPermissions
 
   before_action :ensure_module_permission

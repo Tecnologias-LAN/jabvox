@@ -108,9 +108,12 @@ class Jabvox::LeadImport::SyncService
       foreign = rel['foreign_key']
       next if tbl.blank? || local.blank? || foreign.blank?
 
-      # Expose related columns as "als.col" via per-column aliases.
+      # Expose related columns as "als.col" via per-column aliases. The alias
+      # itself contains a dot ("cstm.saldo_c"), so it must be quoted as ONE
+      # identifier — quote_identifier would split it on the dot and emit
+      # `cstm`.`col` (invalid as an alias). quote_alias keeps it atomic.
       column_names(adapter, tbl).each do |col|
-        select_parts << "#{q.call(als)}.#{q.call(col)} AS #{q.call("#{als}.#{col}")}"
+        select_parts << "#{q.call(als)}.#{q.call(col)} AS #{quote_alias(adapter, "#{als}.#{col}")}"
       end
       # local_key may reference the main table (e.g. "id") or a previously
       # joined alias (e.g. "cstm.mg_c") — this enables chained joins.
@@ -191,6 +194,18 @@ class Jabvox::LeadImport::SyncService
   # An alias must be a bare identifier; strip anything unsafe.
   def safe_alias(name)
     name.to_s.gsub(/[^a-zA-Z0-9_]/, '')
+  end
+
+  # Quotes a column alias as ONE atomic identifier. Unlike quote_identifier
+  # (which splits on '.' to build table.column references), an alias like
+  # "cstm.saldo_c" is a single name and the dot is part of it. We derive the
+  # DB's quote char from quote_identifier of a dot-free token, then wrap the
+  # sanitized alias (safe chars + dot) in it.
+  def quote_alias(adapter, name)
+    quoted = adapter.quote_identifier('x') # => `x` (mysql) or "x" (postgres)
+    q = quoted[0]
+    cleaned = name.to_s.gsub(/[^a-zA-Z0-9_.]/, '')
+    "#{q}#{cleaned}#{q}"
   end
 
   # Splits a local_key into [table_ref, column]. "cstm.mg_c" joins against the

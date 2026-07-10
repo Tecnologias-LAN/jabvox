@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::Jabvox::BaseController # rubocop:disable Metrics/ClassLength
+  jabvox_feature 'jabvox_dialer'
   include JabvoxPermissions
 
   before_action :ensure_module_permission
@@ -234,6 +235,8 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     # rubocop:disable Rails/SkipsModelValidations
     lead.update_columns(assignee_id: user.id, updated_at: Time.current)
     # rubocop:enable Rails/SkipsModelValidations
+    # The agent who took the call now owns the lead — its open conversations follow.
+    Jabvox::LeadConversationAssignmentSync.new(Current.account).sync_lead(lead, user)
   rescue StandardError => e
     Rails.logger.error("[Dialer] assign_lead_to_agent failed | lead_contact=#{contact.contact_id} #{e.class}: #{e.message}")
   end

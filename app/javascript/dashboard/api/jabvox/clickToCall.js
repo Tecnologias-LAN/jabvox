@@ -28,4 +28,6 @@ export const typificationsAPI = {
   update: (id, typification) =>
     axios.patch(`${typificationsClient.url}/${id}`, { typification }),
   destroy: id => axios.delete(`${typificationsClient.url}/${id}`),
+  export: () => axios.get(`${typificationsClient.url}/export`),
+  import: data => axios.post(`${typificationsClient.url}/import`, { data }),
 };

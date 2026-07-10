@@ -1,4 +1,5 @@
 class Api::V1::Accounts::Jabvox::SmsMessagesController < Api::V1::Accounts::Jabvox::BaseController
+  jabvox_feature 'jabvox_sms'
   include JabvoxPermissions
 
   before_action :ensure_module_permission
