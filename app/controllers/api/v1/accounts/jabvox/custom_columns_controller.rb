@@ -85,8 +85,8 @@ class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::Ba
   def column_params
     params.require(:column).permit(
       :name_jabvox, :label_jabvox, :column_type_jabvox,
-      :required_jabvox, :position_jabvox,
-      options_jabvox: []
+      :required_jabvox, :position_jabvox, :depends_on_jabvox,
+      options_jabvox: [], show_when_jabvox: []
     )
   end
 
@@ -99,7 +99,9 @@ class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::Ba
       column_type_jabvox: col.column_type_jabvox,
       options_jabvox: col.options_jabvox,
       required_jabvox: col.required_jabvox,
-      position_jabvox: col.position_jabvox
+      position_jabvox: col.position_jabvox,
+      depends_on_jabvox: col.depends_on_jabvox,
+      show_when_jabvox: col.show_when_jabvox
     }
   end
 end

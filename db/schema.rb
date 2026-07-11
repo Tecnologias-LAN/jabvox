@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_10_010001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_11_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -893,15 +893,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_10_010001) do
     t.index ["name", "account_id"], name: "index_email_templates_on_name_and_account_id", unique: true
   end
 
-  create_table "ext_leads_stress", id: :serial, force: :cascade do |t|
-    t.string "nombre", limit: 120
-    t.string "telefono", limit: 30
-    t.string "correo", limit: 120
-    t.integer "activo"
-    t.date "fecha_creacion"
-    t.string "documento", limit: 20
-  end
-
   create_table "folders", force: :cascade do |t|
     t.integer "account_id", null: false
     t.integer "category_id", null: false
@@ -1721,6 +1712,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_10_010001) do
     t.integer "position_jabvox", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "depends_on_jabvox"
+    t.jsonb "show_when_jabvox", default: [], null: false
     t.index ["jabvox_custom_table_id", "name_jabvox"], name: "idx_jabvox_custom_columns_table_name", unique: true
     t.index ["jabvox_custom_table_id"], name: "index_jabvox_custom_columns_on_jabvox_custom_table_id"
   end

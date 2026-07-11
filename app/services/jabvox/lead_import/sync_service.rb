@@ -252,6 +252,21 @@ class Jabvox::LeadImport::SyncService
     @account.jabvox_leads.find_or_create_by!(contact: contact)
   end
 
+  # Ensures the lead's campaign is the one named after this connection (the
+  # source name). Created once per account and reused; only sets it when the
+  # lead has no campaign yet, so a manually-chosen campaign is never overwritten.
+  def assign_import_campaign(lead)
+    return if @source.name_jabvox.blank?
+    return if lead.jabvox_campaign_id.present?
+
+    @import_campaign ||= JabvoxCampaign.find_or_create_by!(
+      account: @account, name_jabvox: @source.name_jabvox.strip
+    )
+    lead.update_column(:jabvox_campaign_id, @import_campaign.id) # rubocop:disable Rails/SkipsModelValidations
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique
+    nil
+  end
+
   def find_contact_by_phone(phone)
     return nil if phone.blank?
 
@@ -326,6 +341,9 @@ class Jabvox::LeadImport::SyncService
     contact.additional_attributes = attrs
     save_contact(contact)
     lead.save!
+    # Tag with the connection-named campaign (runs on both create and update so
+    # a re-sync backfills leads imported before this was added).
+    assign_import_campaign(lead)
     apply_custom_fields(lead, custom) if custom.any?
   end
 
@@ -368,16 +386,31 @@ class Jabvox::LeadImport::SyncService
     contact.phone_number = phone if phone.present?
   end
 
-  # Writes custom-field values into the lead's row of the "leads" custom table,
-  # casting each value to the column's declared type.
+  # Writes custom-field values for the lead. Values are written to BOTH stores so
+  # every screen sees them:
+  #   - lead.custom_fields_jabvox : the jsonb the lead DETAIL view renders
+  #     (show.json.jbuilder) and that manual edits update — this is what the user
+  #     sees per lead.
+  #   - jabvox_custom_table_rows.data_jabvox : the "leads" custom-table row used
+  #     by table-oriented views.
+  # Each value is cast to the column's declared type. Keys are the column
+  # name_jabvox, matching how the sanitizer/detail view key their data.
   def apply_custom_fields(lead, custom)
     table = @account.jabvox_custom_tables.find_by(linked_to_jabvox: 'leads')
     return unless table
 
     types = table.jabvox_custom_columns.pluck(:name_jabvox, :column_type_jabvox).to_h
     casted = custom.each_with_object({}) do |(key, value), acc|
+      next unless types.key?(key) # only known columns, so the detail view can label them
+
       acc[key] = cast_value(value, types[key])
     end
+    return if casted.empty?
+
+    # Detail view + manual edits read this jsonb on the lead itself.
+    lead.update!(custom_fields_jabvox: (lead.custom_fields_jabvox || {}).merge(casted))
+
+    # Table-oriented views read the custom-table row.
     row = lead.jabvox_custom_table_rows.find_or_initialize_by(jabvox_custom_table: table)
     row.data_jabvox = (row.data_jabvox || {}).merge(casted)
     row.save!

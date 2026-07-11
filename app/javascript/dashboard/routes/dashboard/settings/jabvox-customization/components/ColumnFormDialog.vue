@@ -6,13 +6,25 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
 
-defineProps({
+const props = defineProps({
   isSaving: { type: Boolean, default: false },
+  // Existing columns of the same table, so a conditional column can point at a
+  // controlling one. Passed by the parent (ColumnsTab).
+  columns: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['submit']);
 
-const COLUMN_TYPES = ['text', 'integer', 'float', 'boolean', 'date', 'select'];
+const COLUMN_TYPES = [
+  'text',
+  'textarea',
+  'integer',
+  'float',
+  'boolean',
+  'date',
+  'select',
+  'multiselect',
+];
 
 const { t } = useI18n();
 
@@ -26,6 +38,8 @@ const emptyForm = () => ({
   column_type_jabvox: 'text',
   required_jabvox: false,
   options_text: '',
+  depends_on_jabvox: '',
+  show_when_text: '',
 });
 const form = ref(emptyForm());
 
@@ -42,13 +56,30 @@ const title = computed(() =>
     : t('JABVOX_CUSTOMIZATION.COLUMNS.NEW')
 );
 
-const isSelect = computed(() => form.value.column_type_jabvox === 'select');
+// select and multiselect both need the options list.
+const hasOptions = computed(() =>
+  ['select', 'multiselect'].includes(form.value.column_type_jabvox)
+);
+
+// Columns that can act as the controlling field: select/multiselect columns of
+// the same table, excluding the column being edited (a column can't depend on
+// itself). Empty option = "always visible".
+const dependencyOptions = computed(() => [
+  { value: '', label: t('JABVOX_CUSTOMIZATION.COLUMNS.CONDITION_NONE') },
+  ...props.columns
+    .filter(
+      c =>
+        c.id !== editingId.value &&
+        ['select', 'multiselect'].includes(c.column_type_jabvox)
+    )
+    .map(c => ({ value: c.name_jabvox, label: c.label_jabvox })),
+]);
 
 const isValid = computed(
   () =>
     form.value.name_jabvox.trim().length > 0 &&
     form.value.label_jabvox.trim().length > 0 &&
-    (!isSelect.value || form.value.options_text.trim().length > 0)
+    (!hasOptions.value || form.value.options_text.trim().length > 0)
 );
 
 const openCreate = () => {
@@ -67,13 +98,15 @@ const openEdit = col => {
     column_type_jabvox: col.column_type_jabvox,
     required_jabvox: col.required_jabvox,
     options_text: (col.options_jabvox || []).join(', '),
+    depends_on_jabvox: col.depends_on_jabvox || '',
+    show_when_text: (col.show_when_jabvox || []).join(', '),
   };
   nextTick(() => dialogRef.value?.open());
 };
 
 const close = () => dialogRef.value?.close();
 
-const parseOptions = text =>
+const parseList = text =>
   text
     .split(',')
     .map(s => s.trim())
@@ -87,8 +120,16 @@ const handleConfirm = () => {
     column_type_jabvox: form.value.column_type_jabvox,
     required_jabvox: form.value.required_jabvox,
   };
-  if (isSelect.value) {
-    values.options_jabvox = parseOptions(form.value.options_text);
+  if (hasOptions.value) {
+    values.options_jabvox = parseList(form.value.options_text);
+  }
+  // Only send a condition when a controlling column is chosen.
+  if (form.value.depends_on_jabvox) {
+    values.depends_on_jabvox = form.value.depends_on_jabvox;
+    values.show_when_jabvox = parseList(form.value.show_when_text);
+  } else {
+    values.depends_on_jabvox = null;
+    values.show_when_jabvox = [];
   }
   emit('submit', { mode: mode.value, id: editingId.value, values });
 };
@@ -134,10 +175,28 @@ defineExpose({ openCreate, openEdit, close });
       </div>
 
       <Input
-        v-if="isSelect"
+        v-if="hasOptions"
         v-model="form.options_text"
         :label="t('JABVOX_CUSTOMIZATION.COLUMNS.OPTIONS_LABEL')"
         :placeholder="t('JABVOX_CUSTOMIZATION.COLUMNS.OPTIONS_PLACEHOLDER')"
+      />
+
+      <!-- Conditional display -->
+      <div class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-n-slate-12">
+          {{ t('JABVOX_CUSTOMIZATION.COLUMNS.CONDITION_LABEL') }}
+        </span>
+        <span class="text-xs text-n-slate-11">
+          {{ t('JABVOX_CUSTOMIZATION.COLUMNS.CONDITION_HINT') }}
+        </span>
+        <Select v-model="form.depends_on_jabvox" :options="dependencyOptions" />
+      </div>
+
+      <Input
+        v-if="form.depends_on_jabvox"
+        v-model="form.show_when_text"
+        :label="t('JABVOX_CUSTOMIZATION.COLUMNS.SHOW_WHEN_LABEL')"
+        :placeholder="t('JABVOX_CUSTOMIZATION.COLUMNS.SHOW_WHEN_PLACEHOLDER')"
       />
 
       <div

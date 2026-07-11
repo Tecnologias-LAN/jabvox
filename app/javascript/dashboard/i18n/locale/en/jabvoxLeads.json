@@ -87,6 +87,8 @@
       "CANCEL": "Cancelar",
       "YES": "Sí",
       "NO": "No",
+      "SEARCH_FIELDS": "Buscar campo...",
+      "NO_FIELDS_MATCH": "Ningún campo coincide con tu búsqueda.",
       "CUSTOM_FIELDS_SAVED": "Campos guardados.",
       "CUSTOM_FIELDS_ERROR": "No se pudieron guardar los campos.",
       "LOADING": "Cargando lead...",
@@ -121,6 +123,7 @@
         "RECORDS": "Registros"
       },
       "INFO": {
+        "SECTION_TITLE": "Información",
         "LEAD_ID": "ID Lead",
         "CONTACT": "Contacto",
         "EMAIL": "Email",

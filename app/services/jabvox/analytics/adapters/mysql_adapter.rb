@@ -90,6 +90,11 @@ class Jabvox::Analytics::Adapters::MysqlAdapter < Jabvox::Analytics::Adapters::B
       username: data_source.username_jabvox,
       password: data_source.password_jabvox,
       database: data_source.database_jabvox,
+      # Read as utf8mb4 so accented letters and ñ (stored as UTF-8 in the source)
+      # arrive intact instead of being mangled by a mismatched default charset.
+      # Rows already corrupted at the origin (a literal "?" byte on disk) cannot
+      # be recovered — that is source data loss, not a read problem.
+      encoding: 'utf8mb4',
       connect_timeout: (timeout_ms / 1000.0).ceil,
       read_timeout: (timeout_ms / 1000.0).ceil,
       reconnect: false

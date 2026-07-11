@@ -35,7 +35,12 @@ class Api::V1::Accounts::Jabvox::CustomTableRowsController < Api::V1::Accounts::
     return render json: { errors: result.errors }, status: :unprocessable_entity unless result.valid?
 
     row = target_row(table)
-    row.data_jabvox = (row.data_jabvox || {}).merge(result.data)
+    # Merge the new answers over the existing ones, then DROP any column now
+    # hidden by its condition — so switching a controlling answer (e.g. the
+    # acompañamiento) clears the questions from the path no longer taken instead
+    # of leaving stale values behind.
+    merged = (row.data_jabvox || {}).merge(result.data)
+    row.data_jabvox = drop_hidden_answers(table, merged)
     row.save!
     render json: row_json(row)
   end
@@ -76,7 +81,10 @@ class Api::V1::Accounts::Jabvox::CustomTableRowsController < Api::V1::Accounts::
       label_jabvox: col.label_jabvox,
       column_type_jabvox: col.column_type_jabvox,
       options_jabvox: col.options_jabvox,
-      required_jabvox: col.required_jabvox
+      required_jabvox: col.required_jabvox,
+      position_jabvox: col.position_jabvox,
+      depends_on_jabvox: col.depends_on_jabvox,
+      show_when_jabvox: col.show_when_jabvox
     }
   end
 
@@ -95,6 +103,15 @@ class Api::V1::Accounts::Jabvox::CustomTableRowsController < Api::V1::Accounts::
 
   def find_table
     Current.account.jabvox_custom_tables.find(params[:id])
+  end
+
+  # Removes answers for columns whose condition is not met by the given data, so
+  # no stale value survives from a branch the user switched away from.
+  def drop_hidden_answers(table, data)
+    table.jabvox_custom_columns.each do |column|
+      data.delete(column.name_jabvox) unless column.visible_for?(data)
+    end
+    data
   end
 
   def render_single_table_error

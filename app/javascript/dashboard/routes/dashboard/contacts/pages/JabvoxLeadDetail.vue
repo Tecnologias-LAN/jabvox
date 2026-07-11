@@ -148,6 +148,28 @@ const leadsTable = computed(() => {
 
 const leadsTableColumns = computed(() => leadsTable.value?.columns || []);
 
+// ── Left-panel usability: collapsible sections + field search ──
+// The lead has many custom fields, so the info panel gets long and pushes the
+// action buttons below the fold. Sections can be collapsed to bring the buttons
+// into view without scrolling, and a search box filters the custom fields.
+const sectionsCollapsed = ref({ info: false, custom: false });
+const toggleSection = key => {
+  sectionsCollapsed.value = {
+    ...sectionsCollapsed.value,
+    [key]: !sectionsCollapsed.value[key],
+  };
+};
+
+const fieldSearch = ref('');
+// Custom-field columns filtered by the search box (matches the visible label).
+const filteredLeadsColumns = computed(() => {
+  const q = fieldSearch.value.trim().toLowerCase();
+  if (!q) return leadsTableColumns.value;
+  return leadsTableColumns.value.filter(col =>
+    (col.label_jabvox || '').toLowerCase().includes(q)
+  );
+});
+
 // ── Inline edit (contact fields + campaign + assignee + custom fields) ──
 // The whole left panel is read-only until "Editar" is pressed. Then the
 // editable fields turn into inputs and "Guardar"/"Cancelar" appear.
@@ -623,242 +645,307 @@ onMounted(async () => {
         </div>
 
         <!-- Info rows -->
-        <dl
-          class="rounded-xl border border-n-weak bg-n-background divide-y divide-n-weak overflow-hidden"
-        >
-          <!-- Phone (editable) -->
-          <div
-            v-if="isEditing || lead.contact.phone_number"
-            class="flex items-center gap-2 px-3 py-2.5"
-          >
-            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
-              {{ t('JABVOX_LEADS.DETAIL.INFO.PHONE') }}
-            </dt>
-            <input
-              v-if="isEditing"
-              v-model="editForm.phone_number"
-              class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
-            />
-            <dd
-              v-else
-              class="text-sm text-n-slate-12 font-mono truncate flex-1 text-right"
-            >
-              {{ lead.contact.phone_number || '—' }}
-            </dd>
-          </div>
-          <!-- Email (editable) -->
-          <div class="flex items-center gap-2 px-3 py-2.5">
-            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
-              {{ t('JABVOX_LEADS.DETAIL.INFO.EMAIL') }}
-            </dt>
-            <input
-              v-if="isEditing"
-              v-model="editForm.email"
-              type="email"
-              class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
-            />
-            <dd
-              v-else
-              class="text-sm text-n-slate-12 truncate flex-1 text-right"
-            >
-              {{ lead.contact.email || '—' }}
-            </dd>
-          </div>
-          <!-- Documento (solo lectura, viene de la BD externa / additional_attributes) -->
-          <div
-            v-if="contactIdentification"
-            class="flex items-center gap-2 px-3 py-2.5"
-          >
-            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
-              {{ t('JABVOX_LEADS.DETAIL.INFO.DOCUMENT') }}
-            </dt>
-            <dd
-              class="text-sm text-n-slate-12 font-mono truncate flex-1 text-right"
-            >
-              {{ contactIdentification }}
-            </dd>
-          </div>
-          <!-- Tipo de persona (solo lectura, por defecto persona) -->
-          <div class="flex items-center gap-2 px-3 py-2.5">
-            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
-              {{ t('JABVOX_LEADS.DETAIL.INFO.CONTACT_TYPE') }}
-            </dt>
-            <dd class="flex-1 text-right">
-              <span
-                class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-n-alpha-1 text-n-slate-11"
-              >
-                {{ contactTypeLabel }}
-              </span>
-            </dd>
-          </div>
-          <!-- Country (editable) -->
-          <div
-            v-if="isEditing || lead.contact.country"
-            class="flex items-center gap-2 px-3 py-2.5"
-          >
-            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
-              {{ t('JABVOX_LEADS.DETAIL.INFO.COUNTRY') }}
-            </dt>
-            <input
-              v-if="isEditing"
-              v-model="editForm.country"
-              class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
-            />
-            <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
-              {{ lead.contact.country }}
-            </dd>
-          </div>
-          <!-- Campaign (editable) -->
-          <div class="flex items-center gap-2 px-3 py-2.5">
-            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
-              {{ t('JABVOX_LEADS.DETAIL.INFO.CAMPAIGN') }}
-            </dt>
-            <input
-              v-if="isEditing"
-              v-model="editForm.campaign_name"
-              class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
-            />
-            <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
-              {{ lead.campaign?.name || '—' }}
-            </dd>
-          </div>
-          <!-- Affiliate (read-only) -->
-          <div class="flex items-center gap-2 px-3 py-2.5">
-            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
-              {{ t('JABVOX_LEADS.DETAIL.INFO.AFFILIATE') }}
-            </dt>
-            <dd class="text-sm text-n-slate-12 flex-1 text-right">
-              {{ lead.affiliate_name || t('JABVOX_LEADS.TABLE.AFFILIATE_OWN') }}
-            </dd>
-          </div>
-          <!-- Inbox (read-only) -->
-          <div class="flex items-center gap-2 px-3 py-2.5">
-            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
-              {{ t('JABVOX_LEADS.DETAIL.INFO.INBOX') }}
-            </dt>
-            <dd class="text-sm text-n-slate-12 flex-1 text-right">
-              {{ lead.inbox_name || '—' }}
-            </dd>
-          </div>
-          <!-- Assignee (editable) -->
-          <div class="flex items-center gap-2 px-3 py-2.5">
-            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
-              {{ t('JABVOX_LEADS.DETAIL.INFO.ASSIGNEE') }}
-            </dt>
-            <select
-              v-if="isEditing"
-              v-model="editForm.assignee_id"
-              class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
-            >
-              <option :value="null">—</option>
-              <option v-for="a in assignees" :key="a.id" :value="a.id">
-                {{ a.name }}
-              </option>
-            </select>
-            <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
-              {{ lead.assignee_name || '—' }}
-            </dd>
-          </div>
-          <!-- Last management (read-only, comes from notes) -->
-          <div
-            v-if="lead.last_management_state"
-            class="flex items-center gap-2 px-3 py-2.5"
-          >
-            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
-              {{ t('JABVOX_LEADS.DETAIL.INFO.MANAGEMENT_STATE') }}
-            </dt>
-            <dd class="flex-1 text-right">
-              <span
-                class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-n-brand/10 text-n-brand"
-              >
-                {{ lead.last_management_state }}
-              </span>
-            </dd>
-          </div>
-          <!-- Created at (read-only) -->
-          <div class="flex items-center gap-2 px-3 py-2.5">
-            <dt class="text-xs text-n-slate-10 w-24 shrink-0">
-              {{ t('JABVOX_LEADS.DETAIL.INFO.CREATED_AT') }}
-            </dt>
-            <dd class="text-sm text-n-slate-12 flex-1 text-right">
-              {{ formatDate(lead.created_at) }}
-            </dd>
-          </div>
-        </dl>
-        <!-- Custom fields inline (tabla vinculada a leads) -->
         <div
-          v-if="isCustomizationEnabled && leadsTableColumns.length"
-          class="rounded-xl border border-n-weak bg-n-background p-3 space-y-2.5"
+          class="rounded-xl border border-n-weak bg-n-background overflow-hidden"
         >
-          <p
-            class="text-xs font-semibold text-n-slate-11 uppercase tracking-wide"
+          <button
+            type="button"
+            class="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-n-alpha-1 transition-colors"
+            @click="toggleSection('info')"
           >
-            {{ leadsTable.name_jabvox }}
-          </p>
-          <dl class="space-y-2.5">
-            <div v-for="col in leadsTableColumns" :key="col.id">
-              <dt class="text-xs text-n-slate-10 mb-1">
-                {{ col.label_jabvox }}
+            <span
+              class="size-4 shrink-0 text-n-slate-10 transition-transform"
+              :class="
+                sectionsCollapsed.info
+                  ? 'i-lucide-chevron-right'
+                  : 'i-lucide-chevron-down'
+              "
+            />
+            <span
+              class="text-xs font-semibold text-n-slate-11 uppercase tracking-wide"
+            >
+              {{ t('JABVOX_LEADS.DETAIL.INFO.SECTION_TITLE') }}
+            </span>
+          </button>
+          <dl
+            v-show="!sectionsCollapsed.info"
+            class="divide-y divide-n-weak border-t border-n-weak"
+          >
+            <!-- Phone (editable) -->
+            <div
+              v-if="isEditing || lead.contact.phone_number"
+              class="flex items-center gap-2 px-3 py-2.5"
+            >
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.PHONE') }}
               </dt>
-              <dd>
-                <!-- Read-only view -->
-                <span v-if="!isEditing" class="text-sm text-n-slate-12">
-                  <template v-if="col.column_type_jabvox === 'boolean'">
-                    {{
-                      lead.custom_fields_jabvox?.[col.name_jabvox]
-                        ? t('JABVOX_LEADS.DETAIL.YES')
-                        : t('JABVOX_LEADS.DETAIL.NO')
-                    }}
-                  </template>
-                  <template v-else>
-                    {{ lead.custom_fields_jabvox?.[col.name_jabvox] || '—' }}
-                  </template>
-                </span>
-                <!-- boolean -->
-                <input
-                  v-else-if="col.column_type_jabvox === 'boolean'"
-                  v-model="editForm.custom[col.name_jabvox]"
-                  type="checkbox"
-                  class="reset-base size-4 rounded border-n-weak text-n-brand focus:outline-none focus:border-n-slate-7"
-                />
-                <!-- select -->
-                <select
-                  v-else-if="col.column_type_jabvox === 'select'"
-                  v-model="editForm.custom[col.name_jabvox]"
-                  class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+              <input
+                v-if="isEditing"
+                v-model="editForm.phone_number"
+                class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+              />
+              <dd
+                v-else
+                class="text-sm text-n-slate-12 font-mono truncate flex-1 text-right"
+              >
+                {{ lead.contact.phone_number || '—' }}
+              </dd>
+            </div>
+            <!-- Email (editable) -->
+            <div class="flex items-center gap-2 px-3 py-2.5">
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.EMAIL') }}
+              </dt>
+              <input
+                v-if="isEditing"
+                v-model="editForm.email"
+                type="email"
+                class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+              />
+              <dd
+                v-else
+                class="text-sm text-n-slate-12 truncate flex-1 text-right"
+              >
+                {{ lead.contact.email || '—' }}
+              </dd>
+            </div>
+            <!-- Documento (solo lectura, viene de la BD externa / additional_attributes) -->
+            <div
+              v-if="contactIdentification"
+              class="flex items-center gap-2 px-3 py-2.5"
+            >
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.DOCUMENT') }}
+              </dt>
+              <dd
+                class="text-sm text-n-slate-12 font-mono truncate flex-1 text-right"
+              >
+                {{ contactIdentification }}
+              </dd>
+            </div>
+            <!-- Tipo de persona (solo lectura, por defecto persona) -->
+            <div class="flex items-center gap-2 px-3 py-2.5">
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.CONTACT_TYPE') }}
+              </dt>
+              <dd class="flex-1 text-right">
+                <span
+                  class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-n-alpha-1 text-n-slate-11"
                 >
-                  <option value="">—</option>
-                  <option
-                    v-for="opt in col.options_jabvox || []"
-                    :key="opt"
-                    :value="opt"
-                  >
-                    {{ opt }}
-                  </option>
-                </select>
-                <!-- date -->
-                <input
-                  v-else-if="col.column_type_jabvox === 'date'"
-                  v-model="editForm.custom[col.name_jabvox]"
-                  type="date"
-                  class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
-                />
-                <!-- text / integer / float -->
-                <input
-                  v-else
-                  v-model="editForm.custom[col.name_jabvox]"
-                  :type="
-                    col.column_type_jabvox === 'integer' ||
-                    col.column_type_jabvox === 'float'
-                      ? 'number'
-                      : 'text'
-                  "
-                  :step="col.column_type_jabvox === 'float' ? '0.01' : '1'"
-                  class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
-                />
+                  {{ contactTypeLabel }}
+                </span>
+              </dd>
+            </div>
+            <!-- Country (editable) -->
+            <div
+              v-if="isEditing || lead.contact.country"
+              class="flex items-center gap-2 px-3 py-2.5"
+            >
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.COUNTRY') }}
+              </dt>
+              <input
+                v-if="isEditing"
+                v-model="editForm.country"
+                class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+              />
+              <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
+                {{ lead.contact.country }}
+              </dd>
+            </div>
+            <!-- Campaign (editable) -->
+            <div class="flex items-center gap-2 px-3 py-2.5">
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.CAMPAIGN') }}
+              </dt>
+              <input
+                v-if="isEditing"
+                v-model="editForm.campaign_name"
+                class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+              />
+              <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
+                {{ lead.campaign?.name || '—' }}
+              </dd>
+            </div>
+            <!-- Affiliate (read-only) -->
+            <div class="flex items-center gap-2 px-3 py-2.5">
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.AFFILIATE') }}
+              </dt>
+              <dd class="text-sm text-n-slate-12 flex-1 text-right">
+                {{
+                  lead.affiliate_name || t('JABVOX_LEADS.TABLE.AFFILIATE_OWN')
+                }}
+              </dd>
+            </div>
+            <!-- Inbox (read-only) -->
+            <div class="flex items-center gap-2 px-3 py-2.5">
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.INBOX') }}
+              </dt>
+              <dd class="text-sm text-n-slate-12 flex-1 text-right">
+                {{ lead.inbox_name || '—' }}
+              </dd>
+            </div>
+            <!-- Assignee (editable) -->
+            <div class="flex items-center gap-2 px-3 py-2.5">
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.ASSIGNEE') }}
+              </dt>
+              <select
+                v-if="isEditing"
+                v-model="editForm.assignee_id"
+                class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+              >
+                <option :value="null">—</option>
+                <option v-for="a in assignees" :key="a.id" :value="a.id">
+                  {{ a.name }}
+                </option>
+              </select>
+              <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
+                {{ lead.assignee_name || '—' }}
+              </dd>
+            </div>
+            <!-- Last management (read-only, comes from notes) -->
+            <div
+              v-if="lead.last_management_state"
+              class="flex items-center gap-2 px-3 py-2.5"
+            >
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.MANAGEMENT_STATE') }}
+              </dt>
+              <dd class="flex-1 text-right">
+                <span
+                  class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-n-brand/10 text-n-brand"
+                >
+                  {{ lead.last_management_state }}
+                </span>
+              </dd>
+            </div>
+            <!-- Created at (read-only) -->
+            <div class="flex items-center gap-2 px-3 py-2.5">
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.CREATED_AT') }}
+              </dt>
+              <dd class="text-sm text-n-slate-12 flex-1 text-right">
+                {{ formatDate(lead.created_at) }}
               </dd>
             </div>
           </dl>
+        </div>
+        <!-- Custom fields inline (tabla vinculada a leads) -->
+        <div
+          v-if="isCustomizationEnabled && leadsTableColumns.length"
+          class="rounded-xl border border-n-weak bg-n-background overflow-hidden"
+        >
+          <button
+            type="button"
+            class="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-n-alpha-1 transition-colors"
+            @click="toggleSection('custom')"
+          >
+            <span
+              class="size-4 shrink-0 text-n-slate-10 transition-transform"
+              :class="
+                sectionsCollapsed.custom
+                  ? 'i-lucide-chevron-right'
+                  : 'i-lucide-chevron-down'
+              "
+            />
+            <span
+              class="text-xs font-semibold text-n-slate-11 uppercase tracking-wide truncate"
+            >
+              {{ leadsTable.name_jabvox }}
+            </span>
+          </button>
+
+          <div
+            v-show="!sectionsCollapsed.custom"
+            class="p-3 pt-0 space-y-2.5 border-t border-n-weak"
+          >
+            <!-- Field search -->
+            <div class="relative pt-3">
+              <span
+                class="i-lucide-search absolute left-2.5 top-1/2 -translate-y-1/2 mt-1.5 size-3.5 text-n-slate-10 pointer-events-none"
+              />
+              <input
+                v-model="fieldSearch"
+                type="search"
+                :placeholder="t('JABVOX_LEADS.DETAIL.SEARCH_FIELDS')"
+                class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 pl-8 pr-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+              />
+            </div>
+
+            <dl class="space-y-2.5">
+              <p
+                v-if="!filteredLeadsColumns.length"
+                class="text-xs text-n-slate-10 py-2 text-center"
+              >
+                {{ t('JABVOX_LEADS.DETAIL.NO_FIELDS_MATCH') }}
+              </p>
+              <div v-for="col in filteredLeadsColumns" :key="col.id">
+                <dt class="text-xs text-n-slate-10 mb-1">
+                  {{ col.label_jabvox }}
+                </dt>
+                <dd>
+                  <!-- Read-only view -->
+                  <span v-if="!isEditing" class="text-sm text-n-slate-12">
+                    <template v-if="col.column_type_jabvox === 'boolean'">
+                      {{
+                        lead.custom_fields_jabvox?.[col.name_jabvox]
+                          ? t('JABVOX_LEADS.DETAIL.YES')
+                          : t('JABVOX_LEADS.DETAIL.NO')
+                      }}
+                    </template>
+                    <template v-else>
+                      {{ lead.custom_fields_jabvox?.[col.name_jabvox] || '—' }}
+                    </template>
+                  </span>
+                  <!-- boolean -->
+                  <input
+                    v-else-if="col.column_type_jabvox === 'boolean'"
+                    v-model="editForm.custom[col.name_jabvox]"
+                    type="checkbox"
+                    class="reset-base size-4 rounded border-n-weak text-n-brand focus:outline-none focus:border-n-slate-7"
+                  />
+                  <!-- select -->
+                  <select
+                    v-else-if="col.column_type_jabvox === 'select'"
+                    v-model="editForm.custom[col.name_jabvox]"
+                    class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+                  >
+                    <option value="">—</option>
+                    <option
+                      v-for="opt in col.options_jabvox || []"
+                      :key="opt"
+                      :value="opt"
+                    >
+                      {{ opt }}
+                    </option>
+                  </select>
+                  <!-- date -->
+                  <input
+                    v-else-if="col.column_type_jabvox === 'date'"
+                    v-model="editForm.custom[col.name_jabvox]"
+                    type="date"
+                    class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+                  />
+                  <!-- text / integer / float -->
+                  <input
+                    v-else
+                    v-model="editForm.custom[col.name_jabvox]"
+                    :type="
+                      col.column_type_jabvox === 'integer' ||
+                      col.column_type_jabvox === 'float'
+                        ? 'number'
+                        : 'text'
+                    "
+                    :step="col.column_type_jabvox === 'float' ? '0.01' : '1'"
+                    class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+                  />
+                </dd>
+              </div>
+            </dl>
+          </div>
         </div>
 
         <div v-if="lead.contact" class="pt-1">

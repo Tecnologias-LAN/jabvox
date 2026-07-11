@@ -104,6 +104,11 @@
       "REQUIRED_BADGE": "Obligatorio",
       "OPTIONS_LABEL": "Opciones (separadas por coma)",
       "OPTIONS_PLACEHOLDER": "ej. Pequeño, Mediano, Grande",
+      "CONDITION_LABEL": "Mostrar solo si… (condición)",
+      "CONDITION_HINT": "Esta pregunta aparece solo cuando otra pregunta tenga cierto valor. Déjalo en \"Siempre visible\" para mostrarla siempre.",
+      "CONDITION_NONE": "Siempre visible",
+      "SHOW_WHEN_LABEL": "Valores que la activan (separados por coma)",
+      "SHOW_WHEN_PLACEHOLDER": "ej. 2-Potencializar, 3-Sostenimiento",
       "SAVE": "Guardar",
       "CANCEL": "Cancelar",
       "DELETE": "Eliminar columna",
@@ -111,12 +116,14 @@
       "SAVE_SUCCESS": "Columna guardada.",
       "DELETE_SUCCESS": "Columna eliminada.",
       "TYPES": {
-        "text": "Texto",
+        "text": "Texto corto",
+        "textarea": "Texto largo (área)",
         "integer": "Número entero",
         "float": "Número decimal",
         "boolean": "Verdadero / Falso",
         "date": "Fecha",
-        "select": "Lista de opciones"
+        "select": "Selección única (lista)",
+        "multiselect": "Selección múltiple (lista)"
       }
     },
     "DATA": {

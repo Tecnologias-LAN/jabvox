@@ -26,6 +26,11 @@ class Jabvox::CustomRowDataSanitizer
     errors = []
 
     columns.each do |column|
+      # A column hidden by its condition (its controlling answer doesn't match)
+      # is neither required nor stored — so conditional questions never block a
+      # save and no stale answers linger from a path the user didn't take.
+      next unless column.visible_for?(@raw)
+
       raw_value = @raw[column.name_jabvox]
       coerced, error = column.coerce(raw_value)
 
@@ -51,7 +56,8 @@ class Jabvox::CustomRowDataSanitizer
     @columns ||= @table.jabvox_custom_columns.ordered
   end
 
+  # Multiselect stores an array; empty array counts as blank.
   def blank_value?(value)
-    value.nil? || value == ''
+    value.nil? || value == '' || (value.is_a?(Array) && value.empty?)
   end
 end

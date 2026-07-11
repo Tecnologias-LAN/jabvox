@@ -350,6 +350,7 @@ const doDelete = async id => {
     <ColumnFormDialog
       ref="formDialog"
       :is-saving="uiFlags.isSaving"
+      :columns="columns"
       @submit="handleSubmit"
     />
     <ConfirmDeleteDialog ref="deleteDialog" @confirm="doDelete" />
