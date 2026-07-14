@@ -13,6 +13,11 @@ json.contact do
   json.phone_number jabvox_mask('phone', c.phone_number)
   json.avatar_url c.avatar_url
   json.country c.additional_attributes&.dig('country')
+  # The detail view reads the document (jabvox_identification_number) and the
+  # contact type from additional_attributes, so it must be serialized — without
+  # it the "Documento" row stays hidden even when the value exists. Passed
+  # through jabvox_mask_attrs so field-security masking (enterprise) is honored.
+  json.additional_attributes jabvox_mask_attrs(c.additional_attributes || {})
 end
 
 json.campaign do

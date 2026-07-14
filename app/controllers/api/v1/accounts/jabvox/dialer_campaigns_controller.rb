@@ -36,10 +36,16 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   def lead_fields
     table = Current.account.jabvox_custom_tables.for_leads.first
     columns = table ? table.jabvox_custom_columns.ordered : []
+    # Offer every field as a selectable filter: options combine the configured
+    # options with the distinct values found in the account's leads (shared
+    # helper), so even plain-text fields become checkbox selectors.
+    values_by_key = Jabvox::LeadCustomFilter.distinct_values(Current.account, columns.map(&:name_jabvox))
     render json: {
       custom: columns.map do |c|
+        configured = Array(c.options_jabvox).map(&:to_s)
+        discovered = values_by_key[c.name_jabvox] || []
         { key: c.name_jabvox, label: c.label_jabvox, column_type: c.column_type_jabvox,
-          options: c.options_jabvox }
+          options: (configured + discovered).reject(&:blank?).uniq.sort }
       end
     }
   end
@@ -255,7 +261,11 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     raw = raw.permit!.to_h if raw.respond_to?(:permit!)
     return {} unless raw.is_a?(Hash)
 
-    raw.transform_values(&:to_s)
+    # Return the hash as-is: values keep their shape (String for substring match,
+    # Array / index-Hash for multi-select incl. axios's [0][1] form). The shared
+    # Jabvox::LeadCustomFilter handles and sanitizes every shape — flattening to
+    # strings here would break list filters.
+    raw
   end
 
   def preview_lead_json(lead, last_management_state = nil)

@@ -79,19 +79,10 @@ module Jabvox
       ActiveRecord::Base.sanitize_sql_like(value.to_s)
     end
 
+    # Delegates to the shared Jabvox::LeadCustomFilter so "one or several values"
+    # (incl. axios index-hash payloads) and SQL safety match the leads/bulk path.
     def apply_custom_fields(leads)
-      custom = @filters[:custom]
-      return leads unless custom.respond_to?(:each_pair)
-
-      custom.each_pair do |raw_key, value|
-        next if value.to_s.strip.blank?
-
-        key = raw_key.to_s.downcase.gsub(/[^a-z0-9_]/, '')
-        next if key.blank?
-
-        leads = leads.where('jabvox_leads.custom_fields_jabvox ->> ? ILIKE ?', key, "%#{like(value)}%")
-      end
-      leads
+      Jabvox::LeadCustomFilter.apply(leads, @filters[:custom])
     end
 
     def apply_exclusions(leads)

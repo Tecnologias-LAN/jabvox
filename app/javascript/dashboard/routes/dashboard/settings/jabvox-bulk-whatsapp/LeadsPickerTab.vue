@@ -51,16 +51,36 @@ const customValues = ref({});
 // Filters panel can be collapsed to keep the view uncluttered.
 const filtersOpen = ref(false);
 
+// A custom-field value counts as "set" when it's a non-empty string OR a
+// non-empty array (option selectors store an array of chosen options).
+const customValueIsSet = v =>
+  Array.isArray(v) ? v.length > 0 : `${v ?? ''}`.trim().length > 0;
+
 // How many filters currently have a value (shown as a badge when collapsed).
 const activeFilterCount = computed(() => {
   const base = Object.values(filters.value).filter(v =>
     `${v ?? ''}`.trim()
   ).length;
-  const custom = Object.values(customValues.value).filter(v =>
-    `${v ?? ''}`.trim()
+  const custom = Object.values(customValues.value).filter(
+    customValueIsSet
   ).length;
   return base + custom;
 });
+
+// Every custom field is offered as a checkbox selector as long as it has known
+// values (options come from the field definition AND the values discovered in
+// the leads). Only fields with no discoverable values fall back to a text input.
+const fieldHasOptions = cf =>
+  Array.isArray(cf.options) && cf.options.length > 0;
+
+// Per-field search text inside its options dropdown (for fields with many values).
+const optionSearch = ref({});
+const filteredOptions = cf => {
+  const q = (optionSearch.value[cf.key] || '').trim().toLowerCase();
+  const opts = cf.options || [];
+  if (!q) return opts;
+  return opts.filter(o => String(o).toLowerCase().includes(q));
+};
 
 // ── Lead list / pagination ───────────────────────────────────────────────
 const leads = ref([]);
@@ -99,10 +119,12 @@ const activeFilters = computed(() => {
   Object.entries(filters.value).forEach(([k, v]) => {
     if (v !== '' && v != null) f[k] = v;
   });
-  // Custom-field filters go under `custom` as { field_key: value }.
+  // Custom-field filters go under `custom` as { field_key: value }. Value is an
+  // array (option selectors) or a string (text/number); both are honored by the
+  // backend LeadsFilterService.
   const custom = {};
   Object.entries(customValues.value).forEach(([k, v]) => {
-    if (v !== '' && v != null) custom[k] = v;
+    if (customValueIsSet(v)) custom[k] = v;
   });
   if (Object.keys(custom).length) f.custom = custom;
   return f;
@@ -163,6 +185,17 @@ const clearFilters = () => {
     filters.value[k] = '';
   });
   customValues.value = {};
+  applyFilters();
+};
+
+// Toggle an option in a field's selected-values array, then re-run the filter.
+const toggleCustomOption = (key, option) => {
+  const current = Array.isArray(customValues.value[key])
+    ? customValues.value[key]
+    : [];
+  customValues.value[key] = current.includes(option)
+    ? current.filter(o => o !== option)
+    : [...current, option];
   applyFilters();
 };
 
@@ -549,17 +582,66 @@ onMounted(() => {
             class="flex flex-col gap-1"
           >
             <label class="text-[11px] text-n-slate-10">{{ cf.label }}</label>
-            <select
-              v-if="cf.column_type === 'select' && (cf.options || []).length"
-              v-model="customValues[cf.key]"
-              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
-              @change="applyFilters"
+
+            <!-- Campos con opciones (select / multiselect): elegir uno o varios -->
+            <details
+              v-if="fieldHasOptions(cf)"
+              class="group rounded-lg border border-n-weak bg-n-alpha-1"
             >
-              <option value="">{{ t('JABVOX_BULK_WA.LEADS.ALL') }}</option>
-              <option v-for="opt in cf.options" :key="opt" :value="opt">
-                {{ opt }}
-              </option>
-            </select>
+              <summary
+                class="flex items-center justify-between gap-2 px-3 py-2 text-sm cursor-pointer select-none list-none"
+              >
+                <span class="truncate text-n-slate-12">
+                  {{
+                    (customValues[cf.key] || []).length
+                      ? t('JABVOX_BULK_WA.LEADS.SELECTED_COUNT', {
+                          count: (customValues[cf.key] || []).length,
+                        })
+                      : t('JABVOX_BULK_WA.LEADS.ALL')
+                  }}
+                </span>
+                <span
+                  class="i-lucide-chevron-down size-4 text-n-slate-10 group-open:rotate-180 transition-transform"
+                />
+              </summary>
+              <div class="border-t border-n-weak">
+                <!-- Buscador interno para campos con muchas opciones -->
+                <div v-if="(cf.options || []).length > 8" class="p-2">
+                  <input
+                    v-model="optionSearch[cf.key]"
+                    type="search"
+                    :placeholder="t('JABVOX_BULK_WA.LEADS.SEARCH_OPTION')"
+                    class="reset-base w-full text-sm rounded-lg border border-n-weak bg-n-solid-1 px-2.5 py-1.5"
+                    @click.stop
+                  />
+                </div>
+                <div
+                  class="max-h-40 overflow-y-auto px-3 pb-2 flex flex-col gap-1.5"
+                >
+                  <label
+                    v-for="opt in filteredOptions(cf)"
+                    :key="opt"
+                    class="flex items-center gap-2 text-sm text-n-slate-12 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      class="rounded accent-n-brand shrink-0"
+                      :checked="(customValues[cf.key] || []).includes(opt)"
+                      @change="toggleCustomOption(cf.key, opt)"
+                    />
+                    <span class="truncate">{{ opt }}</span>
+                  </label>
+                  <p
+                    v-if="!filteredOptions(cf).length"
+                    class="text-xs text-n-slate-10 py-1"
+                  >
+                    {{ t('JABVOX_BULK_WA.LEADS.NO_OPTIONS') }}
+                  </p>
+                </div>
+              </div>
+            </details>
+
+            <!-- Texto / número: input libre -->
             <input
               v-else
               v-model="customValues[cf.key]"

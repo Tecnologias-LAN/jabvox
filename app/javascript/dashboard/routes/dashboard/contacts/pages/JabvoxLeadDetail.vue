@@ -15,6 +15,8 @@ import JabvoxSmsButton from 'dashboard/components/widgets/conversation/jabvox/Ja
 import JabvoxEmailButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxEmailButton.vue';
 import JabvoxQuickButtons from 'dashboard/components/widgets/conversation/jabvox/JabvoxQuickButtons.vue';
 import JabvoxLeadTableRows from 'dashboard/components/widgets/conversation/jabvox/JabvoxLeadTableRows.vue';
+import TemplatesPicker from 'dashboard/components/widgets/conversation/WhatsappTemplates/TemplatesPicker.vue';
+import WhatsAppTemplateReply from 'dashboard/components/widgets/conversation/WhatsappTemplates/WhatsAppTemplateReply.vue';
 import ManagementQuestionsForm from 'dashboard/components/jabvox/managementStates/ManagementQuestionsForm.vue';
 import {
   isManagementValid,
@@ -88,6 +90,10 @@ const contactIdentification = computed(
 const contactType = computed(
   () =>
     lead.value?.contact?.additional_attributes?.jabvox_contact_type || 'persona'
+);
+// Biografía (mapeada desde description; vive en additional_attributes.description).
+const contactBiography = computed(
+  () => lead.value?.contact?.additional_attributes?.description || ''
 );
 const contactTypeLabel = computed(() =>
   contactType.value === 'empresa'
@@ -438,27 +444,58 @@ const formatDate = dateStr => {
   });
 };
 
-const startConversation = async () => {
-  if (!selectedInboxId.value || isStarting.value) return;
+// Plantilla de WhatsApp seleccionada para iniciar la conversación (WhatsApp API
+// exige plantilla aprobada para el primer contacto, no texto libre).
+const selectedTemplate = ref(null);
+
+const selectedInbox = computed(() =>
+  inboxes.value.find(i => i.id === selectedInboxId.value)
+);
+const selectedIsWhatsApp = computed(
+  () => selectedInbox.value?.channel_type === 'Channel::Whatsapp'
+);
+// El inbox de WhatsApp API requiere plantilla para el primer mensaje: si el
+// inbox seleccionado tiene plantillas aprobadas, mostramos el selector en vez
+// del cuadro de texto libre.
+const requiresTemplate = computed(() => {
+  if (!selectedIsWhatsApp.value || !selectedInboxId.value) return false;
+  const templates = store.getters['inboxes/getFilteredWhatsAppTemplates'](
+    selectedInboxId.value
+  );
+  return Array.isArray(templates) && templates.length > 0;
+});
+
+// Al cambiar de inbox, se descarta la plantilla en curso.
+watch(selectedInboxId, () => {
+  selectedTemplate.value = null;
+});
+
+// Crea la conversación. `messagePayload` (opcional) trae la plantilla ya
+// procesada { message, templateParams } cuando se inicia por WhatsApp API.
+const createConversation = async messagePayload => {
   isStarting.value = true;
   try {
-    const selectedInbox = inboxes.value.find(
-      i => i.id === selectedInboxId.value
-    );
-    const isWhatsApp = selectedInbox?.channel_type === 'Channel::Whatsapp';
     const params = {
       contactId: lead.value.contact.id,
       inboxId: selectedInboxId.value,
     };
-    if (initialMessage.value.trim()) {
+    if (messagePayload) {
+      // Enviar como plantilla: el MessageBuilder guarda template_params en
+      // additional_attributes y el envío sale como template a Meta.
+      params.message = {
+        content: messagePayload.message,
+        template_params: messagePayload.templateParams,
+      };
+    } else if (initialMessage.value.trim()) {
       params.message = { content: initialMessage.value.trim() };
     }
     await store.dispatch('contactConversations/create', {
       params,
-      isFromWhatsApp: isWhatsApp,
+      isFromWhatsApp: selectedIsWhatsApp.value,
     });
     initialMessage.value = '';
     selectedInboxId.value = null;
+    selectedTemplate.value = null;
     await store.dispatch('jabvoxLeads/fetchLead', leadId.value);
     loadMessages();
   } catch {
@@ -466,6 +503,20 @@ const startConversation = async () => {
   } finally {
     isStarting.value = false;
   }
+};
+
+const startConversation = async () => {
+  if (!selectedInboxId.value || isStarting.value) return;
+  // Para WhatsApp API la conversación se inicia desde el envío de la plantilla
+  // (handleTemplateSend), no desde este botón.
+  if (requiresTemplate.value) return;
+  await createConversation();
+};
+
+// Envío de la plantilla elegida: crea la conversación con template_params.
+const handleTemplateSend = async payload => {
+  if (!selectedInboxId.value || isStarting.value) return;
+  await createConversation(payload);
 };
 
 const loadLead = async () => {
@@ -831,6 +882,17 @@ onMounted(async () => {
                 {{ formatDate(lead.created_at) }}
               </dd>
             </div>
+            <!-- Biografía (read-only, mapeada desde description) — siempre visible -->
+            <div class="flex flex-col gap-1 px-3 py-2.5">
+              <dt class="text-xs text-n-slate-10 shrink-0">
+                {{ t('JABVOX_LEADS.DETAIL.INFO.BIOGRAPHY') }}
+              </dt>
+              <dd
+                class="text-sm text-n-slate-12 whitespace-pre-line break-words"
+              >
+                {{ contactBiography || '—' }}
+              </dd>
+            </div>
           </dl>
         </div>
         <!-- Custom fields inline (tabla vinculada a leads) -->
@@ -1030,25 +1092,48 @@ onMounted(async () => {
                   {{ inbox.name }}
                 </option>
               </select>
-              <textarea
-                v-model="initialMessage"
-                rows="2"
-                :placeholder="
-                  t('JABVOX_LEADS.DETAIL.INITIAL_MESSAGE_PLACEHOLDER')
-                "
-                class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 placeholder-n-slate-9 focus:outline-none focus:border-n-slate-7 transition-colors resize-none"
-              />
-              <Button
-                :label="
-                  isStarting
-                    ? t('JABVOX_LEADS.DETAIL.STARTING')
-                    : t('JABVOX_LEADS.DETAIL.START_CONVERSATION')
-                "
-                icon="i-lucide-send"
-                :disabled="!selectedInboxId || isStarting"
-                class="w-full justify-center"
-                @click="startConversation"
-              />
+              <!-- WhatsApp API: primer contacto solo por plantilla aprobada -->
+              <template v-if="requiresTemplate">
+                <div v-if="!selectedTemplate" class="text-left">
+                  <p class="text-xs text-n-slate-10 mb-2">
+                    {{ t('JABVOX_LEADS.DETAIL.WHATSAPP_TEMPLATE_HINT') }}
+                  </p>
+                  <TemplatesPicker
+                    :inbox-id="Number(selectedInboxId)"
+                    @on-select="selectedTemplate = $event"
+                  />
+                </div>
+                <div v-else class="text-left">
+                  <WhatsAppTemplateReply
+                    :template="selectedTemplate"
+                    @send-message="handleTemplateSend"
+                    @reset-template="selectedTemplate = null"
+                  />
+                </div>
+              </template>
+
+              <!-- Resto de canales: mensaje libre opcional -->
+              <template v-else>
+                <textarea
+                  v-model="initialMessage"
+                  rows="2"
+                  :placeholder="
+                    t('JABVOX_LEADS.DETAIL.INITIAL_MESSAGE_PLACEHOLDER')
+                  "
+                  class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 placeholder-n-slate-9 focus:outline-none focus:border-n-slate-7 transition-colors resize-none"
+                />
+                <Button
+                  :label="
+                    isStarting
+                      ? t('JABVOX_LEADS.DETAIL.STARTING')
+                      : t('JABVOX_LEADS.DETAIL.START_CONVERSATION')
+                  "
+                  icon="i-lucide-send"
+                  :disabled="!selectedInboxId || isStarting"
+                  class="w-full justify-center"
+                  @click="startConversation"
+                />
+              </template>
             </div>
           </div>
           <template v-else>

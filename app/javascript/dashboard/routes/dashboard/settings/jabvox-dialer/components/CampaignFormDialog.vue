@@ -74,6 +74,35 @@ onMounted(async () => {
   }
 });
 
+// Every custom field with known values becomes a checkbox selector (one or
+// several). Values come from the field definition AND the values discovered in
+// the leads (backend). Fields with no values fall back to a text input.
+const fieldHasOptions = col =>
+  Array.isArray(col.options) && col.options.length > 0;
+
+// Per-field search inside its options dropdown (for fields with many values).
+const optionSearch = ref({});
+const filteredOptions = col => {
+  const q = (optionSearch.value[col.key] || '').trim().toLowerCase();
+  const opts = col.options || [];
+  if (!q) return opts;
+  return opts.filter(o => String(o).toLowerCase().includes(q));
+};
+
+// Selected values for a field (always an array once the user picks options).
+const selectedValues = key => {
+  const v = form.value.lead_filters_jabvox.custom[key];
+  return Array.isArray(v) ? v : [];
+};
+
+// Toggle an option in a field's selected-values array.
+const toggleCustomOption = (key, option) => {
+  const current = selectedValues(key);
+  form.value.lead_filters_jabvox.custom[key] = current.includes(option)
+    ? current.filter(o => o !== option)
+    : [...current, option];
+};
+
 // Filters payload shared by the count and the leads preview.
 const filterParams = () => ({
   jabvox_campaign_id: form.value.jabvox_campaign_id,
@@ -500,20 +529,67 @@ defineExpose({ openCreate, openEdit, close });
               <label class="text-sm font-medium text-n-slate-12">
                 {{ col.label }}
               </label>
-              <select
-                v-if="
-                  col.column_type === 'select' && (col.options || []).length
-                "
-                v-model="form.lead_filters_jabvox.custom[col.key]"
-                class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+
+              <!-- Campo con opciones: elegir una o varias (checkboxes) -->
+              <details
+                v-if="fieldHasOptions(col)"
+                class="group rounded-lg border border-n-weak bg-n-alpha-1"
               >
-                <option value="">
-                  {{ t('JABVOX_DIALER.FORM.FILTER_ALL') }}
-                </option>
-                <option v-for="opt in col.options" :key="opt" :value="opt">
-                  {{ opt }}
-                </option>
-              </select>
+                <summary
+                  class="flex items-center justify-between gap-2 px-3 py-2 text-sm cursor-pointer select-none list-none"
+                >
+                  <span class="truncate text-n-slate-12">
+                    {{
+                      selectedValues(col.key).length
+                        ? t('JABVOX_DIALER.FORM.FILTER_SELECTED_COUNT', {
+                            count: selectedValues(col.key).length,
+                          })
+                        : t('JABVOX_DIALER.FORM.FILTER_ALL')
+                    }}
+                  </span>
+                  <span
+                    class="i-lucide-chevron-down size-4 text-n-slate-10 group-open:rotate-180 transition-transform"
+                  />
+                </summary>
+                <div class="border-t border-n-weak">
+                  <div v-if="(col.options || []).length > 8" class="p-2">
+                    <input
+                      v-model="optionSearch[col.key]"
+                      type="search"
+                      :placeholder="
+                        t('JABVOX_DIALER.FORM.FILTER_SEARCH_OPTION')
+                      "
+                      class="reset-base w-full text-sm rounded-lg border border-n-weak bg-n-solid-1 px-2.5 py-1.5"
+                      @click.stop
+                    />
+                  </div>
+                  <div
+                    class="max-h-40 overflow-y-auto px-3 pb-2 flex flex-col gap-1.5"
+                  >
+                    <label
+                      v-for="opt in filteredOptions(col)"
+                      :key="opt"
+                      class="flex items-center gap-2 text-sm text-n-slate-12 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        class="rounded accent-n-brand shrink-0"
+                        :checked="selectedValues(col.key).includes(opt)"
+                        @change="toggleCustomOption(col.key, opt)"
+                      />
+                      <span class="truncate">{{ opt }}</span>
+                    </label>
+                    <p
+                      v-if="!filteredOptions(col).length"
+                      class="text-xs text-n-slate-10 py-1"
+                    >
+                      {{ t('JABVOX_DIALER.FORM.FILTER_NO_OPTIONS') }}
+                    </p>
+                  </div>
+                </div>
+              </details>
+
+              <!-- Sin opciones: texto libre -->
               <input
                 v-else
                 v-model="form.lead_filters_jabvox.custom[col.key]"

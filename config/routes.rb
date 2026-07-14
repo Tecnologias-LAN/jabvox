@@ -635,6 +635,12 @@ Rails.application.routes.draw do
               end
             end
             resources :custom_tables, only: [:index, :show, :create, :update, :destroy] do
+              collection do
+                post :import # import a table definition + columns from exported JSON
+              end
+              member do
+                get :export # export this table's definition + columns as portable JSON
+              end
               resources :custom_columns, only: [:index, :create, :update, :destroy]
               # Rows (records) of a standalone table — the "fill the table" surface.
               resources :data, only: [:index, :create, :update, :destroy], controller: 'custom_table_data'

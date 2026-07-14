@@ -19,13 +19,21 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
 
   # The lead custom fields defined for this account, so the leads picker can offer a filter
   # per custom column (on top of the standard name/phone/country/campaign filters).
+  #
+  # Every field is offered as a SELECTABLE filter regardless of its column type:
+  # `options` combines the column's configured options with the distinct values
+  # found across the account's leads (shared helper), so even plain-text fields
+  # become checkbox selectors.
   def lead_fields
     table = Current.account.jabvox_custom_tables.for_leads.first
     columns = table ? table.jabvox_custom_columns.ordered : []
+    values_by_key = Jabvox::LeadCustomFilter.distinct_values(Current.account, columns.map(&:name_jabvox))
     render json: {
       custom: columns.map do |c|
+        configured = Array(c.options_jabvox).map(&:to_s)
+        discovered = values_by_key[c.name_jabvox] || []
         { key: c.name_jabvox, label: c.label_jabvox, column_type: c.column_type_jabvox,
-          options: c.options_jabvox }
+          options: (configured + discovered).reject(&:blank?).uniq.sort }
       end
     }
   end

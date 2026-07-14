@@ -15,6 +15,8 @@ export default {
   updateTable: (id, data) =>
     axios.patch(`${tablesClient.url}/${id}`, { table: data }),
   deleteTable: id => axios.delete(`${tablesClient.url}/${id}`),
+  exportTable: id => axios.get(`${tablesClient.url}/${id}/export`),
+  importTable: data => axios.post(`${tablesClient.url}/import`, { data }),
 
   // Columns (nested under tables)
   getColumns: tableId =>

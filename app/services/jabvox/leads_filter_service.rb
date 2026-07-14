@@ -51,23 +51,11 @@ class Jabvox::LeadsFilterService
     ActiveRecord::Base.sanitize_sql_like(value.to_s)
   end
 
-  # Filter by lead custom fields stored in custom_fields_jabvox (jsonb key => value). `custom`
-  # is a hash of { field_key => value }; each is matched case-insensitively as a substring.
-  # Keys are sanitized to the same slug format used when custom columns are created, so an
-  # attacker can't smuggle SQL through the jsonb path.
+  # Filter by lead custom fields. Delegates to the shared Jabvox::LeadCustomFilter
+  # so the "one or several values" behaviour and SQL-injection safety are defined
+  # in a single place (also used by the dialer).
   def apply_custom_field_filters(leads)
-    custom = @filters[:custom]
-    return leads unless custom.respond_to?(:each_pair)
-
-    custom.each_pair do |raw_key, value|
-      next if value.to_s.strip.blank?
-
-      key = raw_key.to_s.downcase.gsub(/[^a-z0-9_]/, '')
-      next if key.blank?
-
-      leads = leads.where('jabvox_leads.custom_fields_jabvox ->> ? ILIKE ?', key, "%#{value}%")
-    end
-    leads
+    Jabvox::LeadCustomFilter.apply(leads, @filters[:custom])
   end
 
   def apply_sold_filter(leads)

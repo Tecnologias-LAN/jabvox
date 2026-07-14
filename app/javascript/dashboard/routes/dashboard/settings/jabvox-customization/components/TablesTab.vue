@@ -4,6 +4,7 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import customizationAPI from 'dashboard/api/jabvox/customization';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Label from 'dashboard/components-next/label/Label.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -111,6 +112,65 @@ const doDelete = async id => {
     useAlert(t('JABVOX_CUSTOMIZATION.ERROR'));
   }
 };
+
+// ── Export / import a table definition as JSON (portable across accounts) ──
+const importInput = ref(null);
+const MAX_IMPORT_BYTES = 2 * 1024 * 1024; // 2 MB — a table definition is tiny
+
+// Download this table's definition + columns as a .json file.
+const onExport = async table => {
+  try {
+    const { data } = await customizationAPI.exportTable(table.id);
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const slug = (table.name_jabvox || 'tabla')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    a.download = `jabvox-tabla-${slug || 'export'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    useAlert(t('JABVOX_CUSTOMIZATION.TABLES.EXPORT_ERROR'));
+  }
+};
+
+const onImportClick = () => importInput.value?.click();
+
+// Read the chosen .json, parse it safely, send it to the import endpoint.
+const onImportFile = async event => {
+  const file = event.target.files?.[0];
+  event.target.value = ''; // allow re-selecting the same file later
+  if (!file) return;
+  if (file.size > MAX_IMPORT_BYTES) {
+    useAlert(t('JABVOX_CUSTOMIZATION.TABLES.IMPORT_TOO_BIG'));
+    return;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch {
+    useAlert(t('JABVOX_CUSTOMIZATION.TABLES.IMPORT_INVALID_JSON'));
+    return;
+  }
+  try {
+    const { data } = await customizationAPI.importTable(parsed);
+    await store.dispatch('jabvoxCustomization/fetchTables');
+    useAlert(
+      t('JABVOX_CUSTOMIZATION.TABLES.IMPORT_SUCCESS', {
+        created: data.created_columns ?? 0,
+        updated: data.updated_columns ?? 0,
+      })
+    );
+  } catch (error) {
+    const msg = error?.response?.data?.errors?.join?.(', ');
+    useAlert(msg || t('JABVOX_CUSTOMIZATION.TABLES.IMPORT_ERROR'));
+  }
+};
 </script>
 
 <template>
@@ -120,12 +180,28 @@ const doDelete = async id => {
       :description="t('JABVOX_CUSTOMIZATION.TABLES.DESCRIPTION')"
     >
       <template #action>
-        <Button
-          icon="i-lucide-plus"
-          :label="t('JABVOX_CUSTOMIZATION.TABLES.NEW')"
-          size="sm"
-          @click="formDialog?.openCreate()"
-        />
+        <div class="flex items-center gap-2">
+          <input
+            ref="importInput"
+            type="file"
+            accept="application/json,.json"
+            class="hidden"
+            @change="onImportFile"
+          />
+          <Button
+            icon="i-lucide-upload"
+            variant="ghost"
+            :label="t('JABVOX_CUSTOMIZATION.TABLES.IMPORT')"
+            size="sm"
+            @click="onImportClick"
+          />
+          <Button
+            icon="i-lucide-plus"
+            :label="t('JABVOX_CUSTOMIZATION.TABLES.NEW')"
+            size="sm"
+            @click="formDialog?.openCreate()"
+          />
+        </div>
       </template>
     </SectionHeader>
 
@@ -242,6 +318,14 @@ const doDelete = async id => {
                     : t('JABVOX_CUSTOMIZATION.TABLES.LINK_LEADS')
                 "
                 @click="toggleLeadsLink(table)"
+              />
+              <Button
+                icon="i-lucide-download"
+                variant="ghost"
+                color="slate"
+                size="sm"
+                :title="t('JABVOX_CUSTOMIZATION.TABLES.EXPORT')"
+                @click="onExport(table)"
               />
               <Button
                 icon="i-lucide-pencil"

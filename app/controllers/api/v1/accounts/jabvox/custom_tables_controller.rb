@@ -3,7 +3,7 @@ class Api::V1::Accounts::Jabvox::CustomTablesController < Api::V1::Accounts::Bas
 
   before_action :check_customization_enabled
   before_action :ensure_module_permission
-  before_action :set_table, only: [:show, :update, :destroy]
+  before_action :set_table, only: [:show, :update, :destroy, :export]
 
   def index
     ensure_leads_table
@@ -34,6 +34,30 @@ class Api::V1::Accounts::Jabvox::CustomTablesController < Api::V1::Accounts::Bas
 
     @table.destroy!
     head :no_content
+  end
+
+  # GET /custom_tables/:id/export
+  # Portable JSON of the table definition + columns (no DB ids, no row data), the
+  # same shape `import` accepts — export from one account, import in another.
+  def export
+    render json: export_payload(@table)
+  end
+
+  # POST /custom_tables/import  { data: { table: {...}, columns: [...] } }
+  # Recreates a table (definition + columns) from an exported JSON. Pure data:
+  # nothing is executed; every field goes through a strict whitelist. The system
+  # "Leads" table can never be imported over.
+  def import
+    result = Jabvox::CustomTableImportService.new(Current.account, import_payload).call
+    if result.valid?
+      render json: {
+        table: table_json(result.table),
+        created_columns: result.created_columns,
+        updated_columns: result.updated_columns
+      }
+    else
+      render json: { errors: result.errors }, status: :unprocessable_entity
+    end
   end
 
   private
@@ -98,7 +122,41 @@ class Api::V1::Accounts::Jabvox::CustomTablesController < Api::V1::Accounts::Bas
       column_type_jabvox: col.column_type_jabvox,
       options_jabvox: col.options_jabvox,
       required_jabvox: col.required_jabvox,
-      position_jabvox: col.position_jabvox
+      position_jabvox: col.position_jabvox,
+      depends_on_jabvox: col.depends_on_jabvox,
+      show_when_jabvox: col.show_when_jabvox
     }
+  end
+
+  # Portable representation: no DB ids, no account, no rows — just the shape
+  # CustomTableImportService reads back.
+  def export_payload(table)
+    {
+      version: 1,
+      table: {
+        name_jabvox: table.name_jabvox,
+        description_jabvox: table.description_jabvox,
+        kind_jabvox: table.kind_jabvox
+      },
+      columns: table.jabvox_custom_columns.ordered.map do |c|
+        {
+          name_jabvox: c.name_jabvox,
+          label_jabvox: c.label_jabvox,
+          column_type_jabvox: c.column_type_jabvox,
+          options_jabvox: c.options_jabvox,
+          required_jabvox: c.required_jabvox,
+          depends_on_jabvox: c.depends_on_jabvox,
+          show_when_jabvox: c.show_when_jabvox
+        }
+      end
+    }
+  end
+
+  # The import file arrives under `data` (parsed client-side from the uploaded
+  # JSON). permit! is safe: the service whitelists every field itself.
+  def import_payload
+    raw = params[:data]
+    raw = raw.permit!.to_h if raw.respond_to?(:permit!)
+    raw.is_a?(Hash) ? raw : {}
   end
 end
