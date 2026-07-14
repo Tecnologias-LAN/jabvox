@@ -43,7 +43,11 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
       # Flat field map (default + custom) so the WhatsApp template composer can
       # auto-fill {{n}} variables from this contact/lead. Custom fields are
       # prefixed "custom:" to mirror the bulk sender.
-      fields: lead_template_fields(lead)
+      fields: lead_template_fields(lead),
+      # Every custom field DEFINED for the account (key + label), so the 1-to-1
+      # composer can offer all of them as variable sources — without hitting the
+      # admin-only bulk endpoint. Accessible to agents, same as this action.
+      custom_field_defs: lead_custom_field_defs
     }
   end
 
@@ -181,6 +185,18 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     }
     (lead.custom_fields_jabvox || {}).each { |k, v| fields["custom:#{k}"] = v.to_s }
     fields
+  end
+
+  # [{ key:, label: }] for every custom column of the account's leads table, so
+  # the template composer can list all custom fields even when the contact has
+  # no value in them. Empty when there's no leads custom table.
+  def lead_custom_field_defs
+    table = Current.account.jabvox_custom_tables.for_leads.first
+    return [] unless table
+
+    table.jabvox_custom_columns.ordered.map do |c|
+      { key: c.name_jabvox, label: c.label_jabvox }
+    end
   end
 
   # Enforce a custom-role permission ONLY for users who actually have a custom role.
