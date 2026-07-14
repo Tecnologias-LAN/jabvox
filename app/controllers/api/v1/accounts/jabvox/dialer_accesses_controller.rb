@@ -134,7 +134,17 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     end
 
     crm_contact = lead.contact
-    phone = crm_contact.phone_number.to_s.strip
+    # Number to dial comes from the campaign's chosen field (phone_number by
+    # default, or a custom column like movil_2_c) normalized with its prefix.
+    phone = Jabvox::DialNumberResolver.resolve(
+      lead: lead, field: campaign.dial_field_jabvox, prefix: campaign.dial_prefix_jabvox
+    ).to_s
+    # No usable number in the chosen field → skip this lead instead of dialing a
+    # blank/invalid number.
+    if phone.blank?
+      Rails.logger.info "📭 [Dialer] Lead sin número en el campo '#{campaign.dial_field_jabvox}' | lead=#{lead.id}"
+      return render json: { queued: false, message: 'Lead sin número en el campo configurado' }
+    end
     contact = JabvoxDialerCampaignContact.create!(
       account_id: Current.account.id,
       jabvox_dialer_campaign_id: campaign.id,

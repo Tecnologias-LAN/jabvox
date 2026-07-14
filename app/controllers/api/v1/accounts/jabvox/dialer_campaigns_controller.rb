@@ -327,7 +327,7 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
       :calling_hours_start_jabvox, :calling_hours_end_jabvox,
       :schedule_start_date_jabvox, :schedule_end_date_jabvox,
       :jabvox_campaign_id, :wrapup_time_jabvox, :lines_per_agent_jabvox, :leads_count_jabvox,
-      :wait_in_queue_jabvox, :dial_mode_jabvox,
+      :wait_in_queue_jabvox, :dial_mode_jabvox, :dial_field_jabvox, :dial_prefix_jabvox,
       countries_jabvox: [], management_state_ids_jabvox: [], agent_ids_jabvox: [],
       affiliate_ids_jabvox: [], inbox_ids_jabvox: [], excluded_lead_ids_jabvox: []
     )

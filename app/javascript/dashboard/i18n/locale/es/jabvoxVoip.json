@@ -28,6 +28,18 @@
       "SECTION_DIALER": "Marcador",
       "SECTION_DIALER_DESC": "Contexto y troncal usados por el marcador predictivo."
     },
+    "DIAL": {
+      "SECTION": "Campo a marcar (clic para llamar)",
+      "SECTION_DESC": "Elige qué número se marca al llamar. Si no eliges, se usa el Teléfono del lead.",
+      "FIELD_LABEL": "Campo a marcar",
+      "FIELD_PHONE_DEFAULT": "Teléfono del lead (predeterminado)",
+      "FIELD_SEARCH": "Buscar campo...",
+      "FIELD_NO_RESULTS": "Ningún campo coincide con tu búsqueda.",
+      "FIELD_HELP": "Puede ser el teléfono del contacto o un campo personalizado (ej. Movil 2).",
+      "PREFIX_LABEL": "Prefijo del país para este campo",
+      "PREFIX_PLACEHOLDER": "57",
+      "PREFIX_HELP": "Se antepone a los números que no traen código de país (los campos personalizados suelen venir sin prefijo)."
+    },
     "STATUS": {
       "TITLE": "Estado de la conexión",
       "REFRESH": "Actualizar",

@@ -59,6 +59,8 @@ const emptyForm = () => ({
   calling_hours_start_jabvox: '',
   calling_hours_end_jabvox: '',
   dial_mode_jabvox: 'last_state',
+  dial_field_jabvox: 'phone', // required: which number to dial (one per campaign)
+  dial_prefix_jabvox: '',
 });
 const form = ref(emptyForm());
 
@@ -73,6 +75,12 @@ onMounted(async () => {
     customColumns.value = [];
   }
 });
+
+// Fields the campaign can dial: contact phone + each lead custom column.
+const dialFieldOptions = computed(() => [
+  { value: 'phone', label: t('JABVOX_DIALER.FORM.DIAL_FIELD_PHONE') },
+  ...customColumns.value.map(c => ({ value: c.key, label: c.label })),
+]);
 
 // Every custom field with known values becomes a checkbox selector (one or
 // several). Values come from the field definition AND the values discovered in
@@ -123,7 +131,11 @@ const title = computed(() =>
 );
 // Only the name is required; the lead campaign (and every other filter) is
 // optional — no campaign means "all account leads matching the other filters".
-const isValid = computed(() => form.value.name_jabvox.trim().length > 0);
+// Name is required AND the dial field must be chosen (one per campaign).
+const isValid = computed(
+  () =>
+    form.value.name_jabvox.trim().length > 0 && !!form.value.dial_field_jabvox
+);
 
 // ─── lead count live preview ───
 const leadCount = ref(null);
@@ -287,6 +299,8 @@ const openEdit = c => {
     calling_hours_start_jabvox: c.calling_hours_start_jabvox || '',
     calling_hours_end_jabvox: c.calling_hours_end_jabvox || '',
     dial_mode_jabvox: c.dial_mode_jabvox || 'last_state',
+    dial_field_jabvox: c.dial_field_jabvox || 'phone',
+    dial_prefix_jabvox: c.dial_prefix_jabvox || '',
   };
   nextTick(() => dialogRef.value?.open());
   debouncedFetchLeadCount();
@@ -894,6 +908,34 @@ defineExpose({ openCreate, openEdit, close });
               </span>
             </label>
           </div>
+
+          <!-- Dial field: which number to dial (required, one per campaign) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium text-n-slate-12">
+                {{ t('JABVOX_DIALER.FORM.DIAL_FIELD') }}
+                <span class="text-n-ruby-11">*</span>
+              </label>
+              <ComboBox
+                v-model="form.dial_field_jabvox"
+                :options="dialFieldOptions"
+                :placeholder="t('JABVOX_DIALER.FORM.DIAL_FIELD_PHONE')"
+                :search-placeholder="t('JABVOX_DIALER.FORM.DIAL_FIELD_SEARCH')"
+                :empty-state="t('JABVOX_DIALER.FORM.DIAL_FIELD_NO_RESULTS')"
+              />
+              <span class="text-xs text-n-slate-10">
+                {{ t('JABVOX_DIALER.FORM.DIAL_FIELD_HINT') }}
+              </span>
+            </div>
+            <Input
+              v-model="form.dial_prefix_jabvox"
+              :label="t('JABVOX_DIALER.FORM.DIAL_PREFIX')"
+              placeholder="57"
+              :message="t('JABVOX_DIALER.FORM.DIAL_PREFIX_HINT')"
+              custom-input-class="font-mono"
+            />
+          </div>
+
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               v-model.number="form.wrapup_time_jabvox"

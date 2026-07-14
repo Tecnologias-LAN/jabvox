@@ -6,12 +6,17 @@ defineProps({
   title: { type: String, default: '' },
   description: { type: String, default: '' },
   icon: { type: String, default: '' },
+  // Cards default to clipping their content (overflow-hidden keeps the rounded
+  // corners clean). Set to true when the card holds a dropdown/combobox whose
+  // menu must escape the card instead of being clipped.
+  allowOverflow: { type: Boolean, default: false },
 });
 </script>
 
 <template>
   <div
-    class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm overflow-hidden"
+    class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm"
+    :class="allowOverflow ? 'overflow-visible' : 'overflow-hidden'"
   >
     <!-- Header -->
     <div

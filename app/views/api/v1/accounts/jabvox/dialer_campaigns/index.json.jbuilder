@@ -14,7 +14,8 @@ json.array! @campaigns do |campaign|
   json.in_schedule campaign.in_schedule?
   json.lead_filters_jabvox campaign.lead_filters_jabvox || {}
   json.excluded_lead_ids_jabvox campaign.excluded_lead_ids_jabvox || []
-  json.dial_mode_jabvox campaign.dial_mode_jabvox
+  json.dial_field_jabvox campaign.dial_field_jabvox
+  json.dial_prefix_jabvox campaign.dial_prefix_jabvox
   json.jabvox_campaign_id campaign.jabvox_campaign_id
   json.countries_jabvox campaign.countries_jabvox || []
   json.wrapup_time_jabvox campaign.wrapup_time_jabvox

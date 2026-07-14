@@ -49,17 +49,34 @@ class Api::V1::Accounts::Jabvox::ClickToCall::CallsController < Api::V1::Account
     Current.account.jabvox_user_extensions.find_by(user_id: current_user.id)&.extension_jabvox
   end
 
-  # Returns [phone, contact, lead, conversation] resolved from the params.
+  # Returns [phone, contact, lead, conversation]. The number to dial comes from
+  # the VoIP config's dial_field (default: the contact's phone_number); a custom
+  # field is read from the lead and normalized with the configured prefix.
   def resolve_target
+    config = Current.account.jabvox_voip_config
     if params[:lead_id].present?
       lead = Current.account.jabvox_leads.find_by(id: params[:lead_id])
-      return [lead&.contact&.phone_number, lead&.contact, lead, nil]
+      return [dial_number(lead, lead&.contact, config), lead&.contact, lead, nil]
     end
 
     contact = Current.account.contacts.find_by(id: params[:contact_id]) if params[:contact_id].present?
     conversation = Current.account.conversations.find_by(display_id: params[:conversation_id]) if params[:conversation_id].present?
     contact ||= conversation&.contact
-    [contact&.phone_number, contact, nil, conversation]
+    # Custom dial fields live on the lead, so resolve the contact's lead if any.
+    lead = contact ? Current.account.jabvox_leads.find_by(contact_id: contact.id) : nil
+    [dial_number(lead, contact, config), contact, nil, conversation]
+  end
+
+  # Number to dial for click-to-call. Uses the configured dial_field/prefix when
+  # a lead is available; otherwise falls back to the contact's phone number.
+  def dial_number(lead, contact, config)
+    if lead
+      Jabvox::DialNumberResolver.resolve(
+        lead: lead, field: config&.dial_field_jabvox, prefix: config&.dial_prefix_jabvox
+      )
+    else
+      Jabvox::PhoneNormalizer.for_dialing(contact&.phone_number).presence
+    end
   end
 
   def render_error(message)

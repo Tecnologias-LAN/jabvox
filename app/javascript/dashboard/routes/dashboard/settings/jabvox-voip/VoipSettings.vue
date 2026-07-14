@@ -6,10 +6,12 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
 import userExtensionAPI from 'dashboard/api/jabvox/userExtension';
+import { dialerCampaignsAPI } from 'dashboard/api/jabvox/dialer';
 import agentsAPI from 'dashboard/api/agents';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Label from 'dashboard/components-next/label/Label.vue';
+import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import SectionCard from './components/SectionCard.vue';
@@ -38,7 +40,28 @@ const buildForm = cfg => ({
   context: cfg?.context || 'clicktocall',
   dialer_context: cfg?.dialer_context || '',
   dialer_trunk: cfg?.dialer_trunk || '',
+  dial_field_jabvox: cfg?.dial_field_jabvox || '',
+  dial_prefix_jabvox: cfg?.dial_prefix_jabvox || '',
 });
+
+// Fields the call can dial: the contact phone (default) + each lead custom
+// column, so the user can pick e.g. "movil_2_c" instead of the WhatsApp number.
+const dialFieldOptions = ref([{ value: '', label: '' }]);
+const loadDialFields = async () => {
+  const base = [
+    { value: '', label: t('JABVOX_VOIP.DIAL.FIELD_PHONE_DEFAULT') },
+  ];
+  try {
+    const { data } = await dialerCampaignsAPI.getLeadFields();
+    const custom = (data.custom || []).map(c => ({
+      value: c.key,
+      label: c.label,
+    }));
+    dialFieldOptions.value = [...base, ...custom];
+  } catch {
+    dialFieldOptions.value = base;
+  }
+};
 
 const form = ref(buildForm(config.value?.id ? config.value : null));
 watch(form, () => markDirty(), { deep: true });
@@ -97,6 +120,7 @@ onMounted(async () => {
     await store.dispatch('jabvoxVoip/fetchConfig');
     if (config.value?.id) form.value = buildForm(config.value);
   }
+  loadDialFields();
   store.dispatch('jabvoxVoip/fetchStatus');
   if (isAdmin.value) {
     loadExtensions();
@@ -322,6 +346,37 @@ const doRemoveExtension = async ext => {
               :label="t('JABVOX_VOIP.FORM.DIALER_TRUNK')"
               :placeholder="t('JABVOX_VOIP.FORM.DIALER_TRUNK_PLACEHOLDER')"
               :message="t('JABVOX_VOIP.FORM.DIALER_TRUNK_HELP')"
+              custom-input-class="font-mono"
+            />
+          </div>
+        </SectionCard>
+
+        <!-- Dial field (click-to-call): which number to dial + prefix -->
+        <SectionCard
+          :title="t('JABVOX_VOIP.DIAL.SECTION')"
+          :description="t('JABVOX_VOIP.DIAL.SECTION_DESC')"
+          icon="i-lucide-phone-call"
+          allow-overflow
+        >
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1.5">
+              <Label :label="t('JABVOX_VOIP.DIAL.FIELD_LABEL')" />
+              <ComboBox
+                v-model="form.dial_field_jabvox"
+                :options="dialFieldOptions"
+                :placeholder="t('JABVOX_VOIP.DIAL.FIELD_PHONE_DEFAULT')"
+                :search-placeholder="t('JABVOX_VOIP.DIAL.FIELD_SEARCH')"
+                :empty-state="t('JABVOX_VOIP.DIAL.FIELD_NO_RESULTS')"
+              />
+              <span class="text-xs text-n-slate-10">
+                {{ t('JABVOX_VOIP.DIAL.FIELD_HELP') }}
+              </span>
+            </div>
+            <Input
+              v-model="form.dial_prefix_jabvox"
+              :label="t('JABVOX_VOIP.DIAL.PREFIX_LABEL')"
+              :placeholder="t('JABVOX_VOIP.DIAL.PREFIX_PLACEHOLDER')"
+              :message="t('JABVOX_VOIP.DIAL.PREFIX_HELP')"
               custom-input-class="font-mono"
             />
           </div>

@@ -11,7 +11,9 @@
 #  calling_hours_start_jabvox  :string
 #  countries_jabvox            :jsonb
 #  description_jabvox          :text
+#  dial_field_jabvox           :string
 #  dial_mode_jabvox            :string           default("last_state"), not null
+#  dial_prefix_jabvox          :string
 #  dialed_count_jabvox         :integer          default(0), not null
 #  excluded_lead_ids_jabvox    :jsonb            not null
 #  failed_count_jabvox         :integer          default(0), not null

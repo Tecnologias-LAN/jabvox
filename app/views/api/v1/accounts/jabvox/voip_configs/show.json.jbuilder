@@ -5,5 +5,7 @@ json.username @config.username
 json.context @config.context
 json.dialer_context @config.dialer_context
 json.dialer_trunk @config.dialer_trunk
+json.dial_field_jabvox @config.dial_field_jabvox
+json.dial_prefix_jabvox @config.dial_prefix_jabvox
 json.has_password @config.password.present?
 json.updated_at @config.updated_at

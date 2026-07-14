@@ -15,7 +15,7 @@ class Api::V1::Accounts::Jabvox::VoipConfigsController < Api::V1::Accounts::Jabv
   def update
     @config = Current.account.jabvox_voip_config ||
               Current.account.build_jabvox_voip_config
-    params[:config].delete(:password) if params[:config][:password].blank?
+    params[:config]&.delete(:password) if params.dig(:config, :password).blank?
     @config.update!(config_params)
     render :show
   end
@@ -65,7 +65,8 @@ class Api::V1::Accounts::Jabvox::VoipConfigsController < Api::V1::Accounts::Jabv
   end
 
   def config_params
-    params.require(:config).permit(:host, :port, :username, :password, :context, :dialer_context, :dialer_trunk, :dialer_caller_id)
+    params.require(:config).permit(:host, :port, :username, :password, :context, :dialer_context, :dialer_trunk,
+                                   :dialer_caller_id, :dial_field_jabvox, :dial_prefix_jabvox)
   end
 
   def tcp_reachable?(host, port)
