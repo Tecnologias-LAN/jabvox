@@ -1613,6 +1613,7 @@ export default {
 
     <WhatsappTemplates
       :inbox-id="inbox.id"
+      :contact-id="currentContact && currentContact.id"
       :show="showWhatsAppTemplatesModal"
       @close="hideWhatsappTemplatesModal"
       @on-send="onSendWhatsAppReply"

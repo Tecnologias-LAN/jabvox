@@ -30,6 +30,7 @@
       "LANGUAGE": "Language",
       "CATEGORY": "Category",
       "VARIABLE_PLACEHOLDER": "Enter {variable} value",
+      "VARIABLE_MANUAL": "Type manually",
       "GO_BACK_LABEL": "Go Back",
       "SEND_MESSAGE_LABEL": "Send Message",
       "FORM_ERROR_MESSAGE": "Please fill all variables before sending",

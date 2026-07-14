@@ -1,18 +1,30 @@
 <script setup>
+import { toRef } from 'vue';
 import WhatsAppTemplateParser from 'dashboard/components-next/whatsapp/WhatsAppTemplateParser.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { useI18n } from 'vue-i18n';
+import { useLeadTemplateFields } from 'dashboard/composables/jabvox/useLeadTemplateFields';
 
-defineProps({
+const props = defineProps({
   template: {
     type: Object,
     default: () => ({}),
+  },
+  // Jabvox: contact whose lead fields can auto-fill template variables.
+  contactId: {
+    type: [Number, String],
+    default: undefined,
   },
 });
 
 const emit = defineEmits(['sendMessage', 'back']);
 
 const { t } = useI18n();
+
+// Field options + resolved values to auto-fill {{n}} variables from this lead.
+const { fieldOptions, fieldValues } = useLeadTemplateFields(
+  toRef(props, 'contactId')
+);
 
 const handleSendMessage = payload => {
   emit('sendMessage', payload);
@@ -28,6 +40,8 @@ const handleBack = () => {
     <div class="w-full">
       <WhatsAppTemplateParser
         :template="template"
+        :field-options="fieldOptions"
+        :field-values="fieldValues"
         @send-message="handleSendMessage"
         @back="handleBack"
       >

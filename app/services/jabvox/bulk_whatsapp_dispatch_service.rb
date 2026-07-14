@@ -35,7 +35,8 @@ class Jabvox::BulkWhatsappDispatchService
   end
 
   def initialize(account:, inbox:, sender_user:, actor:, response_email: '', csv_io: nil,
-                 file_name: '', leads_selection: nil, template_name: nil, language: nil, text: nil)
+                 file_name: '', leads_selection: nil, template_name: nil, language: nil, text: nil,
+                 variable_map: nil)
     @account = account
     @inbox = inbox
     @sender_user = sender_user
@@ -47,6 +48,9 @@ class Jabvox::BulkWhatsappDispatchService
     @template_name = template_name
     @language = language
     @text = text
+    # { "1" => "nombre", "2" => "custom:fecha_entrega2_c", ... } — which lead field
+    # fills each {{n}} placeholder of the template body.
+    @variable_map = normalize_variable_map(variable_map)
   end
 
   def prepare
@@ -122,7 +126,8 @@ class Jabvox::BulkWhatsappDispatchService
       ids = resolved_lead_ids
       @total_rows = ids.size
       { 'kind' => 'leads', 'lead_ids' => ids, 'selection' => @leads_selection,
-        'template_name' => @template_name, 'language' => @language, 'text' => @text }
+        'template_name' => @template_name, 'language' => @language, 'text' => @text,
+        'variable_map' => @variable_map }
     else
       { 'kind' => 'csv', 'rows' => parse_rows }
     end
@@ -215,32 +220,86 @@ class Jabvox::BulkWhatsappDispatchService
 
     body = payload[:template_name] || payload[:text]
     lang = (payload[:language].presence || 'es')
-    scope = @account.jabvox_leads.where(id: ids).includes(:contact, :jabvox_campaign, :assignee)
+    # variable_map may travel in the payload (snapshot) even if it wasn't set on
+    # this instance (deliver! rebuilds the service without it).
+    var_map = @variable_map.presence || normalize_variable_map(payload[:variable_map])
+    scope = @account.jabvox_leads.where(id: ids).includes(:contact, :jabvox_campaign, :jabvox_affiliate, :assignee)
 
     scope.filter_map do |lead|
       number = digits(lead.contact&.phone_number)
       next nil if number.blank? || body.to_s.strip.blank?
 
-      lead_message(lead, number, body, lang)
+      lead_message(lead, number, body, lang, var_map)
     end
   end
 
   # Full lead snapshot per recipient so n8n can personalize, route and report
-  # without extra API round-trips.
-  def lead_message(lead, number, body, lang)
-    contact = lead.contact
+  # without extra API round-trips. `fields` is the flat name->value map of every
+  # default + custom field; `processed_params` are the {{n}} values already
+  # resolved from the variable_map, so n8n only forwards them to Meta.
+  def lead_message(lead, number, body, lang, var_map = {})
+    fields = lead_fields(lead, number)
     {
-      'nombre' => contact&.name.to_s, 'numero' => number,
+      'nombre' => fields['nombre'], 'numero' => number,
       'template' => body.to_s.strip, 'idioma' => lang,
       'lead_id' => lead.id, 'lead_number' => lead.lead_number,
-      'contact_id' => contact&.id,
+      'contact_id' => lead.contact&.id,
+      'email' => fields['email'],
+      'country' => fields['country'],
+      'campaign' => fields['campaign'],
+      'assignee_name' => fields['assignee_name'],
+      'assignee_email' => fields['assignee_email'],
+      'fields' => fields,
+      'custom_fields' => lead.custom_fields_jabvox || {},
+      'processed_params' => resolve_params(var_map, fields)
+    }
+  end
+
+  # Flat, string-keyed map of every field usable as a template variable:
+  # default lead/contact fields under plain keys, and each custom field under
+  # "custom:<key>". This is the single source the variable_map maps against.
+  def lead_fields(lead, number)
+    contact = lead.contact
+    base = {
+      'nombre' => contact&.name.to_s,
+      'numero' => number,
       'email' => contact&.email.to_s,
+      'telefono' => contact&.phone_number.to_s,
+      'identificador' => contact&.identifier.to_s,
       'country' => contact&.additional_attributes&.dig('country').to_s,
       'campaign' => lead.jabvox_campaign&.name_jabvox.to_s,
+      'afiliado' => lead.jabvox_affiliate&.name.to_s,
       'assignee_name' => lead.assignee&.name.to_s,
       'assignee_email' => lead.assignee&.email.to_s,
-      'custom_fields' => lead.custom_fields_jabvox || {}
+      'lead_number' => lead.lead_number.to_s
     }
+    (lead.custom_fields_jabvox || {}).each { |k, v| base["custom:#{k}"] = v.to_s }
+    base
+  end
+
+  # Resolves {{n}} -> value using the variable_map. A mapping value is either a
+  # field key present in `fields`, or "text:<literal>" for a fixed value.
+  def resolve_params(var_map, fields)
+    return {} if var_map.blank?
+
+    var_map.each_with_object({}) do |(n, source), out|
+      out[n.to_s] = if source.to_s.start_with?('text:')
+                      source.to_s.sub('text:', '')
+                    else
+                      fields[source.to_s].to_s
+                    end
+    end
+  end
+
+  # Coerces the incoming map to { "1" => "fieldkey", ... } with string keys,
+  # dropping blanks. Accepts a Hash or nil.
+  def normalize_variable_map(map)
+    return {} if map.blank?
+
+    (map.respond_to?(:to_unsafe_h) ? map.to_unsafe_h : map).to_h.each_with_object({}) do |(k, v), out|
+      key = k.to_s.gsub(/\D/, '')
+      out[key] = v.to_s if key.present? && v.to_s.present?
+    end
   end
 
   def resolve_leads_scope(sel)

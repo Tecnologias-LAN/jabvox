@@ -15,6 +15,11 @@ export default {
       type: Number,
       default: undefined,
     },
+    // Jabvox: contact whose lead fields can auto-fill template variables.
+    contactId: {
+      type: [Number, String],
+      default: undefined,
+    },
   },
   emits: ['onSend', 'cancel', 'update:show'],
   data() {
@@ -71,6 +76,7 @@ export default {
       <WhatsAppTemplateReply
         v-else
         :template="selectedWaTemplate"
+        :contact-id="contactId"
         @reset-template="onResetTemplate"
         @send-message="onSendMessage"
       />

@@ -63,6 +63,19 @@
       "TEMPLATE": "Plantilla",
       "LANGUAGE": "Idioma"
     },
+    "VARS": {
+      "TITLE": "Variables de la plantilla",
+      "HELP": "Esta plantilla tiene variables. Elige qué campo del lead se usará para rellenar cada una al enviar.",
+      "PLACEHOLDER": "Selecciona un campo",
+      "INCOMPLETE": "Asigna un campo a cada variable para poder enviar.",
+      "FIELD_NAME": "Nombre del lead",
+      "FIELD_PHONE": "Teléfono",
+      "FIELD_EMAIL": "Correo",
+      "FIELD_COUNTRY": "País",
+      "FIELD_CAMPAIGN": "Campaña",
+      "FIELD_AFFILIATE": "Afiliado",
+      "FIELD_ASSIGNEE": "Asesor asignado"
+    },
     "SEND": {
       "INBOX": "Bandeja",
       "INBOX_PLACEHOLDER": "Selecciona la bandeja de envío",

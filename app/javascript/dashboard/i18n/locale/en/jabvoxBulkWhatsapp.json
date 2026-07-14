@@ -63,6 +63,19 @@
       "TEMPLATE": "Template",
       "LANGUAGE": "Language"
     },
+    "VARS": {
+      "TITLE": "Template variables",
+      "HELP": "This template has variables. Choose which lead field fills each one when sending.",
+      "PLACEHOLDER": "Select a field",
+      "INCOMPLETE": "Assign a field to every variable before sending.",
+      "FIELD_NAME": "Lead name",
+      "FIELD_PHONE": "Phone",
+      "FIELD_EMAIL": "Email",
+      "FIELD_COUNTRY": "Country",
+      "FIELD_CAMPAIGN": "Campaign",
+      "FIELD_AFFILIATE": "Affiliate",
+      "FIELD_ASSIGNEE": "Assigned agent"
+    },
     "SEND": {
       "INBOX": "Inbox",
       "INBOX_PLACEHOLDER": "Select the inbox to send from",

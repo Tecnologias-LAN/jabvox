@@ -52,6 +52,7 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     templateName,
     language,
     text,
+    variableMap,
   }) {
     return axios.post(`${this.url}/batches`, {
       source: 'leads',
@@ -65,6 +66,7 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
       template_name: templateName,
       language,
       text,
+      variable_map: variableMap,
     });
   }
 }

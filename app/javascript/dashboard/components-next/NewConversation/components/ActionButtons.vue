@@ -30,6 +30,8 @@ const props = defineProps({
   isDropdownActive: { type: Boolean, default: false },
   messageSignature: { type: String, default: '' },
   inboxId: { type: Number, default: null },
+  // Jabvox: contact whose lead fields can auto-fill template variables.
+  contactId: { type: [Number, String], default: null },
 });
 
 const emit = defineEmits([
@@ -199,6 +201,7 @@ useEventListener(document, 'paste', onPaste);
       <WhatsAppOptions
         v-if="isWhatsappInbox"
         :inbox-id="inboxId"
+        :contact-id="contactId"
         @send-message="emit('sendWhatsappMessage', $event)"
       />
       <ContentTemplateSelector

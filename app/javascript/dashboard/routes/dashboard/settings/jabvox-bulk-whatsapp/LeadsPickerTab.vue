@@ -114,6 +114,62 @@ const inboxTemplates = computed(() => {
   return tpls.filter(tp => (tp.status || '').toUpperCase() === 'APPROVED');
 });
 
+// ── Template variables ({{n}}) → lead field mapping ─────────────────────────
+// Which {{n}} placeholder must be filled for the chosen template. Each entry is
+// mapped by the user to a lead field (or a fixed text) before the send.
+const variableMap = ref({});
+
+// Body text of the currently selected template.
+const selectedTemplateBody = computed(() => {
+  const tpl = inboxTemplates.value.find(tp => tp.name === templateName.value);
+  if (!tpl) return '';
+  const comps = Array.isArray(tpl.components) ? tpl.components : [];
+  const body = comps.find(c => (c.type || '').toUpperCase() === 'BODY');
+  return body?.text || '';
+});
+
+// Ordered, unique {{n}} numbers found in the template body.
+const templateVariables = computed(() => {
+  const found = selectedTemplateBody.value.match(/\{\{\s*(\d+)\s*\}\}/g) || [];
+  const nums = found.map(v => parseInt(v.replace(/[^\d]/g, ''), 10));
+  return [...new Set(nums)].sort((a, b) => a - b);
+});
+
+// Options offered for each variable: default lead fields + every custom field.
+const variableFieldOptions = computed(() => {
+  const base = [
+    { value: 'nombre', label: t('JABVOX_BULK_WA.VARS.FIELD_NAME') },
+    { value: 'telefono', label: t('JABVOX_BULK_WA.VARS.FIELD_PHONE') },
+    { value: 'email', label: t('JABVOX_BULK_WA.VARS.FIELD_EMAIL') },
+    { value: 'country', label: t('JABVOX_BULK_WA.VARS.FIELD_COUNTRY') },
+    { value: 'campaign', label: t('JABVOX_BULK_WA.VARS.FIELD_CAMPAIGN') },
+    { value: 'afiliado', label: t('JABVOX_BULK_WA.VARS.FIELD_AFFILIATE') },
+    { value: 'assignee_name', label: t('JABVOX_BULK_WA.VARS.FIELD_ASSIGNEE') },
+  ];
+  const custom = (customFields.value || []).map(cf => ({
+    value: `custom:${cf.key}`,
+    label: cf.label || cf.key,
+  }));
+  return [...base, ...custom];
+});
+
+// Reset the mapping whenever the set of variables changes (new template).
+watch(templateVariables, vars => {
+  const next = {};
+  vars.forEach(n => {
+    next[n] = variableMap.value[n] || '';
+  });
+  variableMap.value = next;
+});
+
+// Every {{n}} must be mapped to a field before sending.
+const allVariablesMapped = computed(() =>
+  templateVariables.value.every(n => !!variableMap.value[n])
+);
+
+// Renders the placeholder label (e.g. "{{1}}") without confusing the template parser.
+const varLabel = n => `{{${n}}}`;
+
 const activeFilters = computed(() => {
   const f = {};
   Object.entries(filters.value).forEach(([k, v]) => {
@@ -147,7 +203,7 @@ const canSend = computed(
     !!props.mode &&
     selectedCount.value > 0 &&
     (props.mode === 'template'
-      ? !!templateName.value && !!language.value
+      ? !!templateName.value && !!language.value && allVariablesMapped.value
       : !!text.value.trim())
 );
 
@@ -244,6 +300,10 @@ const onSend = async () => {
       templateName: props.mode === 'template' ? templateName.value : undefined,
       language: props.mode === 'template' ? language.value : undefined,
       text: props.mode === 'text' ? text.value : undefined,
+      variableMap:
+        props.mode === 'template' && templateVariables.value.length
+          ? variableMap.value
+          : undefined,
     });
     useAlert(t('JABVOX_BULK_WA.SEND.SUCCESS'));
     clearSelection();
@@ -809,6 +869,48 @@ onMounted(() => {
               {{ t('JABVOX_BULK_WA.LEADS.LANGUAGE_HINT') }}
             </span>
           </div>
+        </div>
+
+        <!-- Variables {{n}} of the chosen template: map each one to a lead field -->
+        <div v-if="templateVariables.length" class="flex flex-col gap-2 mt-1">
+          <div class="flex flex-col gap-0.5">
+            <label class="text-xs font-medium text-n-slate-12">
+              {{ t('JABVOX_BULK_WA.VARS.TITLE') }}
+            </label>
+            <span class="text-[11px] text-n-slate-9">
+              {{ t('JABVOX_BULK_WA.VARS.HELP') }}
+            </span>
+          </div>
+          <div
+            v-for="n in templateVariables"
+            :key="`var-${n}`"
+            class="flex items-center gap-2"
+          >
+            <span
+              class="shrink-0 text-xs font-mono rounded-md bg-n-alpha-2 px-2 py-1.5 text-n-slate-12"
+            >
+              {{ varLabel(n) }}
+            </span>
+            <select
+              v-model="variableMap[n]"
+              class="reset-base flex-1 text-sm rounded-lg border px-3 py-2 bg-n-alpha-1"
+              :class="variableMap[n] ? 'border-n-weak' : 'border-n-ruby-6'"
+            >
+              <option value="">
+                {{ t('JABVOX_BULK_WA.VARS.PLACEHOLDER') }}
+              </option>
+              <option
+                v-for="opt in variableFieldOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          <span v-if="!allVariablesMapped" class="text-[11px] text-n-ruby-9">
+            {{ t('JABVOX_BULK_WA.VARS.INCOMPLETE') }}
+          </span>
         </div>
       </template>
 

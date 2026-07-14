@@ -76,8 +76,18 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     Jabvox::BulkWhatsappDispatchService.prepare(
       account: Current.account, inbox: inbox, sender_user: sender, actor: current_user,
       response_email: params[:response_email], leads_selection: leads_selection_params,
-      template_name: params[:template_name], language: params[:language], text: params[:text]
+      template_name: params[:template_name], language: params[:language], text: params[:text],
+      variable_map: variable_map_params
     )
+  end
+
+  # Maps each {{n}} template placeholder to a lead field key (or "text:<literal>").
+  # e.g. { "1" => "nombre", "2" => "custom:fecha_entrega2_c" }.
+  def variable_map_params
+    raw = params[:variable_map]
+    return {} if raw.blank?
+
+    (raw.respond_to?(:permit!) ? raw.permit!.to_h : raw.to_h)
   end
 
   # Which leads to send to: either an explicit id list, or "all matching the filter" minus

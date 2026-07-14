@@ -33,11 +33,17 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   end
 
   def for_contact
-    lead = Current.account.jabvox_leads.includes(:jabvox_campaign).find_by(contact_id: params[:contact_id])
+    lead = Current.account.jabvox_leads
+                  .includes(:jabvox_campaign, :jabvox_affiliate, :assignee, :contact)
+                  .find_by(contact_id: params[:contact_id])
     render json: {
       id: lead&.id,
       campaign_id: lead&.jabvox_campaign_id,
-      campaign_name: lead&.jabvox_campaign&.name_jabvox
+      campaign_name: lead&.jabvox_campaign&.name_jabvox,
+      # Flat field map (default + custom) so the WhatsApp template composer can
+      # auto-fill {{n}} variables from this contact/lead. Custom fields are
+      # prefixed "custom:" to mirror the bulk sender.
+      fields: lead_template_fields(lead)
     }
   end
 
@@ -154,6 +160,28 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   end
 
   private
+
+  # Flat, string-keyed field map for the WhatsApp template composer: default
+  # contact/lead fields under plain keys, custom fields under "custom:<key>".
+  # Mirrors Jabvox::BulkWhatsappDispatchService#lead_fields so 1-to-1 and bulk
+  # share the same field identifiers. Returns {} when there's no lead.
+  def lead_template_fields(lead)
+    return {} unless lead
+
+    contact = lead.contact
+    fields = {
+      'nombre' => contact&.name.to_s,
+      'telefono' => contact&.phone_number.to_s,
+      'email' => contact&.email.to_s,
+      'identificador' => contact&.identifier.to_s,
+      'country' => contact&.additional_attributes&.dig('country').to_s,
+      'campaign' => lead.jabvox_campaign&.name_jabvox.to_s,
+      'afiliado' => lead.jabvox_affiliate&.name.to_s,
+      'assignee_name' => lead.assignee&.name.to_s
+    }
+    (lead.custom_fields_jabvox || {}).each { |k, v| fields["custom:#{k}"] = v.to_s }
+    fields
+  end
 
   # Enforce a custom-role permission ONLY for users who actually have a custom role.
   # Users on a standard role (custom_role nil) keep the historical flow untouched;

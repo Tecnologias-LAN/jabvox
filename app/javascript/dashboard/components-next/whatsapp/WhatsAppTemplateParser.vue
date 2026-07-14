@@ -35,6 +35,18 @@ const props = defineProps({
       return true;
     },
   },
+  // Jabvox opt-in: when provided, each body variable gets a "use a field" selector
+  // that auto-fills its value from the contact/lead. Shape: [{ value, label }].
+  // Optional map { fieldKey: value } used to resolve the chosen field to a value.
+  // When both are empty the component behaves exactly like upstream (manual input).
+  fieldOptions: {
+    type: Array,
+    default: () => [],
+  },
+  fieldValues: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
 const emit = defineEmits(['sendMessage', 'resetTemplate', 'back']);
@@ -42,6 +54,20 @@ const emit = defineEmits(['sendMessage', 'resetTemplate', 'back']);
 const { t } = useI18n();
 
 const processedParams = ref({});
+
+// Jabvox: which lead field was chosen to fill each body variable ({ key: fieldValue }).
+const variableFieldMap = ref({});
+const showFieldMapping = computed(() => (props.fieldOptions || []).length > 0);
+
+// When a field is picked for a body variable, write its resolved value into the
+// same processedParams.body[key] the manual input uses, so nothing else changes.
+const onPickField = (key, fieldValue) => {
+  variableFieldMap.value[key] = fieldValue;
+  if (!processedParams.value.body) return;
+  processedParams.value.body[key] = fieldValue
+    ? `${props.fieldValues?.[fieldValue] ?? ''}`
+    : '';
+};
 
 const languageLabel = computed(() => {
   return `${t('WHATSAPP_TEMPLATES.PARSER.LANGUAGE')}: ${props.template.language || DEFAULT_LANGUAGE}`;
@@ -123,6 +149,7 @@ const initializeTemplateParameters = () => {
     props.template,
     hasMediaHeader.value
   );
+  variableFieldMap.value = {};
 };
 
 const updateMediaUrl = value => {
@@ -257,18 +284,38 @@ defineExpose({
         <div
           v-for="(variable, key) in processedParams.body"
           :key="`body-${key}`"
-          class="flex items-center mb-2.5"
+          class="flex flex-col gap-1.5 mb-2.5"
         >
-          <Input
-            v-model="processedParams.body[key]"
-            type="text"
-            class="flex-1"
-            :placeholder="
-              t('WHATSAPP_TEMPLATES.PARSER.VARIABLE_PLACEHOLDER', {
-                variable: key,
-              })
-            "
-          />
+          <div class="flex items-center gap-2">
+            <!-- Jabvox opt-in: pick a contact/lead field to auto-fill this variable -->
+            <select
+              v-if="showFieldMapping"
+              :value="variableFieldMap[key] || ''"
+              class="reset-base shrink-0 max-w-[45%] text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-2 py-2"
+              @change="onPickField(key, $event.target.value)"
+            >
+              <option value="">
+                {{ $t('WHATSAPP_TEMPLATES.PARSER.VARIABLE_MANUAL') }}
+              </option>
+              <option
+                v-for="opt in fieldOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
+            <Input
+              v-model="processedParams.body[key]"
+              type="text"
+              class="flex-1"
+              :placeholder="
+                t('WHATSAPP_TEMPLATES.PARSER.VARIABLE_PLACEHOLDER', {
+                  variable: key,
+                })
+              "
+            />
+          </div>
         </div>
       </div>
 

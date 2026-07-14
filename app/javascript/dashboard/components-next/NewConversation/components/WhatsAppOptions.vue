@@ -13,6 +13,11 @@ const props = defineProps({
     type: Number,
     required: true,
   },
+  // Jabvox: contact whose lead fields can auto-fill template variables.
+  contactId: {
+    type: [Number, String],
+    default: undefined,
+  },
 });
 
 const emit = defineEmits(['sendMessage']);
@@ -120,6 +125,7 @@ const handleSendMessage = (template, hide) => {
       <WhatsappTemplate
         v-else
         :template="selectedTemplate"
+        :contact-id="contactId"
         @send-message="payload => handleSendMessage(payload, hide)"
         @back="handleBack"
       />
