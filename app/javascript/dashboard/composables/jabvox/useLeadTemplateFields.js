@@ -49,25 +49,29 @@ export function useLeadTemplateFields(contactIdSource) {
       } catch {
         customDefs = [];
       }
-      const customLabelByKey = {};
-      customDefs.forEach(cf => {
-        customLabelByKey[`custom:${cf.key}`] = cf.label || cf.key;
-      });
-
-      // Only offer fields that actually have a value for this contact, plus the
-      // known default fields (even if empty) so the user can still pick them.
+      // Offer every default field plus EVERY custom field defined for the
+      // account (from customDefs), regardless of whether this contact has a
+      // value — the user must be able to pick any field. Fall back to the
+      // custom keys present in `values` if the definitions couldn't be loaded.
       const options = [];
       Object.keys(DEFAULT_LABELS).forEach(key => {
         options.push({ value: key, label: DEFAULT_LABELS[key] });
       });
+
+      const seen = new Set();
+      const addCustom = (key, label) => {
+        const value = `custom:${key}`;
+        if (seen.has(value)) return;
+        seen.add(value);
+        options.push({ value, label: label || key });
+      };
+
+      customDefs.forEach(cf => addCustom(cf.key, cf.label));
+      // Any custom value the contact has that wasn't in the definitions.
       Object.keys(values)
         .filter(k => k.startsWith('custom:'))
-        .forEach(k => {
-          options.push({
-            value: k,
-            label: customLabelByKey[k] || k.replace('custom:', ''),
-          });
-        });
+        .forEach(k => addCustom(k.replace('custom:', '')));
+
       fieldOptions.value = options;
     } catch {
       reset();
