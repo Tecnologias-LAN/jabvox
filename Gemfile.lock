@@ -895,8 +895,6 @@ GEM
       sprockets (> 3.0)
       sprockets-rails
       tilt
-    scout_apm (5.3.3)
-      parser
     scss_lint (0.60.0)
       sass (~> 3.5, >= 3.5.5)
     searchkick (5.5.2)
@@ -1191,7 +1189,6 @@ DEPENDENCIES
   ruby-openai
   ruby_llm (>= 1.8.2)
   ruby_llm-schema
-  scout_apm
   scss_lint
   searchkick
   seed_dump

@@ -14,7 +14,6 @@ Bundler.require(*Rails.groups)
 Dotenv::Rails.load
 require 'datadog' if ENV.fetch('DD_TRACE_AGENT_URL', false).present?
 require 'elastic-apm' if ENV.fetch('ELASTIC_APM_SECRET_TOKEN', false).present?
-require 'scout_apm' if ENV.fetch('SCOUT_KEY', false).present?
 
 if ENV.fetch('NEW_RELIC_LICENSE_KEY', false).present?
   require 'newrelic-sidekiq-metrics'
