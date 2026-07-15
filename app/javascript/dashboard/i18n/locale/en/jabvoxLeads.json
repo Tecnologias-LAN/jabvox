@@ -102,6 +102,7 @@
       "CONTACT_VIA": "Contactar por",
       "CONTACT_VIA_HINT": "Este lead aún no ha sido contactado. Selecciona un canal para iniciar la conversación.",
       "WHATSAPP_TEMPLATE_HINT": "Este canal es WhatsApp API: el primer mensaje debe enviarse con una plantilla aprobada. Selecciona una plantilla.",
+      "SEND_TEMPLATE": "Enviar plantilla de WhatsApp",
       "SELECT_INBOX": "Selecciona un canal...",
       "START_CONVERSATION": "Iniciar conversación",
       "STARTING": "Iniciando...",

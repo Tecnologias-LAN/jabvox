@@ -519,6 +519,47 @@ const handleTemplateSend = async payload => {
   await createConversation(payload);
 };
 
+// ── Plantilla dentro de una conversación YA abierta ─────────────────────────
+// El icono de WhatsApp en la barra de composición abre este panel para elegir y
+// enviar una plantilla a la conversación existente (no crea una nueva).
+const showTemplatePanel = ref(false);
+const panelTemplate = ref(null);
+
+const toggleTemplatePanel = () => {
+  showTemplatePanel.value = !showTemplatePanel.value;
+  if (!showTemplatePanel.value) panelTemplate.value = null;
+};
+
+// El inbox de la conversación abierta (para listar sus plantillas aprobadas).
+const conversationInboxId = computed(() => lead.value?.inbox_id || null);
+const canSendTemplateInConversation = computed(() => {
+  const id = conversationInboxId.value;
+  if (!id) return false;
+  const templates = store.getters['inboxes/getFilteredWhatsAppTemplates'](id);
+  return Array.isArray(templates) && templates.length > 0;
+});
+
+const handleTemplateSendToConversation = async payload => {
+  if (!lead.value?.conversation_display_id || isSending.value) return;
+  isSending.value = true;
+  try {
+    const response = await messageAPI.create({
+      conversationId: lead.value.conversation_display_id,
+      message: payload.message,
+      templateParams: payload.templateParams,
+      echo_id: `jabvox_${Date.now()}`,
+    });
+    messages.value.push(response.data);
+    showTemplatePanel.value = false;
+    panelTemplate.value = null;
+    scrollToBottom(chatContainer);
+  } catch {
+    useAlert(t('JABVOX_LEADS.DETAIL.SEND_ERROR'));
+  } finally {
+    isSending.value = false;
+  }
+};
+
 const loadLead = async () => {
   await store.dispatch('jabvoxLeads/fetchLead', leadId.value);
   messages.value = [];
@@ -1331,7 +1372,44 @@ onMounted(async () => {
                 :state="selectedManagementState"
                 class="mt-2"
               />
+              <!-- Panel de plantilla dentro de la conversación abierta -->
+              <div
+                v-if="showTemplatePanel && !isNoteMode"
+                class="max-h-[22rem] overflow-y-auto rounded-lg border border-n-weak bg-n-alpha-1 p-3"
+              >
+                <div v-if="!panelTemplate">
+                  <p class="text-xs text-n-slate-10 mb-2">
+                    {{ t('JABVOX_LEADS.DETAIL.WHATSAPP_TEMPLATE_HINT') }}
+                  </p>
+                  <TemplatesPicker
+                    :inbox-id="Number(conversationInboxId)"
+                    @on-select="panelTemplate = $event"
+                  />
+                </div>
+                <div v-else class="text-left">
+                  <WhatsAppTemplateReply
+                    :template="panelTemplate"
+                    :contact-id="lead.contact.id"
+                    @send-message="handleTemplateSendToConversation"
+                    @reset-template="panelTemplate = null"
+                  />
+                </div>
+              </div>
               <div class="flex gap-2 items-end">
+                <button
+                  v-if="!isNoteMode && canSendTemplateInConversation"
+                  type="button"
+                  :title="t('JABVOX_LEADS.DETAIL.SEND_TEMPLATE')"
+                  class="reset-base shrink-0 size-9 rounded-lg border flex items-center justify-center transition-colors"
+                  :class="
+                    showTemplatePanel
+                      ? 'border-n-brand bg-n-brand/10 text-n-brand'
+                      : 'border-n-weak text-n-slate-11 hover:text-n-slate-12'
+                  "
+                  @click="toggleTemplatePanel"
+                >
+                  <span class="i-ri-whatsapp-line size-5" />
+                </button>
                 <textarea
                   v-model="newMessage"
                   rows="2"
