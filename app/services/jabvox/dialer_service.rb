@@ -247,8 +247,25 @@ class Jabvox::DialerService
                 "__JABVOX_DIALER_LOG_ID=#{call_log_id}," \
                 "JABVOX_CAMPAIGN_ID=#{campaign.id}"
     }
-    params[:callerid] = caller_id.presence || "#{contact.name_jabvox} <0000>"
+    cid = resolve_caller_id(caller_id, contact)
+    params[:callerid] = cid if cid.present?
     params
+  end
+
+  # Caller ID presented on the outbound trunk leg. Priority: explicit caller_id
+  # (campaign) → the VoIP config's dialer_caller_id → none. The number is reduced
+  # to bare digits (providers like ipcom reject "+", spaces or a "0000" filler),
+  # and we NEVER fall back to a fake "0000" that trunks answer with 403 Forbidden.
+  # Format: "Name <digits>" so the display name rides along when there is one.
+  def resolve_caller_id(caller_id, contact)
+    raw = caller_id.presence || @config.dialer_caller_id.presence
+    return nil if raw.blank?
+
+    digits = raw.to_s.gsub(/\D/, '')
+    return nil if digits.blank?
+
+    name = contact.name_jabvox.to_s.gsub(/["<>]/, '').strip
+    name.present? ? "\"#{name}\" <#{digits}>" : digits
   end
 
   def create_call_log(contact, campaign, account, phone)
