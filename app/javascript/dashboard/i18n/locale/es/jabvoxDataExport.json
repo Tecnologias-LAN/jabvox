@@ -36,6 +36,41 @@
       "SAVE": "Guardar",
       "EDIT": "Editar",
       "CANCEL": "Cancelar"
+    },
+    "MODE": {
+      "LABEL": "Modo",
+      "CREATE": "Crear tablas desde cero",
+      "MAP": "Mapear a una base existente"
+    },
+    "MAP": {
+      "TITLE": "Mapeo de campos",
+      "DETECT": "Detectar estructura",
+      "DETECTING": "Detectando estructura…",
+      "CREATE_MISSING": "Crear columnas faltantes en el destino",
+      "TABLE": "Tabla",
+      "JABVOX_COLUMN": "Columna Jabvox",
+      "CUSTOMER_COLUMN": "Columna del destino",
+      "KEY": "Columna clave",
+      "KEY_HINT": "Columna del destino que identifica cada registro (evita duplicados).",
+      "NO_REMOTE_TABLE": "Esta tabla no existe en el destino.",
+      "SAVE": "Guardar mapeo",
+      "SAVED": "Mapeo guardado.",
+      "UNMAPPED": "Sin mapear",
+      "MAPPED_COUNT": "{count} mapeadas",
+      "NONE": "Ninguna"
+    },
+    "SYNC": {
+      "TITLE": "Sincronización",
+      "NOW": "Sincronizar ahora",
+      "QUEUED": "Sincronización encolada.",
+      "STATUS": "Estado",
+      "LAST": "Última sincronización",
+      "EXPORTED": "Exportados",
+      "FAILED": "Fallidos",
+      "IDLE": "Inactivo",
+      "SYNCING": "Sincronizando",
+      "OK": "Correcto",
+      "ERROR": "Error"
     }
   }
 }

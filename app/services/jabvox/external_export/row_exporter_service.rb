@@ -8,23 +8,75 @@ class Jabvox::ExternalExport::RowExporterService
   end
 
   # record is a jabvox model instance whose class is in the catalog.
+  # Single-record path (real-time mirror): one guarded, one-connection upsert.
   def export(record)
     model = record.class
     return unless Jabvox::ExternalExport::Catalog.exportable_models.include?(model)
 
     guard!
-    values = safe_values(record).merge(correlation_ids(record))
-    @adapter.upsert_row(Jabvox::ExternalExport::Catalog.table_name_for(model), values)
+    plan = row_plan(record)
+    return if plan.nil?
+
+    @adapter.upsert_row(plan[:table], plan[:values], conflict_key: plan[:key])
+  end
+
+  # Batch path (backfill): write with an already-open client so a whole batch
+  # reuses ONE connection. Returns true if written, false if skipped.
+  def export_on(client, record)
+    return false unless Jabvox::ExternalExport::Catalog.exportable_models.include?(record.class)
+
+    plan = row_plan(record)
+    return false if plan.nil?
+
+    @adapter.upsert_row_on(client, plan[:table], plan[:values], conflict_key: plan[:key])
+    true
+  end
+
+  # Public plan accessor for the batch backfill: { table:, values:, key: } or nil.
+  def plan_for(record)
+    return nil unless Jabvox::ExternalExport::Catalog.exportable_models.include?(record.class)
+
+    row_plan(record)
   end
 
   private
 
+  # { table:, values:, key: } for the record given the target's mode, or nil when
+  # the record's table must be skipped (map mode without a valid mapping/key).
+  def row_plan(record)
+    table = Jabvox::ExternalExport::Catalog.table_name_for(record.class)
+    @target.map_mode? ? mapped_plan(record, table) : create_plan(record, table)
+  end
+
+  # create mode: mirror all safe columns + correlation ids, keyed by id_jabvox.
+  def create_plan(record, table)
+    { table: table, values: safe_values(record).merge(correlation_ids(record)), key: 'id_jabvox' }
+  end
+
+  # map mode: ONLY the mapped columns, renamed to the customer's columns, keyed by
+  # the customer's key column. Tables without a mapping or a designated key are
+  # skipped (never guessed) — nothing is written blindly and re-syncs never duplicate.
+  def mapped_plan(record, table)
+    mapping = @target.mapping_for(table)
+    return nil if mapping.nil?
+
+    key_col = mapping['key']
+    return nil if key_col.blank?
+
+    safe = Jabvox::ExternalExport::Catalog.safe_columns(record.class)
+    values = {}
+    mapping['columns'].each do |jabvox_col, customer_col|
+      next unless safe.include?(jabvox_col.to_s) # whitelist: only real, non-sensitive cols
+
+      values[customer_col.to_s] = record[jabvox_col.to_s]
+    end
+    return nil if values.empty? || !values.key?(key_col)
+
+    { table: table, values: values, key: key_col }
+  end
+
   def guard!
-    result = Jabvox::Analytics::HostGuardService.new(
-      host: @target.host_jabvox, port: @target.effective_port,
-      allow_private: @target.allow_private_network_jabvox
-    ).call
-    raise Jabvox::ExternalExport::WriteAdapter::ConnectionError, result.reason unless result.allowed?
+    Jabvox::ExternalExport.guard!(@target)
   end
 
   # Only safe columns (sensitive ones removed by the catalog).

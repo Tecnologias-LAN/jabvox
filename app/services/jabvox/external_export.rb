@@ -20,4 +20,22 @@ module Jabvox::ExternalExport
   def bust_cache(account_id)
     Rails.cache.delete("jabvox_export_enabled/#{account_id}")
   end
+
+  # Shared SSRF/host guard for every write path (schema build, row export,
+  # backfill). The target's configured port is explicitly allowed — it's a
+  # destination the admin set up on purpose, not an arbitrary SSRF target — so
+  # customer DBs on non-standard ports (e.g. 5438) work, while private-network
+  # and cloud-metadata protections still apply unless the admin opted in.
+  def guard!(target)
+    result = Jabvox::Analytics::HostGuardService.new(
+      host: target.host_jabvox,
+      port: target.effective_port,
+      allow_private: target.allow_private_network_jabvox,
+      allowed_ports: (Jabvox::Analytics::HostGuardService::DEFAULT_ALLOWED_PORTS +
+                      [target.effective_port.to_i]).uniq
+    ).call
+    return if result.allowed?
+
+    raise Jabvox::ExternalExport::WriteAdapter::ConnectionError, result.reason
+  end
 end

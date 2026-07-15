@@ -29,17 +29,18 @@ class Jabvox::ExternalExport::SchemaBuilderService
   private
 
   def guard!
-    result = Jabvox::Analytics::HostGuardService.new(
-      host: @target.host_jabvox, port: @target.effective_port,
-      allow_private: @target.allow_private_network_jabvox
-    ).call
-    raise Jabvox::ExternalExport::WriteAdapter::ConnectionError, result.reason unless result.allowed?
+    Jabvox::ExternalExport.guard!(@target)
   end
 
   # Safe columns of the model (types from the schema) + correlation columns.
+  # Enum columns are stored as TEXT: ActiveRecord reports them as :integer but
+  # the exported value is the human-readable enum string (e.g. "appointment"),
+  # which would fail to insert into a BIGINT column.
   def columns_for(model)
+    enums = model.defined_enums.keys
     cols = Jabvox::ExternalExport::Catalog.safe_columns(model).map do |name|
-      { name: name, type: model.columns_hash[name]&.type || :text }
+      type = enums.include?(name) ? :text : (model.columns_hash[name]&.type || :text)
+      { name: name, type: type }
     end
     (cols + CORRELATION_COLUMNS).uniq { |c| c[:name] }
   end

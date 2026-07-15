@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_14_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_14_100001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1935,6 +1935,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_14_000001) do
     t.bigint "created_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "mode_jabvox", default: "create", null: false
+    t.jsonb "field_mapping_jabvox", default: {}, null: false
+    t.boolean "create_missing_columns_jabvox", default: false, null: false
+    t.datetime "last_full_sync_at_jabvox"
+    t.jsonb "last_sync_result_jabvox", default: {}, null: false
+    t.string "sync_status_jabvox", default: "idle", null: false
     t.index ["account_id", "name_jabvox"], name: "index_jabvox_export_targets_on_account_id_and_name_jabvox", unique: true
     t.index ["account_id"], name: "index_jabvox_export_targets_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_export_targets_on_created_by_id"

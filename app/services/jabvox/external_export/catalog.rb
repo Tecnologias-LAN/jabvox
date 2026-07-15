@@ -23,7 +23,10 @@ module Jabvox::ExternalExport::Catalog
   SENSITIVE_COLUMN_PATTERNS = [
     /password/i, /secret/i, /_token\z/i, /\Atoken\z/i, /api_key/i, /access_key/i,
     /private_key/i, /public_key/i, /webhook_secret/i, /credential/i, /encrypted_/i,
-    /\Aotp/i, /pubsub/i, /\Akey\z/i, /bucket_/i, /ssl_ca/i, /verification_pin/i
+    /\Aotp/i, /pubsub/i, /\Akey\z/i, /bucket_/i, /ssl_ca/i, /verification_pin/i,
+    # References to a token (a token FK still points at a credential) and internal
+    # infrastructure URLs (webhooks are our automation endpoints, not customer data).
+    /access_token/i, /_token_id/i, /webhook_url/i, /webhook/i
   ].freeze
 
   # A jabvox model is exportable when it's an ActiveRecord model, has an account_id,

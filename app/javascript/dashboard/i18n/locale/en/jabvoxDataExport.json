@@ -36,6 +36,41 @@
       "SAVE": "Save",
       "EDIT": "Edit",
       "CANCEL": "Cancel"
+    },
+    "MODE": {
+      "LABEL": "Mode",
+      "CREATE": "Create tables from scratch",
+      "MAP": "Map to an existing database"
+    },
+    "MAP": {
+      "TITLE": "Field mapping",
+      "DETECT": "Detect structure",
+      "DETECTING": "Detecting structure…",
+      "CREATE_MISSING": "Create missing columns in the destination",
+      "TABLE": "Table",
+      "JABVOX_COLUMN": "Jabvox column",
+      "CUSTOMER_COLUMN": "Destination column",
+      "KEY": "Key column",
+      "KEY_HINT": "Destination column that identifies each record (avoids duplicates).",
+      "NO_REMOTE_TABLE": "This table does not exist in the destination.",
+      "SAVE": "Save mapping",
+      "SAVED": "Mapping saved.",
+      "UNMAPPED": "Unmapped",
+      "MAPPED_COUNT": "{count} mapped",
+      "NONE": "None"
+    },
+    "SYNC": {
+      "TITLE": "Synchronization",
+      "NOW": "Sync now",
+      "QUEUED": "Sync queued.",
+      "STATUS": "Status",
+      "LAST": "Last sync",
+      "EXPORTED": "Exported",
+      "FAILED": "Failed",
+      "IDLE": "Idle",
+      "SYNCING": "Syncing",
+      "OK": "OK",
+      "ERROR": "Error"
     }
   }
 }

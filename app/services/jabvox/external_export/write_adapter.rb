@@ -20,7 +20,9 @@ class Jabvox::ExternalExport::WriteAdapter
 
   # Creates the table if missing, then adds any missing columns (idempotent).
   # `columns` is [{ name:, type: }]; types are a small safe whitelist mapped per engine.
-  def ensure_table(table, columns)
+  # `unique_key` (default 'id_jabvox') gets a UNIQUE index so ON CONFLICT / ON
+  # DUPLICATE KEY upserts work — without it Postgres rejects ON CONFLICT.
+  def ensure_table(table, columns, unique_key: 'id_jabvox')
     with_client do |client|
       exec(client, create_table_sql(table, columns))
       existing = existing_columns(client, table)
@@ -29,21 +31,95 @@ class Jabvox::ExternalExport::WriteAdapter
 
         exec(client, "ALTER TABLE #{qi(table)} ADD COLUMN #{qi(col[:name])} #{sql_type(col[:type])}")
       end
+      ensure_unique_index(client, table, unique_key) if unique_key.present?
     end
   end
 
-  # Upserts one row keyed by (id_jabvox). values is a { column => value } hash whose
-  # keys are already-safe column names. Values go as binds (never interpolated).
-  def upsert_row(table, values)
-    cols = values.keys
+  # Adds any mapped columns that don't exist yet (map mode, opt-in DDL). Never
+  # creates the table. Returns the columns that were actually added.
+  def add_missing_columns(table, columns)
+    added = []
     with_client do |client|
-      exec_params(client, upsert_sql(table, cols), values.values_at(*cols))
+      existing = existing_columns(client, table)
+      columns.each do |col|
+        next if existing.include?(col[:name])
+
+        exec(client, "ALTER TABLE #{qi(table)} ADD COLUMN #{qi(col[:name])} #{sql_type(col[:type])}")
+        added << col[:name]
+      end
     end
+    added
+  end
+
+  # Upserts one row keyed by `conflict_key` (default 'id_jabvox' for create mode;
+  # in map mode it's the customer's key column). values is a { column => value }
+  # hash whose keys are already-safe column names. Values go as binds.
+  def upsert_row(table, values, conflict_key: 'id_jabvox')
+    with_client { |client| upsert_row_on(client, table, values, conflict_key: conflict_key) }
+  end
+
+  # Opens ONE connection and yields it, so a batch of writes (backfill) reuses a
+  # single connection instead of opening one per row. Use with #upsert_row_on.
+  def with_connection(&block)
+    with_client(&block)
+  end
+
+  # Upsert using an already-open client (batch path). Same SQL as #upsert_row.
+  def upsert_row_on(client, table, values, conflict_key: 'id_jabvox')
+    cols = values.keys
+    exec_params(client, upsert_sql(table, cols, conflict_key), values.values_at(*cols))
+  end
+
+  # Multi-row upsert on an open client: one INSERT ... VALUES (row),(row),...
+  # for the whole batch. Rows are hashes sharing the SAME columns `cols`. This is
+  # the backfill fast path — over a remote DB it's ~100x fewer round-trips than
+  # row-by-row. Values are always binds (never interpolated).
+  def upsert_batch_on(client, table, cols, rows, conflict_key: 'id_jabvox')
+    return if rows.empty?
+
+    exec_params(client, batch_upsert_sql(table, cols, rows.size, conflict_key),
+                rows.flat_map { |r| cols.map { |c| r[c] } })
   end
 
   private
 
+  # INSERT with N value tuples: (\$1,\$2),(\$3,\$4)... for pg; (?,?),(?,?)... for mysql.
+  def batch_upsert_sql(table, cols, row_count, conflict_key)
+    ncols = cols.size
+    tuples = Array.new(row_count) do |ri|
+      "(#{Array.new(ncols) { |ci| bind(ri * ncols + ci) }.join(', ')})"
+    end
+    head = "INSERT INTO #{qi(table)} (#{cols.map { |c| qi(c) }.join(', ')}) VALUES #{tuples.join(', ')}"
+    if @engine == 'postgresql'
+      updates = cols.reject { |c| c == conflict_key }.map { |c| "#{qi(c)} = EXCLUDED.#{qi(c)}" }
+      "#{head} ON CONFLICT (#{qi(conflict_key)}) DO UPDATE SET #{updates.join(', ')}"
+    else
+      updates = cols.reject { |c| c == conflict_key }.map { |c| "#{qi(c)} = VALUES(#{qi(c)})" }
+      "#{head} ON DUPLICATE KEY UPDATE #{updates.join(', ')}"
+    end
+  end
+
   # ---- SQL builders (identifiers quoted, types whitelisted) ----
+
+  # Idempotently ensures a UNIQUE index on `key_col` so upserts have a conflict
+  # target. Postgres: CREATE UNIQUE INDEX IF NOT EXISTS. MySQL/MariaDB: check
+  # information_schema first (no IF NOT EXISTS for indexes), then create.
+  def ensure_unique_index(client, table, key_col)
+    idx = "ux_#{table}_#{key_col}".gsub(/[^a-zA-Z0-9_]/, '')[0, 60]
+    if @engine == 'postgresql'
+      exec(client, "CREATE UNIQUE INDEX IF NOT EXISTS #{qi(idx)} ON #{qi(table)} (#{qi(key_col)})")
+    else
+      res = client.prepare(
+        'SELECT COUNT(*) FROM information_schema.STATISTICS ' \
+        'WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?'
+      ).execute(@target.database_jabvox, table, idx, as: :array).first
+      exec(client, "CREATE UNIQUE INDEX #{qi(idx)} ON #{qi(table)} (#{qi(key_col)})") if res.first.to_i.zero?
+    end
+  rescue StandardError => e
+    # A pre-existing duplicate value can make this fail; surface as a connection
+    # error so the caller records it, but don't crash the whole schema build.
+    raise ConnectionError, "No se pudo crear índice único en #{table}.#{key_col}: #{e.message}"
+  end
 
   def create_table_sql(table, columns)
     defs = columns.map { |c| "#{qi(c[:name])} #{sql_type(c[:type])}" }
@@ -54,15 +130,15 @@ class Jabvox::ExternalExport::WriteAdapter
     end
   end
 
-  def upsert_sql(table, cols)
+  def upsert_sql(table, cols, conflict_key)
     placeholders = cols.each_index.map { |i| bind(i) }
     if @engine == 'postgresql'
-      updates = cols.reject { |c| c == 'id_jabvox' }.map { |c| "#{qi(c)} = EXCLUDED.#{qi(c)}" }
+      updates = cols.reject { |c| c == conflict_key }.map { |c| "#{qi(c)} = EXCLUDED.#{qi(c)}" }
       "INSERT INTO #{qi(table)} (#{cols.map { |c| qi(c) }.join(', ')}) " \
         "VALUES (#{placeholders.join(', ')}) " \
-        "ON CONFLICT (id_jabvox) DO UPDATE SET #{updates.join(', ')}"
+        "ON CONFLICT (#{qi(conflict_key)}) DO UPDATE SET #{updates.join(', ')}"
     else
-      updates = cols.reject { |c| c == 'id_jabvox' }.map { |c| "#{qi(c)} = VALUES(#{qi(c)})" }
+      updates = cols.reject { |c| c == conflict_key }.map { |c| "#{qi(c)} = VALUES(#{qi(c)})" }
       "INSERT INTO #{qi(table)} (#{cols.map { |c| qi(c) }.join(', ')}) " \
         "VALUES (#{placeholders.join(', ')}) " \
         "ON DUPLICATE KEY UPDATE #{updates.join(', ')}"
