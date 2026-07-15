@@ -135,7 +135,7 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
   end
 
   def filter_params
-    params.permit(:from, :to, :extension, :src, :dst, :disposition).to_h.symbolize_keys
+    params.permit(:from, :to, :extension, :ext_from, :ext_to, :src, :dst, :disposition).to_h.symbolize_keys
   end
 
   def serialize_analysis(record)

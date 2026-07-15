@@ -21,7 +21,14 @@ const activeView = ref('summary');
 const loading = ref(false);
 const access = ref({ can_view: false, configured: false });
 
-const filters = ref({ from: '', to: '', extension: '', disposition: '' });
+const filters = ref({
+  from: '',
+  to: '',
+  extension: '',
+  ext_from: '',
+  ext_to: '',
+  disposition: '',
+});
 
 const summary = ref([]);
 const records = ref([]);
@@ -141,7 +148,14 @@ const applyFilters = () => {
 };
 
 const resetFilters = () => {
-  filters.value = { from: '', to: '', extension: '', disposition: '' };
+  filters.value = {
+    from: '',
+    to: '',
+    extension: '',
+    ext_from: '',
+    ext_to: '',
+    disposition: '',
+  };
   applyFilters();
 };
 
@@ -284,6 +298,29 @@ onMounted(async () => {
               v-model="filters.disposition"
               :options="dispositionOptions"
             />
+          </div>
+        </div>
+        <!-- Segundo filtro, separado: por RANGO de extensiones (desde/hasta) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="flex flex-col gap-1.5 sm:col-span-2">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_CDR.REPORTS.FILTERS.EXTENSION_RANGE') }}
+            </label>
+            <div class="flex items-center gap-2">
+              <Input
+                v-model="filters.ext_from"
+                type="number"
+                class="flex-1"
+                :placeholder="t('JABVOX_CDR.REPORTS.FILTERS.EXT_FROM')"
+              />
+              <span class="text-n-slate-10">–</span>
+              <Input
+                v-model="filters.ext_to"
+                type="number"
+                class="flex-1"
+                :placeholder="t('JABVOX_CDR.REPORTS.FILTERS.EXT_TO')"
+              />
+            </div>
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">

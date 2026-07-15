@@ -41,19 +41,27 @@ class Jabvox::CdrMysqlService
   end
 
   # Aggregated per-agent summary (answered, no_answer, busy, failed, talk time, answer rate).
+  # Groups by the AGENT'S extension, taken from the channel (e.g. "SIP/104-00000004"
+  # -> "104"), not by the dialed number. The extension is resolved to the agent's
+  # name later (normalize_summary); if it isn't mapped, the bare extension is shown.
   def summary(filters = {})
     where_sql, binds = build_where(filters)
 
+    # Extract the extension from the tech channel: strip the "SIP/"/"PJSIP/"... prefix
+    # and the "-<uniqueid>" suffix. Falls back to the whole channel when it doesn't match.
+    ext_expr = "SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)"
+
     with_client do |client|
       stmt = client.prepare(
-        'SELECT src AS agent, ' \
+        "SELECT #{ext_expr} AS agent_ext, " \
         'COUNT(*) AS total, ' \
         "SUM(disposition = 'ANSWERED') AS answered, " \
         "SUM(disposition = 'NO ANSWER') AS no_answer, " \
         "SUM(disposition = 'BUSY') AS busy, " \
         "SUM(disposition = 'FAILED') AS failed, " \
         'SUM(billsec) AS talk_seconds ' \
-        "FROM #{table} #{where_sql} #{where_sql.empty? ? 'WHERE' : 'AND'} src != '' GROUP BY src ORDER BY total DESC"
+        "FROM #{table} #{where_sql} #{where_sql.empty? ? 'WHERE' : 'AND'} channel != '' " \
+        "GROUP BY #{ext_expr} ORDER BY total DESC"
       )
       stmt.execute(*binds, as: :hash).map { |row| normalize_summary(row) }
     end
@@ -125,8 +133,30 @@ class Jabvox::CdrMysqlService
       binds << filters[:to]
     end
     if filters[:extension].present?
-      clauses << '(src = ? OR dst = ?)'
-      binds << filters[:extension] << filters[:extension]
+      # Match the extension as caller, callee, or the agent's own channel
+      # (SIP/104-... / PJSIP/104-...) so filtering by an agent extension finds
+      # the calls that agent handled.
+      clauses << '(src = ? OR dst = ? OR channel LIKE ? OR channel LIKE ?)'
+      ext = filters[:extension]
+      binds << ext << ext << "SIP/#{ext}-%" << "PJSIP/#{ext}-%"
+    end
+    # Extension RANGE filter (e.g. 100..200): the agent extension taken from the
+    # channel, compared numerically. Only digit-only extensions are ranged; the
+    # CAST makes "104" -> 104 so 100 <= ext <= 200 works. from/to are optional
+    # (an open-ended bound is allowed).
+    if filters[:ext_from].present? || filters[:ext_to].present?
+      ext_num = "CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1) AS UNSIGNED)"
+      raw_ext = "SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)"
+      # only rows whose extracted extension is purely numeric
+      clauses << "#{raw_ext} REGEXP '^[0-9]+$'"
+      if filters[:ext_from].present?
+        clauses << "#{ext_num} >= ?"
+        binds << filters[:ext_from].to_s.gsub(/\D/, '').to_i
+      end
+      if filters[:ext_to].present?
+        clauses << "#{ext_num} <= ?"
+        binds << filters[:ext_to].to_s.gsub(/\D/, '').to_i
+      end
     end
     if filters[:src].present?
       clauses << 'src = ?'
@@ -175,7 +205,9 @@ class Jabvox::CdrMysqlService
   def normalize_summary(row)
     total = row['total'].to_i
     answered = row['answered'].to_i
-    extension = row['agent'] # the src extension, grouped by the query
+    # The agent's extension, extracted from the channel by the GROUP BY query.
+    # Resolves to the agent's name, or shows the bare extension when unmapped.
+    extension = row['agent_ext']
     {
       agent: resolver.user_name_for(extension) || extension,
       agent_extension: extension,
