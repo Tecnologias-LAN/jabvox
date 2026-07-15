@@ -84,7 +84,10 @@ module Jabvox
     ].freeze
     def handle_varset(event)
       channel = event['channel'].to_s
-      var = event['variable'].to_s
+      # Inheritable channel vars are set as "__CTCALL_ID" / "__JABVOX_…" (double
+      # underscore), and Asterisk reports that exact name in VarSet. Strip the
+      # leading underscores so it matches TRACKED_VARS and the later lookups.
+      var = event['variable'].to_s.sub(/\A_+/, '')
       return if channel.blank? || TRACKED_VARS.exclude?(var)
 
       (@channel_vars[channel] ||= {})[var] = event['value'].to_s
