@@ -283,13 +283,48 @@ module Jabvox
       return if channel.blank?
 
       call_log_id = channel_var(channel, 'CTCALL_ID', event)
-      return if call_log_id.blank?
-      # Defence in depth: only act on channels this account originated (CTCALL_ACCOUNT),
-      # so a shared PBX with colliding extensions can't cross accounts.
-      return unless channel_belongs_to_account?(channel, 'CTCALL_ACCOUNT', event)
+      if call_log_id.present?
+        # Defence in depth: only act on channels this account originated (CTCALL_ACCOUNT),
+        # so a shared PBX with colliding extensions can't cross accounts.
+        return unless channel_belongs_to_account?(channel, 'CTCALL_ACCOUNT', event)
+      else
+        # Fallback: some dialplans dial the trunk from a context (not as a direct
+        # child of the originate), so the CTCALL_ID isn't inherited/visible on the
+        # hung-up leg. Correlate by the dialed number + a recent 'calling' log for
+        # this account. This makes typification fire no matter which leg hangs up.
+        call_log_id = fallback_ctc_log_id(channel, event)
+        return if call_log_id.blank?
+      end
 
       uniqueid = event['uniqueid'].presence
       Jabvox::ClickToCallHangupService.new(@account_id, call_log_id.to_i, uniqueid).call
+    end
+
+    # Finds the click-to-call log to close when the CTCALL_ID marker isn't on the
+    # hung-up channel. Matches this account's most recent 'calling' log whose
+    # dialed number matches the channel's callerid/exten digits, created in the
+    # last few minutes. Digits are compared by suffix so provider prefixes
+    # ("0200218") and the "+"/country code never break the match.
+    CTC_FALLBACK_WINDOW = 30.minutes
+    MATCH_DIGITS = 8 # local subscriber number length — ignores prefixes/country code
+    def fallback_ctc_log_id(_channel, event)
+      # The dialed number comes from the exten (the number Asterisk dialed) — NOT
+      # the channel name, which carries junk digits like "-3c" that corrupt it.
+      dialed = event['exten'].to_s.gsub(/\D/, '')
+      dialed = event['calleridnum'].to_s.gsub(/\D/, '') if dialed.length < MATCH_DIGITS
+      return if dialed.length < MATCH_DIGITS
+
+      # Match by the last N digits only, so a provider prefix ("0200218") or the
+      # country code on either side never breaks the correlation.
+      dialed_tail = dialed[-MATCH_DIGITS..]
+      log = JabvoxCallLog.where(account_id: @account_id, status: 'calling')
+                         .where('called_at >= ?', CTC_FALLBACK_WINDOW.ago)
+                         .order(called_at: :desc)
+                         .detect do |l|
+        num = l.phone_number.to_s.gsub(/\D/, '')
+        num.length >= MATCH_DIGITS && num[-MATCH_DIGITS..] == dialed_tail
+      end
+      log&.id
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] click_to_call hangup failed | #{e.message}"
     end
