@@ -263,8 +263,11 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
   end
 
   # Agents operating the dialer need either grant; admin-only actions are
-  # additionally guarded by require_admin. Admins always pass.
+  # additionally guarded by require_admin. Admins always pass. Users on a
+  # standard role (no custom role) keep historical access — the per-user
+  # dialer-access switch (jabvox_dialer_accesses) is the real gate for them.
   def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
     return if jabvox_can?('jabvox_dialer_use') || jabvox_can?('jabvox_dialer_manage')
 
     render json: { error: I18n.t('jabvox.permissions.denied', default: 'You do not have permission for this action.') },
