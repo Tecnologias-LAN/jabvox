@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_14_100001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_14_200001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2773,6 +2773,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_14_100001) do
     t.string "dialer_caller_id", default: "", null: false
     t.string "dial_field_jabvox"
     t.string "dial_prefix_jabvox"
+    t.string "dialer_provider_prefix", default: "", null: false
     t.index ["account_id"], name: "index_jabvox_voip_configs_on_account_id", unique: true
   end
 

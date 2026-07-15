@@ -2,20 +2,21 @@
 #
 # Table name: jabvox_voip_configs
 #
-#  id                 :bigint           not null, primary key
-#  context            :string           default("clicktocall"), not null
-#  dial_field_jabvox  :string
-#  dial_prefix_jabvox :string
-#  dialer_context     :string           default("")
-#  dialer_trunk       :string           default(""), not null
-#  host               :string           default(""), not null
-#  password           :text
-#  port               :integer          default(5038), not null
-#  username           :string           default(""), not null
-#  created_at         :datetime         not null
-#  updated_at         :datetime         not null
-#  account_id         :bigint           not null
-#  dialer_caller_id   :string           default(""), not null
+#  id                     :bigint           not null, primary key
+#  context                :string           default("clicktocall"), not null
+#  dial_field_jabvox      :string
+#  dial_prefix_jabvox     :string
+#  dialer_context         :string           default("")
+#  dialer_provider_prefix :string           default(""), not null
+#  dialer_trunk           :string           default(""), not null
+#  host                   :string           default(""), not null
+#  password               :text
+#  port                   :integer          default(5038), not null
+#  username               :string           default(""), not null
+#  created_at             :datetime         not null
+#  updated_at             :datetime         not null
+#  account_id             :bigint           not null
+#  dialer_caller_id       :string           default(""), not null
 #
 # Indexes
 #

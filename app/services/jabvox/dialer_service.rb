@@ -225,11 +225,15 @@ class Jabvox::DialerService
 
   def build_originate_params(phone, extension, context, caller_id, campaign, contact, user_id, call_log_id) # rubocop:disable Metrics/ParameterLists, Metrics/MethodLength
     # Dial with the country prefix but WITHOUT the leading "+" (see PhoneNormalizer):
-    # Asterisk's dial plan expects bare digits, so "+573054473380" -> "573054473380".
+    # Asterisk's dial plan expects bare digits, so "+573000000000" -> "573000000000".
     phone   = Jabvox::PhoneNormalizer.for_dialing(phone)
+    # Provider/carrier prefix required by the trunk (e.g. "0000"), prepended right
+    # before dialing. This is the operator prefix, NOT the country code — the
+    # number already carries the country code (E.164).
+    dial    = "#{provider_prefix}#{phone}"
     trunk   = @config.dialer_trunk.presence
-    channel = trunk ? "SIP/#{phone}@#{trunk}" : "SIP/#{extension}"
-    exten   = trunk ? 's' : phone
+    channel = trunk ? "SIP/#{dial}@#{trunk}" : "SIP/#{extension}"
+    exten   = trunk ? 's' : dial
     queue   = "dialer_camp_#{campaign.id}"
 
     params = {
@@ -252,10 +256,15 @@ class Jabvox::DialerService
     params
   end
 
+  # Digits-only provider prefix from the VoIP config (never the country code).
+  def provider_prefix
+    @config.respond_to?(:dialer_provider_prefix) ? @config.dialer_provider_prefix.to_s.gsub(/\D/, '') : ''
+  end
+
   # Caller ID presented on the outbound trunk leg. Priority: explicit caller_id
   # (campaign) → the VoIP config's dialer_caller_id → none. The number is reduced
-  # to bare digits (providers like ipcom reject "+", spaces or a "0000" filler),
-  # and we NEVER fall back to a fake "0000" that trunks answer with 403 Forbidden.
+  # to bare digits (providers reject "+", spaces or a placeholder filler), and we
+  # NEVER fall back to a fake number that trunks answer with 403 Forbidden.
   # Format: "Name <digits>" so the display name rides along when there is one.
   def resolve_caller_id(caller_id, contact)
     raw = caller_id.presence || @config.dialer_caller_id.presence

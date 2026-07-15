@@ -66,7 +66,7 @@ class Api::V1::Accounts::Jabvox::VoipConfigsController < Api::V1::Accounts::Jabv
 
   def config_params
     params.require(:config).permit(:host, :port, :username, :password, :context, :dialer_context, :dialer_trunk,
-                                   :dialer_caller_id, :dial_field_jabvox, :dial_prefix_jabvox)
+                                   :dialer_caller_id, :dialer_provider_prefix, :dial_field_jabvox, :dial_prefix_jabvox)
   end
 
   def tcp_reachable?(host, port)

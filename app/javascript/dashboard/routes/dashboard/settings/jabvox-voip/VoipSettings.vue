@@ -40,6 +40,8 @@ const buildForm = cfg => ({
   context: cfg?.context || 'clicktocall',
   dialer_context: cfg?.dialer_context || '',
   dialer_trunk: cfg?.dialer_trunk || '',
+  dialer_provider_prefix: cfg?.dialer_provider_prefix || '',
+  dialer_caller_id: cfg?.dialer_caller_id || '',
   dial_field_jabvox: cfg?.dial_field_jabvox || '',
   dial_prefix_jabvox: cfg?.dial_prefix_jabvox || '',
 });
@@ -346,6 +348,22 @@ const doRemoveExtension = async ext => {
               :label="t('JABVOX_VOIP.FORM.DIALER_TRUNK')"
               :placeholder="t('JABVOX_VOIP.FORM.DIALER_TRUNK_PLACEHOLDER')"
               :message="t('JABVOX_VOIP.FORM.DIALER_TRUNK_HELP')"
+              custom-input-class="font-mono"
+            />
+            <Input
+              v-model="form.dialer_provider_prefix"
+              :label="t('JABVOX_VOIP.FORM.DIALER_PROVIDER_PREFIX')"
+              :placeholder="
+                t('JABVOX_VOIP.FORM.DIALER_PROVIDER_PREFIX_PLACEHOLDER')
+              "
+              :message="t('JABVOX_VOIP.FORM.DIALER_PROVIDER_PREFIX_HELP')"
+              custom-input-class="font-mono"
+            />
+            <Input
+              v-model="form.dialer_caller_id"
+              :label="t('JABVOX_VOIP.FORM.DIALER_CALLER_ID')"
+              :placeholder="t('JABVOX_VOIP.FORM.DIALER_CALLER_ID_PLACEHOLDER')"
+              :message="t('JABVOX_VOIP.FORM.DIALER_CALLER_ID_HELP')"
               custom-input-class="font-mono"
             />
           </div>
