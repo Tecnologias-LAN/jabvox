@@ -1061,14 +1061,14 @@ onMounted(async () => {
         <template v-if="activeTab === 'chat'">
           <div
             v-if="!lead.conversation_display_id"
-            class="flex-1 flex flex-col items-center justify-center px-6 py-10 gap-5"
+            class="flex-1 min-h-0 overflow-y-auto flex flex-col items-center px-6 py-10 gap-5"
           >
             <div
-              class="size-14 rounded-2xl bg-n-brand/10 flex items-center justify-center"
+              class="size-14 shrink-0 rounded-2xl bg-n-brand/10 flex items-center justify-center mt-auto"
             >
               <span class="i-lucide-message-circle-plus size-7 text-n-brand" />
             </div>
-            <div class="text-center max-w-xs">
+            <div class="text-center max-w-xs shrink-0">
               <p class="text-sm font-semibold text-n-slate-12 mb-1">
                 {{ t('JABVOX_LEADS.DETAIL.CONTACT_VIA') }}
               </p>
@@ -1076,7 +1076,7 @@ onMounted(async () => {
                 {{ t('JABVOX_LEADS.DETAIL.CONTACT_VIA_HINT') }}
               </p>
             </div>
-            <div class="w-full max-w-sm space-y-3">
+            <div class="w-full max-w-sm space-y-3 shrink-0 mb-auto">
               <select
                 v-model="selectedInboxId"
                 class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:border-n-slate-7 transition-colors"
@@ -1106,6 +1106,7 @@ onMounted(async () => {
                 <div v-else class="text-left">
                   <WhatsAppTemplateReply
                     :template="selectedTemplate"
+                    :contact-id="lead.contact.id"
                     @send-message="handleTemplateSend"
                     @reset-template="selectedTemplate = null"
                   />
