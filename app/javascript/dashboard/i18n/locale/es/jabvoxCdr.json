@@ -72,6 +72,7 @@
       "LISTEN": "Escuchar",
       "SPEED": "Velocidad",
       "AGENT_EXT": "Ext. del agente",
+      "NO_RECORDING": "Esta llamada no tiene grabación disponible.",
       "REANALYZE": "Volver a analizar",
       "TYPIFY_NONE": "Sin tipificación",
       "TYPIFY_SAVE": "Guardar",

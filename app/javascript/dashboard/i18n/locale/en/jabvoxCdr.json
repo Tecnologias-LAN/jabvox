@@ -72,6 +72,7 @@
       "LISTEN": "Listen",
       "SPEED": "Speed",
       "AGENT_EXT": "Agent ext.",
+      "NO_RECORDING": "This call has no recording available.",
       "REANALYZE": "Re-analyze",
       "TYPIFY_NONE": "No typification",
       "TYPIFY_SAVE": "Save",

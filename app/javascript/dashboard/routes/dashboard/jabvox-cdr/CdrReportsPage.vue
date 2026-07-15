@@ -547,6 +547,15 @@ onMounted(async () => {
                     {{
                       call.origin_channel || t('JABVOX_CDR.REPORTS.NO_SCORE')
                     }}
+                    <span
+                      v-if="
+                        call.agent_extension &&
+                        call.origin_channel !== call.agent_extension
+                      "
+                      class="text-n-slate-10"
+                    >
+                      {{ `(${call.agent_extension})` }}
+                    </span>
                   </td>
                   <td class="px-4 py-2.5">
                     <span
