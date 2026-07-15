@@ -91,6 +91,8 @@ module Jabvox
       return if channel.blank? || TRACKED_VARS.exclude?(var)
 
       (@channel_vars[channel] ||= {})[var] = event['value'].to_s
+      # TEMP DIAG: confirmar qué marcador se cachea y en qué canal.
+      Rails.logger.info "🔧 [CTC-DIAG] cached #{var}=#{event['value']} on channel=#{channel}"
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] handle_varset failed | #{e.message}"
     end
@@ -234,6 +236,8 @@ module Jabvox
       return if channel.blank?
 
       call_log_id = channel_var(channel, 'CTCALL_ID')
+      # TEMP DIAG: ver por qué no se encuentra el CTCALL_ID en el hangup.
+      Rails.logger.info "🔧 [CTC-DIAG] hangup channel=#{channel} ctcall_id=#{call_log_id.inspect} cached_keys=#{@channel_vars[channel]&.keys.inspect}"
       return if call_log_id.blank?
       # Defence in depth: only act on channels this account originated (CTCALL_ACCOUNT),
       # so a shared PBX with colliding extensions can't cross accounts.
