@@ -23,6 +23,36 @@ const appStates = useMapGetter('jabvoxAppStates/getStates');
 const appUiFlags = useMapGetter('jabvoxAppStates/getUIFlags');
 const campaigns = useMapGetter('jabvoxCampaigns/getCampaigns');
 const campaignsUiFlags = useMapGetter('jabvoxCampaigns/getUIFlags');
+// Contact custom attributes, used to offer lead-field autofill mappings.
+const contactAttributes = useMapGetter('attributes/getContactAttributes');
+
+// Fields a management question can autofill from. Base contact fields are
+// fixed; custom attributes come from the account's contact attribute defs.
+// The value is a namespaced key the backend whitelists and the typification
+// form resolves against the live lead/contact.
+const BASE_LEAD_FIELDS = [
+  { value: 'contact.name', label: 'Contacto: Nombre' },
+  { value: 'contact.email', label: 'Contacto: Email' },
+  { value: 'contact.phone_number', label: 'Contacto: Teléfono' },
+  { value: 'contact.identifier', label: 'Contacto: Identificador' },
+  { value: 'contact.country_code', label: 'Contacto: País (código)' },
+  { value: 'contact.additional.country', label: 'Contacto: País' },
+  {
+    value: 'contact.additional.jabvox_identification_number',
+    label: 'Contacto: Documento',
+  },
+  { value: 'lead.lead_number', label: 'Lead: Número' },
+  { value: 'lead.campaign', label: 'Lead: Campaña' },
+  { value: 'lead.affiliate_name', label: 'Lead: Afiliado' },
+];
+
+const leadFieldOptions = computed(() => [
+  ...BASE_LEAD_FIELDS,
+  ...(contactAttributes.value || []).map(attr => ({
+    value: `contact.custom.${attr.attributeKey}`,
+    label: `Atributo: ${attr.attributeDisplayName || attr.attributeKey}`,
+  })),
+]);
 
 // ─── tabs ───
 const activeTab = ref('management');
@@ -69,6 +99,20 @@ const existingGroups = computed(() =>
   stateGroups(states.value).filter(Boolean)
 );
 
+// Strip empty/incomplete rules before sending; an empty ruleset means the
+// question is always visible ({}), matching the backend contract.
+const normalizeVisibility = raw => {
+  const rules = (raw?.rules || [])
+    .map(r => ({
+      question: (r.question || '').trim(),
+      operator: r.operator || 'equals',
+      value: r.operator === 'answered' ? undefined : (r.value ?? '').toString(),
+    }))
+    .filter(r => r.question);
+  if (!rules.length) return {};
+  return { logic: raw?.logic === 'or' ? 'or' : 'and', rules };
+};
+
 const buildManagementPayload = (form, index) => ({
   name_jabvox: form.name_jabvox,
   state_group_jabvox: form.state_group_jabvox || '',
@@ -92,6 +136,9 @@ const buildManagementPayload = (form, index) => ({
       question_type: q.question_type,
       required: q.required,
       options: q.options || [],
+      visibility: normalizeVisibility(q.visibility),
+      lead_field: q.lead_field || '',
+      lead_field_locked: q.lead_field_locked === true,
       position: i,
     };
     if (q.id) attrs.id = q.id;
@@ -260,6 +307,8 @@ onMounted(() => {
   store.dispatch('jabvoxManagementStates/fetchStates');
   store.dispatch('jabvoxAppStates/fetchStates');
   store.dispatch('jabvoxCampaigns/fetchCampaigns');
+  // Load contact custom attributes so they can be mapped as autofill sources.
+  store.dispatch('attributes/get', 'contact_attribute');
 });
 </script>
 
@@ -394,6 +443,7 @@ onMounted(() => {
       ref="mgmtDrawer"
       :is-saving="uiFlags.isCreating || uiFlags.isUpdating"
       :group-suggestions="existingGroups"
+      :lead-field-options="leadFieldOptions"
       @submit="onSubmitManagement"
     />
     <SimpleStateDrawer

@@ -21,12 +21,20 @@ import {
 // keyed by conversation. conversationDisplayId is what the messages API needs
 // (the display_id, not the internal PK).
 const props = defineProps({
+  contactId: { type: [Number, String], default: null },
   conversationId: { type: [Number, String], default: null },
   conversationDisplayId: { type: [Number, String], default: null },
 });
 
 const { t } = useI18n();
 const store = useStore();
+
+// Live contact for lead-field autofill in management questions.
+const contact = computed(() =>
+  props.contactId
+    ? store.getters['contacts/getContactById'](props.contactId)
+    : null
+);
 
 const managementStates = computed(
   () => store.getters['jabvoxManagementStates/getActiveStates'] || []
@@ -212,6 +220,7 @@ const noteColor = m =>
           v-if="selectedState"
           v-model="answers"
           :state="selectedState"
+          :contact="contact"
         />
       </div>
 

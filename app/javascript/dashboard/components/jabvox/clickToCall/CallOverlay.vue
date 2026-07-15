@@ -238,11 +238,13 @@ const accept = () => {
           </p>
         </template>
 
-        <!-- Dynamic questions for the chosen management state -->
+        <!-- Dynamic questions for the chosen management state.
+             The overlay body already scrolls, so let the form flow (no inner cap). -->
         <ManagementQuestionsForm
           v-if="selectedManagementState"
           v-model="managementAnswers"
           :state="selectedManagementState"
+          max-body-height="none"
         />
 
         <!-- Note: hidden / optional / required per the management state's rule -->

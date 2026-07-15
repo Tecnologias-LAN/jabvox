@@ -72,6 +72,8 @@ const apiFilters = computed(() => {
 const templates = ref([]);
 const totalTemplates = ref(0);
 const loadingTemplates = ref(false);
+// Filter panel starts expanded; the header toggles it to free up vertical space.
+const filtersExpanded = ref(true);
 
 const totalPages = computed(
   () => Math.ceil(totalTemplates.value / perPage) || 1
@@ -919,9 +921,12 @@ onBeforeUnmount(() => {
       <div
         class="mx-4 sm:mx-6 my-4 rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm shrink-0 overflow-hidden"
       >
-        <!-- Panel heading: icon chip + title + active badge + result count -->
-        <div
-          class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-n-weak bg-n-alpha-1"
+        <!-- Panel heading: click to collapse/expand -->
+        <button
+          type="button"
+          class="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-n-weak bg-n-alpha-1 hover:bg-n-alpha-2 transition-colors text-left"
+          :aria-expanded="filtersExpanded"
+          @click="filtersExpanded = !filtersExpanded"
         >
           <div class="flex items-center gap-2.5 min-w-0">
             <span
@@ -952,9 +957,14 @@ onBeforeUnmount(() => {
               {{ t('JABVOX_WA_TEMPLATES.FILTERS.ACTIVE_BADGE') }}
             </span>
           </div>
-        </div>
+          <span
+            class="i-lucide-chevron-down size-5 text-n-slate-10 shrink-0 transition-transform duration-200"
+            :class="{ 'rotate-180': filtersExpanded }"
+            aria-hidden="true"
+          />
+        </button>
 
-        <div class="px-4 sm:px-5 py-4 space-y-4">
+        <div v-show="filtersExpanded" class="px-4 sm:px-5 py-4 space-y-4">
           <!-- Search + dropdown filters, each with its own label -->
           <div
             class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-3 gap-y-3"
@@ -1142,7 +1152,7 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Cards gallery -->
-      <div class="flex-1 overflow-auto px-4 sm:px-6 py-4">
+      <div class="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4">
         <div
           v-if="loadingTemplates"
           class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"

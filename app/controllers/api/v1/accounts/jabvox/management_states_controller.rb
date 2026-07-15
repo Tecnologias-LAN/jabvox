@@ -53,10 +53,19 @@ class Api::V1::Accounts::Jabvox::ManagementStatesController < Api::V1::Accounts:
 
   private
 
+  # Accepts the imported document under a few shapes so a client quirk (or
+  # Rails' wrap_parameters wrapping the body under :management_state) never
+  # turns a valid file into "missing states":
+  #   { data: { states: [...] } }                 -> the documented shape
+  #   { states: [...] }                           -> file posted at the root
+  #   { management_state: { data: { states } } }  -> wrap_parameters copy
   def import_payload
-    raw = params[:data]
-    raw = raw.permit!.to_h if raw.respond_to?(:permit!)
-    raw.is_a?(Hash) ? raw : {}
+    permitted = params.permit!.to_h
+    candidate = permitted['data'] ||
+                permitted.dig('management_state', 'data') ||
+                (permitted['states'] ? permitted : nil) ||
+                permitted.dig('management_state')
+    candidate.is_a?(Hash) ? candidate : {}
   end
 
   def export_state(state)
@@ -76,7 +85,8 @@ class Api::V1::Accounts::Jabvox::ManagementStatesController < Api::V1::Accounts:
       position_jabvox: state.position_jabvox,
       questions: state.questions.ordered.map do |q|
         { label: q.label, question_type: q.question_type, required: q.required,
-          options: q.options, position: q.position }
+          options: q.options, position: q.position, visibility: q.visibility,
+          lead_field: q.lead_field, lead_field_locked: q.lead_field_locked }
       end
     }
   end
@@ -100,7 +110,11 @@ class Api::V1::Accounts::Jabvox::ManagementStatesController < Api::V1::Accounts:
       :name_jabvox, :color_jabvox, :is_active_jabvox, :position_jabvox, :note_mode,
       :state_group_jabvox, :usage_info_jabvox, :managed_jabvox, :contact_jabvox,
       :effective_contact_jabvox, :advisory_jabvox, :service_type_jabvox, :positivity_level_jabvox,
-      questions_attributes: [:id, :label, :question_type, :required, :position, :_destroy, { options: [] }]
+      questions_attributes: [
+        :id, :label, :question_type, :required, :position, :_destroy,
+        :lead_field, :lead_field_locked,
+        { options: [], visibility: [:logic, { rules: [:question, :operator, :value] }] }
+      ]
     )
   end
 end

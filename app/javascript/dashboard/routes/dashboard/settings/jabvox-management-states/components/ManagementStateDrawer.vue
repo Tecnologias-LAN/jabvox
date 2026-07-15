@@ -8,10 +8,13 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import { DESTROY_KEY } from 'dashboard/helper/jabvox/nestedAttributes';
 import SideDrawer from './SideDrawer.vue';
 
-defineProps({
+const props = defineProps({
   isSaving: { type: Boolean, default: false },
   // Existing group names, offered as datalist suggestions (typing a new one is allowed).
   groupSuggestions: { type: Array, default: () => [] },
+  // Lead/contact fields available to map an answer to (autofill at typification).
+  // Each item: { value: 'contact.phone_number', label: 'Teléfono' }.
+  leadFieldOptions: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['submit']);
@@ -85,11 +88,79 @@ const questionTypeOptions = computed(() => [
     label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.TYPE_BOOLEAN'),
   },
   { value: 'list', label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.TYPE_LIST') },
+  {
+    value: 'multiselect',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.TYPE_MULTISELECT'),
+  },
+]);
+
+// Types that carry a list of options (single- and multi-select).
+const OPTION_TYPES = ['list', 'multiselect'];
+const hasOptions = q => OPTION_TYPES.includes(q.question_type);
+
+const visibilityOperatorOptions = computed(() => [
+  {
+    value: 'equals',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.OP_EQUALS'),
+  },
+  {
+    value: 'not_equals',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.OP_NOT_EQUALS'),
+  },
+  {
+    value: 'includes',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.OP_INCLUDES'),
+  },
+  {
+    value: 'answered',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.OP_ANSWERED'),
+  },
+]);
+
+const visibilityLogicOptions = computed(() => [
+  { value: 'and', label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LOGIC_AND') },
+  { value: 'or', label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LOGIC_OR') },
+]);
+
+// Options for the "autofill from lead" selector: a "none" entry + the fields
+// provided by the parent (base contact fields + custom attributes + lead cols).
+const leadFieldSelectOptions = computed(() => [
+  { value: '', label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELD_NONE') },
+  ...props.leadFieldOptions,
 ]);
 
 const visibleQuestions = computed(() =>
   form.value.questions.filter(q => !q[DESTROY_KEY])
 );
+
+// Deep-clone visibility into a plain editable object with a guaranteed shape.
+const cloneVisibility = raw => {
+  const rules = Array.isArray(raw?.rules) ? raw.rules : [];
+  return {
+    logic: raw?.logic === 'or' ? 'or' : 'and',
+    rules: rules.map(r => ({
+      question: r.question ?? '',
+      operator: r.operator ?? 'equals',
+      value: r.value ?? '',
+    })),
+  };
+};
+
+// Other questions (by label) that a rule can reference — excludes self and
+// blank labels, since rules match on label.
+const conditionSourceOptions = q =>
+  visibleQuestions.value
+    .filter(other => other !== q && (other.label || '').trim().length > 0)
+    .map(other => ({ value: other.label, label: other.label }));
+
+const addCondition = q => {
+  if (!q.visibility) q.visibility = { logic: 'and', rules: [] };
+  q.visibility.rules.push({ question: '', operator: 'equals', value: '' });
+};
+
+const removeCondition = (q, idx) => {
+  q.visibility.rules.splice(idx, 1);
+};
 
 const openNew = () => {
   editingId.value = null;
@@ -118,6 +189,9 @@ const openEdit = state => {
       question_type: q.question_type,
       required: q.required,
       options: [...(q.options || [])],
+      visibility: cloneVisibility(q.visibility),
+      lead_field: q.lead_field || '',
+      lead_field_locked: q.lead_field_locked === true,
     })),
   };
   open.value = true;
@@ -133,6 +207,9 @@ const addQuestion = () => {
     question_type: 'text',
     required: false,
     options: [],
+    visibility: { logic: 'and', rules: [] },
+    lead_field: '',
+    lead_field_locked: false,
   });
 };
 
@@ -372,7 +449,7 @@ defineExpose({ openNew, openEdit, close });
             </label>
           </div>
           <textarea
-            v-if="q.question_type === 'list'"
+            v-if="hasOptions(q)"
             :value="optionsText(q)"
             rows="3"
             :placeholder="
@@ -381,6 +458,128 @@ defineExpose({ openNew, openEdit, close });
             class="w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-3 py-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand resize-y"
             @input="setOptions(q, $event.target.value)"
           />
+
+          <!-- Autofill from a lead/contact field -->
+          <div
+            class="flex flex-col gap-2 rounded-lg border border-dashed border-n-weak bg-n-solid-1 p-2.5"
+          >
+            <span class="text-xs font-medium text-n-slate-11">
+              {{ t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELD_TITLE') }}
+            </span>
+            <select
+              v-model="q.lead_field"
+              class="w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm px-2 py-1.5 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
+            >
+              <option
+                v-for="opt in leadFieldSelectOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
+            <label
+              v-if="q.lead_field"
+              class="flex items-center gap-2 cursor-pointer"
+            >
+              <Switch v-model="q.lead_field_locked" />
+              <span class="text-xs text-n-slate-11">
+                {{ t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELD_LOCKED') }}
+              </span>
+            </label>
+          </div>
+
+          <!-- Conditional visibility: show this question only when… -->
+          <div
+            class="flex flex-col gap-2 rounded-lg border border-dashed border-n-weak bg-n-solid-1 p-2.5"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-medium text-n-slate-11">
+                {{ t('JABVOX_MANAGEMENT_STATES.QUESTIONS.VISIBILITY_TITLE') }}
+              </span>
+              <Button
+                :label="t('JABVOX_MANAGEMENT_STATES.QUESTIONS.ADD_CONDITION')"
+                icon="i-lucide-plus"
+                variant="ghost"
+                color="slate"
+                size="xs"
+                @click="addCondition(q)"
+              />
+            </div>
+
+            <p
+              v-if="!q.visibility || q.visibility.rules.length === 0"
+              class="text-xs text-n-slate-10"
+            >
+              {{ t('JABVOX_MANAGEMENT_STATES.QUESTIONS.VISIBILITY_ALWAYS') }}
+            </p>
+
+            <template v-else>
+              <div
+                v-if="q.visibility.rules.length > 1"
+                class="flex items-center gap-2"
+              >
+                <span class="text-xs text-n-slate-10">
+                  {{ t('JABVOX_MANAGEMENT_STATES.QUESTIONS.MATCH') }}
+                </span>
+                <Select
+                  v-model="q.visibility.logic"
+                  :options="visibilityLogicOptions"
+                  size="sm"
+                />
+              </div>
+
+              <div
+                v-for="(rule, idx) in q.visibility.rules"
+                :key="idx"
+                class="flex flex-col gap-1.5 sm:flex-row sm:items-center"
+              >
+                <select
+                  v-model="rule.question"
+                  class="flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm px-2 py-1.5 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
+                >
+                  <option value="">
+                    {{ t('JABVOX_MANAGEMENT_STATES.QUESTIONS.PICK_QUESTION') }}
+                  </option>
+                  <option
+                    v-for="opt in conditionSourceOptions(q)"
+                    :key="opt.value"
+                    :value="opt.value"
+                  >
+                    {{ opt.label }}
+                  </option>
+                </select>
+                <select
+                  v-model="rule.operator"
+                  class="rounded-lg border border-n-weak bg-n-solid-1 text-sm px-2 py-1.5 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
+                >
+                  <option
+                    v-for="opt in visibilityOperatorOptions"
+                    :key="opt.value"
+                    :value="opt.value"
+                  >
+                    {{ opt.label }}
+                  </option>
+                </select>
+                <input
+                  v-if="rule.operator !== 'answered'"
+                  v-model="rule.value"
+                  type="text"
+                  :placeholder="
+                    t('JABVOX_MANAGEMENT_STATES.QUESTIONS.CONDITION_VALUE')
+                  "
+                  class="flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm px-2 py-1.5 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
+                />
+                <Button
+                  icon="i-lucide-x"
+                  variant="ghost"
+                  color="ruby"
+                  size="xs"
+                  @click="removeCondition(q, idx)"
+                />
+              </div>
+            </template>
+          </div>
         </div>
       </section>
     </div>

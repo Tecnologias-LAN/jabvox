@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_14_200001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_15_000002) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2262,6 +2262,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_14_200001) do
     t.integer "position", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "visibility", default: {}, null: false
+    t.string "lead_field", default: "", null: false
+    t.boolean "lead_field_locked", default: false, null: false
     t.index ["account_id"], name: "index_jabvox_management_questions_on_account_id"
     t.index ["jabvox_management_state_id", "position"], name: "idx_on_jabvox_management_state_id_position_5047167b84"
     t.index ["jabvox_management_state_id"], name: "idx_on_jabvox_management_state_id_5c2de1c51d"

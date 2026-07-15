@@ -94,14 +94,7 @@ module Jabvox
       questions = [] unless questions.is_a?(Array)
       return [nil, "Estado ##{idx + 1} (#{name}): máximo #{MAX_QUESTIONS} preguntas."] if questions.size > MAX_QUESTIONS
 
-      # Drop questions with no label (blank/junk entries) so one stray empty
-      # question in the file doesn't fail the whole import on the model's
-      # presence validation; 'list' questions with no options are dropped too.
-      sanitized_questions = questions
-                            .map { |q| sanitize_question(q, 0) }
-                            .reject { |q| q[:label].blank? }
-                            .reject { |q| q[:question_type] == 'list' && q[:options].empty? }
-                            .each_with_index.map { |q, i| q.merge(position: i) }
+      sanitized_questions = sanitize_questions(questions)
 
       [{
         name_jabvox: name,
@@ -121,6 +114,17 @@ module Jabvox
       }, nil]
     end
 
+    # Drop questions with no label (blank/junk entries) so one stray empty
+    # question in the file doesn't fail the whole import on the model's presence
+    # validation; option-based questions with no options are dropped too.
+    def sanitize_questions(questions)
+      questions
+        .map { |q| sanitize_question(q, 0) }
+        .reject { |q| q[:label].blank? }
+        .reject { |q| JabvoxManagementQuestion::OPTION_TYPES.include?(q[:question_type]) && q[:options].empty? }
+        .each_with_index.map { |q, i| q.merge(position: i) }
+    end
+
     def sanitize_question(raw, position)
       raw = raw.is_a?(Hash) ? raw.with_indifferent_access : {}
       type = JabvoxManagementQuestion::QUESTION_TYPES.include?(raw[:question_type].to_s) ? raw[:question_type].to_s : 'text'
@@ -130,8 +134,36 @@ module Jabvox
         question_type: type,
         required: cast_bool(raw[:required], default: false),
         options: options,
+        visibility: sanitize_visibility(raw[:visibility]),
+        lead_field: raw[:lead_field].to_s.strip.first(250),
+        lead_field_locked: cast_bool(raw[:lead_field_locked], default: false),
         position: position
       }
+    end
+
+    # Keep only a clean {logic, rules[]} shape; the model re-validates and
+    # normalizes again, so this is a first-pass filter that never raises.
+    def sanitize_visibility(raw)
+      raw = raw.with_indifferent_access if raw.is_a?(Hash)
+      return {} unless raw.is_a?(Hash)
+
+      logic = JabvoxManagementQuestion::VISIBILITY_LOGICS.include?(raw[:logic].to_s) ? raw[:logic].to_s : 'and'
+      rules = Array(raw[:rules]).filter_map { |r| sanitize_visibility_rule(r) }
+                                .first(JabvoxManagementQuestion::MAX_VISIBILITY_RULES)
+      rules.empty? ? {} : { 'logic' => logic, 'rules' => rules }
+    end
+
+    def sanitize_visibility_rule(rule)
+      rule = rule.with_indifferent_access if rule.is_a?(Hash)
+      return nil unless rule.is_a?(Hash)
+
+      question = rule[:question].to_s.strip.first(250)
+      return nil if question.blank?
+
+      operator = JabvoxManagementQuestion::VISIBILITY_OPERATORS.include?(rule[:operator].to_s) ? rule[:operator].to_s : 'equals'
+      out = { 'question' => question, 'operator' => operator }
+      out['value'] = rule[:value].to_s.first(250) unless operator == 'answered'
+      out
     end
 
     def sanitize_color(value)

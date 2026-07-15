@@ -19,6 +19,9 @@ json.questions state.questions.ordered do |question|
   json.options question.options
   json.required question.required
   json.position question.position
+  json.visibility question.visibility
+  json.lead_field question.lead_field
+  json.lead_field_locked question.lead_field_locked
 end
 json.created_at state.created_at
 json.updated_at state.updated_at

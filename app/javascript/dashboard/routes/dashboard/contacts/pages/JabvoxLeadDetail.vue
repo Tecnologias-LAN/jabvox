@@ -1370,6 +1370,8 @@ onMounted(async () => {
                 v-if="isNoteMode && selectedManagementState"
                 v-model="managementAnswers"
                 :state="selectedManagementState"
+                :contact="lead?.contact"
+                :lead="lead"
                 class="mt-2"
               />
               <!-- Panel de plantilla dentro de la conversación abierta -->
@@ -1628,6 +1630,8 @@ onMounted(async () => {
                 v-if="selectedManagementState"
                 v-model="managementAnswers"
                 :state="selectedManagementState"
+                :contact="lead?.contact"
+                :lead="lead"
                 class="mt-2"
               />
               <div class="flex gap-2 items-end">

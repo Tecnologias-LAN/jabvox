@@ -1,28 +1,88 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import {
+  isQuestionVisible,
+  seedAnswersFromLead,
+} from 'dashboard/composables/jabvox/useManagementState';
 
 const props = defineProps({
   // The selected management state object (carries `questions`).
   state: { type: Object, default: null },
   // Answers map keyed by question id: { [questionId]: value }.
   modelValue: { type: Object, default: () => ({}) },
+  // Live contact/lead so questions mapped to a lead field can auto-fill.
+  contact: { type: Object, default: null },
+  lead: { type: Object, default: null },
+  // Max height (CSS value) of the scrollable questions body. States can carry
+  // many questions, so the body scrolls on its own while the header stays put.
+  maxBodyHeight: { type: String, default: '22rem' },
 });
 
 const emit = defineEmits(['update:modelValue']);
 
 const { t } = useI18n();
 
-const questions = computed(() => props.state?.questions || []);
+const allQuestions = computed(() => props.state?.questions || []);
 
 const answers = computed({
   get: () => props.modelValue || {},
   set: value => emit('update:modelValue', value),
 });
 
+// Pre-fill lead-mapped questions when the state or the lead changes. Existing
+// answers are preserved (seedAnswersFromLead only fills blanks), so this never
+// overwrites what the agent already typed.
+watch(
+  () => [props.state?.id, props.contact, props.lead],
+  () => {
+    if (!props.state) return;
+    const seeded = seedAnswersFromLead(
+      props.state,
+      answers.value,
+      props.contact,
+      props.lead
+    );
+    // Only emit if something actually changed, to avoid update loops.
+    const changed = Object.keys(seeded).some(
+      k => seeded[k] !== answers.value[k]
+    );
+    if (changed) emit('update:modelValue', seeded);
+  },
+  { immediate: true, deep: true }
+);
+
+// A question whose value is locked to a lead field is shown read-only.
+const isLocked = question =>
+  Boolean(question.lead_field) && question.lead_field_locked === true;
+
+// Only the questions whose visibility conditions are currently met. Everything
+// downstream (count, sections, validity) works off this list, so a hidden
+// question is invisible to the agent and never blocks saving.
+const questions = computed(() =>
+  allQuestions.value.filter(q =>
+    isQuestionVisible(q, answers.value, allQuestions.value)
+  )
+);
+
 const setAnswer = (questionId, value) => {
   emit('update:modelValue', { ...answers.value, [questionId]: value });
 };
+
+// Toggle a single option in a multiselect answer (stored as an array).
+const toggleMultiselect = (questionId, option) => {
+  const current = Array.isArray(answers.value[questionId])
+    ? [...answers.value[questionId]]
+    : [];
+  const idx = current.indexOf(option);
+  if (idx === -1) current.push(option);
+  else current.splice(idx, 1);
+  emit('update:modelValue', { ...answers.value, [questionId]: current });
+};
+
+const isOptionChecked = (questionId, option) =>
+  Array.isArray(answers.value[questionId]) &&
+  answers.value[questionId].includes(option);
 
 const isAnswered = question => {
   const value = answers.value[question.id];
@@ -73,11 +133,11 @@ defineExpose({ isValid });
 <template>
   <div
     v-show="questions.length"
-    class="rounded-xl border border-n-weak bg-n-alpha-1 overflow-hidden"
+    class="rounded-xl border border-n-weak bg-n-alpha-1 overflow-hidden flex flex-col min-h-0 max-h-full"
   >
-    <!-- Header with progress -->
+    <!-- Header with progress (stays fixed while the body scrolls) -->
     <div
-      class="flex items-center justify-between px-3 py-2 border-b border-n-weak bg-n-solid-1"
+      class="shrink-0 flex items-center justify-between px-3 py-2 border-b border-n-weak bg-n-solid-1"
     >
       <span
         class="text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
@@ -105,7 +165,10 @@ defineExpose({ isValid });
       </span>
     </div>
 
-    <div class="p-3 flex flex-col gap-4">
+    <div
+      class="p-3 flex flex-col gap-4 overflow-y-auto min-h-0"
+      :style="{ maxHeight: maxBodyHeight }"
+    >
       <section v-for="section in sections" :key="section.key">
         <h4
           v-if="section.title"
@@ -191,6 +254,7 @@ defineExpose({ isValid });
                 v-if="question.question_type === 'text'"
                 type="text"
                 :class="inputClass"
+                :disabled="isLocked(question)"
                 :value="answers[question.id] || ''"
                 @input="setAnswer(question.id, $event.target.value)"
               />
@@ -199,6 +263,7 @@ defineExpose({ isValid });
                 v-else-if="question.question_type === 'number'"
                 type="number"
                 :class="inputClass"
+                :disabled="isLocked(question)"
                 :value="answers[question.id] ?? ''"
                 @input="setAnswer(question.id, $event.target.value)"
               />
@@ -207,6 +272,7 @@ defineExpose({ isValid });
                 v-else-if="question.question_type === 'date'"
                 type="date"
                 :class="inputClass"
+                :disabled="isLocked(question)"
                 :value="answers[question.id] || ''"
                 @input="setAnswer(question.id, $event.target.value)"
               />
@@ -214,6 +280,7 @@ defineExpose({ isValid });
               <select
                 v-else-if="question.question_type === 'list'"
                 :class="inputClass"
+                :disabled="isLocked(question)"
                 :value="answers[question.id] || ''"
                 @change="setAnswer(question.id, $event.target.value)"
               >
@@ -224,6 +291,26 @@ defineExpose({ isValid });
                   {{ opt }}
                 </option>
               </select>
+
+              <!-- multiselect: checkbox list, answer stored as an array -->
+              <div
+                v-else-if="question.question_type === 'multiselect'"
+                class="flex flex-col gap-1"
+              >
+                <label
+                  v-for="opt in question.options"
+                  :key="opt"
+                  class="flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer hover:bg-n-alpha-1 transition-colors duration-150"
+                >
+                  <input
+                    type="checkbox"
+                    class="reset-base size-4 rounded border-n-weak text-n-brand focus:ring-n-brand"
+                    :checked="isOptionChecked(question.id, opt)"
+                    @change="toggleMultiselect(question.id, opt)"
+                  />
+                  <span class="text-sm text-n-slate-12">{{ opt }}</span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
