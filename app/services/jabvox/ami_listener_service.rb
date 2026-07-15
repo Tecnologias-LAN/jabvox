@@ -5,10 +5,17 @@ module Jabvox
     RECONNECT_DELAY = 10
     READ_TIMEOUT    = 35
 
+    # Hard cap on cached call markers. Each active call adds a few keys (channel,
+    # uniqueid, linkedid); when a Hangup is missed, its keys would leak forever, so
+    # we evict the oldest once the cache exceeds this size. Far above any real
+    # concurrent-call count, so live calls are never evicted prematurely.
+    MAX_CACHED_KEYS = 5000
+
     def initialize(account_id)
       @account_id      = account_id
       @active_channels = {}
-      @channel_vars    = {} # channel => { 'CTCALL_ID' => '…', … } cached from VarSet
+      @channel_vars    = {} # correlation_id (channel/uniqueid/linkedid) => { 'CTCALL_ID' => '…' }
+      @call_keys       = {} # linkedid => [all correlation ids of that call] — for full cleanup
       @socket          = nil
     end
 
@@ -87,31 +94,66 @@ module Jabvox
       # Inheritable channel vars are set as "__CTCALL_ID" / "__JABVOX_…" (double
       # underscore), and Asterisk reports that exact name in VarSet. Strip the
       # leading underscores so it matches TRACKED_VARS and the later lookups.
-      raw_var = event['variable'].to_s
-      var = raw_var.sub(/\A_+/, '')
-      # TEMP DIAG: log any VarSet mentioning our markers, and the channel it lands on
-      if raw_var.match?(/CTCALL|JABVOX/i)
-        Rails.logger.info "🔧 [DIAG] VarSet raw_var=#{raw_var.inspect} norm=#{var.inspect} value=#{event['value'].inspect} channel=#{channel}"
-      end
+      var = event['variable'].to_s.sub(/\A_+/, '')
       return if channel.blank? || TRACKED_VARS.exclude?(var)
-      Rails.logger.info "🔧 [DIAG] CACHED #{var}=#{event['value']} on #{channel}"
 
-      (@channel_vars[channel] ||= {})[var] = event['value'].to_s
+      value = event['value'].to_s
+      # Cache under EVERY correlation id of the call, not just the channel name.
+      # A click-to-call has two legs (agent SIP/ext and the customer trunk leg);
+      # the inheritable var rides along, but the Hangup can come from either leg.
+      # Uniqueid/Linkedid group all legs of the same call, so caching by them lets
+      # the Hangup find the marker no matter which leg hung up (agent, customer or
+      # the in-app button).
+      keys = [channel, event['uniqueid'], event['linkedid']].map(&:to_s).reject(&:blank?).uniq
+      keys.each { |key| (@channel_vars[key] ||= {})[var] = value }
+
+      # Index every key under the call's linkedid so ONE Hangup clears them all,
+      # even when the hung-up leg has a different channel/uniqueid than the leg
+      # that carried the VarSet. Without this, the other leg's keys would leak.
+      group = event['linkedid'].to_s
+      group = channel if group.blank?
+      (@call_keys[group] ||= []).concat(keys)
+      @call_keys[group].uniq!
+
+      evict_cache_if_needed
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] handle_varset failed | #{e.message}"
     end
 
-    # Returns a channel variable from the VarSet cache, falling back to a live
-    # Getvar only if it was never cached (older channels / missed events).
-    def channel_var(channel, variable)
-      cached = @channel_vars.dig(channel, variable)
-      return cached if cached.present?
+    # Removes every cached key belonging to a call, by its linkedid (or channel
+    # as fallback). Called on Hangup so no leg's markers are left behind.
+    def clear_call_cache(linkedid, channel)
+      group = linkedid.to_s.presence || channel.to_s
+      (@call_keys.delete(group) || []).each { |k| @channel_vars.delete(k) }
+      # Also drop the hung-up leg's own ids in case they were never grouped.
+      [channel, linkedid].map(&:to_s).reject(&:blank?).each { |k| @channel_vars.delete(k) }
+    end
 
+    # Backstop against leaks: if a call's Hangup is never seen (dropped event,
+    # reconnect mid-call), its keys would stay forever. Once the cache grows past
+    # the cap, drop the oldest half — Ruby preserves insertion order, so the first
+    # keys are the oldest calls, already long over.
+    def evict_cache_if_needed
+      return if @channel_vars.size <= MAX_CACHED_KEYS
+
+      @channel_vars.keys.first(@channel_vars.size - MAX_CACHED_KEYS / 2).each { |k| @channel_vars.delete(k) }
+      @call_keys.keys.first([@call_keys.size - MAX_CACHED_KEYS / 2, 0].max).each { |k| @call_keys.delete(k) }
+    end
+
+    # Returns a cached marker for any of the call's correlation ids (channel name,
+    # uniqueid or linkedid), falling back to a live Getvar on the channel only if
+    # nothing was cached (older channels / missed VarSet).
+    def channel_var(channel, variable, event = nil)
+      keys = [channel]
+      keys += [event['uniqueid'], event['linkedid']] if event
+      keys.each do |key|
+        cached = @channel_vars.dig(key.to_s, variable)
+        return cached if cached.present?
+      end
       getvar_on_existing(channel, variable)
     end
 
     def handle_agent_connect(event) # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
-      Rails.logger.info "🔎 [AmiListener] AgentConnect fields: #{event.inspect}"
       queue = event['queue'].to_s
       return unless queue.start_with?('dialer_camp_')
 
@@ -122,9 +164,9 @@ module Jabvox
       extension = strip_sip_prefix(member)
       return if caller_channel.blank? || extension.blank?
 
-      contact_id = channel_var(caller_channel, 'JABVOX_CONTACT_ID')
+      contact_id = channel_var(caller_channel, 'JABVOX_CONTACT_ID', event)
       contact_id ||= channel_var(dest_channel, 'JABVOX_CONTACT_ID') if dest_channel.present?
-      user_id_s  = channel_var(caller_channel, 'JABVOX_AGENT_USER_ID')
+      user_id_s  = channel_var(caller_channel, 'JABVOX_AGENT_USER_ID', event)
       user_id_s  ||= channel_var(dest_channel, 'JABVOX_AGENT_USER_ID') if dest_channel.present?
 
       Rails.logger.info "🔍 [AmiListener] AgentConnect Getvar | contact_id=#{contact_id.inspect} user_id=#{user_id_s.inspect} channel=#{caller_channel}"
@@ -196,11 +238,10 @@ module Jabvox
 
     def handle_hangup(event)
       channel = event['channel'].to_s
-      # TEMP DIAG: every hangup channel + whether we have vars cached for it
-      Rails.logger.info "🔧 [DIAG] HANGUP channel=#{channel} cached=#{@channel_vars[channel].inspect}"
       handle_click_to_call_hangup(channel, event)
       handle_dialer_hangup(channel, event)
-      @channel_vars.delete(channel) # release the cached VarSet markers for this channel
+      # Release ALL cached markers for this call (every leg), not just this channel.
+      clear_call_cache(event['linkedid'], channel)
 
       info = @active_channels.delete(channel)
       return unless info
@@ -217,12 +258,12 @@ module Jabvox
     def handle_dialer_hangup(channel, event)
       return if channel.blank?
 
-      log_id = channel_var(channel, 'JABVOX_DIALER_LOG_ID')
+      log_id = channel_var(channel, 'JABVOX_DIALER_LOG_ID', event)
       uniqueid = event['uniqueid'].presence
       return if log_id.blank? || uniqueid.blank?
       # Defence in depth: ignore events whose channel was originated by another account,
       # even when several accounts share one Asterisk server (the lookup is account-scoped too).
-      return unless channel_belongs_to_account?(channel, 'JABVOX_ACCOUNT_ID')
+      return unless channel_belongs_to_account?(channel, 'JABVOX_ACCOUNT_ID', event)
 
       record_dialer_uniqueid(log_id.to_i, uniqueid)
     rescue StandardError => e
@@ -241,13 +282,11 @@ module Jabvox
     def handle_click_to_call_hangup(channel, event)
       return if channel.blank?
 
-      call_log_id = channel_var(channel, 'CTCALL_ID')
-      # TEMP DIAG: what the listener sees at hangup time
-      Rails.logger.info "🔧 [DIAG] hangup channel=#{channel} ctcall_id=#{call_log_id.inspect} cached=#{@channel_vars[channel].inspect}"
+      call_log_id = channel_var(channel, 'CTCALL_ID', event)
       return if call_log_id.blank?
       # Defence in depth: only act on channels this account originated (CTCALL_ACCOUNT),
       # so a shared PBX with colliding extensions can't cross accounts.
-      return unless channel_belongs_to_account?(channel, 'CTCALL_ACCOUNT')
+      return unless channel_belongs_to_account?(channel, 'CTCALL_ACCOUNT', event)
 
       uniqueid = event['uniqueid'].presence
       Jabvox::ClickToCallHangupService.new(@account_id, call_log_id.to_i, uniqueid).call
@@ -258,8 +297,8 @@ module Jabvox
     # True when the channel's account-marker variable matches this listener's account.
     # If the variable is absent (older channels), we don't block — the account-scoped DB
     # lookup downstream is still the backstop.
-    def channel_belongs_to_account?(channel, account_var)
-      value = channel_var(channel, account_var)
+    def channel_belongs_to_account?(channel, account_var, event = nil)
+      value = channel_var(channel, account_var, event)
       return true if value.blank?
 
       value.to_s == @account_id.to_s

@@ -45,11 +45,8 @@ module Jabvox
         }
         params[:callerid] = caller_id if caller_id.present?
 
-        # TEMP DIAG: exactly what we send to AMI for the click-to-call originate
-        Rails.logger.info "🔧 [DIAG] CTC originate channel=SIP/#{extension} exten=#{phone} vars=#{params['Variable'].inspect}"
         send_action(socket, 'Originate', **params)
         orig_resp = read_response(socket)
-        Rails.logger.info "🔧 [DIAG] CTC originate resp=#{orig_resp['response'].inspect} msg=#{orig_resp['message'].inspect}"
         { success: orig_resp['response'] == 'Success', message: orig_resp['message'] || orig_resp['response'] }
       end
     end
