@@ -87,6 +87,9 @@ jobs:
               echo "Installing dependencies..."
               export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
               eval "$(rbenv init -)"
+              # Ensure the lockfiles are writable by this user (a previous root-run
+              # bundle can leave them owned by root -> "error writing Gemfile.lock").
+              chmod u+w Gemfile.lock yarn.lock pnpm-lock.yaml 2>/dev/null || true
               bundle install
               pnpm install --no-frozen-lockfile --force
 

@@ -80,6 +80,9 @@ jobs:
               eval "$(rbenv init -)"
               export CFLAGS="-I/usr/lib/gcc/x86_64-linux-gnu/15/include"
               export CXXFLAGS="-I/usr/lib/gcc/x86_64-linux-gnu/15/include"
+              # Ensure the lockfiles are writable by this user (a previous root-run
+              # bundle can leave them owned by root -> "error writing Gemfile.lock").
+              chmod u+w Gemfile.lock yarn.lock pnpm-lock.yaml 2>/dev/null || true
               bundle install
               pnpm install --no-frozen-lockfile --force
 
