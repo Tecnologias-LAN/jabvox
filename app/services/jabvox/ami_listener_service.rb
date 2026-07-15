@@ -87,7 +87,12 @@ module Jabvox
       # Inheritable channel vars are set as "__CTCALL_ID" / "__JABVOX_…" (double
       # underscore), and Asterisk reports that exact name in VarSet. Strip the
       # leading underscores so it matches TRACKED_VARS and the later lookups.
-      var = event['variable'].to_s.sub(/\A_+/, '')
+      raw_var = event['variable'].to_s
+      var = raw_var.sub(/\A_+/, '')
+      # TEMP DIAG: log any VarSet mentioning our markers (even non-tracked shapes)
+      if raw_var.match?(/CTCALL|JABVOX/i)
+        Rails.logger.info "🔧 [DIAG] VarSet raw_var=#{raw_var.inspect} norm=#{var.inspect} value=#{event['value'].inspect} channel=#{channel}"
+      end
       return if channel.blank? || TRACKED_VARS.exclude?(var)
 
       (@channel_vars[channel] ||= {})[var] = event['value'].to_s
@@ -234,6 +239,8 @@ module Jabvox
       return if channel.blank?
 
       call_log_id = channel_var(channel, 'CTCALL_ID')
+      # TEMP DIAG: what the listener sees at hangup time
+      Rails.logger.info "🔧 [DIAG] hangup channel=#{channel} ctcall_id=#{call_log_id.inspect} cached=#{@channel_vars[channel].inspect}"
       return if call_log_id.blank?
       # Defence in depth: only act on channels this account originated (CTCALL_ACCOUNT),
       # so a shared PBX with colliding extensions can't cross accounts.
