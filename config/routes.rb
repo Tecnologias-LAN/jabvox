@@ -491,6 +491,7 @@ Rails.application.routes.draw do
               get :records, to: 'reports#records'
               get :summary, to: 'reports#summary'
               post :analyze, to: 'reports#analyze'
+              post :typify, to: 'reports#typify'
               post :analyses_batch, to: 'reports#analyses_batch'
               get 'analysis/:uniqueid', to: 'reports#analysis', constraints: { uniqueid: %r{[^/]+} }
               get 'analysis/:uniqueid/recording', to: 'reports#recording', constraints: { uniqueid: %r{[^/]+} }
@@ -708,6 +709,9 @@ Rails.application.routes.draw do
                   post :test_connection
                   post :build_schema
                   post :toggle
+                  get :remote_schema
+                  post :mapping
+                  post :sync_now
                 end
               end
             end

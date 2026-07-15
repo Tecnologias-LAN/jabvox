@@ -104,7 +104,8 @@ class Jabvox::CdrMysqlService
 
   def fetch_rows(client, where_sql, binds, per_page, offset)
     stmt = client.prepare(
-      'SELECT uniqueid, calldate, src, dst, disposition, duration, billsec, recordingfile ' \
+      'SELECT uniqueid, calldate, src, dst, channel, dstchannel, ' \
+      'disposition, duration, billsec, recordingfile ' \
       "FROM #{table} #{where_sql} ORDER BY calldate DESC LIMIT ? OFFSET ?"
     )
     stmt.execute(*binds, per_page, offset, as: :hash)
@@ -155,6 +156,10 @@ class Jabvox::CdrMysqlService
       # and agent extensions resolved to names.
       origin: resolver.origin_for(row, info),
       destination: resolver.destination_for(row, info),
+      # Origin channel: the agent's technology channel (SIP/104-...), shown as the
+      # agent's name when its extension is mapped, else the bare extension/channel.
+      origin_channel: resolver.channel_agent_for(row['channel']),
+      dst_channel: row['dstchannel'].presence,
       # Medium: how the call was placed (click_to_call | dialer | manual when unknown).
       medium: info&.dig(:medium) || 'manual',
       agent_name: info&.dig(:agent_name),

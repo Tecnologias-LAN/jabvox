@@ -165,6 +165,15 @@ const onAnalysisUpdated = analysis => {
   if (analysis?.uniqueid) analyses.value[analysis.uniqueid] = analysis;
 };
 
+// Reflect a manual typification on the matching row without reloading the page.
+const onTypified = ({ uniqueid, typification }) => {
+  const row = records.value.find(r => r.uniqueid === uniqueid);
+  if (row) row.typification = typification;
+  if (selectedCall.value?.uniqueid === uniqueid) {
+    selectedCall.value.typification = typification;
+  }
+};
+
 const scoreFor = uniqueid => analyses.value[uniqueid]?.final_score;
 
 onMounted(async () => {
@@ -459,6 +468,9 @@ onMounted(async () => {
                     {{ t('JABVOX_CDR.REPORTS.TABLE.DESTINATION') }}
                   </th>
                   <th class="px-4 py-2.5 font-medium">
+                    {{ t('JABVOX_CDR.REPORTS.TABLE.ORIGIN_CHANNEL') }}
+                  </th>
+                  <th class="px-4 py-2.5 font-medium">
                     {{ t('JABVOX_CDR.REPORTS.TABLE.MEDIUM') }}
                   </th>
                   <th class="px-4 py-2.5 font-medium">
@@ -490,6 +502,11 @@ onMounted(async () => {
                   </td>
                   <td class="px-4 py-2.5 text-n-slate-12">
                     {{ call.destination || t('JABVOX_CDR.REPORTS.NO_SCORE') }}
+                  </td>
+                  <td class="px-4 py-2.5 text-n-slate-12">
+                    {{
+                      call.origin_channel || t('JABVOX_CDR.REPORTS.NO_SCORE')
+                    }}
                   </td>
                   <td class="px-4 py-2.5">
                     <span
@@ -539,7 +556,7 @@ onMounted(async () => {
                   </td>
                 </tr>
                 <tr v-if="!records.length">
-                  <td colspan="9" class="py-10 text-center text-n-slate-11">
+                  <td colspan="10" class="py-10 text-center text-n-slate-11">
                     {{ t('JABVOX_CDR.REPORTS.EMPTY') }}
                   </td>
                 </tr>
@@ -585,6 +602,7 @@ onMounted(async () => {
       :existing="analyses[selectedCall.uniqueid]"
       @close="selectedCall = null"
       @updated="onAnalysisUpdated"
+      @typified="onTypified"
     />
   </div>
 </template>

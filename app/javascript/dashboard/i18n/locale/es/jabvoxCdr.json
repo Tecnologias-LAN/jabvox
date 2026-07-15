@@ -43,7 +43,8 @@
         "DST": "Hasta",
         "ORIGIN": "Origen",
         "DESTINATION": "Destino",
-        "MEDIUM": "Canal",
+        "ORIGIN_CHANNEL": "Canal origen",
+        "MEDIUM": "Medio",
         "STATUS": "Estado",
         "TYPIFICATION": "Tipificación",
         "DURATION": "Duración",
@@ -66,7 +67,11 @@
       "TRANSCRIPT": "Transcripción",
       "RECORDING": "Grabación",
       "LISTEN": "Escuchar",
-      "REANALYZE": "Volver a analizar"
+      "REANALYZE": "Volver a analizar",
+      "TYPIFY_NONE": "Sin tipificación",
+      "TYPIFY_SAVE": "Guardar",
+      "TYPIFY_SAVED": "Tipificación guardada.",
+      "TYPIFY_ERROR": "No se pudo guardar la tipificación."
     },
     "SETTINGS": {
       "TITLE": "Configuración del CDR",

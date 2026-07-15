@@ -10,6 +10,12 @@ export const cdrReportsAPI = {
   records: params => axios.get(`${base}/records`, { params }),
   summary: params => axios.get(`${base}/summary`, { params }),
   analyze: data => axios.post(`${base}/analyze`, data),
+  // Saves (or clears, with typificationId null) the typification of a call by uniqueid.
+  typify: (uniqueid, typificationId) =>
+    axios.post(`${base}/typify`, {
+      uniqueid,
+      typification_id: typificationId,
+    }),
   getAnalysis: uniqueid =>
     axios.get(`${base}/analysis/${encodeURIComponent(uniqueid)}`),
   analysesBatch: uniqueids =>

@@ -18,6 +18,28 @@ class Jabvox::CdrLabelResolver
     extension_lookup.dig(extension.to_s, :name)
   end
 
+  # The "origin channel" of a CDR row is the agent's technology channel, e.g.
+  # "SIP/104-00000004" or "PJSIP/104-abc". We extract the extension (104) and
+  # resolve it to the agent's name; if there's no mapping we return the bare
+  # extension, and if the channel isn't parseable we return the raw channel.
+  def channel_agent_for(channel)
+    raw = channel.to_s
+    return nil if raw.blank?
+
+    ext = extension_from_channel(raw)
+    return raw if ext.blank?
+
+    user_name_for(ext) || ext
+  end
+
+  # Extracts the extension from a channel string: "SIP/104-00000004" -> "104",
+  # "PJSIP/1010-abc" -> "1010", "Local/..." -> nil. Returns nil when there's no
+  # tech/extension shape.
+  def extension_from_channel(channel)
+    m = channel.to_s.match(%r{\A(?:SIP|PJSIP|IAX2|DAHDI)/([A-Za-z0-9_]+)-}i)
+    m && m[1]
+  end
+
   # user_id for a raw extension, or nil.
   def user_id_for(extension)
     extension_lookup.dig(extension.to_s, :user_id)

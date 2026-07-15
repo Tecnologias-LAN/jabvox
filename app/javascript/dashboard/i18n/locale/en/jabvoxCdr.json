@@ -43,7 +43,8 @@
         "DST": "To",
         "ORIGIN": "Origin",
         "DESTINATION": "Destination",
-        "MEDIUM": "Channel",
+        "ORIGIN_CHANNEL": "Origin channel",
+        "MEDIUM": "Medium",
         "STATUS": "Status",
         "TYPIFICATION": "Typification",
         "DURATION": "Duration",
@@ -66,7 +67,11 @@
       "TRANSCRIPT": "Transcript",
       "RECORDING": "Recording",
       "LISTEN": "Listen",
-      "REANALYZE": "Re-analyze"
+      "REANALYZE": "Re-analyze",
+      "TYPIFY_NONE": "No typification",
+      "TYPIFY_SAVE": "Save",
+      "TYPIFY_SAVED": "Typification saved.",
+      "TYPIFY_ERROR": "Could not save the typification."
     },
     "SETTINGS": {
       "TITLE": "CDR Settings",
