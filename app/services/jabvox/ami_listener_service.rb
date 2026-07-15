@@ -8,6 +8,7 @@ module Jabvox
     def initialize(account_id)
       @account_id      = account_id
       @active_channels = {}
+      @channel_vars    = {} # channel => { 'CTCALL_ID' => '…', … } cached from VarSet
       @socket          = nil
     end
 
@@ -62,6 +63,8 @@ module Jabvox
       Rails.logger.debug "🔎 [AmiListener] event=#{evt_name}" if evt_name.present?
 
       case evt_name.downcase
+      when 'varset'
+        handle_varset(event)
       when 'agentconnect'
         handle_agent_connect(event)
       when 'agentcomplete'
@@ -69,6 +72,33 @@ module Jabvox
       when 'hangup'
         handle_hangup(event)
       end
+    end
+
+    # Cache the click-to-call / dialer markers as soon as Asterisk sets them
+    # (VarSet fires at call start). Reading them with Getvar at Hangup time is
+    # unreliable — the channel is already being destroyed and returns blank,
+    # so the typify dialog never opened. Keyed by channel; cleared on Hangup.
+    TRACKED_VARS = %w[
+      CTCALL_ID CTCALL_ACCOUNT
+      JABVOX_DIALER_LOG_ID JABVOX_ACCOUNT_ID JABVOX_CONTACT_ID JABVOX_AGENT_USER_ID
+    ].freeze
+    def handle_varset(event)
+      channel = event['channel'].to_s
+      var = event['variable'].to_s
+      return if channel.blank? || TRACKED_VARS.exclude?(var)
+
+      (@channel_vars[channel] ||= {})[var] = event['value'].to_s
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] handle_varset failed | #{e.message}"
+    end
+
+    # Returns a channel variable from the VarSet cache, falling back to a live
+    # Getvar only if it was never cached (older channels / missed events).
+    def channel_var(channel, variable)
+      cached = @channel_vars.dig(channel, variable)
+      return cached if cached.present?
+
+      getvar_on_existing(channel, variable)
     end
 
     def handle_agent_connect(event) # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
@@ -83,10 +113,10 @@ module Jabvox
       extension = strip_sip_prefix(member)
       return if caller_channel.blank? || extension.blank?
 
-      contact_id = getvar_on_existing(caller_channel, 'JABVOX_CONTACT_ID')
-      contact_id ||= getvar_on_existing(dest_channel, 'JABVOX_CONTACT_ID') if dest_channel.present?
-      user_id_s  = getvar_on_existing(caller_channel, 'JABVOX_AGENT_USER_ID')
-      user_id_s  ||= getvar_on_existing(dest_channel, 'JABVOX_AGENT_USER_ID') if dest_channel.present?
+      contact_id = channel_var(caller_channel, 'JABVOX_CONTACT_ID')
+      contact_id ||= channel_var(dest_channel, 'JABVOX_CONTACT_ID') if dest_channel.present?
+      user_id_s  = channel_var(caller_channel, 'JABVOX_AGENT_USER_ID')
+      user_id_s  ||= channel_var(dest_channel, 'JABVOX_AGENT_USER_ID') if dest_channel.present?
 
       Rails.logger.info "🔍 [AmiListener] AgentConnect Getvar | contact_id=#{contact_id.inspect} user_id=#{user_id_s.inspect} channel=#{caller_channel}"
 
@@ -159,6 +189,7 @@ module Jabvox
       channel = event['channel'].to_s
       handle_click_to_call_hangup(channel, event)
       handle_dialer_hangup(channel, event)
+      @channel_vars.delete(channel) # release the cached VarSet markers for this channel
 
       info = @active_channels.delete(channel)
       return unless info
@@ -175,7 +206,7 @@ module Jabvox
     def handle_dialer_hangup(channel, event)
       return if channel.blank?
 
-      log_id = getvar_on_existing(channel, 'JABVOX_DIALER_LOG_ID')
+      log_id = channel_var(channel, 'JABVOX_DIALER_LOG_ID')
       uniqueid = event['uniqueid'].presence
       return if log_id.blank? || uniqueid.blank?
       # Defence in depth: ignore events whose channel was originated by another account,
@@ -199,7 +230,7 @@ module Jabvox
     def handle_click_to_call_hangup(channel, event)
       return if channel.blank?
 
-      call_log_id = getvar_on_existing(channel, 'CTCALL_ID')
+      call_log_id = channel_var(channel, 'CTCALL_ID')
       return if call_log_id.blank?
       # Defence in depth: only act on channels this account originated (CTCALL_ACCOUNT),
       # so a shared PBX with colliding extensions can't cross accounts.
@@ -215,7 +246,7 @@ module Jabvox
     # If the variable is absent (older channels), we don't block — the account-scoped DB
     # lookup downstream is still the backstop.
     def channel_belongs_to_account?(channel, account_var)
-      value = getvar_on_existing(channel, account_var)
+      value = channel_var(channel, account_var)
       return true if value.blank?
 
       value.to_s == @account_id.to_s

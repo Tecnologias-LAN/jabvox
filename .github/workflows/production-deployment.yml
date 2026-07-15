@@ -100,5 +100,9 @@ jobs:
             echo "Restarting services..."
             sudo -n /usr/bin/systemctl restart chatwoot-web.1.service
             sudo -n /usr/bin/systemctl restart chatwoot-worker.1.service
+            # AMI listener (dialer + click-to-call live events). Restart so it
+            # picks up new code; "|| true" keeps the deploy green if the unit
+            # isn't installed on this host yet.
+            sudo -n /usr/bin/systemctl restart chatwoot-ami-listener.service || true
 
             echo "Deployment Complete!"
