@@ -89,11 +89,12 @@ module Jabvox
       # leading underscores so it matches TRACKED_VARS and the later lookups.
       raw_var = event['variable'].to_s
       var = raw_var.sub(/\A_+/, '')
-      # TEMP DIAG: log any VarSet mentioning our markers (even non-tracked shapes)
+      # TEMP DIAG: log any VarSet mentioning our markers, and the channel it lands on
       if raw_var.match?(/CTCALL|JABVOX/i)
         Rails.logger.info "🔧 [DIAG] VarSet raw_var=#{raw_var.inspect} norm=#{var.inspect} value=#{event['value'].inspect} channel=#{channel}"
       end
       return if channel.blank? || TRACKED_VARS.exclude?(var)
+      Rails.logger.info "🔧 [DIAG] CACHED #{var}=#{event['value']} on #{channel}"
 
       (@channel_vars[channel] ||= {})[var] = event['value'].to_s
     rescue StandardError => e
@@ -195,6 +196,8 @@ module Jabvox
 
     def handle_hangup(event)
       channel = event['channel'].to_s
+      # TEMP DIAG: every hangup channel + whether we have vars cached for it
+      Rails.logger.info "🔧 [DIAG] HANGUP channel=#{channel} cached=#{@channel_vars[channel].inspect}"
       handle_click_to_call_hangup(channel, event)
       handle_dialer_hangup(channel, event)
       @channel_vars.delete(channel) # release the cached VarSet markers for this channel
