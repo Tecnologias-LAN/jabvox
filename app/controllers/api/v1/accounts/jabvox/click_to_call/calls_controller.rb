@@ -6,7 +6,11 @@ class Api::V1::Accounts::Jabvox::ClickToCall::CallsController < Api::V1::Account
     return render_error('No hay configuración VoIP') unless config&.host.present?
 
     extension = agent_extension
-    return render_error('No tienes una extensión asignada') if extension.blank?
+    if extension.blank?
+      return render_error(
+        'Tu usuario no tiene extensión asignada en esta cuenta. La extensión debe ser la de quien llama (Ajustes → VoIP → extensiones por usuario).'
+      )
+    end
 
     phone, contact, lead, conversation = resolve_target
     return render_error('No se encontró un número para llamar') if phone.blank?

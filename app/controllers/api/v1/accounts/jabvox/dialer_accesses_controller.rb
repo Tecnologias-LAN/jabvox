@@ -126,36 +126,34 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
       return render json: { queued: false, message: 'No VoIP configuration' }
     end
 
-    lead = Jabvox::DialerContactPickerService.new(Current.account, campaign).pick
+    # Atomically pick + reserve the lead so two concurrent agents on the same
+    # campaign can never grab the same one. The block resolves the dial number;
+    # returning nil marks the reserved row as failed and we skip to the next call.
+    skip_reason = nil
+    lead, contact = Jabvox::DialerContactPickerService.new(Current.account, campaign).pick_and_reserve do |picked|
+      phone = Jabvox::DialNumberResolver.resolve(
+        lead: picked, field: campaign.dial_field_jabvox, prefix: campaign.dial_prefix_jabvox
+      ).to_s
+      if phone.blank?
+        skip_reason = 'Lead sin número en el campo configurado'
+        nil
+      else
+        { name_jabvox: picked.contact.name.to_s, phone_jabvox: phone,
+          status_jabvox: 'calling', attempts_jabvox: 0 }
+      end
+    end
+
     unless lead
       Rails.logger.info "📭 [Dialer] Sin leads disponibles | campaña=#{campaign.name_jabvox} (id=#{campaign.id}) | " \
                         "filtro=#{campaign.management_state_ids_jabvox.inspect}"
       return render json: { queued: false, message: 'No pending contacts' }
     end
-
-    crm_contact = lead.contact
-    # Number to dial comes from the campaign's chosen field (phone_number by
-    # default, or a custom column like movil_2_c) normalized with its prefix.
-    phone = Jabvox::DialNumberResolver.resolve(
-      lead: lead, field: campaign.dial_field_jabvox, prefix: campaign.dial_prefix_jabvox
-    ).to_s
-    # No usable number in the chosen field → skip this lead instead of dialing a
-    # blank/invalid number.
-    if phone.blank?
-      Rails.logger.info "📭 [Dialer] Lead sin número en el campo '#{campaign.dial_field_jabvox}' | lead=#{lead.id}"
-      return render json: { queued: false, message: 'Lead sin número en el campo configurado' }
+    if skip_reason
+      Rails.logger.info "📭 [Dialer] #{skip_reason} | lead=#{lead.id}"
+      return render json: { queued: false, message: skip_reason }
     end
-    contact = JabvoxDialerCampaignContact.create!(
-      account_id: Current.account.id,
-      jabvox_dialer_campaign_id: campaign.id,
-      contact_id: lead.contact_id,
-      name_jabvox: crm_contact.name.to_s,
-      phone_jabvox: phone,
-      status_jabvox: 'calling',
-      attempts_jabvox: 0,
-      last_attempt_at_jabvox: Time.current
-    )
 
+    phone = contact.phone_jabvox
     log_originate(contact, campaign, agent[:extension])
     service = Jabvox::DialerService.new(config)
     service.prepare_agent_for_call("dialer_camp_#{campaign.id}", agent[:extension])

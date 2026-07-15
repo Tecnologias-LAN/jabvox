@@ -203,6 +203,8 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   # Users on a standard role (custom_role nil) keep the historical flow untouched;
   # admins always pass because jabvox_authorize! bypasses for administrators.
   def jabvox_gate!(key)
+    return if Current.account_user&.custom_role.nil?
+
     jabvox_authorize!(key)
   end
 

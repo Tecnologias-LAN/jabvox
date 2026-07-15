@@ -15,7 +15,42 @@ module Jabvox
       @campaign.dial_mode_jabvox == 'one_by_one' ? pick_one_by_one : pick_by_last_state
     end
 
+    # Atomically picks the next lead AND reserves it by creating its
+    # "calling" campaign-contact row, so two agents dialing the same campaign
+    # can never grab the same lead (predictive mode = many concurrent agents).
+    # A per-campaign Postgres advisory lock serializes only the short
+    # pick+insert window; the slow AMI Originate happens later, outside it.
+    # `attributes_for` receives the picked lead and returns the row attrs
+    # (the controller resolves the dial number, which may reject the lead).
+    # Returns [lead, campaign_contact] or [nil, nil].
+    def pick_and_reserve
+      return [nil, nil] unless @campaign.in_schedule?
+
+      ApplicationRecord.transaction do
+        ApplicationRecord.connection.execute(
+          "SELECT pg_advisory_xact_lock(#{LOCK_NAMESPACE}, #{@campaign.id.to_i})"
+        )
+        lead = pick
+        return [nil, nil] if lead.nil?
+
+        attrs = yield(lead)
+        # A nil from the block means "skip this lead" (e.g. no dial number);
+        # still reserve it so the next call moves on instead of re-picking it.
+        attrs ||= { status_jabvox: 'failed' }
+        contact = JabvoxDialerCampaignContact.create!(
+          {
+            account_id: @account.id, jabvox_dialer_campaign_id: @campaign.id,
+            contact_id: lead.contact_id, last_attempt_at_jabvox: Time.current
+          }.merge(attrs)
+        )
+        [lead, contact]
+      end
+    end
+
     private
+
+    # Arbitrary constant so advisory locks here never collide with other features.
+    LOCK_NAMESPACE = 0x4A42 # "JB"
 
     def base_scope
       DialerLeadsFilterService.for_campaign(@account, @campaign, require_phone: true)
