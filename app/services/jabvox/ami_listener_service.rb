@@ -238,6 +238,8 @@ module Jabvox
 
     def handle_hangup(event)
       channel = event['channel'].to_s
+      # TEMP DIAG: full hangup fields to see why click-to-call typify doesn't fire
+      Rails.logger.info "🔧 [DIAG] HANGUP channel=#{channel.inspect} exten=#{event['exten'].inspect} calleridnum=#{event['calleridnum'].inspect} connectedlinenum=#{event['connectedlinenum'].inspect} linkedid=#{event['linkedid'].inspect} uniqueid=#{event['uniqueid'].inspect}"
       handle_click_to_call_hangup(channel, event)
       handle_dialer_hangup(channel, event)
       # Release ALL cached markers for this call (every leg), not just this channel.
@@ -293,8 +295,10 @@ module Jabvox
         # hung-up leg. Correlate by the dialed number + a recent 'calling' log for
         # this account. This makes typification fire no matter which leg hangs up.
         call_log_id = fallback_ctc_log_id(channel, event)
-        return if call_log_id.blank?
       end
+      # TEMP DIAG: what we resolved for this hangup
+      Rails.logger.info "🔧 [DIAG] CTC resolve channel=#{channel} call_log_id=#{call_log_id.inspect}"
+      return if call_log_id.blank?
 
       uniqueid = event['uniqueid'].presence
       Jabvox::ClickToCallHangupService.new(@account_id, call_log_id.to_i, uniqueid).call
