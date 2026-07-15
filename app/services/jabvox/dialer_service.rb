@@ -243,13 +243,13 @@ class Jabvox::DialerService
       priority: 1,
       timeout: 30_000,
       async: 'true',
-      variable: "DIALER_QUEUE=#{queue}," \
-                "DIALER_PHONE=#{phone}," \
-                "__JABVOX_CONTACT_ID=#{contact.id}," \
-                "__JABVOX_ACCOUNT_ID=#{campaign.account_id}," \
-                "__JABVOX_AGENT_USER_ID=#{user_id}," \
-                "__JABVOX_DIALER_LOG_ID=#{call_log_id}," \
-                "JABVOX_CAMPAIGN_ID=#{campaign.id}"
+      variable: ["DIALER_QUEUE=#{queue}",
+                 "DIALER_PHONE=#{phone}",
+                 "__JABVOX_CONTACT_ID=#{contact.id}",
+                 "__JABVOX_ACCOUNT_ID=#{campaign.account_id}",
+                 "__JABVOX_AGENT_USER_ID=#{user_id}",
+                 "__JABVOX_DIALER_LOG_ID=#{call_log_id}",
+                 "JABVOX_CAMPAIGN_ID=#{campaign.id}"]
     }
     cid = resolve_caller_id(caller_id, contact)
     params[:callerid] = cid if cid.present?
@@ -315,7 +315,15 @@ class Jabvox::DialerService
 
   def send_action(socket, action, **params)
     msg = "Action: #{action}\r\n"
-    params.each { |key, val| msg += "#{key}: #{val}\r\n" }
+    params.each do |key, val|
+      # AMI needs ONE "Variable:" line per channel variable; an Array emits
+      # repeated lines. A comma-joined string would be read as a single var.
+      if val.is_a?(Array)
+        val.each { |v| msg += "#{key}: #{v}\r\n" }
+      else
+        msg += "#{key}: #{val}\r\n"
+      end
+    end
     msg += "\r\n"
     socket.write(msg)
   end

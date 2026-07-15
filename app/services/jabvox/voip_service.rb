@@ -41,7 +41,7 @@ module Jabvox
           priority: 1,
           timeout: 30_000,
           async: 'true',
-          'Variable' => "__CTCALL_ID=#{call_log_id},__CTCALL_USER=#{user_id},__CTCALL_ACCOUNT=#{@config.account_id}"
+          'Variable' => ["__CTCALL_ID=#{call_log_id}", "__CTCALL_USER=#{user_id}", "__CTCALL_ACCOUNT=#{@config.account_id}"]
         }
         params[:callerid] = caller_id if caller_id.present?
 
@@ -160,7 +160,16 @@ module Jabvox
 
     def send_action(socket, action, **params)
       msg = "Action: #{action}\r\n"
-      params.each { |key, val| msg += "#{key}: #{val}\r\n" }
+      params.each do |key, val|
+        # AMI needs ONE "Variable:" line per channel variable. Passing several as
+        # a comma-joined string makes Asterisk treat the whole thing as a single
+        # variable value, so pass an Array and we emit repeated lines.
+        if val.is_a?(Array)
+          val.each { |v| msg += "#{key}: #{v}\r\n" }
+        else
+          msg += "#{key}: #{val}\r\n"
+        end
+      end
       msg += "\r\n"
       socket.write(msg)
     end
