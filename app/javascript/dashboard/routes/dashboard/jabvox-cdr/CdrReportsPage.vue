@@ -171,7 +171,10 @@ const changePage = delta => {
   loadRecords();
 };
 
-const openAnalysis = call => {
+// focus: which section to surface in the modal ('analysis' | 'recording' | 'typify').
+const modalFocus = ref('analysis');
+const openAnalysis = (call, focus = 'analysis') => {
+  modalFocus.value = focus;
   selectedCall.value = call;
 };
 
@@ -208,7 +211,7 @@ onMounted(async () => {
 <template>
   <div class="w-full h-full overflow-y-auto bg-n-background">
     <div
-      class="mx-auto w-full max-w-6xl flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      class="mx-auto w-full max-w-screen-2xl flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
     >
       <!-- Header + view tabs -->
       <div
@@ -581,15 +584,34 @@ onMounted(async () => {
                       t('JABVOX_CDR.REPORTS.NO_SCORE')
                     }}</span>
                   </td>
-                  <td class="px-4 py-2.5 text-right">
-                    <Button
-                      v-tooltip="t('JABVOX_CDR.REPORTS.ANALYZE')"
-                      icon="i-lucide-mic"
-                      variant="ghost"
-                      color="slate"
-                      size="sm"
-                      @click="openAnalysis(call)"
-                    />
+                  <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                    <div class="inline-flex items-center gap-1">
+                      <Button
+                        v-tooltip="t('JABVOX_CDR.REPORTS.ANALYZE')"
+                        icon="i-lucide-sparkles"
+                        variant="ghost"
+                        color="slate"
+                        size="sm"
+                        @click="openAnalysis(call, 'analysis')"
+                      />
+                      <Button
+                        v-tooltip="t('JABVOX_CDR.ANALYSIS.LISTEN')"
+                        icon="i-lucide-play"
+                        variant="ghost"
+                        color="slate"
+                        size="sm"
+                        :disabled="!call.recording_file"
+                        @click="openAnalysis(call, 'recording')"
+                      />
+                      <Button
+                        v-tooltip="t('JABVOX_CDR.REPORTS.TABLE.TYPIFICATION')"
+                        icon="i-lucide-tag"
+                        variant="ghost"
+                        color="slate"
+                        size="sm"
+                        @click="openAnalysis(call, 'typify')"
+                      />
+                    </div>
                   </td>
                 </tr>
                 <tr v-if="!records.length">
@@ -637,6 +659,7 @@ onMounted(async () => {
       v-if="selectedCall"
       :call="selectedCall"
       :existing="analyses[selectedCall.uniqueid]"
+      :focus="modalFocus"
       @close="selectedCall = null"
       @updated="onAnalysisUpdated"
       @typified="onTypified"

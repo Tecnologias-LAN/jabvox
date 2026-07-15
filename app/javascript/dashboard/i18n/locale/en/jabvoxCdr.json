@@ -70,6 +70,8 @@
       "TRANSCRIPT": "Transcript",
       "RECORDING": "Recording",
       "LISTEN": "Listen",
+      "SPEED": "Speed",
+      "AGENT_EXT": "Agent ext.",
       "REANALYZE": "Re-analyze",
       "TYPIFY_NONE": "No typification",
       "TYPIFY_SAVE": "Save",

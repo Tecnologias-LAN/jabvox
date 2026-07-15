@@ -189,6 +189,9 @@ class Jabvox::CdrMysqlService
       # Origin channel: the agent's technology channel (SIP/104-...), shown as the
       # agent's name when its extension is mapped, else the bare extension/channel.
       origin_channel: resolver.channel_agent_for(row['channel']),
+      # The agent's raw extension extracted from the channel (e.g. "104"), always
+      # shown in the detail alongside the resolved name.
+      agent_extension: resolver.extension_from_channel(row['channel']),
       dst_channel: row['dstchannel'].presence,
       # Medium: how the call was placed (click_to_call | dialer | manual when unknown).
       medium: info&.dig(:medium) || 'manual',

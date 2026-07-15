@@ -11,6 +11,8 @@ import TranscriptViewer from '../jabvox-audio-analysis/components/TranscriptView
 const props = defineProps({
   call: { type: Object, required: true },
   existing: { type: Object, default: null },
+  // Which section to surface on open: 'analysis' | 'recording' | 'typify'.
+  focus: { type: String, default: 'analysis' },
 });
 
 const emit = defineEmits(['close', 'updated', 'typified']);
@@ -75,6 +77,15 @@ const loadRecording = async () => {
   }
 };
 
+// Playback speed control for the <audio> element.
+const audioEl = ref(null);
+const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
+const speed = ref(1);
+const setSpeed = value => {
+  speed.value = value;
+  if (audioEl.value) audioEl.value.playbackRate = value;
+};
+
 const close = () => {
   if (recordingUrl.value) URL.revokeObjectURL(recordingUrl.value);
   emit('close');
@@ -96,12 +107,16 @@ const runAnalysis = async (force = false) => {
   }
 };
 
-// Auto-run on open only when there is no analyzed result yet.
-// (Correctly triggered from onMounted — not from a useState initializer.)
 onMounted(() => {
   loadTypifications();
-  if (!analysis.value || analysis.value.status !== 'analyzed') {
-    runAnalysis(false);
+  // Respect the requested focus: only auto-run the AI analysis when the user
+  // opened the analysis view. If they clicked "listen", preload the recording;
+  // "typify" just needs the typifications (already loading).
+  if (props.focus === 'recording') {
+    loadRecording();
+  } else if (props.focus === 'analysis') {
+    if (!analysis.value || analysis.value.status !== 'analyzed')
+      runAnalysis(false);
   }
 });
 </script>
@@ -128,6 +143,12 @@ onMounted(() => {
           >
             {{ t('JABVOX_CDR.REPORTS.TABLE.ORIGIN_CHANNEL') }}:
             {{ call.origin_channel }}
+          </p>
+          <p
+            v-if="call.agent_extension"
+            class="text-xs text-n-slate-10 truncate"
+          >
+            {{ t('JABVOX_CDR.ANALYSIS.AGENT_EXT') }}: {{ call.agent_extension }}
           </p>
         </div>
         <Button
@@ -162,9 +183,35 @@ onMounted(() => {
             @click="loadRecording"
           />
         </div>
-        <audio v-if="recordingUrl" :src="recordingUrl" controls class="w-full">
-          <track kind="captions" />
-        </audio>
+        <template v-if="recordingUrl">
+          <audio
+            ref="audioEl"
+            :src="recordingUrl"
+            controls
+            class="w-full"
+            @loadedmetadata="setSpeed(speed)"
+          />
+          <!-- Playback speed only (no captions/subtitles). -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs text-n-slate-10">
+              {{ t('JABVOX_CDR.ANALYSIS.SPEED') }}
+            </span>
+            <button
+              v-for="s in SPEEDS"
+              :key="s"
+              type="button"
+              class="reset-base text-xs rounded-md px-2 py-1 transition-colors"
+              :class="
+                speed === s
+                  ? 'bg-n-brand text-white'
+                  : 'bg-n-alpha-2 text-n-slate-11 hover:text-n-slate-12'
+              "
+              @click="setSpeed(s)"
+            >
+              {{ `${s}x` }}
+            </button>
+          </div>
+        </template>
       </div>
 
       <!-- Manual typification: available for any call, independent of AI. -->
