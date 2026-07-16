@@ -130,7 +130,6 @@
       "FILTER_SELECTED_COUNT": "{count} seleccionadas",
       "FILTER_SEARCH_OPTION": "Buscar opción...",
       "FILTER_NO_OPTIONS": "Sin opciones que coincidan.",
-      "INCLUDE_ALL": "Incluir los {count} deseleccionados",
       "LEAD_NAME": "Nombre",
       "LEAD_PHONE": "Teléfono",
       "LEAD_EMAIL": "Correo",
@@ -166,7 +165,9 @@
       "RETRY_STATUS_BUSY": "Ocupado",
       "RETRY_STATUS_FAILED": "Falló",
       "RETRY_MAX": "Máximo de reintentos",
-      "RETRY_HINT": "Los leads con estos resultados se vuelven a marcar al final de la cola, hasta el máximo de reintentos."
+      "RETRY_HINT": "Los leads con estos resultados se vuelven a marcar al final de la cola, hasta el máximo de reintentos.",
+      "SELECT_ALL": "Seleccionar todos",
+      "DESELECT_ALL": "Deseleccionar todos"
     },
     "CONTACTS": {
       "EMPTY": "No hay contactos en esta campaña. Importa contactos desde la configuración.",

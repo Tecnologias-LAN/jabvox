@@ -169,13 +169,23 @@ module Jabvox
       user_id_s  = channel_var(caller_channel, 'JABVOX_AGENT_USER_ID', event)
       user_id_s  ||= channel_var(dest_channel, 'JABVOX_AGENT_USER_ID') if dest_channel.present?
 
-      Rails.logger.info "🔍 [AmiListener] AgentConnect Getvar | contact_id=#{contact_id.inspect} user_id=#{user_id_s.inspect} channel=#{caller_channel}"
+      campaign_id = parse_campaign_id(queue)
+      # Fallback: some dialplans dial the trunk from a context, so the __JABVOX_*
+      # markers never reach the leg AMI reports. Recover contact + agent from the
+      # most recent 'calling' campaign-contact of this queue's campaign and its
+      # dialer call log, so AgentConnect still shows the lead and marks it answered.
+      if contact_id.blank? || user_id_s.blank?
+        recovered = recover_dialer_call(campaign_id, extension)
+        contact_id ||= recovered[:contact_id]
+        user_id_s  ||= recovered[:user_id]
+      end
+
+      Rails.logger.info "🔍 [AmiListener] AgentConnect | contact_id=#{contact_id.inspect} user_id=#{user_id_s.inspect} channel=#{caller_channel}"
 
       return unless contact_id.present? && user_id_s.present?
 
       contact_id  = contact_id.to_i
       user_id     = user_id_s.to_i
-      campaign_id = parse_campaign_id(queue)
 
       Rails.logger.info "📞 [AmiListener] AgentConnect | account=#{@account_id} ext=#{extension} queue=#{queue} user=#{user_id}"
 
@@ -184,9 +194,49 @@ module Jabvox
       @active_channels[caller_channel] = info
       @active_channels[dest_channel]   = info if dest_channel.present?
 
+      # Persist that the lead was reached + who took it, so the campaign report
+      # shows it as answered with the agent even if no later event correlates.
+      mark_dialer_answered(campaign_id, contact_id, user_id)
+
       broadcast_call_assigned(user_id, contact_id, campaign_id)
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] handle_agent_connect failed | #{e.message}"
+    end
+
+    # Best-effort recovery of the lead+agent currently being dialed on a campaign
+    # when the channel markers aren't present. Uses the newest 'calling'
+    # campaign-contact and its call log's agent.
+    def recover_dialer_call(campaign_id, _extension)
+      return {} if campaign_id.blank?
+
+      cc = JabvoxDialerCampaignContact
+           .where(account_id: @account_id, jabvox_dialer_campaign_id: campaign_id, status_jabvox: 'calling')
+           .order(last_attempt_at_jabvox: :desc).first
+      return {} unless cc
+
+      log = JabvoxDialerCallLog.where(jabvox_dialer_campaign_contact_id: cc.id).order(started_at_jabvox: :desc).first
+      { contact_id: cc.contact_id, user_id: log&.agent_id_jabvox }
+    rescue StandardError
+      {}
+    end
+
+    # Marks the dialed campaign-contact as answered and its latest call log as
+    # answered + agent, so the report counts it correctly.
+    def mark_dialer_answered(campaign_id, contact_id, user_id)
+      return if campaign_id.blank? || contact_id.blank?
+
+      cc = JabvoxDialerCampaignContact.find_by(account_id: @account_id, jabvox_dialer_campaign_id: campaign_id, contact_id: contact_id)
+      return unless cc
+
+      cc.update_columns(status_jabvox: 'completed') if cc.status_jabvox == 'calling' # rubocop:disable Rails/SkipsModelValidations
+      log = JabvoxDialerCallLog.where(jabvox_dialer_campaign_contact_id: cc.id).order(started_at_jabvox: :desc).first
+      return unless log
+
+      attrs = { status_jabvox: 'answered', lead_answered_jabvox: true }
+      attrs[:agent_id_jabvox] = user_id if log.agent_id_jabvox.blank? && user_id.present?
+      log.update_columns(attrs) # rubocop:disable Rails/SkipsModelValidations
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] mark_dialer_answered failed | #{e.message}"
     end
 
     # Reuses the existing authenticated socket — avoids TCP+login overhead per Getvar.
@@ -290,18 +340,39 @@ module Jabvox
         # so a shared PBX with colliding extensions can't cross accounts.
         return unless channel_belongs_to_account?(channel, 'CTCALL_ACCOUNT', event)
       else
-        # Fallback: some dialplans dial the trunk from a context (not as a direct
-        # child of the originate), so the CTCALL_ID isn't inherited/visible on the
-        # hung-up leg. Correlate by the dialed number + a recent 'calling' log for
-        # this account. This makes typification fire no matter which leg hangs up.
-        call_log_id = fallback_ctc_log_id(channel, event)
+        # Fallbacks (in order) for dialplans that dial the trunk from a context,
+        # where CTCALL_ID isn't on the hung-up leg. Any of these makes the typify
+        # dialog fire no matter which leg (agent SIP, trunk, or MicroSIP) hangs up:
+        #   1) by the agent extension in the channel name (SIP/1501-xxxx) — the
+        #      leg originated for click-to-call; robust like the dialer's flow.
+        #   2) by the dialed number matching a recent 'calling' log.
+        call_log_id = fallback_ctc_by_extension(channel) || fallback_ctc_log_id(channel, event)
       end
-      # TEMP DIAG: what we resolved for this hangup
-      Rails.logger.info "🔧 [DIAG] CTC resolve channel=#{channel} call_log_id=#{call_log_id.inspect}"
       return if call_log_id.blank?
 
       uniqueid = event['uniqueid'].presence
       Jabvox::ClickToCallHangupService.new(@account_id, call_log_id.to_i, uniqueid).call
+    end
+
+    # Closes the click-to-call by the AGENT extension in the channel name. The
+    # click-to-call originate rings "SIP/<ext>" first, so when THAT leg hangs up
+    # (agent hangs from MicroSIP, or the call tears down) the channel is
+    # "SIP/<ext>-xxxx". We map the extension to its agent and close that agent's
+    # most recent 'calling' log. This mirrors how the dialer closes by extension.
+    def fallback_ctc_by_extension(channel)
+      ext = channel.to_s[%r{\ASIP/(\d{1,10})-}, 1]
+      return if ext.blank?
+
+      user_ext = JabvoxUserExtension.find_by(account_id: @account_id, extension_jabvox: ext)
+      return if user_ext.nil?
+
+      log = JabvoxCallLog.where(account_id: @account_id, user_id: user_ext.user_id, status: 'calling')
+                         .where('called_at >= ?', CTC_FALLBACK_WINDOW.ago)
+                         .order(called_at: :desc).first
+      log&.id
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] fallback_ctc_by_extension failed | #{e.message}"
+      nil
     end
 
     # Finds the click-to-call log to close when the CTCALL_ID marker isn't on the

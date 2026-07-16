@@ -13,6 +13,17 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     render json: { count: filter_leads(request_filters).count }
   end
 
+  # All lead ids that match the current filters (without exclusions), so the form
+  # can "deselect all" (exclude every matching lead) in one call instead of
+  # shipping thousands of ids from the client. Capped to avoid a huge payload.
+  MATCHING_IDS_LIMIT = 50_000
+  def matching_lead_ids
+    ids = filter_leads(request_filters.except(:excluded_lead_ids))
+          .limit(MATCHING_IDS_LIMIT)
+          .pluck('jabvox_leads.id')
+    render json: { ids: ids, capped: ids.size >= MATCHING_IDS_LIMIT }
+  end
+
   # Paginated list of the leads the current filters target, so the campaign
   # form can show them and let the admin deselect specific ones.
   def preview_leads

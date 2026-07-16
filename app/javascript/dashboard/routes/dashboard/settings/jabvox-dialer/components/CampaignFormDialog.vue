@@ -247,8 +247,24 @@ const togglePage = () => {
   form.value.excluded_lead_ids_jabvox = [...excluded];
 };
 
-const clearExclusions = () => {
+// Select all = no exclusions (every matching lead is included).
+const selectAllLeads = () => {
   form.value.excluded_lead_ids_jabvox = [];
+};
+
+// Deselect all = exclude every lead matching the current filters. The ids come
+// from the backend so we never ship thousands from the client.
+const selectingAll = ref(false);
+const deselectAllLeads = async () => {
+  selectingAll.value = true;
+  try {
+    const { data } = await dialerCampaignsAPI.matchingLeadIds(filterParams());
+    form.value.excluded_lead_ids_jabvox = data.ids || [];
+  } catch {
+    useAlert(t('JABVOX_DIALER.ERROR'));
+  } finally {
+    selectingAll.value = false;
+  }
 };
 
 const toggleManagementState = id => {
@@ -653,18 +669,24 @@ defineExpose({ openCreate, openEdit, close });
               class="size-4 text-n-slate-10"
             />
           </button>
-          <button
-            v-if="form.excluded_lead_ids_jabvox.length"
-            type="button"
-            class="text-xs text-n-brand hover:underline shrink-0"
-            @click="clearExclusions"
-          >
-            {{
-              t('JABVOX_DIALER.FORM.INCLUDE_ALL', {
-                count: form.excluded_lead_ids_jabvox.length,
-              })
-            }}
-          </button>
+          <div class="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              class="text-xs text-n-brand hover:underline disabled:opacity-40"
+              :disabled="selectingAll"
+              @click="selectAllLeads"
+            >
+              {{ t('JABVOX_DIALER.FORM.SELECT_ALL') }}
+            </button>
+            <button
+              type="button"
+              class="text-xs text-n-slate-11 hover:underline disabled:opacity-40"
+              :disabled="selectingAll"
+              @click="deselectAllLeads"
+            >
+              {{ t('JABVOX_DIALER.FORM.DESELECT_ALL') }}
+            </button>
+          </div>
         </div>
         <div v-show="openSections.leads" class="flex flex-col gap-2 px-4 pb-4">
           <div class="rounded-xl border border-n-weak overflow-hidden">

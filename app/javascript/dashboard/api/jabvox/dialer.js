@@ -28,6 +28,8 @@ export const dialerCampaignsAPI = {
     axios.post(`${campaignsClient.url}/${id}/originate`, data),
   leadCount: params =>
     axios.get(`${campaignsClient.url}/lead_count`, { params }),
+  matchingLeadIds: params =>
+    axios.get(`${campaignsClient.url}/matching_lead_ids`, { params }),
   previewLeads: params =>
     axios.get(`${campaignsClient.url}/preview_leads`, { params }),
   getLeadFields: () => axios.get(`${campaignsClient.url}/lead_fields`),

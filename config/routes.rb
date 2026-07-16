@@ -545,6 +545,7 @@ Rails.application.routes.draw do
             resources :dialer_campaigns do
               collection do
                 get :lead_count
+                get :matching_lead_ids
                 get :preview_leads
                 get :lead_fields
               end

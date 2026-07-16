@@ -13,6 +13,7 @@ class JabvoxDialerCampaignPolicy < ApplicationPolicy
   # Exposes lead PII (phone/email/document) for building the campaign list:
   # restricted to users who can manage campaigns.
   def preview_leads? = can_manage?
+  def matching_lead_ids? = can_manage?
   # Field definitions only (no lead data), needed by the campaign form.
   def lead_fields?  = can_manage?
   def start?        = can_manage?
