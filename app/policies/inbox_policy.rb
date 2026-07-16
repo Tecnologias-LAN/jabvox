@@ -11,7 +11,12 @@ class InboxPolicy < ApplicationPolicy
     end
 
     def resolve
-      user.assigned_inboxes
+      # Jabvox: every role can SEE all account inboxes (so an agent can pick any
+      # inbox to send a WhatsApp/message from the lead detail, kanban, etc.).
+      # Conversation/lead visibility is NOT affected: those are still filtered by
+      # assignment elsewhere (conversation_finder uses assigned_inboxes directly),
+      # so an agent still only sees the conversations/leads assigned to them.
+      account ? account.inboxes : user.assigned_inboxes
     end
   end
 
@@ -22,6 +27,11 @@ class InboxPolicy < ApplicationPolicy
   def show?
     # FIXME: for agent bots, lets bring this validation to policies as well in future
     return true if @user.is_a?(AgentBot)
+
+    # Jabvox: any role may access any inbox of the account (needed to send from the
+    # lead detail even when the agent isn't a member of that inbox). Conversation
+    # scoping stays restricted by assignment (see conversation_finder).
+    return true if account && account.inboxes.exists?(id: record.id)
 
     Current.user.assigned_inboxes.include? record
   end
