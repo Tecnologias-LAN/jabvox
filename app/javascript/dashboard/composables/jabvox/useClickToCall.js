@@ -85,18 +85,29 @@ export function useClickToCall() {
 // Wires the WebSocket event once (used by the global overlay host).
 export function useClickToCallListener() {
   const onCallEnded = data => {
-    // Compare by value, tolerant of type: the local id comes from the originate
-    // HTTP response (a Number) while the WebSocket event may deliver it as a
-    // String, so a strict === would miss it — that's why hanging up from the
-    // customer/MicroSIP never opened the typify dialog while the in-app hangup
-    // button (which sets phase directly) did.
     const incoming = data?.call_log_id;
-    if (
+    // DIAG: temporal — ver en consola por qué no abre la tipificación.
+    // eslint-disable-next-line no-console
+    console.log('🧪 [CTC] call.ended recibido', {
+      incoming,
+      local: callLogId.value,
+      phase: phase.value,
+      match: String(incoming) === String(callLogId.value),
+    });
+    // Match by value, tolerant of type (Number from HTTP vs String from WS).
+    // Also open typify when we have an active call even if the id can't be
+    // compared (local id lost across chunks) — the overlay is single-call.
+    const matches =
       incoming != null &&
       callLogId.value != null &&
-      String(incoming) === String(callLogId.value)
-    ) {
+      String(incoming) === String(callLogId.value);
+    const activeButUnmatched =
+      phase.value === 'calling' && callLogId.value == null;
+
+    if (matches || activeButUnmatched) {
       uniqueid.value = data.uniqueid;
+      if (callLogId.value == null && incoming != null)
+        callLogId.value = incoming;
       phase.value = 'typify';
     }
   };
