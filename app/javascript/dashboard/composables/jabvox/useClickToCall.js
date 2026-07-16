@@ -86,17 +86,10 @@ export function useClickToCall() {
 export function useClickToCallListener() {
   const onCallEnded = data => {
     const incoming = data?.call_log_id;
-    // DIAG: temporal — ver en consola por qué no abre la tipificación.
-    // eslint-disable-next-line no-console
-    console.log('🧪 [CTC] call.ended recibido', {
-      incoming,
-      local: callLogId.value,
-      phase: phase.value,
-      match: String(incoming) === String(callLogId.value),
-    });
-    // Match by value, tolerant of type (Number from HTTP vs String from WS).
-    // Also open typify when we have an active call even if the id can't be
-    // compared (local id lost across chunks) — the overlay is single-call.
+    // Match by value, tolerant of type (the id is a Number from the originate
+    // HTTP response but may arrive as a String over the WebSocket). Also open
+    // typify when there's an active call whose local id was lost — the overlay
+    // is single-call, so an unmatched call.ended still means "this call ended".
     const matches =
       incoming != null &&
       callLogId.value != null &&

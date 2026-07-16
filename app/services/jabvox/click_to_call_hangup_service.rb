@@ -28,11 +28,15 @@ class Jabvox::ClickToCallHangupService
     token = call_log.user&.pubsub_token
     return if token.blank?
 
+    # account_id is REQUIRED: the frontend ActionCable connector drops any event
+    # whose data.account_id doesn't match the current account (isAValidEvent).
+    # Without it the 'jabvox.call.ended' event was silently discarded, so the
+    # typify dialog never opened when the customer/MicroSIP hung up.
     ActionCable.server.broadcast(
       token,
       {
         event: 'jabvox.call.ended',
-        data: { call_log_id: call_log.id, uniqueid: call_log.uniqueid }
+        data: { account_id: @account_id, call_log_id: call_log.id, uniqueid: call_log.uniqueid }
       }
     )
   end

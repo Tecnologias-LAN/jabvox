@@ -223,9 +223,6 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   // eslint-disable-next-line class-methods-use-this
   onClickToCallEnded = data => {
-    // DIAG temporal: confirma que ActionCable entrega el evento al front.
-    // eslint-disable-next-line no-console
-    console.log('🧪 [CTC] actionCable onClickToCallEnded', data);
     emitter.emit('jabvox.call.ended', data);
   };
 
