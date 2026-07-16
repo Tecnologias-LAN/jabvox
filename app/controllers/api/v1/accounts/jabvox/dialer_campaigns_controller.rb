@@ -614,13 +614,33 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     raw = raw.permit!.to_h if raw.respond_to?(:permit!)
     return {} unless raw.is_a?(Hash)
 
-    custom = raw['custom'].is_a?(Hash) ? raw['custom'].transform_values(&:to_s).reject { |_k, v| v.blank? } : {}
     {
       'q' => raw['q'].to_s,
       'email' => raw['email'].to_s,
       'phone' => raw['phone'].to_s,
-      'custom' => custom
+      'custom' => normalize_custom_filters(raw['custom'])
     }.reject { |k, v| k != 'custom' && v.blank? }
+  end
+
+  # Preserve the SHAPE of each custom filter so multiselect (Array / index-Hash)
+  # keeps matching after save. Flattening arrays to strings (.to_s) turned
+  # ["121"] into the literal "[\"121\"]", which never matched -> 0 leads on edit
+  # / activate even though the live count showed results. Drops blank/empty
+  # filters; keeps strings, arrays and axios's index-hash form intact.
+  def normalize_custom_filters(custom)
+    return {} unless custom.is_a?(Hash)
+
+    custom.each_with_object({}) do |(key, value), acc|
+      normalized =
+        case value
+        when Array then value.map(&:to_s).reject(&:blank?)
+        when Hash  then value.values.map(&:to_s).reject(&:blank?) # axios [0][1] form
+        else value.to_s
+        end
+      next if normalized.blank? # skips "" and []
+
+      acc[key.to_s] = normalized
+    end
   end
 
   def contact_json(contact)

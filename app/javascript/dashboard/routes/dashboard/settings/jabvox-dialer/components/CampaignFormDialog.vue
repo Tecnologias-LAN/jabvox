@@ -301,6 +301,33 @@ const openCreate = () => {
   debouncedFetchLeadCount();
 };
 
+// Normalize saved custom filters into arrays so the checkboxes reflect the saved
+// selection. Handles the current array shape, a single string, and the old
+// corrupted "[\"121\"]" form (JSON-parses it back to an array when possible).
+const normalizeSavedCustom = custom => {
+  const out = {};
+  Object.entries(custom || {}).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      out[key] = value.map(String).filter(v => v !== '');
+    } else if (typeof value === 'string' && value !== '') {
+      const trimmed = value.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          out[key] = Array.isArray(parsed)
+            ? parsed.map(String).filter(v => v !== '')
+            : [value];
+        } catch {
+          out[key] = [value];
+        }
+      } else {
+        out[key] = [value];
+      }
+    }
+  });
+  return out;
+};
+
 const openEdit = c => {
   editingId.value = c.id;
   leadCount.value = null;
@@ -320,7 +347,7 @@ const openEdit = c => {
       q: lf.q || '',
       email: lf.email || '',
       phone: lf.phone || '',
-      custom: { ...(lf.custom || {}) },
+      custom: normalizeSavedCustom(lf.custom),
     },
     excluded_lead_ids_jabvox: [...(c.excluded_lead_ids_jabvox || [])],
     schedule_start_date_jabvox: c.schedule_start_date_jabvox || '',
