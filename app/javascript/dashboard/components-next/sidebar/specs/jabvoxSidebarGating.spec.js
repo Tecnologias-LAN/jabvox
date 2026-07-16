@@ -87,4 +87,10 @@ describe('Jabvox sidebar gating matches the permission spec', () => {
     expect(ctx).not.toBeNull();
     expect(/FEATURE_FLAGS\.CAPTAIN\b/.test(ctx)).toBe(true);
   });
+
+  it('Help Center (Portals) is gated by its feature flag', () => {
+    const ctx = contextBefore("name: 'Portals'");
+    expect(ctx).not.toBeNull();
+    expect(/FEATURE_FLAGS\.HELP_CENTER\b/.test(ctx)).toBe(true);
+  });
 });
