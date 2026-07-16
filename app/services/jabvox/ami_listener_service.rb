@@ -288,8 +288,6 @@ module Jabvox
 
     def handle_hangup(event)
       channel = event['channel'].to_s
-      # TEMP DIAG: full hangup fields to see why click-to-call typify doesn't fire
-      Rails.logger.info "🔧 [DIAG] HANGUP channel=#{channel.inspect} exten=#{event['exten'].inspect} calleridnum=#{event['calleridnum'].inspect} connectedlinenum=#{event['connectedlinenum'].inspect} linkedid=#{event['linkedid'].inspect} uniqueid=#{event['uniqueid'].inspect}"
       handle_click_to_call_hangup(channel, event)
       handle_dialer_hangup(channel, event)
       # Release ALL cached markers for this call (every leg), not just this channel.
@@ -306,27 +304,85 @@ module Jabvox
     end
 
     # Dialer legs carry a __JABVOX_DIALER_LOG_ID variable. On hangup, record the recording
-    # uniqueid on the dialer call log so it links to CDR reports + analysis pipelines.
+    # uniqueid on the dialer call log so it links to CDR reports + analysis pipelines,
+    # AND close the log so the campaign report is correct even in one-by-one mode,
+    # where there is no queue (no AgentConnect/AgentComplete). Without this the log
+    # stays 'initiated' forever and the report shows 0 answered.
     def handle_dialer_hangup(channel, event)
       return if channel.blank?
 
       log_id = channel_var(channel, 'JABVOX_DIALER_LOG_ID', event)
-      uniqueid = event['uniqueid'].presence
-      return if log_id.blank? || uniqueid.blank?
+      # Fallback for dialplans where the log-id marker never reaches the hung-up leg:
+      # close the agent's most recent open dialer log by extension (mirrors the
+      # dialer's queue flow and click-to-call's extension fallback).
+      log_id ||= fallback_dialer_log_id_by_extension(channel)
+      return if log_id.blank?
       # Defence in depth: ignore events whose channel was originated by another account,
       # even when several accounts share one Asterisk server (the lookup is account-scoped too).
       return unless channel_belongs_to_account?(channel, 'JABVOX_ACCOUNT_ID', event)
 
-      record_dialer_uniqueid(log_id.to_i, uniqueid)
+      close_dialer_log(log_id.to_i, event)
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] dialer hangup failed | #{e.message}"
     end
 
-    def record_dialer_uniqueid(log_id, uniqueid)
-      log = JabvoxDialerCallLog.find_by(id: log_id, account_id: @account_id)
-      return if log.nil? || log.uniqueid_jabvox.present?
+    # Finds the agent's most recent OPEN dialer log by the extension in the channel
+    # name (SIP/<ext>-xxxx), used when JABVOX_DIALER_LOG_ID isn't on the hung-up leg.
+    def fallback_dialer_log_id_by_extension(channel)
+      ext = channel.to_s[%r{\ASIP/(\d{1,10})-}, 1]
+      return if ext.blank?
 
-      log.update_columns(uniqueid_jabvox: uniqueid) # rubocop:disable Rails/SkipsModelValidations
+      user_ext = JabvoxUserExtension.find_by(account_id: @account_id, extension_jabvox: ext)
+      return if user_ext.nil?
+
+      JabvoxDialerCallLog
+        .where(account_id: @account_id, agent_id_jabvox: user_ext.user_id, status_jabvox: %w[initiated calling])
+        .order(started_at_jabvox: :desc).first&.id
+    rescue StandardError
+      nil
+    end
+
+    # Records the recording uniqueid and finalizes an open dialer log on hangup.
+    # A call that was answered by the customer has a non-empty ConnectedLineNum or a
+    # positive billable duration; otherwise it did not connect (no-answer/busy).
+    def close_dialer_log(log_id, event)
+      log = JabvoxDialerCallLog.find_by(id: log_id, account_id: @account_id)
+      return if log.nil?
+
+      uniqueid = event['uniqueid'].presence
+      answered = call_was_answered?(event)
+      attrs = {}
+      attrs[:uniqueid_jabvox] = uniqueid if uniqueid.present? && log.uniqueid_jabvox.blank?
+
+      # Only finalize logs still open; a queue flow may already have set 'answered'.
+      if %w[initiated calling].include?(log.status_jabvox)
+        attrs[:status_jabvox] = answered ? 'answered' : 'no_answer'
+        attrs[:lead_answered_jabvox] = answered
+        # Mirror onto the campaign-contact so progress/report counts agree.
+        finalize_contact_for_log(log, answered)
+      end
+      log.update_columns(attrs) if attrs.any? # rubocop:disable Rails/SkipsModelValidations
+    end
+
+    # A Hangup event marks a connected call via a non-zero answer/billable seconds
+    # or a Cause of 16 (Normal Clearing) with a connected line. Falls back to the
+    # presence of a bridged/connected line number.
+    def call_was_answered?(event)
+      billable = event['BillableSeconds'].to_i
+      return true if billable.positive?
+
+      cause = event['cause'].to_s
+      connected = event['connectedlinenum'].to_s.gsub(/\D/, '')
+      cause == '16' && connected.length >= 5
+    end
+
+    def finalize_contact_for_log(log, answered)
+      cc = JabvoxDialerCampaignContact.find_by(id: log.jabvox_dialer_campaign_contact_id)
+      return if cc.nil? || cc.status_jabvox != 'calling'
+
+      cc.update_columns(status_jabvox: answered ? 'completed' : 'no_answer') # rubocop:disable Rails/SkipsModelValidations
+    rescue StandardError
+      nil
     end
 
     # Click-to-call legs carry a __CTCALL_ID variable. When such a channel hangs up,
@@ -343,15 +399,46 @@ module Jabvox
         # Fallbacks (in order) for dialplans that dial the trunk from a context,
         # where CTCALL_ID isn't on the hung-up leg. Any of these makes the typify
         # dialog fire no matter which leg (agent SIP, trunk, or MicroSIP) hangs up:
-        #   1) by the agent extension in the channel name (SIP/1501-xxxx) — the
-        #      leg originated for click-to-call; robust like the dialer's flow.
-        #   2) by the dialed number matching a recent 'calling' log.
-        call_log_id = fallback_ctc_by_extension(channel) || fallback_ctc_log_id(channel, event)
+        #   1) by CTCALL_ID cached under the call's linkedid — when the CUSTOMER or
+        #      MicroSIP hangs up, the Hangup comes from the trunk leg (SIP/ipcom-…),
+        #      which has no CTCALL_ID and isn't "SIP/<ext>", but shares the linkedid
+        #      with the agent leg that did carry it. This is the key case the user hit.
+        #   2) by the agent extension in the channel name (SIP/1501-xxxx).
+        #   3) by the dialed number matching a recent 'calling' log.
+        call_log_id =
+          fallback_ctc_by_linkedid(event) ||
+          fallback_ctc_by_extension(channel) ||
+          fallback_ctc_log_id(channel, event)
       end
       return if call_log_id.blank?
 
       uniqueid = event['uniqueid'].presence
       Jabvox::ClickToCallHangupService.new(@account_id, call_log_id.to_i, uniqueid).call
+    end
+
+    # Closes the click-to-call by CTCALL_ID cached under the call's linkedid/uniqueid.
+    # handle_varset caches the marker under every correlation id (channel, uniqueid,
+    # linkedid). When the customer or MicroSIP hangs up, the Hangup leg is the trunk
+    # (no CTCALL_ID, not "SIP/<ext>"), but it shares the linkedid with the agent leg
+    # that carried the marker — so we still find it here. Also scans @call_keys, the
+    # linkedid→keys index, in case the marker was cached only under the agent leg's
+    # channel/uniqueid but grouped under this linkedid.
+    def fallback_ctc_by_linkedid(event)
+      ids = [event['linkedid'], event['uniqueid']].map(&:to_s).reject(&:blank?).uniq
+      ids.each do |id|
+        cached = @channel_vars.dig(id, 'CTCALL_ID')
+        return cached if cached.present?
+      end
+      # Widen: any key grouped under this call's linkedid may hold the marker.
+      group = event['linkedid'].to_s
+      (@call_keys[group] || []).each do |key|
+        cached = @channel_vars.dig(key, 'CTCALL_ID')
+        return cached if cached.present?
+      end
+      nil
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] fallback_ctc_by_linkedid failed | #{e.message}"
+      nil
     end
 
     # Closes the click-to-call by the AGENT extension in the channel name. The

@@ -198,8 +198,39 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     render json: {
       rows: rows.map { |r| { period: r[0], total: r[1], answered: r[2], no_answer: r[3], no_agent: r[4], agents: r[5] } },
       totals: { total: tot_row[0], answered: tot_row[1], no_answer: tot_row[2], no_agent: tot_row[3], agents: tot_row[4] },
-      calls: report_call_details(base, tz)
+      calls: report_call_details(base, tz),
+      leads: report_lead_summary(base, tz)
     }
+  end
+
+  # Per-lead summary: who was dialed, how many times, last status/agent/time.
+  # Groups the call logs by the campaign-contact so the report can show one row
+  # per lead with its attempt count — what the agent asked to see.
+  REPORT_LEADS_LIMIT = 2000
+  def report_lead_summary(base, tz)
+    logs = base.includes(jabvox_dialer_campaign_contact: :contact)
+               .order(started_at_jabvox: :desc)
+    by_contact = logs.group_by(&:jabvox_dialer_campaign_contact_id)
+    agent_ids  = logs.filter_map(&:agent_id_jabvox).uniq
+    agent_names = User.where(id: agent_ids).pluck(:id, :name).to_h
+
+    summaries = by_contact.map do |_cc_id, cc_logs|
+      last = cc_logs.first # newest first (ordered above)
+      cc   = last.jabvox_dialer_campaign_contact
+      answered_count = cc_logs.count { |l| l.status_jabvox == 'answered' || l.lead_answered_jabvox }
+      {
+        contact_id: cc&.contact_id,
+        lead_name: cc&.name_jabvox.presence || cc&.contact&.name.to_s,
+        phone: last.phone_jabvox,
+        attempts: cc_logs.size,
+        answered_count: answered_count,
+        last_status: last.status_jabvox,
+        last_answered: last.lead_answered_jabvox,
+        last_agent: agent_names[last.agent_id_jabvox],
+        last_called_at: last.started_at_jabvox&.in_time_zone(tz)&.iso8601
+      }
+    end
+    summaries.sort_by { |s| -s[:attempts] }.first(REPORT_LEADS_LIMIT)
   end
 
   # Per-call detail for the report: who was dialed (lead name + phone), which
@@ -262,7 +293,11 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
       caller_id: @campaign.caller_id_jabvox.presence || config.context,
       campaign: @campaign,
       contact: contact,
-      account: Current.account
+      account: Current.account,
+      # One-by-one dialing is done BY the current agent. Persist who dialed so the
+      # call log carries agent_id_jabvox and the channel carries JABVOX_AGENT_USER_ID
+      # — without this the report can't attribute the call and shows 0 answered.
+      user_id: Current.user&.id
     )
     render json: result
   end

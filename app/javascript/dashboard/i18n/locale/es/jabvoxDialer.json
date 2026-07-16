@@ -21,6 +21,7 @@
       "TITLE": "Tiempo de gestión",
       "HINT": "Agrega una nota o gestión antes de la siguiente llamada.",
       "NEXT": "Siguiente",
+      "SAVE_NEXT": "Guardar y siguiente",
       "NOTE_PLACEHOLDER": "Agrega una nota de gestión...",
       "NO_CONVERSATION": "Sin conversación activa — la nota no se guardará.",
       "TYPIFICATION_PLACEHOLDER": "Seleccionar tipificación..."
@@ -219,7 +220,16 @@
       "IN_CALL": "En llamada",
       "OPEN_CONVERSATION": "Abrir conversación",
       "END": "Colgar",
-      "LAST_GESTION": "Última gestión"
+      "LAST_GESTION": "Última gestión",
+      "LEAD_INFO": "Datos del lead",
+      "CUSTOM_TABLES": "Registros personalizados",
+      "TYPIFICATION": "Tipificación",
+      "F_PHONE": "Teléfono",
+      "F_EMAIL": "Correo",
+      "F_COUNTRY": "País",
+      "F_AFFILIATE": "Afiliado",
+      "F_CAMPAIGN": "Campaña",
+      "F_LEAD_NUMBER": "Nº de lead"
     },
     "IMPORT": {
       "BUTTON": "Importar contactos",
@@ -288,6 +298,9 @@
       "COL_PERIOD": "Período",
       "PERIOD": "Periodo",
       "CALLS_TITLE": "Detalle de llamadas",
+      "LEADS_TITLE": "Resumen por lead",
+      "LEAD_ATTEMPTS": "Llamadas",
+      "LEAD_LAST_STATUS": "Último resultado",
       "CALL_LEAD": "Lead",
       "CALL_PHONE": "Teléfono",
       "CALL_AGENT": "Agente",

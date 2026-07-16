@@ -19,6 +19,7 @@ const fromHour = ref(0);
 const toHour = ref(23);
 const rows = ref([]);
 const calls = ref([]);
+const leads = ref([]);
 const redialing = ref(null);
 const totals = ref({
   total: 0,
@@ -93,9 +94,11 @@ const fetchReport = async (gb = null, day = null) => {
     rows.value = data.rows || [];
     totals.value = data.totals || emptyTotals();
     calls.value = data.calls || [];
+    leads.value = data.leads || [];
   } catch {
     rows.value = [];
     calls.value = [];
+    leads.value = [];
   } finally {
     loading.value = false;
   }
@@ -113,6 +116,7 @@ const open = c => {
   drillDay.value = null;
   rows.value = [];
   calls.value = [];
+  leads.value = [];
   totals.value = emptyTotals();
   nextTick(() => dialogRef.value?.open());
   fetchReport();
@@ -331,13 +335,104 @@ defineExpose({ open });
       </div>
 
       <!-- Per-call detail: who was dialed, by whom, when and the outcome -->
+      <div v-if="leads.length" class="mt-6">
+        <h3 class="text-sm font-semibold text-n-slate-12 mb-2">
+          {{ t('JABVOX_DIALER.REPORT.LEADS_TITLE') }}
+        </h3>
+        <div
+          class="rounded-xl border border-n-weak overflow-x-auto overflow-y-auto max-h-80"
+        >
+          <table class="w-full text-sm">
+            <thead class="sticky top-0 z-10">
+              <tr
+                class="bg-n-alpha-1 text-[11px] font-semibold uppercase text-n-slate-10 text-left"
+              >
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.CALL_LEAD') }}
+                </th>
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.CALL_PHONE') }}
+                </th>
+                <th class="px-4 py-2.5 text-center">
+                  {{ t('JABVOX_DIALER.REPORT.LEAD_ATTEMPTS') }}
+                </th>
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.LEAD_LAST_STATUS') }}
+                </th>
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.CALL_AGENT') }}
+                </th>
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.CALL_WHEN') }}
+                </th>
+                <th class="px-4 py-2.5" />
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-n-weak">
+              <tr
+                v-for="(l, i) in leads"
+                :key="i"
+                class="hover:bg-n-alpha-1 transition-colors"
+              >
+                <td class="px-4 py-2.5 text-n-slate-12 truncate max-w-[200px]">
+                  {{ l.lead_name || '—' }}
+                </td>
+                <td class="px-4 py-2.5 font-mono text-xs text-n-slate-11">
+                  {{ l.phone || '—' }}
+                </td>
+                <td
+                  class="px-4 py-2.5 text-center text-n-slate-12 font-semibold"
+                >
+                  {{ l.attempts }}
+                </td>
+                <td class="px-4 py-2.5">
+                  <span
+                    class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium"
+                    :class="
+                      l.last_status === 'answered' || l.last_answered
+                        ? 'bg-n-teal-3 text-n-teal-11'
+                        : 'bg-n-amber-3 text-n-amber-11'
+                    "
+                  >
+                    {{
+                      l.last_status === 'answered' || l.last_answered
+                        ? t('JABVOX_DIALER.REPORT.ANSWERED')
+                        : t('JABVOX_DIALER.REPORT.NO_ANSWER')
+                    }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5 text-n-slate-11">
+                  {{ l.last_agent || '—' }}
+                </td>
+                <td class="px-4 py-2.5 font-mono text-xs text-n-slate-11">
+                  {{ formatCallTime(l.last_called_at) }}
+                </td>
+                <td class="px-4 py-2.5 text-right">
+                  <button
+                    v-if="l.contact_id"
+                    class="inline-flex items-center gap-1 px-2 py-1 text-[11px] rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors disabled:opacity-50"
+                    :disabled="redialing === l.contact_id"
+                    @click="redial(l.contact_id)"
+                  >
+                    <span class="i-lucide-rotate-ccw size-3" />
+                    {{ t('JABVOX_DIALER.REPORT.REDIAL') }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div v-if="calls.length" class="mt-6">
         <h3 class="text-sm font-semibold text-n-slate-12 mb-2">
           {{ t('JABVOX_DIALER.REPORT.CALLS_TITLE') }}
         </h3>
-        <div class="rounded-xl border border-n-weak overflow-x-auto">
+        <div
+          class="rounded-xl border border-n-weak overflow-x-auto overflow-y-auto max-h-80"
+        >
           <table class="w-full text-sm">
-            <thead>
+            <thead class="sticky top-0 z-10">
               <tr
                 class="bg-n-alpha-1 text-[11px] font-semibold uppercase text-n-slate-10 text-left"
               >

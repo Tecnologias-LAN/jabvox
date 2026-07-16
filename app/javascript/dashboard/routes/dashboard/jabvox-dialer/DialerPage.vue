@@ -11,7 +11,7 @@ import {
 } from 'dashboard/api/jabvox/dialer';
 import { typificationsAPI } from 'dashboard/api/jabvox/clickToCall';
 import messageAPI from 'dashboard/api/inbox/message';
-import ManagementQuestionsForm from 'dashboard/components/jabvox/managementStates/ManagementQuestionsForm.vue';
+import DialerWrapupForm from 'dashboard/routes/dashboard/jabvox-dialer/components/DialerWrapupForm.vue';
 import JabvoxLeadTableRows from 'dashboard/components/widgets/conversation/jabvox/JabvoxLeadTableRows.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -19,9 +19,6 @@ import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import {
   isManagementValid,
   buildManagementContentAttributes,
-  stateGroups,
-  statesInGroup,
-  hasGroups,
 } from 'dashboard/composables/jabvox/useManagementState';
 import { useAlert } from 'dashboard/composables';
 
@@ -43,6 +40,7 @@ const SESSION_KEY = 'jabvox_dialer_session';
 const SECONDS_SUFFIX = 's';
 const LEAD_PREFIX = '#';
 const NOTE_SEPARATOR = '— ';
+const MIDDOT = '·';
 
 const canAccess = ref(true);
 const checkingAccess = ref(true);
@@ -65,28 +63,58 @@ const isSavingNote = ref(false);
 const typifications = ref([]);
 const wrapupTypificationId = ref(null);
 
+// The management picker (flat / two-level Estado→Subestado) now lives in
+// DialerWrapupForm; the parent only needs the selected state for validation and
+// content-attributes when saving the note.
 const selectedManagementState = computed(() =>
   (managementStates.value || []).find(s => s.id === wrapupStateId.value)
 );
-
-// Two-level picker (Estado → Subestado) when any active state has a group.
-const managementHasGroups = computed(() => hasGroups(managementStates.value));
-const managementGroups = computed(() => stateGroups(managementStates.value));
-const wrapupGroupStates = computed(() =>
-  wrapupGroup.value === null
-    ? []
-    : statesInGroup(managementStates.value, wrapupGroup.value)
-);
-
-const selectWrapupGroup = group => {
-  wrapupGroup.value = wrapupGroup.value === group ? null : group;
-};
 
 // Changing the group invalidates a substate that belongs to another group.
 watch(wrapupGroup, () => {
   const state = selectedManagementState.value;
   if (state && (state.state_group_jabvox || '') !== (wrapupGroup.value || ''))
     wrapupStateId.value = null;
+});
+
+// Default lead fields for the left column of the call workspace. Only shows the
+// fields present on the payload (masked ones come as "***", hidden as blank).
+const leadFields = computed(() => {
+  const c = activeCall.value || lastCall.value || {};
+  return [
+    {
+      label: t('JABVOX_DIALER.CALL.F_PHONE'),
+      value: c.contact_phone,
+      icon: 'i-lucide-phone',
+    },
+    {
+      label: t('JABVOX_DIALER.CALL.F_EMAIL'),
+      value: c.contact_email,
+      icon: 'i-lucide-mail',
+    },
+    {
+      label: t('JABVOX_DIALER.CALL.F_COUNTRY'),
+      value: c.contact_country,
+      icon: 'i-lucide-globe',
+    },
+    {
+      label: t('JABVOX_DIALER.CALL.F_AFFILIATE'),
+      value: c.affiliate_name,
+      icon: 'i-lucide-users',
+    },
+    {
+      label: t('JABVOX_DIALER.CALL.F_CAMPAIGN'),
+      value: c.campaign_name,
+      icon: 'i-lucide-tag',
+    },
+    {
+      label: t('JABVOX_DIALER.CALL.F_LEAD_NUMBER'),
+      value: c.lead_number,
+      icon: 'i-lucide-hash',
+    },
+  ].filter(
+    f => f.value !== undefined && f.value !== null && `${f.value}`.trim() !== ''
+  );
 });
 let heartbeatTimer = null;
 let requestCallTimer = null;
@@ -96,6 +124,34 @@ const clearWrapupTimer = () => {
   if (wrapupTimer) {
     clearInterval(wrapupTimer);
     wrapupTimer = null;
+  }
+};
+
+// Persist the FULL dialer state (campaign + live call / wrap-up) so navigating
+// away to a conversation and back does not drop the call. wrapupEndsAt is an
+// absolute epoch (ms) so the countdown can be recomputed after remount instead
+// of restarting from the full wrap-up time.
+const persistState = () => {
+  if (!connected.value || !activeCampaign.value) return;
+  try {
+    const wrapupEndsAt =
+      inWrapup.value && wrapupRemaining.value > 0
+        ? Date.now() + wrapupRemaining.value * 1000
+        : null;
+    sessionStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        campaign: activeCampaign.value,
+        dialerStateId: activeDialerState.value?.id ?? null,
+        activeCall: activeCall.value,
+        dialingCall: dialingCall.value,
+        lastCall: lastCall.value,
+        inWrapup: inWrapup.value,
+        wrapupEndsAt,
+      })
+    );
+  } catch {
+    // ignore storage errors
   }
 };
 
@@ -190,6 +246,7 @@ const onCallAssigned = data => {
   };
   inWrapup.value = false;
   clearWrapupTimer();
+  persistState();
 };
 
 const endWrapup = () => {
@@ -202,6 +259,7 @@ const endWrapup = () => {
   wrapupGroup.value = null;
   wrapupTypificationId.value = null;
   managementAnswers.value = {};
+  persistState();
   if (connected.value && activeDialerState.value === null) {
     // Unpause agent in Asterisk queue before requesting next call
     dialerAccessesAPI.updateState(null).catch(() => {});
@@ -269,6 +327,7 @@ const startWrapup = () => {
     wrapupRemaining.value -= 1;
     if (wrapupRemaining.value <= 0) saveWrapupNote().then(endWrapup);
   }, 1000);
+  persistState();
 };
 
 const openConversation = () => {
@@ -318,14 +377,6 @@ const startHeartbeat = () => {
     },
     4 * 60 * 1000
   );
-};
-
-const saveSession = campaign => {
-  try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ campaign }));
-  } catch {
-    // ignore storage errors
-  }
 };
 
 const clearSession = () => {
@@ -383,7 +434,40 @@ onMounted(async () => {
       activeDialerState.value = null;
       connected.value = true;
       startHeartbeat();
-      startRequestCallPolling();
+
+      // Restore an in-progress call / wrap-up so navigating to a conversation
+      // and back does NOT drop the call or its typification step.
+      activeCall.value = session.activeCall || null;
+      dialingCall.value = session.dialingCall || null;
+      lastCall.value = session.lastCall || null;
+
+      if (session.inWrapup) {
+        // Resume the wrap-up countdown from where it left off.
+        const remainingMs = (session.wrapupEndsAt || 0) - Date.now();
+        if (remainingMs > 0) {
+          inWrapup.value = true;
+          wrapupRemaining.value = Math.ceil(remainingMs / 1000);
+          clearWrapupTimer();
+          wrapupTimer = setInterval(() => {
+            wrapupRemaining.value -= 1;
+            if (wrapupRemaining.value <= 0) saveWrapupNote().then(endWrapup);
+          }, 1000);
+        } else {
+          // Wrap-up window already elapsed while away — save + finish it.
+          inWrapup.value = true;
+          saveWrapupNote().then(endWrapup);
+        }
+      }
+
+      // Only resume polling for new calls when the agent is idle and available.
+      if (
+        !activeCall.value &&
+        !dialingCall.value &&
+        !inWrapup.value &&
+        activeDialerState.value === null
+      ) {
+        startRequestCallPolling();
+      }
     } catch {
       clearSession();
     }
@@ -397,7 +481,13 @@ onBeforeUnmount(() => {
   stopHeartbeat();
   stopRequestCallPolling();
   clearWrapupTimer();
-  if (connected.value) dialerAccessesAPI.disconnect().catch(() => {});
+  // IMPORTANT: do NOT disconnect the agent here. This unmount fires whenever the
+  // user navigates away (e.g. "ir a conversación" during a call). Disconnecting
+  // would drop the agent from the Asterisk queue and lose the live call. The
+  // session is persisted (persistState) and restored on remount; the real
+  // disconnect only happens via the explicit "Desconectar" button (onDisconnect)
+  // or when the heartbeat expires server-side.
+  persistState();
 });
 
 const onConnect = async campaign => {
@@ -407,7 +497,7 @@ const onConnect = async campaign => {
     activeCampaign.value = campaign;
     activeDialerState.value = null;
     connected.value = true;
-    saveSession(campaign);
+    persistState();
     startHeartbeat();
     startRequestCallPolling();
   } catch {
@@ -444,6 +534,7 @@ const setDialerState = async state => {
   activeDialerState.value = state;
   stateDropdownOpen.value = false;
   dialerAccessesAPI.updateState(state?.id ?? null).catch(() => {});
+  persistState();
   if (state === null) {
     startRequestCallPolling();
   } else {
@@ -453,7 +544,9 @@ const setDialerState = async state => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full w-full overflow-hidden bg-n-background">
+  <div
+    class="relative flex flex-col h-full w-full overflow-hidden bg-n-background"
+  >
     <!-- Loading -->
     <div
       v-if="checkingAccess"
@@ -570,10 +663,12 @@ const setDialerState = async state => {
       </div>
 
       <!-- Floating call/wrapup cards -->
-      <div class="shrink-0 w-full max-w-3xl mx-auto px-4 sm:px-6">
-        <!-- Dialing card (call initiated, waiting for agent connection) -->
+      <!-- Dialing card (call initiated, waiting for agent connection) -->
+      <div
+        v-if="dialingCall && !activeCall && !inWrapup"
+        class="shrink-0 w-full max-w-3xl mx-auto px-4 sm:px-6"
+      >
         <div
-          v-if="dialingCall && !activeCall"
           class="mt-4 rounded-2xl bg-n-alpha-1 border border-n-weak px-4 py-3 shadow-sm"
         >
           <div class="flex items-center gap-3">
@@ -590,439 +685,215 @@ const setDialerState = async state => {
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Active call card -->
+      <!-- ════ Fullscreen call / wrap-up workspace ════
+           Left: lead default + custom fields. Right: full typification. -->
+      <div
+        v-if="activeCall || inWrapup"
+        class="absolute inset-0 z-40 flex flex-col bg-n-background"
+      >
+        <!-- Top bar: status + contact + primary actions -->
         <div
-          v-if="activeCall"
-          class="mt-4 rounded-2xl bg-n-alpha-2 border border-n-brand/30 px-4 py-3 space-y-2.5 shadow-sm"
+          class="shrink-0 flex items-center justify-between gap-4 px-5 sm:px-8 py-4 border-b"
+          :class="
+            activeCall
+              ? 'border-n-brand/30 bg-n-alpha-2'
+              : 'border-n-amber-6 bg-n-amber-3'
+          "
         >
-          <!-- Header row: name + actions -->
-          <div class="flex items-start gap-3">
+          <div class="flex items-center gap-3 min-w-0">
             <span
-              class="i-lucide-phone-call size-5 text-n-brand shrink-0 animate-pulse mt-0.5"
+              v-if="activeCall"
+              class="i-lucide-phone-call size-7 text-n-brand shrink-0 animate-pulse"
             />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-semibold text-n-slate-12 truncate">
-                {{ activeCall.contact_name || activeCall.contact_phone }}
-                <span
-                  v-if="activeCall.lead_number"
-                  class="ml-1.5 text-xs font-normal text-n-slate-10"
-                  >{{ LEAD_PREFIX }}{{ activeCall.lead_number }}</span
-                >
-              </p>
-            </div>
-            <div class="shrink-0 flex gap-1.5">
-              <Button
-                :label="t('JABVOX_DIALER.CALL.END')"
-                icon="i-lucide-phone-off"
-                color="ruby"
-                size="sm"
-                @click="onEndCall"
-              />
-              <Button
-                v-if="activeCall.conversation_id"
-                :label="t('JABVOX_DIALER.CALL.OPEN_CONVERSATION')"
-                icon="i-lucide-external-link"
-                variant="outline"
-                color="slate"
-                size="sm"
-                @click="openConversation"
-              />
-            </div>
-          </div>
-
-          <!-- Contact + lead details grid -->
-          <div class="grid grid-cols-2 gap-x-4 gap-y-1 pl-8">
-            <p class="text-xs text-n-slate-11 truncate flex items-center gap-1">
-              <span class="i-lucide-phone size-3 shrink-0 text-n-slate-9" />
-              {{ activeCall.contact_phone }}
-            </p>
-            <p
-              v-if="activeCall.contact_email"
-              class="text-xs text-n-slate-11 truncate flex items-center gap-1"
-            >
-              <span class="i-lucide-mail size-3 shrink-0 text-n-slate-9" />
-              {{ activeCall.contact_email }}
-            </p>
-            <p
-              v-if="activeCall.contact_country"
-              class="text-xs text-n-slate-11 truncate flex items-center gap-1"
-            >
-              <span class="i-lucide-globe size-3 shrink-0 text-n-slate-9" />
-              {{ activeCall.contact_country }}
-            </p>
-            <p
-              v-if="activeCall.affiliate_name"
-              class="text-xs text-n-slate-11 truncate flex items-center gap-1"
-            >
-              <span class="i-lucide-users size-3 shrink-0 text-n-slate-9" />
-              {{ activeCall.affiliate_name }}
-            </p>
-            <p
-              v-if="activeCall.campaign_name"
-              class="text-xs text-n-slate-11 truncate flex items-center gap-1"
-            >
-              <span class="i-lucide-tag size-3 shrink-0 text-n-slate-9" />
-              {{ activeCall.campaign_name }}
-            </p>
-          </div>
-
-          <!-- Gestión history -->
-          <div
-            v-if="activeCall.management_history?.length"
-            class="pl-8 pt-2 mt-1 border-t border-n-weak space-y-1"
-          >
-            <p class="text-xs font-medium text-n-slate-10">
-              {{ t('JABVOX_DIALER.HISTORY.TITLE') }}
-            </p>
-            <div class="space-y-0.5 max-h-20 overflow-y-auto pr-1">
-              <div
-                v-for="(g, i) in activeCall.management_history"
-                :key="i"
-                class="flex items-start gap-1.5"
-              >
-                <span
-                  class="inline-block size-2 rounded-full shrink-0 mt-0.5"
-                  :style="{ backgroundColor: g.state_color || '#6b7280' }"
-                />
-                <div class="min-w-0 text-xs leading-tight">
-                  <span class="font-medium text-n-slate-11">{{
-                    g.state_name
-                  }}</span>
-                  <span v-if="g.note" class="text-n-slate-10 ml-1">
-                    {{ NOTE_SEPARATOR }}{{ g.note }}
-                  </span>
-                  <span class="text-n-slate-9 ml-1">{{ g.created_at }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Multi-row custom tables (Asesorías, Casos…) for the lead on call -->
-          <div
-            v-if="activeCall.lead_id && hasMultiTables"
-            class="pt-2 mt-1 border-t border-n-weak"
-          >
-            <JabvoxLeadTableRows :lead-id="activeCall.lead_id" />
-          </div>
-
-          <!-- Gestión note (fill during call, persists into wrapup) -->
-          <div class="pl-8 pt-2 mt-1 border-t border-n-weak space-y-2">
-            <div v-if="managementStates.length > 0" class="space-y-1.5">
-              <!-- Two-level picker: Estado (grupo) → Subestado -->
-              <template v-if="managementHasGroups">
-                <div class="flex flex-wrap gap-1.5">
-                  <button
-                    v-for="g in managementGroups"
-                    :key="`group-${g}`"
-                    class="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                    :class="
-                      wrapupGroup === g
-                        ? 'bg-n-brand text-white border-transparent'
-                        : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
-                    "
-                    @click="selectWrapupGroup(g)"
-                  >
-                    {{ g || t('JABVOX_MANAGEMENT_STATES.UNGROUPED') }}
-                  </button>
-                </div>
-                <div v-if="wrapupGroup !== null" class="flex flex-wrap gap-1.5">
-                  <button
-                    v-for="s in wrapupGroupStates"
-                    :key="s.id"
-                    class="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                    :class="
-                      wrapupStateId === s.id
-                        ? 'text-white border-transparent'
-                        : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
-                    "
-                    :style="
-                      wrapupStateId === s.id
-                        ? {
-                            backgroundColor: s.color_jabvox || '#6b7280',
-                            borderColor: s.color_jabvox || '#6b7280',
-                          }
-                        : {}
-                    "
-                    @click="
-                      wrapupStateId = wrapupStateId === s.id ? null : s.id
-                    "
-                  >
-                    {{ s.name_jabvox }}
-                  </button>
-                </div>
-              </template>
-              <!-- Flat picker (accounts without groups) -->
-              <div v-else class="flex flex-wrap gap-1.5">
-                <button
-                  v-for="s in managementStates"
-                  :key="s.id"
-                  class="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                  :class="
-                    wrapupStateId === s.id
-                      ? 'text-white border-transparent'
-                      : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
-                  "
-                  :style="
-                    wrapupStateId === s.id
-                      ? {
-                          backgroundColor: s.color_jabvox || '#6b7280',
-                          borderColor: s.color_jabvox || '#6b7280',
-                        }
-                      : {}
-                  "
-                  @click="wrapupStateId = wrapupStateId === s.id ? null : s.id"
-                >
-                  {{ s.name_jabvox }}
-                </button>
-              </div>
+            <span
+              v-else
+              class="i-lucide-clock size-7 text-n-amber-11 shrink-0"
+            />
+            <div class="min-w-0">
               <p
-                v-if="selectedManagementState?.usage_info_jabvox"
-                class="text-xs text-n-slate-10"
+                class="text-lg font-bold text-n-slate-12 leading-tight truncate"
               >
-                {{ selectedManagementState.usage_info_jabvox }}
+                {{
+                  (activeCall || lastCall)?.contact_name ||
+                  (activeCall || lastCall)?.contact_phone
+                }}
+                <span
+                  v-if="(activeCall || lastCall)?.lead_number"
+                  class="ml-2 text-sm font-normal text-n-slate-10"
+                  >{{ LEAD_PREFIX
+                  }}{{ (activeCall || lastCall).lead_number }}</span
+                >
+              </p>
+              <p
+                class="text-sm leading-tight truncate"
+                :class="activeCall ? 'text-n-brand' : 'text-n-amber-11'"
+              >
+                <template v-if="activeCall">
+                  {{ t('JABVOX_DIALER.CALL.IN_CALL') }}
+                </template>
+                <template v-else>
+                  {{ t('JABVOX_DIALER.WRAPUP.TITLE') }} {{ MIDDOT }}
+                  <span class="font-bold tabular-nums"
+                    >{{ wrapupRemaining }}{{ SECONDS_SUFFIX }}</span
+                  >
+                </template>
               </p>
             </div>
-            <ManagementQuestionsForm
-              v-if="selectedManagementState"
-              v-model="managementAnswers"
-              :state="selectedManagementState"
-            />
-            <select
-              v-if="typifications.length"
-              v-model="wrapupTypificationId"
-              class="w-full rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 text-xs text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
-            >
-              <option :value="null">
-                {{ t('JABVOX_DIALER.WRAPUP.TYPIFICATION_PLACEHOLDER') }}
-              </option>
-              <option v-for="tp in typifications" :key="tp.id" :value="tp.id">
-                {{ tp.name }}
-              </option>
-            </select>
-            <textarea
-              v-model="wrapupNote"
-              rows="2"
-              class="w-full rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 text-xs text-n-slate-12 placeholder:text-n-slate-9 resize-none focus:outline-none focus:ring-2 focus:ring-n-brand"
-              :placeholder="t('JABVOX_DIALER.WRAPUP.NOTE_PLACEHOLDER')"
-            />
-            <p
-              v-if="!activeCall?.conversation_id"
-              class="text-xs text-n-slate-10"
-            >
-              {{ t('JABVOX_DIALER.WRAPUP.NO_CONVERSATION') }}
-            </p>
           </div>
-        </div>
 
-        <!-- Wrapup panel -->
-        <div
-          v-if="inWrapup && !activeCall"
-          class="mt-4 rounded-2xl border border-n-amber-6 bg-n-amber-3 px-4 py-3 space-y-3 shadow-sm"
-        >
-          <!-- Timer row -->
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="i-lucide-clock size-4 text-n-amber-11" />
-              <span class="text-sm font-medium text-n-amber-11">
-                {{ t('JABVOX_DIALER.WRAPUP.TITLE') }}
-              </span>
-              <span class="text-sm font-bold text-n-amber-11 tabular-nums">
-                {{ wrapupRemaining }}{{ SECONDS_SUFFIX }}
-              </span>
-            </div>
+          <div class="shrink-0 flex items-center gap-2">
             <Button
+              v-if="activeCall"
+              :label="t('JABVOX_DIALER.CALL.END')"
+              icon="i-lucide-phone-off"
+              color="ruby"
+              @click="onEndCall"
+            />
+            <Button
+              v-if="activeCall && activeCall.conversation_id"
+              :label="t('JABVOX_DIALER.CALL.OPEN_CONVERSATION')"
+              icon="i-lucide-external-link"
+              variant="outline"
+              color="slate"
+              @click="openConversation"
+            />
+            <Button
+              v-if="inWrapup && !activeCall"
               :label="t('JABVOX_DIALER.WRAPUP.NEXT')"
               icon="i-lucide-skip-forward"
-              size="sm"
+              color="amber"
               :is-loading="isSavingNote"
               @click="saveWrapupNote().then(endWrapup)"
             />
           </div>
+        </div>
 
-          <!-- Progress bar -->
-          <div class="w-full h-1 bg-n-amber-6 rounded-full overflow-hidden">
-            <div
-              class="h-full bg-n-amber-9 rounded-full transition-all duration-1000 ease-linear"
-              :style="{
-                width: `${(wrapupRemaining / (activeCampaign?.wrapup_time_jabvox || 30)) * 100}%`,
-              }"
-            />
-          </div>
+        <!-- Wrap-up progress bar -->
+        <div
+          v-if="inWrapup && !activeCall"
+          class="shrink-0 h-1 w-full bg-n-amber-6 overflow-hidden"
+        >
+          <div
+            class="h-full bg-n-amber-9 transition-all duration-1000 ease-linear"
+            :style="{
+              width: `${(wrapupRemaining / (activeCampaign?.wrapup_time_jabvox || 30)) * 100}%`,
+            }"
+          />
+        </div>
 
-          <!-- Contact summary -->
-          <div v-if="lastCall" class="space-y-0.5">
-            <p class="text-xs font-semibold text-n-slate-12 truncate">
-              {{ lastCall.contact_name || lastCall.contact_phone }}
-              <span
-                v-if="lastCall.lead_number"
-                class="ml-1 font-normal text-n-slate-10"
-                >{{ LEAD_PREFIX }}{{ lastCall.lead_number }}</span
+        <!-- Two-column body -->
+        <div class="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
+          <!-- ── LEFT: lead default + custom fields ── -->
+          <div
+            class="lg:w-1/2 lg:border-r border-n-weak overflow-y-auto p-5 sm:p-8 space-y-6"
+          >
+            <div>
+              <h3
+                class="text-xs font-semibold uppercase tracking-wide text-n-slate-10 mb-3"
               >
-            </p>
-            <div class="flex flex-wrap gap-x-3 gap-y-0.5">
-              <span class="text-xs text-n-slate-11 flex items-center gap-0.5">
-                <span class="i-lucide-phone size-3" />{{
-                  lastCall.contact_phone
-                }}
-              </span>
-              <span
-                v-if="lastCall.contact_email"
-                class="text-xs text-n-slate-11 flex items-center gap-0.5"
-              >
-                <span class="i-lucide-mail size-3" />{{
-                  lastCall.contact_email
-                }}
-              </span>
-              <span
-                v-if="lastCall.affiliate_name"
-                class="text-xs text-n-slate-11 flex items-center gap-0.5"
-              >
-                <span class="i-lucide-users size-3" />{{
-                  lastCall.affiliate_name
-                }}
-              </span>
-              <span
-                v-if="lastCall.campaign_name"
-                class="text-xs text-n-slate-11 flex items-center gap-0.5"
-              >
-                <span class="i-lucide-tag size-3" />{{ lastCall.campaign_name }}
-              </span>
+                {{ t('JABVOX_DIALER.CALL.LEAD_INFO') }}
+              </h3>
+              <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                <div v-for="f in leadFields" :key="f.label" class="min-w-0">
+                  <dt
+                    class="text-[11px] font-medium uppercase text-n-slate-9 flex items-center gap-1"
+                  >
+                    <span class="size-3 shrink-0" :class="[f.icon]" />
+                    {{ f.label }}
+                  </dt>
+                  <dd class="text-sm text-n-slate-12 truncate mt-0.5">
+                    {{ f.value }}
+                  </dd>
+                </div>
+              </dl>
             </div>
-          </div>
 
-          <!-- Gestión history in wrapup -->
-          <div v-if="lastCall?.management_history?.length" class="space-y-1">
-            <p class="text-xs font-medium text-n-slate-10">
-              {{ t('JABVOX_DIALER.HISTORY.TITLE') }}
-            </p>
+            <!-- Multi-row custom tables (Asesorías, Casos…) -->
             <div
-              class="space-y-0.5 max-h-24 overflow-y-auto rounded-lg bg-n-solid-1 px-2 py-1.5 border border-n-weak"
+              v-if="(activeCall || lastCall)?.lead_id && hasMultiTables"
+              class="pt-4 border-t border-n-weak"
             >
-              <div
-                v-for="(g, i) in lastCall.management_history"
-                :key="i"
-                class="flex items-start gap-1.5"
+              <h3
+                class="text-xs font-semibold uppercase tracking-wide text-n-slate-10 mb-3"
               >
-                <span
-                  class="inline-block size-2 rounded-full shrink-0 mt-0.5"
-                  :style="{ backgroundColor: g.state_color || '#6b7280' }"
-                />
-                <div class="min-w-0 flex-1 text-xs leading-tight">
-                  <span class="font-medium text-n-slate-11">{{
-                    g.state_name
-                  }}</span>
-                  <span v-if="g.note" class="text-n-slate-10 ml-1">
-                    {{ NOTE_SEPARATOR }}{{ g.note }}
-                  </span>
-                  <span class="text-n-slate-9 ml-1">{{ g.created_at }}</span>
-                </div>
-              </div>
+                {{ t('JABVOX_DIALER.CALL.CUSTOM_TABLES') }}
+              </h3>
+              <JabvoxLeadTableRows
+                :lead-id="(activeCall || lastCall).lead_id"
+              />
             </div>
-          </div>
 
-          <!-- Gestión note form -->
-          <div class="space-y-2">
-            <!-- Management state selector -->
-            <div v-if="managementStates.length > 0" class="space-y-1.5">
-              <!-- Two-level picker: Estado (grupo) → Subestado -->
-              <template v-if="managementHasGroups">
-                <div class="flex flex-wrap gap-1.5">
-                  <button
-                    v-for="g in managementGroups"
-                    :key="`group-${g}`"
-                    class="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                    :class="
-                      wrapupGroup === g
-                        ? 'bg-n-brand text-white border-transparent'
-                        : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
-                    "
-                    @click="selectWrapupGroup(g)"
-                  >
-                    {{ g || t('JABVOX_MANAGEMENT_STATES.UNGROUPED') }}
-                  </button>
-                </div>
-                <div v-if="wrapupGroup !== null" class="flex flex-wrap gap-1.5">
-                  <button
-                    v-for="s in wrapupGroupStates"
-                    :key="s.id"
-                    class="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                    :class="
-                      wrapupStateId === s.id
-                        ? 'text-white border-transparent'
-                        : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
-                    "
-                    :style="
-                      wrapupStateId === s.id
-                        ? {
-                            backgroundColor: s.color_jabvox || '#6b7280',
-                            borderColor: s.color_jabvox || '#6b7280',
-                          }
-                        : {}
-                    "
-                    @click="
-                      wrapupStateId = wrapupStateId === s.id ? null : s.id
-                    "
-                  >
-                    {{ s.name_jabvox }}
-                  </button>
-                </div>
-              </template>
-              <!-- Flat picker (accounts without groups) -->
-              <div v-else class="flex flex-wrap gap-1.5">
-                <button
-                  v-for="s in managementStates"
-                  :key="s.id"
-                  class="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                  :class="
-                    wrapupStateId === s.id
-                      ? 'text-white border-transparent'
-                      : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
-                  "
-                  :style="
-                    wrapupStateId === s.id
-                      ? {
-                          backgroundColor: s.color_jabvox || '#6b7280',
-                          borderColor: s.color_jabvox || '#6b7280',
-                        }
-                      : {}
-                  "
-                  @click="wrapupStateId = wrapupStateId === s.id ? null : s.id"
+            <!-- Gestión history -->
+            <div
+              v-if="(activeCall || lastCall)?.management_history?.length"
+              class="pt-4 border-t border-n-weak"
+            >
+              <h3
+                class="text-xs font-semibold uppercase tracking-wide text-n-slate-10 mb-3"
+              >
+                {{ t('JABVOX_DIALER.HISTORY.TITLE') }}
+              </h3>
+              <div class="space-y-1.5">
+                <div
+                  v-for="(g, i) in (activeCall || lastCall).management_history"
+                  :key="i"
+                  class="flex items-start gap-2"
                 >
-                  {{ s.name_jabvox }}
-                </button>
+                  <span
+                    class="inline-block size-2.5 rounded-full shrink-0 mt-1"
+                    :style="{ backgroundColor: g.state_color || '#6b7280' }"
+                  />
+                  <div class="min-w-0 text-sm leading-tight">
+                    <span class="font-medium text-n-slate-11">{{
+                      g.state_name
+                    }}</span>
+                    <span v-if="g.note" class="text-n-slate-10 ml-1">
+                      {{ NOTE_SEPARATOR }}{{ g.note }}
+                    </span>
+                    <span class="text-n-slate-9 ml-1 text-xs">{{
+                      g.created_at
+                    }}</span>
+                  </div>
+                </div>
               </div>
-              <p
-                v-if="selectedManagementState?.usage_info_jabvox"
-                class="text-xs text-n-slate-10"
-              >
-                {{ selectedManagementState.usage_info_jabvox }}
-              </p>
             </div>
+          </div>
 
-            <ManagementQuestionsForm
-              v-if="selectedManagementState"
-              v-model="managementAnswers"
-              :state="selectedManagementState"
-            />
-
-            <!-- Note textarea -->
-            <textarea
-              v-model="wrapupNote"
-              rows="2"
-              class="w-full rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 text-xs text-n-slate-12 placeholder:text-n-slate-9 resize-none focus:outline-none focus:ring-2 focus:ring-n-brand"
-              :placeholder="t('JABVOX_DIALER.WRAPUP.NOTE_PLACEHOLDER')"
-            />
-            <p
-              v-if="!lastCall?.conversation_id"
-              class="text-xs text-n-slate-10"
+          <!-- ── RIGHT: full typification ── -->
+          <div class="lg:w-1/2 overflow-y-auto p-5 sm:p-8 bg-n-solid-1/40">
+            <h3
+              class="text-xs font-semibold uppercase tracking-wide text-n-slate-10 mb-4"
             >
-              {{ t('JABVOX_DIALER.WRAPUP.NO_CONVERSATION') }}
-            </p>
+              {{ t('JABVOX_DIALER.CALL.TYPIFICATION') }}
+            </h3>
+            <DialerWrapupForm
+              v-model:state-id="wrapupStateId"
+              v-model:group="wrapupGroup"
+              v-model:answers="managementAnswers"
+              v-model:typification-id="wrapupTypificationId"
+              v-model:note="wrapupNote"
+              :management-states="managementStates || []"
+              :typifications="typifications"
+              :has-conversation="
+                Boolean((activeCall || lastCall)?.conversation_id)
+              "
+            />
+            <div v-if="inWrapup && !activeCall" class="mt-5">
+              <Button
+                :label="t('JABVOX_DIALER.WRAPUP.SAVE_NEXT')"
+                icon="i-lucide-check"
+                color="amber"
+                class="w-full justify-center"
+                :is-loading="isSavingNote"
+                @click="saveWrapupNote().then(endWrapup)"
+              />
+            </div>
           </div>
         </div>
       </div>
-      <!-- /Floating call/wrapup cards -->
+      <!-- /Fullscreen call/wrapup workspace -->
 
       <!-- Main connected area -->
       <div class="flex-1 flex items-center justify-center p-6">

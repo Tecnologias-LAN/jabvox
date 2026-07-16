@@ -32,7 +32,9 @@ class Jabvox::CdrMysqlService
     with_client do |client|
       total = count_rows(client, where_sql, binds)
       rows = fetch_rows(client, where_sql, binds, per_page, offset)
-      enrichment = resolver.enrichment_lookup(rows.map { |r| r['uniqueid'] })
+      # Enrich by uniqueid first, then by number+time so dialer/click-to-call calls
+      # that never connected (busy/no-answer/failed) are still identified.
+      enrichment = resolver.enrichment_for_rows(rows)
       { records: rows.map { |row| normalize(row, enrichment) }, total: total }
     end
   rescue Mysql2::Error, StandardError => e
@@ -47,9 +49,15 @@ class Jabvox::CdrMysqlService
   def summary(filters = {})
     where_sql, binds = build_where(filters)
 
-    # Extract the extension from the tech channel: strip the "SIP/"/"PJSIP/"... prefix
-    # and the "-<uniqueid>" suffix. Falls back to the whole channel when it doesn't match.
-    ext_expr = "SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)"
+    # Extract the AGENT extension. The agent leg is numeric (e.g. "1501"); the trunk
+    # leg is alphabetic (e.g. "ipcom"). For click-to-call the agent is `channel`; for
+    # the dialer it's `dstchannel` (channel = trunk). So: take the extension from
+    # `channel` when it's numeric, otherwise from `dstchannel`. Strips the tech prefix
+    # ("SIP/") and the "-<uniqueid>" suffix on the chosen leg.
+    chan_ext = "SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)"
+    dst_ext  = "SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)"
+    ext_expr = "CASE WHEN #{chan_ext} REGEXP '^[0-9]+$' THEN #{chan_ext} " \
+               "WHEN #{dst_ext} REGEXP '^[0-9]+$' THEN #{dst_ext} ELSE #{chan_ext} END"
 
     with_client do |client|
       stmt = client.prepare(
@@ -176,7 +184,7 @@ class Jabvox::CdrMysqlService
   end
 
   def normalize(row, enrichment = {})
-    info = enrichment[row['uniqueid'].to_s]
+    info = resolver.enrichment_for_row(row, enrichment)
     {
       uniqueid: row['uniqueid'],
       calldate: row['calldate'],
@@ -186,12 +194,13 @@ class Jabvox::CdrMysqlService
       # and agent extensions resolved to names.
       origin: resolver.origin_for(row, info),
       destination: resolver.destination_for(row, info),
-      # Origin channel: the agent's technology channel (SIP/104-...), shown as the
-      # agent's name when its extension is mapped, else the bare extension/channel.
-      origin_channel: resolver.channel_agent_for(row['channel']),
-      # The agent's raw extension extracted from the channel (e.g. "104"), always
-      # shown in the detail alongside the resolved name.
-      agent_extension: resolver.extension_from_channel(row['channel']),
+      # Origin channel = the AGENT. For click-to-call the agent is the origin leg,
+      # but for the dialer the agent is the DESTINATION leg (origin is the trunk).
+      # agent_channel_label picks the right leg (or the enriched agent name) so a
+      # dialer call shows the agent, not "ipcom".
+      origin_channel: resolver.agent_channel_label(row, info),
+      # The agent's raw extension, taken from whichever leg carries it.
+      agent_extension: resolver.agent_extension_from_row(row),
       dst_channel: row['dstchannel'].presence,
       # Medium: how the call was placed (click_to_call | dialer | manual when unknown).
       medium: info&.dig(:medium) || 'manual',
