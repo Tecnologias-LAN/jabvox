@@ -627,8 +627,14 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   # "Documento": custom field first (documento/document/cedula/dni/nit),
   # then the contact identifier.
   def lead_document(lead, contact)
+    # Same resolution order as the lead detail + the dialer call screen, so the
+    # document is consistent everywhere: additional_attributes first, then the
+    # lead custom fields, then the contact identifier.
+    attr_doc = contact&.additional_attributes&.dig('jabvox_identification_number').to_s
+    return attr_doc if attr_doc.present?
+
     custom = lead.custom_fields_jabvox || {}
-    %w[documento document cedula dni nit].each do |key|
+    %w[documento document cedula dni nit identificacion identification].each do |key|
       value = custom[key].to_s
       return value if value.present?
     end
