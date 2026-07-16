@@ -316,7 +316,9 @@
       "CALL_WHEN": "Date and time",
       "CALL_STATUS": "Outcome",
       "REDIAL": "Redial",
-      "REDIAL_OK": "Lead re-queued for dialing."
+      "REDIAL_OK": "Lead re-queued for dialing.",
+      "EXCLUDE": "Don't dial",
+      "EXCLUDE_OK": "Lead excluded from the campaign. It won't be dialed again."
     },
     "ACCESS_DENIED": {
       "TITLE": "Acceso restringido",

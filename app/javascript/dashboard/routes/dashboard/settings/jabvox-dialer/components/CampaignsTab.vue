@@ -101,24 +101,26 @@ const doDelete = async id => {
   }
 };
 
-const leadsOf = c => c.leads_count_jabvox ?? 0;
-
-// One-by-one campaigns expose a live progress endpoint (dialed / remaining /
-// pending_retry). last_state campaigns never surface progress (it doesn't apply).
+// Live progress (dialed / answered / remaining / pending_retry / total) for EVERY
+// campaign, so "Marcados" and "Contestados" are consistent with the report and
+// never show stale 0s from the campaign columns.
 const progressById = ref({});
 
+// The lead total comes from the live progress endpoint (campaign contacts), so
+// the card, the "Marcados x/y" line and the report all agree. Falls back to the
+// index count only until progress loads.
+const leadsOf = c =>
+  progressById.value[c.id]?.total ?? c.leads_count_jabvox ?? 0;
+
 const loadProgress = async () => {
-  const oneByOne = campaigns.value.filter(
-    c => c.dial_mode_jabvox === 'one_by_one'
-  );
-  if (!oneByOne.length) return;
+  if (!campaigns.value.length) return;
   const results = await Promise.allSettled(
-    oneByOne.map(c => dialerCampaignsAPI.getProgress(c.id))
+    campaigns.value.map(c => dialerCampaignsAPI.getProgress(c.id))
   );
   const next = { ...progressById.value };
   results.forEach((res, idx) => {
     if (res.status === 'fulfilled') {
-      next[oneByOne[idx].id] = res.value.data;
+      next[campaigns.value[idx].id] = res.value.data;
     }
   });
   progressById.value = next;
@@ -128,8 +130,15 @@ onMounted(loadProgress);
 // Campaigns arrive asynchronously; reload progress once the list is populated.
 watch(() => campaigns.value.length, loadProgress);
 
+// The "Marcados x/y · Faltan" progress line only makes sense for one-by-one.
 const progressOf = c =>
   c.dial_mode_jabvox === 'one_by_one' ? progressById.value[c.id] : null;
+
+// Live dialed / answered counts for the metrics grid (any dial mode).
+const dialedOf = c =>
+  progressById.value[c.id]?.dialed ?? c.dialed_count_jabvox ?? 0;
+const answeredOf = c =>
+  progressById.value[c.id]?.answered ?? c.answered_count_jabvox ?? 0;
 
 defineExpose({ openCreate: () => formDialog.value?.openCreate() });
 </script>
@@ -256,7 +265,7 @@ defineExpose({ openCreate: () => formDialog.value?.openCreate() });
             </div>
             <div class="rounded-xl bg-n-alpha-1 px-3 py-2 text-center">
               <p class="text-sm font-semibold text-n-slate-12 tabular-nums">
-                {{ (c.dialed_count_jabvox || 0).toLocaleString() }}
+                {{ dialedOf(c).toLocaleString() }}
               </p>
               <p class="text-[11px] text-n-slate-10">
                 {{ t('JABVOX_DIALER.CAMPAIGN.METRIC_DIALED') }}
@@ -264,7 +273,7 @@ defineExpose({ openCreate: () => formDialog.value?.openCreate() });
             </div>
             <div class="rounded-xl bg-n-alpha-1 px-3 py-2 text-center">
               <p class="text-sm font-semibold text-n-teal-11 tabular-nums">
-                {{ (c.answered_count_jabvox || 0).toLocaleString() }}
+                {{ answeredOf(c).toLocaleString() }}
               </p>
               <p class="text-[11px] text-n-slate-10">
                 {{ t('JABVOX_DIALER.CAMPAIGN.METRIC_ANSWERED') }}

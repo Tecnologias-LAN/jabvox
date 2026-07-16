@@ -27,6 +27,7 @@ class JabvoxDialerCampaignPolicy < ApplicationPolicy
   def retry_contacts? = can_manage?
   def progress?     = @account_user.administrator? || @account_user.agent?
   def redial_lead?  = can_manage?
+  def exclude_lead? = can_manage?
 
   class Scope < Scope
     def resolve = scope.all

@@ -24,7 +24,11 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     @total = filter_scope.count
     @leads = filter_scope.includes(:contact, :jabvox_campaign, :assignee, :jabvox_affiliate).page(params[:page] || 1).per(per_page)
     @conv_data = load_conversation_data(@leads.map(&:contact_id))
-    @filter_options = build_filter_options
+    # Filter options are static per session (management states, campaigns, inboxes,
+    # teams, assignees, affiliates) — 6 extra queries. Only build them on the first
+    # page (or when explicitly requested) so paginating/searching stays fast; the
+    # frontend keeps its cached copy for later pages.
+    @filter_options = build_filter_options if include_filter_options?
   end
 
   def show
@@ -348,6 +352,13 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   end
 
   # rubocop:disable Metrics/AbcSize
+  # Only compute the (static) filter options on the first page or when the client
+  # explicitly asks for them, to avoid 6 extra queries on every pagination request.
+  def include_filter_options?
+    page = params[:page].to_i
+    page <= 1 || params[:with_filter_options].present?
+  end
+
   def build_filter_options
     {
       management_states: Current.account.jabvox_management_states.active.ordered

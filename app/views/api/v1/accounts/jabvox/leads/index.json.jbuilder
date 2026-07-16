@@ -47,4 +47,6 @@ json.meta do
   json.total_pages @leads.total_pages
 end
 
-json.filter_options @filter_options
+# Only present on the first page (static per session); the frontend caches it and
+# reuses it while paginating, so later pages skip the 6 filter-option queries.
+json.filter_options @filter_options if @filter_options

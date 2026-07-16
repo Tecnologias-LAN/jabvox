@@ -5,7 +5,7 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   before_action :ensure_module_permission
   before_action :check_authorization
   before_action :set_campaign, only: [:show, :update, :destroy, :start, :pause, :stop, :contacts, :call_logs,
-                                      :retry_contacts, :report, :progress, :redial_lead]
+                                      :retry_contacts, :report, :progress, :redial_lead, :exclude_lead]
 
   PREVIEW_PER_PAGE = 25
 
@@ -129,17 +129,26 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   # been dialed, how many are left to dial (fresh), and how many are queued for a
   # retry. Lets the UI show "marcados / faltan".
   def progress
-    total    = Jabvox::DialerLeadsFilterService.for_campaign(Current.account, @campaign).scope.count
     ccs      = @campaign.jabvox_dialer_campaign_contacts
-    dialed   = ccs.where.not(contact_id: nil).distinct.count(:contact_id)
+    total    = ccs.count
+    # "Dialed" = leads with at least one call log OR attempts>0 (same source of
+    # truth as the report, so the card and the report never disagree).
+    dialed   = dialed_contact_ids.size
     retry_st = Array(@campaign.retry_statuses_jabvox)
     pending_retry = retry_st.any? ? ccs.where(status_jabvox: retry_st).count : 0
+    # Answered = distinct leads with an answered call log OR a completed contact.
+    answered_log_ids = @campaign.jabvox_dialer_call_logs
+                                .where(status_jabvox: 'answered')
+                                .or(@campaign.jabvox_dialer_call_logs.where(lead_answered_jabvox: true))
+                                .distinct.pluck(:jabvox_dialer_campaign_contact_id).compact
+    completed_ids = ccs.where(status_jabvox: 'completed').pluck(:id)
+    answered = (answered_log_ids + completed_ids).uniq.size
     render json: {
       total: total,
       dialed: dialed,
       remaining: [total - dialed, 0].max, # fresh leads not yet dialed
       pending_retry: pending_retry,
-      answered: ccs.where(status_jabvox: 'completed').count
+      answered: answered
     }
   end
 
@@ -154,6 +163,27 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     # Delete the row → the picker treats the lead as fresh again (goes to the
     # front of the one-by-one queue by lead id). attempts reset with it.
     cc.destroy!
+    render json: { ok: true }
+  end
+
+  # "No marcar": exclude the lead from the campaign so the dialer never calls it.
+  # Adds its jabvox_lead id to excluded_lead_ids_jabvox and removes its pending
+  # campaign-contact row, so it leaves the "sin marcar" list. Reversible from the
+  # campaign form. Respects the campaign config: an excluded lead is skipped by the
+  # picker/filter regardless of dial mode (last_state or one_by_one).
+  def exclude_lead
+    contact_id = params[:contact_id].to_i
+    lead = Current.account.jabvox_leads.find_by(contact_id: contact_id)
+    return render json: { error: 'Lead no encontrado' }, status: :not_found unless lead
+
+    excluded = Array(@campaign.excluded_lead_ids_jabvox).map(&:to_i)
+    excluded << lead.id unless excluded.include?(lead.id)
+    @campaign.update!(excluded_lead_ids_jabvox: excluded.uniq)
+
+    # Drop any not-yet-dialed campaign-contact row so it disappears from "sin
+    # marcar" immediately (only if it has no call log — never touch dialed leads).
+    cc = @campaign.jabvox_dialer_campaign_contacts.find_by(contact_id: contact_id)
+    cc.destroy! if cc && !dialed_contact_ids.include?(cc.id)
     render json: { ok: true }
   end
 
@@ -177,8 +207,8 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
       from_h = params[:from_hour].to_i.clamp(0, 23)
       to_h   = params[:to_hour].to_i.clamp(0, 23)
       base   = base.where(
-        "EXTRACT(HOUR FROM started_at_jabvox AT TIME ZONE ?) >= ? AND " \
-        "EXTRACT(HOUR FROM started_at_jabvox AT TIME ZONE ?) <= ?",
+        'EXTRACT(HOUR FROM started_at_jabvox AT TIME ZONE ?) >= ? AND ' \
+        'EXTRACT(HOUR FROM started_at_jabvox AT TIME ZONE ?) <= ?',
         tz, from_h, tz, to_h
       )
     end
@@ -223,20 +253,36 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     }
   end
 
-  # Campaign-wide lead counts (all time): total, dialed (attempts>0), pending.
-  def campaign_lead_counts
-    scope = @campaign.jabvox_dialer_campaign_contacts
-    total = scope.count
-    dialed = scope.where('attempts_jabvox > 0').count
-    { total: total, dialed: dialed, pending: total - dialed }
+  # A campaign-contact is "dialed" if it has at least one call log OR its
+  # attempts counter is > 0. Using the call logs as the source of truth fixes the
+  # inconsistency where a lead had calls but attempts_jabvox stayed 0 (one-by-one
+  # / predictive flows don't always bump the counter), so the report showed it as
+  # "sin marcar" despite having 8 calls.
+  def dialed_contact_ids
+    @dialed_contact_ids ||= begin
+      with_logs = @campaign.jabvox_dialer_call_logs
+                           .distinct.pluck(:jabvox_dialer_campaign_contact_id)
+                           .compact
+      with_attempts = @campaign.jabvox_dialer_campaign_contacts
+                               .where('attempts_jabvox > 0').pluck(:id)
+      (with_logs + with_attempts).uniq
+    end
   end
 
-  # Leads not dialed yet (pending), so the summary lists "sin marcar" too.
+  # Campaign-wide lead counts (all time): total, dialed, pending.
+  def campaign_lead_counts
+    total = @campaign.jabvox_dialer_campaign_contacts.count
+    dialed = dialed_contact_ids.size
+    { total: total, dialed: dialed, pending: [total - dialed, 0].max }
+  end
+
+  # Leads not dialed yet (pending = no call log AND no attempts), so the summary
+  # lists "sin marcar" too.
   REPORT_PENDING_LIMIT = 2000
   def pending_lead_rows
     @campaign.jabvox_dialer_campaign_contacts
              .includes(:contact)
-             .where(attempts_jabvox: [nil, 0])
+             .where.not(id: dialed_contact_ids)
              .order(:id)
              .limit(REPORT_PENDING_LIMIT)
              .map do |cc|
@@ -249,8 +295,9 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     end
   end
 
-  # Campaign-contacts that were attempted within the window but have no call log
-  # in `base` (log missing / timestamp null). These are still real dialing results.
+  # Campaign-contacts that were dialed within the window but have NO call log in
+  # `base` (log missing / timestamp null). Uses attempts>0 as the marker; contacts
+  # that already have a call log are surfaced through the logs themselves.
   def dialed_contacts_without_log(from_date, to_date)
     logged_ids = @campaign.jabvox_dialer_call_logs
                           .where.not(started_at_jabvox: nil)
@@ -551,7 +598,10 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
       affiliate_ids_jabvox: [], inbox_ids_jabvox: [], excluded_lead_ids_jabvox: [],
       retry_statuses_jabvox: []
     )
-    permitted[:excluded_lead_ids_jabvox] = permitted[:excluded_lead_ids_jabvox].map(&:to_i).select(&:positive?) if permitted.key?(:excluded_lead_ids_jabvox)
+    if permitted.key?(:excluded_lead_ids_jabvox)
+      permitted[:excluded_lead_ids_jabvox] =
+        permitted[:excluded_lead_ids_jabvox].map(&:to_i).select(&:positive?)
+    end
     permitted.merge(lead_filters_jabvox: lead_filters_param)
   end
 

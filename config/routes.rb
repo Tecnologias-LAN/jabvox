@@ -555,6 +555,7 @@ Rails.application.routes.draw do
                 patch :stop
                 patch :retry_contacts
                 patch :redial_lead
+                patch :exclude_lead
                 get :contacts
                 get :call_logs
                 get :report

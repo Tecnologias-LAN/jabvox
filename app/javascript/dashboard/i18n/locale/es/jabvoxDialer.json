@@ -316,7 +316,9 @@
       "CALL_WHEN": "Fecha y hora",
       "CALL_STATUS": "Resultado",
       "REDIAL": "Volver a marcar",
-      "REDIAL_OK": "Lead reencolado para volver a marcar."
+      "REDIAL_OK": "Lead reencolado para volver a marcar.",
+      "EXCLUDE": "No marcar",
+      "EXCLUDE_OK": "Lead excluido de la campaña. No se volverá a marcar."
     },
     "ACCESS_DENIED": {
       "TITLE": "Acceso restringido",

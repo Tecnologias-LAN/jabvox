@@ -171,10 +171,30 @@ const redial = async contactId => {
       contact_id: contactId,
     });
     useAlert(t('JABVOX_DIALER.REPORT.REDIAL_OK'));
+    await fetchReport(); // refresh counts + lists after re-queueing
   } catch {
     useAlert(t('JABVOX_DIALER.ERROR'));
   } finally {
     redialing.value = null;
+  }
+};
+
+// "No marcar": exclude the lead from the campaign so it's never dialed. Removes it
+// from the "sin marcar" list and refreshes the report.
+const excluding = ref(null);
+const exclude = async contactId => {
+  if (!campaign.value || !contactId) return;
+  excluding.value = contactId;
+  try {
+    await dialerCampaignsAPI.excludeLead(campaign.value.id, {
+      contact_id: contactId,
+    });
+    useAlert(t('JABVOX_DIALER.REPORT.EXCLUDE_OK'));
+    await fetchReport();
+  } catch {
+    useAlert(t('JABVOX_DIALER.ERROR'));
+  } finally {
+    excluding.value = null;
   }
 };
 
@@ -562,6 +582,7 @@ defineExpose({ open });
                 <th class="px-4 py-2.5">
                   {{ t('JABVOX_DIALER.REPORT.CALL_PHONE') }}
                 </th>
+                <th class="px-4 py-2.5" />
               </tr>
             </thead>
             <tbody class="divide-y divide-n-weak">
@@ -575,6 +596,17 @@ defineExpose({ open });
                 </td>
                 <td class="px-4 py-2.5 font-mono text-xs text-n-slate-11">
                   {{ p.phone || '—' }}
+                </td>
+                <td class="px-4 py-2.5 text-right">
+                  <button
+                    v-if="p.contact_id"
+                    class="inline-flex items-center gap-1 px-2 py-1 text-[11px] rounded-lg bg-n-ruby-3 text-n-ruby-11 hover:bg-n-ruby-4 transition-colors disabled:opacity-50"
+                    :disabled="excluding === p.contact_id"
+                    @click="exclude(p.contact_id)"
+                  >
+                    <span class="i-lucide-ban size-3" />
+                    {{ t('JABVOX_DIALER.REPORT.EXCLUDE') }}
+                  </button>
                 </td>
               </tr>
             </tbody>

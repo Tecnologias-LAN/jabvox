@@ -38,6 +38,8 @@ export const dialerCampaignsAPI = {
   getProgress: id => axios.get(`${campaignsClient.url}/${id}/progress`),
   redialLead: (id, data) =>
     axios.patch(`${campaignsClient.url}/${id}/redial_lead`, data),
+  excludeLead: (id, data) =>
+    axios.patch(`${campaignsClient.url}/${id}/exclude_lead`, data),
 };
 
 export const dialerCallLogsAPI = {
