@@ -85,7 +85,17 @@ export function useClickToCall() {
 // Wires the WebSocket event once (used by the global overlay host).
 export function useClickToCallListener() {
   const onCallEnded = data => {
-    if (data?.call_log_id && data.call_log_id === callLogId.value) {
+    // Compare by value, tolerant of type: the local id comes from the originate
+    // HTTP response (a Number) while the WebSocket event may deliver it as a
+    // String, so a strict === would miss it — that's why hanging up from the
+    // customer/MicroSIP never opened the typify dialog while the in-app hangup
+    // button (which sets phase directly) did.
+    const incoming = data?.call_log_id;
+    if (
+      incoming != null &&
+      callLogId.value != null &&
+      String(incoming) === String(callLogId.value)
+    ) {
       uniqueid.value = data.uniqueid;
       phase.value = 'typify';
     }
