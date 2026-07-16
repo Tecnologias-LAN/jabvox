@@ -55,6 +55,9 @@ const activeCampaign = ref(null);
 const connecting = ref(false);
 const activeDialerState = ref(null); // null = available
 const stateDropdownOpen = ref(false);
+// Separate open-state for the dropdown shown inside the fullscreen call/wrap-up
+// overlay, so it doesn't toggle together with the header one.
+const overlayStateDropdownOpen = ref(false);
 const activeCall = ref(null);
 const dialingCall = ref(null); // call initiated, waiting for agent connection
 const lastCall = ref(null); // persists call info during wrapup for gestión note
@@ -437,6 +440,7 @@ const clearSession = () => {
 const closeDropdown = e => {
   if (!e.target.closest('[data-state-dropdown]')) {
     stateDropdownOpen.value = false;
+    overlayStateDropdownOpen.value = false;
   }
 };
 
@@ -560,6 +564,13 @@ const onConnect = async campaign => {
 };
 
 const onDisconnect = async () => {
+  // If disconnecting mid-call, hang up the live call first so it doesn't stay
+  // ringing on the phone after the agent leaves the queue.
+  const liveContactId =
+    activeCall.value?.dialer_contact_id || dialingCall.value?.dialer_contact_id;
+  if (liveContactId) {
+    await dialerAccessesAPI.endCall(liveContactId).catch(() => {});
+  }
   stopHeartbeat();
   stopRequestCallPolling();
   clearWrapupTimer();
@@ -581,11 +592,13 @@ const onDisconnect = async () => {
   wrapupGroup.value = null;
   managementAnswers.value = {};
   stateDropdownOpen.value = false;
+  overlayStateDropdownOpen.value = false;
 };
 
 const setDialerState = async state => {
   activeDialerState.value = state;
   stateDropdownOpen.value = false;
+  overlayStateDropdownOpen.value = false;
   dialerAccessesAPI.updateState(state?.id ?? null).catch(() => {});
   persistState();
   if (state === null) {
@@ -797,6 +810,61 @@ const setDialerState = async state => {
           </div>
 
           <div class="shrink-0 flex items-center gap-2">
+            <!-- State selector + disconnect, also available during call/wrap-up -->
+            <div class="relative" data-state-dropdown>
+              <button
+                class="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-n-weak bg-n-solid-1 text-n-slate-11 hover:bg-n-alpha-1 transition-colors"
+                @click.stop="
+                  overlayStateDropdownOpen = !overlayStateDropdownOpen
+                "
+              >
+                <span
+                  class="size-2 rounded-full shrink-0"
+                  :style="{ backgroundColor: statusColor }"
+                />
+                {{ statusLabel }}
+                <span class="i-lucide-chevron-down size-3.5" />
+              </button>
+
+              <div
+                v-if="overlayStateDropdownOpen"
+                class="absolute right-0 top-full mt-1.5 w-56 bg-n-solid-1 rounded-xl border border-n-weak shadow-lg z-50 overflow-hidden py-1"
+              >
+                <button
+                  v-if="activeDialerState"
+                  class="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2.5 hover:bg-n-alpha-1 text-n-teal-11"
+                  @click="setDialerState(null)"
+                >
+                  <span class="size-2 rounded-full bg-n-teal-9 shrink-0" />
+                  {{ t('JABVOX_DIALER.AVAILABLE') }}
+                </button>
+
+                <button
+                  v-for="ds in dialerStates"
+                  :key="ds.id"
+                  class="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2.5 hover:bg-n-alpha-1 text-n-slate-12"
+                  :class="activeDialerState?.id === ds.id ? 'bg-n-alpha-2' : ''"
+                  @click="setDialerState(ds)"
+                >
+                  <span
+                    class="size-2 rounded-full shrink-0"
+                    :style="{ backgroundColor: ds.color }"
+                  />
+                  {{ ds.name }}
+                </button>
+
+                <div class="border-t border-n-weak mx-2 my-1" />
+
+                <button
+                  class="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2.5 text-n-ruby-11 hover:bg-n-ruby-3"
+                  @click="onDisconnect"
+                >
+                  <span class="i-lucide-phone-off size-3.5 shrink-0" />
+                  {{ t('JABVOX_DIALER.DISCONNECT') }}
+                </button>
+              </div>
+            </div>
+
             <Button
               v-if="activeCall"
               :label="t('JABVOX_DIALER.CALL.END')"
