@@ -390,30 +390,40 @@ module Jabvox
     def handle_click_to_call_hangup(channel, event)
       return if channel.blank?
 
+      # DIAG: full picture of the hung-up leg so we can see why correlation fails
+      # when the customer / MicroSIP hangs up (trunk leg with no CTCALL_ID).
+      Rails.logger.info(
+        "🧪 [CTC-HANGUP] account=#{@account_id} channel=#{channel} " \
+        "uniqueid=#{event['uniqueid']} linkedid=#{event['linkedid']} " \
+        "exten=#{event['exten']} callerid=#{event['calleridnum']} cause=#{event['cause']}"
+      )
+
       call_log_id = channel_var(channel, 'CTCALL_ID', event)
+      source = 'CTCALL_ID(direct)'
       if call_log_id.present?
         # Defence in depth: only act on channels this account originated (CTCALL_ACCOUNT),
         # so a shared PBX with colliding extensions can't cross accounts.
-        return unless channel_belongs_to_account?(channel, 'CTCALL_ACCOUNT', event)
+        unless channel_belongs_to_account?(channel, 'CTCALL_ACCOUNT', event)
+          Rails.logger.info "🧪 [CTC-HANGUP] skipped: channel belongs to another account"
+          return
+        end
       else
-        # Fallbacks (in order) for dialplans that dial the trunk from a context,
-        # where CTCALL_ID isn't on the hung-up leg. Any of these makes the typify
-        # dialog fire no matter which leg (agent SIP, trunk, or MicroSIP) hangs up:
-        #   1) by CTCALL_ID cached under the call's linkedid — when the CUSTOMER or
-        #      MicroSIP hangs up, the Hangup comes from the trunk leg (SIP/ipcom-…),
-        #      which has no CTCALL_ID and isn't "SIP/<ext>", but shares the linkedid
-        #      with the agent leg that did carry it. This is the key case the user hit.
-        #   2) by the agent extension in the channel name (SIP/1501-xxxx).
-        #   3) by the dialed number matching a recent 'calling' log.
-        call_log_id =
-          fallback_ctc_by_linkedid(event) ||
-          fallback_ctc_by_extension(channel) ||
-          fallback_ctc_log_id(channel, event)
+        by_linked = fallback_ctc_by_linkedid(event)
+        by_ext    = by_linked ? nil : fallback_ctc_by_extension(channel)
+        by_num    = (by_linked || by_ext) ? nil : fallback_ctc_log_id(channel, event)
+        call_log_id = by_linked || by_ext || by_num
+        source = if by_linked then 'linkedid'
+                 elsif by_ext then 'extension'
+                 elsif by_num then 'number'
+                 else 'none'
+                 end
       end
+      Rails.logger.info "🧪 [CTC-HANGUP] resolved call_log_id=#{call_log_id.inspect} via=#{source}"
       return if call_log_id.blank?
 
       uniqueid = event['uniqueid'].presence
       Jabvox::ClickToCallHangupService.new(@account_id, call_log_id.to_i, uniqueid).call
+      Rails.logger.info "🧪 [CTC-HANGUP] typify broadcast sent for call_log_id=#{call_log_id}"
     end
 
     # Closes the click-to-call by CTCALL_ID cached under the call's linkedid/uniqueid.
