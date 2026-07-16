@@ -33,7 +33,8 @@
   enabled: false
 - name: help_center
   display_name: Help Center
-  enabled: true
+  # Off by default for every account; a Super Admin can enable it per account.
+  enabled: false
   help_url: https://chwt.app/hc/help-center
 - name: agent_bots
   display_name: Agent Bots

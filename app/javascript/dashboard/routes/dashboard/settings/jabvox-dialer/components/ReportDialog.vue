@@ -20,6 +20,7 @@ const toHour = ref(23);
 const rows = ref([]);
 const calls = ref([]);
 const leads = ref([]);
+const pending = ref([]);
 const redialing = ref(null);
 const totals = ref({
   total: 0,
@@ -95,10 +96,12 @@ const fetchReport = async (gb = null, day = null) => {
     totals.value = data.totals || emptyTotals();
     calls.value = data.calls || [];
     leads.value = data.leads || [];
+    pending.value = data.pending || [];
   } catch {
     rows.value = [];
     calls.value = [];
     leads.value = [];
+    pending.value = [];
   } finally {
     loading.value = false;
   }
@@ -117,6 +120,7 @@ const open = c => {
   rows.value = [];
   calls.value = [];
   leads.value = [];
+  pending.value = [];
   totals.value = emptyTotals();
   nextTick(() => dialogRef.value?.open());
   fetchReport();
@@ -241,7 +245,7 @@ defineExpose({ open });
         />
       </div>
 
-      <!-- Totals -->
+      <!-- Totals (calls) -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <div
           v-for="card in totalCards"
@@ -255,6 +259,40 @@ defineExpose({ open });
         </div>
       </div>
 
+      <!-- Lead counts (whole campaign): total / dialed / pending -->
+      <div class="grid grid-cols-3 gap-3">
+        <div
+          class="rounded-xl border border-n-weak bg-n-alpha-1 p-3 text-center"
+        >
+          <div class="text-xl font-bold tabular-nums text-n-slate-12">
+            {{ totals.leads_total ?? 0 }}
+          </div>
+          <div class="text-xs text-n-slate-10 mt-0.5">
+            {{ t('JABVOX_DIALER.REPORT.LEADS_TOTAL') }}
+          </div>
+        </div>
+        <div
+          class="rounded-xl border border-n-weak bg-n-alpha-1 p-3 text-center"
+        >
+          <div class="text-xl font-bold tabular-nums text-n-teal-11">
+            {{ totals.leads_dialed ?? 0 }}
+          </div>
+          <div class="text-xs text-n-slate-10 mt-0.5">
+            {{ t('JABVOX_DIALER.REPORT.LEADS_DIALED') }}
+          </div>
+        </div>
+        <div
+          class="rounded-xl border border-n-weak bg-n-alpha-1 p-3 text-center"
+        >
+          <div class="text-xl font-bold tabular-nums text-n-amber-11">
+            {{ totals.leads_pending ?? 0 }}
+          </div>
+          <div class="text-xs text-n-slate-10 mt-0.5">
+            {{ t('JABVOX_DIALER.REPORT.LEADS_PENDING') }}
+          </div>
+        </div>
+      </div>
+
       <!-- Loading / empty / table -->
       <div
         v-if="loading"
@@ -263,13 +301,13 @@ defineExpose({ open });
         <Spinner :size="18" />
       </div>
       <div
-        v-else-if="!rows.length"
+        v-else-if="!rows.length && !leads.length && !pending.length"
         class="rounded-xl border border-dashed border-n-weak py-10 text-center text-sm text-n-slate-11"
       >
         {{ t('JABVOX_DIALER.REPORT.EMPTY') }}
       </div>
       <div
-        v-else
+        v-if="rows.length"
         class="rounded-2xl border border-n-weak overflow-hidden overflow-x-auto"
       >
         <table class="min-w-full text-sm">
@@ -498,6 +536,45 @@ defineExpose({ open });
                     <span class="i-lucide-rotate-ccw size-3" />
                     {{ t('JABVOX_DIALER.REPORT.REDIAL') }}
                   </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sin marcar (pending leads) -->
+      <div v-if="pending.length" class="mt-6">
+        <h3 class="text-sm font-semibold text-n-slate-12 mb-2">
+          {{ t('JABVOX_DIALER.REPORT.PENDING_TITLE') }} ({{ pending.length }})
+        </h3>
+        <div
+          class="rounded-xl border border-n-weak overflow-x-auto overflow-y-auto max-h-80"
+        >
+          <table class="w-full text-sm">
+            <thead class="sticky top-0 z-10">
+              <tr
+                class="bg-n-alpha-1 text-[11px] font-semibold uppercase text-n-slate-10 text-left"
+              >
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.CALL_LEAD') }}
+                </th>
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.CALL_PHONE') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-n-weak">
+              <tr
+                v-for="(p, i) in pending"
+                :key="i"
+                class="hover:bg-n-alpha-1 transition-colors"
+              >
+                <td class="px-4 py-2.5 text-n-slate-12 truncate max-w-[240px]">
+                  {{ p.lead_name || '—' }}
+                </td>
+                <td class="px-4 py-2.5 font-mono text-xs text-n-slate-11">
+                  {{ p.phone || '—' }}
                 </td>
               </tr>
             </tbody>

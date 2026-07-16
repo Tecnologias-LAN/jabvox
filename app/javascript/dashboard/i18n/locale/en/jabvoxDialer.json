@@ -17,6 +17,9 @@
     "NO_ASSIGNED_CAMPAIGNS": "No tienes campañas activas asignadas. Pide al administrador que te asigne a una.",
     "DIALING": "Marcando...",
     "DIALING_HINT": "Esperando que el cliente conteste",
+    "BANNER": {
+      "RETURN": "Back to dialer"
+    },
     "WRAPUP": {
       "TITLE": "Tiempo de gestión",
       "HINT": "Agrega una nota o gestión antes de la siguiente llamada.",
@@ -222,6 +225,8 @@
       "END": "Colgar",
       "LAST_GESTION": "Última gestión",
       "LEAD_INFO": "Lead details",
+      "LEAD_CUSTOM_FIELDS": "Lead fields",
+      "LOADING_FIELDS": "Loading fields...",
       "CUSTOM_TABLES": "Custom records",
       "TYPIFICATION": "Typification",
       "F_PHONE": "Phone",
@@ -299,6 +304,10 @@
       "PERIOD": "Periodo",
       "CALLS_TITLE": "Call detail",
       "LEADS_TITLE": "Summary by lead",
+      "LEADS_TOTAL": "Total leads",
+      "LEADS_DIALED": "Dialed",
+      "LEADS_PENDING": "Not dialed",
+      "PENDING_TITLE": "Leads not dialed",
       "LEAD_ATTEMPTS": "Calls",
       "LEAD_LAST_STATUS": "Last result",
       "CALL_LEAD": "Lead",

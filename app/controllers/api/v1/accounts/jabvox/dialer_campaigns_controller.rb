@@ -195,19 +195,96 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     rows    = base.group(Arel.sql(period_sql)).order(Arel.sql(period_sql)).pluck(*select_cols)
     tot_row = base.pluck(*select_cols.drop(1)).first || Array.new(5, 0)
 
+    # Fallback: leads dialed WITHOUT a usable call log (log never created or its
+    # timestamp is missing) still count via the campaign-contacts, so a managed
+    # campaign is never reported as empty. Uses last_attempt_at within the range.
+    contacts = dialed_contacts_without_log(from_date, to_date)
+
+    totals = {
+      total: tot_row[0], answered: tot_row[1], no_answer: tot_row[2],
+      no_agent: tot_row[3], agents: tot_row[4]
+    }
+    merge_contact_totals!(totals, contacts)
+
+    # Whole-campaign lead counts (independent of the date range), so the summary
+    # always shows how many leads there are, how many were dialed and how many are
+    # still pending — the "leads sin marcar y marcados" the user wants to see.
+    counts = campaign_lead_counts
+    totals[:leads_total]   = counts[:total]
+    totals[:leads_dialed]  = counts[:dialed]
+    totals[:leads_pending] = counts[:pending]
+
     render json: {
       rows: rows.map { |r| { period: r[0], total: r[1], answered: r[2], no_answer: r[3], no_agent: r[4], agents: r[5] } },
-      totals: { total: tot_row[0], answered: tot_row[1], no_answer: tot_row[2], no_agent: tot_row[3], agents: tot_row[4] },
-      calls: report_call_details(base, tz),
-      leads: report_lead_summary(base, tz)
+      totals: totals,
+      calls: report_call_details(base, tz) + contact_call_rows(contacts, tz),
+      leads: report_lead_summary(base, tz, contacts),
+      pending: pending_lead_rows
     }
+  end
+
+  # Campaign-wide lead counts (all time): total, dialed (attempts>0), pending.
+  def campaign_lead_counts
+    scope = @campaign.jabvox_dialer_campaign_contacts
+    total = scope.count
+    dialed = scope.where('attempts_jabvox > 0').count
+    { total: total, dialed: dialed, pending: total - dialed }
+  end
+
+  # Leads not dialed yet (pending), so the summary lists "sin marcar" too.
+  REPORT_PENDING_LIMIT = 2000
+  def pending_lead_rows
+    @campaign.jabvox_dialer_campaign_contacts
+             .includes(:contact)
+             .where(attempts_jabvox: [nil, 0])
+             .order(:id)
+             .limit(REPORT_PENDING_LIMIT)
+             .map do |cc|
+      {
+        contact_id: cc.contact_id,
+        lead_name: cc.name_jabvox.presence || cc.contact&.name.to_s,
+        phone: cc.phone_jabvox,
+        status: cc.status_jabvox
+      }
+    end
+  end
+
+  # Campaign-contacts that were attempted within the window but have no call log
+  # in `base` (log missing / timestamp null). These are still real dialing results.
+  def dialed_contacts_without_log(from_date, to_date)
+    logged_ids = @campaign.jabvox_dialer_call_logs
+                          .where.not(started_at_jabvox: nil)
+                          .distinct.pluck(:jabvox_dialer_campaign_contact_id)
+    @campaign.jabvox_dialer_campaign_contacts
+             .includes(:contact)
+             .where('attempts_jabvox > 0')
+             .where(last_attempt_at_jabvox: from_date...to_date)
+             .where.not(id: logged_ids.compact)
+             .to_a
+  end
+
+  # A campaign-contact status maps to answered when completed, else no-answer.
+  def contact_answered?(cc)
+    cc.status_jabvox == 'completed'
+  end
+
+  def merge_contact_totals!(totals, contacts)
+    return if contacts.empty?
+
+    answered = contacts.count { |cc| contact_answered?(cc) }
+    totals[:total]     += contacts.size
+    totals[:answered]  += answered
+    totals[:no_answer] += contacts.size - answered
+    # These contacts have no agent on record → count toward "sin agente".
+    totals[:no_agent]  += contacts.size - answered
   end
 
   # Per-lead summary: who was dialed, how many times, last status/agent/time.
   # Groups the call logs by the campaign-contact so the report can show one row
-  # per lead with its attempt count — what the agent asked to see.
+  # per lead with its attempt count — what the agent asked to see. `extra_contacts`
+  # are dialed leads with no call log; they're appended so the summary is complete.
   REPORT_LEADS_LIMIT = 2000
-  def report_lead_summary(base, tz)
+  def report_lead_summary(base, tz, extra_contacts = [])
     logs = base.includes(jabvox_dialer_campaign_contact: :contact)
                .order(started_at_jabvox: :desc)
     by_contact = logs.group_by(&:jabvox_dialer_campaign_contact_id)
@@ -230,7 +307,40 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
         last_called_at: last.started_at_jabvox&.in_time_zone(tz)&.iso8601
       }
     end
+
+    summaries += extra_contacts.map do |cc|
+      answered = contact_answered?(cc)
+      {
+        contact_id: cc.contact_id,
+        lead_name: cc.name_jabvox.presence || cc.contact&.name.to_s,
+        phone: cc.phone_jabvox,
+        attempts: cc.attempts_jabvox.to_i,
+        answered_count: answered ? 1 : 0,
+        last_status: answered ? 'answered' : cc.status_jabvox,
+        last_answered: answered,
+        last_agent: nil,
+        last_called_at: cc.last_attempt_at_jabvox&.in_time_zone(tz)&.iso8601
+      }
+    end
     summaries.sort_by { |s| -s[:attempts] }.first(REPORT_LEADS_LIMIT)
+  end
+
+  # Per-call rows for dialed contacts without a call log, so they appear in the
+  # detail table too (state from the campaign-contact status).
+  def contact_call_rows(contacts, tz)
+    contacts.map do |cc|
+      answered = contact_answered?(cc)
+      {
+        contact_id: cc.contact_id,
+        lead_name: cc.name_jabvox.presence || cc.contact&.name.to_s,
+        phone: cc.phone_jabvox,
+        agent_name: nil,
+        status: answered ? 'answered' : cc.status_jabvox,
+        answered: answered,
+        called_at: cc.last_attempt_at_jabvox&.in_time_zone(tz)&.iso8601,
+        duration: nil
+      }
+    end
   end
 
   # Per-call detail for the report: who was dialed (lead name + phone), which
@@ -317,7 +427,11 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   end
 
   def parse_report_date(value, fallback)
-    value.present? ? Time.zone.parse(value) : fallback
+    return fallback if value.blank?
+
+    # Time.zone.parse returns nil (not an exception) for garbage like "basura",
+    # so guard against nil too or `.beginning_of_day` downstream would 500.
+    Time.zone.parse(value) || fallback
   rescue StandardError
     fallback
   end

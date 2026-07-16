@@ -33,6 +33,11 @@ class JabvoxDialerCampaignContact < ApplicationRecord
 
   belongs_to :account
   belongs_to :jabvox_dialer_campaign
+  # The dialed CRM contact. Optional: contact_id can be null for imported rows
+  # that were never linked to a Contact. Needed by the campaign report to show the
+  # lead name; without this association report_lead_summary/report_call_details
+  # raise AssociationNotFoundError and the whole report returns 500 (empty).
+  belongs_to :contact, optional: true
   has_many :jabvox_dialer_call_logs,
            inverse_of: :jabvox_dialer_campaign_contact,
            dependent: :destroy

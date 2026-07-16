@@ -10,8 +10,10 @@ import {
   dialerCallLogsAPI,
 } from 'dashboard/api/jabvox/dialer';
 import { typificationsAPI } from 'dashboard/api/jabvox/clickToCall';
+import leadsAPI from 'dashboard/api/jabvox/leads';
 import messageAPI from 'dashboard/api/inbox/message';
 import DialerWrapupForm from 'dashboard/routes/dashboard/jabvox-dialer/components/DialerWrapupForm.vue';
+import { useDialerLiveSession } from 'dashboard/composables/jabvox/useDialerLiveSession';
 import JabvoxLeadTableRows from 'dashboard/components/widgets/conversation/jabvox/JabvoxLeadTableRows.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -25,6 +27,10 @@ import { useAlert } from 'dashboard/composables';
 const store = useStore();
 const router = useRouter();
 const { t } = useI18n();
+
+// Global singleton mirror of the live call, so it survives navigation and a
+// floating banner can show it from any page.
+const liveSession = useDialerLiveSession();
 
 const campaigns = useMapGetter('jabvoxDialer/getCampaigns');
 const dialerStates = useMapGetter('jabvoxDialer/getDialerStates');
@@ -116,6 +122,32 @@ const leadFields = computed(() => {
     f => f.value !== undefined && f.value !== null && `${f.value}`.trim() !== ''
   );
 });
+
+// Account-specific custom lead fields (Sección, zona, etc.), loaded per call.
+// [{ label, value }] with the account's labels; every defined column is shown so
+// the agent sees the full lead sheet (empty ones as "—"), like the lead detail.
+const leadCustomFields = ref([]);
+const loadingLeadFields = ref(false);
+const NO_VALUE = '—';
+
+const loadLeadCustomFields = async contactId => {
+  leadCustomFields.value = [];
+  if (!contactId) return;
+  loadingLeadFields.value = true;
+  try {
+    const { data } = await leadsAPI.forContact(contactId);
+    const defs = data.custom_field_defs || [];
+    const values = data.fields || {};
+    leadCustomFields.value = defs.map(d => ({
+      label: d.label || d.key,
+      value: values[`custom:${d.key}`] || '',
+    }));
+  } catch {
+    leadCustomFields.value = [];
+  } finally {
+    loadingLeadFields.value = false;
+  }
+};
 let heartbeatTimer = null;
 let requestCallTimer = null;
 let wrapupTimer = null;
@@ -132,7 +164,11 @@ const clearWrapupTimer = () => {
 // absolute epoch (ms) so the countdown can be recomputed after remount instead
 // of restarting from the full wrap-up time.
 const persistState = () => {
-  if (!connected.value || !activeCampaign.value) return;
+  if (!connected.value || !activeCampaign.value) {
+    // Disconnected: clear the global live session too so the banner disappears.
+    liveSession.syncFromDialer({ connected: false });
+    return;
+  }
   try {
     const wrapupEndsAt =
       inWrapup.value && wrapupRemaining.value > 0
@@ -153,6 +189,15 @@ const persistState = () => {
   } catch {
     // ignore storage errors
   }
+  // Mirror into the global singleton so the floating banner reflects the call
+  // from any page (survives navigation away from the dialer).
+  liveSession.syncFromDialer({
+    connected: connected.value,
+    campaign: activeCampaign.value,
+    call: activeCall.value,
+    dialing: dialingCall.value,
+    wrapup: inWrapup.value,
+  });
 };
 
 const stopRequestCallPolling = () => {
@@ -246,6 +291,8 @@ const onCallAssigned = data => {
   };
   inWrapup.value = false;
   clearWrapupTimer();
+  // Load the account's custom lead fields for the left column of the call screen.
+  loadLeadCustomFields(data.contact_id);
   persistState();
 };
 
@@ -441,6 +488,11 @@ onMounted(async () => {
       dialingCall.value = session.dialingCall || null;
       lastCall.value = session.lastCall || null;
 
+      // Re-load the lead's custom fields after navigating back into the dialer.
+      const restoredContactId = (activeCall.value || lastCall.value)
+        ?.contact_id;
+      if (restoredContactId) loadLeadCustomFields(restoredContactId);
+
       if (session.inWrapup) {
         // Resume the wrap-up countdown from where it left off.
         const remainingMs = (session.wrapupEndsAt || 0) - Date.now();
@@ -512,6 +564,7 @@ const onDisconnect = async () => {
   stopRequestCallPolling();
   clearWrapupTimer();
   clearSession();
+  liveSession.clear();
   await dialerAccessesAPI.disconnect().catch(() => {});
   connected.value = false;
   store.dispatch('jabvoxDialer/fetchCampaigns');
@@ -805,6 +858,42 @@ const setDialerState = async state => {
                   </dt>
                   <dd class="text-sm text-n-slate-12 truncate mt-0.5">
                     {{ f.value }}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <!-- Account-specific custom lead fields (Sección, zona, alias…) -->
+            <div
+              v-if="loadingLeadFields || leadCustomFields.length"
+              class="pt-4 border-t border-n-weak"
+            >
+              <h3
+                class="text-xs font-semibold uppercase tracking-wide text-n-slate-10 mb-3"
+              >
+                {{ t('JABVOX_DIALER.CALL.LEAD_CUSTOM_FIELDS') }}
+              </h3>
+              <div
+                v-if="loadingLeadFields"
+                class="text-sm text-n-slate-10 flex items-center gap-2"
+              >
+                <Spinner class="size-4" />
+                {{ t('JABVOX_DIALER.CALL.LOADING_FIELDS') }}
+              </div>
+              <dl
+                v-else
+                class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3"
+              >
+                <div
+                  v-for="f in leadCustomFields"
+                  :key="f.label"
+                  class="min-w-0"
+                >
+                  <dt class="text-[11px] font-medium uppercase text-n-slate-9">
+                    {{ f.label }}
+                  </dt>
+                  <dd class="text-sm text-n-slate-12 truncate mt-0.5">
+                    {{ `${f.value}`.trim() || NO_VALUE }}
                   </dd>
                 </div>
               </dl>

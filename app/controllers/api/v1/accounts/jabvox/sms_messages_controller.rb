@@ -46,8 +46,11 @@ class Api::V1::Accounts::Jabvox::SmsMessagesController < Api::V1::Accounts::Jabv
   end
 
   # Gate solo si el usuario tiene un custom role: sin rol personalizado se
-  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  # conserva el comportamiento histórico (los agentes pueden enviar SMS). El admin
+  # siempre pasa; un rol personalizado necesita jabvox_sms_view.
   def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
     jabvox_authorize_write!('jabvox_sms_view')
   end
 

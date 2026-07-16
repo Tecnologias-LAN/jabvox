@@ -4,7 +4,11 @@ class Api::V1::Accounts::Jabvox::AffiliatesController < Api::V1::Accounts::BaseC
   include JabvoxPermissions
 
   before_action :check_affiliates_enabled
-  before_action :ensure_module_permission
+  # Reading the affiliate list (index) is needed by other modules (e.g. the dialer
+  # lead filter). Only WRITE actions require the manage permission; reads stay open
+  # to any agent/admin, and the custom-role gate only kicks in for users who
+  # actually have a custom role.
+  before_action :ensure_module_permission, except: :index
   before_action :set_affiliate, only: %i[update destroy regenerate_token regenerate_code]
 
   def index

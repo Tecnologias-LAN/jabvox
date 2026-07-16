@@ -40,6 +40,10 @@ const actions = {
     try {
       const { data } = await affiliatesAPI.getAll();
       commit('SET_AFFILIATES', data);
+    } catch {
+      // Affiliates module may be disabled or the user may lack access; degrade to
+      // an empty list instead of throwing an uncaught promise rejection.
+      commit('SET_AFFILIATES', []);
     } finally {
       commit('SET_UI_FLAG', { isFetching: false });
     }

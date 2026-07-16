@@ -55,9 +55,12 @@ module Api::V1::Accounts::Jabvox
 
     private
 
-    # Custom-role gate: users without a custom role keep historical access;
-    # users with a custom role must be granted the capability (admins always pass).
+    # Custom-role gate: users without a custom role keep historical access (agents
+    # create cotizaciones/ventas from the lead/conversation/kanban); users WITH a
+    # custom role must be granted the capability (admins always pass).
     def ensure_module_permission
+      return if Current.account_user&.custom_role.nil?
+
       jabvox_authorize_write!('jabvox_orders_manage')
     end
 

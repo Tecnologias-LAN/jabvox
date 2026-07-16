@@ -489,10 +489,8 @@ const menuItems = computed(() => {
           },
         ]
       : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_CDR
-    )
+    ...(canViewJabvoxReports.value &&
+    isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.JABVOX_CDR)
       ? [
           {
             name: 'Jabvox CDR Reports',
@@ -503,7 +501,8 @@ const menuItems = computed(() => {
           },
         ]
       : []),
-    ...(isFeatureEnabledonAccount.value(
+    ...(canViewJabvoxReports.value &&
+    isFeatureEnabledonAccount.value(
       accountId.value,
       FEATURE_FLAGS.JABVOX_AUDIO_ANALYSIS
     )
@@ -550,77 +549,81 @@ const menuItems = computed(() => {
           },
         ]
       : []),
-    {
-      name: 'Captain',
-      icon: 'i-woot-captain',
-      label: t('SIDEBAR.CAPTAIN'),
-      activeOn: ['captain_assistants_create_index'],
-      children: [
-        {
-          name: 'FAQs',
-          label: t('SIDEBAR.CAPTAIN_RESPONSES'),
-          activeOn: [
-            'captain_assistants_responses_index',
-            'captain_assistants_responses_pending',
-          ],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_responses_index',
-          }),
-        },
-        {
-          name: 'Documents',
-          label: t('SIDEBAR.CAPTAIN_DOCUMENTS'),
-          activeOn: ['captain_assistants_documents_index'],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_documents_index',
-          }),
-        },
-        {
-          name: 'Scenarios',
-          label: t('SIDEBAR.CAPTAIN_SCENARIOS'),
-          activeOn: ['captain_assistants_scenarios_index'],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_scenarios_index',
-          }),
-        },
-        {
-          name: 'Playground',
-          label: t('SIDEBAR.CAPTAIN_PLAYGROUND'),
-          activeOn: ['captain_assistants_playground_index'],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_playground_index',
-          }),
-        },
-        {
-          name: 'Inboxes',
-          label: t('SIDEBAR.CAPTAIN_INBOXES'),
-          activeOn: ['captain_assistants_inboxes_index'],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_inboxes_index',
-          }),
-        },
-        {
-          name: 'Tools',
-          label: t('SIDEBAR.CAPTAIN_TOOLS'),
-          activeOn: ['captain_tools_index'],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_tools_index',
-          }),
-        },
-        {
-          name: 'Settings',
-          label: t('SIDEBAR.CAPTAIN_SETTINGS'),
-          activeOn: [
-            'captain_assistants_settings_index',
-            'captain_assistants_guidelines_index',
-            'captain_assistants_guardrails_index',
-          ],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_settings_index',
-          }),
-        },
-      ],
-    },
+    ...(isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.CAPTAIN)
+      ? [
+          {
+            name: 'Captain',
+            icon: 'i-woot-captain',
+            label: t('SIDEBAR.CAPTAIN'),
+            activeOn: ['captain_assistants_create_index'],
+            children: [
+              {
+                name: 'FAQs',
+                label: t('SIDEBAR.CAPTAIN_RESPONSES'),
+                activeOn: [
+                  'captain_assistants_responses_index',
+                  'captain_assistants_responses_pending',
+                ],
+                to: accountScopedRoute('captain_assistants_index', {
+                  navigationPath: 'captain_assistants_responses_index',
+                }),
+              },
+              {
+                name: 'Documents',
+                label: t('SIDEBAR.CAPTAIN_DOCUMENTS'),
+                activeOn: ['captain_assistants_documents_index'],
+                to: accountScopedRoute('captain_assistants_index', {
+                  navigationPath: 'captain_assistants_documents_index',
+                }),
+              },
+              {
+                name: 'Scenarios',
+                label: t('SIDEBAR.CAPTAIN_SCENARIOS'),
+                activeOn: ['captain_assistants_scenarios_index'],
+                to: accountScopedRoute('captain_assistants_index', {
+                  navigationPath: 'captain_assistants_scenarios_index',
+                }),
+              },
+              {
+                name: 'Playground',
+                label: t('SIDEBAR.CAPTAIN_PLAYGROUND'),
+                activeOn: ['captain_assistants_playground_index'],
+                to: accountScopedRoute('captain_assistants_index', {
+                  navigationPath: 'captain_assistants_playground_index',
+                }),
+              },
+              {
+                name: 'Inboxes',
+                label: t('SIDEBAR.CAPTAIN_INBOXES'),
+                activeOn: ['captain_assistants_inboxes_index'],
+                to: accountScopedRoute('captain_assistants_index', {
+                  navigationPath: 'captain_assistants_inboxes_index',
+                }),
+              },
+              {
+                name: 'Tools',
+                label: t('SIDEBAR.CAPTAIN_TOOLS'),
+                activeOn: ['captain_tools_index'],
+                to: accountScopedRoute('captain_assistants_index', {
+                  navigationPath: 'captain_tools_index',
+                }),
+              },
+              {
+                name: 'Settings',
+                label: t('SIDEBAR.CAPTAIN_SETTINGS'),
+                activeOn: [
+                  'captain_assistants_settings_index',
+                  'captain_assistants_guidelines_index',
+                  'captain_assistants_guardrails_index',
+                ],
+                to: accountScopedRoute('captain_assistants_index', {
+                  navigationPath: 'captain_assistants_settings_index',
+                }),
+              },
+            ],
+          },
+        ]
+      : []),
     {
       name: 'Contacts',
       label: t('SIDEBAR.CONTACTS'),
@@ -978,7 +981,8 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isFeatureEnabledonAccount.value(
+        ...(jabvoxCan('jabvox_kanban_manage') &&
+        isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_KANBAN
         )
@@ -1042,7 +1046,8 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isFeatureEnabledonAccount.value(
+        ...(jabvoxCan('jabvox_whatsapp_templates_manage') &&
+        isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_WHATSAPP_TEMPLATES
         )
@@ -1058,7 +1063,8 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isFeatureEnabledonAccount.value(
+        ...(jabvoxCan('jabvox_bulk_whatsapp_send') &&
+        isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_BULK_WHATSAPP
         )
@@ -1072,7 +1078,8 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isFeatureEnabledonAccount.value(
+        ...(jabvoxCan('jabvox_audio_manage') &&
+        isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_AUDIO_ANALYSIS
         )
@@ -1086,7 +1093,8 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isFeatureEnabledonAccount.value(
+        ...(jabvoxCan('jabvox_lead_import_manage') &&
+        isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_LEAD_IMPORT
         )
@@ -1100,7 +1108,8 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isFeatureEnabledonAccount.value(
+        ...(jabvoxCan('jabvox_data_export_manage') &&
+        isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_DATA_EXPORT
         )
@@ -1114,7 +1123,8 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isFeatureEnabledonAccount.value(
+        ...(jabvoxCan('jabvox_typifications_manage') &&
+        isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_CLICK_TO_CALL
         )
@@ -1210,7 +1220,8 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isFeatureEnabledonAccount.value(
+        ...(jabvoxCan('jabvox_affiliates_manage') &&
+        isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_AFFILIATES
         )
@@ -1224,7 +1235,8 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isFeatureEnabledonAccount.value(
+        ...(jabvoxCan('jabvox_response_bot_manage') &&
+        isFeatureEnabledonAccount.value(
           accountId.value,
           FEATURE_FLAGS.JABVOX_RESPONSE_BOT
         )
