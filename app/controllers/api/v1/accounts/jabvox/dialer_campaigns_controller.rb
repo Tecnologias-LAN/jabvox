@@ -4,7 +4,8 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
 
   before_action :ensure_module_permission
   before_action :check_authorization
-  before_action :set_campaign, only: [:show, :update, :destroy, :start, :pause, :stop, :contacts, :call_logs, :retry_contacts, :report]
+  before_action :set_campaign, only: [:show, :update, :destroy, :start, :pause, :stop, :contacts, :call_logs,
+                                      :retry_contacts, :report, :progress, :redial_lead]
 
   PREVIEW_PER_PAGE = 25
 
@@ -113,6 +114,38 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     render json: @contacts.map { |c| contact_json(c) }
   end
 
+  # One-by-one progress: how many leads total match the campaign, how many have
+  # been dialed, how many are left to dial (fresh), and how many are queued for a
+  # retry. Lets the UI show "marcados / faltan".
+  def progress
+    total    = Jabvox::DialerLeadsFilterService.for_campaign(Current.account, @campaign).scope.count
+    ccs      = @campaign.jabvox_dialer_campaign_contacts
+    dialed   = ccs.where.not(contact_id: nil).distinct.count(:contact_id)
+    retry_st = Array(@campaign.retry_statuses_jabvox)
+    pending_retry = retry_st.any? ? ccs.where(status_jabvox: retry_st).count : 0
+    render json: {
+      total: total,
+      dialed: dialed,
+      remaining: [total - dialed, 0].max, # fresh leads not yet dialed
+      pending_retry: pending_retry,
+      answered: ccs.where(status_jabvox: 'completed').count
+    }
+  end
+
+  # Re-queue an already-dialed lead so it enters the campaign again: reset its
+  # campaign-contact back to 'pending' (or delete the row so it's treated as
+  # fresh). Used from the "volver a marcar" action on a contact.
+  def redial_lead
+    contact_id = params[:contact_id].to_i
+    cc = @campaign.jabvox_dialer_campaign_contacts.find_by(contact_id: contact_id)
+    return render json: { error: 'Contacto no encontrado en la campaña' }, status: :not_found unless cc
+
+    # Delete the row → the picker treats the lead as fresh again (goes to the
+    # front of the one-by-one queue by lead id). attempts reset with it.
+    cc.destroy!
+    render json: { ok: true }
+  end
+
   def call_logs
     @logs = @campaign.jabvox_dialer_call_logs.ordered.limit(200)
     render json: @logs.map { |l| call_log_json(l) }
@@ -153,8 +186,33 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
 
     render json: {
       rows: rows.map { |r| { period: r[0], total: r[1], answered: r[2], no_answer: r[3], no_agent: r[4], agents: r[5] } },
-      totals: { total: tot_row[0], answered: tot_row[1], no_answer: tot_row[2], no_agent: tot_row[3], agents: tot_row[4] }
+      totals: { total: tot_row[0], answered: tot_row[1], no_answer: tot_row[2], no_agent: tot_row[3], agents: tot_row[4] },
+      calls: report_call_details(base, tz)
     }
+  end
+
+  # Per-call detail for the report: who was dialed (lead name + phone), which
+  # agent dialed, when, and the outcome. Capped so a huge campaign never returns
+  # an unbounded payload; newest first.
+  REPORT_CALLS_LIMIT = 1000
+  def report_call_details(base, tz)
+    logs = base.includes(jabvox_dialer_campaign_contact: :contact)
+               .order(started_at_jabvox: :desc)
+               .limit(REPORT_CALLS_LIMIT)
+    agent_names = User.where(id: logs.filter_map(&:agent_id_jabvox).uniq).pluck(:id, :name).to_h
+    logs.map do |l|
+      cc = l.jabvox_dialer_campaign_contact
+      {
+        contact_id: cc&.contact_id, # lets the UI re-queue this lead ("volver a marcar")
+        lead_name: cc&.name_jabvox.presence || cc&.contact&.name.to_s,
+        phone: l.phone_jabvox,
+        agent_name: agent_names[l.agent_id_jabvox],
+        status: l.status_jabvox,
+        answered: l.lead_answered_jabvox,
+        called_at: l.started_at_jabvox&.in_time_zone(tz)&.iso8601,
+        duration: l.duration_jabvox
+      }
+    end
   end
 
   def import_contacts # rubocop:disable Metrics/AbcSize
@@ -328,8 +386,10 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
       :schedule_start_date_jabvox, :schedule_end_date_jabvox,
       :jabvox_campaign_id, :wrapup_time_jabvox, :lines_per_agent_jabvox, :leads_count_jabvox,
       :wait_in_queue_jabvox, :dial_mode_jabvox, :dial_field_jabvox, :dial_prefix_jabvox,
+      :max_retries_jabvox,
       countries_jabvox: [], management_state_ids_jabvox: [], agent_ids_jabvox: [],
-      affiliate_ids_jabvox: [], inbox_ids_jabvox: [], excluded_lead_ids_jabvox: []
+      affiliate_ids_jabvox: [], inbox_ids_jabvox: [], excluded_lead_ids_jabvox: [],
+      retry_statuses_jabvox: []
     )
     permitted[:excluded_lead_ids_jabvox] = permitted[:excluded_lead_ids_jabvox].map(&:to_i).select(&:positive?) if permitted.key?(:excluded_lead_ids_jabvox)
     permitted.merge(lead_filters_jabvox: lead_filters_param)

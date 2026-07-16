@@ -61,6 +61,8 @@ const emptyForm = () => ({
   dial_mode_jabvox: 'last_state',
   dial_field_jabvox: 'phone', // required: which number to dial (one per campaign)
   dial_prefix_jabvox: '',
+  retry_statuses_jabvox: [],
+  max_retries_jabvox: 0,
 });
 const form = ref(emptyForm());
 
@@ -263,6 +265,17 @@ const toggleAgent = id => {
   else list.splice(idx, 1);
 };
 
+// Retry rules (one-by-one mode only): which outcomes get re-queued.
+const RETRY_STATUS_OPTIONS = ['no_answer', 'busy', 'failed'];
+const retryStatusChecked = status =>
+  form.value.retry_statuses_jabvox.includes(status);
+const toggleRetryStatus = status => {
+  const list = form.value.retry_statuses_jabvox;
+  const idx = list.indexOf(status);
+  if (idx === -1) list.push(status);
+  else list.splice(idx, 1);
+};
+
 const openCreate = () => {
   editingId.value = null;
   form.value = emptyForm();
@@ -301,6 +314,8 @@ const openEdit = c => {
     dial_mode_jabvox: c.dial_mode_jabvox || 'last_state',
     dial_field_jabvox: c.dial_field_jabvox || 'phone',
     dial_prefix_jabvox: c.dial_prefix_jabvox || '',
+    retry_statuses_jabvox: [...(c.retry_statuses_jabvox || [])],
+    max_retries_jabvox: c.max_retries_jabvox ?? 0,
   };
   nextTick(() => dialogRef.value?.open());
   debouncedFetchLeadCount();
@@ -965,6 +980,42 @@ defineExpose({ openCreate, openEdit, close });
               </span>
             </div>
             <Switch v-model="form.wait_in_queue_jabvox" />
+          </div>
+
+          <!-- Retry rules: only meaningful in one-by-one mode -->
+          <div
+            v-if="form.dial_mode_jabvox === 'one_by_one'"
+            class="flex flex-col gap-3 rounded-xl border border-n-weak p-4"
+          >
+            <span class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_DIALER.FORM.RETRY_TITLE') }}
+            </span>
+            <div class="flex flex-col gap-2">
+              <label
+                v-for="status in RETRY_STATUS_OPTIONS"
+                :key="status"
+                class="flex items-center gap-2 cursor-pointer text-sm text-n-slate-12 select-none"
+              >
+                <input
+                  type="checkbox"
+                  class="rounded accent-n-brand"
+                  :checked="retryStatusChecked(status)"
+                  @change="toggleRetryStatus(status)"
+                />
+                {{
+                  t(`JABVOX_DIALER.FORM.RETRY_STATUS_${status.toUpperCase()}`)
+                }}
+              </label>
+            </div>
+            <Input
+              v-model.number="form.max_retries_jabvox"
+              type="number"
+              min="0"
+              :label="t('JABVOX_DIALER.FORM.RETRY_MAX')"
+            />
+            <p class="text-xs text-n-slate-10">
+              {{ t('JABVOX_DIALER.FORM.RETRY_HINT') }}
+            </p>
           </div>
         </div>
       </section>

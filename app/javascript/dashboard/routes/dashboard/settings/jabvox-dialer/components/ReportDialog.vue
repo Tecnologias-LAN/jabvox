@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import { dialerCampaignsAPI } from 'dashboard/api/jabvox/dialer';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -17,6 +18,8 @@ const groupBy = ref('day');
 const fromHour = ref(0);
 const toHour = ref(23);
 const rows = ref([]);
+const calls = ref([]);
+const redialing = ref(null);
 const totals = ref({
   total: 0,
   answered: 0,
@@ -89,8 +92,10 @@ const fetchReport = async (gb = null, day = null) => {
     );
     rows.value = data.rows || [];
     totals.value = data.totals || emptyTotals();
+    calls.value = data.calls || [];
   } catch {
     rows.value = [];
+    calls.value = [];
   } finally {
     loading.value = false;
   }
@@ -107,6 +112,7 @@ const open = c => {
   groupBy.value = 'day';
   drillDay.value = null;
   rows.value = [];
+  calls.value = [];
   totals.value = emptyTotals();
   nextTick(() => dialogRef.value?.open());
   fetchReport();
@@ -138,6 +144,30 @@ const formatPeriod = period => {
   const d = new Date(period);
   if (drillDay.value) return `${String(d.getUTCHours()).padStart(2, '0')}:00`;
   return d.toISOString().slice(0, 10);
+};
+
+// The backend already sends called_at in the campaign timezone (ISO). Show it as
+// "YYYY-MM-DD HH:mm" without re-shifting the zone.
+const formatCallTime = iso => {
+  if (!iso) return '—';
+  const [date, time] = iso.split('T');
+  return `${date} ${(time || '').slice(0, 5)}`;
+};
+
+// Re-queue a lead so the campaign dials it again ("volver a marcar").
+const redial = async contactId => {
+  if (!campaign.value || !contactId) return;
+  redialing.value = contactId;
+  try {
+    await dialerCampaignsAPI.redialLead(campaign.value.id, {
+      contact_id: contactId,
+    });
+    useAlert(t('JABVOX_DIALER.REPORT.REDIAL_OK'));
+  } catch {
+    useAlert(t('JABVOX_DIALER.ERROR'));
+  } finally {
+    redialing.value = null;
+  }
 };
 
 defineExpose({ open });
@@ -298,6 +328,86 @@ defineExpose({ open });
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Per-call detail: who was dialed, by whom, when and the outcome -->
+      <div v-if="calls.length" class="mt-6">
+        <h3 class="text-sm font-semibold text-n-slate-12 mb-2">
+          {{ t('JABVOX_DIALER.REPORT.CALLS_TITLE') }}
+        </h3>
+        <div class="rounded-xl border border-n-weak overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr
+                class="bg-n-alpha-1 text-[11px] font-semibold uppercase text-n-slate-10 text-left"
+              >
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.CALL_LEAD') }}
+                </th>
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.CALL_PHONE') }}
+                </th>
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.CALL_AGENT') }}
+                </th>
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.CALL_WHEN') }}
+                </th>
+                <th class="px-4 py-2.5">
+                  {{ t('JABVOX_DIALER.REPORT.CALL_STATUS') }}
+                </th>
+                <th class="px-4 py-2.5" />
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-n-weak">
+              <tr
+                v-for="(c, i) in calls"
+                :key="i"
+                class="hover:bg-n-alpha-1 transition-colors"
+              >
+                <td class="px-4 py-2.5 text-n-slate-12 truncate max-w-[200px]">
+                  {{ c.lead_name || '—' }}
+                </td>
+                <td class="px-4 py-2.5 font-mono text-xs text-n-slate-11">
+                  {{ c.phone || '—' }}
+                </td>
+                <td class="px-4 py-2.5 text-n-slate-11">
+                  {{ c.agent_name || '—' }}
+                </td>
+                <td class="px-4 py-2.5 font-mono text-xs text-n-slate-11">
+                  {{ formatCallTime(c.called_at) }}
+                </td>
+                <td class="px-4 py-2.5">
+                  <span
+                    class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium"
+                    :class="
+                      c.answered
+                        ? 'bg-n-teal-3 text-n-teal-11'
+                        : 'bg-n-amber-3 text-n-amber-11'
+                    "
+                  >
+                    {{
+                      c.answered
+                        ? t('JABVOX_DIALER.REPORT.ANSWERED')
+                        : t('JABVOX_DIALER.REPORT.NO_ANSWER')
+                    }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5 text-right">
+                  <button
+                    v-if="c.contact_id"
+                    class="inline-flex items-center gap-1 px-2 py-1 text-[11px] rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors disabled:opacity-50"
+                    :disabled="redialing === c.contact_id"
+                    @click="redial(c.contact_id)"
+                  >
+                    <span class="i-lucide-rotate-ccw size-3" />
+                    {{ t('JABVOX_DIALER.REPORT.REDIAL') }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </Dialog>

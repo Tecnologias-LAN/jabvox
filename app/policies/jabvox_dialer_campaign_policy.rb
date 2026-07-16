@@ -23,6 +23,9 @@ class JabvoxDialerCampaignPolicy < ApplicationPolicy
   def report?       = @account_user.administrator? || @account_user.agent?
   def import_contacts? = can_manage?
   def originate?    = @account_user.administrator? || @account_user.agent?
+  def retry_contacts? = can_manage?
+  def progress?     = @account_user.administrator? || @account_user.agent?
+  def redial_lead?  = can_manage?
 
   class Scope < Scope
     def resolve = scope.all

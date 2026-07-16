@@ -12,7 +12,7 @@ class Jabvox::DialerService
     context = @config.dialer_context.presence || @config.context
     # Create the call log first so its id can ride on the channel (JABVOX_DIALER_LOG_ID),
     # letting the AMI Hangup handler record the uniqueid back onto this same row.
-    call_log = create_call_log(contact, campaign, account, phone)
+    call_log = create_call_log(contact, campaign, account, phone, user_id)
     result = { success: false, message: 'Connection error' }
     Timeout.timeout(AMI_TIMEOUT) do
       with_ami_connection do |socket|
@@ -277,10 +277,14 @@ class Jabvox::DialerService
     name.present? ? "\"#{name}\" <#{digits}>" : digits
   end
 
-  def create_call_log(contact, campaign, account, phone)
+  def create_call_log(contact, campaign, account, phone, user_id = nil)
     account.jabvox_dialer_call_logs.create!(
       jabvox_dialer_campaign: campaign,
       jabvox_dialer_campaign_contact: contact,
+      # Persist who dialed (the agent) so the report's "Agentes" column and the
+      # per-call detail are correct in predictive mode too — previously this was
+      # left NULL and every call fell into "sin agente".
+      agent_id_jabvox: user_id,
       phone_jabvox: phone,
       status_jabvox: 'initiated',
       started_at_jabvox: Time.current
@@ -288,11 +292,9 @@ class Jabvox::DialerService
   end
 
   def finalize_call(contact, call_log, success)
-    contact.update!(
-      status_jabvox: success ? 'calling' : 'failed',
-      attempts_jabvox: contact.attempts_jabvox + 1,
-      last_attempt_at_jabvox: Time.current
-    )
+    # attempts_jabvox / last_attempt_at are bumped by the picker at reserve time
+    # (single source of truth), so here we only set the status.
+    contact.update!(status_jabvox: success ? 'calling' : 'failed')
     call_log.update!(status_jabvox: success ? 'initiated' : 'failed')
   end
 

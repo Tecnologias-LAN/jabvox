@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
@@ -33,7 +33,6 @@ const uiFlags = useMapGetter('jabvoxDialer/getUIFlags');
 
 const search = ref('');
 const togglingId = ref(null);
-const liveLeadCounts = ref({});
 
 const formDialog = ref(null);
 const reportDialog = ref(null);
@@ -59,30 +58,12 @@ const filtered = computed(() => {
   return campaigns.value.filter(c => c.name_jabvox?.toLowerCase().includes(q));
 });
 
-const fetchAllLiveCounts = async () => {
-  const results = await Promise.allSettled(
-    (campaigns.value || [])
-      .filter(c => c.jabvox_campaign_id)
-      .map(c =>
-        dialerCampaignsAPI
-          .leadCount({
-            jabvox_campaign_id: c.jabvox_campaign_id,
-            countries: c.countries_jabvox || [],
-            management_state_ids: c.management_state_ids_jabvox || [],
-            affiliate_ids: c.affiliate_ids_jabvox || [],
-            inbox_ids: c.inbox_ids_jabvox || [],
-          })
-          .then(({ data }) => ({ id: c.id, count: data.count }))
-      )
-  );
-  const counts = {};
-  results.forEach(r => {
-    if (r.status === 'fulfilled') counts[r.value.id] = r.value.count;
-  });
-  liveLeadCounts.value = counts;
-};
-
-onMounted(fetchAllLiveCounts);
+// The lead count comes straight from the index endpoint's leads_count_jabvox,
+// which the backend computes with the FULL campaign filter set (countries,
+// management states, affiliates, inboxes, custom fields AND excluded_lead_ids).
+// We must NOT recompute it here with a partial filter set — that caused the same
+// campaign to show wildly different counts (e.g. 4 vs 9100) depending on which
+// filters the client happened to send.
 
 const onToggle = async c => {
   togglingId.value = c.id;
@@ -120,7 +101,35 @@ const doDelete = async id => {
   }
 };
 
-const leadsOf = c => liveLeadCounts.value[c.id] ?? c.leads_count_jabvox ?? 0;
+const leadsOf = c => c.leads_count_jabvox ?? 0;
+
+// One-by-one campaigns expose a live progress endpoint (dialed / remaining /
+// pending_retry). last_state campaigns never surface progress (it doesn't apply).
+const progressById = ref({});
+
+const loadProgress = async () => {
+  const oneByOne = campaigns.value.filter(
+    c => c.dial_mode_jabvox === 'one_by_one'
+  );
+  if (!oneByOne.length) return;
+  const results = await Promise.allSettled(
+    oneByOne.map(c => dialerCampaignsAPI.getProgress(c.id))
+  );
+  const next = { ...progressById.value };
+  results.forEach((res, idx) => {
+    if (res.status === 'fulfilled') {
+      next[oneByOne[idx].id] = res.value.data;
+    }
+  });
+  progressById.value = next;
+};
+
+onMounted(loadProgress);
+// Campaigns arrive asynchronously; reload progress once the list is populated.
+watch(() => campaigns.value.length, loadProgress);
+
+const progressOf = c =>
+  c.dial_mode_jabvox === 'one_by_one' ? progressById.value[c.id] : null;
 
 defineExpose({ openCreate: () => formDialog.value?.openCreate() });
 </script>
@@ -201,6 +210,38 @@ defineExpose({ openCreate: () => formDialog.value?.openCreate() });
           >
             <span class="i-lucide-database size-3.5 shrink-0" />
             {{ leadCampaignName(c.jabvox_campaign_id) }}
+          </p>
+
+          <!-- One-by-one live progress: dialed / total, remaining, retries -->
+          <p
+            v-if="progressOf(c)"
+            class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-n-slate-11 -mt-2"
+          >
+            <span class="i-lucide-list-checks size-3.5 shrink-0 text-n-brand" />
+            <span>
+              {{
+                t('JABVOX_DIALER.CAMPAIGN.PROGRESS_DIALED', {
+                  dialed: progressOf(c).dialed,
+                  total: progressOf(c).total,
+                })
+              }}
+            </span>
+            <span class="text-n-slate-9">·</span>
+            <span>
+              {{
+                t('JABVOX_DIALER.CAMPAIGN.PROGRESS_REMAINING', {
+                  count: progressOf(c).remaining,
+                })
+              }}
+            </span>
+            <span class="text-n-slate-9">·</span>
+            <span>
+              {{
+                t('JABVOX_DIALER.CAMPAIGN.PROGRESS_RETRY', {
+                  count: progressOf(c).pending_retry,
+                })
+              }}
+            </span>
           </p>
 
           <!-- Metrics grid -->
@@ -300,7 +341,7 @@ defineExpose({ openCreate: () => formDialog.value?.openCreate() });
       :inbox-options="inboxOptions"
       :management-states="managementStates"
       :agents="agents"
-      @saved="fetchAllLiveCounts"
+      @saved="loadProgress"
     />
     <ReportDialog ref="reportDialog" />
     <ConfirmDialog ref="deleteDialog" @confirm="doDelete" />

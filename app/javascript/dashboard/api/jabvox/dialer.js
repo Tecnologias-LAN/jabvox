@@ -33,6 +33,9 @@ export const dialerCampaignsAPI = {
   getLeadFields: () => axios.get(`${campaignsClient.url}/lead_fields`),
   getReport: (id, params) =>
     axios.get(`${campaignsClient.url}/${id}/report`, { params }),
+  getProgress: id => axios.get(`${campaignsClient.url}/${id}/progress`),
+  redialLead: (id, data) =>
+    axios.patch(`${campaignsClient.url}/${id}/redial_lead`, data),
 };
 
 export const dialerCallLogsAPI = {

@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { managementStatesAPI } from 'dashboard/api/jabvox/managementStates';
+import bulkWhatsappAPI from 'dashboard/api/jabvox/bulkWhatsapp';
 import Button from 'dashboard/components-next/button/Button.vue';
 import StateListPanel from './components/StateListPanel.vue';
 import ManagementStateDrawer from './components/ManagementStateDrawer.vue';
@@ -23,13 +24,14 @@ const appStates = useMapGetter('jabvoxAppStates/getStates');
 const appUiFlags = useMapGetter('jabvoxAppStates/getUIFlags');
 const campaigns = useMapGetter('jabvoxCampaigns/getCampaigns');
 const campaignsUiFlags = useMapGetter('jabvoxCampaigns/getUIFlags');
-// Contact custom attributes, used to offer lead-field autofill mappings.
+// Contact custom attributes + lead custom columns, offered as autofill sources.
 const contactAttributes = useMapGetter('attributes/getContactAttributes');
+// Lead custom columns (Seccion, zona relacionamiento, Mail group, …) come from
+// the account's "for_leads" custom table via the shared lead_fields endpoint.
+const leadCustomFields = ref([]);
 
-// Fields a management question can autofill from. Base contact fields are
-// fixed; custom attributes come from the account's contact attribute defs.
-// The value is a namespaced key the backend whitelists and the typification
-// form resolves against the live lead/contact.
+// Fixed contact/lead fields. The value is a namespaced key the backend
+// whitelists and the typification form resolves against the live lead/contact.
 const BASE_LEAD_FIELDS = [
   { value: 'contact.name', label: 'Contacto: Nombre' },
   { value: 'contact.email', label: 'Contacto: Email' },
@@ -48,11 +50,26 @@ const BASE_LEAD_FIELDS = [
 
 const leadFieldOptions = computed(() => [
   ...BASE_LEAD_FIELDS,
+  // Contact custom attributes (account contact attribute defs).
   ...(contactAttributes.value || []).map(attr => ({
     value: `contact.custom.${attr.attributeKey}`,
     label: `Atributo: ${attr.attributeDisplayName || attr.attributeKey}`,
   })),
+  // Lead custom columns (the bulk of the account's business fields).
+  ...(leadCustomFields.value || []).map(cf => ({
+    value: `lead.${cf.key}`,
+    label: `Lead: ${cf.label || cf.key}`,
+  })),
 ]);
+
+const loadLeadCustomFields = async () => {
+  try {
+    const { data } = await bulkWhatsappAPI.getLeadFields();
+    leadCustomFields.value = data.custom || [];
+  } catch {
+    leadCustomFields.value = [];
+  }
+};
 
 // ─── tabs ───
 const activeTab = ref('management');
@@ -307,8 +324,9 @@ onMounted(() => {
   store.dispatch('jabvoxManagementStates/fetchStates');
   store.dispatch('jabvoxAppStates/fetchStates');
   store.dispatch('jabvoxCampaigns/fetchCampaigns');
-  // Load contact custom attributes so they can be mapped as autofill sources.
+  // Load contact custom attributes + lead custom columns as autofill sources.
   store.dispatch('attributes/get', 'contact_attribute');
+  loadLeadCustomFields();
 });
 </script>
 

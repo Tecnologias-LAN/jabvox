@@ -6,6 +6,8 @@ json.caller_id_jabvox @campaign.caller_id_jabvox
 json.max_concurrent_jabvox @campaign.max_concurrent_jabvox
 json.retry_count_jabvox @campaign.retry_count_jabvox
 json.retry_interval_jabvox @campaign.retry_interval_jabvox
+json.retry_statuses_jabvox @campaign.retry_statuses_jabvox
+json.max_retries_jabvox @campaign.max_retries_jabvox
 json.calling_hours_start_jabvox @campaign.calling_hours_start_jabvox
 json.calling_hours_end_jabvox @campaign.calling_hours_end_jabvox
 json.schedule_start_date_jabvox @campaign.schedule_start_date_jabvox

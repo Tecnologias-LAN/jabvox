@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_15_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_16_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1845,6 +1845,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_15_000002) do
     t.string "dial_mode_jabvox", default: "last_state", null: false
     t.string "dial_field_jabvox"
     t.string "dial_prefix_jabvox"
+    t.jsonb "retry_statuses_jabvox", default: [], null: false
+    t.integer "max_retries_jabvox", default: 0, null: false
     t.index ["account_id"], name: "index_jabvox_dialer_campaigns_on_account_id"
     t.index ["jabvox_campaign_id"], name: "index_jabvox_dialer_campaigns_on_jabvox_campaign_id"
   end

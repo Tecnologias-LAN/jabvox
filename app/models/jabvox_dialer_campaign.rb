@@ -23,9 +23,11 @@
 #  lines_per_agent_jabvox      :integer          default(1)
 #  management_state_ids_jabvox :jsonb
 #  max_concurrent_jabvox       :integer          default(1), not null
+#  max_retries_jabvox          :integer          default(0), not null
 #  name_jabvox                 :string           default(""), not null
 #  retry_count_jabvox          :integer          default(0), not null
 #  retry_interval_jabvox       :integer          default(60), not null
+#  retry_statuses_jabvox       :jsonb            not null
 #  schedule_end_date_jabvox    :date
 #  schedule_start_date_jabvox  :date
 #  status_jabvox               :string           default("draft"), not null

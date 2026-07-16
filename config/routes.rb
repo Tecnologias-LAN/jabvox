@@ -553,9 +553,11 @@ Rails.application.routes.draw do
                 patch :pause
                 patch :stop
                 patch :retry_contacts
+                patch :redial_lead
                 get :contacts
                 get :call_logs
                 get :report
+                get :progress
                 post :import_contacts
                 post :originate
               end

@@ -19,8 +19,8 @@ class Jabvox::LeadImport::SyncService
 
   # Read the external table in fixed-size pages so a huge table never loads all
   # rows into memory at once (OOM guard) and nothing is silently truncated.
-  PAGE_SIZE = 1000
-  MAX_PAGES = 10_000 # hard backstop: up to 10M rows
+  PAGE_SIZE = 300 # smaller pages keep the memory peak low (rows carry ~50 custom cols)
+  MAX_PAGES = 40_000 # hard backstop: up to 12M rows at this page size
 
   def call
     guard = host_guard
@@ -87,6 +87,11 @@ class Jabvox::LeadImport::SyncService
       break if rows.size < PAGE_SIZE
 
       offset += PAGE_SIZE
+      # Release the page's objects before loading the next one — on large syncs
+      # this keeps the resident memory flat and avoids the worker OOM-killing.
+      rows = nil
+      result = nil
+      GC.start(full_mark: false) if (offset % 3000).zero?
     end
   end
 
