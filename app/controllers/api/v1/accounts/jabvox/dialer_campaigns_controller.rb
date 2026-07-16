@@ -131,13 +131,20 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   # been dialed, how many are left to dial (fresh), and how many are queued for a
   # retry. Lets the UI show "marcados / faltan".
   def progress
-    ccs         = @campaign.jabvox_dialer_campaign_contacts
-    contacts_ct = ccs.count
-    # A campaign only materializes campaign_contacts once it starts dialing. Before
-    # that (draft/paused, never activated) there are 0 contacts, so fall back to the
-    # count of leads that MATCH the campaign filters — otherwise the card shows 0
-    # leads even though hundreds match. Once dialing begins, use the contact count.
-    total = contacts_ct.positive? ? contacts_ct : live_lead_count(@campaign)
+    ccs = @campaign.jabvox_dialer_campaign_contacts
+    # The dialer materializes campaign_contacts ONE AT A TIME as it picks leads to
+    # dial; it does NOT create them all at activation. So contacts.count is only the
+    # subset already touched — NOT the universe. The real "total" is the leads that
+    # still MATCH the campaign filters (the universe the picker draws from) PLUS any
+    # already-dialed leads that no longer match (so nothing dialed is lost from the
+    # count). This makes the card show "2 / 292" instead of the misleading "2 / 2".
+    matching = live_lead_count(@campaign)
+    dialed_contact_id_set = ccs.where.not(contact_id: nil).distinct.pluck(:contact_id)
+    # Dialed leads that no longer pass the current filters (rare): add them so total
+    # never drops below what was actually dialed. Only checks the (small) dialed set
+    # against the filter, not the whole universe.
+    dialed_not_matching = dialed_leads_outside_filter(dialed_contact_id_set)
+    total = matching + dialed_not_matching
     # "Dialed" = leads with at least one call log OR attempts>0 (same source of
     # truth as the report, so the card and the report never disagree).
     dialed   = dialed_contact_ids.size
@@ -153,7 +160,7 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     render json: {
       total: total,
       dialed: dialed,
-      remaining: [total - dialed, 0].max, # fresh leads not yet dialed
+      remaining: [total - dialed, 0].max, # leads left to dial (universe minus dialed)
       pending_retry: pending_retry,
       answered: answered
     }
@@ -276,30 +283,44 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     end
   end
 
-  # Campaign-wide lead counts (all time): total, dialed, pending.
+  # Campaign-wide lead counts (all time). The universe is the leads that MATCH the
+  # campaign filters (what the dialer will draw from) plus any already-dialed lead
+  # that no longer matches — NOT just the campaign_contacts (which are only the
+  # subset the dialer has touched so far). This keeps "Leads totales / Marcados /
+  # Sin marcar" consistent with the card's progress and with the edit-time count.
   def campaign_lead_counts
-    total = @campaign.jabvox_dialer_campaign_contacts.count
     dialed = dialed_contact_ids.size
+    dialed_cids = @campaign.jabvox_dialer_campaign_contacts
+                           .where.not(contact_id: nil).distinct.pluck(:contact_id)
+    total = live_lead_count(@campaign) + dialed_leads_outside_filter(dialed_cids)
     { total: total, dialed: dialed, pending: [total - dialed, 0].max }
   end
 
-  # Leads not dialed yet (pending = no call log AND no attempts), so the summary
-  # lists "sin marcar" too.
+  # Leads "sin marcar": those that MATCH the campaign filters but the dialer hasn't
+  # dialed yet (no campaign_contact / call log). Drawn from the real lead universe,
+  # not from campaign_contacts (which only hold already-dialed leads) — otherwise
+  # the list would be empty even with hundreds waiting to be dialed.
   REPORT_PENDING_LIMIT = 2000
   def pending_lead_rows
-    @campaign.jabvox_dialer_campaign_contacts
-             .includes(:contact)
-             .where.not(id: dialed_contact_ids)
-             .order(:id)
-             .limit(REPORT_PENDING_LIMIT)
-             .map do |cc|
+    dialed_cids = @campaign.jabvox_dialer_campaign_contacts
+                           .where.not(contact_id: nil).distinct.pluck(:contact_id)
+    scope = Jabvox::DialerLeadsFilterService.for_campaign(Current.account, @campaign).scope
+    scope = scope.where.not(jabvox_leads: { contact_id: dialed_cids }) if dialed_cids.any?
+    scope.includes(:contact)
+         .order('jabvox_leads.id ASC')
+         .limit(REPORT_PENDING_LIMIT)
+         .map do |lead|
+      c = lead.contact
       {
-        contact_id: cc.contact_id,
-        lead_name: cc.name_jabvox.presence || cc.contact&.name.to_s,
-        phone: cc.phone_jabvox,
-        status: cc.status_jabvox
+        contact_id: lead.contact_id,
+        lead_name: c&.name.to_s,
+        phone: c&.phone_number.to_s,
+        status: 'pending'
       }
     end
+  rescue StandardError => e
+    Rails.logger.warn "[Dialer] pending_lead_rows failed | campaign=#{@campaign.id} error=#{e.message}"
+    []
   end
 
   # Campaign-contacts that were dialed within the window but have NO call log in
@@ -508,6 +529,21 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     Jabvox::DialerLeadsFilterService.for_campaign(Current.account, campaign).scope.count
   rescue StandardError
     campaign.leads_count_jabvox
+  end
+
+  # How many of the ALREADY-DIALED contacts no longer pass the campaign filters.
+  # Checks only the (small) dialed set against the filter — never scans the whole
+  # universe. Used so progress.total doesn't drop below what was actually dialed.
+  def dialed_leads_outside_filter(dialed_contact_ids)
+    return 0 if dialed_contact_ids.blank?
+
+    still_matching = Jabvox::DialerLeadsFilterService
+                     .for_campaign(Current.account, @campaign).scope
+                     .where(jabvox_leads: { contact_id: dialed_contact_ids })
+                     .distinct.count('jabvox_leads.contact_id')
+    [dialed_contact_ids.size - still_matching, 0].max
+  rescue StandardError
+    0
   end
 
   # Recompute and persist leads_count_jabvox from the real matching count after a

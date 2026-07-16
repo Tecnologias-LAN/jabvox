@@ -543,6 +543,7 @@ module Jabvox
       conversation_id = find_or_create_conversation(account, crm, campaign)
 
       fv   = field_vis(account, user_id)
+      attrs = crm.additional_attributes || {}
       data = {
         account_id:         @account_id,
         dialer_contact_id:  contact.id,
@@ -551,6 +552,11 @@ module Jabvox
         contact_phone:      fv['phone']   != false ? contact.phone_jabvox  : '***',
         contact_email:      fv['email']   != false ? crm.email.to_s        : '***',
         contact_country:    fv['country'] != false ? crm.country_code.to_s : '***',
+        # Documento y tipo de persona: mismos campos que muestra el detalle del lead
+        # (additional_attributes). El documento cae al helper de campos custom si no
+        # está en additional_attributes, igual que el preview de la campaña.
+        contact_document:   fv['identification'] != false ? dialer_document(lead, attrs) : '***',
+        contact_type:       fv['contact_type'] != false ? (attrs['jabvox_contact_type'].presence || 'persona') : '***',
         contact_id:         contact.contact_id,
         lead_id:            lead&.id,
         lead_number:        lead&.lead_number,
@@ -565,6 +571,21 @@ module Jabvox
       Rails.logger.info "📨 [AmiListener] call_assigned broadcast | account=#{@account_id} user=#{user_id} contact=#{dialer_contact_id}"
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] broadcast_call_assigned failed | #{e.message}"
+    end
+
+    # Documento del lead: primero additional_attributes (jabvox_identification_number,
+    # lo que muestra el detalle del lead), luego campos custom (documento/cedula/…),
+    # luego el identifier del contacto. Mismo orden que el preview de la campaña.
+    def dialer_document(lead, attrs)
+      doc = attrs['jabvox_identification_number'].to_s
+      return doc if doc.present?
+
+      custom = lead&.custom_fields_jabvox || {}
+      %w[documento document cedula dni nit].each do |k|
+        v = custom[k].to_s
+        return v if v.present?
+      end
+      ''
     end
 
     def find_or_create_conversation(account, crm, campaign)

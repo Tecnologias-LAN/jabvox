@@ -86,6 +86,14 @@ watch(wrapupGroup, () => {
     wrapupStateId.value = null;
 });
 
+// Person type label: 'persona' | 'empresa' → localized text (matches the lead
+// detail view). Anything else falls back to the raw value.
+const personTypeLabel = type => {
+  if (type === 'empresa') return t('JABVOX_DIALER.CALL.PERSON_TYPE_COMPANY');
+  if (type === 'persona') return t('JABVOX_DIALER.CALL.PERSON_TYPE_PERSON');
+  return type || '';
+};
+
 // Default lead fields for the left column of the call workspace. Only shows the
 // fields present on the payload (masked ones come as "***", hidden as blank).
 const leadFields = computed(() => {
@@ -100,6 +108,16 @@ const leadFields = computed(() => {
       label: t('JABVOX_DIALER.CALL.F_EMAIL'),
       value: c.contact_email,
       icon: 'i-lucide-mail',
+    },
+    {
+      label: t('JABVOX_DIALER.CALL.F_DOCUMENT'),
+      value: c.contact_document,
+      icon: 'i-lucide-id-card',
+    },
+    {
+      label: t('JABVOX_DIALER.CALL.F_PERSON_TYPE'),
+      value: personTypeLabel(c.contact_type),
+      icon: 'i-lucide-user',
     },
     {
       label: t('JABVOX_DIALER.CALL.F_COUNTRY'),

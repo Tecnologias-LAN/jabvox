@@ -234,7 +234,11 @@
       "F_COUNTRY": "País",
       "F_AFFILIATE": "Afiliado",
       "F_CAMPAIGN": "Campaña",
-      "F_LEAD_NUMBER": "Nº de lead"
+      "F_LEAD_NUMBER": "Nº de lead",
+      "F_DOCUMENT": "Documento",
+      "F_PERSON_TYPE": "Tipo de persona",
+      "PERSON_TYPE_PERSON": "Persona",
+      "PERSON_TYPE_COMPANY": "Empresa"
     },
     "IMPORT": {
       "BUTTON": "Importar contactos",
