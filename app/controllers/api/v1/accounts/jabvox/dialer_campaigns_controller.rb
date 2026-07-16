@@ -72,12 +72,14 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   def create
     @campaign = Current.account.jabvox_dialer_campaigns.new(campaign_params)
     @campaign.save!
+    sync_leads_count(@campaign)
     provision_asterisk_queue(@campaign)
     render :show, status: :created
   end
 
   def update
     @campaign.update!(campaign_params)
+    sync_leads_count(@campaign)
     provision_asterisk_queue(@campaign)
     render :show
   end
@@ -129,8 +131,13 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   # been dialed, how many are left to dial (fresh), and how many are queued for a
   # retry. Lets the UI show "marcados / faltan".
   def progress
-    ccs      = @campaign.jabvox_dialer_campaign_contacts
-    total    = ccs.count
+    ccs         = @campaign.jabvox_dialer_campaign_contacts
+    contacts_ct = ccs.count
+    # A campaign only materializes campaign_contacts once it starts dialing. Before
+    # that (draft/paused, never activated) there are 0 contacts, so fall back to the
+    # count of leads that MATCH the campaign filters — otherwise the card shows 0
+    # leads even though hundreds match. Once dialing begins, use the contact count.
+    total = contacts_ct.positive? ? contacts_ct : live_lead_count(@campaign)
     # "Dialed" = leads with at least one call log OR attempts>0 (same source of
     # truth as the report, so the card and the report never disagree).
     dialed   = dialed_contact_ids.size
@@ -501,6 +508,18 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     Jabvox::DialerLeadsFilterService.for_campaign(Current.account, campaign).scope.count
   rescue StandardError
     campaign.leads_count_jabvox
+  end
+
+  # Recompute and persist leads_count_jabvox from the real matching count after a
+  # save, so the stored count is never a stale 0 from the client. Fully defensive:
+  # any failure here must NEVER break the campaign save (which already succeeded).
+  def sync_leads_count(campaign)
+    count = live_lead_count(campaign)
+    return unless count.is_a?(Integer) && count != campaign.leads_count_jabvox
+
+    campaign.update_columns(leads_count_jabvox: count) # rubocop:disable Rails/SkipsModelValidations
+  rescue StandardError => e
+    Rails.logger.warn "[Dialer] sync_leads_count failed | campaign=#{campaign.id} error=#{e.message}"
   end
 
   # Normalized filters from query/body params — same shape the service accepts.
