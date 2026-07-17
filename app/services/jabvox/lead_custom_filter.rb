@@ -83,8 +83,17 @@ module Jabvox
       [sql, variants.flat_map { |v| [v, v, v] }]
     end
 
+    # Keys must be preserved AS-IS (jsonb keys are case-sensitive and real
+    # accounts have keys with uppercase, accents or spaces — lowercasing or
+    # stripping characters made those fields stop matching their own data).
+    # Injection is impossible regardless: every key is passed as a bind
+    # parameter, never interpolated. We only reject control characters, quotes
+    # and absurd lengths as hygiene.
     def sanitize_key(raw_key)
-      raw_key.to_s.downcase.gsub(/[^a-z0-9_]/, '')
+      key = raw_key.to_s.strip
+      return '' if key.length > 120 || key.match?(/[\x00-\x1f"'\\]/)
+
+      key
     end
 
     # Returns the list of values for a list-style filter, or nil for plain text.
@@ -152,7 +161,7 @@ module Jabvox
       SQL
       JabvoxLead.connection.select_values(
         JabvoxLead.sanitize_sql_array([sql, { aid: account.id, lim: limit }])
-      ).select { |k| k.match?(/\A[a-z0-9_]+\z/) }
+      ).select { |k| sanitize_key(k).present? }
     end
 
     # Server-side option search for ONE key: distinct values matching `q`
@@ -195,13 +204,17 @@ module Jabvox
       return {} if keys.blank?
 
       # Only query variant keys that actually exist in the data (avoids 2-3x
-      # queries per field for variants that hold nothing).
-      present = data_keys(account, limit: 1000)
+      # queries per field for variants that hold nothing). The lookup is
+      # case-insensitive so a column defined as "estado_pedido" still finds
+      # values stored under "Estado_Pedido".
+      present_by_lower = data_keys(account, limit: 1000).group_by(&:downcase)
       keys.each_with_object({}) do |key, acc|
         safe_key = sanitize_key(key)
         next if safe_key.blank?
 
-        variants = key_variants(safe_key).select { |v| present.include?(v) }
+        variants = key_variants(safe_key)
+                   .flat_map { |v| present_by_lower[v.downcase] || [] }
+                   .uniq
         variants = [safe_key] if variants.empty?
         acc[key] = variants.flat_map { |v| distinct_values_for_key(account, v, limit) }
                            .uniq.sort.first(limit)
