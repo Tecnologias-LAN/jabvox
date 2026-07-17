@@ -562,6 +562,7 @@ Rails.application.routes.draw do
                 get :call_logs
                 get :report
                 get :progress
+                get :live_monitor
                 post :import_contacts
                 post :originate
               end
