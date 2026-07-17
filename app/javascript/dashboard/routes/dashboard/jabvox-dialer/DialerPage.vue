@@ -94,8 +94,11 @@ const personTypeLabel = type => {
   return type || '';
 };
 
-// Default lead fields for the left column of the call workspace. Only shows the
-// fields present on the payload (masked ones come as "***", hidden as blank).
+const NO_VALUE = '—';
+
+// Default lead fields for the left column of the call workspace. Every field is
+// always shown (empty ones as "—", masked-by-visibility ones as "***"), matching
+// the lead detail so the agent sees the complete sheet.
 const leadFields = computed(() => {
   const c = activeCall.value || lastCall.value || {};
   return [
@@ -139,9 +142,15 @@ const leadFields = computed(() => {
       value: c.lead_number,
       icon: 'i-lucide-hash',
     },
-  ].filter(
-    f => f.value !== undefined && f.value !== null && `${f.value}`.trim() !== ''
-  );
+  ].map(f => ({
+    ...f,
+    // Siempre visibles, aunque estén vacíos (— como en el detalle del lead).
+    // Los enmascarados por visibilidad llegan como '***' y se muestran tal cual.
+    value:
+      f.value === undefined || f.value === null || `${f.value}`.trim() === ''
+        ? NO_VALUE
+        : f.value,
+  }));
 });
 
 // Account-specific custom lead fields (Sección, zona, etc.), loaded per call.
@@ -149,7 +158,6 @@ const leadFields = computed(() => {
 // the agent sees the full lead sheet (empty ones as "—"), like the lead detail.
 const leadCustomFields = ref([]);
 const loadingLeadFields = ref(false);
-const NO_VALUE = '—';
 
 const loadLeadCustomFields = async contactId => {
   leadCustomFields.value = [];
