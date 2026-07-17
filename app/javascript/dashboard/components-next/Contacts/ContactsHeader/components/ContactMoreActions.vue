@@ -1,6 +1,7 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
@@ -8,27 +9,44 @@ import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.v
 const emit = defineEmits(['add', 'import', 'export']);
 
 const { t } = useI18n();
+// Importing and exporting contacts is an admin-only capability (the backend
+// ContactPolicy also enforces import?/export? == administrator). Agents keep
+// "Add contact" but never see import/export.
+const { isAdmin } = useAdmin();
 
-const contactMenuItems = [
-  {
-    label: t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ADD_CONTACT'),
-    action: 'add',
-    value: 'add',
-    icon: 'i-lucide-plus',
-  },
-  {
-    label: t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.EXPORT_CONTACT'),
-    action: 'export',
-    value: 'export',
-    icon: 'i-lucide-upload',
-  },
-  {
-    label: t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.IMPORT_CONTACT'),
-    action: 'import',
-    value: 'import',
-    icon: 'i-lucide-download',
-  },
-];
+const contactMenuItems = computed(() => {
+  const items = [
+    {
+      label: t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ADD_CONTACT'),
+      action: 'add',
+      value: 'add',
+      icon: 'i-lucide-plus',
+    },
+  ];
+
+  if (isAdmin.value) {
+    items.push(
+      {
+        label: t(
+          'CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.EXPORT_CONTACT'
+        ),
+        action: 'export',
+        value: 'export',
+        icon: 'i-lucide-upload',
+      },
+      {
+        label: t(
+          'CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.IMPORT_CONTACT'
+        ),
+        action: 'import',
+        value: 'import',
+        icon: 'i-lucide-download',
+      }
+    );
+  }
+
+  return items;
+});
 const showActionsDropdown = ref(false);
 
 const handleContactAction = ({ action }) => {

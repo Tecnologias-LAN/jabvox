@@ -30,7 +30,17 @@ class Contacts::FilterService < FilterService
   end
 
   def base_relation
-    @account.contacts.resolved_contacts(use_crm_v2: @account.feature_enabled?('crm_v2'))
+    @account.contacts
+            .resolved_contacts(use_crm_v2: @account.feature_enabled?('crm_v2'))
+            .visible_to(visibility_account_user)
+  end
+
+  # The account_user for the filtering user, so agents only filter within the
+  # contacts they can see. nil (internal callers) means no restriction.
+  def visibility_account_user
+    return nil if @user.nil?
+
+    @account.account_users.find_by(user_id: @user.id)
   end
 
   def filter_config

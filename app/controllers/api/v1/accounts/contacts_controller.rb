@@ -27,7 +27,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
     contacts = Current.account.contacts.where(
       'name ILIKE :search OR email ILIKE :search OR phone_number ILIKE :search OR contacts.identifier LIKE :search',
       search: "%#{params[:q].strip}%"
-    )
+    ).visible_to(Current.account_user)
     @contacts = fetch_contacts_with_has_more(contacts)
   end
 
@@ -64,8 +64,8 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
 
   # returns online contacts
   def active
-    contacts = Current.account.contacts.where(id: ::OnlineStatusTracker
-                  .get_available_contact_ids(Current.account.id))
+    online_ids = ::OnlineStatusTracker.get_available_contact_ids(Current.account.id)
+    contacts = Current.account.contacts.where(id: online_ids).visible_to(Current.account_user)
     @contacts = fetch_contacts(contacts)
     @contacts_count = @contacts.total_count
   end
@@ -137,8 +137,8 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   def resolved_contacts
     return @resolved_contacts if @resolved_contacts
 
-    @resolved_contacts = Current.account.contacts.resolved_contacts(use_crm_v2: Current.account.feature_enabled?('crm_v2'))
-
+    crm_v2 = Current.account.feature_enabled?('crm_v2')
+    @resolved_contacts = Current.account.contacts.resolved_contacts(use_crm_v2: crm_v2).visible_to(Current.account_user)
     @resolved_contacts = @resolved_contacts.tagged_with(params[:labels], any: true) if params[:labels].present?
     @resolved_contacts
   end

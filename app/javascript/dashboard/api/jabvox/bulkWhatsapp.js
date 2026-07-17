@@ -28,6 +28,14 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     return axios.get(`${this.url}/batches/lead_fields`);
   }
 
+  // Server-side option search for one custom field — used when the field's base
+  // option list is truncated so every value stays findable from the search box.
+  searchFieldValues(key, q) {
+    return axios.get(`${this.url}/batches/field_values`, {
+      params: { key, q },
+    });
+  }
+
   // Uploads the CSV (multipart) plus the chosen inbox, sender user and report email.
   send({ file, inboxId, senderUserId, responseEmail }) {
     const formData = new FormData();

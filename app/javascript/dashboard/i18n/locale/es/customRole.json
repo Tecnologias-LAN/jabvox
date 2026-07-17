@@ -66,7 +66,8 @@
         "CAMPAIGNS": "Campañas",
         "AFFILIATES": "Afiliados",
         "APP_STATES": "Estados de presencia",
-        "REPORTS": "Reportes"
+        "REPORTS": "Reportes",
+        "SALES_REPORTS": "Reportes de ventas"
       },
       "CONVERSATION_MANAGE": "Manage all conversations",
       "CONVERSATION_UNASSIGNED_MANAGE": "Manage unassigned conversations and those assigned to them",
@@ -118,7 +119,8 @@
       "JABVOX_CAMPAIGNS_MANAGE": "Gestionar campañas",
       "JABVOX_AFFILIATES_MANAGE": "Gestionar afiliados",
       "JABVOX_APP_STATES_MANAGE": "Gestionar estados de presencia",
-      "JABVOX_REPORTS_VIEW": "Ver reportes"
+      "JABVOX_REPORTS_VIEW": "Ver reportes",
+      "JABVOX_SALES_REPORTS_MANAGE": "Gestionar reportes de ventas"
     },
     "FORM": {
       "NAME": {

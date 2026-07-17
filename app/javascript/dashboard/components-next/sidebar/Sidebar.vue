@@ -947,12 +947,21 @@ const menuItems = computed(() => {
           icon: 'i-lucide-briefcase',
           to: accountScopedRoute('auditlogs_list'),
         },
-        {
-          name: 'Settings Custom Roles',
-          label: t('SIDEBAR.CUSTOM_ROLES'),
-          icon: 'i-lucide-shield-plus',
-          to: accountScopedRoute('custom_roles_list'),
-        },
+        // Only when the account has the custom-roles module enabled (the route
+        // guard also blocks direct-URL access when it's off).
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.CUSTOM_ROLES
+        )
+          ? [
+              {
+                name: 'Settings Custom Roles',
+                label: t('SIDEBAR.CUSTOM_ROLES'),
+                icon: 'i-lucide-shield-plus',
+                to: accountScopedRoute('custom_roles_list'),
+              },
+            ]
+          : []),
         {
           name: 'Settings Sla',
           label: t('SIDEBAR.SLA'),

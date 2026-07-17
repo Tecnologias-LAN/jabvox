@@ -16,6 +16,7 @@ class JabvoxDialerCampaignPolicy < ApplicationPolicy
   def matching_lead_ids? = can_manage?
   # Field definitions only (no lead data), needed by the campaign form.
   def lead_fields?  = can_manage?
+  def field_values? = can_manage?
   def start?        = can_manage?
   def pause?        = can_manage?
   def stop?         = can_manage?

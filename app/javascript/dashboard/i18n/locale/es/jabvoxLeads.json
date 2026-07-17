@@ -30,7 +30,19 @@
       "OWN_LEADS": "Propio",
       "MORE": "Filtros",
       "CLEAR": "Limpiar",
-      "SEARCH_ID_PLACEHOLDER": "12345"
+      "SEARCH_ID_PLACEHOLDER": "12345",
+      "CUSTOM_TITLE": "Campos personalizados",
+      "CUSTOM_ANY": "Todos",
+      "CUSTOM_SELECTED": "{n} seleccionado(s)",
+      "CUSTOM_SEARCH": "Buscar valor...",
+      "CUSTOM_NO_OPTIONS": "Sin coincidencias",
+      "CUSTOM_CLEAR": "Limpiar selección"
+    },
+    "COLUMNS": {
+      "BUTTON": "Columnas",
+      "HINT": "Elige qué campo se muestra en cada una de las 11 columnas de la tabla. Puedes usar campos predeterminados o personalizados.",
+      "RESET": "Restaurar",
+      "SLOT": "Columna {n}"
     },
     "STATUS": {
       "open": "Abierto",
@@ -51,7 +63,9 @@
       "MANAGEMENT_STATE": "Última gestión",
       "MANAGEMENT_DATE": "Fecha última gestión",
       "ASSIGNEE": "Asignado a",
-      "ACTIONS": "Acciones"
+      "ACTIONS": "Acciones",
+      "BOOL_YES": "Sí",
+      "BOOL_NO": "No"
     },
     "BULK": {
       "SELECT_LABEL": "Sel:",
@@ -72,6 +86,10 @@
       "DELETING": "Eliminando...",
       "DELETE_SUCCESS": "{n} leads y contactos eliminados.",
       "SELECT_PAGE": "Seleccionar esta página",
+      "SELECT_ALL_FILTER": "Seleccionar los {n} leads que coinciden con el filtro",
+      "DESELECT_ALL_FILTER": "Deseleccionar el filtro",
+      "SELECT_ALL_CAPPED": "Seleccionados {n} (máximo permitido). Afina el filtro para incluir más.",
+      "SELECT_ALL_ERROR": "No se pudo seleccionar todo el filtro.",
       "CLEAR": "Limpiar selección"
     },
     "PAGINATION": {

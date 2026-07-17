@@ -33,6 +33,9 @@ export const dialerCampaignsAPI = {
   previewLeads: params =>
     axios.get(`${campaignsClient.url}/preview_leads`, { params }),
   getLeadFields: () => axios.get(`${campaignsClient.url}/lead_fields`),
+  // Server-side value search for custom fields with more values than the cap.
+  searchFieldValues: (key, q) =>
+    axios.get(`${campaignsClient.url}/field_values`, { params: { key, q } }),
   getReport: (id, params) =>
     axios.get(`${campaignsClient.url}/${id}/report`, { params }),
   getProgress: id => axios.get(`${campaignsClient.url}/${id}/progress`),

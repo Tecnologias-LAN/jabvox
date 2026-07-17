@@ -5,7 +5,9 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   # Custom-role gates: only enforced when the user has a custom role assigned, so plain
   # agents/admins keep their historical behavior (admins always pass via jabvox_gate!).
   before_action -> { jabvox_gate!('jabvox_leads_assign') }, only: %i[bulk_assign bulk_unassign]
-  before_action -> { jabvox_gate!('jabvox_leads_delete') }, only: :bulk_destroy
+  # Deleting leads is controlled from Super Admin (per-account module) and is
+  # restricted to administrators only — never agents nor custom roles.
+  before_action :check_lead_delete_allowed, only: :bulk_destroy
   before_action -> { jabvox_gate!('jabvox_leads_edit') }, only: :update_details
 
   PER_PAGE_OPTIONS = [10, 25, 50, 100, 200].freeze
@@ -29,6 +31,17 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     # page (or when explicitly requested) so paginating/searching stays fast; the
     # frontend keeps its cached copy for later pages.
     @filter_options = build_filter_options if include_filter_options?
+  end
+
+  # Returns ALL lead ids matching the current filters (not just the page), so the
+  # UI can "select the whole filter" and bulk-assign hundreds of leads at once.
+  # Respects the exact same scoping as the list (role/permission + filters), so an
+  # agent can only ever select the leads they may see. Capped to avoid an
+  # unbounded payload; `capped` tells the UI it hit the limit.
+  MATCHING_IDS_LIMIT = 20_000
+  def matching_lead_ids
+    ids = build_filter_scope.limit(MATCHING_IDS_LIMIT).pluck('jabvox_leads.id')
+    render json: { ids: ids, total: ids.size, capped: ids.size >= MATCHING_IDS_LIMIT }
   end
 
   def show
@@ -272,6 +285,19 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     end
   end
 
+  # Deleting leads requires BOTH: the per-account "delete leads" module enabled
+  # from Super Admin, AND the current user being an administrator. Agents and
+  # custom roles can never delete, regardless of any custom-role permission.
+  def check_lead_delete_allowed
+    unless Current.account.jabvox_lead_delete_enabled_jabvox?
+      return render json: { error: 'Lead deletion is not enabled for this account' }, status: :forbidden
+    end
+
+    return if Current.account_user&.administrator?
+
+    render json: { error: 'Only administrators can delete leads' }, status: :forbidden
+  end
+
   def find_or_create_campaign(name)
     return nil if name.blank?
 
@@ -367,8 +393,36 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
       inboxes: Current.account.inboxes.order(:name).map { |i| { id: i.id, name: i.name } },
       teams: Current.account.teams.order(:name).map { |t| { id: t.id, name: t.name } },
       assignees: Current.account.users.order(:name).map { |a| { id: a.id, name: a.name } },
-      affiliates: Current.account.jabvox_affiliates.where(active: true).order(:name).map { |a| { id: a.id, name: a.name } }
+      affiliates: Current.account.jabvox_affiliates.where(active: true).order(:name).map { |a| { id: a.id, name: a.name } },
+      custom_fields: lead_custom_field_filter_defs
     }
+  end
+
+  # Definitions of the account's lead custom columns so the list can offer a
+  # SELECTABLE filter (one or many values) and a swappable table column per field.
+  # Every field becomes a value selector: the options combine the configured
+  # options with the distinct values actually present in the account's leads
+  # (shared helper, same as the dialer), so text/date/number fields are pickers
+  # too — no free-text or date inputs. Filtering runs through
+  # Jabvox::LeadCustomFilter (bind-safe).
+  def lead_custom_field_filter_defs
+    table = Current.account.jabvox_custom_tables.for_leads.first
+    return [] unless table
+
+    columns = table.jabvox_custom_columns.ordered
+    values_by_key = Jabvox::LeadCustomFilter.distinct_values(
+      Current.account, columns.map(&:name_jabvox)
+    )
+    columns.map do |c|
+      configured = Array(c.options_jabvox).map(&:to_s)
+      discovered = values_by_key[c.name_jabvox] || []
+      {
+        key: c.name_jabvox,
+        label: c.label_jabvox.presence || c.name_jabvox,
+        column_type: c.column_type_jabvox,
+        options: (configured + discovered).reject(&:blank?).uniq.sort
+      }
+    end
   end
   # rubocop:enable Metrics/AbcSize
 end

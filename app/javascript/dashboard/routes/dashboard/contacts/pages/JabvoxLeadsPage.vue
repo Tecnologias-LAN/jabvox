@@ -7,6 +7,7 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { emitter } from 'shared/helpers/mitt';
 import leadsAPI from 'dashboard/api/jabvox/leads';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import countries from 'shared/constants/countries.js';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -40,6 +41,34 @@ const filterInbox = ref('');
 const filterAffiliate = ref('');
 const showAdvancedFilters = ref(false);
 
+// ── Custom-field filters (per-account lead columns) ─────────────────────
+// EVERY custom field is a value SELECTOR (choose one or many). No text/date
+// inputs. Each field's options come from filter_options (configured options +
+// distinct values present in the account's leads). The selection is an array of
+// values sent as an array → LeadCustomFilter matches ANY of them (OR).
+const filterCustom = ref({}); // { key: [values] }
+const customFieldDefs = computed(() => filterOptions.value.custom_fields || []);
+// Per-field open state for the multi-select dropdown, and its search box text.
+const customOpen = ref({});
+const customSearch = ref({});
+
+const selectedCustomValues = key =>
+  Array.isArray(filterCustom.value[key]) ? filterCustom.value[key] : [];
+
+// Options for a field filtered by its own search box (client-side, no request).
+const customFilteredOptions = def => {
+  const q = (customSearch.value[def.key] || '').trim().toLowerCase();
+  const opts = def.options || [];
+  if (!q) return opts;
+  return opts.filter(o => `${o}`.toLowerCase().includes(q));
+};
+
+const activeCustomFilterCount = computed(
+  () =>
+    Object.values(filterCustom.value).filter(v => Array.isArray(v) && v.length)
+      .length
+);
+
 const activeAdvancedFilterCount = computed(
   () =>
     [
@@ -55,7 +84,7 @@ const activeAdvancedFilterCount = computed(
       filterDateFrom,
       filterDateTo,
       filterInbox,
-    ].filter(f => f.value).length
+    ].filter(f => f.value).length + activeCustomFilterCount.value
 );
 const perPage = ref(25);
 const currentPage = ref(1);
@@ -123,13 +152,10 @@ const SOLD_OPTIONS = [
 const accountId = computed(() => route.params.accountId);
 
 // ── Fetch (defined first so callers below can reference it) ────────────
-const fetchLeads = () => {
-  const params = {
-    page: currentPage.value,
-    per_page: perPage.value,
-    sort_column: sortColumn.value,
-    sort_direction: sortDirection.value,
-  };
+// Builds the shared filter params (no pagination). Reused by fetchLeads AND by
+// "select all filter" (matching_lead_ids), so both apply the exact same filters.
+const buildFilterParams = () => {
+  const params = {};
   if (filterId.value) params.lead_id = filterId.value;
   if (filterName.value) params.q = filterName.value;
   if (filterEmail.value) params.email = filterEmail.value;
@@ -145,7 +171,24 @@ const fetchLeads = () => {
   if (filterDateTo.value) params.date_to = filterDateTo.value;
   if (filterInbox.value) params.inbox_id = filterInbox.value;
   if (filterAffiliate.value) params.affiliate_id = filterAffiliate.value;
-  store.dispatch('jabvoxLeads/fetchLeads', params);
+  // Custom-field filters: every field sends an array of selected values →
+  // LeadCustomFilter matches ANY of them. Keys/values sanitized server-side.
+  const custom = {};
+  Object.entries(filterCustom.value).forEach(([key, values]) => {
+    if (Array.isArray(values) && values.length) custom[key] = values;
+  });
+  if (Object.keys(custom).length) params.custom = custom;
+  return params;
+};
+
+const fetchLeads = () => {
+  store.dispatch('jabvoxLeads/fetchLeads', {
+    page: currentPage.value,
+    per_page: perPage.value,
+    sort_column: sortColumn.value,
+    sort_direction: sortDirection.value,
+    ...buildFilterParams(),
+  });
 };
 
 const goToPage = delta => {
@@ -186,7 +229,26 @@ const sortIcon = col => {
 // ── Selection helpers ──────────────────────────────────────────────────
 const isSelected = id => selectedIds.value.has(id);
 
+// The selection (Set of ids) is the single source of truth. "Select all filter"
+// simply loads EVERY matching id into it, so bulk actions work over the whole
+// filter, not just the visible page.
+const effectiveSelectedIds = computed(() => [...selectedIds.value]);
+const isSelectingAllFilter = ref(false);
+const allFilterCapped = ref(false);
+// True once the user pulled the whole filter into the selection (via
+// selectAllFilter) — used to offer the reverse action (deselect the filter).
+const selectedWholeFilter = ref(false);
+// True when the current page is fully selected but the whole filter isn't yet.
+// Offer "select the whole filter" whenever there is at least one lead selected,
+// regardless of how many match — so the action is always discoverable. Hidden
+// only once the cap was hit (then the capped notice shows instead).
+const canSelectAllFilter = computed(
+  () => hasSelection.value && !allFilterCapped.value
+);
+
 const toggleSelect = id => {
+  allFilterCapped.value = false;
+  selectedWholeFilter.value = false;
   const s = new Set(selectedIds.value);
   if (s.has(id)) s.delete(id);
   else s.add(id);
@@ -195,6 +257,28 @@ const toggleSelect = id => {
 
 const clearSelection = () => {
   selectedIds.value = new Set();
+  allFilterCapped.value = false;
+  selectedWholeFilter.value = false;
+};
+
+// Fetch every matching id (whole filter, across all pages) into the selection.
+const selectAllFilter = async () => {
+  isSelectingAllFilter.value = true;
+  try {
+    const { data } = await leadsAPI.matchingIds(buildFilterParams());
+    selectedIds.value = new Set(data.ids || []);
+    allFilterCapped.value = Boolean(data.capped);
+    selectedWholeFilter.value = true;
+  } catch {
+    useAlert(t('JABVOX_LEADS.BULK.SELECT_ALL_ERROR'));
+  } finally {
+    isSelectingAllFilter.value = false;
+  }
+};
+
+// Reverse of selectAllFilter: drop the whole-filter selection entirely.
+const deselectAllFilter = () => {
+  clearSelection();
 };
 
 watch(bulkAssigneeId, newVal => {
@@ -219,13 +303,14 @@ const cancelPendingAction = () => {
 
 const confirmBulkAssign = async () => {
   isBulkAssigning.value = true;
-  const ids = new Set(selectedIds.value);
+  const idList = effectiveSelectedIds.value;
+  const ids = new Set(idList);
   const assigneeIdNum = Number(bulkAssigneeId.value);
   const assignee = filterOptions.value.assignees?.find(
     a => a.id === assigneeIdNum
   );
   try {
-    await leadsAPI.bulkAssign([...ids], assigneeIdNum);
+    await leadsAPI.bulkAssign(idList, assigneeIdNum);
     store.commit(
       'jabvoxLeads/SET_LEADS',
       leads.value.map(lead =>
@@ -251,9 +336,10 @@ const confirmBulkAssign = async () => {
 
 const confirmBulkUnassign = async () => {
   isBulkUnassigning.value = true;
-  const ids = new Set(selectedIds.value);
+  const idList = effectiveSelectedIds.value;
+  const ids = new Set(idList);
   try {
-    await leadsAPI.bulkUnassign([...ids]);
+    await leadsAPI.bulkUnassign(idList);
     store.commit(
       'jabvoxLeads/SET_LEADS',
       leads.value.map(lead =>
@@ -274,12 +360,13 @@ const confirmBulkUnassign = async () => {
 
 const confirmBulkDelete = async () => {
   isBulkDeleting.value = true;
-  const ids = [...selectedIds.value];
+  const ids = effectiveSelectedIds.value;
+  const idSet = new Set(ids);
   try {
     await leadsAPI.bulkDestroy(ids);
     store.commit(
       'jabvoxLeads/SET_LEADS',
-      leads.value.filter(lead => !selectedIds.value.has(lead.id))
+      leads.value.filter(lead => !idSet.has(lead.id))
     );
     clearSelection();
     pendingBulkAction.value = null;
@@ -291,6 +378,23 @@ const confirmBulkDelete = async () => {
     isBulkDeleting.value = false;
   }
 };
+
+// ── Delete-leads gating ────────────────────────────────────────────────
+// The "delete leads" bulk action is controlled from Super Admin (per-account
+// module) AND restricted to administrators. Both must be true to show it — the
+// backend enforces the same rule, this only hides the button.
+const currentRole = useMapGetter('getCurrentRole');
+const isFeatureEnabledonAccount = useMapGetter(
+  'accounts/isFeatureEnabledonAccount'
+);
+const canDeleteLeads = computed(
+  () =>
+    currentRole.value === 'administrator' &&
+    isFeatureEnabledonAccount.value(
+      Number(accountId.value),
+      FEATURE_FLAGS.JABVOX_LEAD_DELETE
+    )
+);
 
 // ── ActionCable notification ───────────────────────────────────────────
 const currentUser = computed(() => store.getters.getCurrentUser);
@@ -308,6 +412,25 @@ const onFilterChange = () => {
   fetchLeads();
 };
 
+// Toggle a value in a custom field's multi-select and refetch.
+const toggleCustomValue = (key, value) => {
+  const current = selectedCustomValues(key);
+  filterCustom.value = {
+    ...filterCustom.value,
+    [key]: current.includes(value)
+      ? current.filter(v => v !== value)
+      : [...current, value],
+  };
+  onFilterChange();
+};
+
+const clearCustomValues = key => {
+  const next = { ...filterCustom.value };
+  delete next[key];
+  filterCustom.value = next;
+  onFilterChange();
+};
+
 const clearFilters = () => {
   filterId.value = '';
   filterName.value = '';
@@ -323,8 +446,127 @@ const clearFilters = () => {
   filterDateTo.value = '';
   filterInbox.value = '';
   filterAffiliate.value = '';
+  filterCustom.value = {};
   currentPage.value = 1;
   fetchLeads();
+};
+
+// ── Configurable table columns ───────────────────────────────────────────
+// The table always shows exactly 11 data columns, but each slot can be swapped
+// for any default field OR any custom field of the account (e.g. País → Saldo).
+// The layout persists per user+account in localStorage; corrupt/unknown entries
+// fall back to the default of that slot so the table never breaks.
+const DEFAULT_COLUMNS = [
+  {
+    id: 'lead_number',
+    labelKey: 'JABVOX_LEADS.TABLE.ID',
+    sortKey: 'lead_number',
+  },
+  { id: 'name', labelKey: 'JABVOX_LEADS.TABLE.NAME', sortKey: 'name' },
+  { id: 'email', labelKey: 'JABVOX_LEADS.TABLE.EMAIL', sortKey: 'email' },
+  {
+    id: 'phone',
+    labelKey: 'JABVOX_LEADS.TABLE.PHONE',
+    sortKey: 'phone_number',
+  },
+  { id: 'country', labelKey: 'JABVOX_LEADS.TABLE.COUNTRY' },
+  { id: 'affiliate', labelKey: 'JABVOX_LEADS.TABLE.AFFILIATE' },
+  { id: 'campaign', labelKey: 'JABVOX_LEADS.TABLE.CAMPAIGN' },
+  { id: 'inbox', labelKey: 'JABVOX_LEADS.TABLE.INBOX' },
+  { id: 'management_state', labelKey: 'JABVOX_LEADS.TABLE.MANAGEMENT_STATE' },
+  {
+    id: 'management_date',
+    labelKey: 'JABVOX_LEADS.TABLE.MANAGEMENT_DATE',
+    sortKey: 'created_at',
+  },
+  { id: 'assignee', labelKey: 'JABVOX_LEADS.TABLE.ASSIGNEE' },
+];
+const COLUMN_SLOTS = DEFAULT_COLUMNS.length;
+const defaultColumnConfig = () => DEFAULT_COLUMNS.map(c => `d:${c.id}`);
+
+const columnConfig = ref(defaultColumnConfig());
+const showColumnConfig = ref(false);
+const columnsStorageKey = computed(
+  () => `jabvox_leads_columns_v1_${accountId.value}`
+);
+
+const loadColumnConfig = () => {
+  try {
+    const raw = localStorage.getItem(columnsStorageKey.value);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (
+      Array.isArray(parsed) &&
+      parsed.length === COLUMN_SLOTS &&
+      parsed.every(v => typeof v === 'string')
+    ) {
+      columnConfig.value = parsed;
+    }
+  } catch {
+    // corrupt storage → keep defaults
+  }
+};
+
+const saveColumnConfig = () => {
+  try {
+    localStorage.setItem(
+      columnsStorageKey.value,
+      JSON.stringify(columnConfig.value)
+    );
+  } catch {
+    // storage full/blocked → the in-memory config still applies this session
+  }
+};
+
+const resetColumns = () => {
+  columnConfig.value = defaultColumnConfig();
+  saveColumnConfig();
+};
+
+// Every choice a slot can take: the 11 default fields + each custom field.
+const columnOptions = computed(() => [
+  ...DEFAULT_COLUMNS.map(c => ({ value: `d:${c.id}`, label: t(c.labelKey) })),
+  ...customFieldDefs.value.map(f => ({ value: `c:${f.key}`, label: f.label })),
+]);
+
+// Resolved descriptors used by the table. Unknown/broken entries degrade to the
+// default column of that slot (never an empty or crashed cell).
+const visibleColumns = computed(() =>
+  columnConfig.value.map((entry, i) => {
+    if (typeof entry === 'string' && entry.startsWith('c:')) {
+      const key = entry.slice(2);
+      const def = customFieldDefs.value.find(f => f.key === key);
+      return {
+        kind: 'custom',
+        uid: entry,
+        key,
+        label: def?.label || key,
+      };
+    }
+    const id = typeof entry === 'string' ? entry.replace(/^d:/, '') : '';
+    const def =
+      DEFAULT_COLUMNS.find(c => c.id === id) ||
+      DEFAULT_COLUMNS[i] ||
+      DEFAULT_COLUMNS[0];
+    return {
+      kind: 'default',
+      uid: `d:${def.id}`,
+      id: def.id,
+      label: t(def.labelKey),
+      sortKey: def.sortKey,
+    };
+  })
+);
+
+// Display value for a custom-field cell: arrays joined, booleans localized,
+// null/empty as an em dash. Everything else as plain text.
+const customCellValue = (lead, key) => {
+  const v = lead.custom_fields?.[key];
+  if (v === null || v === undefined || `${v}`.trim() === '') return '—';
+  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+  if (v === true) return t('JABVOX_LEADS.TABLE.BOOL_YES');
+  if (v === false) return t('JABVOX_LEADS.TABLE.BOOL_NO');
+  return `${v}`;
 };
 
 // ── Navigation + formatting ────────────────────────────────────────────
@@ -363,8 +605,17 @@ watch(perPage, () => {
   fetchLeads();
 });
 
+// Close any open custom-filter dropdown when clicking outside of it.
+const closeCustomDropdowns = e => {
+  if (!e.target.closest('[data-custom-filter]')) {
+    customOpen.value = {};
+  }
+};
+
 onMounted(async () => {
   emitter.on('jabvox.leads_assigned', onLeadsAssigned);
+  document.addEventListener('click', closeCustomDropdowns);
+  loadColumnConfig();
   try {
     await leadsAPI.syncContacts();
   } catch {
@@ -375,6 +626,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   emitter.off('jabvox.leads_assigned', onLeadsAssigned);
+  document.removeEventListener('click', closeCustomDropdowns);
 });
 </script>
 
@@ -490,6 +742,66 @@ onUnmounted(() => {
             <span class="i-lucide-x size-3.5" />
             {{ t('JABVOX_LEADS.FILTERS.CLEAR') }}
           </button>
+          <!-- Column layout configurator -->
+          <button
+            class="h-9 flex shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors"
+            :class="
+              showColumnConfig
+                ? 'border-n-brand/40 bg-n-alpha-2 text-n-brand'
+                : 'border-n-weak bg-n-solid-1 text-n-slate-11 hover:bg-n-alpha-1'
+            "
+            @click="showColumnConfig = !showColumnConfig"
+          >
+            <span class="i-lucide-columns-3 size-3.5" />
+            {{ t('JABVOX_LEADS.COLUMNS.BUTTON') }}
+          </button>
+        </div>
+
+        <!-- Column configurator panel: 11 slots, each swappable for any field -->
+        <div
+          v-if="showColumnConfig"
+          class="mt-3 rounded-xl border border-n-weak bg-n-solid-1 p-4 space-y-3 shadow-sm"
+        >
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-xs text-n-slate-10">
+              {{ t('JABVOX_LEADS.COLUMNS.HINT') }}
+            </p>
+            <button
+              class="h-8 shrink-0 flex items-center gap-1.5 rounded-lg border border-n-weak bg-n-solid-1 text-xs text-n-slate-10 px-2.5 hover:bg-n-alpha-1 transition-colors"
+              @click="resetColumns"
+            >
+              <span class="i-lucide-rotate-ccw size-3" />
+              {{ t('JABVOX_LEADS.COLUMNS.RESET') }}
+            </button>
+          </div>
+          <div
+            class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2"
+          >
+            <div
+              v-for="(entry, i) in columnConfig"
+              :key="`slot-${i}`"
+              class="flex flex-col gap-1"
+            >
+              <label
+                class="text-[11px] font-medium text-n-slate-10 select-none"
+              >
+                {{ t('JABVOX_LEADS.COLUMNS.SLOT', { n: i + 1 }) }}
+              </label>
+              <select
+                v-model="columnConfig[i]"
+                class="reset-base h-9 w-full rounded-lg border border-n-weak bg-n-background text-sm text-n-slate-12 px-2 focus:outline-none focus:border-n-slate-7 transition-colors"
+                @change="saveColumnConfig"
+              >
+                <option
+                  v-for="opt in columnOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <!-- Advanced filters panel -->
@@ -619,6 +931,110 @@ onUnmounted(() => {
             </select>
           </div>
 
+          <!-- Custom-field filters: every field is a value selector (one or many).
+               Search + multi-select checkboxes, no free-text/date inputs. -->
+          <div
+            v-if="customFieldDefs.length"
+            class="pt-3 border-t border-n-weak space-y-2"
+          >
+            <p class="text-xs font-medium text-n-slate-10 select-none">
+              {{ t('JABVOX_LEADS.FILTERS.CUSTOM_TITLE') }}
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <div
+                v-for="def in customFieldDefs"
+                :key="def.key"
+                class="relative flex flex-col gap-1 w-48"
+                data-custom-filter
+              >
+                <label
+                  class="text-[11px] font-medium text-n-slate-10 select-none truncate"
+                  :title="def.label"
+                >
+                  {{ def.label }}
+                </label>
+                <!-- Trigger: shows count of selected values -->
+                <button
+                  type="button"
+                  class="reset-base h-9 w-full flex items-center justify-between gap-1.5 rounded-lg border border-n-weak bg-n-background text-sm px-2.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+                  :class="
+                    selectedCustomValues(def.key).length
+                      ? 'text-n-slate-12'
+                      : 'text-n-slate-9'
+                  "
+                  @click.stop="customOpen[def.key] = !customOpen[def.key]"
+                >
+                  <span class="truncate">
+                    {{
+                      selectedCustomValues(def.key).length
+                        ? t('JABVOX_LEADS.FILTERS.CUSTOM_SELECTED', {
+                            n: selectedCustomValues(def.key).length,
+                          })
+                        : t('JABVOX_LEADS.FILTERS.CUSTOM_ANY')
+                    }}
+                  </span>
+                  <span class="i-lucide-chevron-down size-3.5 shrink-0" />
+                </button>
+                <!-- Dropdown: search + checkbox list -->
+                <div
+                  v-if="customOpen[def.key]"
+                  class="absolute left-0 top-full mt-1 z-30 w-full rounded-lg border border-n-weak bg-n-solid-1 shadow-lg overflow-hidden"
+                >
+                  <div class="p-1.5 border-b border-n-weak">
+                    <input
+                      v-model="customSearch[def.key]"
+                      type="text"
+                      :placeholder="t('JABVOX_LEADS.FILTERS.CUSTOM_SEARCH')"
+                      class="reset-base h-8 w-full rounded-md border border-n-weak bg-n-background text-sm text-n-slate-12 placeholder:text-n-slate-9 px-2 focus:outline-none focus:border-n-slate-7"
+                    />
+                  </div>
+                  <div class="max-h-52 overflow-y-auto py-1">
+                    <button
+                      v-for="opt in customFilteredOptions(def)"
+                      :key="opt"
+                      type="button"
+                      class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm text-left hover:bg-n-alpha-1 transition-colors"
+                      @click.stop="toggleCustomValue(def.key, opt)"
+                    >
+                      <span
+                        class="size-4 shrink-0 rounded border flex items-center justify-center"
+                        :class="
+                          selectedCustomValues(def.key).includes(opt)
+                            ? 'bg-n-brand border-n-brand text-white'
+                            : 'border-n-weak'
+                        "
+                      >
+                        <span
+                          v-if="selectedCustomValues(def.key).includes(opt)"
+                          class="i-lucide-check size-3"
+                        />
+                      </span>
+                      <span class="truncate text-n-slate-12">{{ opt }}</span>
+                    </button>
+                    <p
+                      v-if="!customFilteredOptions(def).length"
+                      class="px-2.5 py-2 text-xs text-n-slate-9"
+                    >
+                      {{ t('JABVOX_LEADS.FILTERS.CUSTOM_NO_OPTIONS') }}
+                    </p>
+                  </div>
+                  <div
+                    v-if="selectedCustomValues(def.key).length"
+                    class="p-1.5 border-t border-n-weak"
+                  >
+                    <button
+                      type="button"
+                      class="w-full text-xs text-n-slate-10 hover:text-n-ruby-11 transition-colors py-1"
+                      @click.stop="clearCustomValues(def.key)"
+                    >
+                      {{ t('JABVOX_LEADS.FILTERS.CUSTOM_CLEAR') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Date range — own row so it never overflows -->
           <div
             class="flex items-center gap-3 pt-3 border-t border-n-weak flex-wrap"
@@ -719,6 +1135,39 @@ onUnmounted(() => {
             <span class="i-lucide-check-square size-3.5 text-n-brand" />
             {{ t('JABVOX_LEADS.BULK.SELECTED', { n: selectedCount }) }}
           </span>
+
+          <!-- Select the WHOLE filter (all matching leads, not just this page) -->
+          <button
+            v-if="canSelectAllFilter && !selectedWholeFilter"
+            class="inline-flex items-center gap-1.5 text-xs font-medium text-n-brand hover:underline whitespace-nowrap disabled:opacity-50"
+            :disabled="isSelectingAllFilter"
+            @click="selectAllFilter"
+          >
+            <Spinner v-if="isSelectingAllFilter" :size="12" />
+            <span v-else class="i-lucide-list-checks size-3.5" />
+            {{
+              t('JABVOX_LEADS.BULK.SELECT_ALL_FILTER', {
+                n: (meta.total || 0).toLocaleString(),
+              })
+            }}
+          </button>
+          <span
+            v-else-if="allFilterCapped"
+            class="text-xs text-n-amber-11 whitespace-nowrap"
+          >
+            {{ t('JABVOX_LEADS.BULK.SELECT_ALL_CAPPED', { n: selectedCount }) }}
+          </span>
+
+          <!-- Deselect the WHOLE filter (reverse of select-all) -->
+          <button
+            v-if="selectedWholeFilter || allFilterCapped"
+            class="inline-flex items-center gap-1.5 text-xs font-medium text-n-slate-11 hover:underline whitespace-nowrap"
+            @click="deselectAllFilter"
+          >
+            <span class="i-lucide-list-x size-3.5" />
+            {{ t('JABVOX_LEADS.BULK.DESELECT_ALL_FILTER') }}
+          </button>
+
           <div class="w-px h-5 bg-n-weak shrink-0" />
 
           <template v-if="!pendingBulkAction">
@@ -752,6 +1201,7 @@ onUnmounted(() => {
               {{ t('JABVOX_LEADS.BULK.UNASSIGN_BUTTON') }}
             </button>
             <button
+              v-if="canDeleteLeads"
               class="h-8 px-3 rounded-lg border border-n-ruby-6 bg-n-solid-1 text-xs font-medium text-n-ruby-11 hover:bg-n-ruby-3 transition-colors whitespace-nowrap"
               @click="requestBulkDelete"
             >
@@ -861,80 +1311,26 @@ onUnmounted(() => {
                     @change="toggleSelectPage"
                   />
                 </th>
+                <!-- 11 configurable data columns (default fields or custom fields) -->
                 <th
-                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap hover:text-n-slate-12 transition-colors"
-                  @click="toggleSort('lead_number')"
+                  v-for="col in visibleColumns"
+                  :key="col.uid"
+                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
+                  :class="
+                    col.sortKey
+                      ? 'cursor-pointer select-none hover:text-n-slate-12 transition-colors'
+                      : ''
+                  "
+                  @click="col.sortKey ? toggleSort(col.sortKey) : null"
                 >
                   <span class="flex items-center gap-1">
-                    {{ t('JABVOX_LEADS.TABLE.ID') }}
-                    <span :class="sortIcon('lead_number')" class="w-3 h-3" />
+                    {{ col.label }}
+                    <span
+                      v-if="col.sortKey"
+                      :class="sortIcon(col.sortKey)"
+                      class="w-3 h-3"
+                    />
                   </span>
-                </th>
-                <th
-                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap hover:text-n-slate-12 transition-colors"
-                  @click="toggleSort('name')"
-                >
-                  <span class="flex items-center gap-1">
-                    {{ t('JABVOX_LEADS.TABLE.NAME') }}
-                    <span :class="sortIcon('name')" class="w-3 h-3" />
-                  </span>
-                </th>
-                <th
-                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap hover:text-n-slate-12 transition-colors"
-                  @click="toggleSort('email')"
-                >
-                  <span class="flex items-center gap-1">
-                    {{ t('JABVOX_LEADS.TABLE.EMAIL') }}
-                    <span :class="sortIcon('email')" class="w-3 h-3" />
-                  </span>
-                </th>
-                <th
-                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap hover:text-n-slate-12 transition-colors"
-                  @click="toggleSort('phone_number')"
-                >
-                  <span class="flex items-center gap-1">
-                    {{ t('JABVOX_LEADS.TABLE.PHONE') }}
-                    <span :class="sortIcon('phone_number')" class="w-3 h-3" />
-                  </span>
-                </th>
-                <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
-                >
-                  {{ t('JABVOX_LEADS.TABLE.COUNTRY') }}
-                </th>
-                <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
-                >
-                  {{ t('JABVOX_LEADS.TABLE.AFFILIATE') }}
-                </th>
-                <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
-                >
-                  {{ t('JABVOX_LEADS.TABLE.CAMPAIGN') }}
-                </th>
-                <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
-                >
-                  {{ t('JABVOX_LEADS.TABLE.INBOX') }}
-                </th>
-                <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
-                >
-                  {{ t('JABVOX_LEADS.TABLE.MANAGEMENT_STATE') }}
-                </th>
-                <th
-                  class="cursor-pointer select-none text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap hover:text-n-slate-12 transition-colors"
-                  @click="toggleSort('created_at')"
-                >
-                  <span class="flex items-center gap-1">
-                    {{ t('JABVOX_LEADS.TABLE.MANAGEMENT_DATE') }}
-                    <span :class="sortIcon('created_at')" class="w-3 h-3" />
-                  </span>
-                </th>
-                <th
-                  class="text-left px-3 py-3 text-xs font-semibold text-n-slate-10 uppercase tracking-wide whitespace-nowrap"
-                >
-                  {{ t('JABVOX_LEADS.TABLE.ASSIGNEE') }}
                 </th>
               </tr>
             </thead>
@@ -958,76 +1354,101 @@ onUnmounted(() => {
                     @change="toggleSelect(lead.id)"
                   />
                 </td>
-                <td class="px-3 py-2.5">
-                  <span
-                    class="inline-flex items-center gap-0.5 rounded-md bg-n-alpha-2 px-2 py-0.5 text-xs font-bold font-mono text-n-brand ring-1 ring-inset ring-n-brand/20"
-                  >
-                    #{{ lead.lead_number }}
-                  </span>
-                </td>
-                <td class="px-3 py-2.5">
-                  <div class="flex items-center gap-2">
-                    <Avatar
-                      :name="lead.contact.name || '?'"
-                      :src="lead.contact.avatar_url"
-                      :size="28"
-                      rounded-full
-                    />
-                    <span class="text-sm text-n-slate-12 whitespace-nowrap">
-                      {{ lead.contact.name || '—' }}
+                <!-- 11 configurable data cells matching visibleColumns -->
+                <td
+                  v-for="col in visibleColumns"
+                  :key="col.uid"
+                  class="px-3 py-2.5"
+                >
+                  <template v-if="col.kind === 'default'">
+                    <span
+                      v-if="col.id === 'lead_number'"
+                      class="inline-flex items-center gap-0.5 rounded-md bg-n-alpha-2 px-2 py-0.5 text-xs font-bold font-mono text-n-brand ring-1 ring-inset ring-n-brand/20"
+                    >
+                      #{{ lead.lead_number }}
                     </span>
-                  </div>
-                </td>
-                <td
-                  class="px-3 py-2.5 text-sm text-n-slate-11 max-w-[180px] truncate"
-                >
-                  {{ lead.contact.email || '—' }}
-                </td>
-                <td
-                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
-                >
-                  {{ lead.contact.phone_number || '—' }}
-                </td>
-                <td
-                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
-                >
-                  {{ lead.contact.country || '—' }}
-                </td>
-                <td
-                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
-                >
-                  {{
-                    lead.affiliate_name || t('JABVOX_LEADS.TABLE.AFFILIATE_OWN')
-                  }}
-                </td>
-                <td
-                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
-                >
-                  {{ lead.campaign?.name || '—' }}
-                </td>
-                <td
-                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
-                >
-                  {{ lead.inbox_name || '—' }}
-                </td>
-                <td class="px-3 py-2.5">
+                    <div
+                      v-else-if="col.id === 'name'"
+                      class="flex items-center gap-2"
+                    >
+                      <Avatar
+                        :name="lead.contact.name || '?'"
+                        :src="lead.contact.avatar_url"
+                        :size="28"
+                        rounded-full
+                      />
+                      <span class="text-sm text-n-slate-12 whitespace-nowrap">
+                        {{ lead.contact.name || '—' }}
+                      </span>
+                    </div>
+                    <span
+                      v-else-if="col.id === 'email'"
+                      class="block text-sm text-n-slate-11 max-w-[180px] truncate"
+                    >
+                      {{ lead.contact.email || '—' }}
+                    </span>
+                    <span
+                      v-else-if="col.id === 'phone'"
+                      class="text-sm text-n-slate-11 whitespace-nowrap"
+                    >
+                      {{ lead.contact.phone_number || '—' }}
+                    </span>
+                    <span
+                      v-else-if="col.id === 'country'"
+                      class="text-sm text-n-slate-11 whitespace-nowrap"
+                    >
+                      {{ lead.contact.country || '—' }}
+                    </span>
+                    <span
+                      v-else-if="col.id === 'affiliate'"
+                      class="text-sm text-n-slate-11 whitespace-nowrap"
+                    >
+                      {{
+                        lead.affiliate_name ||
+                        t('JABVOX_LEADS.TABLE.AFFILIATE_OWN')
+                      }}
+                    </span>
+                    <span
+                      v-else-if="col.id === 'campaign'"
+                      class="text-sm text-n-slate-11 whitespace-nowrap"
+                    >
+                      {{ lead.campaign?.name || '—' }}
+                    </span>
+                    <span
+                      v-else-if="col.id === 'inbox'"
+                      class="text-sm text-n-slate-11 whitespace-nowrap"
+                    >
+                      {{ lead.inbox_name || '—' }}
+                    </span>
+                    <template v-else-if="col.id === 'management_state'">
+                      <span
+                        v-if="lead.last_management_state"
+                        class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-n-alpha-2 text-n-brand whitespace-nowrap"
+                      >
+                        {{ lead.last_management_state }}
+                      </span>
+                      <span v-else class="text-sm text-n-slate-9">—</span>
+                    </template>
+                    <span
+                      v-else-if="col.id === 'management_date'"
+                      class="text-sm text-n-slate-10 whitespace-nowrap"
+                    >
+                      {{ formatDate(lead.last_management_at) }}
+                    </span>
+                    <span
+                      v-else-if="col.id === 'assignee'"
+                      class="text-sm text-n-slate-11 whitespace-nowrap"
+                    >
+                      {{ lead.assignee_name || '—' }}
+                    </span>
+                  </template>
                   <span
-                    v-if="lead.last_management_state"
-                    class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-n-alpha-2 text-n-brand whitespace-nowrap"
+                    v-else
+                    class="block text-sm text-n-slate-11 max-w-[200px] truncate"
+                    :title="customCellValue(lead, col.key)"
                   >
-                    {{ lead.last_management_state }}
+                    {{ customCellValue(lead, col.key) }}
                   </span>
-                  <span v-else class="text-sm text-n-slate-9">—</span>
-                </td>
-                <td
-                  class="px-3 py-2.5 text-sm text-n-slate-10 whitespace-nowrap"
-                >
-                  {{ formatDate(lead.last_management_at) }}
-                </td>
-                <td
-                  class="px-3 py-2.5 text-sm text-n-slate-11 whitespace-nowrap"
-                >
-                  {{ lead.assignee_name || '—' }}
                 </td>
               </tr>
             </tbody>

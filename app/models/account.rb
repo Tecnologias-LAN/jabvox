@@ -26,6 +26,7 @@
 #  jabvox_forms_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_internal_chat_enabled_jabvox      :boolean          default(FALSE), not null
 #  jabvox_kanban_enabled_jabvox             :boolean          default(FALSE), not null
+#  jabvox_lead_delete_enabled_jabvox        :boolean          default(FALSE), not null
 #  jabvox_lead_import_enabled_jabvox        :boolean          default(FALSE), not null
 #  jabvox_leads_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_products_enabled_jabvox           :boolean          default(FALSE), not null

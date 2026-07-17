@@ -48,18 +48,30 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   def lead_fields
     table = Current.account.jabvox_custom_tables.for_leads.first
     columns = table ? table.jabvox_custom_columns.ordered : []
-    # Offer every field as a selectable filter: options combine the configured
-    # options with the distinct values found in the account's leads (shared
-    # helper), so even plain-text fields become checkbox selectors.
-    values_by_key = Jabvox::LeadCustomFilter.distinct_values(Current.account, columns.map(&:name_jabvox))
-    render json: {
-      custom: columns.map do |c|
-        configured = Array(c.options_jabvox).map(&:to_s)
-        discovered = values_by_key[c.name_jabvox] || []
-        { key: c.name_jabvox, label: c.label_jabvox, column_type: c.column_type_jabvox,
-          options: (configured + discovered).reject(&:blank?).uniq.sort }
-      end
-    }
+    # Offer every field as a selectable filter: defined columns PLUS the keys
+    # discovered in the leads' data (they can differ, e.g. seccion vs seccion_c),
+    # so every field — current or future — becomes a checkbox selector.
+    defined_keys = columns.map(&:name_jabvox)
+    extra_keys = Jabvox::LeadCustomFilter.data_keys(Current.account) - defined_keys
+    values_by_key = Jabvox::LeadCustomFilter.distinct_values(Current.account, defined_keys + extra_keys)
+
+    defined = columns.map do |c|
+      build_field(c.name_jabvox, c.label_jabvox, c.column_type_jabvox,
+                  Array(c.options_jabvox).map(&:to_s), values_by_key)
+    end
+    discovered_only = extra_keys.map do |key|
+      build_field(key, key.tr('_', ' ').capitalize, 'text', [], values_by_key)
+    end
+    render json: { custom: defined + discovered_only }
+  end
+
+  # Server-side value search for fields whose distinct values exceed the cap
+  # returned by lead_fields (truncated: true).
+  def field_values
+    values = Jabvox::LeadCustomFilter.distinct_values_search(
+      Current.account, params[:key], params[:q]
+    )
+    render json: { values: values }
   end
 
   def index
@@ -511,6 +523,15 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     fallback
   end
 
+  def build_field(key, label, column_type, configured, values_by_key)
+    discovered = values_by_key[key] || []
+    {
+      key: key, label: label, column_type: column_type,
+      options: (configured + discovered).reject(&:blank?).uniq.sort,
+      truncated: discovered.size >= 200
+    }
+  end
+
   def set_campaign
     @campaign = Current.account.jabvox_dialer_campaigns.find(params[:id])
   end
@@ -598,7 +619,9 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
       email: contact&.email.to_s,
       campaign: lead.jabvox_campaign&.name_jabvox.to_s,
       document: lead_document(lead, contact),
-      last_management_state: last_management_state.to_s
+      last_management_state: last_management_state.to_s,
+      # Full custom fields so the form's configurable columns can show any of them.
+      custom_fields: lead.custom_fields_jabvox || {}
     }
   end
 

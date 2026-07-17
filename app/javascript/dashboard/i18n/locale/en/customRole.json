@@ -66,7 +66,8 @@
         "CAMPAIGNS": "Campaigns",
         "AFFILIATES": "Affiliates",
         "APP_STATES": "Presence states",
-        "REPORTS": "Reports"
+        "REPORTS": "Reports",
+        "SALES_REPORTS": "Sales reports"
       },
       "CONVERSATION_MANAGE": "Manage all conversations",
       "CONVERSATION_UNASSIGNED_MANAGE": "Manage unassigned conversations and those assigned to them",
@@ -118,7 +119,8 @@
       "JABVOX_CAMPAIGNS_MANAGE": "Manage campaigns",
       "JABVOX_AFFILIATES_MANAGE": "Manage affiliates",
       "JABVOX_APP_STATES_MANAGE": "Manage presence states",
-      "JABVOX_REPORTS_VIEW": "View reports"
+      "JABVOX_REPORTS_VIEW": "View reports",
+      "JABVOX_SALES_REPORTS_MANAGE": "Manage sales reports"
     },
     "FORM": {
       "NAME": {

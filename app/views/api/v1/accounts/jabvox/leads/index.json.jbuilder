@@ -37,6 +37,9 @@ json.data do
     json.is_sold_jabvox lead.is_sold_jabvox
     json.affiliate_id lead.jabvox_affiliate_id
     json.affiliate_name lead.jabvox_affiliate&.name
+    # Custom fields of the lead, so the table can render swappable custom columns
+    # (already loaded on the row — no extra query).
+    json.custom_fields lead.custom_fields_jabvox || {}
   end
 end
 # rubocop:enable Metrics/BlockLength

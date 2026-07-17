@@ -6,6 +6,10 @@ const client = new ApiClient('jabvox/leads', { accountScoped: true });
 export default {
   getAll: (params = {}) => axios.get(client.url, { params }),
   getById: id => axios.get(`${client.url}/${id}`),
+  // All lead ids matching the given filters (whole result, not one page), for
+  // "select all filter" bulk actions. Same filter params as getAll.
+  matchingIds: (params = {}) =>
+    axios.get(`${client.url}/matching_lead_ids`, { params }),
   syncContacts: () => axios.post(`${client.url}/sync_contacts`),
   bulkAssign: (leadIds, assigneeId) =>
     axios.patch(`${client.url}/bulk_assign`, {

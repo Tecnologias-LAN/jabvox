@@ -67,19 +67,48 @@ const activeFilterCount = computed(() => {
   return base + custom;
 });
 
-// Every custom field is offered as a checkbox selector as long as it has known
-// values (options come from the field definition AND the values discovered in
-// the leads). Only fields with no discoverable values fall back to a text input.
-const fieldHasOptions = cf =>
-  Array.isArray(cf.options) && cf.options.length > 0;
-
-// Per-field search text inside its options dropdown (for fields with many values).
+// EVERY custom field is a checkbox selector — no text-input fallback. Options
+// come from the field definition plus the distinct values discovered in the
+// leads; when a field's base list is truncated (discovery cap), the search box
+// also queries the server so every value stays findable.
 const optionSearch = ref({});
+const remoteOptions = ref({}); // key => values fetched by server-side search
+const searchTimers = {};
+
+const onOptionSearch = cf => {
+  if (!cf.truncated) return; // local list is complete; local filtering suffices
+  clearTimeout(searchTimers[cf.key]);
+  const q = (optionSearch.value[cf.key] || '').trim();
+  if (!q) {
+    remoteOptions.value[cf.key] = [];
+    return;
+  }
+  searchTimers[cf.key] = setTimeout(async () => {
+    try {
+      const { data } = await bulkWhatsappAPI.searchFieldValues(cf.key, q);
+      remoteOptions.value[cf.key] = data.values || [];
+    } catch {
+      remoteOptions.value[cf.key] = [];
+    }
+  }, 300);
+};
+
+// Local base options ∪ server search results ∪ already-selected values (so a
+// checked value never disappears from the list), filtered by the search text.
 const filteredOptions = cf => {
   const q = (optionSearch.value[cf.key] || '').trim().toLowerCase();
-  const opts = cf.options || [];
-  if (!q) return opts;
-  return opts.filter(o => String(o).toLowerCase().includes(q));
+  const selected = Array.isArray(customValues.value[cf.key])
+    ? customValues.value[cf.key]
+    : [];
+  const base = [
+    ...new Set([
+      ...(cf.options || []),
+      ...(remoteOptions.value[cf.key] || []),
+      ...selected,
+    ]),
+  ];
+  if (!q) return base;
+  return base.filter(o => String(o).toLowerCase().includes(q));
 };
 
 // ── Lead list / pagination ───────────────────────────────────────────────
@@ -643,11 +672,8 @@ onMounted(() => {
           >
             <label class="text-[11px] text-n-slate-10">{{ cf.label }}</label>
 
-            <!-- Campos con opciones (select / multiselect): elegir uno o varios -->
-            <details
-              v-if="fieldHasOptions(cf)"
-              class="group rounded-lg border border-n-weak bg-n-alpha-1"
-            >
+            <!-- TODOS los campos son seleccionables (uno o varios valores) -->
+            <details class="group rounded-lg border border-n-weak bg-n-alpha-1">
               <summary
                 class="flex items-center justify-between gap-2 px-3 py-2 text-sm cursor-pointer select-none list-none"
               >
@@ -665,14 +691,19 @@ onMounted(() => {
                 />
               </summary>
               <div class="border-t border-n-weak">
-                <!-- Buscador interno para campos con muchas opciones -->
-                <div v-if="(cf.options || []).length > 8" class="p-2">
+                <!-- Buscador interno: filtra localmente y, en campos truncados
+                     (lista base al tope), también consulta al servidor -->
+                <div
+                  v-if="(cf.options || []).length > 8 || cf.truncated"
+                  class="p-2"
+                >
                   <input
                     v-model="optionSearch[cf.key]"
                     type="search"
                     :placeholder="t('JABVOX_BULK_WA.LEADS.SEARCH_OPTION')"
                     class="reset-base w-full text-sm rounded-lg border border-n-weak bg-n-solid-1 px-2.5 py-1.5"
                     @click.stop
+                    @input="onOptionSearch(cf)"
                   />
                 </div>
                 <div
@@ -700,16 +731,6 @@ onMounted(() => {
                 </div>
               </div>
             </details>
-
-            <!-- Texto / número: input libre -->
-            <input
-              v-else
-              v-model="customValues[cf.key]"
-              :type="cf.column_type === 'number' ? 'number' : 'text'"
-              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
-              :placeholder="cf.label"
-              @keyup.enter="applyFilters"
-            />
           </div>
         </div>
       </div>

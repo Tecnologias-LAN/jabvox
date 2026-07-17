@@ -171,7 +171,7 @@ class SearchService
 
     @contacts = contacts_query.resolved_contacts(
       use_crm_v2: current_account.feature_enabled?('crm_v2')
-    ).order_on_last_activity_at('desc').page(params[:page]).per(15)
+    ).visible_to(account_user).order_on_last_activity_at('desc').page(params[:page]).per(15)
   end
 
   def filter_articles

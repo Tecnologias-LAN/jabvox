@@ -11,6 +11,7 @@ import {
   CONVERSATION_UNASSIGNED_PERMISSIONS,
   CONVERSATION_PARTICIPATING_PERMISSIONS,
 } from 'dashboard/constants/permissions.js';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 
@@ -28,6 +29,40 @@ const props = defineProps({
 
 const emit = defineEmits(['close']);
 
+// Maps each Jabvox permission group's `module` to the account feature flag that
+// enables it. Modules NOT listed here have no per-account toggle (they are always
+// available), so they are never filtered out.
+const MODULE_FEATURE_FLAG = {
+  leads: FEATURE_FLAGS.JABVOX_LEADS,
+  kanban: FEATURE_FLAGS.JABVOX_KANBAN,
+  tasks: FEATURE_FLAGS.JABVOX_TASKS,
+  cdr: FEATURE_FLAGS.JABVOX_CDR,
+  audio: FEATURE_FLAGS.JABVOX_AUDIO_ANALYSIS,
+  ai_chat: FEATURE_FLAGS.JABVOX_AI_CHAT,
+  whatsapp_templates: FEATURE_FLAGS.JABVOX_WHATSAPP_TEMPLATES,
+  analytics: FEATURE_FLAGS.JABVOX_ANALYTICS,
+  lead_import: FEATURE_FLAGS.JABVOX_LEAD_IMPORT,
+  data_export: FEATURE_FLAGS.JABVOX_DATA_EXPORT,
+  bulk_whatsapp: FEATURE_FLAGS.JABVOX_BULK_WHATSAPP,
+  custom_data: FEATURE_FLAGS.JABVOX_CUSTOMIZATION,
+  dialer: FEATURE_FLAGS.JABVOX_DIALER,
+  click_to_call: FEATURE_FLAGS.JABVOX_CLICK_TO_CALL,
+  internal_chat: FEATURE_FLAGS.JABVOX_INTERNAL_CHAT,
+  calendar: FEATURE_FLAGS.JABVOX_CALENDAR,
+  response_bot: FEATURE_FLAGS.JABVOX_RESPONSE_BOT,
+  forms: FEATURE_FLAGS.JABVOX_FORMS,
+  sms: FEATURE_FLAGS.JABVOX_SMS,
+  email: FEATURE_FLAGS.JABVOX_EMAIL,
+  saldo: FEATURE_FLAGS.JABVOX_SALDO,
+  voip: FEATURE_FLAGS.JABVOX_VOIP,
+  products: FEATURE_FLAGS.JABVOX_PRODUCTS,
+  affiliates: FEATURE_FLAGS.JABVOX_AFFILIATES,
+  // management_states, integrations, ip_whitelist, typifications,
+  // field_visibilities, campaigns, app_states, reports: no per-account module
+  // toggle in the backend's enabled_features → always shown. (Mapping a
+  // non-existent feature here would hide the group forever.)
+};
+
 const BASE_CUSTOM_ROLE_PERMISSIONS = [
   'conversation_manage',
   'conversation_unassigned_manage',
@@ -43,6 +78,27 @@ const { t } = useI18n();
 const name = ref('');
 const description = ref('');
 const selectedPermissions = ref([]);
+
+// Only show permission groups for modules that are ENABLED on the account, so a
+// role can't be given permissions for a module the account doesn't have. Groups
+// whose module has no per-account toggle (not in the map) are always shown.
+const accountId = computed(() => store.getters.getCurrentAccountId);
+const visibleJabvoxGroups = computed(() =>
+  JABVOX_PERMISSION_GROUPS.filter(group => {
+    const flag = MODULE_FEATURE_FLAG[group.module];
+    // Module with no account toggle → always available.
+    if (!flag) return true;
+    // Enabled on the account → show it.
+    if (
+      store.getters['accounts/isFeatureEnabledonAccount'](accountId.value, flag)
+    ) {
+      return true;
+    }
+    // Disabled, BUT keep it visible when editing a role that already holds one of
+    // its permissions, so those grants aren't silently hidden/dropped.
+    return group.permissions.some(p => selectedPermissions.value.includes(p));
+  })
+);
 
 const nameInput = ref(null);
 
@@ -223,7 +279,7 @@ const isSubmitDisabled = computed(
           </div>
 
           <div
-            v-for="group in JABVOX_PERMISSION_GROUPS"
+            v-for="group in visibleJabvoxGroups"
             :key="group.module"
             class="flex flex-col gap-2.5"
           >

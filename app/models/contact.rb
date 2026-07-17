@@ -48,6 +48,7 @@ class Contact < ApplicationRecord
   def avatar_url = ''
   include Labelable
   include LlmFormattable
+  include ContactAgentVisibility
 
   validates :account_id, presence: true
   validates :email, allow_blank: true, uniqueness: { scope: [:account_id], case_sensitive: false },
@@ -181,12 +182,6 @@ class Contact < ApplicationRecord
       thumbnail: avatar_url,
       blocked: blocked
     }
-  end
-
-  def self.resolved_contacts(use_crm_v2: false)
-    return where(contact_type: 'lead') if use_crm_v2
-
-    where("contacts.email <> '' OR contacts.phone_number <> '' OR contacts.identifier <> ''")
   end
 
   def discard_invalid_attrs

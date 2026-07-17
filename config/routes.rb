@@ -430,6 +430,7 @@ Rails.application.routes.draw do
                 patch :bulk_assign
                 patch :bulk_unassign
                 delete :bulk_destroy
+                get :matching_lead_ids
                 get 'for_contact/:contact_id', action: :for_contact, as: :for_contact
                 patch 'for_contact/:contact_id', action: :update_contact_lead, as: :update_contact_lead
               end
@@ -548,6 +549,7 @@ Rails.application.routes.draw do
                 get :matching_lead_ids
                 get :preview_leads
                 get :lead_fields
+                get :field_values
               end
               member do
                 patch :start
@@ -681,6 +683,7 @@ Rails.application.routes.draw do
                 collection do
                   get :senders
                   get :lead_fields
+                  get :field_values
                 end
               end
             end

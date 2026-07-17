@@ -5,7 +5,10 @@ describe SearchService do
 
   let(:search_type) { 'all' }
   let!(:account) { create(:account) }
-  let!(:user) { create(:user, account: account) }
+  # Default searcher is an administrator so the general/contact search specs see
+  # every contact; agent-scoped access (inbox-limited messages, own contacts) is
+  # covered by dedicated agent contexts that create their own agent user.
+  let!(:user) { create(:user, :administrator, account: account) }
   let!(:inbox) { create(:inbox, account: account, enable_auto_assignment: false) }
   let!(:harry) { create(:contact, name: 'Harry Potter', email: 'test@test.com', account_id: account.id) }
   let!(:conversation) { create(:conversation, contact: harry, inbox: inbox, account: account) }
@@ -79,6 +82,12 @@ describe SearchService do
 
     context 'when message search' do
       let!(:message2) { create(:message, account: account, inbox: inbox, content: 'harry is cool') }
+      # Message search is scoped to the inboxes the user can access, so this
+      # spec uses an agent limited to the main inbox (an admin would see every
+      # inbox, including the "no access" one).
+      let!(:message_agent) { create(:user, account: account) }
+
+      before { create(:inbox_member, user: message_agent, inbox: inbox) }
 
       it 'searches across message content and return in created_at desc' do
         # random messages in another account
@@ -86,7 +95,7 @@ describe SearchService do
         # random messsage in inbox with out access
         create(:message, account: account, inbox: create(:inbox, account: account), content: 'Harry Potter is a wizard')
         params = { q: 'Harry' }
-        search = described_class.new(current_user: user, current_account: account, params: params, search_type: 'Message')
+        search = described_class.new(current_user: message_agent, current_account: account, params: params, search_type: 'Message')
         expect(search.perform[:messages].map(&:id)).to eq([message2.id, message.id])
       end
 

@@ -17,25 +17,42 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     render json: users.map { |u| { id: u.id, name: u.name, email: u.email } }
   end
 
-  # The lead custom fields defined for this account, so the leads picker can offer a filter
-  # per custom column (on top of the standard name/phone/country/campaign filters).
+  # Every lead custom field the picker can filter by, ALL of them selectable.
   #
-  # Every field is offered as a SELECTABLE filter regardless of its column type:
-  # `options` combines the column's configured options with the distinct values
-  # found across the account's leads (shared helper), so even plain-text fields
-  # become checkbox selectors.
+  # The field list is the UNION of:
+  #   - the columns DEFINED for the account's leads table (key + label + type), and
+  #   - every key actually PRESENT in the leads' custom_fields_jabvox data —
+  #     covering fields created later AND definitions that drifted from the
+  #     stored keys (e.g. column "seccion_c" while the data lives under "seccion").
+  #
+  # `options` merges the column's configured options with the distinct values
+  # found across the account's leads. `truncated` tells the picker the base list
+  # hit the discovery cap, so its search box should also query field_values.
   def lead_fields
     table = Current.account.jabvox_custom_tables.for_leads.first
     columns = table ? table.jabvox_custom_columns.ordered : []
-    values_by_key = Jabvox::LeadCustomFilter.distinct_values(Current.account, columns.map(&:name_jabvox))
-    render json: {
-      custom: columns.map do |c|
-        configured = Array(c.options_jabvox).map(&:to_s)
-        discovered = values_by_key[c.name_jabvox] || []
-        { key: c.name_jabvox, label: c.label_jabvox, column_type: c.column_type_jabvox,
-          options: (configured + discovered).reject(&:blank?).uniq.sort }
-      end
-    }
+    defined_keys = columns.map(&:name_jabvox)
+    extra_keys = Jabvox::LeadCustomFilter.data_keys(Current.account) - defined_keys
+    values_by_key = Jabvox::LeadCustomFilter.distinct_values(Current.account, defined_keys + extra_keys)
+
+    defined = columns.map do |c|
+      build_field(c.name_jabvox, c.label_jabvox, c.column_type_jabvox,
+                  Array(c.options_jabvox).map(&:to_s), values_by_key)
+    end
+    discovered_only = extra_keys.map do |key|
+      build_field(key, key.tr('_', ' ').capitalize, 'text', [], values_by_key)
+    end
+    render json: { custom: defined + discovered_only }
+  end
+
+  # GET /batches/field_values?key=X&q=Y — server-side option search for one
+  # custom field, so high-cardinality fields (base list capped at 200) can still
+  # surface every value through the picker's search box.
+  def field_values
+    values = Jabvox::LeadCustomFilter.distinct_values_search(
+      Current.account, params[:key], params[:q]
+    )
+    render json: { values: values }
   end
 
   def create
@@ -58,6 +75,18 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
   end
 
   private
+
+  # One selectable-field entry for the picker. `truncated` marks fields whose
+  # discovered values hit the cap (200), so the frontend search also asks the
+  # server (field_values) instead of trusting the partial local list.
+  def build_field(key, label, column_type, configured, values_by_key)
+    discovered = values_by_key[key] || []
+    {
+      key: key, label: label, column_type: column_type,
+      options: (configured + discovered).reject(&:blank?).uniq.sort,
+      truncated: discovered.size >= 200
+    }
+  end
 
   def dispatch_from_csv(inbox, sender)
     file = params[:file]

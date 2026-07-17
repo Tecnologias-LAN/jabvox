@@ -83,6 +83,56 @@ module Jabvox
       leads.where(sql, *binds)
     end
 
+    # Every custom-field key actually PRESENT in the account's leads data,
+    # regardless of whether a column is defined for it. This is what makes the
+    # pickers show every real field even when the column definitions and the
+    # stored keys drifted apart (e.g. columns imported as "seccion_c" while the
+    # data was saved under "seccion"). Only safe keys ([a-z0-9_]) are returned —
+    # they're used as jsonb keys and shown in the UI.
+    def data_keys(account, limit: 200)
+      sql = <<~SQL.squish
+        SELECT DISTINCT jsonb_object_keys(jabvox_leads.custom_fields_jabvox) AS k
+        FROM jabvox_leads
+        WHERE jabvox_leads.account_id = :aid
+          AND jabvox_leads.custom_fields_jabvox <> '{}'::jsonb
+        ORDER BY k
+        LIMIT :lim
+      SQL
+      JabvoxLead.connection.select_values(
+        JabvoxLead.sanitize_sql_array([sql, { aid: account.id, lim: limit }])
+      ).select { |k| k.match?(/\A[a-z0-9_]+\z/) }
+    end
+
+    # Server-side option search for ONE key: distinct values matching `q`
+    # (case-insensitive substring), so high-cardinality fields — whose base
+    # option list is capped — can still offer every value through the picker's
+    # search box. Handles scalar and array storage like distinct_values.
+    def distinct_values_search(account, key, query, limit: 50)
+      safe_key = sanitize_key(key)
+      return [] if safe_key.blank?
+
+      like = "%#{ActiveRecord::Base.sanitize_sql_like(query.to_s.strip)}%"
+      sql = <<~SQL.squish
+        SELECT DISTINCT val FROM (
+          SELECT jabvox_leads.custom_fields_jabvox ->> :k AS val
+          FROM jabvox_leads
+          WHERE jabvox_leads.account_id = :aid
+            AND jsonb_typeof(jabvox_leads.custom_fields_jabvox -> :k) <> 'array'
+          UNION
+          SELECT jsonb_array_elements_text(jabvox_leads.custom_fields_jabvox -> :k) AS val
+          FROM jabvox_leads
+          WHERE jabvox_leads.account_id = :aid
+            AND jsonb_typeof(jabvox_leads.custom_fields_jabvox -> :k) = 'array'
+        ) t
+        WHERE val IS NOT NULL AND val <> '' AND val ILIKE :q
+        ORDER BY val
+        LIMIT :lim
+      SQL
+      JabvoxLead.connection.select_values(
+        JabvoxLead.sanitize_sql_array([sql, { k: safe_key, aid: account.id, q: like, lim: limit }])
+      )
+    end
+
     # Distinct values present across an account's leads for each custom-field key,
     # so the pickers can show a checkbox list even for plain-text fields. Handles
     # scalar values and jsonb arrays (flattened). Returns { key => [values] },

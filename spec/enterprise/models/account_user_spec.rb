@@ -10,12 +10,23 @@ RSpec.describe AccountUser, type: :model do
 
   describe 'permissions' do
     context 'when custom role is assigned' do
-      it 'returns permissions of the custom role along with `custom_role` permission' do
+      it 'returns the custom role permissions plus the `custom_role` marker and the base role' do
         account = create(:account)
         custom_role = create(:custom_role, account: account)
-        account_user = create(:account_user, account: account, custom_role: custom_role)
+        account_user = create(:account_user, account: account, role: :agent, custom_role: custom_role)
 
-        expect(account_user.permissions).to eq(custom_role.permissions + ['custom_role'])
+        # The base role ('agent') is included so a custom role that grants only
+        # granular permissions can still reach the agent-level base routes
+        # (avoids the router redirect-loop that blanked the app).
+        expect(account_user.permissions).to match_array(custom_role.permissions + %w[custom_role agent])
+      end
+
+      it 'includes the administrator base role for an admin with a custom role' do
+        account = create(:account)
+        custom_role = create(:custom_role, account: account)
+        account_user = create(:account_user, account: account, role: :administrator, custom_role: custom_role)
+
+        expect(account_user.permissions).to match_array(custom_role.permissions + %w[custom_role administrator])
       end
     end
 

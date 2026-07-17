@@ -4,7 +4,10 @@ describe Contacts::FilterService do
   subject(:filter_service) { described_class }
 
   let!(:account) { create(:account) }
-  let!(:first_user) { create(:user, account: account) }
+  # first_user drives the filter queries; make it an administrator so the filter
+  # specs exercise filtering logic without the agent visibility scope hiding
+  # unassigned contacts (agent visibility is covered by its own specs).
+  let!(:first_user) { create(:user, :administrator, account: account) }
   let!(:second_user) { create(:user, account: account) }
   let!(:inbox) { create(:inbox, account: account, enable_auto_assignment: false) }
   let!(:en_contact) do

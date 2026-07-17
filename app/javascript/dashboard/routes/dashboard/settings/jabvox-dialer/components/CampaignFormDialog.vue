@@ -78,31 +78,181 @@ onMounted(async () => {
   }
 });
 
+// ── Configurable preview-table columns (same pattern as the leads page) ──
+// The campaign's leads table shows exactly 6 data columns; each slot can be
+// swapped for any default field OR any lead custom field. The layout persists
+// per account in localStorage; corrupt/unknown entries fall back to the
+// default of that slot so the table never breaks.
+const DEFAULT_PREVIEW_COLUMNS = [
+  { id: 'name', labelKey: 'JABVOX_DIALER.FORM.LEAD_NAME' },
+  { id: 'phone', labelKey: 'JABVOX_DIALER.FORM.LEAD_PHONE' },
+  { id: 'email', labelKey: 'JABVOX_DIALER.FORM.LEAD_EMAIL' },
+  { id: 'campaign', labelKey: 'JABVOX_DIALER.FORM.LEAD_CAMPAIGN_COL' },
+  { id: 'document', labelKey: 'JABVOX_DIALER.FORM.LEAD_DOCUMENT' },
+  {
+    id: 'last_management_state',
+    labelKey: 'JABVOX_DIALER.FORM.LEAD_LAST_STATE',
+  },
+];
+const COLUMN_SLOTS = DEFAULT_PREVIEW_COLUMNS.length;
+const defaultColumnConfig = () => DEFAULT_PREVIEW_COLUMNS.map(c => `d:${c.id}`);
+
+const columnConfig = ref(defaultColumnConfig());
+const showColumnConfig = ref(false);
+const columnsStorageKey = computed(
+  () => `jabvox_dialer_campaign_columns_v1_${store.getters.getCurrentAccountId}`
+);
+
+const loadColumnConfig = () => {
+  try {
+    const raw = localStorage.getItem(columnsStorageKey.value);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (
+      Array.isArray(parsed) &&
+      parsed.length === COLUMN_SLOTS &&
+      parsed.every(v => typeof v === 'string')
+    ) {
+      columnConfig.value = parsed;
+    }
+  } catch {
+    // corrupt storage → keep defaults
+  }
+};
+onMounted(loadColumnConfig);
+
+const saveColumnConfig = () => {
+  try {
+    localStorage.setItem(
+      columnsStorageKey.value,
+      JSON.stringify(columnConfig.value)
+    );
+  } catch {
+    // storage full/blocked → the in-memory config still applies this session
+  }
+};
+
+const resetColumns = () => {
+  columnConfig.value = defaultColumnConfig();
+  saveColumnConfig();
+};
+
+// Every choice a slot can take: the 6 default fields + each custom field.
+const columnOptions = computed(() => [
+  ...DEFAULT_PREVIEW_COLUMNS.map(c => ({
+    value: `d:${c.id}`,
+    label: t(c.labelKey),
+  })),
+  ...customColumns.value.map(f => ({ value: `c:${f.key}`, label: f.label })),
+]);
+
+// Resolved descriptors used by the table. Unknown/broken entries degrade to
+// the default column of that slot (never an empty or crashed cell).
+const visibleColumns = computed(() =>
+  columnConfig.value.map((entry, i) => {
+    if (typeof entry === 'string' && entry.startsWith('c:')) {
+      const key = entry.slice(2);
+      const def = customColumns.value.find(f => f.key === key);
+      return { kind: 'custom', uid: entry, key, label: def?.label || key };
+    }
+    const id = typeof entry === 'string' ? entry.replace(/^d:/, '') : '';
+    const def =
+      DEFAULT_PREVIEW_COLUMNS.find(c => c.id === id) ||
+      DEFAULT_PREVIEW_COLUMNS[i] ||
+      DEFAULT_PREVIEW_COLUMNS[0];
+    return {
+      kind: 'default',
+      uid: `d:${def.id}`,
+      id: def.id,
+      label: t(def.labelKey),
+    };
+  })
+);
+
+// Display value for any cell: default fields read the lead's flat keys; custom
+// fields read custom_fields (arrays joined, booleans localized, empty as dash).
+const cellValue = (lead, colDef) => {
+  const v =
+    colDef.kind === 'custom'
+      ? lead.custom_fields?.[colDef.key]
+      : lead[colDef.id];
+  if (v === null || v === undefined || `${v}`.trim() === '') return '—';
+  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+  if (v === true) return t('JABVOX_DIALER.FORM.BOOL_YES');
+  if (v === false) return t('JABVOX_DIALER.FORM.BOOL_NO');
+  return `${v}`;
+};
+
 // Fields the campaign can dial: contact phone + each lead custom column.
 const dialFieldOptions = computed(() => [
   { value: 'phone', label: t('JABVOX_DIALER.FORM.DIAL_FIELD_PHONE') },
   ...customColumns.value.map(c => ({ value: c.key, label: c.label })),
 ]);
 
-// Every custom field with known values becomes a checkbox selector (one or
-// several). Values come from the field definition AND the values discovered in
-// the leads (backend). Fields with no values fall back to a text input.
-const fieldHasOptions = col =>
-  Array.isArray(col.options) && col.options.length > 0;
-
-// Per-field search inside its options dropdown (for fields with many values).
-const optionSearch = ref({});
-const filteredOptions = col => {
-  const q = (optionSearch.value[col.key] || '').trim().toLowerCase();
-  const opts = col.options || [];
-  if (!q) return opts;
-  return opts.filter(o => String(o).toLowerCase().includes(q));
-};
+// Every custom field is a checkbox selector (one or several values), except
+// identity fields (nombre/correo/teléfono/documento) which stay as free text —
+// name/email/phone already have their own inputs above.
+const TEXT_ONLY_FIELDS = new Set([
+  'nombre',
+  'name',
+  'correo',
+  'email',
+  'telefono',
+  'phone',
+  'documento',
+  'document',
+]);
+const normalizeKey = value =>
+  String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/(_c|_jabvox)$/, '');
+const isTextOnlyField = col =>
+  TEXT_ONLY_FIELDS.has(normalizeKey(col.key)) ||
+  TEXT_ONLY_FIELDS.has(normalizeKey(col.label));
 
 // Selected values for a field (always an array once the user picks options).
 const selectedValues = key => {
   const v = form.value.lead_filters_jabvox.custom[key];
   return Array.isArray(v) ? v : [];
+};
+
+// Per-field search inside its options dropdown. For fields whose distinct
+// values exceed the backend cap (truncated), the search also queries the
+// server so any value is findable.
+const optionSearch = ref({});
+const remoteOptions = ref({});
+const searchTimers = {};
+const onOptionSearch = col => {
+  if (!col.truncated) return;
+  clearTimeout(searchTimers[col.key]);
+  const q = (optionSearch.value[col.key] || '').trim();
+  if (!q) {
+    remoteOptions.value[col.key] = [];
+    return;
+  }
+  searchTimers[col.key] = setTimeout(async () => {
+    try {
+      const { data } = await dialerCampaignsAPI.searchFieldValues(col.key, q);
+      remoteOptions.value[col.key] = data.values || [];
+    } catch {
+      remoteOptions.value[col.key] = [];
+    }
+  }, 300);
+};
+const filteredOptions = col => {
+  const q = (optionSearch.value[col.key] || '').trim().toLowerCase();
+  const selected = selectedValues(col.key);
+  const base = [
+    ...new Set([
+      ...(col.options || []),
+      ...(remoteOptions.value[col.key] || []),
+      ...selected,
+    ]),
+  ];
+  if (!q) return base;
+  return base.filter(o => String(o).toLowerCase().includes(q));
 };
 
 // Toggle an option in a field's selected-values array.
@@ -307,7 +457,11 @@ const openCreate = () => {
 const normalizeSavedCustom = custom => {
   const out = {};
   Object.entries(custom || {}).forEach(([key, value]) => {
-    if (Array.isArray(value)) {
+    // Text-only fields (documento, etc.) bind to a plain input: keep a string.
+    if (TEXT_ONLY_FIELDS.has(normalizeKey(key))) {
+      out[key] = Array.isArray(value) ? String(value[0] ?? '') : String(value);
+      if (out[key] === '') delete out[key];
+    } else if (Array.isArray(value)) {
       out[key] = value.map(String).filter(v => v !== '');
     } else if (typeof value === 'string' && value !== '') {
       const trimmed = value.trim();
@@ -572,6 +726,66 @@ defineExpose({ openCreate, openEdit, close });
           v-show="openSections.leadFilters"
           class="flex flex-col gap-4 px-4 pb-4"
         >
+          <!-- Column layout configurator: which 6 fields the leads table shows -->
+          <div class="flex flex-col gap-3">
+            <button
+              type="button"
+              class="h-9 flex w-fit items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors"
+              :class="
+                showColumnConfig
+                  ? 'border-n-brand/40 bg-n-alpha-2 text-n-brand'
+                  : 'border-n-weak bg-n-solid-1 text-n-slate-11 hover:bg-n-alpha-1'
+              "
+              @click="showColumnConfig = !showColumnConfig"
+            >
+              <span class="i-lucide-columns-3 size-3.5" />
+              {{ t('JABVOX_DIALER.FORM.COLUMNS_BUTTON') }}
+            </button>
+            <div
+              v-if="showColumnConfig"
+              class="rounded-xl border border-n-weak bg-n-solid-1 p-4 space-y-3 shadow-sm"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-xs text-n-slate-10">
+                  {{ t('JABVOX_DIALER.FORM.COLUMNS_HINT') }}
+                </p>
+                <button
+                  type="button"
+                  class="h-8 shrink-0 flex items-center gap-1.5 rounded-lg border border-n-weak bg-n-solid-1 text-xs text-n-slate-10 px-2.5 hover:bg-n-alpha-1 transition-colors"
+                  @click="resetColumns"
+                >
+                  <span class="i-lucide-rotate-ccw size-3" />
+                  {{ t('JABVOX_DIALER.FORM.COLUMNS_RESET') }}
+                </button>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div
+                  v-for="(entry, i) in columnConfig"
+                  :key="`slot-${i}`"
+                  class="flex flex-col gap-1"
+                >
+                  <label
+                    class="text-[11px] font-medium text-n-slate-10 select-none"
+                  >
+                    {{ t('JABVOX_DIALER.FORM.COLUMNS_SLOT', { n: i + 1 }) }}
+                  </label>
+                  <select
+                    v-model="columnConfig[i]"
+                    class="reset-base h-9 w-full rounded-lg border border-n-weak bg-n-background text-sm text-n-slate-12 px-2 focus:outline-none focus:border-n-slate-7 transition-colors"
+                    @change="saveColumnConfig"
+                  >
+                    <option
+                      v-for="opt in columnOptions"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Input
               v-model="form.lead_filters_jabvox.q"
@@ -602,9 +816,9 @@ defineExpose({ openCreate, openEdit, close });
                 {{ col.label }}
               </label>
 
-              <!-- Campo con opciones: elegir una o varias (checkboxes) -->
+              <!-- Todos los campos: elegir una o varias opciones (checkboxes) -->
               <details
-                v-if="fieldHasOptions(col)"
+                v-if="!isTextOnlyField(col)"
                 class="group rounded-lg border border-n-weak bg-n-alpha-1"
               >
                 <summary
@@ -624,7 +838,10 @@ defineExpose({ openCreate, openEdit, close });
                   />
                 </summary>
                 <div class="border-t border-n-weak">
-                  <div v-if="(col.options || []).length > 8" class="p-2">
+                  <div
+                    v-if="(col.options || []).length > 8 || col.truncated"
+                    class="p-2"
+                  >
                     <input
                       v-model="optionSearch[col.key]"
                       type="search"
@@ -633,6 +850,7 @@ defineExpose({ openCreate, openEdit, close });
                       "
                       class="reset-base w-full text-sm rounded-lg border border-n-weak bg-n-solid-1 px-2.5 py-1.5"
                       @click.stop
+                      @input="onOptionSearch(col)"
                     />
                   </div>
                   <div
@@ -731,30 +949,19 @@ defineExpose({ openCreate, openEdit, close });
                         @change="togglePage"
                       />
                     </th>
-                    <th class="text-left px-2 py-2 font-medium">
-                      {{ t('JABVOX_DIALER.FORM.LEAD_NAME') }}
-                    </th>
-                    <th class="text-left px-2 py-2 font-medium">
-                      {{ t('JABVOX_DIALER.FORM.LEAD_PHONE') }}
-                    </th>
-                    <th class="text-left px-2 py-2 font-medium">
-                      {{ t('JABVOX_DIALER.FORM.LEAD_EMAIL') }}
-                    </th>
-                    <th class="text-left px-2 py-2 font-medium">
-                      {{ t('JABVOX_DIALER.FORM.LEAD_CAMPAIGN_COL') }}
-                    </th>
-                    <th class="text-left px-2 py-2 font-medium">
-                      {{ t('JABVOX_DIALER.FORM.LEAD_DOCUMENT') }}
-                    </th>
-                    <th class="text-left px-2 py-2 font-medium">
-                      {{ t('JABVOX_DIALER.FORM.LEAD_LAST_STATE') }}
+                    <th
+                      v-for="colDef in visibleColumns"
+                      :key="colDef.uid"
+                      class="text-left px-2 py-2 font-medium"
+                    >
+                      {{ colDef.label }}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-if="loadingPreview">
                     <td
-                      colspan="7"
+                      :colspan="visibleColumns.length + 1"
                       class="px-3 py-5 text-center text-n-slate-10"
                     >
                       <Spinner :size="14" class="inline-block" />
@@ -762,7 +969,7 @@ defineExpose({ openCreate, openEdit, close });
                   </tr>
                   <tr v-else-if="!previewLeads.length">
                     <td
-                      colspan="7"
+                      :colspan="visibleColumns.length + 1"
                       class="px-3 py-5 text-center text-n-slate-10"
                     >
                       {{ t('JABVOX_DIALER.FORM.LEADS_EMPTY') }}
@@ -787,23 +994,13 @@ defineExpose({ openCreate, openEdit, close });
                           @change="toggleLead(lead.id)"
                         />
                       </td>
-                      <td class="px-2 py-1.5 truncate max-w-36">
-                        {{ lead.name || '—' }}
-                      </td>
-                      <td class="px-2 py-1.5 whitespace-nowrap">
-                        {{ lead.phone || '—' }}
-                      </td>
-                      <td class="px-2 py-1.5 truncate max-w-40">
-                        {{ lead.email || '—' }}
-                      </td>
-                      <td class="px-2 py-1.5 truncate max-w-32">
-                        {{ lead.campaign || '—' }}
-                      </td>
-                      <td class="px-2 py-1.5 whitespace-nowrap">
-                        {{ lead.document || '—' }}
-                      </td>
-                      <td class="px-2 py-1.5 truncate max-w-36">
-                        {{ lead.last_management_state || '—' }}
+                      <td
+                        v-for="colDef in visibleColumns"
+                        :key="colDef.uid"
+                        class="px-2 py-1.5 truncate max-w-40"
+                        :title="cellValue(lead, colDef)"
+                      >
+                        {{ cellValue(lead, colDef) }}
                       </td>
                     </tr>
                   </template>

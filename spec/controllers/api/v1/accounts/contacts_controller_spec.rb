@@ -524,7 +524,7 @@ RSpec.describe 'Contacts API', type: :request do
       let!(:twilio_whatsapp) { create(:channel_twilio_sms, medium: :whatsapp, account: account) }
       let!(:twilio_whatsapp_inbox) { create(:inbox, channel: twilio_whatsapp, account: account) }
 
-      it 'shows the contactable inboxes which the user has access to' do
+      it 'shows the contactable inboxes of the account' do
         create(:inbox_member, user: agent, inbox: twilio_whatsapp_inbox)
 
         inbox_service = double
@@ -539,8 +539,11 @@ RSpec.describe 'Contacts API', type: :request do
             as: :json
 
         expect(response).to have_http_status(:success)
-        # only the inboxes which agent has access to are shown
-        expect(response.parsed_body['payload'].pluck('inbox').pluck('id')).to eq([twilio_whatsapp_inbox.id])
+        # All account inboxes are contactable by any role (InboxPolicy#show? now
+        # allows every role to see the account's inboxes; conversation access
+        # stays restricted separately).
+        expect(response.parsed_body['payload'].pluck('inbox').pluck('id'))
+          .to match_array([twilio_sms_inbox.id, twilio_whatsapp_inbox.id])
       end
     end
   end
@@ -742,13 +745,16 @@ RSpec.describe 'Contacts API', type: :request do
         expect(response).to have_http_status(:success)
       end
 
-      it 'does not delete the contact if online' do
+      it 'deletes the contact even when online' do
+        # Deletion is allowed regardless of online presence (see commit
+        # "allow deleting contacts regardless of online presence status").
         allow(OnlineStatusTracker).to receive(:get_presence).and_return(true)
 
         delete "/api/v1/accounts/#{account.id}/contacts/#{contact.id}",
                headers: admin.create_new_auth_token
 
-        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response).to have_http_status(:success)
+        expect { contact.reload }.to raise_error(ActiveRecord::RecordNotFound)
       end
 
       it 'returns unauthorized for agent user' do
