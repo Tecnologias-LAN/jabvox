@@ -32,6 +32,7 @@ class Jabvox::LeadsFilterService
     leads = leads.where('contacts.name ILIKE ?', "%#{like(@filters[:q])}%") if @filters[:q].present?
     leads = leads.where('contacts.email ILIKE ?', "%#{like(@filters[:email])}%") if @filters[:email].present?
     leads = leads.where('contacts.phone_number ILIKE ?', "%#{like(@filters[:phone])}%") if @filters[:phone].present?
+    leads = apply_document_filter(leads)
     leads = leads.where("contacts.additional_attributes->>'country' ILIKE ?", "%#{like(@filters[:country])}%") if @filters[:country].present?
     leads = leads.where(jabvox_campaign_id: @filters[:campaign_id]) if @filters[:campaign_id].present?
     leads = apply_sold_filter(leads)
@@ -49,6 +50,21 @@ class Jabvox::LeadsFilterService
   # literal character instead of forcing a broad (and slow) match.
   def like(value)
     ActiveRecord::Base.sanitize_sql_like(value.to_s)
+  end
+
+  # Documento del lead: cubre TODAS las fuentes donde puede vivir (mismo orden
+  # que el detalle del lead y el dialer): additional_attributes, campos custom
+  # con nombres de documento, y contact.identifier.
+  DOCUMENT_CUSTOM_KEYS = %w[documento documento_c document cedula cedula_c dni nit identificacion identificacion_c].freeze
+
+  def apply_document_filter(leads)
+    return leads if @filters[:document].blank?
+
+    doc = "%#{like(@filters[:document])}%"
+    custom_conds = DOCUMENT_CUSTOM_KEYS.map { |k| "jabvox_leads.custom_fields_jabvox->>'#{k}' ILIKE :d" }
+    sql = "contacts.additional_attributes->>'jabvox_identification_number' ILIKE :d " \
+          "OR contacts.identifier ILIKE :d OR #{custom_conds.join(' OR ')}"
+    leads.where(sql, d: doc)
   end
 
   # Filter by lead custom fields. Delegates to the shared Jabvox::LeadCustomFilter

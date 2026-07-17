@@ -42,7 +42,7 @@ module Jabvox
         inbox_ids: campaign.inbox_ids_jabvox || [],
         excluded_lead_ids: campaign.excluded_lead_ids_jabvox || [],
         require_phone: require_phone
-      }.merge((campaign.lead_filters_jabvox || {}).slice('q', 'email', 'phone', 'custom')))
+      }.merge((campaign.lead_filters_jabvox || {}).slice('q', 'email', 'phone', 'document', 'custom')))
     end
 
     private
@@ -71,7 +71,21 @@ module Jabvox
       leads = leads.where('contacts.name ILIKE ?', "%#{like(@filters[:q])}%") if @filters[:q].present?
       leads = leads.where('contacts.email ILIKE ?', "%#{like(@filters[:email])}%") if @filters[:email].present?
       leads = leads.where('contacts.phone_number ILIKE ?', "%#{like(@filters[:phone])}%") if @filters[:phone].present?
-      leads
+      apply_document_filter(leads)
+    end
+
+    # Documento del lead: mismas fuentes que la lista de leads y el detalle
+    # (additional_attributes, campos custom de documento, contact.identifier).
+    DOCUMENT_CUSTOM_KEYS = %w[documento documento_c document cedula cedula_c dni nit identificacion identificacion_c].freeze
+
+    def apply_document_filter(leads)
+      return leads if @filters[:document].blank?
+
+      doc = "%#{like(@filters[:document])}%"
+      custom_conds = DOCUMENT_CUSTOM_KEYS.map { |k| "jabvox_leads.custom_fields_jabvox->>'#{k}' ILIKE :d" }
+      sql = "contacts.additional_attributes->>'jabvox_identification_number' ILIKE :d " \
+            "OR contacts.identifier ILIKE :d OR #{custom_conds.join(' OR ')}"
+      leads.where(sql, d: doc)
     end
 
     # Escapes LIKE wildcards so % / _ in user input match literally.

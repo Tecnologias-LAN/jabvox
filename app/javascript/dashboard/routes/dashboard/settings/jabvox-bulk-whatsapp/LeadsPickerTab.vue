@@ -29,6 +29,7 @@ const filters = ref({
   q: '',
   email: '',
   phone: '',
+  document: '',
   country: '',
   campaign_id: '',
   assignee_id: '',
@@ -465,6 +466,17 @@ onMounted(() => {
           </div>
           <div class="flex flex-col gap-1">
             <label class="text-[11px] text-n-slate-10">
+              {{ t('JABVOX_BULK_WA.LEADS.FILTER_DOCUMENT') }}
+            </label>
+            <input
+              v-model="filters.document"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+              :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_DOCUMENT')"
+              @keyup.enter="applyFilters"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] text-n-slate-10">
               {{ t('JABVOX_BULK_WA.LEADS.FILTER_COUNTRY') }}
             </label>
             <input
@@ -697,10 +709,8 @@ onMounted(() => {
               <div class="border-t border-n-weak">
                 <!-- Buscador interno: filtra localmente y, en campos truncados
                      (lista base al tope), también consulta al servidor -->
-                <div
-                  v-if="(cf.options || []).length > 8 || cf.truncated"
-                  class="p-2"
-                >
+                <!-- Búsqueda siempre visible al abrir el selector -->
+                <div class="p-2">
                   <input
                     v-model="optionSearch[cf.key]"
                     type="search"

@@ -593,6 +593,7 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
       q: params[:q].to_s,
       email: params[:email].to_s,
       phone: params[:phone].to_s,
+      document: params[:document].to_s,
       custom: custom_filters_param,
       excluded_lead_ids: Array(params[:excluded_lead_ids]).map(&:to_i).select(&:positive?)
     }

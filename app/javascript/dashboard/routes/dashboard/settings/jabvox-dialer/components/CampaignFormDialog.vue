@@ -52,7 +52,13 @@ const emptyForm = () => ({
   agent_ids_jabvox: [],
   affiliate_ids_jabvox: [],
   inbox_ids_jabvox: [],
-  lead_filters_jabvox: { q: '', email: '', phone: '', custom: {} },
+  lead_filters_jabvox: {
+    q: '',
+    email: '',
+    phone: '',
+    document: '',
+    custom: {},
+  },
   excluded_lead_ids_jabvox: [],
   schedule_start_date_jabvox: '',
   schedule_end_date_jabvox: '',
@@ -277,6 +283,7 @@ const filterParams = () => ({
   q: form.value.lead_filters_jabvox.q || undefined,
   email: form.value.lead_filters_jabvox.email || undefined,
   phone: form.value.lead_filters_jabvox.phone || undefined,
+  document: form.value.lead_filters_jabvox.document || undefined,
   custom: form.value.lead_filters_jabvox.custom,
 });
 
@@ -361,6 +368,7 @@ watch(
     form.value.lead_filters_jabvox.q,
     form.value.lead_filters_jabvox.email,
     form.value.lead_filters_jabvox.phone,
+    form.value.lead_filters_jabvox.document,
     JSON.stringify(form.value.lead_filters_jabvox.custom),
   ],
   debouncedFetchLeadCount
@@ -505,6 +513,7 @@ const openEdit = c => {
       q: lf.q || '',
       email: lf.email || '',
       phone: lf.phone || '',
+      document: lf.document || '',
       custom: normalizeSavedCustom(lf.custom),
     },
     excluded_lead_ids_jabvox: [...(c.excluded_lead_ids_jabvox || [])],
@@ -806,6 +815,11 @@ defineExpose({ openCreate, openEdit, close });
               :label="t('JABVOX_DIALER.FORM.FILTER_PHONE')"
               :placeholder="t('JABVOX_DIALER.FORM.FILTER_PHONE')"
             />
+            <Input
+              v-model="form.lead_filters_jabvox.document"
+              :label="t('JABVOX_DIALER.FORM.FILTER_DOCUMENT')"
+              :placeholder="t('JABVOX_DIALER.FORM.FILTER_DOCUMENT')"
+            />
           </div>
           <div
             v-if="customColumns.length"
@@ -842,10 +856,8 @@ defineExpose({ openCreate, openEdit, close });
                   />
                 </summary>
                 <div class="border-t border-n-weak">
-                  <div
-                    v-if="(col.options || []).length > 8 || col.truncated"
-                    class="p-2"
-                  >
+                  <!-- Búsqueda siempre visible al abrir el selector -->
+                  <div class="p-2">
                     <input
                       v-model="optionSearch[col.key]"
                       type="search"

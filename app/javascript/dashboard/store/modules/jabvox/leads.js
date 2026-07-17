@@ -36,7 +36,14 @@ const mutations = {
     s.filterOptions = opts;
   },
   SET_META(s, meta) {
-    s.meta = meta;
+    // El backend manda snake_case (total_pages/current_page); el estado expone
+    // camelCase, que es lo que leen los componentes (flechas de paginación).
+    const m = meta || {};
+    s.meta = {
+      total: m.total ?? 0,
+      currentPage: m.current_page ?? m.currentPage ?? 1,
+      totalPages: m.total_pages ?? m.totalPages ?? 1,
+    };
   },
 };
 

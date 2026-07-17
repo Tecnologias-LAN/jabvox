@@ -12,7 +12,7 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   # contactos, detalle) puede editarlo, sin importar su rol. jabvox_leads_edit
   # queda reservado para restricciones futuras de acciones masivas.
 
-  PER_PAGE_OPTIONS = [10, 25, 50, 100, 200].freeze
+  PER_PAGE_OPTIONS = [10, 25, 50, 100, 200, 250].freeze
   DEFAULT_PER_PAGE = 25
   SORTABLE_COLUMNS = {
     'lead_number' => 'jabvox_leads.lead_number',

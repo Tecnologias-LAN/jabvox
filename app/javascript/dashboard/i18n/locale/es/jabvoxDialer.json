@@ -178,7 +178,8 @@
       "RETRY_HINT": "Los leads con estos resultados se vuelven a marcar al final de la cola, hasta el máximo de reintentos.",
       "SELECT_ALL": "Seleccionar todos",
       "DESELECT_ALL": "Deseleccionar todos",
-      "FILTER_EMPTY": "(Vacío / sin valor)"
+      "FILTER_EMPTY": "(Vacío / sin valor)",
+      "FILTER_DOCUMENT": "Documento"
     },
     "CONTACTS": {
       "EMPTY": "No hay contactos en esta campaña. Importa contactos desde la configuración.",

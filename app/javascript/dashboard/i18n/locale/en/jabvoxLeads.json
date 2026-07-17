@@ -37,7 +37,8 @@
       "CUSTOM_SEARCH": "Search value...",
       "CUSTOM_NO_OPTIONS": "No matches",
       "CUSTOM_CLEAR": "Clear selection",
-      "CUSTOM_EMPTY": "(Empty / no value)"
+      "CUSTOM_EMPTY": "(Empty / no value)",
+      "DOCUMENT": "Document"
     },
     "COLUMNS": {
       "BUTTON": "Columns",

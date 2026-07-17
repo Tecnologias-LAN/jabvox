@@ -56,7 +56,8 @@
       "MESSAGE": "Mensaje",
       "MESSAGE_PLACEHOLDER": "Escribe el mensaje a enviar…",
       "SEND": "Enviar a {count} leads",
-      "FILTER_EMPTY": "(Vacío / sin valor)"
+      "FILTER_EMPTY": "(Vacío / sin valor)",
+      "FILTER_DOCUMENT": "Documento…"
     },
     "COLS": {
       "NAME": "Nombre",

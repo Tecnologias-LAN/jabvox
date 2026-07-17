@@ -37,7 +37,8 @@
       "CUSTOM_SEARCH": "Buscar valor...",
       "CUSTOM_NO_OPTIONS": "Sin coincidencias",
       "CUSTOM_CLEAR": "Limpiar selección",
-      "CUSTOM_EMPTY": "(Vacío / sin valor)"
+      "CUSTOM_EMPTY": "(Vacío / sin valor)",
+      "DOCUMENT": "Documento"
     },
     "COLUMNS": {
       "BUTTON": "Columnas",

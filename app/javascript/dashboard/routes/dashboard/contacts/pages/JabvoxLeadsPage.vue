@@ -29,6 +29,7 @@ const filterId = ref('');
 const filterName = ref('');
 const filterEmail = ref('');
 const filterPhone = ref('');
+const filterDocument = ref('');
 const filterCountry = ref('');
 const filterCampaign = ref('');
 const filterSold = ref('');
@@ -77,6 +78,7 @@ const activeAdvancedFilterCount = computed(
     [
       filterEmail,
       filterPhone,
+      filterDocument,
       filterCountry,
       filterCampaign,
       filterSold,
@@ -163,6 +165,7 @@ const buildFilterParams = () => {
   if (filterName.value) params.q = filterName.value;
   if (filterEmail.value) params.email = filterEmail.value;
   if (filterPhone.value) params.phone = filterPhone.value;
+  if (filterDocument.value) params.document = filterDocument.value;
   if (filterCountry.value) params.country = filterCountry.value;
   if (filterCampaign.value) params.campaign_id = filterCampaign.value;
   if (filterSold.value) params.sold = filterSold.value;
@@ -439,6 +442,7 @@ const clearFilters = () => {
   filterName.value = '';
   filterEmail.value = '';
   filterPhone.value = '';
+  filterDocument.value = '';
   filterCountry.value = '';
   filterCampaign.value = '';
   filterSold.value = '';
@@ -829,6 +833,14 @@ onUnmounted(() => {
               :placeholder="t('JABVOX_LEADS.FILTERS.PHONE')"
               class="reset-base h-9 rounded-lg border border-n-weak bg-n-background text-sm text-n-slate-12 placeholder:text-n-slate-9 px-3 w-40 focus:outline-none focus:border-n-slate-7 transition-colors"
               @input="onPhoneInput"
+              @keydown.enter="onFilterChange"
+              @blur="onFilterChange"
+            />
+            <input
+              v-model="filterDocument"
+              type="text"
+              :placeholder="t('JABVOX_LEADS.FILTERS.DOCUMENT')"
+              class="reset-base h-9 rounded-lg border border-n-weak bg-n-background text-sm text-n-slate-12 placeholder:text-n-slate-9 px-3 w-40 focus:outline-none focus:border-n-slate-7 transition-colors"
               @keydown.enter="onFilterChange"
               @blur="onFilterChange"
             />
