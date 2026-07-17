@@ -8,7 +8,9 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   # Deleting leads is controlled from Super Admin (per-account module) and is
   # restricted to administrators only — never agents nor custom roles.
   before_action :check_lead_delete_allowed, only: :bulk_destroy
-  before_action -> { jabvox_gate!('jabvox_leads_edit') }, only: :update_details
+  # update_details NO se gatea por permiso: todo el que puede VER un lead (leads,
+  # contactos, detalle) puede editarlo, sin importar su rol. jabvox_leads_edit
+  # queda reservado para restricciones futuras de acciones masivas.
 
   PER_PAGE_OPTIONS = [10, 25, 50, 100, 200].freeze
   DEFAULT_PER_PAGE = 25
