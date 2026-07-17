@@ -22,10 +22,15 @@ module Jabvox::ExternalExport
   end
 
   # Shared SSRF/host guard for every write path (schema build, row export,
-  # backfill). The target's configured port is explicitly allowed — it's a
-  # destination the admin set up on purpose, not an arbitrary SSRF target — so
-  # customer DBs on non-standard ports (e.g. 5438) work, while private-network
-  # and cloud-metadata protections still apply unless the admin opted in.
+  # backfill, test connection). The target's configured port is explicitly
+  # allowed — it's a destination the admin set up on purpose, not an arbitrary
+  # SSRF target — so customer DBs on non-standard ports (e.g. 5438) work, while
+  # private-network and cloud-metadata protections still apply unless the admin
+  # opted in.
+  #
+  # Returns the list of validated IPs so the caller can connect to a
+  # already-checked address instead of re-resolving the hostname (which would
+  # reopen a DNS-rebinding hole). Raises ConnectionError when the host is unsafe.
   def guard!(target)
     result = Jabvox::Analytics::HostGuardService.new(
       host: target.host_jabvox,
@@ -34,8 +39,8 @@ module Jabvox::ExternalExport
       allowed_ports: (Jabvox::Analytics::HostGuardService::DEFAULT_ALLOWED_PORTS +
                       [target.effective_port.to_i]).uniq
     ).call
-    return if result.allowed?
+    raise Jabvox::ExternalExport::WriteAdapter::ConnectionError, result.reason unless result.allowed?
 
-    raise Jabvox::ExternalExport::WriteAdapter::ConnectionError, result.reason
+    result.resolved_ips
   end
 end

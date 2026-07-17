@@ -1,7 +1,7 @@
 class Api::V1::Accounts::Jabvox::DataExport::TargetsController < Api::V1::Accounts::Jabvox::DataExport::BaseController
   before_action :set_target,
                 only: %i[show update destroy test_connection build_schema toggle
-                         remote_schema mapping sync_now]
+                         sync_now history]
 
   # One export DB per account, but modeled as a collection for consistency.
   def index
@@ -12,13 +12,28 @@ class Api::V1::Accounts::Jabvox::DataExport::TargetsController < Api::V1::Accoun
     render json: serialize(@target)
   end
 
+  # Export groups available to this account (for the settings UI checklist).
+  def available_groups
+    render json: { groups: Jabvox::ExternalExport::Catalog.available_groups(Current.account) }
+  end
+
   def create
+    # Golden rule: exactly one external DB per account.
+    if scoped.exists?
+      return render json: { error: 'Ya existe una base de datos externa para esta cuenta' },
+                    status: :unprocessable_entity
+    end
+
     target = scoped.new(target_params)
     target.created_by = current_user
     target.save!
     render json: serialize(target), status: :created
   rescue ActiveRecord::RecordInvalid => e
     render json: { error: e.record.errors.full_messages.join(', ') }, status: :unprocessable_entity
+  rescue ActiveRecord::RecordNotUnique
+    # Concurrent create raced past the check — the unique index is the backstop.
+    render json: { error: 'Ya existe una base de datos externa para esta cuenta' },
+           status: :unprocessable_entity
   end
 
   def update
@@ -67,51 +82,44 @@ class Api::V1::Accounts::Jabvox::DataExport::TargetsController < Api::V1::Accoun
     render json: serialize(@target)
   end
 
-  # GET /targets/:id/remote_schema — tables + columns that already exist in the
-  # customer's DB (map mode), plus the jabvox tables/columns available to map FROM.
-  def remote_schema
-    remote = introspect_remote
-    render json: {
-      remote_tables: remote,
-      jabvox_tables: jabvox_catalog
-    }
-  rescue StandardError => e
-    render json: { error: sanitized(e) }, status: :unprocessable_entity
-  end
-
-  # POST /targets/:id/mapping — saves mode + field mapping (+ optional DDL flag).
-  def mapping
-    @target.update!(mapping_params)
-    Jabvox::ExternalExport.bust_cache(Current.account.id)
-    render json: serialize(@target)
-  rescue ActiveRecord::RecordInvalid => e
-    render json: { error: e.record.errors.full_messages.join(', ') }, status: :unprocessable_entity
-  end
-
   # POST /targets/:id/sync_now — enqueue a manual full backfill.
   def sync_now
     Jabvox::ExternalExport::BackfillJob.perform_later(Current.account.id, incremental: false)
     render json: { queued: true }
   end
 
-  private
+  # GET /targets/:id/history — sync history: counts + a paginated list of records,
+  # optionally filtered by status (queued | exported | failed).
+  def history
+    logs = @target.jabvox_export_sync_logs.with_status(params[:status]).recent_first
+    page = params[:page].to_i
+    page = 1 if page < 1
+    per = 25
+    total = logs.count
+    items = logs.offset((page - 1) * per).limit(per)
 
-  # [{ name:, columns: [{ name:, type: }] }] for the customer's existing tables.
-  def introspect_remote
-    Jabvox::Analytics::AdapterFactory.for(@target).schema_introspection.map do |rel|
-      { name: rel[:name],
-        columns: Array(rel[:columns]).map { |c| { name: c[:name], type: c[:type] } } }
-    end
+    render json: {
+      counts: JabvoxExportSyncLog.counts_for(@target),
+      page: page,
+      total: total,
+      items: items.map { |l| serialize_log(l) }
+    }
   end
 
-  # The jabvox tables and their SAFE columns (what can be mapped FROM). This is
-  # the same whitelist the exporter uses, so the UI can never offer a sensitive
-  # column.
-  def jabvox_catalog
-    Jabvox::ExternalExport::Catalog.exportable_models.map do |model|
-      { table: Jabvox::ExternalExport::Catalog.table_name_for(model),
-        columns: Jabvox::ExternalExport::Catalog.safe_columns(model) }
-    end
+  private
+
+  def serialize_log(log)
+    {
+      id: log.id,
+      model: log.model_name_jabvox,
+      record_id: log.record_id_jabvox,
+      status: log.status_jabvox,
+      operation: log.operation_jabvox,
+      error: log.error_jabvox,
+      attempts: log.attempts_jabvox,
+      last_attempt_at: log.last_attempt_at_jabvox,
+      exported_at: log.exported_at_jabvox
+    }
   end
 
   def scoped
@@ -132,21 +140,17 @@ class Api::V1::Accounts::Jabvox::DataExport::TargetsController < Api::V1::Accoun
   end
 
   def target_params
-    params.require(:target).permit(
+    permitted = params.require(:target).permit(
       :name_jabvox, :engine_jabvox, :host_jabvox, :port_jabvox, :database_jabvox,
       :username_jabvox, :password_jabvox, :ssl_mode_jabvox, :allow_private_network_jabvox,
-      :query_timeout_ms_jabvox, :mode_jabvox
+      :query_timeout_ms_jabvox, selected_modules_jabvox: []
     )
-  end
-
-  # field_mapping is a free-form nested hash { table => { key:, columns: {...} } };
-  # it's validated against the model's safe columns and the remote schema at write
-  # time (RowExporterService only writes whitelisted columns), so permit! is safe.
-  def mapping_params
-    params.require(:target).permit(:mode_jabvox, :create_missing_columns_jabvox).tap do |p|
-      raw = params[:target][:field_mapping_jabvox]
-      p[:field_mapping_jabvox] = raw.respond_to?(:permit!) ? raw.permit!.to_h : (raw || {})
+    # Whitelist selected module keys against the known groups (never trust input).
+    if permitted.key?(:selected_modules_jabvox)
+      valid = Jabvox::ExternalExport::Catalog::EXPORT_GROUPS.map { |g| g[:key] }
+      permitted[:selected_modules_jabvox] = Array(permitted[:selected_modules_jabvox]).map(&:to_s) & valid
     end
+    permitted
   end
 
   # NEVER exposes the password.
@@ -164,9 +168,7 @@ class Api::V1::Accounts::Jabvox::DataExport::TargetsController < Api::V1::Accoun
       query_timeout_ms_jabvox: target.query_timeout_ms_jabvox,
       enabled_jabvox: target.enabled_jabvox,
       status_jabvox: target.status_jabvox,
-      mode_jabvox: target.mode_jabvox,
-      field_mapping_jabvox: target.field_mapping_jabvox,
-      create_missing_columns_jabvox: target.create_missing_columns_jabvox,
+      selected_modules_jabvox: target.selected_modules,
       sync_status_jabvox: target.sync_status_jabvox,
       last_full_sync_at_jabvox: target.last_full_sync_at_jabvox,
       last_sync_result_jabvox: target.last_sync_result_jabvox,

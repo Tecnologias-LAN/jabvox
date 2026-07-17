@@ -16,7 +16,10 @@ class Jabvox::ExternalExport::BackfillService
   def initialize(target)
     @target = target
     @account = target.account
-    @exporter = Jabvox::ExternalExport::RowExporterService.new(target)
+    # Preload the contact->lead map ONCE so derived link columns (jabvox_lead_id
+    # on conversations/messages/dialer calls) are hash lookups, not a query per row.
+    resolver = Jabvox::ExternalExport::DerivedColumns::LeadResolver.preloaded(@account.id)
+    @exporter = Jabvox::ExternalExport::RowExporterService.new(target, resolver: resolver)
     @adapter = Jabvox::ExternalExport::WriteAdapter.new(target)
   end
 
@@ -33,7 +36,10 @@ class Jabvox::ExternalExport::BackfillService
     # ~80 models that dominated the runtime. Reusing a single connection keeps the
     # backfill fast even with many small models.
     @adapter.with_connection do |client|
-      Jabvox::ExternalExport::Catalog.exportable_models.each do |model|
+      models = Jabvox::ExternalExport::Catalog.exportable_models(
+        @account, selected_groups: @target.selected_modules
+      )
+      models.each do |model|
         scope = incremental_scope(model, since)
         next if scope.nil? || !scope.exists?
 
@@ -51,8 +57,15 @@ class Jabvox::ExternalExport::BackfillService
   # append-only models that lack updated_at (so they aren't re-sent every 5 min).
   # Eager-loads the lead↔source link to avoid an N+1 when building correlation ids.
   def incremental_scope(model, since)
-    scope = model.where(account_id: @account.id)
+    # Account scope handles models without a direct account_id (reached via an
+    # association, e.g. custom table rows).
+    scope = Jabvox::ExternalExport::Catalog.account_scope(model, @account.id)
     scope = scope.includes(:jabvox_lead_source_records) if model == JabvoxLead
+    # Derived link columns walk associations; eager-load them to avoid N+1 over
+    # potentially huge message/call volumes during backfill.
+    scope = scope.includes(:conversation) if model == Message
+    scope = scope.includes(:jabvox_dialer_campaign_contact) if model == JabvoxDialerCallLog
+    scope = scope.includes(:contact) if model == Note
     return scope unless since
 
     watermark = %w[updated_at created_at].find { |c| model.column_names.include?(c) }
@@ -61,7 +74,7 @@ class Jabvox::ExternalExport::BackfillService
     # sent in the initial full backfill) instead of re-sending everything.
     return nil unless watermark
 
-    scope.where("#{watermark} > ?", since)
+    scope.where("#{model.table_name}.#{watermark} > ?", since)
   end
 
   # ONE connection reused for the whole model, writing MULTI-ROW upserts per batch.
@@ -93,6 +106,11 @@ class Jabvox::ExternalExport::BackfillService
   def record_model_failure(model, error)
     @failed += 1
     Rails.logger.error("[ExternalExport::Backfill] model #{model.name} skipped: #{error.class}: #{error.message}")
+    # Surface the model-level failure in the history so the customer sees it.
+    JabvoxExportSyncLog.record!(
+      target: @target, model_name: model.name, record_id: 0,
+      status: 'failed', operation: 'backfill', error: "#{model.name}: #{error.message}"
+    )
   end
 
   # Builds a row plan, counting/logging (capped) any per-record failure as skipped.
@@ -104,6 +122,10 @@ class Jabvox::ExternalExport::BackfillService
       Rails.logger.error("[ExternalExport::Backfill] #{model.name}##{record.id}: #{e.class}")
       @logged += 1
     end
+    JabvoxExportSyncLog.record!(
+      target: @target, model_name: model.name, record_id: record.id,
+      status: 'failed', operation: 'backfill', error: e.message
+    )
     nil
   end
 

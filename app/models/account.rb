@@ -217,6 +217,7 @@ class Account < ApplicationRecord
   has_many :jabvox_lead_source_records, dependent: :delete_all
   has_many :jabvox_deleted_leads, dependent: :delete_all
   has_many :jabvox_export_targets, dependent: :destroy
+  has_many :jabvox_export_sync_logs, dependent: :delete_all
   has_many :portals, dependent: :destroy_async, class_name: '::Portal'
   has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
   has_many :teams, dependent: :destroy_async

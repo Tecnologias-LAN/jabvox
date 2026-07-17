@@ -99,7 +99,8 @@
         "connected": "Conectado",
         "waiting": "Esperando llamada",
         "in_call": "En llamada",
-        "in_comments": "En comentarios"
+        "in_comments": "En comentarios",
+        "paused": "Paused"
       },
       "APP_STATE": "Estado",
       "DIALER_STATE": "Dialer",
@@ -107,7 +108,8 @@
       "TIME_IN_STATE": "Tiempo en estado",
       "TIME_IN_DIALER": "Tiempo en dialer",
       "ACTIVE": "Activo",
-      "LIVE_NOTE": "Contadores en tiempo real · Datos del servidor cada 30s"
+      "LIVE_NOTE": "Live counters · Server data every 10s",
+      "DIALER_CAMPAIGN": "Campaign"
     }
   }
 }

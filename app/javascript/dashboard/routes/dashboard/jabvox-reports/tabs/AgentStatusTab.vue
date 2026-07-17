@@ -58,12 +58,24 @@ const availabilityColor = val => {
 const dialerBadgeClass = val => {
   if (val === 'connected') return 'text-n-teal-11 bg-n-teal-3';
   if (val === 'waiting') return 'text-n-blue-11 bg-n-blue-3';
-  if (val === 'in_call') return 'text-n-brand bg-n-alpha-2';
-  if (val === 'in_comments') return 'text-n-amber-11 bg-n-amber-3';
+  if (val === 'in_call') return 'text-n-teal-11 bg-n-teal-3';
+  if (val === 'paused' || val === 'in_comments')
+    return 'text-n-amber-11 bg-n-amber-3';
   return 'text-n-slate-11 bg-n-alpha-2';
 };
 
 const dialerIsActive = val => val && val !== 'inactive';
+
+// Etiqueta del estado del dialer: en pausa muestra el NOMBRE del estado
+// configurado (Comentarios, Baño, …); el resto usa las traducciones.
+const dialerLabel = agent => {
+  if (agent.dialer_state === 'paused' && agent.dialer_pause_name)
+    return agent.dialer_pause_name;
+  return t(
+    `JABVOX_REPORTS.AGENT_STATUS.DIALER.${agent.dialer_state}`,
+    agent.dialer_state
+  );
+};
 
 const onVisibilityChange = () => {
   if (!document.hidden) fetch();
@@ -71,7 +83,7 @@ const onVisibilityChange = () => {
 
 onMounted(() => {
   fetch();
-  pollInterval = setInterval(fetch, 30000);
+  pollInterval = setInterval(fetch, 10000);
   tickInterval = setInterval(() => {
     now.value = Date.now();
   }, 1000);
@@ -197,16 +209,28 @@ onUnmounted(() => {
             </dt>
             <dd>
               <span
-                class="text-xs px-2 py-0.5 rounded-full font-semibold"
+                class="text-xs px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-1"
                 :class="dialerBadgeClass(agent.dialer_state)"
               >
-                {{
-                  t(
-                    `JABVOX_REPORTS.AGENT_STATUS.DIALER.${agent.dialer_state}`,
-                    agent.dialer_state
-                  )
-                }}
+                <span
+                  v-if="agent.dialer_state === 'in_call'"
+                  class="i-lucide-phone-call size-3"
+                />
+                {{ dialerLabel(agent) }}
               </span>
+            </dd>
+          </div>
+
+          <!-- Campaña activa del dialer -->
+          <div
+            v-if="dialerIsActive(agent.dialer_state) && agent.dialer_campaign"
+            class="flex items-center justify-between gap-2"
+          >
+            <dt class="text-xs text-n-slate-10 shrink-0">
+              {{ t('JABVOX_REPORTS.AGENT_STATUS.DIALER_CAMPAIGN') }}
+            </dt>
+            <dd class="text-xs font-medium text-n-slate-12 truncate">
+              {{ agent.dialer_campaign }}
             </dd>
           </div>
 

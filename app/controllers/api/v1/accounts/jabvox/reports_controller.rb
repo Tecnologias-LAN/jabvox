@@ -136,6 +136,8 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
 
   def agent_status
     online_users = OnlineStatusTracker.get_available_users(Current.account.id)
+    pause_names = Current.account.jabvox_dialer_states.pluck(:id, :name).to_h
+    campaign_names = Current.account.jabvox_dialer_campaigns.pluck(:id, :name_jabvox).to_h
 
     account_users = Current.account.account_users
                            .includes(:user)
@@ -145,6 +147,7 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
     render json: {
       agents: account_users.map do |au|
         real_availability = online_users[au.user_id.to_s] || 'offline'
+        dialer = dialer_live_state(au.user_id, pause_names, campaign_names)
         {
           id: au.user_id,
           name: au.user.name,
@@ -155,8 +158,10 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
           app_state_name: au.app_state_name,
           app_state_color: au.app_state_color,
           app_state_since: au.jabvox_app_state_changed_at,
-          dialer_state: au.jabvox_dialer_state || 'inactive',
-          dialer_state_since: au.jabvox_dialer_state_changed_at
+          dialer_state: dialer[:state],
+          dialer_state_since: dialer[:since],
+          dialer_pause_name: dialer[:pause_name],
+          dialer_campaign: dialer[:campaign]
         }
       end
     }
@@ -179,6 +184,34 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
   end
 
   private
+
+  # Estado del dialer EN VIVO desde Redis (la misma fuente que usa el propio
+  # dialer: clave con TTL renovada por el heartbeat del agente). Antes se leía
+  # account_users.jabvox_dialer_state, que nadie actualizaba => todos salían
+  # "inactive" aunque estuvieran conectados.
+  #   - sin clave (desconectado o TTL vencido)  => inactive
+  #   - con in_call_contact_id                  => in_call
+  #   - con state_id (pausa: comentarios, etc.) => paused (+ nombre del estado)
+  #   - conectado sin pausa ni llamada          => waiting
+  def dialer_live_state(user_id, pause_names, campaign_names)
+    raw = Redis::Alfred.get("jabvox_dialer_agent_#{Current.account.id}_#{user_id}")
+    state = raw ? JSON.parse(raw, symbolize_names: true) : nil
+    return { state: 'inactive' } unless state
+
+    since_epoch = state[:state_changed_at].presence || state[:connected_at].presence
+    since = since_epoch ? Time.zone.at(since_epoch.to_i) : nil
+    campaign = campaign_names[state[:campaign_id]]
+    if state[:in_call_contact_id].present?
+      { state: 'in_call', since: since, campaign: campaign }
+    elsif state[:state_id].present?
+      { state: 'paused', since: since, campaign: campaign,
+        pause_name: pause_names[state[:state_id]] }
+    else
+      { state: 'waiting', since: since, campaign: campaign }
+    end
+  rescue StandardError
+    { state: 'inactive' }
+  end
 
   # Admins always pass (inside jabvox_can?); everyone else needs the
   # jabvox_reports_view permission from their custom role. Agents without a

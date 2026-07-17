@@ -2,28 +2,49 @@
 # DB as a parameterized upsert keyed by id_jabvox. Strips sensitive columns and
 # attaches the correlation ids. Never raises to the caller path — the job handles retries.
 class Jabvox::ExternalExport::RowExporterService
-  def initialize(target)
+  # The lead jsonb blob is exploded into per-field columns (see LeadCustomColumns);
+  # it is never written as a column itself.
+  LEAD_JSONB_COLUMN = 'custom_fields_jabvox'.freeze
+
+  # resolver: an optional preloaded DerivedColumns::LeadResolver (backfill reuses
+  # one so it doesn't query the contact->lead map per row). Real-time exports get
+  # a per-call resolver that queries directly.
+  def initialize(target, resolver: nil)
     @target = target
     @adapter = Jabvox::ExternalExport::WriteAdapter.new(target)
+    @lead_custom = Jabvox::ExternalExport::LeadCustomColumns.new(target.account)
+    resolver ||= Jabvox::ExternalExport::DerivedColumns::LeadResolver.new(target.account_id)
+    @derived = Jabvox::ExternalExport::DerivedColumns.new(resolver)
   end
 
   # record is a jabvox model instance whose class is in the catalog.
   # Single-record path (real-time mirror): one guarded, one-connection upsert.
+  #
+  # Self-healing: if the write fails because a column is missing (e.g. a custom
+  # field was added after the schema was last built, and a lead now carries it),
+  # we ensure that table's columns and retry once — so real-time sync never gets
+  # stuck on a schema drift.
   def export(record)
-    model = record.class
-    return unless Jabvox::ExternalExport::Catalog.exportable_models.include?(model)
+    return unless exportable?(record)
 
     guard!
     plan = row_plan(record)
     return if plan.nil?
 
-    @adapter.upsert_row(plan[:table], plan[:values], conflict_key: plan[:key])
+    begin
+      @adapter.upsert_row(plan[:table], plan[:values], conflict_key: plan[:key])
+    rescue Jabvox::ExternalExport::WriteAdapter::ConnectionError => e
+      raise unless missing_column_error?(e)
+
+      ensure_columns_for(record, plan)
+      @adapter.upsert_row(plan[:table], plan[:values], conflict_key: plan[:key])
+    end
   end
 
   # Batch path (backfill): write with an already-open client so a whole batch
   # reuses ONE connection. Returns true if written, false if skipped.
   def export_on(client, record)
-    return false unless Jabvox::ExternalExport::Catalog.exportable_models.include?(record.class)
+    return false unless exportable?(record)
 
     plan = row_plan(record)
     return false if plan.nil?
@@ -34,45 +55,68 @@ class Jabvox::ExternalExport::RowExporterService
 
   # Public plan accessor for the batch backfill: { table:, values:, key: } or nil.
   def plan_for(record)
-    return nil unless Jabvox::ExternalExport::Catalog.exportable_models.include?(record.class)
+    return nil unless exportable?(record)
 
     row_plan(record)
   end
 
   private
 
-  # { table:, values:, key: } for the record given the target's mode, or nil when
-  # the record's table must be skipped (map mode without a valid mapping/key).
+  # True when the error looks like "column X does not exist" on either engine.
+  def missing_column_error?(error)
+    error.message.to_s.match?(/column .* does not exist|Unknown column|no column named/i)
+  end
+
+  # Ensures the mirror table has every column the current plan needs, by adding
+  # the missing ones (idempotent). Used to self-heal after schema drift.
+  def ensure_columns_for(record, plan)
+    model = base_class_of(record)
+    cols = plan[:values].keys.map do |name|
+      { name: name, type: column_type_for(model, name) }
+    end
+    @adapter.add_missing_columns(plan[:table], cols)
+  end
+
+  # Best-effort storage type for a column name: from the model's schema, from the
+  # lead custom-field defs, or text as a safe default.
+  def column_type_for(model, name)
+    if model == JabvoxLead
+      cdef = @lead_custom.column_defs.find { |c| c[:name] == name }
+      return cdef[:type] if cdef
+    end
+    col = model.columns_hash[name]
+    col ? col.type : :text
+  end
+
+  # True when the record's model (normalized to its STI base class) is exportable.
+  def exportable?(record)
+    Jabvox::ExternalExport::Catalog.exportable_models.include?(base_class_of(record))
+  end
+
+  def base_class_of(record)
+    klass = record.class
+    klass.respond_to?(:base_class) ? klass.base_class : klass
+  end
+
+  # { table:, values:, key: } for the record. Single flow: mirror all safe columns
+  # into our own tables, keyed by id_jabvox.
   def row_plan(record)
-    table = Jabvox::ExternalExport::Catalog.table_name_for(record.class)
-    @target.map_mode? ? mapped_plan(record, table) : create_plan(record, table)
+    table = Jabvox::ExternalExport::Catalog.table_name_for(base_class_of(record))
+    create_plan(record, table)
   end
 
   # create mode: mirror all safe columns + correlation ids, keyed by id_jabvox.
+  # For leads, the jsonb blob is replaced by one value per expanded custom column.
+  # For core models (Conversation/Message) and the dialer call log we add derived
+  # link columns (contact_id / jabvox_lead_id) so the CRM can join to the lead.
   def create_plan(record, table)
-    { table: table, values: safe_values(record).merge(correlation_ids(record)), key: 'id_jabvox' }
-  end
-
-  # map mode: ONLY the mapped columns, renamed to the customer's columns, keyed by
-  # the customer's key column. Tables without a mapping or a designated key are
-  # skipped (never guessed) — nothing is written blindly and re-syncs never duplicate.
-  def mapped_plan(record, table)
-    mapping = @target.mapping_for(table)
-    return nil if mapping.nil?
-
-    key_col = mapping['key']
-    return nil if key_col.blank?
-
-    safe = Jabvox::ExternalExport::Catalog.safe_columns(record.class)
-    values = {}
-    mapping['columns'].each do |jabvox_col, customer_col|
-      next unless safe.include?(jabvox_col.to_s) # whitelist: only real, non-sensitive cols
-
-      values[customer_col.to_s] = record[jabvox_col.to_s]
+    values = safe_values(record)
+    if record.is_a?(JabvoxLead)
+      values.delete(LEAD_JSONB_COLUMN)
+      values.merge!(@lead_custom.values_for(record))
     end
-    return nil if values.empty? || !values.key?(key_col)
-
-    { table: table, values: values, key: key_col }
+    values.merge!(@derived.for(record))
+    { table: table, values: values.merge(correlation_ids(record)), key: 'id_jabvox' }
   end
 
   def guard!

@@ -11,7 +11,10 @@ class Jabvox::ExternalExport::WriteAdapter
   end
 
   # { success:, message: } — opens a connection and runs a trivial probe.
+  # Runs the SSRF guard first so testing a connection can't be used to probe the
+  # internal network or cloud metadata (same protection as every write path).
   def test_connection
+    Jabvox::ExternalExport.guard!(@target)
     with_client { |c| probe(c) }
     { success: true, message: 'Conexión exitosa' }
   rescue StandardError => e
@@ -27,7 +30,9 @@ class Jabvox::ExternalExport::WriteAdapter
       exec(client, create_table_sql(table, columns))
       existing = existing_columns(client, table)
       columns.each do |col|
-        next if existing.include?(col[:name])
+        # Compare using the normalized name (same sanitize+truncate the DDL uses),
+        # so idempotency holds for long/special names.
+        next if existing.include?(normalized_identifier(col[:name]))
 
         exec(client, "ALTER TABLE #{qi(table)} ADD COLUMN #{qi(col[:name])} #{sql_type(col[:type])}")
       end
@@ -35,14 +40,14 @@ class Jabvox::ExternalExport::WriteAdapter
     end
   end
 
-  # Adds any mapped columns that don't exist yet (map mode, opt-in DDL). Never
-  # creates the table. Returns the columns that were actually added.
+  # Adds any columns that don't exist yet (opt-in DDL). Never creates the table.
+  # Returns the columns that were actually added.
   def add_missing_columns(table, columns)
     added = []
     with_client do |client|
       existing = existing_columns(client, table)
       columns.each do |col|
-        next if existing.include?(col[:name])
+        next if existing.include?(normalized_identifier(col[:name]))
 
         exec(client, "ALTER TABLE #{qi(table)} ADD COLUMN #{qi(col[:name])} #{sql_type(col[:type])}")
         added << col[:name]
@@ -163,29 +168,51 @@ class Jabvox::ExternalExport::WriteAdapter
   end
 
   # ---- Identifier quoting (mirrors the analytics adapters) ----
+  # Strips everything but [a-zA-Z0-9_] (blocks SQL injection via identifiers) and
+  # truncates to 63 bytes — Postgres/MySQL silently truncate longer identifiers,
+  # which would make a CREATE and a later INSERT disagree on the column name. We
+  # truncate consistently here so DDL and DML always use the same name.
+  MAX_IDENTIFIER_LENGTH = 63
+
+  # The exact identifier that will land in the DB: only [a-zA-Z0-9_], truncated to
+  # 63 bytes. Single source of truth so quoting and existence checks agree.
+  def normalized_identifier(name)
+    name.to_s.gsub(/[^a-zA-Z0-9_]/, '')[0, MAX_IDENTIFIER_LENGTH]
+  end
+
   def qi(name)
     q = @engine == 'mysql' || @engine == 'mariadb' ? '`' : '"'
-    cleaned = name.to_s.gsub(/[^a-zA-Z0-9_]/, '')
-    "#{q}#{cleaned}#{q}"
+    "#{q}#{normalized_identifier(name)}#{q}"
   end
 
   # ---- Connection + execution per engine ----
+  # Runs the SSRF guard and connects to a VALIDATED IP (not the raw hostname), so
+  # DNS rebinding between the check and the connect can't redirect us to an
+  # internal address. The hostname is still passed for TLS certificate/SNI.
   def with_client
+    validated_ips = Jabvox::ExternalExport.guard!(@target)
+    safe_ip = validated_ips.first
     case @engine
-    when 'postgresql' then with_pg { |c| yield c }
-    when 'mysql', 'mariadb' then with_mysql { |c| yield c }
+    when 'postgresql' then with_pg(safe_ip) { |c| yield c }
+    when 'mysql', 'mariadb' then with_mysql(safe_ip) { |c| yield c }
     else raise ConnectionError, "Motor no soportado: #{@engine}"
     end
   end
 
-  def with_pg
+  def with_pg(safe_ip)
     require 'pg'
-    conn = PG.connect(
+    params = {
       host: @target.host_jabvox, port: @target.effective_port,
       user: @target.username_jabvox, password: @target.password_jabvox,
       dbname: @target.database_jabvox, connect_timeout: timeout_s,
-      sslmode: @target.ssl_mode_jabvox.presence || 'prefer'
-    )
+      sslmode: pg_sslmode
+    }
+    # hostaddr pins the connection to the already-validated IP while host keeps
+    # SNI/cert verification working — closes the DNS-rebinding gap.
+    params[:hostaddr] = safe_ip if safe_ip.present?
+    conn = PG.connect(**params)
+    # Cap server-side statement time so a remote lock can't hang the worker.
+    conn.exec("SET statement_timeout = #{timeout_s * 1000}") rescue nil
     yield conn
   rescue PG::Error => e
     raise ConnectionError, e.message
@@ -193,19 +220,35 @@ class Jabvox::ExternalExport::WriteAdapter
     conn&.close
   end
 
-  def with_mysql
+  def with_mysql(safe_ip)
     require 'mysql2'
     client = Mysql2::Client.new(
-      host: @target.host_jabvox, port: @target.effective_port,
+      host: safe_ip.presence || @target.host_jabvox, port: @target.effective_port,
       username: @target.username_jabvox, password: @target.password_jabvox,
       database: @target.database_jabvox, connect_timeout: timeout_s,
-      write_timeout: timeout_s, reconnect: false
+      write_timeout: timeout_s, read_timeout: timeout_s, reconnect: false,
+      **mysql_ssl_opts
     )
     yield client
   rescue Mysql2::Error => e
     raise ConnectionError, e.message
   ensure
     client&.close
+  end
+
+  # PostgreSQL sslmode: default to 'require' (encrypted) instead of 'prefer'
+  # (which silently accepts plaintext). Honors an explicit stronger/weaker choice.
+  def pg_sslmode
+    @target.ssl_mode_jabvox.presence || 'require'
+  end
+
+  # MySQL SSL: map the target's ssl mode to mysql2 flags so credentials/data are
+  # encrypted in transit. 'disable' opts out explicitly; anything else requires SSL.
+  def mysql_ssl_opts
+    mode = @target.ssl_mode_jabvox.to_s
+    return {} if mode == 'disable'
+
+    { ssl_mode: :required }
   end
 
   def exec(client, sql)

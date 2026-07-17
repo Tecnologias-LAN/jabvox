@@ -1,7 +1,11 @@
-# Mixed into every exportable jabvox model (via the initializer, driven by the
-# catalog). On create/update it enqueues a lightweight mirror job — only when the
-# account has the data-export module enabled and an active target. Deletes are not
+# Mixed into every exportable model (via the initializer, driven by the catalog).
+# On create/update it enqueues a lightweight mirror job — only for accounts that
+# have the data-export module enabled and an active target. Deletes are not
 # mirrored (the external DB keeps history for reporting); this is intentional.
+#
+# Most models belong to one account (account_id column). A few reach the account
+# through an association and may even belong to MANY accounts (a User via
+# account_users) — those enqueue one job per exporting account.
 module Jabvox::ExportableToExternalDb
   extend ActiveSupport::Concern
 
@@ -12,13 +16,26 @@ module Jabvox::ExportableToExternalDb
   private
 
   def enqueue_external_export
-    account_id = self[:account_id]
-    return if account_id.blank?
-    return unless Jabvox::ExternalExport.export_enabled?(account_id)
+    export_account_ids.each do |account_id|
+      next if account_id.blank?
+      next unless Jabvox::ExternalExport.export_enabled?(account_id)
 
-    Jabvox::ExternalExport::WriteJob.perform_later(account_id, self.class.name, id)
+      Jabvox::ExternalExport::WriteJob.perform_later(account_id, self.class.name, id)
+    end
   rescue StandardError => e
     # Never let export bookkeeping break the primary write.
     Rails.logger.error("[ExternalExport] enqueue failed #{self.class.name}##{id}: #{e.message}")
+  end
+
+  # The account(s) this record should mirror into: straight from account_id, or
+  # derived for models reached through an association.
+  def export_account_ids
+    return [self[:account_id]] if has_attribute?(:account_id)
+
+    case self
+    when JabvoxCustomTableRow then [jabvox_custom_table&.account_id]
+    when User then account_users.pluck(:account_id)
+    else []
+    end
   end
 end

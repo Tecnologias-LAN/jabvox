@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_16_000003) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_17_000003) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1917,6 +1917,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_16_000003) do
     t.index ["account_id"], name: "index_jabvox_email_templates_on_account_id"
   end
 
+  create_table "jabvox_export_sync_logs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "jabvox_export_target_id", null: false
+    t.string "model_name_jabvox", null: false
+    t.bigint "record_id_jabvox", null: false
+    t.string "status_jabvox", default: "queued", null: false
+    t.string "operation_jabvox", default: "realtime", null: false
+    t.string "error_jabvox"
+    t.integer "attempts_jabvox", default: 0, null: false
+    t.datetime "last_attempt_at_jabvox"
+    t.datetime "exported_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "status_jabvox"], name: "index_jabvox_export_sync_logs_on_account_id_and_status_jabvox"
+    t.index ["account_id"], name: "index_jabvox_export_sync_logs_on_account_id"
+    t.index ["jabvox_export_target_id", "model_name_jabvox", "record_id_jabvox"], name: "idx_export_sync_logs_unique_record", unique: true
+    t.index ["jabvox_export_target_id", "status_jabvox", "last_attempt_at_jabvox"], name: "idx_export_sync_logs_target_status"
+    t.index ["jabvox_export_target_id"], name: "index_jabvox_export_sync_logs_on_jabvox_export_target_id"
+  end
+
   create_table "jabvox_export_targets", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "name_jabvox", null: false
@@ -1944,7 +1964,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_16_000003) do
     t.datetime "last_full_sync_at_jabvox"
     t.jsonb "last_sync_result_jabvox", default: {}, null: false
     t.string "sync_status_jabvox", default: "idle", null: false
+    t.jsonb "selected_modules_jabvox", default: [], null: false
     t.index ["account_id", "name_jabvox"], name: "index_jabvox_export_targets_on_account_id_and_name_jabvox", unique: true
+    t.index ["account_id"], name: "idx_export_targets_one_per_account", unique: true
     t.index ["account_id"], name: "index_jabvox_export_targets_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_export_targets_on_created_by_id"
   end
@@ -3361,6 +3383,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_16_000003) do
   add_foreign_key "jabvox_email_send_logs", "accounts"
   add_foreign_key "jabvox_email_send_logs", "users"
   add_foreign_key "jabvox_email_templates", "accounts"
+  add_foreign_key "jabvox_export_sync_logs", "accounts"
+  add_foreign_key "jabvox_export_sync_logs", "jabvox_export_targets"
   add_foreign_key "jabvox_export_targets", "accounts"
   add_foreign_key "jabvox_export_targets", "users", column: "created_by_id"
   add_foreign_key "jabvox_field_visibilities", "accounts"

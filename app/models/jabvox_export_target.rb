@@ -24,6 +24,7 @@
 #  port_jabvox                   :integer
 #  query_timeout_ms_jabvox       :integer          default(15000), not null
 #  schema_built_at_jabvox        :datetime
+#  selected_modules_jabvox       :jsonb            not null
 #  ssl_mode_jabvox               :string           default("prefer"), not null
 #  status_jabvox                 :string           default("untested"), not null
 #  sync_status_jabvox            :string           default("idle"), not null
@@ -35,6 +36,7 @@
 #
 # Indexes
 #
+#  idx_export_targets_one_per_account                         (account_id) UNIQUE
 #  index_jabvox_export_targets_on_account_id                  (account_id)
 #  index_jabvox_export_targets_on_account_id_and_name_jabvox  (account_id,name_jabvox) UNIQUE
 #  index_jabvox_export_targets_on_created_by_id               (created_by_id)
@@ -49,22 +51,23 @@ class JabvoxExportTarget < ApplicationRecord
 
   ENGINES = %w[postgresql mysql mariadb].freeze
   DEFAULT_PORTS = { 'postgresql' => 5432, 'mysql' => 3306, 'mariadb' => 3306 }.freeze
-  # 'create' builds our own mirror tables; 'map' writes only into columns that
-  # already exist in the customer's DB, per field_mapping_jabvox.
-  MODES = %w[create map].freeze
 
   encrypts :password_jabvox if Jabvox.encryption_configured?
 
   belongs_to :account
   belongs_to :created_by, class_name: 'User', optional: true
+  has_many :jabvox_export_sync_logs, dependent: :delete_all
 
   validates :name_jabvox, presence: true, uniqueness: { scope: :account_id }
   validates :engine_jabvox, inclusion: { in: ENGINES }
-  validates :mode_jabvox, inclusion: { in: MODES }
   validates :host_jabvox, presence: true
   validates :database_jabvox, presence: true
   validates :query_timeout_ms_jabvox, numericality: { greater_than: 0, less_than_or_equal_to: 120_000 }
   validates :port_jabvox, numericality: { greater_than: 0, less_than_or_equal_to: 65_535 }, allow_nil: true
+  # Golden rule: exactly ONE external database per account, to keep the real-time
+  # sync cheap. A second target for the same account is rejected at the model
+  # level (belt) and the controller enforces it too (suspenders).
+  validate :single_target_per_account, on: :create
 
   # The single enabled export target for an account (there is one DB per account).
   scope :active, -> { where(enabled_jabvox: true) }
@@ -73,33 +76,18 @@ class JabvoxExportTarget < ApplicationRecord
     port_jabvox.presence || DEFAULT_PORTS[engine_jabvox.to_s]
   end
 
-  def map_mode?
-    mode_jabvox.to_s == 'map'
+  # Group keys the customer chose to export. Empty array = export everything the
+  # account has enabled. Always stored as an array of strings.
+  def selected_modules
+    Array(selected_modules_jabvox).map(&:to_s)
   end
 
-  # Mapping for one mirror table, or nil when the table isn't mapped.
-  # Shape: { 'key' => '<customer key column>',
-  #          'columns' => { '<jabvox_col>' => '<customer_col>', ... } }
-  def mapping_for(table)
-    m = (field_mapping_jabvox || {})[table.to_s]
-    return nil unless m.is_a?(Hash)
+  private
 
-    cols = m['columns']
-    return nil unless cols.is_a?(Hash) && cols.present?
+  def single_target_per_account
+    return if account_id.blank?
+    return unless self.class.where(account_id: account_id).where.not(id: id).exists?
 
-    { 'key' => m['key'].to_s.presence, 'columns' => cols }
-  end
-
-  # Compatibility shims so the analytics DB adapters (connection_params) work as-is.
-  def max_rows_jabvox
-    1
-  end
-
-  def sqlite_path_jabvox
-    nil
-  end
-
-  def sqlite?
-    false
+    errors.add(:base, 'Solo se permite una base de datos externa por cuenta')
   end
 end

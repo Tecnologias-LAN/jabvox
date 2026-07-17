@@ -21,6 +21,7 @@
   - default
   - mailers
   - action_mailbox_routing
+  - jabvox_export
   - low
   - scheduled_jobs
   - deferred

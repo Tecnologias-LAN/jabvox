@@ -16,11 +16,11 @@ export const dataExportAPI = {
   buildSchema: id => axios.post(`${base}/targets/${id}/build_schema`),
   toggle: (id, enabled) =>
     axios.post(`${base}/targets/${id}/toggle`, { enabled }),
-  // Map mode: introspect the customer DB + list the jabvox tables/columns to map from.
-  remoteSchema: id => axios.get(`${base}/targets/${id}/remote_schema`),
-  // Save mode + field mapping (+ create-missing-columns flag).
-  saveMapping: (id, target) =>
-    axios.post(`${base}/targets/${id}/mapping`, { target }),
+  // Export groups (modules) available for this account, for the config checklist.
+  availableGroups: () => axios.get(`${base}/targets/available_groups`),
   // Enqueue a manual full backfill.
   syncNow: id => axios.post(`${base}/targets/${id}/sync_now`),
+  // Sync history: counts + paginated records, optionally filtered by status.
+  history: (id, { status, page } = {}) =>
+    axios.get(`${base}/targets/${id}/history`, { params: { status, page } }),
 };

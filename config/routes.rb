@@ -713,14 +713,14 @@ Rails.application.routes.draw do
               resources :targets, only: [:index, :show, :create, :update, :destroy] do
                 collection do
                   post :test_connection, action: :test_connection_unsaved
+                  get :available_groups
                 end
                 member do
                   post :test_connection
                   post :build_schema
                   post :toggle
-                  get :remote_schema
-                  post :mapping
                   post :sync_now
+                  get :history
                 end
               end
             end
