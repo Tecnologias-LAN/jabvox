@@ -444,6 +444,7 @@ Rails.application.routes.draw do
               member do
                 patch :custom_fields
                 patch :update_details
+                patch :claim
               end
             end
             resources :lead_campaigns, controller: 'campaigns'

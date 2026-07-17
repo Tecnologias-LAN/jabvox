@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 import messageAPI from 'dashboard/api/inbox/message';
+import leadsAPI from 'dashboard/api/jabvox/leads';
 import Button from 'dashboard/components-next/button/Button.vue';
 import JabvoxConversationProducts from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationProducts.vue';
 import JabvoxConversationHistory from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationHistory.vue';
@@ -37,6 +38,7 @@ const leads = useMapGetter('jabvoxLeads/getLeads');
 const uiFlags = useMapGetter('jabvoxLeads/getUIFlags');
 const managementStates = useMapGetter('jabvoxManagementStates/getActiveStates');
 const inboxes = useMapGetter('inboxes/getInboxes');
+const currentUser = useMapGetter('getCurrentUser');
 const contactNotesGetterFn = useMapGetter(
   'contactNotes/getAllNotesByContactId'
 );
@@ -542,6 +544,19 @@ watch(selectedInboxId, () => {
   selectedTemplate.value = null;
 });
 
+// Toma la gestión del lead: lo asigna (lead + contacto + conversaciones abiertas)
+// al agente actual vía el backend, que usa LeadConversationAssignmentSync. Se
+// llama al enviar plantilla para que la conversación quede en la bandeja del
+// agente. No rompe el flujo si falla (el mensaje ya se envió).
+const claimLead = async () => {
+  try {
+    await leadsAPI.claim(leadId.value);
+    await store.dispatch('jabvoxLeads/fetchLead', leadId.value);
+  } catch (e) {
+    e?.toString();
+  }
+};
+
 // Crea la conversación. `messagePayload` (opcional) trae la plantilla ya
 // procesada { message, templateParams } cuando se inicia por WhatsApp API.
 const createConversation = async messagePayload => {
@@ -550,6 +565,11 @@ const createConversation = async messagePayload => {
     const params = {
       contactId: lead.value.contact.id,
       inboxId: selectedInboxId.value,
+      // Asignar la conversación al iniciarla. Sin esto quedaba sin dueño y no
+      // aparecía en la bandeja del agente (los agentes solo ven las suyas), solo
+      // accesible desde Leads. Hereda el dueño del LEAD (lead_assignee_id, no el
+      // de la conversación) si lo tiene; si no, el usuario actual que la envía.
+      assigneeId: lead.value.lead_assignee_id || currentUser.value?.id,
     };
     if (messagePayload) {
       // Enviar como plantilla: el MessageBuilder guarda template_params en
@@ -622,6 +642,9 @@ const handleTemplateSendToConversation = async payload => {
       echo_id: `jabvox_${Date.now()}`,
     });
     messages.value.push(response.data);
+    // Al enviar plantilla, tomar la gestión: el lead y su conversación quedan
+    // asignados a mí (aunque estuvieran sin dueño o de otro agente).
+    await claimLead();
     showTemplatePanel.value = false;
     panelTemplate.value = null;
     scrollToBottom(chatContainer);

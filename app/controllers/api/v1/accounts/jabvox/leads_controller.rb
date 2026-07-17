@@ -182,6 +182,20 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     render json: { error: e.record.errors.full_messages.join(', ') }, status: :unprocessable_entity
   end
 
+  # Assigns the lead (and its open conversations) to the current agent. Called
+  # after sending a WhatsApp template from the lead detail so lead + contact +
+  # conversation all end up owned by whoever started the chat — otherwise the
+  # conversation stays unassigned/owned by someone else and agents (who only see
+  # their own) can't find it in Conversations.
+  def claim
+    lead = Current.account.jabvox_leads.find(params[:id])
+    lead.update!(assignee_id: current_user.id)
+    synced = Jabvox::LeadConversationAssignmentSync.new(Current.account).sync_lead(lead, current_user)
+    render json: { id: lead.id, assignee_id: current_user.id, conversations_synced: synced }
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.record.errors.full_messages.join(', ') }, status: :unprocessable_entity
+  end
+
   private
 
   # Flat, string-keyed field map for the WhatsApp template composer: default
