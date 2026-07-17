@@ -165,7 +165,13 @@
       },
       "SOURCE_DIALER": "From dialer",
       "SOURCE_CLICK_TO_CALL": "From click-to-call",
-      "SOURCE_LEAD_DETAIL": "From lead detail"
+      "SOURCE_LEAD_DETAIL": "From lead detail",
+      "NOTE_OPTIONAL_PLACEHOLDER": "Note (optional)…",
+      "NOTE_HIDDEN_HINT": "This management type has no note; it saves with the management name.",
+      "SHOW_GESTION_DETAILS": "Show management details",
+      "HIDE_GESTION_DETAILS": "Hide details",
+      "GESTION_GROUP": "State",
+      "NO_GESTION_ANSWERS": "This management has no recorded answers."
     },
     "SUBTITLE": "Manage and follow up on your prospects",
     "EMPTY_TITLE": "No leads"

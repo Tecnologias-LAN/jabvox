@@ -21,6 +21,7 @@ import ManagementQuestionsForm from 'dashboard/components/jabvox/managementState
 import {
   isManagementValid,
   buildManagementContentAttributes,
+  noteRule,
   stateGroups,
   statesInGroup,
   hasGroups,
@@ -342,7 +343,12 @@ const loadContactNotes = () => {
 // required. The chat's private note (withGestion=false) is plain text — its
 // gestión picker was removed.
 const sendMessage = async (privateFlag = false, withGestion = false) => {
-  const content = newMessage.value.trim();
+  const noteText = newMessage.value.trim();
+  // La nota es OPCIONAL según el note_mode del tipo de gestión: con una gestión
+  // seleccionada y sin texto, el contenido cae al nombre de la gestión (igual
+  // que el dialer). Sin gestión, la nota pura sí exige texto.
+  const stateForNote = withGestion ? selectedManagementState.value : null;
+  const content = noteText || stateForNote?.name_jabvox || '';
   if (!content || isSending.value) return;
 
   if (
@@ -351,7 +357,7 @@ const sendMessage = async (privateFlag = false, withGestion = false) => {
     !isManagementValid(
       selectedManagementState.value,
       managementAnswers.value,
-      content
+      noteText
     )
   ) {
     useAlert(t('JABVOX_MANAGEMENT_STATES.QUESTIONS.INCOMPLETE'));
@@ -442,11 +448,49 @@ const onChatKeydown = e => {
   }
 };
 
-const onNoteKeydown = e => {
+// Enter en la pestaña Notas guarda CON la gestión seleccionada (antes llamaba
+// sendMessage(true) sin gestión y descartaba el estado + respuestas elegidas).
+const onGestionNoteKeydown = e => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
-    sendMessage(true);
+    sendMessage(true, true);
   }
+};
+
+// Regla de la nota del tipo de gestión seleccionado (oculta/opcional/requerida).
+const gestionNoteRule = computed(() => noteRule(selectedManagementState.value));
+
+// El botón de guardar en Notas: con texto siempre; sin texto solo cuando hay
+// una gestión seleccionada cuya nota NO es requerida (cae al nombre del estado).
+const canSaveGestionNote = computed(() => {
+  if (newMessage.value.trim()) return true;
+  const state = selectedManagementState.value;
+  return !!state && !gestionNoteRule.value.required;
+});
+
+// ── Gestiones expandibles en Notas: respuestas de preguntas y detalles ──
+const expandedNotes = ref(new Set());
+const toggleNoteExpanded = id => {
+  const next = new Set(expandedNotes.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  expandedNotes.value = next;
+};
+// Respuestas guardadas con la gestión (snake_case en notas de conversación,
+// camelCase en notas de contacto).
+const noteAnswers = attrs =>
+  attrs?.jabvox_management_answers || attrs?.jabvoxManagementAnswers || [];
+const noteGroup = attrs =>
+  attrs?.jabvox_management_state_group ||
+  attrs?.jabvoxManagementStateGroup ||
+  '';
+const noteHasDetails = attrs =>
+  noteAnswers(attrs).length > 0 || !!noteGroup(attrs);
+const answerDisplay = value => {
+  if (Array.isArray(value)) return value.join(', ');
+  if (value === true) return t('JABVOX_LEADS.DETAIL.YES');
+  if (value === false) return t('JABVOX_LEADS.DETAIL.NO');
+  return `${value ?? ''}`;
 };
 
 const goToLead = id => {
@@ -1485,6 +1529,15 @@ onMounted(async () => {
                     <div
                       v-if="note.content"
                       class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words bg-n-amber-3 border border-n-amber-6 text-n-amber-11 shadow-sm"
+                      :class="
+                        noteHasDetails(note.content_attributes)
+                          ? 'cursor-pointer hover:bg-n-amber-4 transition-colors'
+                          : ''
+                      "
+                      @click="
+                        noteHasDetails(note.content_attributes) &&
+                          toggleNoteExpanded(note.id)
+                      "
                     >
                       <div
                         v-if="
@@ -1525,6 +1578,54 @@ onMounted(async () => {
                         </span>
                       </div>
                       {{ note.content }}
+                      <!-- Indicador de expandible + detalle de la gestión -->
+                      <div
+                        v-if="noteHasDetails(note.content_attributes)"
+                        class="flex items-center gap-1 mt-1 text-[11px] font-medium text-n-amber-11/80 select-none"
+                      >
+                        <span
+                          class="size-3 transition-transform"
+                          :class="
+                            expandedNotes.has(note.id)
+                              ? 'i-lucide-chevron-down'
+                              : 'i-lucide-chevron-right'
+                          "
+                        />
+                        {{
+                          expandedNotes.has(note.id)
+                            ? t('JABVOX_LEADS.DETAIL.HIDE_GESTION_DETAILS')
+                            : t('JABVOX_LEADS.DETAIL.SHOW_GESTION_DETAILS')
+                        }}
+                      </div>
+                      <div
+                        v-if="expandedNotes.has(note.id)"
+                        class="mt-2 pt-2 border-t border-n-amber-6 space-y-1.5"
+                        @click.stop
+                      >
+                        <div
+                          v-if="noteGroup(note.content_attributes)"
+                          class="text-xs"
+                        >
+                          <span class="font-semibold">
+                            {{ t('JABVOX_LEADS.DETAIL.GESTION_GROUP') }}:
+                          </span>
+                          {{ noteGroup(note.content_attributes) }}
+                        </div>
+                        <div
+                          v-for="ans in noteAnswers(note.content_attributes)"
+                          :key="ans.question_id ?? ans.questionId ?? ans.label"
+                          class="text-xs"
+                        >
+                          <span class="font-semibold">{{ ans.label }}:</span>
+                          {{ answerDisplay(ans.value) }}
+                        </div>
+                        <p
+                          v-if="!noteAnswers(note.content_attributes).length"
+                          class="text-xs italic text-n-amber-11/70"
+                        >
+                          {{ t('JABVOX_LEADS.DETAIL.NO_GESTION_ANSWERS') }}
+                        </p>
+                      </div>
                     </div>
                     <span class="text-[11px] text-n-slate-10 px-1">
                       {{ formatTime(note.created_at) }}
@@ -1547,6 +1648,15 @@ onMounted(async () => {
                     <div
                       v-if="note.content"
                       class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words bg-n-amber-3 border border-n-amber-6 text-n-amber-11 shadow-sm"
+                      :class="
+                        noteHasDetails(note.contentAttributes)
+                          ? 'cursor-pointer hover:bg-n-amber-4 transition-colors'
+                          : ''
+                      "
+                      @click="
+                        noteHasDetails(note.contentAttributes) &&
+                          toggleNoteExpanded(note.id)
+                      "
                     >
                       <div
                         v-if="note.contentAttributes?.jabvoxManagementStateName"
@@ -1583,6 +1693,54 @@ onMounted(async () => {
                         </span>
                       </div>
                       {{ note.content }}
+                      <!-- Indicador de expandible + detalle de la gestión -->
+                      <div
+                        v-if="noteHasDetails(note.contentAttributes)"
+                        class="flex items-center gap-1 mt-1 text-[11px] font-medium text-n-amber-11/80 select-none"
+                      >
+                        <span
+                          class="size-3 transition-transform"
+                          :class="
+                            expandedNotes.has(note.id)
+                              ? 'i-lucide-chevron-down'
+                              : 'i-lucide-chevron-right'
+                          "
+                        />
+                        {{
+                          expandedNotes.has(note.id)
+                            ? t('JABVOX_LEADS.DETAIL.HIDE_GESTION_DETAILS')
+                            : t('JABVOX_LEADS.DETAIL.SHOW_GESTION_DETAILS')
+                        }}
+                      </div>
+                      <div
+                        v-if="expandedNotes.has(note.id)"
+                        class="mt-2 pt-2 border-t border-n-amber-6 space-y-1.5"
+                        @click.stop
+                      >
+                        <div
+                          v-if="noteGroup(note.contentAttributes)"
+                          class="text-xs"
+                        >
+                          <span class="font-semibold">
+                            {{ t('JABVOX_LEADS.DETAIL.GESTION_GROUP') }}:
+                          </span>
+                          {{ noteGroup(note.contentAttributes) }}
+                        </div>
+                        <div
+                          v-for="ans in noteAnswers(note.contentAttributes)"
+                          :key="ans.question_id ?? ans.questionId ?? ans.label"
+                          class="text-xs"
+                        >
+                          <span class="font-semibold">{{ ans.label }}:</span>
+                          {{ answerDisplay(ans.value) }}
+                        </div>
+                        <p
+                          v-if="!noteAnswers(note.contentAttributes).length"
+                          class="text-xs italic text-n-amber-11/70"
+                        >
+                          {{ t('JABVOX_LEADS.DETAIL.NO_GESTION_ANSWERS') }}
+                        </p>
+                      </div>
                     </div>
                     <span class="text-[11px] text-n-slate-10 px-1">
                       {{ formatTime(note.createdAt) }}
@@ -1707,17 +1865,31 @@ onMounted(async () => {
                 class="mt-2"
               />
               <div class="flex gap-2 items-end">
+                <!-- La nota sigue el note_mode del tipo de gestión: oculta no se
+                     muestra; opcional permite guardar sin texto (cae al nombre
+                     de la gestión); requerida exige texto. -->
                 <textarea
+                  v-if="!(selectedManagementState && gestionNoteRule.hidden)"
                   v-model="newMessage"
                   rows="2"
-                  :placeholder="t('JABVOX_LEADS.DETAIL.NOTE_PLACEHOLDER')"
+                  :placeholder="
+                    selectedManagementState && !gestionNoteRule.required
+                      ? t('JABVOX_LEADS.DETAIL.NOTE_OPTIONAL_PLACEHOLDER')
+                      : t('JABVOX_LEADS.DETAIL.NOTE_PLACEHOLDER')
+                  "
                   class="reset-base flex-1 resize-none rounded-lg border border-n-amber-6 bg-n-amber-3 text-sm text-n-amber-11 px-3 py-2 focus:outline-none focus:border-n-amber-8 transition-colors placeholder-n-amber-11/60"
-                  @keydown="onNoteKeydown"
+                  @keydown="onGestionNoteKeydown"
                 />
+                <span
+                  v-else
+                  class="flex-1 text-xs text-n-slate-10 italic self-center"
+                >
+                  {{ t('JABVOX_LEADS.DETAIL.NOTE_HIDDEN_HINT') }}
+                </span>
                 <Button
                   size="small"
                   :is-loading="isSending"
-                  :disabled="!newMessage.trim()"
+                  :disabled="!canSaveGestionNote"
                   icon="i-lucide-sticky-note"
                   @click="sendMessage(true, true)"
                 />

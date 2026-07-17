@@ -165,7 +165,13 @@
       },
       "SOURCE_DIALER": "Desde dialer",
       "SOURCE_CLICK_TO_CALL": "Desde click-to-call",
-      "SOURCE_LEAD_DETAIL": "Desde detalle del lead"
+      "SOURCE_LEAD_DETAIL": "Desde detalle del lead",
+      "NOTE_OPTIONAL_PLACEHOLDER": "Nota (opcional)…",
+      "NOTE_HIDDEN_HINT": "Este tipo de gestión no lleva nota; se guarda con el nombre de la gestión.",
+      "SHOW_GESTION_DETAILS": "Ver detalles de la gestión",
+      "HIDE_GESTION_DETAILS": "Ocultar detalles",
+      "GESTION_GROUP": "Estado",
+      "NO_GESTION_ANSWERS": "Esta gestión no tiene respuestas registradas."
     },
     "SUBTITLE": "Gestiona y da seguimiento a tus prospectos",
     "EMPTY_TITLE": "Sin leads"
