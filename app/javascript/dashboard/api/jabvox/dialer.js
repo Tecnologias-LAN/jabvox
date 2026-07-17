@@ -39,6 +39,8 @@ export const dialerCampaignsAPI = {
   getReport: (id, params) =>
     axios.get(`${campaignsClient.url}/${id}/report`, { params }),
   getProgress: id => axios.get(`${campaignsClient.url}/${id}/progress`),
+  // Live monitor: agentes conectados a la campaña + llamadas en curso (poll ~3s).
+  liveMonitor: id => axios.get(`${campaignsClient.url}/${id}/live_monitor`),
   redialLead: (id, data) =>
     axios.patch(`${campaignsClient.url}/${id}/redial_lead`, data),
   excludeLead: (id, data) =>

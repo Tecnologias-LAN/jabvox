@@ -43,6 +43,9 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
       extension: user_ext&.extension_jabvox,
       state_id: nil,
       connected_at: Time.current.to_i,
+      # Cuándo cambió por última vez el estado visible (esperando/pausa/llamada),
+      # para el "tiempo en estado" del reporte de agentes.
+      state_changed_at: Time.current.to_i,
       pubsub_token: current_user.pubsub_token
     }
     write_agent_state(agent_data)
@@ -65,7 +68,9 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     return head :not_found unless data
 
     paused = params[:state_id].present?
-    data[:state_id] = params[:state_id].presence&.to_i
+    new_state_id = params[:state_id].presence&.to_i
+    data[:state_changed_at] = Time.current.to_i if data[:state_id] != new_state_id
+    data[:state_id] = new_state_id
     write_agent_state(data)
     sync_queue_pause(data[:campaign_id], data[:extension], paused: paused)
     head :ok
@@ -179,6 +184,7 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     contact = Current.account.jabvox_dialer_campaign_contacts
                      .find_by(id: params[:dialer_contact_id], status_jabvox: 'calling')
     contact&.update!(status_jabvox: 'no_answer')
+    clear_in_call_marker
     hangup_agent_call
     ActionCable.server.broadcast(
       current_user.pubsub_token,
@@ -297,24 +303,48 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     Redis::Alfred.setex(agent_cache_key_for, data.to_json, AGENT_TTL)
   end
 
+  # Quita la marca de "en llamada" del estado Redis del agente (la pone el AMI
+  # listener al asignar la llamada) para que el reporte de agentes vuelva a
+  # mostrar "esperando llamada" al colgar desde el frontend.
+  def clear_in_call_marker
+    data = read_agent_state
+    return unless data && data[:in_call_contact_id].present?
+
+    data.delete(:in_call_contact_id)
+    data[:state_changed_at] = Time.current.to_i
+    write_agent_state(data)
+  rescue StandardError
+    nil
+  end
+
   def remove_agent_state
     Redis::Alfred.delete(agent_cache_key_for)
   end
 
+  # Connected-agent tracking uses a native Redis SET (SADD/SREM/SMEMBERS) instead
+  # of a read-modify-write JSON array. SADD/SREM are atomic, so many agents
+  # connecting/disconnecting concurrently can never clobber each other's updates
+  # (the old JSON-array approach lost writes under load — a real risk in
+  # predictive mode with dozens of agents toggling at once).
   def connected_agent_ids
-    raw = Redis::Alfred.get(agents_set_key)
-    raw ? JSON.parse(raw) : []
+    Redis::Alfred.smembers(agents_set_key).map(&:to_i)
   rescue StandardError
     []
   end
 
   def register_connected_agent(uid)
-    ids = connected_agent_ids
-    Redis::Alfred.set(agents_set_key, (ids + [uid.to_i]).uniq.to_json, ex: 2.hours.to_i)
+    # One-time transition: an old deploy stored this key as a JSON string, so a
+    # SADD would raise WRONGTYPE. Drop any non-set value before adding.
+    Redis::Alfred.delete(agents_set_key) if Redis::Alfred.type(agents_set_key) != 'set'
+    Redis::Alfred.sadd(agents_set_key, uid.to_i)
+    Redis::Alfred.expire(agents_set_key, 2.hours.to_i)
+  rescue StandardError => e
+    Rails.logger.error "❌ [Dialer] register_connected_agent failed | #{e.message}"
   end
 
   def unregister_connected_agent(uid)
-    ids = connected_agent_ids
-    Redis::Alfred.set(agents_set_key, (ids - [uid.to_i]).to_json, ex: 2.hours.to_i)
+    Redis::Alfred.srem(agents_set_key, uid.to_i)
+  rescue StandardError => e
+    Rails.logger.error "❌ [Dialer] unregister_connected_agent failed | #{e.message}"
   end
 end

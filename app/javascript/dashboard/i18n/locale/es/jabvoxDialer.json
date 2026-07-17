@@ -92,7 +92,8 @@
       "METRIC_AGENTS": "Agentes",
       "PROGRESS_DIALED": "Marcados: {dialed} / {total}",
       "PROGRESS_REMAINING": "Faltan: {count}",
-      "PROGRESS_RETRY": "Reintentos: {count}"
+      "PROGRESS_RETRY": "Reintentos: {count}",
+      "LIVE_MONITOR": "Monitoreo en vivo"
     },
     "FORM": {
       "NAME": "Nombre de la campaña",
@@ -340,7 +341,28 @@
       "CANCEL": "Cancelar",
       "DELETE": "Eliminar",
       "SAVE": "Guardar",
-      "SEARCH": "Buscar..."
+      "SEARCH": "Buscar...",
+      "CLOSE": "Cerrar",
+      "LOADING": "Cargando…"
+    },
+    "LIVE": {
+      "TITLE": "En vivo · {name}",
+      "TITLE_PLAIN": "Monitoreo en vivo",
+      "ACTIVE": "Campaña activa",
+      "INACTIVE": "Campaña inactiva",
+      "CONNECTED_COUNT": "{n} agente(s) conectado(s)",
+      "CALLING_COUNT": "{n} llamada(s) en curso",
+      "REALTIME": "Tiempo real",
+      "ACTIVE_CALLS": "Llamadas en curso",
+      "NO_ACTIVE_CALLS": "El marcador no está sacando llamadas en este momento.",
+      "CONNECTED_AGENTS": "Agentes conectados",
+      "NO_AGENTS": "No hay agentes conectados a esta campaña.",
+      "STATE": {
+        "waiting": "Esperando llamada",
+        "in_call": "En llamada",
+        "paused": "En pausa"
+      },
+      "CONNECTION_LOST": "Reintentando conexión…"
     }
   }
 }

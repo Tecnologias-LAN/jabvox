@@ -27,6 +27,7 @@ class JabvoxDialerCampaignPolicy < ApplicationPolicy
   def originate?    = @account_user.administrator? || @account_user.agent?
   def retry_contacts? = can_manage?
   def progress?     = @account_user.administrator? || @account_user.agent?
+  def live_monitor? = @account_user.administrator? || @account_user.agent?
   def redial_lead?  = can_manage?
   def exclude_lead? = can_manage?
 

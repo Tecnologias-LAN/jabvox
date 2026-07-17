@@ -54,6 +54,29 @@ module Redis::Alfred
       count
     end
 
+    # set operations
+
+    # add a member to a redis set (atomic; no-op if already present)
+    def sadd(key, member)
+      $alfred.with { |conn| conn.sadd(key, member) }
+    end
+
+    # remove a member from a redis set (atomic; no-op if absent)
+    def srem(key, member)
+      $alfred.with { |conn| conn.srem(key, member) }
+    end
+
+    # all members of a redis set
+    def smembers(key)
+      $alfred.with { |conn| conn.smembers(key) }
+    end
+
+    # redis type of a key ("set", "string", "none", …) — used to migrate a key
+    # whose type changed between deploys before operating on it.
+    def type(key)
+      $alfred.with { |conn| conn.type(key) }
+    end
+
     # list operations
 
     def llen(key)

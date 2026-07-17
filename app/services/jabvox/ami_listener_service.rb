@@ -4,6 +4,11 @@ module Jabvox
   class AmiListenerService # rubocop:disable Metrics/ClassLength
     RECONNECT_DELAY = 10
     READ_TIMEOUT    = 35
+    # Bound the TCP connect so an account whose PBX is powered off (unreachable
+    # host) fails in seconds instead of blocking ~75s on the OS default connect
+    # timeout. Without this, each dead account's listener thread stalls on
+    # connect before it can even log the failure and back off.
+    CONNECT_TIMEOUT = 5
 
     # Hard cap on cached call markers. Each active call adds a few keys (channel,
     # uniqueid, linkedid); when a Hangup is missed, its keys would leak forever, so
@@ -35,7 +40,7 @@ module Jabvox
       raise 'No VoIP config' unless config&.host.present?
 
       @config = config
-      @socket = TCPSocket.new(config.host, config.port.to_i)
+      @socket = Jabvox::DialerService.connect_with_timeout(config.host, config.port.to_i, CONNECT_TIMEOUT)
       @socket.gets # banner
       login(@socket, config)
       Rails.logger.info "✅ [AmiListener] account=#{@account_id} connected to #{config.host}"
@@ -501,11 +506,33 @@ module Jabvox
       value.to_s == @account_id.to_s
     end
 
+    # Marca/limpia "en llamada" en el estado Redis del agente, para que el
+    # reporte de agentes muestre el estado real (esperando / en llamada) en vivo.
+    AGENT_STATE_TTL = 10.minutes.to_i
+
+    def mark_agent_call(user_id, contact_id)
+      key = "jabvox_dialer_agent_#{@account_id}_#{user_id}"
+      raw = Redis::Alfred.get(key)
+      return unless raw
+
+      data = JSON.parse(raw, symbolize_names: true)
+      if contact_id
+        data[:in_call_contact_id] = contact_id
+      else
+        data.delete(:in_call_contact_id)
+      end
+      data[:state_changed_at] = Time.current.to_i
+      Redis::Alfred.setex(key, data.to_json, AGENT_STATE_TTL)
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] mark_agent_call failed | #{e.message}"
+    end
+
     def broadcast_call_ended_for(user_id, contact_id, campaign_id, extension, state = nil) # rubocop:disable Metrics/MethodLength
       state ||= begin
         raw = Redis::Alfred.get("jabvox_dialer_agent_#{@account_id}_#{user_id}")
         raw ? JSON.parse(raw, symbolize_names: true) : nil
       end
+      mark_agent_call(user_id, nil)
       return unless state
 
       pubsub_token = state[:pubsub_token]
@@ -567,6 +594,7 @@ module Jabvox
         management_history: fetch_mgmt_history(account, contact.contact_id)
       }
 
+      mark_agent_call(user_id, contact.id)
       ActionCable.server.broadcast(pubsub_token, { event: 'jabvox.dialer.call_assigned', data: data })
       Rails.logger.info "📨 [AmiListener] call_assigned broadcast | account=#{@account_id} user=#{user_id} contact=#{dialer_contact_id}"
     rescue StandardError => e

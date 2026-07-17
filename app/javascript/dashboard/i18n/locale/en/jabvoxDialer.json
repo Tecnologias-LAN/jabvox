@@ -92,7 +92,8 @@
       "METRIC_AGENTS": "Agentes",
       "PROGRESS_DIALED": "Marcados: {dialed} / {total}",
       "PROGRESS_REMAINING": "Faltan: {count}",
-      "PROGRESS_RETRY": "Reintentos: {count}"
+      "PROGRESS_RETRY": "Reintentos: {count}",
+      "LIVE_MONITOR": "Live monitor"
     },
     "FORM": {
       "NAME": "Nombre de la campaña",
@@ -340,7 +341,28 @@
       "CANCEL": "Cancelar",
       "DELETE": "Eliminar",
       "SAVE": "Guardar",
-      "SEARCH": "Buscar..."
+      "SEARCH": "Buscar...",
+      "CLOSE": "Close",
+      "LOADING": "Loading…"
+    },
+    "LIVE": {
+      "TITLE": "Live · {name}",
+      "TITLE_PLAIN": "Live monitor",
+      "ACTIVE": "Active campaign",
+      "INACTIVE": "Inactive campaign",
+      "CONNECTED_COUNT": "{n} connected agent(s)",
+      "CALLING_COUNT": "{n} call(s) in progress",
+      "REALTIME": "Real time",
+      "ACTIVE_CALLS": "Calls in progress",
+      "NO_ACTIVE_CALLS": "The dialer is not placing calls right now.",
+      "CONNECTED_AGENTS": "Connected agents",
+      "NO_AGENTS": "No agents connected to this campaign.",
+      "STATE": {
+        "waiting": "Waiting for call",
+        "in_call": "On call",
+        "paused": "Paused"
+      },
+      "CONNECTION_LOST": "Reconnecting…"
     }
   }
 }

@@ -13,6 +13,7 @@ import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import SearchInput from './SearchInput.vue';
 import CampaignFormDialog from './CampaignFormDialog.vue';
 import ReportDialog from './ReportDialog.vue';
+import LiveMonitorDialog from './LiveMonitorDialog.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
 
 const props = defineProps({
@@ -36,6 +37,7 @@ const togglingId = ref(null);
 
 const formDialog = ref(null);
 const reportDialog = ref(null);
+const liveMonitorDialog = ref(null);
 const deleteDialog = ref(null);
 
 const STATUS_COLOR = {
@@ -309,6 +311,16 @@ defineExpose({ openCreate: () => formDialog.value?.openCreate() });
             </label>
             <span v-else class="mr-auto" />
             <div class="flex items-center gap-1 pt-3">
+              <!-- Monitoreo en vivo: solo con la campaña activa -->
+              <Button
+                v-if="c.status_jabvox === 'active'"
+                icon="i-lucide-radio"
+                variant="outline"
+                color="teal"
+                size="sm"
+                :title="t('JABVOX_DIALER.CAMPAIGN.LIVE_MONITOR')"
+                @click="liveMonitorDialog?.open(c)"
+              />
               <Button
                 icon="i-lucide-bar-chart-2"
                 variant="outline"
@@ -353,6 +365,7 @@ defineExpose({ openCreate: () => formDialog.value?.openCreate() });
       @saved="loadProgress"
     />
     <ReportDialog ref="reportDialog" />
+    <LiveMonitorDialog ref="liveMonitorDialog" />
     <ConfirmDialog ref="deleteDialog" @confirm="doDelete" />
   </div>
 </template>

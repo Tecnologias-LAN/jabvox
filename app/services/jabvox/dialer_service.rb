@@ -3,6 +3,38 @@ require 'timeout'
 
 class Jabvox::DialerService
   AMI_TIMEOUT = 15
+  # Cap the TCP connect itself so a dead/unreachable PBX (e.g. an account whose
+  # Asterisk is powered off) fails fast instead of hanging on the OS default
+  # connect timeout (which can be minutes and would tie up the request/worker).
+  CONNECT_TIMEOUT = 5
+
+  # Opens a TCP socket with a hard, reliable connect timeout so an unreachable
+  # host (e.g. an account whose PBX is powered off) fails in `timeout` seconds
+  # instead of hanging on the OS default (~75s+). Uses a non-blocking connect +
+  # wait_writable, which actually bounds the wait — Socket.tcp's connect_timeout
+  # applies per resolved address and does not reliably cap total time when the
+  # host silently drops SYNs. Shared by DialerService and AmiListenerService.
+  def self.connect_with_timeout(host, port, timeout)
+    addr = Socket.sockaddr_in(port, host)
+    socket = Socket.new(Socket::AF_INET, Socket::SOCK_STREAM, 0)
+    begin
+      socket.connect_nonblock(addr)
+    rescue IO::WaitWritable
+      unless socket.wait_writable(timeout)
+        socket.close
+        raise Errno::ETIMEDOUT, "connect timed out after #{timeout}s to #{host}:#{port}"
+      end
+      begin
+        socket.connect_nonblock(addr) # second call confirms the result
+      rescue Errno::EISCONN
+        # Connected — expected on the second call.
+      end
+    end
+    socket
+  rescue StandardError
+    socket&.close
+    raise
+  end
 
   def initialize(config)
     @config = config
@@ -36,7 +68,9 @@ class Jabvox::DialerService
     { success: false, message: e.message }
   end
 
-  # Creates or replaces the queue in queues_custom.conf and reloads app_queue.so.
+  # Creates or replaces the queue in queues_custom.conf and applies it with a
+  # SELECTIVE reload (QueueReload, members preserved — never a full app_queue.so
+  # reload, which would drop dynamic members of every queue).
   # Uses DelCat+NewCat so it is idempotent — safe to call on every campaign save.
   # wait_in_queue: true  → joinempty=yes / leavewhenempty=no  (leads wait in queue)
   # wait_in_queue: false → joinempty=no  / leavewhenempty=yes (leads hang up if no agent)
@@ -55,8 +89,9 @@ class Jabvox::DialerService
   def add_to_queue(queue_name, extension)
     # Ensure queue exists on a separate connection before adding the member.
     # Also handles campaigns created before provisioning code was deployed.
+    # The queue reload is now selective (QueueReload, members preserved), so no
+    # sleep is needed — the queue is ready synchronously.
     ensure_queue_exists(queue_name)
-    sleep(1) # allow app_queue.so reload to complete before QueueAdd
     Timeout.timeout(AMI_TIMEOUT) do
       with_ami_connection do |socket|
         send_action(socket, 'QueueAdd',
@@ -65,7 +100,10 @@ class Jabvox::DialerService
                     penalty: 0,
                     paused: 'false')
         resp = read_response(socket)
-        Rails.logger.info "📡 [Dialer] QueueAdd | queue=#{queue_name} ext=#{extension} response=#{resp['response']}"
+        # "Already there" is not a failure: the agent is a member, which is the
+        # desired end state. Log both cases without alarming on the benign one.
+        Rails.logger.info "📡 [Dialer] QueueAdd | queue=#{queue_name} ext=#{extension} " \
+                          "response=#{resp['response']} message=#{resp['message']}"
       end
     end
   rescue StandardError => e
@@ -104,11 +142,17 @@ class Jabvox::DialerService
   end
 
   def prepare_agent_for_call(queue_name, extension)
+    # Make sure the queue exists before adding the agent. Previously this assumed
+    # the queue was already there; if it wasn't (e.g. after an Asterisk restart or
+    # for a queue that lost its config), QueueAdd returned Error and the call was
+    # never placed. ensure_queue_exists is idempotent and preserves members.
+    ensure_queue_exists(queue_name)
     Timeout.timeout(AMI_TIMEOUT) do
       with_ami_connection do |socket|
         send_action(socket, 'QueueAdd', queue: queue_name, interface: "SIP/#{extension}", penalty: 0, paused: 'false')
         resp = read_response(socket)
-        Rails.logger.info "📡 [Dialer] QueueAdd (prepare) | queue=#{queue_name} ext=#{extension} response=#{resp['response']}"
+        Rails.logger.info "📡 [Dialer] QueueAdd (prepare) | queue=#{queue_name} ext=#{extension} " \
+                          "response=#{resp['response']} message=#{resp['message']}"
         send_action(socket, 'QueuePause', queue: queue_name, interface: "SIP/#{extension}", paused: 'false')
         resp = read_response(socket)
         Rails.logger.info "📡 [Dialer] QueueUnpause (prepare) | queue=#{queue_name} ext=#{extension} response=#{resp['response']}"
@@ -148,12 +192,31 @@ class Jabvox::DialerService
   private
 
   def with_ami_connection
-    socket = TCPSocket.new(@config.host, @config.port.to_i)
-    socket.gets
+    socket = open_ami_socket
+    read_line(socket) # consume the AMI banner ("Asterisk Call Manager/x.y.z")
     login_ami(socket)
     yield socket
   ensure
     socket&.close
+  end
+
+  # Opens the AMI TCP socket with a hard, reliable connect timeout so an
+  # unreachable host (e.g. an account whose PBX is powered off) fails in
+  # CONNECT_TIMEOUT seconds instead of hanging on the OS default (~75s+).
+  # Uses a non-blocking connect + IO.select, which actually bounds the wait —
+  # Socket.tcp's connect_timeout applies per resolved address and does not
+  # reliably cap total time when the host silently drops SYNs.
+  def open_ami_socket
+    Jabvox::DialerService.connect_with_timeout(@config.host, @config.port.to_i, CONNECT_TIMEOUT)
+  end
+
+  # Reads a single line, treating a closed peer (nil) as an error so callers
+  # don't silently proceed on a half-open socket.
+  def read_line(socket)
+    line = socket.gets
+    raise 'AMI connection closed by peer' if line.nil?
+
+    line
   end
 
   def login_ami(socket)
@@ -167,7 +230,7 @@ class Jabvox::DialerService
 
   # Writes queue config using UpdateConfig (no Command/queue show needed).
   # DelCat removes existing section (no-op if absent), NewCat creates fresh.
-  # reload: app_queue.so applies the change immediately.
+  # A selective QueueReload (Step 3) applies the change immediately.
   # Dialplan for this queue expects:
   #   [dialer-answered]
   #   exten => s,1,Answer()
@@ -192,11 +255,16 @@ class Jabvox::DialerService
                  "\r\n")
     read_response(socket)
 
-    # Step 2: create category fresh with all required settings + reload
+    # Step 2: create category fresh with all required settings.
+    # IMPORTANT: reload=no here. A full `reload: app_queue.so` recarga el módulo
+    # de colas ENTERO y expulsa a los miembros dinámicos (QueueAdd) de TODAS las
+    # colas — no solo de esta. Eso tumbaba a los agentes de las demás campañas
+    # cada vez que se aseguraba una cola, y el marcador dejaba de llamar. Solo
+    # escribimos el archivo aquí; el reload selectivo va en el Step 3.
     socket.write("Action: UpdateConfig\r\n" \
                  "srcfilename: queues_custom.conf\r\n" \
                  "dstfilename: queues_custom.conf\r\n" \
-                 "reload: app_queue.so\r\n" \
+                 "reload: no\r\n" \
                  "Action-000000: NewCat\r\n" \
                  "Cat-000000: #{queue_name}\r\n" \
                  "Action-000001: Append\r\n" \
@@ -219,6 +287,18 @@ class Jabvox::DialerService
                  "Cat-000005: #{queue_name}\r\n" \
                  "Var-000005: leavewhenempty\r\n" \
                  "Value-000005: #{leavewhenempty}\r\n" \
+                 "\r\n")
+    read_response(socket)
+
+    # Step 3: apply the config for THIS queue only, preserving members.
+    # QueueReload with Members: no reloads the queue parameters from the config
+    # file without touching dynamic members — so agents already added to other
+    # queues (or this one) stay put.
+    socket.write("Action: QueueReload\r\n" \
+                 "Queue: #{queue_name}\r\n" \
+                 "Members: no\r\n" \
+                 "Rules: no\r\n" \
+                 "Parameters: yes\r\n" \
                  "\r\n")
     read_response(socket)
   end
@@ -330,11 +410,17 @@ class Jabvox::DialerService
     socket.write(msg)
   end
 
+  # Reads one AMI message (up to the blank-line terminator) into a hash.
+  # Returns {} on EOF (peer closed) instead of looping forever, so a dropped
+  # connection surfaces as an empty/failed response rather than a hang.
   def read_response(socket)
     result = {}
     loop do
-      line = socket.gets&.chomp
-      break if line.blank?
+      raw = socket.gets
+      break if raw.nil? # EOF — peer closed the connection
+
+      line = raw.chomp
+      break if line.empty? # blank line terminates the message
 
       key, val = line.split(': ', 2)
       result[key.downcase] = val if key && val
