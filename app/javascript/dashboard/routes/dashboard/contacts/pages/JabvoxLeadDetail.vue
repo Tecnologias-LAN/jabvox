@@ -186,6 +186,7 @@ const editForm = ref({
   phone_number: '',
   email: '',
   country: '',
+  identification: '',
   campaign_name: '',
   assignee_id: null,
   custom: {},
@@ -202,6 +203,7 @@ const initEditForm = () => {
     phone_number: lead.value.contact?.phone_number || '',
     email: lead.value.contact?.email || '',
     country: lead.value.contact?.country || '',
+    identification: contactIdentification.value || '',
     campaign_name: lead.value.campaign?.name || '',
     assignee_id: lead.value.assignee_id ?? null,
     custom,
@@ -226,6 +228,7 @@ const saveAll = async () => {
         phone_number: editForm.value.phone_number,
         email: editForm.value.email,
         country: editForm.value.country,
+        identification: editForm.value.identification,
       },
       campaign_name: editForm.value.campaign_name,
       assignee_id: editForm.value.assignee_id,
@@ -763,11 +766,8 @@ onMounted(async () => {
             v-show="!sectionsCollapsed.info"
             class="divide-y divide-n-weak border-t border-n-weak"
           >
-            <!-- Phone (editable) -->
-            <div
-              v-if="isEditing || lead.contact.phone_number"
-              class="flex items-center gap-2 px-3 py-2.5"
-            >
+            <!-- Phone (editable, siempre visible) -->
+            <div class="flex items-center gap-2 px-3 py-2.5">
               <dt class="text-xs text-n-slate-10 w-24 shrink-0">
                 {{ t('JABVOX_LEADS.DETAIL.INFO.PHONE') }}
               </dt>
@@ -801,18 +801,22 @@ onMounted(async () => {
                 {{ lead.contact.email || '—' }}
               </dd>
             </div>
-            <!-- Documento (solo lectura, viene de la BD externa / additional_attributes) -->
-            <div
-              v-if="contactIdentification"
-              class="flex items-center gap-2 px-3 py-2.5"
-            >
+            <!-- Documento (editable; vive en additional_attributes del contacto).
+                 Siempre visible, aunque esté vacío, para poder asignarlo. -->
+            <div class="flex items-center gap-2 px-3 py-2.5">
               <dt class="text-xs text-n-slate-10 w-24 shrink-0">
                 {{ t('JABVOX_LEADS.DETAIL.INFO.DOCUMENT') }}
               </dt>
+              <input
+                v-if="isEditing"
+                v-model="editForm.identification"
+                class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+              />
               <dd
+                v-else
                 class="text-sm text-n-slate-12 font-mono truncate flex-1 text-right"
               >
-                {{ contactIdentification }}
+                {{ contactIdentification || '—' }}
               </dd>
             </div>
             <!-- Tipo de persona (solo lectura, por defecto persona) -->
@@ -828,11 +832,8 @@ onMounted(async () => {
                 </span>
               </dd>
             </div>
-            <!-- Country (editable) -->
-            <div
-              v-if="isEditing || lead.contact.country"
-              class="flex items-center gap-2 px-3 py-2.5"
-            >
+            <!-- Country (editable, siempre visible) -->
+            <div class="flex items-center gap-2 px-3 py-2.5">
               <dt class="text-xs text-n-slate-10 w-24 shrink-0">
                 {{ t('JABVOX_LEADS.DETAIL.INFO.COUNTRY') }}
               </dt>
@@ -842,7 +843,7 @@ onMounted(async () => {
                 class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
               />
               <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
-                {{ lead.contact.country }}
+                {{ lead.contact.country || '—' }}
               </dd>
             </div>
             <!-- Campaign (editable) -->

@@ -227,14 +227,23 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
 
   def update_contact_fields(lead)
     return if params[:contact].blank? || lead.contact.blank?
+    # Un payload malformado (contact como string/array) no debe tumbar el update.
+    return unless params[:contact].is_a?(ActionController::Parameters)
 
     attrs = params.require(:contact).permit(:phone_number, :email)
-    country = params.dig(:contact, :country)
-    if country.present? || params[:contact].key?(:country)
-      additional = lead.contact.additional_attributes || {}
-      lead.contact.additional_attributes = additional.merge('country' => country)
+    # country y documento viven en additional_attributes del contacto.
+    additional = lead.contact.additional_attributes || {}
+    additional_changed = false
+    { country: 'country', identification: 'jabvox_identification_number' }.each do |param_key, attr_key|
+      next unless params[:contact].key?(param_key)
+
+      additional = additional.merge(attr_key => params.dig(:contact, param_key).to_s.strip)
+      additional_changed = true
     end
-    lead.contact.update!(attrs) if attrs.present?
+    lead.contact.additional_attributes = additional if additional_changed
+    # Guardar también cuando SOLO cambian los additional_attributes (antes un
+    # cambio de país sin tocar teléfono/email se perdía).
+    lead.contact.update!(attrs) if attrs.present? || additional_changed
   end
 
   def update_assignee(lead)
