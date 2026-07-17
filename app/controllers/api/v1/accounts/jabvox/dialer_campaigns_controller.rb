@@ -52,7 +52,10 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     # discovered in the leads' data (they can differ, e.g. seccion vs seccion_c),
     # so every field — current or future — becomes a checkbox selector.
     defined_keys = columns.map(&:name_jabvox)
-    extra_keys = Jabvox::LeadCustomFilter.data_keys(Current.account) - defined_keys
+    # Data keys that are just the "_c" variant of a defined column merge into
+    # that column (values + filtering) instead of appearing as a duplicate field.
+    defined_expanded = defined_keys.flat_map { |k| Jabvox::LeadCustomFilter.key_variants(k) }
+    extra_keys = Jabvox::LeadCustomFilter.data_keys(Current.account) - defined_expanded
     values_by_key = Jabvox::LeadCustomFilter.distinct_values(Current.account, defined_keys + extra_keys)
 
     defined = columns.map do |c|

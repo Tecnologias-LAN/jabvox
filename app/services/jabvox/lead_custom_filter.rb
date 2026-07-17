@@ -25,6 +25,14 @@ module Jabvox
     # be selected alone or together with real values (OR).
     EMPTY_VALUE = '__empty__'
 
+    # Column definitions and imported data sometimes drift on the "_c" suffix
+    # (column "estado_pedido_c" while the leads store "estado_pedido", or the
+    # inverse). Filtering, value discovery and search always consider BOTH
+    # variants so a defined field keeps working no matter where the data lives.
+    def key_variants(key)
+      [key, key.sub(/_c\z/, ''), "#{key}_c"].uniq.reject(&:blank?)
+    end
+
     # Applies { field_key => value } filters onto an AR relation of jabvox_leads.
     def apply(leads, custom)
       return leads unless custom.respond_to?(:each_pair)
@@ -37,10 +45,13 @@ module Jabvox
         if options
           leads = apply_options(leads, key, options)
         elsif value.to_s.strip == EMPTY_VALUE
-          leads = leads.where(empty_sql, key, key, key)
+          empty_cond, empty_binds = empty_condition(key)
+          leads = leads.where(empty_cond, *empty_binds)
         elsif value.to_s.strip.present?
-          leads = leads.where('jabvox_leads.custom_fields_jabvox ->> ? ILIKE ?', key,
-                              "%#{ActiveRecord::Base.sanitize_sql_like(value.to_s)}%")
+          variants = key_variants(key)
+          sql = variants.map { 'jabvox_leads.custom_fields_jabvox ->> ? ILIKE ?' }.join(' OR ')
+          like = "%#{ActiveRecord::Base.sanitize_sql_like(value.to_s)}%"
+          leads = leads.where(sql, *variants.flat_map { |v| [v, like] })
         end
       end
       leads
@@ -51,19 +62,25 @@ module Jabvox
       wants_empty = options.include?(EMPTY_VALUE)
       values = options - [EMPTY_VALUE]
       return leads if values.empty? && !wants_empty
-      return leads.where(empty_sql, key, key, key) if values.empty?
+
+      empty_cond, empty_binds = empty_condition(key)
+      return leads.where(empty_cond, *empty_binds) if values.empty?
       return apply_multi_value(leads, key, values) unless wants_empty
 
       value_sql, value_binds = multi_value_condition(key, values)
-      leads.where("(#{value_sql}) OR (#{empty_sql})", *value_binds, key, key, key)
+      leads.where("(#{value_sql}) OR (#{empty_cond})", *value_binds, *empty_binds)
     end
 
-    # Field counts as empty when the key is missing, the value is JSON null,
+    # Field counts as empty when EVERY key variant is missing, JSON null,
     # blank/whitespace text, or an empty array.
-    def empty_sql
-      "(jabvox_leads.custom_fields_jabvox ->> ? IS NULL " \
+    def empty_condition(key)
+      variants = key_variants(key)
+      per_key =
+        "(jabvox_leads.custom_fields_jabvox ->> ? IS NULL " \
         "OR btrim(jabvox_leads.custom_fields_jabvox ->> ?) = '' " \
         "OR jabvox_leads.custom_fields_jabvox ->> ? = '[]')"
+      sql = "(#{variants.map { per_key }.join(' AND ')})"
+      [sql, variants.flat_map { |v| [v, v, v] }]
     end
 
     def sanitize_key(raw_key)
@@ -99,14 +116,23 @@ module Jabvox
     end
 
     # [sql, binds] for the multi-value condition, reusable inside OR groups.
+    # Matching is case- and whitespace-insensitive on both sides (imported data
+    # often differs from the configured options only in casing/trailing spaces)
+    # and is checked against every key variant (OR).
     def multi_value_condition(key, options)
-      placeholders = Array.new(options.length, '?').join(', ')
-      scalar = "jabvox_leads.custom_fields_jabvox ->> ? IN (#{placeholders})"
-      array_overlap =
-        "(jsonb_typeof(jabvox_leads.custom_fields_jabvox -> ?) = 'array' " \
-        "AND jsonb_exists_any(jabvox_leads.custom_fields_jabvox -> ?, array[#{placeholders}]::text[]))"
+      normalized = options.map { |o| o.to_s.strip.downcase }
+      placeholders = Array.new(normalized.length, '?').join(', ')
+      per_key_sql =
+        "(lower(btrim(jabvox_leads.custom_fields_jabvox ->> ?)) IN (#{placeholders})) " \
+        "OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(" \
+        "CASE WHEN jsonb_typeof(jabvox_leads.custom_fields_jabvox -> ?) = 'array' " \
+        "THEN jabvox_leads.custom_fields_jabvox -> ? ELSE '[]'::jsonb END) AS elem " \
+        "WHERE lower(btrim(elem)) IN (#{placeholders}))"
 
-      ["(#{scalar}) OR #{array_overlap}", [key, *options, key, key, *options]]
+      variants = key_variants(key)
+      sql = variants.map { "(#{per_key_sql})" }.join(' OR ')
+      binds = variants.flat_map { |v| [v, *normalized, v, v, *normalized] }
+      [sql, binds]
     end
 
     # Every custom-field key actually PRESENT in the account's leads data,
@@ -138,38 +164,7 @@ module Jabvox
       return [] if safe_key.blank?
 
       like = "%#{ActiveRecord::Base.sanitize_sql_like(query.to_s.strip)}%"
-      sql = <<~SQL.squish
-        SELECT DISTINCT val FROM (
-          SELECT jabvox_leads.custom_fields_jabvox ->> :k AS val
-          FROM jabvox_leads
-          WHERE jabvox_leads.account_id = :aid
-            AND jsonb_typeof(jabvox_leads.custom_fields_jabvox -> :k) <> 'array'
-          UNION
-          SELECT jsonb_array_elements_text(jabvox_leads.custom_fields_jabvox -> :k) AS val
-          FROM jabvox_leads
-          WHERE jabvox_leads.account_id = :aid
-            AND jsonb_typeof(jabvox_leads.custom_fields_jabvox -> :k) = 'array'
-        ) t
-        WHERE val IS NOT NULL AND val <> '' AND val ILIKE :q
-        ORDER BY val
-        LIMIT :lim
-      SQL
-      JabvoxLead.connection.select_values(
-        JabvoxLead.sanitize_sql_array([sql, { k: safe_key, aid: account.id, q: like, lim: limit }])
-      )
-    end
-
-    # Distinct values present across an account's leads for each custom-field key,
-    # so the pickers can show a checkbox list even for plain-text fields. Handles
-    # scalar values and jsonb arrays (flattened). Returns { key => [values] },
-    # each capped at `limit`.
-    def distinct_values(account, keys, limit: 200)
-      return {} if keys.blank?
-
-      keys.each_with_object({}) do |key, acc|
-        safe_key = sanitize_key(key)
-        next if safe_key.blank?
-
+      key_variants(safe_key).flat_map do |variant|
         sql = <<~SQL.squish
           SELECT DISTINCT val FROM (
             SELECT jabvox_leads.custom_fields_jabvox ->> :k AS val
@@ -182,14 +177,58 @@ module Jabvox
             WHERE jabvox_leads.account_id = :aid
               AND jsonb_typeof(jabvox_leads.custom_fields_jabvox -> :k) = 'array'
           ) t
-          WHERE val IS NOT NULL AND val <> ''
+          WHERE val IS NOT NULL AND val <> '' AND val ILIKE :q
           ORDER BY val
           LIMIT :lim
         SQL
-        acc[key] = JabvoxLead.connection.select_values(
-          JabvoxLead.sanitize_sql_array([sql, { k: key.to_s, aid: account.id, lim: limit }])
+        JabvoxLead.connection.select_values(
+          JabvoxLead.sanitize_sql_array([sql, { k: variant, aid: account.id, q: like, lim: limit }])
         )
+      end.uniq.sort.first(limit)
+    end
+
+    # Distinct values present across an account's leads for each custom-field key,
+    # so the pickers can show a checkbox list even for plain-text fields. Handles
+    # scalar values and jsonb arrays (flattened). Returns { key => [values] },
+    # each capped at `limit`.
+    def distinct_values(account, keys, limit: 200)
+      return {} if keys.blank?
+
+      # Only query variant keys that actually exist in the data (avoids 2-3x
+      # queries per field for variants that hold nothing).
+      present = data_keys(account, limit: 1000)
+      keys.each_with_object({}) do |key, acc|
+        safe_key = sanitize_key(key)
+        next if safe_key.blank?
+
+        variants = key_variants(safe_key).select { |v| present.include?(v) }
+        variants = [safe_key] if variants.empty?
+        acc[key] = variants.flat_map { |v| distinct_values_for_key(account, v, limit) }
+                           .uniq.sort.first(limit)
       end
+    end
+
+    # Distinct values of ONE exact jsonb key (scalar + array storage).
+    def distinct_values_for_key(account, key, limit)
+      sql = <<~SQL.squish
+        SELECT DISTINCT val FROM (
+          SELECT jabvox_leads.custom_fields_jabvox ->> :k AS val
+          FROM jabvox_leads
+          WHERE jabvox_leads.account_id = :aid
+            AND jsonb_typeof(jabvox_leads.custom_fields_jabvox -> :k) <> 'array'
+          UNION
+          SELECT jsonb_array_elements_text(jabvox_leads.custom_fields_jabvox -> :k) AS val
+          FROM jabvox_leads
+          WHERE jabvox_leads.account_id = :aid
+            AND jsonb_typeof(jabvox_leads.custom_fields_jabvox -> :k) = 'array'
+        ) t
+        WHERE val IS NOT NULL AND val <> ''
+        ORDER BY val
+        LIMIT :lim
+      SQL
+      JabvoxLead.connection.select_values(
+        JabvoxLead.sanitize_sql_array([sql, { k: key.to_s, aid: account.id, lim: limit }])
+      )
     end
   end
 end

@@ -19,13 +19,17 @@ class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::Ba
   def update
     old_name = @column.name_jabvox
     @column.update!(column_params)
-    migrate_stored_key(old_name, @column.name_jabvox) if @column.name_jabvox != old_name
+    if @column.name_jabvox != old_name
+      migrate_stored_key(old_name, @column.name_jabvox)
+      migrate_campaign_filter_key(old_name, @column.name_jabvox)
+    end
     render json: column_json(@column)
   end
 
   def destroy
     @column.destroy!
     purge_stored_key(@column.name_jabvox)
+    purge_campaign_filter_key(@column.name_jabvox)
     head :no_content
   end
 
@@ -81,6 +85,34 @@ class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::Ba
                         { old: old_key, new: new_key }])
   end
   # rubocop:enable Rails/SkipsModelValidations
+
+  # Dialer campaigns persist lead filters by field KEY (lead_filters_jabvox
+  # -> custom). Renaming/deleting a lead column must follow through, or the
+  # saved campaigns keep filtering by a key that no longer holds data.
+  def migrate_campaign_filter_key(old_key, new_key)
+    each_campaign_with_filter_key(old_key) do |campaign, custom|
+      custom[new_key] = custom.delete(old_key)
+      campaign.update_column(:lead_filters_jabvox, campaign.lead_filters_jabvox.merge('custom' => custom)) # rubocop:disable Rails/SkipsModelValidations
+    end
+  end
+
+  def purge_campaign_filter_key(key)
+    each_campaign_with_filter_key(key) do |campaign, custom|
+      custom.delete(key)
+      campaign.update_column(:lead_filters_jabvox, campaign.lead_filters_jabvox.merge('custom' => custom)) # rubocop:disable Rails/SkipsModelValidations
+    end
+  end
+
+  def each_campaign_with_filter_key(key)
+    return unless @table.linked_to_jabvox == 'leads'
+
+    Current.account.jabvox_dialer_campaigns.find_each do |campaign|
+      custom = (campaign.lead_filters_jabvox || {})['custom']
+      next unless custom.is_a?(Hash) && custom.key?(key)
+
+      yield campaign, custom.dup
+    end
+  end
 
   def column_params
     params.require(:column).permit(
