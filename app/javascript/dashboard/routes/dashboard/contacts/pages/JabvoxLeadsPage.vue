@@ -47,6 +47,9 @@ const showAdvancedFilters = ref(false);
 // distinct values present in the account's leads). The selection is an array of
 // values sent as an array → LeadCustomFilter matches ANY of them (OR).
 const filterCustom = ref({}); // { key: [values] }
+// Sentinel entendido por el backend (LeadCustomFilter) como "campo vacío o sin
+// valor"; se pinta como fila fija al inicio de cada dropdown.
+const CUSTOM_EMPTY_VALUE = '__empty__';
 const customFieldDefs = computed(() => filterOptions.value.custom_fields || []);
 // Per-field open state for the multi-select dropdown, and its search box text.
 const customOpen = ref({});
@@ -989,6 +992,37 @@ onUnmounted(() => {
                     />
                   </div>
                   <div class="max-h-52 overflow-y-auto py-1">
+                    <!-- Opción fija: leads con el campo vacío / sin valor -->
+                    <button
+                      type="button"
+                      class="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm text-left hover:bg-n-alpha-1 transition-colors"
+                      @click.stop="
+                        toggleCustomValue(def.key, CUSTOM_EMPTY_VALUE)
+                      "
+                    >
+                      <span
+                        class="size-4 shrink-0 rounded border flex items-center justify-center"
+                        :class="
+                          selectedCustomValues(def.key).includes(
+                            CUSTOM_EMPTY_VALUE
+                          )
+                            ? 'bg-n-brand border-n-brand text-white'
+                            : 'border-n-weak'
+                        "
+                      >
+                        <span
+                          v-if="
+                            selectedCustomValues(def.key).includes(
+                              CUSTOM_EMPTY_VALUE
+                            )
+                          "
+                          class="i-lucide-check size-3"
+                        />
+                      </span>
+                      <span class="truncate italic text-n-slate-11">
+                        {{ t('JABVOX_LEADS.FILTERS.CUSTOM_EMPTY') }}
+                      </span>
+                    </button>
                     <button
                       v-for="opt in customFilteredOptions(def)"
                       :key="opt"

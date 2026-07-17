@@ -177,7 +177,8 @@
       "RETRY_MAX": "Máximo de reintentos",
       "RETRY_HINT": "Los leads con estos resultados se vuelven a marcar al final de la cola, hasta el máximo de reintentos.",
       "SELECT_ALL": "Select all",
-      "DESELECT_ALL": "Deselect all"
+      "DESELECT_ALL": "Deselect all",
+      "FILTER_EMPTY": "(Empty / no value)"
     },
     "CONTACTS": {
       "EMPTY": "No hay contactos en esta campaña. Importa contactos desde la configuración.",

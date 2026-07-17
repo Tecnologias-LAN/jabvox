@@ -55,7 +55,8 @@
       "NO_TEMPLATES": "Esta bandeja no tiene plantillas aprobadas.",
       "MESSAGE": "Mensaje",
       "MESSAGE_PLACEHOLDER": "Escribe el mensaje a enviar…",
-      "SEND": "Enviar a {count} leads"
+      "SEND": "Enviar a {count} leads",
+      "FILTER_EMPTY": "(Vacío / sin valor)"
     },
     "COLS": {
       "NAME": "Nombre",

@@ -55,7 +55,8 @@
       "NO_TEMPLATES": "This inbox has no approved templates.",
       "MESSAGE": "Message",
       "MESSAGE_PLACEHOLDER": "Write the message to send…",
-      "SEND": "Send to {count} leads"
+      "SEND": "Send to {count} leads",
+      "FILTER_EMPTY": "(Empty / no value)"
     },
     "COLS": {
       "NAME": "Name",

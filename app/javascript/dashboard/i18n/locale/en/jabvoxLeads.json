@@ -36,7 +36,8 @@
       "CUSTOM_SELECTED": "{n} selected",
       "CUSTOM_SEARCH": "Search value...",
       "CUSTOM_NO_OPTIONS": "No matches",
-      "CUSTOM_CLEAR": "Clear selection"
+      "CUSTOM_CLEAR": "Clear selection",
+      "CUSTOM_EMPTY": "(Empty / no value)"
     },
     "COLUMNS": {
       "BUTTON": "Columns",

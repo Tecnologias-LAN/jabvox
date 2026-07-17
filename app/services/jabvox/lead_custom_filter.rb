@@ -21,6 +21,10 @@ module Jabvox
   module LeadCustomFilter
     module_function
 
+    # Sentinel the pickers send to mean "the field is empty / missing" — it can
+    # be selected alone or together with real values (OR).
+    EMPTY_VALUE = '__empty__'
+
     # Applies { field_key => value } filters onto an AR relation of jabvox_leads.
     def apply(leads, custom)
       return leads unless custom.respond_to?(:each_pair)
@@ -31,17 +35,35 @@ module Jabvox
 
         options = list_values(value)
         if options
-          next if options.empty?
-
-          leads = apply_multi_value(leads, key, options)
-        else
-          next if value.to_s.strip.blank?
-
+          leads = apply_options(leads, key, options)
+        elsif value.to_s.strip == EMPTY_VALUE
+          leads = leads.where(empty_sql, key, key, key)
+        elsif value.to_s.strip.present?
           leads = leads.where('jabvox_leads.custom_fields_jabvox ->> ? ILIKE ?', key,
                               "%#{ActiveRecord::Base.sanitize_sql_like(value.to_s)}%")
         end
       end
       leads
+    end
+
+    # List-mode dispatch: real values, the empty sentinel, or both (OR).
+    def apply_options(leads, key, options)
+      wants_empty = options.include?(EMPTY_VALUE)
+      values = options - [EMPTY_VALUE]
+      return leads if values.empty? && !wants_empty
+      return leads.where(empty_sql, key, key, key) if values.empty?
+      return apply_multi_value(leads, key, values) unless wants_empty
+
+      value_sql, value_binds = multi_value_condition(key, values)
+      leads.where("(#{value_sql}) OR (#{empty_sql})", *value_binds, key, key, key)
+    end
+
+    # Field counts as empty when the key is missing, the value is JSON null,
+    # blank/whitespace text, or an empty array.
+    def empty_sql
+      "(jabvox_leads.custom_fields_jabvox ->> ? IS NULL " \
+        "OR btrim(jabvox_leads.custom_fields_jabvox ->> ?) = '' " \
+        "OR jabvox_leads.custom_fields_jabvox ->> ? = '[]')"
     end
 
     def sanitize_key(raw_key)
@@ -72,15 +94,19 @@ module Jabvox
     # Matches a sanitized key against ANY of `options` (scalar equality OR jsonb
     # array overlap). Placeholders are generated, values are all binds.
     def apply_multi_value(leads, key, options)
+      sql, binds = multi_value_condition(key, options)
+      leads.where(sql, *binds)
+    end
+
+    # [sql, binds] for the multi-value condition, reusable inside OR groups.
+    def multi_value_condition(key, options)
       placeholders = Array.new(options.length, '?').join(', ')
       scalar = "jabvox_leads.custom_fields_jabvox ->> ? IN (#{placeholders})"
       array_overlap =
         "(jsonb_typeof(jabvox_leads.custom_fields_jabvox -> ?) = 'array' " \
         "AND jsonb_exists_any(jabvox_leads.custom_fields_jabvox -> ?, array[#{placeholders}]::text[]))"
 
-      sql = "(#{scalar}) OR #{array_overlap}"
-      binds = [key, *options, key, key, *options]
-      leads.where(sql, *binds)
+      ["(#{scalar}) OR #{array_overlap}", [key, *options, key, key, *options]]
     end
 
     # Every custom-field key actually PRESENT in the account's leads data,

@@ -93,6 +93,10 @@ const onOptionSearch = cf => {
   }, 300);
 };
 
+// Sentinel entendido por el backend (LeadCustomFilter) como "campo vacío o sin
+// valor". Se pinta como fila fija propia, nunca dentro de la lista de valores.
+const EMPTY_VALUE = '__empty__';
+
 // Local base options ∪ server search results ∪ already-selected values (so a
 // checked value never disappears from the list), filtered by the search text.
 const filteredOptions = cf => {
@@ -106,7 +110,7 @@ const filteredOptions = cf => {
       ...(remoteOptions.value[cf.key] || []),
       ...selected,
     ]),
-  ];
+  ].filter(o => o !== EMPTY_VALUE);
   if (!q) return base;
   return base.filter(o => String(o).toLowerCase().includes(q));
 };
@@ -709,6 +713,22 @@ onMounted(() => {
                 <div
                   class="max-h-40 overflow-y-auto px-3 pb-2 flex flex-col gap-1.5"
                 >
+                  <!-- Opción fija: leads con el campo vacío / sin valor -->
+                  <label
+                    class="flex items-center gap-2 text-sm text-n-slate-11 italic cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      class="rounded accent-n-brand shrink-0"
+                      :checked="
+                        (customValues[cf.key] || []).includes(EMPTY_VALUE)
+                      "
+                      @change="toggleCustomOption(cf.key, EMPTY_VALUE)"
+                    />
+                    <span class="truncate">
+                      {{ t('JABVOX_BULK_WA.LEADS.FILTER_EMPTY') }}
+                    </span>
+                  </label>
                   <label
                     v-for="opt in filteredOptions(cf)"
                     :key="opt"
