@@ -55,7 +55,12 @@ export function useClickToCall() {
     target.value = { name: '', phone: '' };
   };
 
-  const submitTypification = async ({ typificationId, note, management }) => {
+  // `keepOpen: true` saves without closing the overlay — used to typify DURING
+  // the call (the box stays up with the hang-up button). Returns true on success.
+  const submitTypification = async (
+    { typificationId, note, management },
+    { keepOpen = false } = {}
+  ) => {
     try {
       // uniqueid is captured server-side (at originate + on hangup); the client never
       // sends it, so a missing hangup event can't blank the CDR link.
@@ -64,9 +69,11 @@ export function useClickToCall() {
         note,
         management,
       });
-      close();
+      if (!keepOpen) close();
+      return true;
     } catch (error) {
       useAlert('No se pudo guardar la tipificación');
+      return false;
     }
   };
 

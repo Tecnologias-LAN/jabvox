@@ -21,7 +21,7 @@ import {
 
 const { t } = useI18n();
 const store = useStore();
-const { phase, target, hangup, submitTypification, close } = useClickToCall();
+const { phase, hangup, submitTypification, close } = useClickToCall();
 useClickToCallListener();
 
 const managementStates = useMapGetter('jabvoxManagementStates/getActiveStates');
@@ -87,15 +87,25 @@ onMounted(() => {
   store.dispatch('jabvoxManagementStates/fetchStates').catch(() => {});
 });
 
-// Load typifications when we enter the typify phase; reset the form when the overlay closes.
+// Saved-mid-call marker: when the agent already accepted DURING the call, the
+// overlay closes itself at hang-up instead of asking again.
+const savedDuringCall = ref(false);
+
+// The form is available from the moment the call starts (typify while talking),
+// and its values survive the calling → typify transition (reset only on close).
 watch(phase, value => {
-  if (value === 'typify') loadTypifications();
+  if (value === 'calling' || value === 'typify') loadTypifications();
+  if (value === 'typify' && savedDuringCall.value) {
+    close();
+    return;
+  }
   if (value === null) {
     selectedTypificationId.value = null;
     managementStateId.value = null;
     managementGroup.value = null;
     managementAnswers.value = {};
     note.value = '';
+    savedDuringCall.value = false;
   }
 });
 
@@ -104,7 +114,16 @@ watch(managementStateId, () => {
   managementAnswers.value = {};
 });
 
-const accept = () => {
+// Any edit after a mid-call save invalidates the marker, so the typify phase
+// reopens at hang-up and the agent can re-save the changes.
+watch(
+  [selectedTypificationId, managementStateId, managementAnswers, note],
+  () => {
+    savedDuringCall.value = false;
+  }
+);
+
+const accept = async () => {
   if (!canAccept.value) return;
   if (
     selectedManagementState.value &&
@@ -123,11 +142,16 @@ const accept = () => {
         managementAnswers.value
       )
     : null;
-  submitTypification({
-    typificationId: selectedTypificationId.value,
-    note: note.value,
-    management,
-  });
+  const duringCall = phase.value === 'calling';
+  const ok = await submitTypification(
+    {
+      typificationId: selectedTypificationId.value,
+      note: note.value,
+      management,
+    },
+    { keepOpen: duringCall }
+  );
+  if (ok && duringCall) savedDuringCall.value = true;
 };
 </script>
 
@@ -136,32 +160,35 @@ const accept = () => {
     v-show="phase"
     class="fixed bottom-6 right-6 z-50 w-96 rounded-xl bg-n-solid-2 shadow-xl border border-n-weak overflow-hidden"
   >
-    <!-- Calling phase -->
-    <template v-if="phase === 'calling'">
-      <div class="p-4 bg-n-brand text-white">
-        <p class="text-sm opacity-90">
-          {{ t('JABVOX_CLICK_TO_CALL.IN_CALL') }}
+    <!-- Un solo cuadro: el formulario de tipificación está disponible DESDE que
+         inicia la llamada (se tipifica mientras se habla) y conserva lo escrito
+         al colgar. Sin bloque de info del cliente (se llamó desde su ficha). -->
+    <template v-if="phase">
+      <div
+        class="px-4 py-2.5 flex items-center justify-between gap-2"
+        :class="
+          phase === 'calling'
+            ? 'bg-n-brand text-white'
+            : 'border-b border-n-weak'
+        "
+      >
+        <p
+          class="text-sm font-medium"
+          :class="phase === 'calling' ? '' : 'text-n-slate-12'"
+        >
+          {{
+            phase === 'calling'
+              ? t('JABVOX_CLICK_TO_CALL.IN_CALL')
+              : t('JABVOX_CLICK_TO_CALL.TYPIFY_TITLE')
+          }}
         </p>
-        <p class="text-lg font-medium">{{ target.name || target.phone }}</p>
-        <p class="text-xs opacity-80">{{ target.phone }}</p>
-      </div>
-      <div class="p-4 flex justify-center">
         <button
-          class="px-6 py-2 rounded-lg bg-n-ruby-9 text-white text-sm font-medium"
+          v-if="phase === 'calling'"
+          class="px-3 py-1.5 rounded-lg bg-n-ruby-9 text-white text-xs font-medium shrink-0"
           @click="hangup"
         >
           {{ t('JABVOX_CLICK_TO_CALL.HANG_UP') }}
         </button>
-      </div>
-    </template>
-
-    <!-- Typify phase -->
-    <template v-else-if="phase === 'typify'">
-      <div class="p-4 border-b border-n-weak">
-        <p class="text-base font-medium text-n-slate-12">
-          {{ t('JABVOX_CLICK_TO_CALL.TYPIFY_TITLE') }}
-        </p>
-        <p class="text-xs text-n-slate-11">{{ target.name || target.phone }}</p>
       </div>
       <div class="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
         <label class="flex flex-col text-xs text-n-slate-11">
@@ -262,20 +289,38 @@ const accept = () => {
           />
         </label>
       </div>
-      <div class="p-4 flex justify-end gap-2 border-t border-n-weak">
-        <button
-          class="px-4 py-2 rounded-lg bg-n-alpha-2 text-n-slate-11 text-sm"
-          @click="close"
+      <div
+        class="p-4 flex items-center justify-between gap-2 border-t border-n-weak"
+      >
+        <!-- Guardada en medio de la llamada: al colgar el cuadro se cierra solo -->
+        <span
+          v-if="savedDuringCall"
+          class="inline-flex items-center gap-1 text-xs text-n-teal-11"
         >
-          {{ t('JABVOX_CLICK_TO_CALL.CANCEL') }}
-        </button>
-        <button
-          class="px-4 py-2 rounded-lg bg-n-brand text-white text-sm disabled:opacity-50"
-          :disabled="!canAccept"
-          @click="accept"
-        >
-          {{ t('JABVOX_CLICK_TO_CALL.ACCEPT') }}
-        </button>
+          <span class="i-lucide-check-circle size-3.5" />
+          {{ t('JABVOX_CLICK_TO_CALL.SAVED_DURING_CALL') }}
+        </span>
+        <span v-else />
+        <div class="flex items-center gap-2">
+          <button
+            v-if="phase === 'typify'"
+            class="px-4 py-2 rounded-lg bg-n-alpha-2 text-n-slate-11 text-sm"
+            @click="close"
+          >
+            {{ t('JABVOX_CLICK_TO_CALL.CANCEL') }}
+          </button>
+          <button
+            class="px-4 py-2 rounded-lg bg-n-brand text-white text-sm disabled:opacity-50"
+            :disabled="!canAccept"
+            @click="accept"
+          >
+            {{
+              phase === 'calling'
+                ? t('JABVOX_CLICK_TO_CALL.SAVE_DURING_CALL')
+                : t('JABVOX_CLICK_TO_CALL.ACCEPT')
+            }}
+          </button>
+        </div>
       </div>
     </template>
   </div>

@@ -95,6 +95,23 @@ const contactType = computed(
 const contactBiography = computed(
   () => lead.value?.contact?.additional_attributes?.description || ''
 );
+// Origen de una nota/tipificación (dialer, click-to-call o detalle del lead) y
+// nombre de la tipificación — guardados en content_attributes por cada flujo.
+// Acepta snake_case (notas de conversación) y camelCase (notas de contacto).
+const CALL_SOURCE_LABEL_KEYS = {
+  dialer: 'JABVOX_LEADS.DETAIL.SOURCE_DIALER',
+  click_to_call: 'JABVOX_LEADS.DETAIL.SOURCE_CLICK_TO_CALL',
+  lead_detail: 'JABVOX_LEADS.DETAIL.SOURCE_LEAD_DETAIL',
+};
+const callSourceLabel = attrs => {
+  const src = attrs?.jabvox_call_source || attrs?.jabvoxCallSource;
+  return src && CALL_SOURCE_LABEL_KEYS[src]
+    ? t(CALL_SOURCE_LABEL_KEYS[src])
+    : '';
+};
+const typificationBadge = attrs =>
+  attrs?.jabvox_typification_name || attrs?.jabvoxTypificationName || '';
+
 const contactTypeLabel = computed(() =>
   contactType.value === 'empresa'
     ? t('JABVOX_LEADS.DETAIL.INFO.CONTACT_TYPE_COMPANY')
@@ -395,6 +412,14 @@ const sendMessage = async (privateFlag = false, withGestion = false) => {
         selectedManagementState.value,
         managementAnswers.value
       );
+    }
+    // Las notas privadas creadas aquí quedan marcadas con su origen, igual que
+    // las del dialer y click-to-call, para saber desde dónde se tipificó.
+    if (privateFlag) {
+      payload.contentAttributes = {
+        ...(payload.contentAttributes || {}),
+        jabvox_call_source: 'lead_detail',
+      };
     }
     const response = await messageAPI.create(payload);
     messages.value.push(response.data);
@@ -1476,6 +1501,29 @@ onMounted(async () => {
                           note.content_attributes.jabvox_management_state_name
                         }}
                       </div>
+                      <!-- Origen (dialer / click-to-call / detalle) + tipificación -->
+                      <div
+                        v-if="
+                          callSourceLabel(note.content_attributes) ||
+                          typificationBadge(note.content_attributes)
+                        "
+                        class="flex flex-wrap gap-1 mb-1"
+                      >
+                        <span
+                          v-if="typificationBadge(note.content_attributes)"
+                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-n-teal-3 text-n-teal-11 border border-n-teal-6"
+                        >
+                          <span class="i-lucide-tag size-3" />
+                          {{ typificationBadge(note.content_attributes) }}
+                        </span>
+                        <span
+                          v-if="callSourceLabel(note.content_attributes)"
+                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-n-alpha-2 text-n-slate-11 border border-n-weak"
+                        >
+                          <span class="i-lucide-phone-outgoing size-3" />
+                          {{ callSourceLabel(note.content_attributes) }}
+                        </span>
+                      </div>
                       {{ note.content }}
                     </div>
                     <span class="text-[11px] text-n-slate-10 px-1">
@@ -1510,6 +1558,29 @@ onMounted(async () => {
                         }"
                       >
                         {{ note.contentAttributes.jabvoxManagementStateName }}
+                      </div>
+                      <!-- Origen + tipificación (notas de contacto, camelCase) -->
+                      <div
+                        v-if="
+                          callSourceLabel(note.contentAttributes) ||
+                          typificationBadge(note.contentAttributes)
+                        "
+                        class="flex flex-wrap gap-1 mb-1"
+                      >
+                        <span
+                          v-if="typificationBadge(note.contentAttributes)"
+                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-n-teal-3 text-n-teal-11 border border-n-teal-6"
+                        >
+                          <span class="i-lucide-tag size-3" />
+                          {{ typificationBadge(note.contentAttributes) }}
+                        </span>
+                        <span
+                          v-if="callSourceLabel(note.contentAttributes)"
+                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-n-alpha-2 text-n-slate-11 border border-n-weak"
+                        >
+                          <span class="i-lucide-phone-outgoing size-3" />
+                          {{ callSourceLabel(note.contentAttributes) }}
+                        </span>
                       </div>
                       {{ note.content }}
                     </div>

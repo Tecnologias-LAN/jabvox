@@ -54,8 +54,12 @@ class Api::V1::Accounts::Jabvox::DialerCallLogsController < Api::V1::Accounts::J
   end
 
   # Gate solo si el usuario tiene un custom role: sin rol personalizado se
-  # conserva el comportamiento histórico (acceso). El admin siempre pasa.
+  # conserva el comportamiento histórico (acceso), igual que dialer_accesses.
+  # Sin esta exención, el agente atendía la llamada pero el guardado del log y
+  # de la tipificación devolvía 403 y se perdía en silencio.
   def ensure_module_permission
+    return if Current.account_user&.custom_role.nil?
+
     jabvox_authorize_write!('jabvox_dialer_use')
   end
 

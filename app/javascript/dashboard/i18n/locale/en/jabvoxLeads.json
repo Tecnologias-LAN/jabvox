@@ -162,7 +162,10 @@
         "AFFILIATE": "Affiliate",
         "CREATED_AT": "Registration date",
         "BIOGRAPHY": "Biography"
-      }
+      },
+      "SOURCE_DIALER": "From dialer",
+      "SOURCE_CLICK_TO_CALL": "From click-to-call",
+      "SOURCE_LEAD_DETAIL": "From lead detail"
     },
     "SUBTITLE": "Manage and follow up on your prospects",
     "EMPTY_TITLE": "No leads"

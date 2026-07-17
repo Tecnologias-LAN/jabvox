@@ -54,6 +54,8 @@
       "KPI_INACTIVE": "Inactivas",
       "CANCEL_LABEL": "Cancelar",
       "DELETE_LABEL": "Eliminar"
-    }
+    },
+    "SAVE_DURING_CALL": "Save typification",
+    "SAVED_DURING_CALL": "Typification saved — closes at hang-up"
   }
 }

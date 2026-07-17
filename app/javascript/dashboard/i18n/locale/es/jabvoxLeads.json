@@ -162,7 +162,10 @@
         "AFFILIATE": "Afiliado",
         "CREATED_AT": "Fecha de registro",
         "BIOGRAPHY": "Biografía"
-      }
+      },
+      "SOURCE_DIALER": "Desde dialer",
+      "SOURCE_CLICK_TO_CALL": "Desde click-to-call",
+      "SOURCE_LEAD_DETAIL": "Desde detalle del lead"
     },
     "SUBTITLE": "Gestiona y da seguimiento a tus prospectos",
     "EMPTY_TITLE": "Sin leads"

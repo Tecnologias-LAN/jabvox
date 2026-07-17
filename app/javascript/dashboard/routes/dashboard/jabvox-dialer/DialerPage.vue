@@ -357,11 +357,23 @@ const saveTypification = async () => {
   }
 };
 
+// Name of the typification the agent picked (for the note text/badge).
+const wrapupTypificationName = computed(
+  () =>
+    (typifications.value || []).find(tp => tp.id === wrapupTypificationId.value)
+      ?.name || ''
+);
+
 const saveWrapupNote = async () => {
+  if (isSavingNote.value) return;
   const convId = lastCall.value?.conversation_id;
   const stateObj = selectedManagementState.value;
-  const note = wrapupNote.value.trim() || stateObj?.name_jabvox || '';
-  if (!convId || !note || isSavingNote.value) return;
+  // The note text falls back through: free text → management state → typification.
+  const note =
+    wrapupNote.value.trim() ||
+    stateObj?.name_jabvox ||
+    wrapupTypificationName.value ||
+    '';
   if (
     stateObj &&
     !isManagementValid(stateObj, managementAnswers.value, wrapupNote.value)
@@ -369,22 +381,30 @@ const saveWrapupNote = async () => {
     useAlert(t('JABVOX_MANAGEMENT_STATES.QUESTIONS.INCOMPLETE'));
     return;
   }
-  const payload = {
-    conversationId: convId,
-    message: note,
-    private: true,
-    echo_id: `jabvox_dialer_${Date.now()}`,
-  };
-  if (stateObj) {
-    payload.contentAttributes = buildManagementContentAttributes(
-      stateObj,
-      managementAnswers.value
-    );
-  }
   isSavingNote.value = true;
   try {
-    await messageAPI.create(payload);
+    // The typification persists on the call log FIRST and independently: picking
+    // only a typification (no note, no management state) must never be lost.
     await saveTypification();
+    if (convId && note) {
+      const contentAttributes = {
+        ...(stateObj
+          ? buildManagementContentAttributes(stateObj, managementAnswers.value)
+          : {}),
+        // Where this typification was made from — shown in the lead's Notes tab.
+        jabvox_call_source: 'dialer',
+        ...(wrapupTypificationName.value
+          ? { jabvox_typification_name: wrapupTypificationName.value }
+          : {}),
+      };
+      await messageAPI.create({
+        conversationId: convId,
+        message: note,
+        private: true,
+        echo_id: `jabvox_dialer_${Date.now()}`,
+        contentAttributes,
+      });
+    }
   } catch {
     // best-effort
   } finally {
