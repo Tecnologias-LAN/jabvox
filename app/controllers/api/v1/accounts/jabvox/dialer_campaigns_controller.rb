@@ -632,6 +632,9 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
 
   def agent_dialer_state(state, pause_names)
     return ['in_call', nil] if state[:in_call_contact_id].present?
+    # Gestión post-llamada (wrap-up): el agente colgó y está tipificando. Antes
+    # caía a "waiting" en el monitor aunque siguiera ocupado gestionando.
+    return ['in_wrapup', nil] if state[:in_wrapup]
     return ['paused', pause_names[state[:state_id]]] if state[:state_id].present?
 
     ['waiting', nil]

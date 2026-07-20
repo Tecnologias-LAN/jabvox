@@ -396,6 +396,8 @@ const onCallAssigned = data => {
 const endWrapup = () => {
   clearWrapupTimer();
   inWrapup.value = false;
+  // Quitar la marca de gestión: el agente vuelve a "esperando" (o pausa).
+  dialerAccessesAPI.setWrapup(false).catch(() => {});
   wrapupRemaining.value = 0;
   lastCall.value = null;
   wrapupNote.value = '';
@@ -496,6 +498,9 @@ const startWrapup = () => {
   stopRequestCallPolling();
   lastCall.value = activeCall.value || dialingCall.value || lastCall.value;
   inWrapup.value = true;
+  // Marcar la gestión post-llamada en el estado del agente, para que el monitor
+  // en vivo y el reporte muestren "en gestión" mientras tipifica (no "esperando").
+  dialerAccessesAPI.setWrapup(true).catch(() => {});
   const seconds = activeCampaign.value?.wrapup_time_jabvox || 30;
   wrapupRemaining.value = seconds;
   clearWrapupTimer();
@@ -633,6 +638,9 @@ const onWebsocketReconnect = () => {
   if (!connected.value) return;
   if (activeCall.value) reconcileActiveCall();
   if (dialingCall.value && !activeCall.value) armDialingWatchdog();
+  // Si volvió la red durante el wrap-up, re-afirmar el estado en Redis para que
+  // el monitor no pierda el "en gestión" (el marcador pudo expirar en el corte).
+  if (inWrapup.value) dialerAccessesAPI.setWrapup(true).catch(() => {});
 };
 
 onMounted(async () => {
@@ -699,6 +707,9 @@ onMounted(async () => {
       if (restoredContactId) loadLeadCustomFields(restoredContactId);
 
       if (session.inWrapup) {
+        // Al restaurar el wrap-up (recarga / volver de otra pestaña), re-marcarlo
+        // en Redis para que el monitor siga mostrando "en gestión".
+        dialerAccessesAPI.setWrapup(true).catch(() => {});
         // Resume the wrap-up countdown from where it left off.
         const remainingMs = (session.wrapupEndsAt || 0) - Date.now();
         if (remainingMs > 0) {

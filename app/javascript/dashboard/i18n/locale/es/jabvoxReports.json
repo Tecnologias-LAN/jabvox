@@ -100,7 +100,8 @@
         "waiting": "Esperando llamada",
         "in_call": "En llamada",
         "in_comments": "En comentarios",
-        "paused": "En pausa"
+        "paused": "En pausa",
+        "in_wrapup": "En gestión"
       },
       "APP_STATE": "Estado",
       "DIALER_STATE": "Dialer",

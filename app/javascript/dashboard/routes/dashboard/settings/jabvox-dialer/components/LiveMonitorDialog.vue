@@ -56,6 +56,7 @@ const stateClass = state => {
   if (state === 'in_call') return 'text-n-teal-11 bg-n-teal-3';
   if (state === 'waiting') return 'text-n-blue-11 bg-n-blue-3';
   if (state === 'paused') return 'text-n-amber-11 bg-n-amber-3';
+  if (state === 'in_wrapup') return 'text-n-violet-11 bg-n-violet-3';
   return 'text-n-slate-11 bg-n-alpha-2';
 };
 

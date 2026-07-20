@@ -12,7 +12,7 @@
 # llamada (in_call) y desconectar (inactive). Idempotente: si el estado no
 # cambió, no abre un registro nuevo.
 class Jabvox::DialerAgentStateLogger
-  STATES = %w[inactive waiting paused in_call].freeze
+  STATES = %w[inactive waiting paused in_call in_wrapup].freeze
 
   def self.record(account_id:, user_id:, state:)
     new(account_id, user_id, state).record

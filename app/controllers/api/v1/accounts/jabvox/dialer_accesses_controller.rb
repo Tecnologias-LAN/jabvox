@@ -87,6 +87,35 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     data[:in_call_contact_id].present? ? 'in_call' : 'waiting'
   end
 
+  # Marca/desmarca la gestión post-llamada (wrap-up) en el estado Redis, para que
+  # el monitor y el reporte muestren "en gestión" mientras el agente tipifica —
+  # en vez de "esperando". El frontend lo llama al abrir y cerrar el wrap-up.
+  def set_wrapup
+    data = read_agent_state
+    return head :not_found unless data
+
+    active = ActiveModel::Type::Boolean.new.cast(params[:active])
+    if active
+      data[:in_wrapup] = true
+    else
+      data.delete(:in_wrapup)
+    end
+    data[:state_changed_at] = Time.current.to_i
+    # En gestión NO se limpia in_call_contact_id todavía; el listener ya lo quitó
+    # al colgar. El wrap-up manda sobre "waiting" pero no sobre una llamada viva.
+    write_agent_state(data)
+    record_agent_state(wrapup_next_state(active, data))
+    head :ok
+  end
+
+  def wrapup_next_state(active, data)
+    return 'in_call' if data[:in_call_contact_id].present?
+    return 'in_wrapup' if active
+    return 'paused' if data[:state_id].present?
+
+    'waiting'
+  end
+
   def heartbeat
     data = read_agent_state
     # 404 explícito cuando la sesión Redis expiró/no existe: el frontend lo usa
@@ -102,7 +131,8 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     # Releer para reflejar el in_call que el listener haya escrito mientras tanto.
     fresh = read_agent_state || data
     render json: { connected: true, in_call: fresh[:in_call_contact_id].present?,
-                   in_call_contact_id: fresh[:in_call_contact_id], state_id: fresh[:state_id] }
+                   in_call_contact_id: fresh[:in_call_contact_id], state_id: fresh[:state_id],
+                   in_wrapup: fresh[:in_wrapup] == true }
   end
 
   def available_agents

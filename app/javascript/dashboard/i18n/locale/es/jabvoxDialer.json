@@ -361,7 +361,8 @@
       "STATE": {
         "waiting": "Esperando llamada",
         "in_call": "En llamada",
-        "paused": "En pausa"
+        "paused": "En pausa",
+        "in_wrapup": "En gestión"
       },
       "CONNECTION_LOST": "Reintentando conexión…"
     }

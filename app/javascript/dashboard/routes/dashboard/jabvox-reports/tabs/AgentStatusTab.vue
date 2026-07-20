@@ -61,6 +61,7 @@ const dialerBadgeClass = val => {
   if (val === 'in_call') return 'text-n-teal-11 bg-n-teal-3';
   if (val === 'paused' || val === 'in_comments')
     return 'text-n-amber-11 bg-n-amber-3';
+  if (val === 'in_wrapup') return 'text-n-violet-11 bg-n-violet-3';
   return 'text-n-slate-11 bg-n-alpha-2';
 };
 

@@ -579,6 +579,7 @@ Rails.application.routes.draw do
                 post :connect
                 delete :connect, action: :disconnect
                 patch :state, action: :update_state
+                patch :wrapup, action: :set_wrapup
                 post :heartbeat
                 get :available_agents
                 post :request_call

@@ -82,6 +82,9 @@ export const dialerAccessesAPI = {
   disconnect: () => axios.delete(`${dialerAccessesClient.url}/connect`),
   updateState: stateId =>
     axios.patch(`${dialerAccessesClient.url}/state`, { state_id: stateId }),
+  // Marca/desmarca la gestión post-llamada (wrap-up) para el monitor en vivo.
+  setWrapup: active =>
+    axios.patch(`${dialerAccessesClient.url}/wrapup`, { active }),
   heartbeat: () => axios.post(`${dialerAccessesClient.url}/heartbeat`),
   requestCall: () => axios.post(`${dialerAccessesClient.url}/request_call`),
   endCall: dialerContactId =>
