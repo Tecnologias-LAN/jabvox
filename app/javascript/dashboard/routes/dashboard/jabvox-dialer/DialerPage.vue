@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
 import {
   dialerAccessesAPI,
   dialerCallLogsAPI,
@@ -208,6 +209,7 @@ const persistState = () => {
       JSON.stringify({
         campaign: activeCampaign.value,
         dialerStateId: activeDialerState.value?.id ?? null,
+        dialerState: activeDialerState.value || null,
         activeCall: activeCall.value,
         dialingCall: dialingCall.value,
         lastCall: lastCall.value,
@@ -236,6 +238,49 @@ const stopRequestCallPolling = () => {
   }
 };
 
+// Watchdog: si una llamada queda en "marcando" (dialing) sin que llegue ni
+// call_assigned (contestó) ni call_ended (colgó/no contestó) en este tiempo, se
+// libera al agente para que el marcador siga con el siguiente lead. Red de
+// seguridad ante un evento AMI perdido; el timeout de Originate del PBX es 30s.
+const DIALING_WATCHDOG_MS = 60000;
+let dialingWatchdog = null;
+const clearDialingWatchdog = () => {
+  if (dialingWatchdog) {
+    clearTimeout(dialingWatchdog);
+    dialingWatchdog = null;
+  }
+};
+
+// dialer_contact_id de llamadas cuyo call_ended llegó ANTES que el call_assigned
+// (carrera WS/HTTP). Un assigned que llegue después para uno de estos se ignora.
+// Se auto-limpia con TTL para no crecer.
+const recentlyEndedIds = new Set();
+const rememberEndedId = id => {
+  if (!id) return;
+  recentlyEndedIds.add(id);
+  setTimeout(() => recentlyEndedIds.delete(id), 15000);
+};
+
+// Reanuda el polling de request_call. Se rearma vía watch(dialingCall) para no
+// crear una dependencia circular de definición con startRequestCallPolling.
+const resumeDialing = ref(false);
+
+// Arma el watchdog: si la marcación no avanza (call_assigned) ni termina
+// (call_ended) en DIALING_WATCHDOG_MS, suelta al agente y pide reanudar.
+const armDialingWatchdog = () => {
+  clearDialingWatchdog();
+  dialingWatchdog = setTimeout(() => {
+    if (dialingCall.value && !activeCall.value && !inWrapup.value) {
+      const id = dialingCall.value.dialer_contact_id;
+      dialingCall.value = null;
+      if (id) dialerAccessesAPI.endCall(id).catch(() => {});
+      if (connected.value && activeDialerState.value === null) {
+        resumeDialing.value = true; // el watcher reanuda el polling
+      }
+    }
+  }, DIALING_WATCHDOG_MS);
+};
+
 const doRequestCall = async () => {
   if (
     !connected.value ||
@@ -248,8 +293,11 @@ const doRequestCall = async () => {
   try {
     const { data } = await dialerAccessesAPI.requestCall();
     if (data.success) {
+      // Solo el id para poder cerrar/tipificar; nada del contacto se muestra
+      // mientras marca (la ficha del lead aparece al conectar la llamada).
       dialingCall.value = { dialer_contact_id: data.dialer_contact_id };
       stopRequestCallPolling();
+      armDialingWatchdog();
       dialerStatusMessage.value = null;
     } else if (data.queued === false) {
       dialerStatusMessage.value = data.message || null;
@@ -264,6 +312,14 @@ const startRequestCallPolling = () => {
   doRequestCall();
   requestCallTimer = setInterval(doRequestCall, 6000);
 };
+
+// El watchdog pide reanudar poniendo resumeDialing=true; aquí lo ejecutamos una
+// vez que startRequestCallPolling ya está definido (evita ciclo de definición).
+watch(resumeDialing, val => {
+  if (!val) return;
+  resumeDialing.value = false;
+  startRequestCallPolling();
+});
 
 const myCampaigns = computed(() => {
   const myId = Number(currentUserId.value);
@@ -312,11 +368,23 @@ const statusLabel = computed(() => {
 });
 
 const onCallAssigned = data => {
+  const cid = data.dialer_contact_id;
+  // Carrera: si el call_ended de ESTA llamada ya llegó (antes que el assigned),
+  // la llamada ya terminó — ignorar el assigned tardío y no pintar "en llamada"
+  // sobre una llamada muerta.
+  if (cid && recentlyEndedIds.has(cid)) {
+    recentlyEndedIds.delete(cid);
+    return;
+  }
+  // No pisar un wrap-up en curso con un call_assigned tardío/duplicado: se
+  // perdería la tipificación que el agente está escribiendo.
+  if (inWrapup.value) return;
+  clearDialingWatchdog();
   const pendingId = dialingCall.value?.dialer_contact_id;
   dialingCall.value = null;
   activeCall.value = {
     ...data,
-    dialer_contact_id: data.dialer_contact_id || pendingId,
+    dialer_contact_id: cid || pendingId,
   };
   inWrapup.value = false;
   clearWrapupTimer();
@@ -446,8 +514,16 @@ const onEndCall = () => {
   startWrapup();
 };
 
-const onCallEnded = () => {
-  if (!activeCall.value && !dialingCall.value) return;
+const onCallEnded = (data = {}) => {
+  clearDialingWatchdog();
+  // Carrera: el call_ended llegó antes de que se pintara la llamada (dialing/
+  // active). Recordar el id para descartar un call_assigned tardío y NO quedar
+  // 60s pegado en "Marcando" por una llamada ya terminada.
+  if (!activeCall.value && !dialingCall.value) {
+    rememberEndedId(data.dialer_contact_id);
+    return;
+  }
+  const wasDialing = !activeCall.value && !!dialingCall.value;
   const dialerContactId =
     activeCall.value?.dialer_contact_id || dialingCall.value?.dialer_contact_id;
   lastCall.value = activeCall.value || dialingCall.value || lastCall.value;
@@ -455,6 +531,16 @@ const onCallEnded = () => {
   dialingCall.value = null;
   if (dialerContactId)
     dialerAccessesAPI.endCall(dialerContactId).catch(() => {});
+  // Si la llamada terminó SIN haber sido contestada (nunca hubo call_assigned:
+  // no contestó / ocupado / falló / número malo) NO hay nada que tipificar:
+  // seguir marcando de una vez. El wrap-up es solo para llamadas atendidas.
+  if (wasDialing) {
+    lastCall.value = null;
+    if (connected.value && activeDialerState.value === null) {
+      startRequestCallPolling();
+    }
+    return;
+  }
   startWrapup();
 };
 
@@ -465,14 +551,44 @@ const stopHeartbeat = () => {
   }
 };
 
+// Reconcilia una llamada activa restaurada contra el servidor: si el agente ya
+// NO está en llamada allá (se perdió el call_ended durante recarga/desconexión),
+// cierra la pantalla de llamada y reanuda. Evita quedarse pegado "en llamada".
+const reconcileActiveCall = async () => {
+  try {
+    const { data } = await dialerAccessesAPI.heartbeat();
+    if (data && data.connected && !data.in_call && activeCall.value) {
+      // El servidor dice que ya no hay llamada → tratar como terminada.
+      onCallEnded({ dialer_contact_id: activeCall.value.dialer_contact_id });
+    }
+  } catch {
+    // 404 = sesión expirada: la maneja el heartbeat regular.
+  }
+};
+
 const startHeartbeat = () => {
   stopHeartbeat();
-  heartbeatTimer = setInterval(
-    () => {
-      dialerAccessesAPI.heartbeat().catch(() => {});
-    },
-    4 * 60 * 1000
-  );
+  // 60s (antes 4 min): mantiene viva la sesión Redis con margen holgado y
+  // detecta expiración pronto. Si el servidor responde "no conectado", se
+  // reconecta transparentemente para no quedar desincronizado.
+  heartbeatTimer = setInterval(async () => {
+    try {
+      const { data } = await dialerAccessesAPI.heartbeat();
+      // El servidor perdió la sesión (TTL) pero el agente sigue en el dialer:
+      // reconectar a su campaña para no quedar "conectado" fantasma sin recibir
+      // llamadas.
+      if (data && data.connected === false) throw new Error('stale');
+      // Reconciliar llamada colgada: estamos "en llamada" localmente pero el
+      // servidor ya no → soltar y seguir.
+      if (data && data.connected && !data.in_call && activeCall.value) {
+        onCallEnded({ dialer_contact_id: activeCall.value.dialer_contact_id });
+      }
+    } catch {
+      if (connected.value && activeCampaign.value) {
+        dialerAccessesAPI.connect(activeCampaign.value.id).catch(() => {});
+      }
+    }
+  }, 60 * 1000);
 };
 
 const clearSession = () => {
@@ -488,6 +604,16 @@ const closeDropdown = e => {
     stateDropdownOpen.value = false;
     overlayStateDropdownOpen.value = false;
   }
+};
+
+// Al reconectar el WebSocket pudimos habernos perdido call_assigned/call_ended
+// (mitt no tiene buffer). Reconciliar con el servidor: si teníamos una llamada
+// activa que ya terminó allá, soltarla; si estábamos en dialing, dejar que el
+// watchdog resuelva. Así una caída de red no deja al agente pegado.
+const onWebsocketReconnect = () => {
+  if (!connected.value) return;
+  if (activeCall.value) reconcileActiveCall();
+  if (dialingCall.value && !activeCall.value) armDialingWatchdog();
 };
 
 onMounted(async () => {
@@ -514,6 +640,7 @@ onMounted(async () => {
   }
   emitter.on('jabvox.dialer.call_assigned', onCallAssigned);
   emitter.on('jabvox.dialer.call_ended', onCallEnded);
+  emitter.on(BUS_EVENTS.WEBSOCKET_RECONNECT, onWebsocketReconnect);
   document.addEventListener('click', closeDropdown);
 
   // Restore session after HMR / tab reload
@@ -528,7 +655,9 @@ onMounted(async () => {
         await dialerAccessesAPI.connect(session.campaign.id);
       }
       activeCampaign.value = session.campaign;
-      activeDialerState.value = null;
+      // Restaurar el estado de pausa persistido (antes se forzaba "disponible",
+      // así el agente reaparecía recibiendo llamadas creyendo estar en pausa).
+      activeDialerState.value = session.dialerState || null;
       connected.value = true;
       startHeartbeat();
 
@@ -537,6 +666,13 @@ onMounted(async () => {
       activeCall.value = session.activeCall || null;
       dialingCall.value = session.dialingCall || null;
       lastCall.value = session.lastCall || null;
+
+      // Si se recargó DURANTE "Marcando", el call_assigned/ended original se
+      // perdió: armar el watchdog para no quedar pegado en dialing para siempre.
+      if (dialingCall.value && !activeCall.value) armDialingWatchdog();
+      // Si se recargó con una llamada activa, reconciliar con el servidor: si ya
+      // no está en llamada allá (se perdió el call_ended), soltar y seguir.
+      if (activeCall.value) reconcileActiveCall();
 
       // Re-load the lead's custom fields after navigating back into the dialer.
       const restoredContactId = (activeCall.value || lastCall.value)
@@ -579,10 +715,12 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   emitter.off('jabvox.dialer.call_assigned', onCallAssigned);
   emitter.off('jabvox.dialer.call_ended', onCallEnded);
+  emitter.off(BUS_EVENTS.WEBSOCKET_RECONNECT, onWebsocketReconnect);
   document.removeEventListener('click', closeDropdown);
   stopHeartbeat();
   stopRequestCallPolling();
   clearWrapupTimer();
+  clearDialingWatchdog();
   // IMPORTANT: do NOT disconnect the agent here. This unmount fires whenever the
   // user navigates away (e.g. "ir a conversación" during a call). Disconnecting
   // would drop the agent from the Asterisk queue and lose the live call. The
@@ -788,6 +926,8 @@ const setDialerState = async state => {
               class="i-lucide-phone-outgoing size-5 text-n-slate-10 shrink-0 animate-pulse"
             />
             <div class="min-w-0 flex-1">
+              <!-- Solo el estado: sin nombre, teléfono ni # del lead mientras
+                   marca. La ficha del lead aparece cuando la llamada se conecta. -->
               <p class="text-sm font-semibold text-n-slate-12 truncate">
                 {{ t('JABVOX_DIALER.DIALING') }}
               </p>
@@ -1161,20 +1301,21 @@ const setDialerState = async state => {
               </template>
             </p>
             <p class="text-sm text-n-slate-11">
+              <!-- La ficha del lead (nombre) solo cuando la llamada está
+                   CONECTADA. Mientras marca no se muestra nada del contacto. -->
               <span v-if="activeCall" class="font-medium text-n-brand">
                 {{ activeCall.contact_name || activeCall.contact_phone }}
               </span>
-              <span v-else-if="dialingCall" class="font-medium text-n-slate-11">
-                {{ dialingCall.contact_name || dialingCall.contact_phone }}
-              </span>
               <span
-                v-else-if="!isAvailable && !inWrapup"
+                v-else-if="!isAvailable && !inWrapup && !dialingCall"
                 class="font-medium"
                 :style="{ color: statusColor }"
               >
                 {{ activeDialerState?.name }}
               </span>
-              <span v-else>{{ activeCampaign.name_jabvox }}</span>
+              <span v-else-if="!dialingCall">
+                {{ activeCampaign.name_jabvox }}
+              </span>
             </p>
             <p
               v-if="dialerStatusMessage && isAvailable && !activeCall"

@@ -78,10 +78,14 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
 
   def heartbeat
     data = read_agent_state
-    return head :not_found unless data
+    # 404 explícito cuando la sesión Redis expiró/no existe: el frontend lo usa
+    # para reconciliar (reconectar o soltar una llamada fantasma) en vez de
+    # seguir mostrando al agente "en llamada" indefinidamente.
+    return render json: { connected: false }, status: :not_found unless data
 
     write_agent_state(data)
-    head :ok
+    render json: { connected: true, in_call: data[:in_call_contact_id].present?,
+                   in_call_contact_id: data[:in_call_contact_id], state_id: data[:state_id] }
   end
 
   def available_agents
@@ -177,7 +181,17 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     else
       Rails.logger.info "❌ [Dialer] Fallo al marcar | número=#{phone} motivo=#{result[:message]} cuenta=#{Current.account.id}"
     end
-    render json: result.merge(dialer_contact_id: contact.id)
+    # Devolver a QUIÉN se está marcando para que el agente lo vea MIENTRAS suena
+    # (en one_by_one no hay call_assigned hasta que contestan). El frontend lo
+    # pinta en la tarjeta de "Marcando…".
+    crm = lead.contact
+    render json: result.merge(
+      dialer_contact_id: contact.id,
+      contact_id: lead.contact_id,
+      contact_name: crm&.name.to_s,
+      contact_phone: phone,
+      lead_number: lead.lead_number
+    )
   end
 
   def end_call

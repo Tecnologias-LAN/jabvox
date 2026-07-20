@@ -21,6 +21,7 @@ module Jabvox
       @active_channels = {}
       @channel_vars    = {} # correlation_id (channel/uniqueid/linkedid) => { 'CTCALL_ID' => '…' }
       @call_keys       = {} # linkedid => [all correlation ids of that call] — for full cleanup
+      @answered_logs   = {} # dialer_call_log_id => true — call_assigned ya emitido (idempotencia)
       @socket          = nil
     end
 
@@ -41,6 +42,10 @@ module Jabvox
 
       @config = config
       @socket = Jabvox::DialerService.connect_with_timeout(config.host, config.port.to_i, CONNECT_TIMEOUT)
+      # Banner con timeout: un PBX que acepta TCP pero nunca envía banner colgaba
+      # el thread aquí para siempre (connect_with_timeout solo cubre el TCP).
+      raise 'AMI banner timeout' unless IO.select([@socket], nil, nil, CONNECT_TIMEOUT)
+
       @socket.gets # banner
       login(@socket, config)
       Rails.logger.info "✅ [AmiListener] account=#{@account_id} connected to #{config.host}"
@@ -81,9 +86,82 @@ module Jabvox
         handle_agent_connect(event)
       when 'agentcomplete'
         handle_agent_complete(event)
+      when 'newstate'
+        handle_newstate(event)
+      when 'bridgeenter'
+        handle_bridge_enter(event)
       when 'hangup'
         handle_hangup(event)
       end
+    end
+
+    # En modo one_by_one NO hay cola Asterisk, así que AgentConnect nunca llega y
+    # broadcast_call_assigned no se disparaba: el agente se quedaba pegado en
+    # "Llamando…" aunque el cliente contestara. Newstate con estado "Up" (6) es
+    # el evento que marca "la llamada fue contestada" en un Originate directo.
+    # Resolvemos la llamada por el JABVOX_DIALER_LOG_ID que viaja en el canal
+    # (o por la campaña activa como respaldo) y avisamos al frontend UNA vez.
+    def handle_newstate(event)
+      return unless event['channelstatedesc'].to_s.casecmp?('Up') ||
+                    event['channelstate'].to_s == '6'
+
+      notify_dialer_answered_from_channel(event['channel'].to_s, event)
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] handle_newstate failed | #{e.message}"
+    end
+
+    # BridgeEnter es el respaldo: cuando los dos legs (agente + cliente) se unen,
+    # la llamada está conectada. Cubre dialplans donde el Newstate 'Up' llega en
+    # un leg sin el marcador.
+    def handle_bridge_enter(event)
+      notify_dialer_answered_from_channel(event['channel'].to_s, event)
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] handle_bridge_enter failed | #{e.message}"
+    end
+
+    # Dispara call_assigned una sola vez por llamada del dialer a partir del canal
+    # que se acaba de contestar/puentear. Idempotente vía @answered_logs.
+    def handle_dialer_answered(channel, event)
+      return if channel.blank?
+
+      log_id = channel_var(channel, 'JABVOX_DIALER_LOG_ID', event)
+      log = log_id.present? ? JabvoxDialerCallLog.find_by(id: log_id.to_i, account_id: @account_id) : nil
+      # Respaldo: sin marcador en el canal, usar la llamada 'calling' más reciente
+      # de una campaña con este canal. Solo aplica a canales del trunk del dialer.
+      log ||= recover_open_dialer_log(channel)
+      return unless log&.jabvox_dialer_campaign_contact_id && log.agent_id_jabvox
+
+      @answered_logs ||= {}
+      return if @answered_logs[log.id] # ya avisado
+
+      @answered_logs[log.id] = true
+      evict_answered_logs_if_needed
+      broadcast_call_assigned(log.agent_id_jabvox, log.jabvox_dialer_campaign_contact_id, log.jabvox_dialer_campaign_id)
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] handle_dialer_answered failed | #{e.message}"
+    end
+    alias notify_dialer_answered_from_channel handle_dialer_answered
+
+    # La llamada abierta ('initiated'/'calling') más reciente cuyo canal del trunk
+    # coincide — usada cuando el Newstate/BridgeEnter no trae el marcador. Solo se
+    # usa si hay UNA sola llamada abierta reciente, para no asignar la equivocada
+    # cuando varias campañas marcan a la vez.
+    def recover_open_dialer_log(channel)
+      return nil unless channel.to_s.start_with?('SIP/', 'PJSIP/', 'Local/')
+
+      open = JabvoxDialerCallLog
+             .where(account_id: @account_id, status_jabvox: %w[initiated calling])
+             .where('started_at_jabvox > ?', 2.minutes.ago)
+             .order(started_at_jabvox: :desc).limit(2).to_a
+      open.size == 1 ? open.first : nil
+    rescue StandardError
+      nil
+    end
+
+    def evict_answered_logs_if_needed
+      return if @answered_logs.size <= MAX_CACHED_KEYS
+
+      @answered_logs.keys.first(@answered_logs.size - MAX_CACHED_KEYS / 2).each { |k| @answered_logs.delete(k) }
     end
 
     # Cache the click-to-call / dialer markers as soon as Asterisk sets them
@@ -145,6 +223,17 @@ module Jabvox
       @call_keys.keys.first([@call_keys.size - MAX_CACHED_KEYS / 2, 0].max).each { |k| @call_keys.delete(k) }
     end
 
+    # @active_channels crecía sin límite: cada Hangup/AgentComplete perdido dejaba
+    # su entrada para siempre (memory leak en dialers de alto volumen que corren
+    # semanas). Al superar el cap, descarta las entradas más viejas (Ruby preserva
+    # orden de inserción); están muy por encima de cualquier concurrencia real, así
+    # que nunca desaloja llamadas vivas.
+    def evict_active_channels_if_needed
+      return if @active_channels.size <= MAX_CACHED_KEYS
+
+      @active_channels.keys.first(@active_channels.size - MAX_CACHED_KEYS / 2).each { |k| @active_channels.delete(k) }
+    end
+
     # Returns a cached marker for any of the call's correlation ids (channel name,
     # uniqueid or linkedid), falling back to a live Getvar on the channel only if
     # nothing was cached (older channels / missed VarSet).
@@ -198,6 +287,7 @@ module Jabvox
                extension: extension, caller_channel: caller_channel, dest_channel: dest_channel }
       @active_channels[caller_channel] = info
       @active_channels[dest_channel]   = info if dest_channel.present?
+      evict_active_channels_if_needed
 
       # Persist that the lead was reached + who took it, so the campaign report
       # shows it as answered with the agent even if no later event correlates.
@@ -327,8 +417,27 @@ module Jabvox
       return unless channel_belongs_to_account?(channel, 'JABVOX_ACCOUNT_ID', event)
 
       close_dialer_log(log_id.to_i, event)
+      # En modo one-by-one NO hay cola (ni AgentConnect/AgentComplete), así que
+      # @active_channels queda vacío y el broadcast de call_ended de handle_hangup
+      # nunca se dispara: el agente se quedaba pegado "en llamada" y el marcador
+      # no seguía. Avisamos al frontend directamente desde el log recién cerrado,
+      # pase lo que pase con la llamada (no contesta / ocupado / falla / cuelgan).
+      notify_dialer_call_ended(log_id.to_i)
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] dialer hangup failed | #{e.message}"
+    end
+
+    # Emite call_ended hacia el frontend del agente a partir de un dialer call
+    # log, sin depender de @active_channels (que solo se puebla en modo cola).
+    # Es idempotente: si handle_hangup ya lo emitió, este segundo aviso es inocuo.
+    def notify_dialer_call_ended(log_id)
+      log = JabvoxDialerCallLog.find_by(id: log_id, account_id: @account_id)
+      return unless log&.agent_id_jabvox
+
+      broadcast_call_ended_for(log.agent_id_jabvox, log.jabvox_dialer_campaign_contact_id,
+                               log.jabvox_dialer_campaign_id, log.phone_jabvox)
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] notify_dialer_call_ended failed | #{e.message}"
     end
 
     # Finds the agent's most recent OPEN dialer log by the extension in the channel
@@ -351,6 +460,9 @@ module Jabvox
     # A call that was answered by the customer has a non-empty ConnectedLineNum or a
     # positive billable duration; otherwise it did not connect (no-answer/busy).
     def close_dialer_log(log_id, event)
+      # Liberar el marcador de "ya avisé contestada" para que una re-marcación
+      # del mismo lead vuelva a emitir call_assigned.
+      @answered_logs&.delete(log_id)
       log = JabvoxDialerCallLog.find_by(id: log_id, account_id: @account_id)
       return if log.nil?
 
@@ -358,6 +470,13 @@ module Jabvox
       answered = call_was_answered?(event)
       attrs = {}
       attrs[:uniqueid_jabvox] = uniqueid if uniqueid.present? && log.uniqueid_jabvox.blank?
+      # Cerrar el log SIEMPRE: sin ended_at el log quedaba 'initiated' para
+      # siempre (visto en producción: log 665) y el monitor lo mostraba como
+      # llamada en curso indefinidamente.
+      attrs[:ended_at_jabvox] = Time.current if log.ended_at_jabvox.blank?
+      if log.started_at_jabvox.present? && log.duration_jabvox.to_i.zero?
+        attrs[:duration_jabvox] = [(Time.current - log.started_at_jabvox).to_i, 0].max
+      end
 
       # Only finalize logs still open; a queue flow may already have set 'answered'.
       if %w[initiated calling].include?(log.status_jabvox)
@@ -687,9 +806,17 @@ module Jabvox
       socket.write(msg)
     end
 
+    # Máximo que esperamos por una LÍNEA dentro de un bloque de respuesta ya
+    # empezado. Sin esto, un socket que se queda a medias (evento parcial, red
+    # colgada) bloqueaba socket.gets para siempre y congelaba el listener sin
+    # reconectar. Al vencer, lanzamos para que el loop de run reconecte.
+    READ_LINE_TIMEOUT = 20
+
     def read_response(socket)
       result = {}
       loop do
+        raise 'AMI read timeout' unless IO.select([socket], nil, nil, READ_LINE_TIMEOUT)
+
         line = socket.gets
         raise 'AMI connection closed' if line.nil?
 
