@@ -63,8 +63,17 @@ module Jabvox
 
     # Historical behavior: any matching lead, at random (a lead may be dialed
     # again on later passes — the last-management filter decides eligibility).
+    # Excluye los contactos con una llamada EN CURSO (campaign_contact en
+    # 'calling') para que dos agentes no marquen al mismo cliente a la vez: el
+    # advisory lock serializa el pick, pero sin esta exclusión el siguiente pick
+    # podía volver a elegir el mismo lead legítimamente.
     def pick_by_last_state
-      base_scope.order('RANDOM()').first
+      scope = base_scope
+      calling_ids = @campaign.jabvox_dialer_campaign_contacts
+                             .where(status_jabvox: 'calling').where.not(contact_id: nil)
+                             .pluck(:contact_id)
+      scope = scope.where.not(jabvox_leads: { contact_id: calling_ids }) if calling_ids.any?
+      scope.order('RANDOM()').first
     end
 
     # One-by-one with optional retries:
@@ -98,9 +107,17 @@ module Jabvox
       max = @campaign.max_retries_jabvox.to_i
       cc = @campaign.jabvox_dialer_campaign_contacts
                     .where(status_jabvox: statuses)
-                    .where('attempts_jabvox <= ?', max.positive? ? max : Float::INFINITY)
                     .order(last_attempt_at_jabvox: :asc)
-                    .first
+      # max_retries == 0 significa "sin tope": omitimos la cláusula en vez de
+      # bindear Float::INFINITY, que Postgres rechaza contra una columna integer
+      # (PG::InvalidTextRepresentation) y abortaba la transacción de reserva.
+      cc = cc.where('attempts_jabvox <= ?', max) if max.positive?
+      # Respetar el intervalo de reintento configurado: un lead no se re-marca
+      # antes de retry_interval_jabvox minutos desde su último intento (evita
+      # re-marcar al mismo cliente cada pocos segundos en el siguiente tick).
+      interval = @campaign.retry_interval_jabvox.to_i
+      cc = cc.where('last_attempt_at_jabvox IS NULL OR last_attempt_at_jabvox <= ?', interval.minutes.ago) if interval.positive?
+      cc = cc.first
       return nil if cc.nil?
 
       # Only re-dial if the lead still passes the campaign filters and has a phone.

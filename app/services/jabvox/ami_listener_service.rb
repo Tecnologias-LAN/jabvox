@@ -51,7 +51,11 @@ module Jabvox
       Rails.logger.info "✅ [AmiListener] account=#{@account_id} connected to #{config.host}"
       listen
     ensure
-      @socket&.close rescue nil
+      begin
+        @socket&.close
+      rescue StandardError
+        nil
+      end
       @socket = nil
     end
 
@@ -65,7 +69,7 @@ module Jabvox
       loop do
         ready = IO.select([@socket], nil, nil, READ_TIMEOUT)
         unless ready
-          @socket.write("Action: Ping\r\n\r\n")
+          send_ping
           next
         end
         event = read_response(@socket)
@@ -75,9 +79,45 @@ module Jabvox
       end
     end
 
+    # Ping keep-alive con ActionID: consumimos su Pong explícitamente (casando por
+    # id, despachando cualquier evento que llegue antes) para que la respuesta del
+    # Ping no la "robe" un Getvar posterior — bug que dejaba el marcador en nil y
+    # activaba heurísticas de correlación equivocadas.
+    def send_ping
+      action_id = next_action_id
+      send_action(@socket, 'Ping', actionid: action_id)
+      await_response(action_id)
+    rescue StandardError => e
+      Rails.logger.warn "⚠️ [AmiListener] ping failed | #{e.message}"
+      raise # que el loop de run reconecte si el socket está roto
+    end
+
+    # ActionID único por acción (monótono; evita Math.random/Date que están
+    # bloqueados y romperían el resume). Sirve para casar respuesta⇄acción.
+    def next_action_id
+      @action_seq = (@action_seq || 0) + 1
+      "jbx-#{@account_id}-#{@action_seq}"
+    end
+
+    # Lee del socket hasta encontrar la RESPUESTA con este ActionID, despachando
+    # por el camino cualquier EVENTO que llegue (nunca se pierde un evento). Tras
+    # un número acotado de mensajes intermedios, se rinde y devuelve {} para no
+    # bloquear el listener indefinidamente.
+    def await_response(action_id, max_messages: 40)
+      max_messages.times do
+        msg = read_response(@socket)
+        return msg if msg['actionid'] == action_id
+        # Respuesta sin actionid (AMI viejo) tras nuestra acción: la tomamos.
+        return msg if msg.key?('response') && !msg.key?('actionid') && !msg.key?('event')
+
+        dispatch_event(msg) if msg.key?('event')
+      end
+      {}
+    end
+
     def dispatch_event(event)
       evt_name = event['event'].to_s
-      Rails.logger.debug "🔎 [AmiListener] event=#{evt_name}" if evt_name.present?
+      Rails.logger.debug { "🔎 [AmiListener] event=#{evt_name}" } if evt_name.present?
 
       case evt_name.downcase
       when 'varset'
@@ -92,6 +132,8 @@ module Jabvox
         handle_bridge_enter(event)
       when 'hangup'
         handle_hangup(event)
+      when 'originateresponse'
+        handle_originate_response(event)
       end
     end
 
@@ -126,9 +168,12 @@ module Jabvox
 
       log_id = channel_var(channel, 'JABVOX_DIALER_LOG_ID', event)
       log = log_id.present? ? JabvoxDialerCallLog.find_by(id: log_id.to_i, account_id: @account_id) : nil
-      # Respaldo: sin marcador en el canal, usar la llamada 'calling' más reciente
-      # de una campaña con este canal. Solo aplica a canales del trunk del dialer.
-      log ||= recover_open_dialer_log(channel)
+      # Respaldo: sin marcador en el canal, usar la llamada 'calling' más reciente.
+      # Solo si el canal pertenece a ESTA cuenta o al trunk del dialer configurado;
+      # de lo contrario un Newstate/BridgeEnter de un canal ajeno (entrante, otra
+      # cuenta en PBX compartido) marcaba como "contestada" una llamada que aún
+      # sonaba, mostrando al agente "conectado" con un cliente que no respondió.
+      log ||= recover_open_dialer_log(channel, event)
       return unless log&.jabvox_dialer_campaign_contact_id && log.agent_id_jabvox
 
       @answered_logs ||= {}
@@ -146,8 +191,11 @@ module Jabvox
     # coincide — usada cuando el Newstate/BridgeEnter no trae el marcador. Solo se
     # usa si hay UNA sola llamada abierta reciente, para no asignar la equivocada
     # cuando varias campañas marcan a la vez.
-    def recover_open_dialer_log(channel)
+    def recover_open_dialer_log(channel, event = nil)
       return nil unless channel.to_s.start_with?('SIP/', 'PJSIP/', 'Local/')
+      # El canal debe ser de esta cuenta (marcador) o del trunk del dialer: si no,
+      # es un canal ajeno y NO debe correlacionarse con una llamada del dialer.
+      return nil unless channel_belongs_to_dialer?(channel, event)
 
       open = JabvoxDialerCallLog
              .where(account_id: @account_id, status_jabvox: %w[initiated calling])
@@ -158,10 +206,27 @@ module Jabvox
       nil
     end
 
+    # ¿El canal es atribuible al dialer de esta cuenta? True si lleva el marcador
+    # JABVOX_ACCOUNT_ID de esta cuenta, o si el nombre del canal usa el trunk del
+    # dialer configurado (SIP/<trunk>-… o SIP/<trunk>/…). Sin marcador ni match de
+    # trunk configurado, devolvemos false para no correlacionar canales ajenos.
+    def channel_belongs_to_dialer?(channel, event = nil)
+      marker = channel_var(channel, 'JABVOX_ACCOUNT_ID', event)
+      return marker.to_s == @account_id.to_s if marker.present?
+
+      trunk = @config&.dialer_trunk.to_s
+      return false if trunk.blank?
+
+      ch = channel.to_s
+      ch.start_with?("SIP/#{trunk}-", "SIP/#{trunk}/", "PJSIP/#{trunk}-", "PJSIP/#{trunk}/")
+    rescue StandardError
+      false
+    end
+
     def evict_answered_logs_if_needed
       return if @answered_logs.size <= MAX_CACHED_KEYS
 
-      @answered_logs.keys.first(@answered_logs.size - MAX_CACHED_KEYS / 2).each { |k| @answered_logs.delete(k) }
+      @answered_logs.keys.first(@answered_logs.size - (MAX_CACHED_KEYS / 2)).each { |k| @answered_logs.delete(k) }
     end
 
     # Cache the click-to-call / dialer markers as soon as Asterisk sets them
@@ -219,8 +284,8 @@ module Jabvox
     def evict_cache_if_needed
       return if @channel_vars.size <= MAX_CACHED_KEYS
 
-      @channel_vars.keys.first(@channel_vars.size - MAX_CACHED_KEYS / 2).each { |k| @channel_vars.delete(k) }
-      @call_keys.keys.first([@call_keys.size - MAX_CACHED_KEYS / 2, 0].max).each { |k| @call_keys.delete(k) }
+      @channel_vars.keys.first(@channel_vars.size - (MAX_CACHED_KEYS / 2)).each { |k| @channel_vars.delete(k) }
+      @call_keys.keys.first([@call_keys.size - (MAX_CACHED_KEYS / 2), 0].max).each { |k| @call_keys.delete(k) }
     end
 
     # @active_channels crecía sin límite: cada Hangup/AgentComplete perdido dejaba
@@ -231,7 +296,7 @@ module Jabvox
     def evict_active_channels_if_needed
       return if @active_channels.size <= MAX_CACHED_KEYS
 
-      @active_channels.keys.first(@active_channels.size - MAX_CACHED_KEYS / 2).each { |k| @active_channels.delete(k) }
+      @active_channels.keys.first(@active_channels.size - (MAX_CACHED_KEYS / 2)).each { |k| @active_channels.delete(k) }
     end
 
     # Returns a cached marker for any of the call's correlation ids (channel name,
@@ -335,24 +400,21 @@ module Jabvox
     end
 
     # Reuses the existing authenticated socket — avoids TCP+login overhead per Getvar.
-    # If events arrive before the Response, we dispatch them and keep looking.
+    # Usa ActionID para casar la respuesta correcta (no un Pong ni otra respuesta)
+    # y despacha por el camino cualquier evento que llegue, de modo que ningún
+    # evento AMI se pierda mientras esperamos el valor de la variable.
     def getvar_on_existing(channel, variable)
-      send_action(@socket, 'Getvar', channel: channel, variable: variable)
-      20.times do
-        resp = read_response(@socket)
-        # AMI lowercases keys in our parser; 'value' is the Getvar result
-        return resp['value'] if resp.key?('response')
-        # An event arrived before our response — dispatch it, keep waiting
-        dispatch_event(resp) if resp.key?('event')
-      end
-      nil
+      action_id = next_action_id
+      send_action(@socket, 'Getvar', channel: channel, variable: variable, actionid: action_id)
+      resp = await_response(action_id)
+      resp['value']
     rescue StandardError
       nil
     end
 
     # AgentComplete fires when queue call ends — use as primary call_ended trigger.
     # Falls back to extension lookup in Redis if channel map isn't populated yet.
-    def handle_agent_complete(event) # rubocop:disable Metrics/MethodLength
+    def handle_agent_complete(event)
       queue     = event['queue'].to_s
       member    = event['interface'].presence || event['member'].to_s
       extension = strip_sip_prefix(member)
@@ -379,6 +441,27 @@ module Jabvox
       broadcast_call_ended_for(user_id, nil, campaign_id, extension, state)
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] handle_agent_complete failed | #{e.message}"
+    end
+
+    # Un Originate async responde con OriginateResponse. Response=Failure significa
+    # que la llamada NO se estableció (trunk congestionado, número inválido, canal
+    # nunca creado). Sin manejarlo, el log quedaba 'initiated'/'calling' y el agente
+    # pegado en "Marcando…" hasta el reaper (15 min). Aquí cerramos el log como
+    # fallido y avisamos al frontend de inmediato.
+    def handle_originate_response(event)
+      return if event['response'].to_s.casecmp?('Success')
+
+      channel = event['channel'].to_s
+      log_id  = channel_var(channel, 'JABVOX_DIALER_LOG_ID', event)
+      # Sin marcador (canal nunca creado): el reaper sigue siendo el respaldo.
+      return if log_id.blank?
+      return unless channel_belongs_to_account?(channel, 'JABVOX_ACCOUNT_ID', event)
+
+      Rails.logger.info "📵 [AmiListener] OriginateResponse Failure | account=#{@account_id} log=#{log_id} reason=#{event['reason']}"
+      close_dialer_log(log_id.to_i, event, status: 'failed')
+      notify_dialer_call_ended(log_id.to_i)
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] handle_originate_response failed | #{e.message}"
     end
 
     def handle_hangup(event)
@@ -459,7 +542,9 @@ module Jabvox
     # Records the recording uniqueid and finalizes an open dialer log on hangup.
     # A call that was answered by the customer has a non-empty ConnectedLineNum or a
     # positive billable duration; otherwise it did not connect (no-answer/busy).
-    def close_dialer_log(log_id, event)
+    # status: fuerza el estado final (p. ej. 'failed' desde OriginateResponse).
+    # Si es nil, se deduce de call_was_answered? (answered / no_answer).
+    def close_dialer_log(log_id, event, status: nil)
       # Liberar el marcador de "ya avisé contestada" para que una re-marcación
       # del mismo lead vuelva a emitir call_assigned.
       @answered_logs&.delete(log_id)
@@ -467,7 +552,7 @@ module Jabvox
       return if log.nil?
 
       uniqueid = event['uniqueid'].presence
-      answered = call_was_answered?(event)
+      answered = status.nil? ? call_was_answered?(event) : false
       attrs = {}
       attrs[:uniqueid_jabvox] = uniqueid if uniqueid.present? && log.uniqueid_jabvox.blank?
       # Cerrar el log SIEMPRE: sin ended_at el log quedaba 'initiated' para
@@ -480,10 +565,10 @@ module Jabvox
 
       # Only finalize logs still open; a queue flow may already have set 'answered'.
       if %w[initiated calling].include?(log.status_jabvox)
-        attrs[:status_jabvox] = answered ? 'answered' : 'no_answer'
+        attrs[:status_jabvox] = status || (answered ? 'answered' : 'no_answer')
         attrs[:lead_answered_jabvox] = answered
         # Mirror onto the campaign-contact so progress/report counts agree.
-        finalize_contact_for_log(log, answered)
+        finalize_contact_for_log(log, answered, status: status)
       end
       log.update_columns(attrs) if attrs.any? # rubocop:disable Rails/SkipsModelValidations
     end
@@ -492,19 +577,32 @@ module Jabvox
     # or a Cause of 16 (Normal Clearing) with a connected line. Falls back to the
     # presence of a bridged/connected line number.
     def call_was_answered?(event)
-      billable = event['BillableSeconds'].to_i
+      # OJO: read_response baja TODAS las claves a minúsculas, así que hay que
+      # leerlas en minúscula ('billableseconds', no 'BillableSeconds'). El bug
+      # anterior (mayúsculas) hacía que billable fuera siempre 0 y una llamada
+      # contestada se registrara como no_answer.
+      billable = event['billableseconds'].to_i
       return true if billable.positive?
 
+      # answeredtime/answer presente = hubo respuesta (algunos dialplans lo
+      # reportan en el Hangup en vez de billableseconds).
+      return true if event['answeredtime'].to_i.positive?
+
+      # Si el canal ya estaba "Up" al colgar, la llamada estaba conectada.
+      return true if event['channelstatedesc'].to_s.casecmp?('Up')
+
+      # Último criterio: cierre normal (Cause 16) con línea conectada.
       cause = event['cause'].to_s
       connected = event['connectedlinenum'].to_s.gsub(/\D/, '')
       cause == '16' && connected.length >= 5
     end
 
-    def finalize_contact_for_log(log, answered)
+    def finalize_contact_for_log(log, answered, status: nil)
       cc = JabvoxDialerCampaignContact.find_by(id: log.jabvox_dialer_campaign_contact_id)
       return if cc.nil? || cc.status_jabvox != 'calling'
 
-      cc.update_columns(status_jabvox: answered ? 'completed' : 'no_answer') # rubocop:disable Rails/SkipsModelValidations
+      cc_status = status || (answered ? 'completed' : 'no_answer')
+      cc.update_columns(status_jabvox: cc_status) # rubocop:disable Rails/SkipsModelValidations
     rescue StandardError
       nil
     end
@@ -625,6 +723,41 @@ module Jabvox
       value.to_s == @account_id.to_s
     end
 
+    # Respaldo de AgentComplete cuando @active_channels ya no tiene el canal
+    # (reconexión a mitad de llamada, reinicio del listener, eviction del cache):
+    # localiza al agente por su extensión recorriendo los agentes conectados en
+    # Redis. Devuelve [user_id, state] o [nil, nil]. Sin esto, handle_agent_complete
+    # llamaba a un método inexistente y el fallback moría en silencio (NoMethodError
+    # tragado), dejando al agente "en llamada" hasta que otro fallback lo rescatara.
+    def find_agent_by_extension(extension)
+      ext = extension.to_s
+      return [nil, nil] if ext.blank?
+
+      connected_agent_ids.each do |uid|
+        state = read_agent_state_for(uid)
+        next unless state && state[:extension].to_s == ext
+
+        return [uid, state]
+      end
+      [nil, nil]
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] find_agent_by_extension failed | #{e.message}"
+      [nil, nil]
+    end
+
+    def connected_agent_ids
+      Redis::Alfred.smembers("jabvox_dialer_connected_#{@account_id}").map(&:to_i)
+    rescue StandardError
+      []
+    end
+
+    def read_agent_state_for(uid)
+      raw = Redis::Alfred.get("jabvox_dialer_agent_#{@account_id}_#{uid}")
+      raw ? JSON.parse(raw, symbolize_names: true) : nil
+    rescue StandardError
+      nil
+    end
+
     # Marca/limpia "en llamada" en el estado Redis del agente, para que el
     # reporte de agentes muestre el estado real (esperando / en llamada) en vivo.
     AGENT_STATE_TTL = 10.minutes.to_i
@@ -642,11 +775,19 @@ module Jabvox
       end
       data[:state_changed_at] = Time.current.to_i
       Redis::Alfred.setex(key, data.to_json, AGENT_STATE_TTL)
+      # Registrar la transición para el reporte de agentes. Al terminar la llamada,
+      # el estado vuelve a 'paused' si el agente tenía un estado activo, o 'waiting'.
+      state = if contact_id
+                'in_call'
+              else
+                data[:state_id].present? ? 'paused' : 'waiting'
+              end
+      Jabvox::DialerAgentStateLogger.record(account_id: @account_id, user_id: user_id, state: state)
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] mark_agent_call failed | #{e.message}"
     end
 
-    def broadcast_call_ended_for(user_id, contact_id, campaign_id, extension, state = nil) # rubocop:disable Metrics/MethodLength
+    def broadcast_call_ended_for(user_id, contact_id, campaign_id, extension, state = nil)
       state ||= begin
         raw = Redis::Alfred.get("jabvox_dialer_agent_#{@account_id}_#{user_id}")
         raw ? JSON.parse(raw, symbolize_names: true) : nil
@@ -691,25 +832,25 @@ module Jabvox
       fv   = field_vis(account, user_id)
       attrs = crm.additional_attributes || {}
       data = {
-        account_id:         @account_id,
-        dialer_contact_id:  contact.id,
-        user_id:            user_id,
-        contact_name:       fv['name']    != false ? crm.name.to_s         : '***',
-        contact_phone:      fv['phone']   != false ? contact.phone_jabvox  : '***',
-        contact_email:      fv['email']   != false ? crm.email.to_s        : '***',
-        contact_country:    fv['country'] != false ? crm.country_code.to_s : '***',
+        account_id: @account_id,
+        dialer_contact_id: contact.id,
+        user_id: user_id,
+        contact_name: fv['name'] == false ? '***'         : crm.name.to_s,
+        contact_phone: fv['phone'] == false ? '***'  : contact.phone_jabvox,
+        contact_email: fv['email'] == false ? '***'        : crm.email.to_s,
+        contact_country: fv['country'] == false ? '***' : crm.country_code.to_s,
         # Documento y tipo de persona: mismos campos que muestra el detalle del lead
         # (additional_attributes). El documento cae al helper de campos custom si no
         # está en additional_attributes, igual que el preview de la campaña.
-        contact_document:   fv['identification'] != false ? dialer_document(lead, attrs, crm) : '***',
-        contact_type:       fv['contact_type'] != false ? (attrs['jabvox_contact_type'].presence || 'persona') : '***',
-        contact_id:         contact.contact_id,
-        lead_id:            lead&.id,
-        lead_number:        lead&.lead_number,
-        affiliate_name:     lead&.jabvox_affiliate&.name.to_s,
-        campaign_name:      lead&.jabvox_campaign&.name_jabvox.to_s,
-        conversation_id:    conversation_id,
-        wrapup_seconds:     campaign.wrapup_time_jabvox.to_i,
+        contact_document: fv['identification'] == false ? '***' : dialer_document(lead, attrs, crm),
+        contact_type: fv['contact_type'] == false ? '***' : (attrs['jabvox_contact_type'].presence || 'persona'),
+        contact_id: contact.contact_id,
+        lead_id: lead&.id,
+        lead_number: lead&.lead_number,
+        affiliate_name: lead&.jabvox_affiliate&.name.to_s,
+        campaign_name: lead&.jabvox_campaign&.name_jabvox.to_s,
+        conversation_id: conversation_id,
+        wrapup_seconds: campaign.wrapup_time_jabvox.to_i,
         management_history: fetch_mgmt_history(account, contact.contact_id)
       }
 
@@ -754,9 +895,9 @@ module Jabvox
       end
 
       Conversation.create!(
-        account_id:       account.id,
-        inbox_id:         inbox.id,
-        contact_id:       crm.id,
+        account_id: account.id,
+        inbox_id: inbox.id,
+        contact_id: crm.id,
         contact_inbox_id: contact_inbox.id
       ).id
     rescue StandardError => e
@@ -782,27 +923,29 @@ module Jabvox
              .order(id: :desc)
              .limit(limit)
              .map do |msg|
-               { state_name:  msg.content_attributes['jabvox_management_state_name'],
+               { state_name: msg.content_attributes['jabvox_management_state_name'],
                  state_color: msg.content_attributes['jabvox_management_state_color'],
-                 note:        msg.content,
-                 created_at:  msg.created_at.strftime('%d/%m %H:%M') }
+                 note: msg.content,
+                 created_at: msg.created_at.strftime('%d/%m %H:%M') }
              end
     rescue StandardError
       []
     end
 
     def strip_sip_prefix(member)
-      member.sub(/\ASIP\//i, '').sub(/\APJSIP\//i, '')
+      member.sub(%r{\ASIP/}i, '').sub(%r{\APJSIP/}i, '')
     end
 
     def parse_campaign_id(queue)
       queue.sub('dialer_camp_', '').to_i
     end
 
+    # Saneo CRLF en clave y valor: ningún dato puede incrustar saltos de línea que
+    # AMI interpretaría como acciones/claves extra (defensa en profundidad).
     def send_action(socket, action, **params)
-      msg = "Action: #{action}\r\n"
-      params.each { |key, val| msg += "#{key}: #{val}\r\n" }
-      msg += "\r\n"
+      msg = "Action: #{action.to_s.delete("\r\n")}\r\n"
+      params.each { |key, val| msg << "#{key.to_s.delete("\r\n")}: #{val.to_s.delete("\r\n")}\r\n" }
+      msg << "\r\n"
       socket.write(msg)
     end
 

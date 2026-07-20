@@ -51,6 +51,7 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     write_agent_state(agent_data)
     register_connected_agent(current_user.id)
     sync_queue_membership(campaign_id, user_ext&.extension_jabvox, add: true)
+    record_agent_state('waiting')
     log_connect(Current.account.id, current_user.id, user_ext&.extension_jabvox, campaign_id)
     render json: { extension: user_ext&.extension_jabvox }
   end
@@ -60,6 +61,7 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     sync_queue_membership(data&.dig(:campaign_id), data&.dig(:extension), add: false) if data
     remove_agent_state
     unregister_connected_agent(current_user.id)
+    record_agent_state('inactive')
     head :no_content
   end
 
@@ -73,7 +75,16 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     data[:state_id] = new_state_id
     write_agent_state(data)
     sync_queue_pause(data[:campaign_id], data[:extension], paused: paused)
+    # Pausa => paused; despausa sin llamada => waiting (si está en llamada, el
+    # listener ya lo marcó in_call y no lo pisamos aquí).
+    record_agent_state(next_state_after_update(paused, data))
     head :ok
+  end
+
+  def next_state_after_update(paused, data)
+    return 'paused' if paused
+
+    data[:in_call_contact_id].present? ? 'in_call' : 'waiting'
   end
 
   def heartbeat
@@ -83,9 +94,15 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     # seguir mostrando al agente "en llamada" indefinidamente.
     return render json: { connected: false }, status: :not_found unless data
 
-    write_agent_state(data)
-    render json: { connected: true, in_call: data[:in_call_contact_id].present?,
-                   in_call_contact_id: data[:in_call_contact_id], state_id: data[:state_id] }
+    # Renovar SOLO el TTL de forma atómica (EXPIRE), sin reescribir el blob.
+    # Reescribirlo con la copia leída pisaba el in_call_contact_id que el AMI
+    # listener podía haber añadido entre el read y el write (race entre Puma y
+    # el runner AMI): el agente aparecía "esperando" estando en llamada.
+    touch_agent_state
+    # Releer para reflejar el in_call que el listener haya escrito mientras tanto.
+    fresh = read_agent_state || data
+    render json: { connected: true, in_call: fresh[:in_call_contact_id].present?,
+                   in_call_contact_id: fresh[:in_call_contact_id], state_id: fresh[:state_id] }
   end
 
   def available_agents
@@ -101,7 +118,24 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     render json: agents
   end
 
-  def request_call # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
+  # Lock por agente: evita que dos peticiones solapadas del mismo agente
+  # (polling con PBX lento, o dos pestañas abiertas) reserven y marquen dos
+  # leads a la vez. Si ya hay una marcación en curso, devolvemos queued:false
+  # sin efecto. El lock se libera siempre en el ensure.
+  def request_call
+    unless acquire_dialing_lock
+      Rails.logger.info "🔒 [Dialer] Marcación ya en curso, ignorando petición duplicada | cuenta=#{Current.account.id} usuario=#{current_user.id}"
+      return render json: { queued: false, message: 'Dialing already in progress' }
+    end
+
+    begin
+      perform_request_call
+    ensure
+      release_dialing_lock
+    end
+  end
+
+  private def perform_request_call # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
     agent = read_agent_state
     unless agent
       Rails.logger.info "🔴 [Dialer] Sin estado de agente en Redis | cuenta=#{Current.account.id} usuario=#{current_user.id}"
@@ -147,8 +181,11 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
         skip_reason = 'Lead sin número en el campo configurado'
         nil
       else
+        # NO fijar attempts_jabvox aquí: el picker es la única fuente de verdad
+        # del contador (lo incrementa en pick_and_reserve). Fijarlo a 0 aquí lo
+        # reseteaba en cada marcación y max_retries nunca se aplicaba.
         { name_jabvox: picked.contact.name.to_s, phone_jabvox: phone,
-          status_jabvox: 'calling', attempts_jabvox: 0 }
+          status_jabvox: 'calling' }
       end
     end
 
@@ -200,9 +237,12 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     contact&.update!(status_jabvox: 'no_answer')
     clear_in_call_marker
     hangup_agent_call
+    # account_id es OBLIGATORIO: el frontend descarta en silencio (isAValidEvent)
+    # cualquier evento cuyo data.account_id no coincida con la cuenta actual.
     ActionCable.server.broadcast(
       current_user.pubsub_token,
-      { event: 'jabvox.dialer.call_ended', data: { user_id: current_user.id,
+      { event: 'jabvox.dialer.call_ended', data: { account_id: Current.account.id,
+                                                   user_id: current_user.id,
                                                    dialer_contact_id: params[:dialer_contact_id] } }
     )
     head :ok
@@ -294,6 +334,30 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
            status: :forbidden
   end
 
+  # Lock de marcación por agente. SET NX EX es atómico: solo un request lo
+  # adquiere; los solapados fallan y salen sin marcar. TTL corto para que un
+  # proceso que muera a mitad no bloquee al agente más que un ciclo de polling.
+  DIALING_LOCK_TTL = 30
+
+  def dialing_lock_key
+    "jabvox_dialer_dialing_#{Current.account.id}_#{current_user.id}"
+  end
+
+  def acquire_dialing_lock
+    Redis::Alfred.set(dialing_lock_key, Time.current.to_i, nx: true, ex: DIALING_LOCK_TTL)
+  rescue StandardError => e
+    Rails.logger.error "❌ [Dialer] acquire_dialing_lock failed | #{e.message}"
+    # Ante un fallo de Redis preferimos no bloquear la marcación (el picker con
+    # advisory lock sigue evitando doble reserva del mismo lead).
+    true
+  end
+
+  def release_dialing_lock
+    Redis::Alfred.delete(dialing_lock_key)
+  rescue StandardError => e
+    Rails.logger.error "❌ [Dialer] release_dialing_lock failed | #{e.message}"
+  end
+
   def agent_cache_key_for(uid = current_user.id)
     "jabvox_dialer_agent_#{Current.account.id}_#{uid}"
   end
@@ -317,6 +381,13 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     Redis::Alfred.setex(agent_cache_key_for, data.to_json, AGENT_TTL)
   end
 
+  # Renueva el TTL sin tocar el contenido (evita la race con el AMI listener).
+  def touch_agent_state
+    Redis::Alfred.expire(agent_cache_key_for, AGENT_TTL)
+  rescue StandardError
+    nil
+  end
+
   # Quita la marca de "en llamada" del estado Redis del agente (la pone el AMI
   # listener al asignar la llamada) para que el reporte de agentes vuelva a
   # mostrar "esperando llamada" al colgar desde el frontend.
@@ -327,8 +398,15 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     data.delete(:in_call_contact_id)
     data[:state_changed_at] = Time.current.to_i
     write_agent_state(data)
+    # Al colgar desde el frontend el agente vuelve a estar disponible (o en pausa
+    # si tenía un estado activo): registrar la transición para el reporte.
+    record_agent_state(data[:state_id].present? ? 'paused' : 'waiting')
   rescue StandardError
     nil
+  end
+
+  def record_agent_state(state)
+    Jabvox::DialerAgentStateLogger.record(account_id: Current.account.id, user_id: current_user.id, state: state)
   end
 
   def remove_agent_state

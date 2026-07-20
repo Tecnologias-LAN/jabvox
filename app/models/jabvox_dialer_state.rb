@@ -17,6 +17,10 @@
 #
 #  index_jabvox_dialer_states_on_account_id  (account_id)
 #
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
+#
 class JabvoxDialerState < ApplicationRecord
   belongs_to :account
 

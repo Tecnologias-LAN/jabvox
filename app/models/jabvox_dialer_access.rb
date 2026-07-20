@@ -16,6 +16,11 @@
 #  index_jabvox_dialer_accesses_account_user   (account_id,user_id) UNIQUE
 #  index_jabvox_dialer_accesses_on_account_id  (account_id)
 #
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
+#  fk_rails_...  (user_id => users.id) ON DELETE => cascade
+#
 class JabvoxDialerAccess < ApplicationRecord
   belongs_to :account
   belongs_to :user

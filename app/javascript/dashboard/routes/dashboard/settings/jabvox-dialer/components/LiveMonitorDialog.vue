@@ -243,7 +243,25 @@ defineExpose({ open });
                   {{ EXT_SEP }}{{ agent.extension }}
                 </span>
               </p>
-              <p class="text-xs text-n-slate-10 truncate">{{ agent.email }}</p>
+              <p
+                v-if="agent.state === 'in_call' && agent.calling_contact_name"
+                class="text-xs text-n-teal-11 truncate inline-flex items-center gap-1"
+              >
+                <span class="i-lucide-phone-outgoing size-3" />
+                {{ agent.calling_contact_name }}
+                <span v-if="agent.calling_lead_number" class="text-n-slate-10">
+                  {{ LEAD_SEP }}{{ agent.calling_lead_number }}
+                </span>
+                <span
+                  v-if="agent.calling_contact_phone"
+                  class="text-n-slate-10"
+                >
+                  {{ agent.calling_contact_phone }}
+                </span>
+              </p>
+              <p v-else class="text-xs text-n-slate-10 truncate">
+                {{ agent.email }}
+              </p>
             </div>
             <div class="flex flex-col items-end gap-1 shrink-0">
               <span

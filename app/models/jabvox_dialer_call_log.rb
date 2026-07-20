@@ -21,8 +21,11 @@
 #
 # Indexes
 #
+#  idx_dialer_logs_agent_open                          (agent_id_jabvox,ended_at_jabvox)
+#  idx_dialer_logs_on_agent_id                         (agent_id_jabvox)
 #  idx_dialer_logs_on_campaign_id                      (jabvox_dialer_campaign_id)
 #  idx_dialer_logs_on_contact_id                       (jabvox_dialer_campaign_contact_id)
+#  idx_dialer_logs_open_by_account                     (account_id,started_at_jabvox) WHERE ((status_jabvox)::text = ANY ((ARRAY['initiated'::character varying, 'calling'::character varying])::text[]))
 #  idx_on_account_id_uniqueid_jabvox_8158b17c6d        (account_id,uniqueid_jabvox)
 #  index_jabvox_dialer_call_logs_on_account_id         (account_id)
 #  index_jabvox_dialer_call_logs_on_started_at_jabvox  (started_at_jabvox)
@@ -31,6 +34,7 @@
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (agent_id_jabvox => users.id) ON DELETE => nullify
 #  fk_rails_...  (jabvox_dialer_campaign_contact_id => jabvox_dialer_campaign_contacts.id)
 #  fk_rails_...  (jabvox_dialer_campaign_id => jabvox_dialer_campaigns.id)
 #  fk_rails_...  (typification_id => jabvox_typifications.id)

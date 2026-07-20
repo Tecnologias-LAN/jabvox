@@ -17,6 +17,7 @@
 # Indexes
 #
 #  idx_dialer_contacts_on_campaign_id                      (jabvox_dialer_campaign_id)
+#  idx_dialer_contacts_unique_campaign_contact             (jabvox_dialer_campaign_id,contact_id) UNIQUE WHERE (contact_id IS NOT NULL)
 #  index_jabvox_dialer_campaign_contacts_on_account_id     (account_id)
 #  index_jabvox_dialer_campaign_contacts_on_contact_id     (contact_id)
 #  index_jabvox_dialer_campaign_contacts_on_status_jabvox  (status_jabvox)
@@ -24,6 +25,7 @@
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (contact_id => contacts.id) ON DELETE => nullify
 #  fk_rails_...  (jabvox_dialer_campaign_id => jabvox_dialer_campaigns.id)
 #
 class JabvoxDialerCampaignContact < ApplicationRecord
@@ -44,6 +46,9 @@ class JabvoxDialerCampaignContact < ApplicationRecord
 
   validates :phone_jabvox, presence: true
   validates :status_jabvox, inclusion: { in: STATUSES }
+  # Un contacto no puede estar dos veces en la misma campaña (respaldo del índice
+  # único parcial). Las filas importadas sin contact_id no se validan.
+  validates :contact_id, uniqueness: { scope: :jabvox_dialer_campaign_id }, allow_nil: true
 
   scope :pending, -> { where(status_jabvox: 'pending') }
   scope :ordered, -> { order(:created_at) }

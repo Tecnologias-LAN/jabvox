@@ -412,17 +412,15 @@ const endWrapup = () => {
 };
 
 // Persists the chosen typification on the dialer call log (links to CDR + pipelines).
+// Propaga el error al llamador para que NO se cierre el wrap-up si el guardado falla
+// (evita perder la gestión en silencio).
 const saveTypification = async () => {
   const dialerContactId = lastCall.value?.dialer_contact_id;
   if (!dialerContactId || !wrapupTypificationId.value) return;
-  try {
-    await dialerCallLogsAPI.typify({
-      contact_id: dialerContactId,
-      typification_id: wrapupTypificationId.value,
-    });
-  } catch {
-    // best-effort — the note already saved
-  }
+  await dialerCallLogsAPI.typify({
+    contact_id: dialerContactId,
+    typification_id: wrapupTypificationId.value,
+  });
 };
 
 // Name of the typification the agent picked (for the note text/badge).
@@ -432,8 +430,11 @@ const wrapupTypificationName = computed(
       ?.name || ''
 );
 
+// Devuelve true si la gestión se guardó (o no había nada que guardar) y false si
+// la validación falló o el guardado dio error. El llamador SOLO debe cerrar el
+// wrap-up cuando devuelve true, para no perder la gestión del agente.
 const saveWrapupNote = async () => {
-  if (isSavingNote.value) return;
+  if (isSavingNote.value) return false;
   const convId = lastCall.value?.conversation_id;
   const stateObj = selectedManagementState.value;
   // The note text falls back through: free text → management state → typification.
@@ -447,7 +448,7 @@ const saveWrapupNote = async () => {
     !isManagementValid(stateObj, managementAnswers.value, wrapupNote.value)
   ) {
     useAlert(t('JABVOX_MANAGEMENT_STATES.QUESTIONS.INCOMPLETE'));
-    return;
+    return false;
   }
   isSavingNote.value = true;
   try {
@@ -473,11 +474,22 @@ const saveWrapupNote = async () => {
         contentAttributes,
       });
     }
+    return true;
   } catch {
-    // best-effort
+    // El guardado falló (red/422/sesión): avisar y NO cerrar el wrap-up para que
+    // el agente pueda reintentar en vez de perder la gestión en silencio.
+    useAlert(t('JABVOX_DIALER.WRAPUP.SAVE_ERROR'));
+    return false;
   } finally {
     isSavingNote.value = false;
   }
+};
+
+// Guarda y, solo si tuvo éxito, cierra el wrap-up. Usado por los botones y por el
+// vencimiento del contador.
+const saveWrapupAndFinish = async () => {
+  const ok = await saveWrapupNote();
+  if (ok) endWrapup();
 };
 
 const startWrapup = () => {
@@ -489,7 +501,14 @@ const startWrapup = () => {
   clearWrapupTimer();
   wrapupTimer = setInterval(() => {
     wrapupRemaining.value -= 1;
-    if (wrapupRemaining.value <= 0) saveWrapupNote().then(endWrapup);
+    if (wrapupRemaining.value <= 0) {
+      // Parar el contador ANTES de guardar para que el siguiente tick no dispare
+      // un segundo guardado/endWrapup mientras el primero está en curso.
+      clearWrapupTimer();
+      // Si el guardado falla (validación/red), saveWrapupAndFinish NO cierra el
+      // wrap-up: el agente completa y cierra manualmente en vez de perder la gestión.
+      saveWrapupAndFinish();
+    }
   }, 1000);
   persistState();
 };
@@ -688,12 +707,15 @@ onMounted(async () => {
           clearWrapupTimer();
           wrapupTimer = setInterval(() => {
             wrapupRemaining.value -= 1;
-            if (wrapupRemaining.value <= 0) saveWrapupNote().then(endWrapup);
+            if (wrapupRemaining.value <= 0) {
+              clearWrapupTimer();
+              saveWrapupAndFinish();
+            }
           }, 1000);
         } else {
           // Wrap-up window already elapsed while away — save + finish it.
           inWrapup.value = true;
-          saveWrapupNote().then(endWrapup);
+          saveWrapupAndFinish();
         }
       }
 
@@ -1072,7 +1094,7 @@ const setDialerState = async state => {
               icon="i-lucide-skip-forward"
               color="amber"
               :is-loading="isSavingNote"
-              @click="saveWrapupNote().then(endWrapup)"
+              @click="saveWrapupAndFinish()"
             />
           </div>
         </div>
@@ -1230,7 +1252,7 @@ const setDialerState = async state => {
                 color="amber"
                 class="w-full justify-center"
                 :is-loading="isSavingNote"
-                @click="saveWrapupNote().then(endWrapup)"
+                @click="saveWrapupAndFinish()"
               />
             </div>
           </div>

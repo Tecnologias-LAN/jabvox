@@ -22,6 +22,7 @@
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (user_id => users.id) ON DELETE => cascade
 #
 class JabvoxDialerStateLog < ApplicationRecord
   belongs_to :account

@@ -75,6 +75,19 @@ class JabvoxDialerCampaign < ApplicationRecord
   validates :max_concurrent_jabvox, numericality: { only_integer: true, greater_than: 0 }
   validates :retry_count_jabvox, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :retry_interval_jabvox, numericality: { only_integer: true, greater_than: 0 }
+  # max_retries: 0 = sin tope; nunca negativo (un negativo rompía la lógica de
+  # reintentos). retry_statuses solo puede contener estados reales de un
+  # campaign_contact reintentable.
+  RETRYABLE_STATUSES = %w[busy no_answer failed].freeze
+  validates :max_retries_jabvox, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validate :retry_statuses_valid
+
+  def retry_statuses_valid
+    invalid = Array(retry_statuses_jabvox) - RETRYABLE_STATUSES
+    return if invalid.empty?
+
+    errors.add(:retry_statuses_jabvox, "contiene estados inválidos: #{invalid.join(', ')}")
+  end
   validates :calling_hours_start_jabvox, format: { with: HOUR_FORMAT }, allow_blank: true
   validates :calling_hours_end_jabvox, format: { with: HOUR_FORMAT }, allow_blank: true
   validate :schedule_dates_ordered

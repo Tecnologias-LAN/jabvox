@@ -27,7 +27,8 @@
       "SAVE_NEXT": "Save & next",
       "NOTE_PLACEHOLDER": "Agrega una nota de gestión...",
       "NO_CONVERSATION": "Sin conversación activa — la nota no se guardará.",
-      "TYPIFICATION_PLACEHOLDER": "Seleccionar tipificación..."
+      "TYPIFICATION_PLACEHOLDER": "Seleccionar tipificación...",
+      "SAVE_ERROR": "No se pudo guardar la gestión. Revisa la conexión e inténtalo de nuevo."
     },
     "HISTORY": {
       "TITLE": "Historial de gestiones"

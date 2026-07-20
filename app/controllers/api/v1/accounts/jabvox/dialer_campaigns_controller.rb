@@ -146,11 +146,14 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   # real desde Redis) y las llamadas que el marcador está sacando ahora mismo
   # (campaign_contacts en 'calling'). Pensado para poll corto (cada ~3s).
   def live_monitor
+    agents = live_monitor_agents
     render json: {
       status: @campaign.status_jabvox,
-      agents: live_monitor_agents,
+      agents: agents,
       active_calls: live_monitor_calls,
-      counts: live_monitor_counts,
+      # Reutiliza los agentes ya calculados en vez de recomputarlos (Redis + users).
+      counts: { connected: agents.size,
+                calling: @campaign.jabvox_dialer_campaign_contacts.where(status_jabvox: 'calling').count },
       server_time: Time.current.iso8601
     }
   end
@@ -500,9 +503,15 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
 
     render json: { success: false, message: 'No VoIP configuration found' }, status: :unprocessable_entity and return if config&.host.blank?
 
+    # La extensión debe ser solo dígitos (mismo formato que JabvoxUserExtension).
+    # Sin esta validación, un valor con \r\n permitía inyectar acciones AMI
+    # arbitrarias en el socket de Asterisk (CRLF injection).
+    extension = params[:extension].to_s
+    render json: { success: false, message: 'Invalid extension' }, status: :unprocessable_entity and return unless extension.match?(/\A\d{1,10}\z/)
+
     result = Jabvox::DialerService.new(config).originate_call(
       phone: contact.phone_jabvox,
-      extension: params[:extension].to_s,
+      extension: extension,
       caller_id: @campaign.caller_id_jabvox.presence || config.context,
       campaign: @campaign,
       contact: contact,
@@ -552,24 +561,72 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   # Agentes conectados a ESTA campaña, con su estado vivo desde Redis (misma
   # fuente que el dialer y el reporte de agentes). in_call_contact_id => en
   # llamada; state_id => en pausa (con nombre); si no, esperando llamada.
-  def live_monitor_agents
+  def live_monitor_agents # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     ids = redis_connected_agent_ids
     return [] if ids.empty?
 
     pause_names = Current.account.jabvox_dialer_states.pluck(:id, :name).to_h
     users = Current.account.users.where(id: ids).index_by(&:id)
-    ids.filter_map do |uid|
-      state = redis_agent_state(uid)
-      next unless state && state[:campaign_id].to_i == @campaign.id
 
-      user = users[uid.to_i]
-      next unless user
+    # Estado Redis de cada agente de ESTA campaña, en un solo pase.
+    states = ids.each_with_object({}) do |uid, acc|
+      st = redis_agent_state(uid)
+      acc[uid.to_i] = st if st && st[:campaign_id].to_i == @campaign.id && users[uid.to_i]
+    end
+    return [] if states.empty?
 
+    # A quién está llamando cada agente, resuelto sin N+1:
+    # 1) por in_call_contact_id (lo pone el listener al contestar), y
+    # 2) respaldo por el call log abierto del agente (one_by_one: puede que el
+    #    in_call aún no esté escrito, pero el agente ya está marcando).
+    call_targets = resolve_agent_call_targets(states)
+
+    states.map do |uid, state|
+      user = users[uid]
       dialer_state, pause = agent_dialer_state(state, pause_names)
-      { user_id: uid.to_i, name: user.name, email: user.email, avatar_url: user.avatar_url,
+      target = call_targets[uid]
+      { user_id: uid, name: user.name, email: user.email, avatar_url: user.avatar_url,
         extension: state[:extension], state: dialer_state, pause_name: pause,
         in_call_contact_id: state[:in_call_contact_id],
+        # Contacto al que el agente está llamando/en llamada (para el monitor).
+        calling_contact_name: target && target[:name],
+        calling_contact_phone: target && target[:phone],
+        calling_lead_number: target && target[:lead_number],
         since: epoch_iso(state[:state_changed_at] || state[:connected_at]) }
+    end
+  end
+
+  # Devuelve { user_id => { name:, phone:, lead_number: } } del contacto que cada
+  # agente está marcando/en llamada. Resuelve en lote (sin N+1) desde el
+  # in_call_contact_id del estado Redis y, como respaldo, desde el call log abierto
+  # del agente en esta campaña.
+  def resolve_agent_call_targets(states) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    incall_ids = states.values.filter_map { |s| s[:in_call_contact_id].presence }.map(&:to_i)
+    agent_ids  = states.keys
+
+    # Call logs abiertos de estos agentes en la campaña (respaldo one_by_one).
+    open_logs_by_agent = @campaign.jabvox_dialer_call_logs
+                                  .where(agent_id_jabvox: agent_ids, ended_at_jabvox: nil)
+                                  .order(started_at_jabvox: :desc)
+                                  .index_by(&:agent_id_jabvox)
+
+    cc_ids = (incall_ids + open_logs_by_agent.values.map(&:jabvox_dialer_campaign_contact_id)).compact.uniq
+    return {} if cc_ids.empty?
+
+    contacts = @campaign.jabvox_dialer_campaign_contacts.where(id: cc_ids).includes(:contact).index_by(&:id)
+    lead_numbers = Current.account.jabvox_leads
+                          .where(contact_id: contacts.values.map(&:contact_id).compact.uniq)
+                          .pluck(:contact_id, :lead_number).to_h
+
+    states.keys.each_with_object({}) do |uid, acc|
+      cc_id = states[uid][:in_call_contact_id].presence&.to_i
+      cc_id ||= open_logs_by_agent[uid]&.jabvox_dialer_campaign_contact_id
+      cc = cc_id && contacts[cc_id]
+      next unless cc
+
+      acc[uid] = { name: cc.contact&.name.to_s.presence || cc.name_jabvox.to_s,
+                   phone: cc.phone_jabvox.to_s,
+                   lead_number: lead_numbers[cc.contact_id] }
     end
   end
 
@@ -589,17 +646,17 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     open_logs = @campaign.jabvox_dialer_call_logs
                          .where(jabvox_dialer_campaign_contact_id: calling.map(&:id), ended_at_jabvox: nil)
                          .index_by(&:jabvox_dialer_campaign_contact_id)
+    # lead_number en lote (evita un query por contacto en cada poll de ~3s).
+    lead_numbers = Current.account.jabvox_leads
+                          .where(contact_id: calling.map(&:contact_id).compact.uniq)
+                          .pluck(:contact_id, :lead_number).to_h
     calling.map do |cc|
       log = open_logs[cc.id]
       { contact_id: cc.contact_id, dialer_contact_id: cc.id,
         name: cc.contact&.name.to_s, phone: cc.phone_jabvox.to_s,
-        lead_number: Current.account.jabvox_leads.where(contact_id: cc.contact_id).limit(1).pick(:lead_number),
+        lead_number: lead_numbers[cc.contact_id],
         agent_extension: log&.phone_jabvox, since: (log&.started_at_jabvox || cc.last_attempt_at_jabvox)&.iso8601 }
     end
-  end
-
-  def live_monitor_counts
-    { connected: live_monitor_agents.size, calling: @campaign.jabvox_dialer_campaign_contacts.where(status_jabvox: 'calling').count }
   end
 
   # Connected agents are stored as a native Redis SET (see DialerAccessesController):

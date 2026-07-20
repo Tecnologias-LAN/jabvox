@@ -168,18 +168,12 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
   end
 
   def set_dialer_state
-    au = AccountUser.find_by!(account: Current.account, user: current_user)
-    now = Time.current
-    new_state = params[:state].presence || 'inactive'
-
-    JabvoxDialerStateLog.where(account_id: Current.account.id, user_id: current_user.id, ended_at: nil)
-                        .update_all(ended_at: now)
-    JabvoxDialerStateLog.create!(account_id: Current.account.id, user_id: current_user.id,
-                                 dialer_state: new_state, started_at: now)
-
-    au.update!(jabvox_dialer_state: new_state, jabvox_dialer_state_changed_at: now)
+    # Fuente única de escritura de estados (comparte lógica con el ciclo de vida
+    # del dialer: connect/update_state/mark_agent_call/disconnect).
+    Jabvox::DialerAgentStateLogger.record(account_id: Current.account.id, user_id: current_user.id,
+                                          state: params[:state].presence || 'inactive')
     ActionCable.server.broadcast("account_#{Current.account.id}",
-                                  { event: 'jabvox.agent_state_changed', data: { account_id: Current.account.id } })
+                                 { event: 'jabvox.agent_state_changed', data: { account_id: Current.account.id } })
     render json: { ok: true }
   end
 
@@ -291,6 +285,7 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
     users_with_open = result.keys.to_set
     AccountUser.where(account_id: account_id).each do |au|
       next if users_with_open.include?(au.user_id) || au.jabvox_dialer_state_changed_at.nil?
+
       result[au.user_id] = au.jabvox_dialer_state.presence || 'inactive'
     end
     result
@@ -304,6 +299,7 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
     users_with_open = result.keys.to_set
     AccountUser.where(account_id: account_id).each do |au|
       next if users_with_open.include?(au.user_id) || au.jabvox_app_state_changed_at.nil?
+
       result[au.user_id] = au.jabvox_app_state_id ? au.jabvox_app_state_id.to_s : 'active'
     end
     result

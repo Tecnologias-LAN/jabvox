@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_17_000003) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_20_000003) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1787,8 +1787,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_17_000003) do
     t.boolean "lead_answered_jabvox", default: false, null: false
     t.bigint "typification_id"
     t.string "uniqueid_jabvox"
+    t.index ["account_id", "started_at_jabvox"], name: "idx_dialer_logs_open_by_account", where: "((status_jabvox)::text = ANY ((ARRAY['initiated'::character varying, 'calling'::character varying])::text[]))"
     t.index ["account_id", "uniqueid_jabvox"], name: "idx_on_account_id_uniqueid_jabvox_8158b17c6d"
     t.index ["account_id"], name: "index_jabvox_dialer_call_logs_on_account_id"
+    t.index ["agent_id_jabvox", "ended_at_jabvox"], name: "idx_dialer_logs_agent_open"
+    t.index ["agent_id_jabvox"], name: "idx_dialer_logs_on_agent_id"
     t.index ["jabvox_dialer_campaign_contact_id"], name: "idx_dialer_logs_on_contact_id"
     t.index ["jabvox_dialer_campaign_id"], name: "idx_dialer_logs_on_campaign_id"
     t.index ["started_at_jabvox"], name: "index_jabvox_dialer_call_logs_on_started_at_jabvox"
@@ -1808,6 +1811,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_17_000003) do
     t.bigint "contact_id"
     t.index ["account_id"], name: "index_jabvox_dialer_campaign_contacts_on_account_id"
     t.index ["contact_id"], name: "index_jabvox_dialer_campaign_contacts_on_contact_id"
+    t.index ["jabvox_dialer_campaign_id", "contact_id"], name: "idx_dialer_contacts_unique_campaign_contact", unique: true, where: "(contact_id IS NOT NULL)"
     t.index ["jabvox_dialer_campaign_id"], name: "idx_dialer_contacts_on_campaign_id"
     t.index ["status_jabvox"], name: "index_jabvox_dialer_campaign_contacts_on_status_jabvox"
   end
@@ -3370,15 +3374,21 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_17_000003) do
   add_foreign_key "jabvox_custom_tables", "accounts"
   add_foreign_key "jabvox_deleted_leads", "accounts"
   add_foreign_key "jabvox_deleted_leads", "users", column: "deleted_by_id"
+  add_foreign_key "jabvox_dialer_accesses", "accounts", on_delete: :cascade
+  add_foreign_key "jabvox_dialer_accesses", "users", on_delete: :cascade
   add_foreign_key "jabvox_dialer_call_logs", "accounts"
   add_foreign_key "jabvox_dialer_call_logs", "jabvox_dialer_campaign_contacts"
   add_foreign_key "jabvox_dialer_call_logs", "jabvox_dialer_campaigns"
   add_foreign_key "jabvox_dialer_call_logs", "jabvox_typifications", column: "typification_id"
+  add_foreign_key "jabvox_dialer_call_logs", "users", column: "agent_id_jabvox", on_delete: :nullify
   add_foreign_key "jabvox_dialer_campaign_contacts", "accounts"
+  add_foreign_key "jabvox_dialer_campaign_contacts", "contacts", on_delete: :nullify
   add_foreign_key "jabvox_dialer_campaign_contacts", "jabvox_dialer_campaigns"
   add_foreign_key "jabvox_dialer_campaigns", "accounts"
   add_foreign_key "jabvox_dialer_campaigns", "jabvox_campaigns", on_delete: :nullify
   add_foreign_key "jabvox_dialer_state_logs", "accounts"
+  add_foreign_key "jabvox_dialer_state_logs", "users", on_delete: :cascade
+  add_foreign_key "jabvox_dialer_states", "accounts", on_delete: :cascade
   add_foreign_key "jabvox_discounts", "accounts"
   add_foreign_key "jabvox_email_send_logs", "accounts"
   add_foreign_key "jabvox_email_send_logs", "users"

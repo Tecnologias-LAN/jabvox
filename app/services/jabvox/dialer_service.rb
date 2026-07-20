@@ -389,25 +389,34 @@ class Jabvox::DialerService
       event = read_response(socket)
       break if event.empty? || event['event']&.casecmp?('statuscomplete')
       next unless event['event']&.casecmp?('status')
+
       ch = event['channel'].to_s
-      return ch if ch.start_with?("SIP/#{extension}-") || ch.start_with?("PJSIP/#{extension}-")
+      return ch if ch.start_with?("SIP/#{extension}-", "PJSIP/#{extension}-")
     end
     nil
   end
 
   def send_action(socket, action, **params)
-    msg = "Action: #{action}\r\n"
+    msg = "Action: #{strip_crlf(action)}\r\n"
     params.each do |key, val|
+      k = strip_crlf(key)
       # AMI needs ONE "Variable:" line per channel variable; an Array emits
       # repeated lines. A comma-joined string would be read as a single var.
       if val.is_a?(Array)
-        val.each { |v| msg += "#{key}: #{v}\r\n" }
+        val.each { |v| msg += "#{k}: #{strip_crlf(v)}\r\n" }
       else
-        msg += "#{key}: #{val}\r\n"
+        msg += "#{k}: #{strip_crlf(val)}\r\n"
       end
     end
     msg += "\r\n"
     socket.write(msg)
+  end
+
+  # Defensa en profundidad contra inyección AMI/CRLF: ningún valor debe poder
+  # incrustar saltos de línea que Asterisk interpretaría como acciones/claves
+  # adicionales. Se aplica a TODA acción, no solo a las validadas aguas arriba.
+  def strip_crlf(value)
+    value.to_s.delete("\r\n")
   end
 
   # Reads one AMI message (up to the blank-line terminator) into a hash.
