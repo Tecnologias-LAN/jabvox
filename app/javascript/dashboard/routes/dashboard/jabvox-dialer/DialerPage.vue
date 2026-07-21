@@ -22,6 +22,7 @@ import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import {
   isManagementValid,
   buildManagementContentAttributes,
+  CALL_SOURCES,
 } from 'dashboard/composables/jabvox/useManagementState';
 import { useAlert } from 'dashboard/composables';
 
@@ -459,11 +460,11 @@ const saveWrapupNote = async () => {
     await saveTypification();
     if (convId && note) {
       const contentAttributes = {
-        ...(stateObj
-          ? buildManagementContentAttributes(stateObj, managementAnswers.value)
-          : {}),
-        // Where this typification was made from — shown in the lead's Notes tab.
-        jabvox_call_source: 'dialer',
+        ...buildManagementContentAttributes(
+          stateObj,
+          managementAnswers.value,
+          CALL_SOURCES.DIALER
+        ),
         ...(wrapupTypificationName.value
           ? { jabvox_typification_name: wrapupTypificationName.value }
           : {}),

@@ -163,9 +163,11 @@
         "CREATED_AT": "Fecha de registro",
         "BIOGRAPHY": "Biografía"
       },
-      "SOURCE_DIALER": "Desde dialer",
+      "SOURCE_DIALER": "Desde marcador",
       "SOURCE_CLICK_TO_CALL": "Desde click-to-call",
       "SOURCE_LEAD_DETAIL": "Desde detalle del lead",
+      "SOURCE_KANBAN": "Desde kanban",
+      "SOURCE_CONVERSATIONS": "Desde conversaciones",
       "NOTE_OPTIONAL_PLACEHOLDER": "Nota (opcional)…",
       "NOTE_HIDDEN_HINT": "Este tipo de gestión no lleva nota; se guarda con el nombre de la gestión.",
       "SHOW_GESTION_DETAILS": "Ver detalles de la gestión",

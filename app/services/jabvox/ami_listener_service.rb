@@ -879,9 +879,13 @@ module Jabvox
       crm&.identifier.to_s
     end
 
+    # Devuelve el display_id (NO el id interno): la API de mensajes del frontend
+    # resuelve la conversación por display_id. Antes devolvía el PK y el wrap-up
+    # del marcador creaba la nota en la conversación equivocada, por lo que la
+    # gestión no aparecía en el detalle del lead.
     def find_or_create_conversation(account, crm, campaign)
       existing = account.conversations.where(contact_id: crm.id).order(id: :desc).first
-      return existing.id if existing
+      return existing.display_id if existing
 
       inbox_id = (campaign.inbox_ids_jabvox || []).compact.map(&:to_i).find { |id| id.positive? } ||
                  account.inboxes.first&.id
@@ -899,7 +903,7 @@ module Jabvox
         inbox_id: inbox.id,
         contact_id: crm.id,
         contact_inbox_id: contact_inbox.id
-      ).id
+      ).display_id
     rescue StandardError => e
       Rails.logger.warn "⚠️ [AmiListener] find_or_create_conversation failed | #{e.message}"
       nil

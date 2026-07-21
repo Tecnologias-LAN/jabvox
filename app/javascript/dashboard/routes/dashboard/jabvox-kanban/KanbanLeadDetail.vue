@@ -19,6 +19,7 @@ import {
   stateGroups,
   statesInGroup,
   hasGroups,
+  CALL_SOURCES,
 } from 'dashboard/composables/jabvox/useManagementState';
 
 const props = defineProps({
@@ -245,7 +246,8 @@ const sendMessage = async () => {
     if (isNote.value && managementStateId.value) {
       payload.contentAttributes = buildManagementContentAttributes(
         selectedManagementState.value,
-        managementAnswers.value
+        managementAnswers.value,
+        CALL_SOURCES.KANBAN
       );
     }
     const response = await messageAPI.create(payload);

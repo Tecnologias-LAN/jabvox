@@ -44,7 +44,11 @@ class Api::V1::Accounts::Jabvox::DialerEventsController < Api::V1::Accounts::Jab
     lead = contact_rec.contact_id ? Current.account.jabvox_leads
                                                     .includes(:jabvox_affiliate, :jabvox_campaign)
                                                     .find_by(contact_id: contact_rec.contact_id) : nil
-    conversation_id = crm ? Current.account.conversations.where(contact_id: crm.id).order(id: :desc).pick(:id) : nil
+    # display_id (NO el id interno): la API de mensajes resuelve la conversación
+    # por display_id. Antes se enviaba el PK y el wrap-up del marcador creaba la
+    # nota en la conversación equivocada (o fallaba), por lo que la gestión no
+    # aparecía en el detalle del lead.
+    conversation_id = crm ? Current.account.conversations.where(contact_id: crm.id).order(id: :desc).pick(:display_id) : nil
     last_gestion = fetch_last_management_for_contact(contact_rec.contact_id)
 
     data.merge(

@@ -15,6 +15,7 @@ import {
   stateGroups,
   statesInGroup,
   hasGroups,
+  CALL_SOURCES,
 } from 'dashboard/composables/jabvox/useManagementState';
 
 // contactId is passed by the tab host for interface consistency but notes are
@@ -128,7 +129,8 @@ const save = async () => {
     if (stateId.value) {
       payload.contentAttributes = buildManagementContentAttributes(
         selectedState.value,
-        answers.value
+        answers.value,
+        CALL_SOURCES.CONVERSATIONS
       );
     }
     await messageAPI.create(payload);

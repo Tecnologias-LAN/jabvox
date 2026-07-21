@@ -1,4 +1,5 @@
 <script setup>
+/* global axios */
 import { ref, computed, onMounted, watch } from 'vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useStore } from 'vuex';
@@ -26,6 +27,7 @@ import {
   stateGroups,
   statesInGroup,
   hasGroups,
+  CALL_SOURCES,
 } from 'dashboard/composables/jabvox/useManagementState';
 
 const store = useStore();
@@ -45,6 +47,8 @@ const contactNotesGetterFn = useMapGetter(
 
 const activeTab = ref(route.query.tab || 'chat');
 const messages = ref([]);
+// Notas privadas de TODAS las conversaciones del contacto (ver loadAllConversationNotes).
+const allConvNotes = ref([]);
 const isLoadingMessages = ref(false);
 const newMessage = ref('');
 const isSending = ref(false);
@@ -105,6 +109,8 @@ const CALL_SOURCE_LABEL_KEYS = {
   dialer: 'JABVOX_LEADS.DETAIL.SOURCE_DIALER',
   click_to_call: 'JABVOX_LEADS.DETAIL.SOURCE_CLICK_TO_CALL',
   lead_detail: 'JABVOX_LEADS.DETAIL.SOURCE_LEAD_DETAIL',
+  kanban: 'JABVOX_LEADS.DETAIL.SOURCE_KANBAN',
+  conversations: 'JABVOX_LEADS.DETAIL.SOURCE_CONVERSATIONS',
 };
 const callSourceLabel = attrs => {
   const src = attrs?.jabvox_call_source || attrs?.jabvoxCallSource;
@@ -286,6 +292,59 @@ const privateNotes = computed(() =>
   sortedMessages.value.filter(m => m.message_type === 2 || m.private)
 );
 
+// Normaliza content_attributes a snake_case (las notas de contacto llegan en
+// camelCase; las de conversación en snake_case). Así el render usa un solo formato.
+const normalizeAttrs = attrs => {
+  if (!attrs) return {};
+  // Si ya viene en snake_case (notas de conversación), úsalo tal cual.
+  if (
+    'jabvox_management_state_name' in attrs ||
+    'jabvox_call_source' in attrs
+  ) {
+    return attrs;
+  }
+  // Notas de contacto (camelCase) → mapear los campos que usa el render.
+  return {
+    jabvox_management_state_name: attrs.jabvoxManagementStateName,
+    jabvox_management_state_color: attrs.jabvoxManagementStateColor,
+    jabvox_management_state_group: attrs.jabvoxManagementStateGroup,
+    jabvox_management_answers: attrs.jabvoxManagementAnswers,
+    jabvox_typification_name: attrs.jabvoxTypificationName,
+    jabvox_call_source: attrs.jabvoxCallSource,
+  };
+};
+
+// TODAS las gestiones del lead, sin importar el origen ni la conversación:
+//  - notas privadas de las conversaciones (principal + resto del contacto)
+//  - notas de contacto (leads sin conversación)
+// Deduplicadas por id y ordenadas por fecha ascendente. Es la lista única que
+// muestra la pestaña "Notas", para que una gestión hecha desde cualquier origen
+// (marcador, click-to-call, kanban, conversaciones, detalle) siempre se vea.
+const unifiedNotes = computed(() => {
+  const map = new Map();
+  const add = (note, attrs, sourceTag) => {
+    if (!note || note.id == null) return;
+    const key = `${sourceTag}-${note.id}`;
+    if (map.has(key)) return;
+    map.set(key, {
+      id: note.id,
+      key,
+      content: note.content,
+      created_at: note.created_at || note.createdAt,
+      content_attributes: normalizeAttrs(attrs),
+    });
+  };
+  // Notas de la conversación principal (ya cargadas en messages) + todas las demás.
+  privateNotes.value.forEach(m => add(m, m.content_attributes, 'conv'));
+  allConvNotes.value.forEach(m => add(m, m.content_attributes, 'conv'));
+  contactNotesList.value.forEach(n =>
+    add(n, n.contentAttributes || n.content_attributes, 'contact')
+  );
+  return [...map.values()].sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+  );
+});
+
 const isPrivateNote = m => m.message_type === 2 || m.private;
 const isIncoming = m => m.message_type === 0;
 
@@ -341,6 +400,43 @@ const loadContactNotes = () => {
   store.dispatch('contactNotes/get', { contactId: lead.value.contact.id });
 };
 
+// Notas privadas (gestiones) de TODAS las conversaciones del contacto, no solo
+// la principal. Antes el detalle solo mostraba las notas de
+// lead.conversation_display_id, así que una gestión creada en otra conversación
+// (p. ej. la que el marcador usa, que es la más reciente) quedaba invisible.
+// Cargamos en paralelo las notas privadas de cada conversación del contacto.
+const loadAllConversationNotes = async () => {
+  const contactId = lead.value?.contact?.id;
+  if (!contactId) {
+    allConvNotes.value = [];
+    return;
+  }
+  try {
+    await store.dispatch('contactConversations/get', contactId);
+    const convs =
+      store.getters['contactConversations/getAllConversationsByContactId'](
+        contactId
+      ) || [];
+    const results = await Promise.allSettled(
+      convs.map(conv =>
+        axios.get(
+          `/api/v1/accounts/${accountId.value}/conversations/${conv.id}/messages`
+        )
+      )
+    );
+    const notes = [];
+    results.forEach(r => {
+      if (r.status !== 'fulfilled') return;
+      (r.value.data?.payload || [])
+        .filter(m => m.message_type === 2 || m.private)
+        .forEach(m => notes.push(m));
+    });
+    allConvNotes.value = notes;
+  } catch {
+    allConvNotes.value = [];
+  }
+};
+
 // withGestion=true only for the Notes tab: there a management state is
 // required. The chat's private note (withGestion=false) is plain text — its
 // gestión picker was removed.
@@ -375,13 +471,16 @@ const sendMessage = async (privateFlag = false, withGestion = false) => {
       return;
     isSending.value = true;
     try {
+      // Una nota de contacto (lead sin conversación) también lleva su origen
+      // 'lead_detail', para que el detalle muestre desde dónde se tipificó.
       const contentAttributes =
         withGestion && managementStateId.value
           ? buildManagementContentAttributes(
               selectedManagementState.value,
-              managementAnswers.value
+              managementAnswers.value,
+              CALL_SOURCES.LEAD_DETAIL
             )
-          : {};
+          : { jabvox_call_source: CALL_SOURCES.LEAD_DETAIL };
       await store.dispatch('contactNotes/create', {
         contactId: lead.value.contact.id,
         content,
@@ -415,19 +514,17 @@ const sendMessage = async (privateFlag = false, withGestion = false) => {
       private: privateFlag,
       echo_id: `jabvox_${Date.now()}`,
     };
-    if (withGestion && managementStateId.value) {
-      payload.contentAttributes = buildManagementContentAttributes(
-        selectedManagementState.value,
-        managementAnswers.value
-      );
-    }
-    // Las notas privadas creadas aquí quedan marcadas con su origen, igual que
-    // las del dialer y click-to-call, para saber desde dónde se tipificó.
+    // Solo las notas PRIVADAS llevan gestión + origen; un mensaje saliente normal
+    // no. El origen 'lead_detail' se marca vía el helper centralizado.
     if (privateFlag) {
-      payload.contentAttributes = {
-        ...(payload.contentAttributes || {}),
-        jabvox_call_source: 'lead_detail',
-      };
+      payload.contentAttributes =
+        withGestion && managementStateId.value
+          ? buildManagementContentAttributes(
+              selectedManagementState.value,
+              managementAnswers.value,
+              CALL_SOURCES.LEAD_DETAIL
+            )
+          : { jabvox_call_source: CALL_SOURCES.LEAD_DETAIL };
     }
     const response = await messageAPI.create(payload);
     messages.value.push(response.data);
@@ -658,6 +755,7 @@ const handleTemplateSendToConversation = async payload => {
 const loadLead = async () => {
   await store.dispatch('jabvoxLeads/fetchLead', leadId.value);
   messages.value = [];
+  allConvNotes.value = [];
   newMessage.value = '';
   managementStateId.value = null;
   managementGroup.value = null;
@@ -666,6 +764,7 @@ const loadLead = async () => {
   initEditForm();
   loadMessages();
   loadContactNotes();
+  loadAllConversationNotes();
 };
 
 watch(leadId, loadLead);
@@ -1543,240 +1642,125 @@ onMounted(async () => {
                 {{ t('JABVOX_LEADS.DETAIL.LOADING_MESSAGES') }}
               </div>
               <template v-else>
-                <template v-if="lead.conversation_display_id">
+                <!-- Lista ÚNICA de gestiones: notas privadas de TODAS las
+                     conversaciones del contacto + notas de contacto, sin importar
+                     el origen. unifiedNotes normaliza todo a snake_case. -->
+                <div
+                  v-for="note in unifiedNotes"
+                  :key="note.key"
+                  class="flex flex-col gap-1 items-start"
+                >
                   <div
-                    v-for="note in privateNotes"
-                    :key="note.id"
-                    class="flex flex-col gap-1 items-start"
+                    v-if="note.content"
+                    class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words bg-n-amber-3 border border-n-amber-6 text-n-amber-11 shadow-sm"
+                    :class="
+                      noteHasDetails(note.content_attributes)
+                        ? 'cursor-pointer hover:bg-n-amber-4 transition-colors'
+                        : ''
+                    "
+                    @click="
+                      noteHasDetails(note.content_attributes) &&
+                        toggleNoteExpanded(note.key)
+                    "
                   >
                     <div
-                      v-if="note.content"
-                      class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words bg-n-amber-3 border border-n-amber-6 text-n-amber-11 shadow-sm"
-                      :class="
-                        noteHasDetails(note.content_attributes)
-                          ? 'cursor-pointer hover:bg-n-amber-4 transition-colors'
-                          : ''
+                      v-if="
+                        note.content_attributes?.jabvox_management_state_name
                       "
-                      @click="
-                        noteHasDetails(note.content_attributes) &&
-                          toggleNoteExpanded(note.id)
-                      "
+                      class="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-full text-[11px] font-semibold text-white"
+                      :style="{
+                        backgroundColor:
+                          note.content_attributes
+                            .jabvox_management_state_color || '#6b7280',
+                      }"
                     >
-                      <div
-                        v-if="
-                          note.content_attributes?.jabvox_management_state_name
-                        "
-                        class="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-full text-[11px] font-semibold text-white"
-                        :style="{
-                          backgroundColor:
-                            note.content_attributes
-                              .jabvox_management_state_color || '#6b7280',
-                        }"
-                      >
-                        {{
-                          note.content_attributes.jabvox_management_state_name
-                        }}
-                      </div>
-                      <!-- Origen (dialer / click-to-call / detalle) + tipificación -->
-                      <div
-                        v-if="
-                          callSourceLabel(note.content_attributes) ||
-                          typificationBadge(note.content_attributes)
-                        "
-                        class="flex flex-wrap gap-1 mb-1"
-                      >
-                        <span
-                          v-if="typificationBadge(note.content_attributes)"
-                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-n-teal-3 text-n-teal-11 border border-n-teal-6"
-                        >
-                          <span class="i-lucide-tag size-3" />
-                          {{ typificationBadge(note.content_attributes) }}
-                        </span>
-                        <span
-                          v-if="callSourceLabel(note.content_attributes)"
-                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-n-alpha-2 text-n-slate-11 border border-n-weak"
-                        >
-                          <span class="i-lucide-phone-outgoing size-3" />
-                          {{ callSourceLabel(note.content_attributes) }}
-                        </span>
-                      </div>
-                      {{ note.content }}
-                      <!-- Indicador de expandible + detalle de la gestión -->
-                      <div
-                        v-if="noteHasDetails(note.content_attributes)"
-                        class="flex items-center gap-1 mt-1 text-[11px] font-medium text-n-amber-11/80 select-none"
-                      >
-                        <span
-                          class="size-3 transition-transform"
-                          :class="
-                            expandedNotes.has(note.id)
-                              ? 'i-lucide-chevron-down'
-                              : 'i-lucide-chevron-right'
-                          "
-                        />
-                        {{
-                          expandedNotes.has(note.id)
-                            ? t('JABVOX_LEADS.DETAIL.HIDE_GESTION_DETAILS')
-                            : t('JABVOX_LEADS.DETAIL.SHOW_GESTION_DETAILS')
-                        }}
-                      </div>
-                      <div
-                        v-if="expandedNotes.has(note.id)"
-                        class="mt-2 pt-2 border-t border-n-amber-6 space-y-1.5"
-                        @click.stop
-                      >
-                        <div
-                          v-if="noteGroup(note.content_attributes)"
-                          class="text-xs"
-                        >
-                          <span class="font-semibold">
-                            {{ t('JABVOX_LEADS.DETAIL.GESTION_GROUP') }}:
-                          </span>
-                          {{ noteGroup(note.content_attributes) }}
-                        </div>
-                        <div
-                          v-for="ans in noteAnswers(note.content_attributes)"
-                          :key="ans.question_id ?? ans.questionId ?? ans.label"
-                          class="text-xs"
-                        >
-                          <span class="font-semibold">{{ ans.label }}:</span>
-                          {{ answerDisplay(ans.value) }}
-                        </div>
-                        <p
-                          v-if="!noteAnswers(note.content_attributes).length"
-                          class="text-xs italic text-n-amber-11/70"
-                        >
-                          {{ t('JABVOX_LEADS.DETAIL.NO_GESTION_ANSWERS') }}
-                        </p>
-                      </div>
+                      {{ note.content_attributes.jabvox_management_state_name }}
                     </div>
-                    <span class="text-[11px] text-n-slate-10 px-1">
-                      {{ formatTime(note.created_at) }}
-                    </span>
-                  </div>
-                  <div
-                    v-if="privateNotes.length === 0"
-                    class="flex flex-col items-center justify-center gap-2 py-10 text-sm text-n-slate-10"
-                  >
-                    <span class="i-lucide-sticky-note size-7 text-n-slate-9" />
-                    {{ t('JABVOX_LEADS.DETAIL.NO_NOTES') }}
-                  </div>
-                </template>
-                <template v-else>
-                  <div
-                    v-for="note in contactNotesList"
-                    :key="note.id"
-                    class="flex flex-col gap-1 items-start"
-                  >
+                    <!-- Origen (marcador / click-to-call / kanban / conversaciones
+                         / detalle) + tipificación -->
                     <div
-                      v-if="note.content"
-                      class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words bg-n-amber-3 border border-n-amber-6 text-n-amber-11 shadow-sm"
-                      :class="
-                        noteHasDetails(note.contentAttributes)
-                          ? 'cursor-pointer hover:bg-n-amber-4 transition-colors'
-                          : ''
+                      v-if="
+                        callSourceLabel(note.content_attributes) ||
+                        typificationBadge(note.content_attributes)
                       "
-                      @click="
-                        noteHasDetails(note.contentAttributes) &&
-                          toggleNoteExpanded(note.id)
-                      "
+                      class="flex flex-wrap gap-1 mb-1"
+                    >
+                      <span
+                        v-if="typificationBadge(note.content_attributes)"
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-n-teal-3 text-n-teal-11 border border-n-teal-6"
+                      >
+                        <span class="i-lucide-tag size-3" />
+                        {{ typificationBadge(note.content_attributes) }}
+                      </span>
+                      <span
+                        v-if="callSourceLabel(note.content_attributes)"
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-n-alpha-2 text-n-slate-11 border border-n-weak"
+                      >
+                        <span class="i-lucide-phone-outgoing size-3" />
+                        {{ callSourceLabel(note.content_attributes) }}
+                      </span>
+                    </div>
+                    {{ note.content }}
+                    <!-- Indicador de expandible + detalle de la gestión -->
+                    <div
+                      v-if="noteHasDetails(note.content_attributes)"
+                      class="flex items-center gap-1 mt-1 text-[11px] font-medium text-n-amber-11/80 select-none"
+                    >
+                      <span
+                        class="size-3 transition-transform"
+                        :class="
+                          expandedNotes.has(note.key)
+                            ? 'i-lucide-chevron-down'
+                            : 'i-lucide-chevron-right'
+                        "
+                      />
+                      {{
+                        expandedNotes.has(note.key)
+                          ? t('JABVOX_LEADS.DETAIL.HIDE_GESTION_DETAILS')
+                          : t('JABVOX_LEADS.DETAIL.SHOW_GESTION_DETAILS')
+                      }}
+                    </div>
+                    <div
+                      v-if="expandedNotes.has(note.key)"
+                      class="mt-2 pt-2 border-t border-n-amber-6 space-y-1.5"
+                      @click.stop
                     >
                       <div
-                        v-if="note.contentAttributes?.jabvoxManagementStateName"
-                        class="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-full text-[11px] font-semibold text-white"
-                        :style="{
-                          backgroundColor:
-                            note.contentAttributes.jabvoxManagementStateColor ||
-                            '#6b7280',
-                        }"
+                        v-if="noteGroup(note.content_attributes)"
+                        class="text-xs"
                       >
-                        {{ note.contentAttributes.jabvoxManagementStateName }}
-                      </div>
-                      <!-- Origen + tipificación (notas de contacto, camelCase) -->
-                      <div
-                        v-if="
-                          callSourceLabel(note.contentAttributes) ||
-                          typificationBadge(note.contentAttributes)
-                        "
-                        class="flex flex-wrap gap-1 mb-1"
-                      >
-                        <span
-                          v-if="typificationBadge(note.contentAttributes)"
-                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-n-teal-3 text-n-teal-11 border border-n-teal-6"
-                        >
-                          <span class="i-lucide-tag size-3" />
-                          {{ typificationBadge(note.contentAttributes) }}
+                        <span class="font-semibold">
+                          {{ t('JABVOX_LEADS.DETAIL.GESTION_GROUP') }}:
                         </span>
-                        <span
-                          v-if="callSourceLabel(note.contentAttributes)"
-                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-n-alpha-2 text-n-slate-11 border border-n-weak"
-                        >
-                          <span class="i-lucide-phone-outgoing size-3" />
-                          {{ callSourceLabel(note.contentAttributes) }}
-                        </span>
-                      </div>
-                      {{ note.content }}
-                      <!-- Indicador de expandible + detalle de la gestión -->
-                      <div
-                        v-if="noteHasDetails(note.contentAttributes)"
-                        class="flex items-center gap-1 mt-1 text-[11px] font-medium text-n-amber-11/80 select-none"
-                      >
-                        <span
-                          class="size-3 transition-transform"
-                          :class="
-                            expandedNotes.has(note.id)
-                              ? 'i-lucide-chevron-down'
-                              : 'i-lucide-chevron-right'
-                          "
-                        />
-                        {{
-                          expandedNotes.has(note.id)
-                            ? t('JABVOX_LEADS.DETAIL.HIDE_GESTION_DETAILS')
-                            : t('JABVOX_LEADS.DETAIL.SHOW_GESTION_DETAILS')
-                        }}
+                        {{ noteGroup(note.content_attributes) }}
                       </div>
                       <div
-                        v-if="expandedNotes.has(note.id)"
-                        class="mt-2 pt-2 border-t border-n-amber-6 space-y-1.5"
-                        @click.stop
+                        v-for="ans in noteAnswers(note.content_attributes)"
+                        :key="ans.question_id ?? ans.questionId ?? ans.label"
+                        class="text-xs"
                       >
-                        <div
-                          v-if="noteGroup(note.contentAttributes)"
-                          class="text-xs"
-                        >
-                          <span class="font-semibold">
-                            {{ t('JABVOX_LEADS.DETAIL.GESTION_GROUP') }}:
-                          </span>
-                          {{ noteGroup(note.contentAttributes) }}
-                        </div>
-                        <div
-                          v-for="ans in noteAnswers(note.contentAttributes)"
-                          :key="ans.question_id ?? ans.questionId ?? ans.label"
-                          class="text-xs"
-                        >
-                          <span class="font-semibold">{{ ans.label }}:</span>
-                          {{ answerDisplay(ans.value) }}
-                        </div>
-                        <p
-                          v-if="!noteAnswers(note.contentAttributes).length"
-                          class="text-xs italic text-n-amber-11/70"
-                        >
-                          {{ t('JABVOX_LEADS.DETAIL.NO_GESTION_ANSWERS') }}
-                        </p>
+                        <span class="font-semibold">{{ ans.label }}:</span>
+                        {{ answerDisplay(ans.value) }}
                       </div>
+                      <p
+                        v-if="!noteAnswers(note.content_attributes).length"
+                        class="text-xs italic text-n-amber-11/70"
+                      >
+                        {{ t('JABVOX_LEADS.DETAIL.NO_GESTION_ANSWERS') }}
+                      </p>
                     </div>
-                    <span class="text-[11px] text-n-slate-10 px-1">
-                      {{ formatTime(note.createdAt) }}
-                    </span>
                   </div>
-                  <div
-                    v-if="contactNotesList.length === 0"
-                    class="flex flex-col items-center justify-center gap-2 py-10 text-sm text-n-slate-10"
-                  >
-                    <span class="i-lucide-sticky-note size-7 text-n-slate-9" />
-                    {{ t('JABVOX_LEADS.DETAIL.NO_NOTES') }}
-                  </div>
-                </template>
+                  <span class="text-[11px] text-n-slate-10 px-1">
+                    {{ formatTime(note.created_at) }}
+                  </span>
+                </div>
+                <div
+                  v-if="unifiedNotes.length === 0"
+                  class="flex flex-col items-center justify-center gap-2 py-10 text-sm text-n-slate-10"
+                >
+                  <span class="i-lucide-sticky-note size-7 text-n-slate-9" />
+                  {{ t('JABVOX_LEADS.DETAIL.NO_NOTES') }}
+                </div>
               </template>
             </div>
 

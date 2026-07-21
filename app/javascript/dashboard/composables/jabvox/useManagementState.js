@@ -168,11 +168,31 @@ export function hasGroups(states) {
   return (states || []).some(state => state.state_group_jabvox);
 }
 
+// Orígenes válidos de una gestión (de dónde se tipificó). Se guarda en
+// content_attributes.jabvox_call_source y se muestra en el detalle del lead.
+export const CALL_SOURCES = Object.freeze({
+  DIALER: 'dialer',
+  CLICK_TO_CALL: 'click_to_call',
+  LEAD_DETAIL: 'lead_detail',
+  KANBAN: 'kanban',
+  CONVERSATIONS: 'conversations',
+});
+
 // Builds the content_attributes block for the management state + answers.
 // Includes the classification snapshot so history and reports keep the values
 // even if the state's configuration changes later.
-export function buildManagementContentAttributes(state, answers) {
-  if (!state) return {};
+// `callSource` (uno de CALL_SOURCES) marca el ORIGEN de la gestión y SIEMPRE se
+// incluye cuando se pasa — incluso en una nota libre sin estado —, para que el
+// detalle del lead pueda mostrar desde dónde se tipificó. Centralizarlo aquí
+// evita que cada origen tenga que acordarse de añadirlo por su cuenta (era la
+// causa de que Kanban/Conversaciones guardaran gestiones sin marca de origen).
+export function buildManagementContentAttributes(
+  state,
+  answers,
+  callSource = null
+) {
+  const source = callSource ? { jabvox_call_source: callSource } : {};
+  if (!state) return source;
   return {
     jabvox_management_state_id: state.id,
     jabvox_management_state_name: state.name_jabvox || '',
@@ -187,5 +207,6 @@ export function buildManagementContentAttributes(state, answers) {
     jabvox_management_service_type: state.service_type_jabvox || 'No',
     jabvox_management_positivity_level: state.positivity_level_jabvox || 0,
     jabvox_management_answers: buildAnswersPayload(state, answers),
+    ...source,
   };
 }

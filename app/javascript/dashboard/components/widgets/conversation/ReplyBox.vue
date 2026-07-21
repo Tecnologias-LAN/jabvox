@@ -26,6 +26,7 @@ import {
   stateGroups,
   statesInGroup,
   hasGroups,
+  CALL_SOURCES,
 } from 'dashboard/composables/jabvox/useManagementState';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
@@ -1201,7 +1202,8 @@ export default {
       if (this.isOnPrivateNote && this.jabvoxManagementStateId) {
         messagePayload.contentAttributes = buildManagementContentAttributes(
           this.jabvoxSelectedState,
-          this.jabvoxManagementAnswers
+          this.jabvoxManagementAnswers,
+          CALL_SOURCES.CONVERSATIONS
         );
       }
       messagePayload = this.setReplyToInPayload(messagePayload);
