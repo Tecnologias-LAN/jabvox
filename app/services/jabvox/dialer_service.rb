@@ -87,11 +87,13 @@ class Jabvox::DialerService
   end
 
   def add_to_queue(queue_name, extension)
-    # Ensure queue exists on a separate connection before adding the member.
-    # Also handles campaigns created before provisioning code was deployed.
-    # The queue reload is now selective (QueueReload, members preserved), so no
-    # sleep is needed — the queue is ready synchronously.
-    ensure_queue_exists(queue_name)
+    # Al conectar un agente SOLO se le añade como miembro; NO se reescribe la
+    # config de la cola. Reescribirla (DelCat+NewCat+QueueReload) recreaba la cola
+    # en caliente y tumbaba las llamadas que ya estaban en ella — justo cuando un
+    # agente entraba al dialer con llamadas entrando. La provisión de la cola (con
+    # el wait_in_queue correcto de la campaña) ocurre al guardar la campaña, no al
+    # conectar. Solo la aseguramos si NO existe (p. ej. tras reinicio de Asterisk).
+    ensure_queue_exists(queue_name) unless queue_exists?(queue_name)
     Timeout.timeout(AMI_TIMEOUT) do
       with_ami_connection do |socket|
         send_action(socket, 'QueueAdd',
@@ -108,6 +110,34 @@ class Jabvox::DialerService
     end
   rescue StandardError => e
     Rails.logger.error "❌ [Dialer] QueueAdd failed | queue=#{queue_name} ext=#{extension} error=#{e.message}"
+  end
+
+  # ¿La cola ya está cargada en Asterisk? Se comprueba con QueueSummary (evento
+  # QueueSummary por cada cola existente). Ante cualquier error asumimos que NO
+  # existe, para que el flujo caiga en ensure_queue_exists y la cree — nunca
+  # bloquea la conexión del agente.
+  def queue_exists?(queue_name)
+    Timeout.timeout(AMI_TIMEOUT) do
+      with_ami_connection do |socket|
+        send_action(socket, 'QueueSummary', queue: queue_name)
+        return read_queue_summary(socket, queue_name)
+      end
+    end
+    false
+  rescue StandardError => e
+    Rails.logger.warn "⚠️ [Dialer] queue_exists? check failed, assuming absent | queue=#{queue_name} error=#{e.message}"
+    false
+  end
+
+  # Lee la respuesta de QueueSummary: true si aparece un evento QueueSummary para
+  # esta cola antes del QueueSummaryComplete (o del fin de mensajes).
+  def read_queue_summary(socket, queue_name)
+    20.times do
+      resp = read_response(socket)
+      return false if resp.empty? || resp['event']&.casecmp?('QueueSummaryComplete')
+      return true if resp['event']&.casecmp?('QueueSummary') && resp['queue'] == queue_name
+    end
+    false
   end
 
   def remove_from_queue(queue_name, extension)
@@ -142,11 +172,11 @@ class Jabvox::DialerService
   end
 
   def prepare_agent_for_call(queue_name, extension)
-    # Make sure the queue exists before adding the agent. Previously this assumed
-    # the queue was already there; if it wasn't (e.g. after an Asterisk restart or
-    # for a queue that lost its config), QueueAdd returned Error and the call was
-    # never placed. ensure_queue_exists is idempotent and preserves members.
-    ensure_queue_exists(queue_name)
+    # Solo asegurar la cola si NO existe (p. ej. tras reinicio de Asterisk). Antes
+    # se reescribía la config en CADA marcación, disparando un QueueReload que podía
+    # tumbar llamadas en curso de esa cola. La config se provisiona al guardar la
+    # campaña; aquí solo garantizamos que el agente sea miembro.
+    ensure_queue_exists(queue_name) unless queue_exists?(queue_name)
     Timeout.timeout(AMI_TIMEOUT) do
       with_ami_connection do |socket|
         send_action(socket, 'QueueAdd', queue: queue_name, interface: "SIP/#{extension}", penalty: 0, paused: 'false')

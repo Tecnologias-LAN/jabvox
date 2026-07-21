@@ -58,7 +58,13 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
 
   def disconnect
     data = read_agent_state
-    sync_queue_membership(data&.dig(:campaign_id), data&.dig(:extension), add: false) if data
+    # Garantizar el QueueRemove SIEMPRE, aunque la sesión Redis haya expirado
+    # (TTL) y data sea nil: si no, el agente quedaba como miembro de la cola en
+    # Asterisk aun "desconectado" y el proveedor le seguía enviando llamadas.
+    # Reconstruimos extensión y campaña desde datos persistentes cuando falten.
+    ext         = data&.dig(:extension) || user_extension
+    campaign_id = data&.dig(:campaign_id) || last_connected_campaign_id
+    sync_queue_membership(campaign_id, ext, add: false)
     remove_agent_state
     unregister_connected_agent(current_user.id)
     record_agent_state('inactive')
@@ -279,6 +285,21 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
   end
 
   private
+
+  # Extensión SIP del usuario actual (fuente persistente, no depende de Redis).
+  def user_extension
+    Current.account.jabvox_user_extensions.find_by(user_id: current_user.id)&.extension_jabvox
+  end
+
+  # Campaña activa a la que el agente está asignado (agent_ids_jabvox). Se usa como
+  # respaldo para saber de qué cola quitarlo cuando la sesión Redis expiró y no
+  # tenemos el campaign_id guardado. Toma la primera campaña activa asignada.
+  def last_connected_campaign_id
+    Current.account.jabvox_dialer_campaigns
+           .where(status_jabvox: 'active')
+           .find { |c| Array(c.agent_ids_jabvox).map(&:to_i).include?(current_user.id) }
+           &.id
+  end
 
   def sync_queue_membership(campaign_id, extension, add:)
     return unless campaign_id.present? && extension.present?

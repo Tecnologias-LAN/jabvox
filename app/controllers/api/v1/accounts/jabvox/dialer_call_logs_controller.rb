@@ -37,9 +37,31 @@ class Api::V1::Accounts::Jabvox::DialerCallLogsController < Api::V1::Accounts::J
   def resolve_log_for_typify
     return Current.account.jabvox_dialer_call_logs.find_by(id: params[:id]) if params[:id].present?
 
-    Current.account.jabvox_dialer_call_logs
-           .where(jabvox_dialer_campaign_contact_id: params[:contact_id])
-           .ordered.first
+    log = Current.account.jabvox_dialer_call_logs
+                 .where(jabvox_dialer_campaign_contact_id: params[:contact_id])
+                 .ordered.first
+    # Si el contacto aún no tiene call log (p. ej. modo last_state, o el log no se
+    # correlacionó a tiempo), creamos uno en vez de devolver 404: la tipificación
+    # del agente NUNCA debe perderse por falta de log. Antes esto provocaba
+    # "No se pudo guardar la gestión" en el wrap-up.
+    log || build_log_for_contact(params[:contact_id])
+  end
+
+  # Crea un call log mínimo para un campaign_contact que no tenía ninguno, para
+  # poder colgar en él la tipificación/nota del wrap-up.
+  def build_log_for_contact(contact_id)
+    cc = Current.account.jabvox_dialer_campaign_contacts.find_by(id: contact_id)
+    return nil unless cc
+
+    Current.account.jabvox_dialer_call_logs.create!(
+      jabvox_dialer_campaign_id: cc.jabvox_dialer_campaign_id,
+      jabvox_dialer_campaign_contact_id: cc.id,
+      phone_jabvox: cc.phone_jabvox,
+      status_jabvox: cc.status_jabvox.presence_in(JabvoxDialerCallLog::STATUSES) || 'initiated',
+      agent_id_jabvox: current_user.id,
+      started_at_jabvox: Time.current,
+      ended_at_jabvox: Time.current
+    )
   end
 
   # Only accept a typification that belongs to this account (or nil to clear).
