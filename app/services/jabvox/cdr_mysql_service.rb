@@ -52,8 +52,12 @@ class Jabvox::CdrMysqlService
     clauses = []
     binds = []
     if since.present?
-      clauses << 'calldate > ?'
-      binds << since
+      # Comparación como TEXTO en el formato exacto del CDR ('YYYY-MM-DD HH:MM:SS'),
+      # sin conversiones de zona horaria. El cursor llega ya formateado como string
+      # (ver CdrSyncService#start_cursor). Para 'YYYY-MM-DD HH:MM:SS' el orden
+      # lexicográfico coincide con el cronológico, así que '>' es correcto.
+      clauses << 'CAST(calldate AS CHAR) > ?'
+      binds << since.to_s
     end
     where_sql = clauses.any? ? "WHERE #{clauses.join(' AND ')}" : ''
 
@@ -133,7 +137,15 @@ class Jabvox::CdrMysqlService
       database: @config.mysql_database,
       connect_timeout: CONNECT_TIMEOUT,
       read_timeout: CONNECT_TIMEOUT,
-      reconnect: false
+      reconnect: false,
+      # El CDR de Asterisk guarda calldate como datetime "naïve" en la hora local
+      # del PBX. Le decimos a mysql2 que NO reinterprete la zona: los Time que
+      # devuelve conservan los mismos componentes de fecha/hora que la columna, y
+      # los binds que enviamos (cursor, from/to) se comparan contra ese mismo
+      # espacio horario. Sin esto, la conversión implícita local<->UTC desplazaba
+      # el cursor y `calldate > cursor` dejaba de traer llamadas (cursor pegado).
+      database_timezone: :local,
+      application_timezone: :local
     )
     yield client
   ensure

@@ -65,7 +65,7 @@ module Jabvox
 
         @run[:fetched] += rows.size
         upsert_batch(rows)
-        cursor = rows.last[:calldate]
+        cursor = cursor_string(rows.last[:calldate])
         advance_cursor(cursor)
         break if rows.size < BATCH_LIMIT # no hay más por ahora
       end
@@ -109,21 +109,49 @@ module Jabvox
       result
     end
 
-    # Cursor de arranque: el último calldate sincronizado menos el OVERLAP (para
-    # recapturar filas de borde). nil en la 1a corrida => backfill desde el inicio.
+    # Cursor de arranque como STRING 'YYYY-MM-DD HH:MM:SS' (formato del CDR), menos
+    # el OVERLAP para recapturar filas de borde. nil en la 1a corrida => backfill.
+    # Se compara como texto contra el CDR, sin conversiones de zona horaria.
     def start_cursor
-      last = @config.last_synced_calldate
-      last.present? ? (last - OVERLAP) : nil
+      raw = @config.last_synced_cursor
+      return nil if raw.blank?
+
+      # Restar el solape parseando el string en la MISMA zona (sin desplazar):
+      # Time.parse conserva los componentes, restamos segundos y reformateamos.
+      (Time.zone.parse(raw) - OVERLAP).strftime('%Y-%m-%d %H:%M:%S')
+    rescue StandardError
+      # Si el cursor guardado no fuera parseable, arrancar sin cursor (backfill),
+      # el upsert idempotente evita duplicados.
+      nil
     end
 
-    def advance_cursor(calldate)
-      return if calldate.blank?
+    # Convierte el calldate (Time de mysql2, hora del PBX) al string del CDR.
+    def cursor_string(calldate)
+      return nil if calldate.blank?
 
-      # Solo avanza (nunca retrocede) el cursor persistido.
-      current = @config.last_synced_calldate
-      return if current.present? && calldate <= current
+      calldate.respond_to?(:strftime) ? calldate.strftime('%Y-%m-%d %H:%M:%S') : calldate.to_s
+    end
 
-      @config.update_columns(last_synced_calldate: calldate) # rubocop:disable Rails/SkipsModelValidations
+    def advance_cursor(cursor)
+      return if cursor.blank?
+
+      # Solo avanza (nunca retrocede) el cursor persistido. Comparación de strings
+      # en formato 'YYYY-MM-DD HH:MM:SS' (lexicográfico == cronológico).
+      current = @config.last_synced_cursor
+      return if current.present? && cursor <= current
+
+      # Persistimos el cursor textual (fuente de verdad) y, por comodidad del
+      # monitor, tambien la fecha para mostrarla.
+      @config.update_columns( # rubocop:disable Rails/SkipsModelValidations
+        last_synced_cursor: cursor,
+        last_synced_calldate: parse_cursor(cursor)
+      )
+    end
+
+    def parse_cursor(cursor)
+      Time.zone.parse(cursor)
+    rescue StandardError
+      nil
     end
 
     def upsert_batch(rows)
