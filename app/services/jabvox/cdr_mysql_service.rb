@@ -225,7 +225,9 @@ class Jabvox::CdrMysqlService
   end
 
   def normalize(row, enrichment = {})
-    info = resolver.enrichment_for_row(row, enrichment)
+    # Incluye el fallback de ENTRANTES (trunk->extensión) cuando ningún match de
+    # saliente aplicó, para que la llamada muestre número externo/agente/medio real.
+    info = resolver.enrichment_for_row_with_inbound(row, enrichment)
     {
       uniqueid: row['uniqueid'],
       linkedid: row['linkedid'],

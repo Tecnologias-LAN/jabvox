@@ -113,7 +113,9 @@ class Jabvox::CdrLabelResolver
   end
 
   # Returns the enrichment for a single row: exact uniqueid, then linkedid, then
-  # the number+time or agent+time fallbacks.
+  # the number+time or agent+time fallbacks, and finally — para llamadas ENTRANTES
+  # (del trunk del proveedor a una extensión, sin call log interno) — un enrichment
+  # derivado del propio CDR (origen = número externo, destino = agente).
   def enrichment_for_row(row, lookup)
     uid = row['uniqueid'].to_s
     return lookup[uid] if lookup.key?(uid)
@@ -124,6 +126,16 @@ class Jabvox::CdrLabelResolver
     return lookup["num:#{number_key(row)}"] if lookup.key?("num:#{number_key(row)}")
 
     agent_time_enrichment(row)
+  end
+
+  # Enrichment de último recurso para LLAMADAS ENTRANTES: la llamada entra por el
+  # trunk del proveedor (channel = SIP/ipcom-…) hacia una extensión de agente
+  # (dstchannel = SIP/105-…). No tiene call log interno (el agente no la originó),
+  # así que la resolvemos con el propio CDR: origen = número externo (src),
+  # destino = el agente que la recibió. Se usa SOLO cuando ningún match de saliente
+  # (uniqueid/linkedid/número/agente+tiempo) aplicó, para no pisar el dialer.
+  def enrichment_for_row_with_inbound(row, lookup)
+    enrichment_for_row(row, lookup) || inbound_enrichment(row)
   end
 
   # Resolves the displayed origin/destination for a CDR row, replacing Asterisk placeholders
@@ -282,6 +294,91 @@ class Jabvox::CdrLabelResolver
     return nil if best.nil? || (best.first - base).abs > AGENT_TIME_WINDOW
 
     best.last
+  end
+
+  # ¿Es una llamada ENTRANTE? Entra por el trunk del proveedor (channel NO es una
+  # extensión numérica: SIP/ipcom-…) hacia una extensión de agente (dstchannel =
+  # SIP/105-…). Distinta del dialer saliente porque el dialer SÍ tiene call log
+  # interno (ya matcheado antes); esto es el último recurso cuando nada matcheó.
+  def inbound?(row)
+    ch  = row['channel'].to_s
+    dch = row['dstchannel'].to_s
+    # El leg de origen NO es una extensión numérica (es el trunk: SIP/ipcom-…),
+    # y el leg de destino SÍ es una extensión numérica de agente (SIP/105-…).
+    channel_is_trunk = ch.present? && !numeric_extension?(ch)
+    channel_is_trunk && numeric_extension?(dch)
+  end
+
+  # true si el channel apunta a una extensión NUMÉRICA (SIP/105-…), no a un trunk.
+  def numeric_extension?(channel)
+    ext = extension_from_channel(channel)
+    ext.present? && ext.match?(/\A\d+\z/)
+  end
+
+  # Enrichment de una entrante del proveedor hacia el agente. Es parte del flujo del
+  # MARCADOR (el lead marcado devuelve la llamada y la atiende el agente), así que:
+  #   - medio  = 'dialer' (no se distingue dirección)
+  #   - destino = el NÚMERO DEL LEAD que se marcó — no está en el CDR (dst='s'), se
+  #     recupera del call log del dialer de ese agente más cercano en el tiempo.
+  #   - agente = la extensión que recibió (dstchannel). origin_for ya deja el DID
+  #     (src) como origen, y agent_channel_label ya pone al agente como canal origen.
+  def inbound_enrichment(row)
+    return nil unless inbound?(row)
+
+    ext = extension_from_channel(row['dstchannel'])
+    agent = user_name_for(ext) || ext
+    lead = inbound_lead_number(row, ext)
+    {
+      medium: 'dialer',
+      typification_id: nil,
+      typification: nil,
+      # origin lo resuelve origin_for con el src (DID); destination = número del lead.
+      origin: nil,
+      destination: lead,
+      agent_name: agent
+    }
+  end
+
+  # Ventana (segundos) para asociar una entrante con el lead que el marcador marcó a
+  # ese agente. Más amplia que AGENT_TIME_WINDOW porque el lead puede devolver la
+  # llamada bastante después de que el marcador lo intentó.
+  INBOUND_LEAD_WINDOW = 3600
+
+  # Número del lead de una entrante: el phone del último call log del dialer de esa
+  # extensión de agente ANTES (o alrededor) de la hora de la entrada. Devuelve nil
+  # si no hay un candidato razonable (entonces el destino queda como el crudo).
+  def inbound_lead_number(row, ext)
+    t = parse_calldate(row['calldate'])
+    return nil if ext.blank? || t.nil?
+
+    idx = inbound_agent_index
+    candidates = idx[ext]
+    return nil if candidates.blank?
+
+    base = t.to_i
+    best = candidates.min_by { |epoch, _phone| (epoch - base).abs }
+    return nil if best.nil? || (best.first - base).abs > INBOUND_LEAD_WINDOW
+
+    best.last
+  end
+
+  # Índice { extensión_agente => [[epoch, phone_lead], ...] } de los call logs del
+  # dialer, para asociar entrantes con el lead marcado. Se construye una vez.
+  def inbound_agent_index
+    @inbound_agent_index ||= begin
+      idx = Hash.new { |h, k| h[k] = [] }
+      @account.jabvox_dialer_call_logs
+              .where.not(agent_id_jabvox: nil)
+              .where.not(phone_jabvox: [nil, ''])
+              .find_each do |log|
+        ext = agent_extension_for(log.agent_id_jabvox)
+        t = log.started_at_jabvox
+        next if ext.blank? || t.blank?
+
+        idx[ext] << [t.to_i, log.phone_jabvox]
+      end
+      idx
+    end
   end
 
   # Extensión del agente desde el CDR: en el dialer el agente está en dstchannel

@@ -49,6 +49,8 @@ class JabvoxCdrRecord < ApplicationRecord
 
   belongs_to :account
 
+  # Medios de la llamada. El 'dialer' incluye TANTO las salientes del marcador COMO
+  # las entrantes del proveedor hacia el agente (no se distingue dirección).
   MEDIUMS = %w[dialer click_to_call manual].freeze
   DISPOSITIONS = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].freeze
 
