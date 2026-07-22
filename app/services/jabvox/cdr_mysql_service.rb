@@ -42,6 +42,33 @@ class Jabvox::CdrMysqlService
     { records: [], total: 0, error: e.message }
   end
 
+  # Lote incremental para la sincronización local: filas crudas del PBX con
+  # calldate > `since` (o desde el inicio si since es nil), ordenadas ASC por
+  # calldate para poder avanzar el cursor de forma segura. Cada fila ya viene con
+  # su enrichment aplicado (mismo normalize que el reporte usaba al vuelo), para
+  # materializarla en jabvox_cdr_records. `limit` acota cada corrida.
+  # Devuelve un array de hashes normalizados (NO { records:, total: }).
+  def fetch_batch_since(since, limit: 1000)
+    clauses = []
+    binds = []
+    if since.present?
+      clauses << 'calldate > ?'
+      binds << since
+    end
+    where_sql = clauses.any? ? "WHERE #{clauses.join(' AND ')}" : ''
+
+    with_client do |client|
+      stmt = client.prepare(
+        'SELECT uniqueid, linkedid, calldate, src, dst, channel, dstchannel, ' \
+        'disposition, duration, billsec, recordingfile ' \
+        "FROM #{table} #{where_sql} ORDER BY calldate ASC LIMIT ?"
+      )
+      rows = stmt.execute(*binds, limit.to_i.clamp(1, 5000), as: :hash).to_a
+      enrichment = resolver.enrichment_for_rows(rows)
+      rows.map { |row| normalize(row, enrichment) }
+    end
+  end
+
   # Aggregated per-agent summary (answered, no_answer, busy, failed, talk time, answer rate).
   # Groups by the AGENT'S extension, taken from the channel (e.g. "SIP/104-00000004"
   # -> "104"), not by the dialed number. The extension is resolved to the agent's
@@ -120,7 +147,7 @@ class Jabvox::CdrMysqlService
 
   def fetch_rows(client, where_sql, binds, per_page, offset)
     stmt = client.prepare(
-      'SELECT uniqueid, calldate, src, dst, channel, dstchannel, ' \
+      'SELECT uniqueid, linkedid, calldate, src, dst, channel, dstchannel, ' \
       'disposition, duration, billsec, recordingfile ' \
       "FROM #{table} #{where_sql} ORDER BY calldate DESC LIMIT ? OFFSET ?"
     )
@@ -141,21 +168,23 @@ class Jabvox::CdrMysqlService
       binds << filters[:to]
     end
     if filters[:extension].present?
-      # Match the extension as caller, callee, or the agent's own channel
-      # (SIP/104-... / PJSIP/104-...) so filtering by an agent extension finds
-      # the calls that agent handled.
-      clauses << '(src = ? OR dst = ? OR channel LIKE ? OR channel LIKE ?)'
+      # Match the extension as caller, callee, or the agent's channel — en CUALQUIER
+      # leg (channel O dstchannel). Click-to-call tiene al agente en channel; el
+      # DIALER lo tiene en dstchannel (channel es el trunk SIP/ipcom-...). Sin mirar
+      # dstchannel, filtrar por la extensión del agente NO encontraba las del dialer.
+      clauses << '(src = ? OR dst = ? OR channel LIKE ? OR channel LIKE ? OR dstchannel LIKE ? OR dstchannel LIKE ?)'
       ext = filters[:extension]
-      binds << ext << ext << "SIP/#{ext}-%" << "PJSIP/#{ext}-%"
+      binds << ext << ext << "SIP/#{ext}-%" << "PJSIP/#{ext}-%" << "SIP/#{ext}-%" << "PJSIP/#{ext}-%"
     end
-    # Extension RANGE filter (e.g. 100..200): the agent extension taken from the
-    # channel, compared numerically. Only digit-only extensions are ranged; the
-    # CAST makes "104" -> 104 so 100 <= ext <= 200 works. from/to are optional
-    # (an open-ended bound is allowed).
+    # Extension RANGE filter (e.g. 100..200): la extensión del agente tomada del leg
+    # que sea numérico (channel para click-to-call, dstchannel para el dialer),
+    # comparada numéricamente. Solo extensiones de solo-dígitos entran al rango.
     if filters[:ext_from].present? || filters[:ext_to].present?
-      ext_num = "CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1) AS UNSIGNED)"
-      raw_ext = "SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)"
-      # only rows whose extracted extension is purely numeric
+      chan_raw = "SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)"
+      dst_raw  = "SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)"
+      # La extensión del agente: el leg numérico (channel si es numérico, si no dstchannel).
+      raw_ext = "(CASE WHEN #{chan_raw} REGEXP '^[0-9]+$' THEN #{chan_raw} ELSE #{dst_raw} END)"
+      ext_num = "CAST(#{raw_ext} AS UNSIGNED)"
       clauses << "#{raw_ext} REGEXP '^[0-9]+$'"
       if filters[:ext_from].present?
         clauses << "#{ext_num} >= ?"
@@ -187,9 +216,13 @@ class Jabvox::CdrMysqlService
     info = resolver.enrichment_for_row(row, enrichment)
     {
       uniqueid: row['uniqueid'],
+      linkedid: row['linkedid'],
       calldate: row['calldate'],
       src: row['src'],
       dst: row['dst'],
+      # Crudos conservados para la tabla local (trazabilidad + filtro por extensión).
+      channel_raw: row['channel'],
+      dstchannel_raw: row['dstchannel'],
       # Origin / destination, with the dialer's 0000/s placeholders replaced by real data,
       # and agent extensions resolved to names.
       origin: resolver.origin_for(row, info),

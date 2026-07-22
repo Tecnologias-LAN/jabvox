@@ -201,6 +201,14 @@ onMounted(async () => {
       router.replace({ name: 'home' });
       return;
     }
+    // Al abrir la vista, sincroniza el CDR del PBX para traer las llamadas nuevas
+    // desde la última sincronización (mejor esfuerzo: si el PBX no responde, la
+    // vista carga igual con lo que ya está en la tabla local).
+    try {
+      await cdrReportsAPI.syncNow();
+    } catch (syncError) {
+      // ignorar: la vista muestra los datos locales disponibles
+    }
     loadSummary();
   } catch (error) {
     router.replace({ name: 'home' });

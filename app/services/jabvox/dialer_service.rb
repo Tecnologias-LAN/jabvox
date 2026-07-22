@@ -401,8 +401,13 @@ class Jabvox::DialerService
       priority: 1,
       timeout: 30_000,
       async: 'true',
-      variable: ["DIALER_QUEUE=#{queue}",
-                 "DIALER_PHONE=#{phone}",
+      # `__` = variable HEREDABLE en Asterisk: se propaga a los canales hijos y
+      # sobrevive al bridge, así el contexto dialer-answered puede hacer
+      # Set(CDR(dst)=${DIALER_PHONE}) con el número real. Sin el `__`, DIALER_PHONE
+      # llegaba vacía a ese punto y el CDR quedaba con dst='s'. Se lee como
+      # ${DIALER_PHONE} (el `__` solo marca herencia al setear, no al leer).
+      variable: ["__DIALER_QUEUE=#{queue}",
+                 "__DIALER_PHONE=#{phone}",
                  "__JABVOX_CONTACT_ID=#{contact.id}",
                  "__JABVOX_ACCOUNT_ID=#{campaign.account_id}",
                  "__JABVOX_AGENT_USER_ID=#{user_id}",

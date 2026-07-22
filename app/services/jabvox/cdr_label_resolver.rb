@@ -97,22 +97,33 @@ class Jabvox::CdrLabelResolver
     return {} if @account.nil? || rows.blank?
 
     by_uid = enrichment_lookup(rows.map { |r| r['uniqueid'] })
-    # For rows still unmatched, try number + time against BOTH sources.
-    unmatched = rows.reject { |r| by_uid.key?(r['uniqueid'].to_s) }
+    # 2) Match por linkedid: el dialer guarda el linkedid (comun a todos los legs),
+    #    y el CDR lo trae en su columna linkedid. Cubre las llamadas cuyo uniqueid
+    #    del CDR (leg del trunk) NO coincide con el uniqueid guardado (otro leg).
+    add_dialer_by_linkedid(by_uid, rows)
+    # 3) Para las que aun no matchean (historico sin linkedid, o no-conectadas):
+    #    numero+tiempo y, para el dialer, agente(extension)+tiempo.
+    unmatched = rows.reject { |r| enrichment_for_row(r, by_uid) }
     return by_uid if unmatched.empty?
 
     add_dialer_by_number(by_uid, unmatched)
     add_click_to_call_by_number(by_uid, unmatched)
+    add_dialer_by_agent_time(by_uid, unmatched)
     by_uid
   end
 
-  # Returns the enrichment for a single row: exact uniqueid match, else the
-  # number+time fallback stored under a "num:<digits>" key.
+  # Returns the enrichment for a single row: exact uniqueid, then linkedid, then
+  # the number+time or agent+time fallbacks.
   def enrichment_for_row(row, lookup)
     uid = row['uniqueid'].to_s
     return lookup[uid] if lookup.key?(uid)
 
-    lookup["num:#{number_key(row)}"]
+    lid = row['linkedid'].to_s
+    return lookup["lid:#{lid}"] if lid.present? && lookup.key?("lid:#{lid}")
+
+    return lookup["num:#{number_key(row)}"] if lookup.key?("num:#{number_key(row)}")
+
+    agent_time_enrichment(row)
   end
 
   # Resolves the displayed origin/destination for a CDR row, replacing Asterisk placeholders
@@ -155,6 +166,21 @@ class Jabvox::CdrLabelResolver
             .includes(:typification)
             .find_each do |log|
       lookup[log.uniqueid_jabvox.to_s] ||= dialer_enrichment(log)
+    end
+  end
+
+  # Match por linkedid: cruza el linkedid del CDR contra linkedid_jabvox del call
+  # log. Guarda bajo "lid:<linkedid>". Es el match fiable para el dialer, porque el
+  # linkedid es el mismo en todos los legs y coincide con el del CDR.
+  def add_dialer_by_linkedid(lookup, rows)
+    lids = rows.map { |r| r['linkedid'].to_s }.reject(&:blank?).uniq
+    return if lids.empty?
+
+    @account.jabvox_dialer_call_logs
+            .where(linkedid_jabvox: lids)
+            .includes(:typification)
+            .find_each do |log|
+      lookup["lid:#{log.linkedid_jabvox}"] ||= dialer_enrichment(log)
     end
   end
 
@@ -202,6 +228,78 @@ class Jabvox::CdrLabelResolver
         agent_name: log.user&.name
       }
     end
+  end
+
+  # Ventana (segundos) para el match por agente+tiempo del histórico del dialer.
+  AGENT_TIME_WINDOW = 120
+
+  # Fallback para llamadas del dialer del HISTÓRICO (sin linkedid guardado) cuyo
+  # uniqueid tampoco coincide y cuyo número no está en el CDR (dst='s'). Cruza por
+  # la extensión del agente (del dstchannel del CDR) + cercanía de tiempo contra el
+  # call log del dialer. Clave: "agent:<ext>:<epoch>" por cada log; enrichment_for_row
+  # busca la de su row dentro de la ventana.
+  def add_dialer_by_agent_time(lookup, rows)
+    dialer_rows = rows.select { |r| PLACEHOLDER_DST.include?(r['dst'].to_s) }
+    return if dialer_rows.empty?
+
+    span = rows_time_span(dialer_rows)
+    return if span.nil?
+
+    # Índice { extensión => [[epoch, enrichment], ...] } de los call logs del
+    # dialer en la ventana; enrichment_for_row busca el más cercano en el tiempo.
+    @agent_time_index ||= build_agent_time_index(span)
+  end
+
+  def build_agent_time_index(span)
+    idx = Hash.new { |h, k| h[k] = [] }
+    @account.jabvox_dialer_call_logs
+            .where(started_at_jabvox: span)
+            .where.not(agent_id_jabvox: nil)
+            .includes(:typification)
+            .find_each do |log|
+      ext = agent_extension_for(log.agent_id_jabvox)
+      next if ext.blank? || log.started_at_jabvox.blank?
+
+      idx[ext] << [log.started_at_jabvox.to_i, dialer_enrichment(log)]
+    end
+    idx
+  end
+
+  # Enrichment de un row por agente+tiempo: extensión del agente (del CDR) + el
+  # call log del dialer de esa extensión cuyo inicio esté dentro de AGENT_TIME_WINDOW.
+  def agent_time_enrichment(row)
+    return nil unless @agent_time_index
+
+    ext = cdr_agent_extension(row)
+    t = parse_calldate(row['calldate'])
+    return nil if ext.blank? || t.nil?
+
+    candidates = @agent_time_index[ext]
+    return nil if candidates.blank?
+
+    base = t.to_i
+    best = candidates.min_by { |epoch, _| (epoch - base).abs }
+    return nil if best.nil? || (best.first - base).abs > AGENT_TIME_WINDOW
+
+    best.last
+  end
+
+  # Extensión del agente desde el CDR: en el dialer el agente está en dstchannel
+  # (SIP/105-...); en click-to-call en channel. Tomamos el leg numérico.
+  def cdr_agent_extension(row)
+    %w[dstchannel channel].each do |field|
+      raw = row[field].to_s
+      ext = raw.sub(%r{\A(?:SIP|PJSIP)/}i, '').sub(/-.*\z/, '')
+      return ext if ext.match?(/\A\d+\z/)
+    end
+    nil
+  end
+
+  def agent_extension_for(user_id)
+    return nil if user_id.blank?
+
+    @agent_ext ||= {}
+    @agent_ext[user_id] ||= @account.jabvox_user_extensions.where(user_id: user_id).pick(:extension_jabvox)
   end
 
   def dialer_enrichment(log)

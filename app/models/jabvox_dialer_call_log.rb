@@ -7,6 +7,7 @@
 #  duration_jabvox                   :integer          default(0)
 #  ended_at_jabvox                   :datetime
 #  lead_answered_jabvox              :boolean          default(FALSE), not null
+#  linkedid_jabvox                   :string
 #  notes_jabvox                      :text
 #  phone_jabvox                      :string           default(""), not null
 #  started_at_jabvox                 :datetime
@@ -21,11 +22,12 @@
 #
 # Indexes
 #
+#  idx_dialer_logs_account_linkedid                    (account_id,linkedid_jabvox)
 #  idx_dialer_logs_agent_open                          (agent_id_jabvox,ended_at_jabvox)
 #  idx_dialer_logs_on_agent_id                         (agent_id_jabvox)
 #  idx_dialer_logs_on_campaign_id                      (jabvox_dialer_campaign_id)
 #  idx_dialer_logs_on_contact_id                       (jabvox_dialer_campaign_contact_id)
-#  idx_dialer_logs_open_by_account                     (account_id,started_at_jabvox) WHERE ((status_jabvox)::text = ANY ((ARRAY['initiated'::character varying, 'calling'::character varying])::text[]))
+#  idx_dialer_logs_open_by_account                     (account_id,started_at_jabvox) WHERE ((status_jabvox)::text = ANY (ARRAY[('initiated'::character varying)::text, ('calling'::character varying)::text]))
 #  idx_on_account_id_uniqueid_jabvox_8158b17c6d        (account_id,uniqueid_jabvox)
 #  index_jabvox_dialer_call_logs_on_account_id         (account_id)
 #  index_jabvox_dialer_call_logs_on_started_at_jabvox  (started_at_jabvox)

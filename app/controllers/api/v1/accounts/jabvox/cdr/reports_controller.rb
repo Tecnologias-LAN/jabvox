@@ -24,6 +24,41 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
     render json: { summary: cdr_service.summary(filter_params) }
   end
 
+  # POST /sync_now — sincroniza el CDR del PBX -> tabla local BAJO DEMANDA.
+  # El frontend la llama al abrir la vista para traer las llamadas nuevas desde la
+  # última sincronización (el cursor incremental decide desde cuándo). Acotada por
+  # lotes; si hay mucho histórico atrasado, el cron termina de ponerse al día.
+  # Nunca bloquea la vista: ante error/PBX caído responde con reachable:false.
+  #
+  # Anti-DoS: un cooldown por cuenta en Redis (SET NX EX) evita que recargas
+  # repetidas de la vista (o curl en bucle) disparen syncs síncronos concurrentes
+  # que saturarían los workers web y el MySQL del PBX. Dentro de la ventana de
+  # cooldown respondemos con el último cursor sin re-ejecutar (skipped:true); el
+  # cron sigue poniéndose al día en background igualmente.
+  def sync_now
+    unless acquire_sync_slot
+      return render(json: { reachable: true, inserted: 0, updated: 0, skipped: true,
+                            last_cursor: Current.account.jabvox_cdr_config&.last_synced_calldate })
+    end
+
+    result = Jabvox::CdrSyncService.sync_account(Current.account)
+    render json: {
+      reachable: result[:reachable] != false,
+      inserted: result[:inserted].to_i,
+      updated: result[:updated].to_i,
+      last_cursor: Current.account.jabvox_cdr_config&.reload&.last_synced_calldate
+    }
+  end
+
+  # GET /monitor — estado del sincronizador para el dashboard (solo admin).
+  def monitor
+    unless jabvox_can?('jabvox_cdr_manage')
+      return render(json: { error: 'Solo administradores' }, status: :forbidden)
+    end
+
+    render json: Jabvox::CdrMonitorService.new(Current.account).status
+  end
+
   # POST /analyze — run (or re-run with force) AI analysis for one call synchronously.
   def analyze
     analysis = Jabvox::CdrAnalysisService.new(
@@ -96,6 +131,21 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
 
   private
 
+  # Cooldown por cuenta para sync_now. Devuelve true solo si adquiere el slot (no
+  # hubo un sync en los últimos SYNC_COOLDOWN s). SET NX EX es atómico, así que dos
+  # peticiones concurrentes de la misma cuenta no lanzan dos syncs a la vez.
+  SYNC_COOLDOWN = 20 # segundos
+
+  def acquire_sync_slot
+    key = "jabvox_cdr_sync_cooldown_#{Current.account.id}"
+    Redis::Alfred.set(key, Time.current.to_i, nx: true, ex: SYNC_COOLDOWN)
+  rescue StandardError => e
+    # Si Redis no está disponible, no bloqueamos la sincronización (falla abierto);
+    # el cooldown es una protección anti-abuso, no una garantía de correctitud.
+    Rails.logger.warn "[CDR] cooldown sync_now no disponible: #{e.message}"
+    true
+  end
+
   # nil clears the typification; otherwise the account-scoped typification or nil.
   def resolve_typification
     return nil if params[:typification_id].blank?
@@ -117,10 +167,12 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
     )
   end
 
-  # Pass the account so the service can resolve raw PBX extensions to agent names
-  # using the VoIP module's per-user extensions (source of truth).
+  # Lee de la tabla LOCAL jabvox_cdr_records (materializada + enriquecida por
+  # CdrSyncJob). Mismo contrato que el servicio MySQL, pero con filtros y
+  # paginación exactos a cualquier volumen (incluye medio/tipificación/número real
+  # del dialer, que sobre el CDR crudo no eran filtrables).
   def cdr_service
-    Jabvox::CdrMysqlService.new(@config, account: Current.account)
+    Jabvox::CdrLocalService.new(Current.account)
   end
 
   def set_config
@@ -135,7 +187,8 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
   end
 
   def filter_params
-    params.permit(:from, :to, :extension, :ext_from, :ext_to, :src, :dst, :disposition).to_h.symbolize_keys
+    params.permit(:from, :to, :extension, :ext_from, :ext_to, :src, :dst,
+                  :disposition, :medium, :typification_id).to_h.symbolize_keys
   end
 
   def serialize_analysis(record)

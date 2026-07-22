@@ -552,9 +552,15 @@ module Jabvox
       return if log.nil?
 
       uniqueid = event['uniqueid'].presence
+      # linkedid: identificador estable comun a TODOS los legs de la llamada y el
+      # mismo que el CDR de Asterisk registra en su columna linkedid. Guardarlo
+      # permite cruzar el reporte con el CDR de forma fiable (el uniqueid solo
+      # coincide a veces, segun que leg dispare el Hangup primero).
+      linkedid = event['linkedid'].presence
       answered = status.nil? ? call_was_answered?(event) : false
       attrs = {}
       attrs[:uniqueid_jabvox] = uniqueid if uniqueid.present? && log.uniqueid_jabvox.blank?
+      attrs[:linkedid_jabvox] = linkedid if linkedid.present? && log.linkedid_jabvox.blank?
       # Cerrar el log SIEMPRE: sin ended_at el log quedaba 'initiated' para
       # siempre (visto en producción: log 665) y el monitor lo mostraba como
       # llamada en curso indefinidamente.

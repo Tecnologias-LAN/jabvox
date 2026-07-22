@@ -492,6 +492,11 @@ Rails.application.routes.draw do
               get :my_access, to: 'reports#my_access'
               get :records, to: 'reports#records'
               get :summary, to: 'reports#summary'
+              # Sincroniza el CDR del PBX -> tabla local bajo demanda (al abrir la
+              # vista), para traer las llamadas nuevas desde la última sincronización.
+              post :sync_now, to: 'reports#sync_now'
+              # Estado del sincronizador (dashboard de monitoreo, solo admin).
+              get :monitor, to: 'reports#monitor'
               post :analyze, to: 'reports#analyze'
               post :typify, to: 'reports#typify'
               post :analyses_batch, to: 'reports#analyses_batch'

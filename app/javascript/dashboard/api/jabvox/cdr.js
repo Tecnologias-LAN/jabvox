@@ -9,6 +9,10 @@ export const cdrReportsAPI = {
   myAccess: () => axios.get(`${base}/my_access`),
   records: params => axios.get(`${base}/records`, { params }),
   summary: params => axios.get(`${base}/summary`, { params }),
+  // Dispara la sincronización incremental del CDR (al abrir la vista / refrescar).
+  syncNow: () => axios.post(`${base}/sync_now`),
+  // Estado del sincronizador para el dashboard de monitoreo (solo admin).
+  monitor: () => axios.get(`${base}/monitor`),
   analyze: data => axios.post(`${base}/analyze`, data),
   // Saves (or clears, with typificationId null) the typification of a call by uniqueid.
   typify: (uniqueid, typificationId) =>

@@ -134,3 +134,12 @@ jabvox_dialer_queue_reaper_job:
   cron: '*/1 * * * *'
   class: 'Jabvox::DialerQueueReaperJob'
   queue: scheduled_jobs
+
+# every 1 minute — sincroniza el CDR del PBX hacia la tabla local
+# jabvox_cdr_records (enriquecido con numero real del dialer, medio, agente,
+# tipificacion), para que el reporte filtre y pagine exacto a cualquier volumen.
+# Incremental, idempotente, aislado por cuenta y resistente a caidas del PBX.
+jabvox_cdr_sync_job:
+  cron: '*/1 * * * *'
+  class: 'Jabvox::CdrSyncJob'
+  queue: scheduled_jobs

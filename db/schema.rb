@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_21_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_22_000004) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1663,6 +1663,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_21_000002) do
     t.bigint "default_pipeline_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "last_synced_calldate"
     t.index ["account_id"], name: "index_jabvox_cdr_configs_on_account_id", unique: true
     t.index ["default_pipeline_id"], name: "index_jabvox_cdr_configs_on_default_pipeline_id"
   end
@@ -1697,6 +1698,38 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_21_000002) do
     t.index ["typification_id"], name: "index_jabvox_cdr_pipelines_on_typification_id"
   end
 
+  create_table "jabvox_cdr_records", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "uniqueid", null: false
+    t.string "linkedid"
+    t.datetime "calldate", null: false
+    t.string "src"
+    t.string "dst"
+    t.string "channel"
+    t.string "dstchannel"
+    t.string "disposition"
+    t.integer "duration", default: 0
+    t.integer "billsec", default: 0
+    t.string "recordingfile"
+    t.string "origin"
+    t.string "destination"
+    t.string "origin_channel"
+    t.string "agent_extension"
+    t.string "medium"
+    t.string "agent_name"
+    t.bigint "typification_id"
+    t.string "typification"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "agent_extension"], name: "idx_cdr_records_account_agent_ext"
+    t.index ["account_id", "calldate"], name: "idx_cdr_records_account_calldate"
+    t.index ["account_id", "disposition"], name: "idx_cdr_records_account_disposition"
+    t.index ["account_id", "medium"], name: "idx_cdr_records_account_medium"
+    t.index ["account_id", "typification_id"], name: "idx_cdr_records_account_typ"
+    t.index ["account_id", "uniqueid"], name: "idx_cdr_records_account_uniqueid", unique: true
+    t.index ["account_id"], name: "index_jabvox_cdr_records_on_account_id"
+  end
+
   create_table "jabvox_cdr_report_permissions", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "user_id", null: false
@@ -1720,6 +1753,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_21_000002) do
     t.index ["llm_model_id"], name: "index_jabvox_cdr_stages_on_llm_model_id"
     t.index ["pipeline_id", "position"], name: "index_jabvox_cdr_stages_on_pipeline_id_and_position"
     t.index ["pipeline_id"], name: "index_jabvox_cdr_stages_on_pipeline_id"
+  end
+
+  create_table "jabvox_cdr_sync_runs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.datetime "started_at", null: false
+    t.datetime "finished_at"
+    t.integer "duration_ms", default: 0
+    t.boolean "pbx_reachable", default: false, null: false
+    t.integer "inserted_count", default: 0, null: false
+    t.integer "updated_count", default: 0, null: false
+    t.integer "skipped_count", default: 0, null: false
+    t.integer "error_count", default: 0, null: false
+    t.integer "fetched_count", default: 0, null: false
+    t.datetime "cursor_before"
+    t.datetime "cursor_after"
+    t.string "status", default: "ok", null: false
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "started_at"], name: "idx_cdr_sync_runs_account_started"
+    t.index ["account_id"], name: "index_jabvox_cdr_sync_runs_on_account_id"
   end
 
   create_table "jabvox_currencies", force: :cascade do |t|
@@ -1823,7 +1877,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_21_000002) do
     t.boolean "lead_answered_jabvox", default: false, null: false
     t.bigint "typification_id"
     t.string "uniqueid_jabvox"
-    t.index ["account_id", "started_at_jabvox"], name: "idx_dialer_logs_open_by_account", where: "((status_jabvox)::text = ANY ((ARRAY['initiated'::character varying, 'calling'::character varying])::text[]))"
+    t.string "linkedid_jabvox"
+    t.index ["account_id", "linkedid_jabvox"], name: "idx_dialer_logs_account_linkedid"
+    t.index ["account_id", "started_at_jabvox"], name: "idx_dialer_logs_open_by_account", where: "((status_jabvox)::text = ANY (ARRAY[('initiated'::character varying)::text, ('calling'::character varying)::text]))"
     t.index ["account_id", "uniqueid_jabvox"], name: "idx_on_account_id_uniqueid_jabvox_8158b17c6d"
     t.index ["account_id"], name: "index_jabvox_dialer_call_logs_on_account_id"
     t.index ["agent_id_jabvox", "ended_at_jabvox"], name: "idx_dialer_logs_agent_open"
@@ -3473,10 +3529,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_21_000002) do
   add_foreign_key "jabvox_cdr_pipelines", "jabvox_ai_chat_models", column: "transcription_model_id"
   add_foreign_key "jabvox_cdr_pipelines", "jabvox_typifications", column: "typification_id"
   add_foreign_key "jabvox_cdr_pipelines", "users", column: "created_by_id"
+  add_foreign_key "jabvox_cdr_records", "accounts"
   add_foreign_key "jabvox_cdr_report_permissions", "accounts"
   add_foreign_key "jabvox_cdr_report_permissions", "users"
   add_foreign_key "jabvox_cdr_stages", "jabvox_ai_chat_models", column: "llm_model_id"
   add_foreign_key "jabvox_cdr_stages", "jabvox_cdr_pipelines", column: "pipeline_id"
+  add_foreign_key "jabvox_cdr_sync_runs", "accounts"
   add_foreign_key "jabvox_currencies", "accounts"
   add_foreign_key "jabvox_currencies", "users", column: "created_by_id"
   add_foreign_key "jabvox_custom_columns", "jabvox_custom_tables"
