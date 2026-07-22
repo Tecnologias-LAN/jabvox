@@ -5,6 +5,7 @@
 #  id                   :bigint           not null, primary key
 #  analysis_mode        :string           default("manual"), not null
 #  last_synced_calldate :datetime
+#  last_synced_cursor   :string
 #  min_duration_seconds :integer          default(30), not null
 #  mysql_database       :string           default("asteriskcdrdb"), not null
 #  mysql_host           :string           default(""), not null
