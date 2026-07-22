@@ -49,6 +49,10 @@
       "FILTERS": {
         "FROM": "From",
         "TO": "To",
+        "DATE_FROM": "Date from",
+        "DATE_TO": "Date to",
+        "TIME_FROM": "Time from",
+        "TIME_TO": "Time to",
         "EXTENSION": "Extension",
         "EXTENSION_RANGE": "Extension range",
         "EXT_FROM": "From ext.",

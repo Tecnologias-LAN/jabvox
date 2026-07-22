@@ -84,8 +84,7 @@ module Jabvox
 
     def filtered(filters) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/MethodLength
       rel = JabvoxCdrRecord.for_account(@account.id)
-      rel = rel.where('calldate >= ?', filters[:from]) if filters[:from].present?
-      rel = rel.where('calldate <= ?', filters[:to]) if filters[:to].present?
+      rel = apply_date_time_filters(rel, filters)
 
       if filters[:extension].present?
         ext = filters[:extension].to_s
@@ -111,6 +110,39 @@ module Jabvox
       rel = rel.where(medium: filters[:medium]) if JabvoxCdrRecord::MEDIUMS.include?(filters[:medium])
       rel = rel.where(typification_id: filters[:typification_id]) if filters[:typification_id].present?
       rel
+    end
+
+    # Filtro por RANGO DE FECHAS (from..to, ambas inclusive por día completo) y,
+    # opcionalmente, una FRANJA HORARIA diaria (time_from..time_to) que se aplica a
+    # cada día del rango. Ej: fechas 20..22-jul + horas 08:00..18:00 => solo las
+    # llamadas de 8am a 6pm de cada uno de esos días.
+    def apply_date_time_filters(rel, filters)
+      # La tabla local jabvox_cdr_records vive en PostgreSQL (BD de Rails), así que
+      # usamos cast de Postgres: `calldate::date` aísla el día (para que `to`
+      # incluya TODO el día final) y `calldate::time` la hora del día.
+      rel = rel.where('calldate::date >= ?', date_part(filters[:from])) if filters[:from].present?
+      rel = rel.where('calldate::date <= ?', date_part(filters[:to])) if filters[:to].present?
+
+      tf = time_part(filters[:time_from])
+      tt = time_part(filters[:time_to])
+      # calldate::time es la hora del día (independiente de la fecha) -> la franja
+      # aplica por cada día del rango. Soporta franja abierta (solo desde o hasta).
+      rel = rel.where('calldate::time >= ?', tf) if tf
+      rel = rel.where('calldate::time <= ?', tt) if tt
+      rel
+    end
+
+    # Extrae 'YYYY-MM-DD' de un string de fecha o datetime del filtro.
+    def date_part(value)
+      value.to_s.strip[0, 10]
+    end
+
+    # Normaliza 'HH:MM' o 'HH:MM:SS' a 'HH:MM:SS'; nil si no es una hora válida.
+    def time_part(value)
+      s = value.to_s.strip
+      return nil unless s.match?(/\A([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?\z/)
+
+      s.length == 5 ? "#{s}:00" : s
     end
 
     def valid_disposition?(value)

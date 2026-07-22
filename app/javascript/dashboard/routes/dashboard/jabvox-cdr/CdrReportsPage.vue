@@ -25,6 +25,8 @@ const access = ref({ can_view: false, configured: false });
 const filters = ref({
   from: '',
   to: '',
+  time_from: '',
+  time_to: '',
   extension: '',
   ext_from: '',
   ext_to: '',
@@ -174,6 +176,8 @@ const resetFilters = () => {
   filters.value = {
     from: '',
     to: '',
+    time_from: '',
+    time_to: '',
     extension: '',
     ext_from: '',
     ext_to: '',
@@ -343,17 +347,31 @@ onMounted(async () => {
             {{ t('JABVOX_CDR.REPORTS.FILTERS.TITLE') }}
           </span>
         </div>
+        <!-- Fila 1: rango de FECHAS (desde/hasta, día completo) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Input
             v-model="filters.from"
-            type="datetime-local"
-            :label="t('JABVOX_CDR.REPORTS.FILTERS.FROM')"
+            type="date"
+            :label="t('JABVOX_CDR.REPORTS.FILTERS.DATE_FROM')"
           />
           <Input
             v-model="filters.to"
-            type="datetime-local"
-            :label="t('JABVOX_CDR.REPORTS.FILTERS.TO')"
+            type="date"
+            :label="t('JABVOX_CDR.REPORTS.FILTERS.DATE_TO')"
           />
+          <Input
+            v-model="filters.time_from"
+            type="time"
+            :label="t('JABVOX_CDR.REPORTS.FILTERS.TIME_FROM')"
+          />
+          <Input
+            v-model="filters.time_to"
+            type="time"
+            :label="t('JABVOX_CDR.REPORTS.FILTERS.TIME_TO')"
+          />
+        </div>
+        <!-- Fila 2: extensión + estado -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Input
             v-model="filters.extension"
             :label="t('JABVOX_CDR.REPORTS.FILTERS.EXTENSION')"

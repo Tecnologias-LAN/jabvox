@@ -49,6 +49,10 @@
       "FILTERS": {
         "FROM": "Desde",
         "TO": "Hasta",
+        "DATE_FROM": "Fecha desde",
+        "DATE_TO": "Fecha hasta",
+        "TIME_FROM": "Hora desde",
+        "TIME_TO": "Hora hasta",
         "EXTENSION": "Extensión",
         "EXTENSION_RANGE": "Rango de extensiones",
         "EXT_FROM": "Desde ext.",
