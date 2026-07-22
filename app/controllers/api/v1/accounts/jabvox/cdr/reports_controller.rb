@@ -20,8 +20,10 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
   end
 
   # GET /summary — per-agent aggregates.
+  # CdrLocalService#summary ya devuelve { summary: [...] } (mismo shape que espera
+  # el frontend: data.summary es el array). No re-envolver.
   def summary
-    render json: { summary: cdr_service.summary(filter_params) }
+    render json: cdr_service.summary(filter_params)
   end
 
   # POST /sync_now — sincroniza el CDR del PBX -> tabla local BAJO DEMANDA.

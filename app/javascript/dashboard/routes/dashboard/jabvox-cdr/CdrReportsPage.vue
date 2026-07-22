@@ -102,7 +102,7 @@ const loadSummary = async () => {
   loading.value = true;
   try {
     const { data } = await cdrReportsAPI.summary(apiFilters());
-    summary.value = data.summary || [];
+    summary.value = Array.isArray(data.summary) ? data.summary : [];
   } catch (error) {
     useAlert(t('JABVOX_CDR.REPORTS.LOAD_ERROR'));
   } finally {
