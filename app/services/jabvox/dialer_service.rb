@@ -154,6 +154,43 @@ class Jabvox::DialerService
     Rails.logger.error "❌ [Dialer] QueueRemove failed | queue=#{queue_name} ext=#{extension} error=#{e.message}"
   end
 
+  # Miembros actuales de TODAS las colas dialer_camp_* en Asterisk, en una sola
+  # pasada (QueueStatus). Devuelve { "dialer_camp_151" => ["1501","1502"], ... }
+  # con las extensiones ya sin el prefijo SIP/. Usado por el job de reconciliación
+  # para detectar agentes que quedaron en cola sin sesión activa.
+  def dialer_queue_members
+    result = Hash.new { |h, k| h[k] = [] }
+    Timeout.timeout(AMI_TIMEOUT) do
+      with_ami_connection do |socket|
+        send_action(socket, 'QueueStatus')
+        # Cota de mensajes generosa (muchas colas × miembros) con corte por evento
+        # de fin. No dependemos de un número exacto: paramos en QueueStatusComplete.
+        2000.times do
+          resp = read_response(socket)
+          break if resp.empty? || resp['event']&.casecmp?('QueueStatusComplete')
+
+          collect_queue_member(resp, result)
+        end
+      end
+    end
+    result
+  rescue StandardError => e
+    Rails.logger.error "❌ [Dialer] dialer_queue_members failed | #{e.message}"
+    {}
+  end
+
+  # Añade a `result` la extensión de un evento QueueMember de una cola del dialer.
+  def collect_queue_member(resp, result)
+    return unless resp['event']&.casecmp?('QueueMember')
+
+    queue = resp['queue'].to_s
+    return unless queue.start_with?('dialer_camp_')
+
+    loc = (resp['location'].presence || resp['name']).to_s
+    ext = loc.sub(%r{\A(?:SIP|PJSIP)/}i, '')
+    result[queue] << ext if ext.present?
+  end
+
   def hangup_extension(extension)
     Timeout.timeout(AMI_TIMEOUT) do
       with_ami_connection do |socket|

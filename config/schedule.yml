@@ -125,3 +125,12 @@ jabvox_dialer_stale_call_reaper_job:
   cron: '*/1 * * * *'
   class: 'Jabvox::DialerStaleCallReaperJob'
   queue: scheduled_jobs
+
+# every 1 minute — reconciles Asterisk dialer queues against live Redis sessions:
+# removes any agent that is a queue member but is NOT connected to that campaign
+# (closed browser, dropped network, expired session). Strict rule: not connected
+# to the campaign => not in its queue. Only removes members; never touches queues.
+jabvox_dialer_queue_reaper_job:
+  cron: '*/1 * * * *'
+  class: 'Jabvox::DialerQueueReaperJob'
+  queue: scheduled_jobs
