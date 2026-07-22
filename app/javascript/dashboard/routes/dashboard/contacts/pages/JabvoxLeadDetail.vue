@@ -772,12 +772,19 @@ watch(leadId, loadLead);
 watch(leadsTableColumns, initEditForm, { deep: true });
 
 // Recargar las notas cuando una gestión se guarda desde otra vista (p. ej. el
-// overlay de click-to-call, que crea la nota en el backend): sin esto la gestión
-// solo aparecía tras recargar la página manualmente.
-const onManagementSaved = () => {
+// overlay de click-to-call, que crea la nota —y a veces la conversación— en el
+// backend): sin esto la gestión solo aparecía tras recargar la página.
+// Se recarga de inmediato y una segunda vez con un pequeño retardo, por si la
+// conversación recién creada aún no aparecía en el primer refresco (micro-carrera
+// entre el commit del backend y el GET de conversaciones del contacto).
+const reloadAllNotes = () => {
   loadMessages();
   loadContactNotes();
   loadAllConversationNotes();
+};
+const onManagementSaved = () => {
+  reloadAllNotes();
+  setTimeout(reloadAllNotes, 800);
 };
 
 onMounted(async () => {
