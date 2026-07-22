@@ -112,6 +112,17 @@ class Jabvox::DialerService
     Rails.logger.error "❌ [Dialer] QueueAdd failed | queue=#{queue_name} ext=#{extension} error=#{e.message}"
   end
 
+  # ¿El AMI del PBX responde? Abre la conexión (con su login) y la cierra.
+  # Sirve para saltar rápido las cuentas cuyo PBX está apagado/inalcanzable sin
+  # recorrer colas. Devuelve false ante cualquier fallo de conexión/login.
+  def ami_reachable?
+    Timeout.timeout(CONNECT_TIMEOUT + 2) do
+      with_ami_connection { |_socket| true }
+    end
+  rescue StandardError
+    false
+  end
+
   # ¿La cola ya está cargada en Asterisk? Se comprueba con QueueSummary (evento
   # QueueSummary por cada cola existente). Ante cualquier error asumimos que NO
   # existe, para que el flujo caiga en ensure_queue_exists y la cree — nunca

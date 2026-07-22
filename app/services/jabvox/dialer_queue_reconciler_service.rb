@@ -25,19 +25,28 @@ module Jabvox
       @account = account
     end
 
-    # Devuelve el número de miembros fantasma removidos.
+    # Devuelve { reachable:, removed: }.
+    #   reachable: false  => no se pudo hablar con el PBX (apagado/inalcanzable);
+    #                        el job cachea la cuenta para saltarla un rato.
+    #   removed:          => nº de miembros fantasma removidos.
     def reconcile
       config = @account.jabvox_voip_config
-      return 0 if config&.host.blank?
+      return { reachable: true, removed: 0 } if config&.host.blank?
 
       service = Jabvox::DialerService.new(config)
-      members_by_queue = service.dialer_queue_members
-      return 0 if members_by_queue.empty?
+      # queue_exists? hace una conexión AMI corta; si el PBX no responde lo sabemos
+      # rápido y sin recorrer nada. (Cualquier cola sirve de "ping"; usamos una
+      # inexistente: solo nos importa si el socket AMI respondió.)
+      return { reachable: false, removed: 0 } unless service.ami_reachable?
 
-      remove_phantoms(service, members_by_queue, legit_memberships)
+      members_by_queue = service.dialer_queue_members
+      return { reachable: true, removed: 0 } if members_by_queue.empty?
+
+      removed = remove_phantoms(service, members_by_queue, legit_memberships)
+      { reachable: true, removed: removed }
     rescue StandardError => e
       Rails.logger.error "❌ [QueueReconciler] cuenta=#{@account.id} #{e.class}: #{e.message}"
-      0
+      { reachable: false, removed: 0 }
     end
 
     private

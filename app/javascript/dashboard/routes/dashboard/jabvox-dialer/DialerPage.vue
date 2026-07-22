@@ -644,6 +644,13 @@ const onWebsocketReconnect = () => {
   if (inWrapup.value) dialerAccessesAPI.setWrapup(true).catch(() => {});
 };
 
+// Cierre real de la pestaña/navegador: si el agente está conectado, lo sacamos
+// de la cola vía keepalive (best-effort). El reaper del servidor es la red de
+// seguridad si esto no llega (crash, corte de luz).
+const onBeforeUnloadDisconnect = () => {
+  if (connected.value) dialerAccessesAPI.disconnectBeacon();
+};
+
 onMounted(async () => {
   try {
     const { data } = await dialerAccessesAPI.me();
@@ -670,6 +677,10 @@ onMounted(async () => {
   emitter.on('jabvox.dialer.call_ended', onCallEnded);
   emitter.on(BUS_EVENTS.WEBSOCKET_RECONNECT, onWebsocketReconnect);
   document.addEventListener('click', closeDropdown);
+  // Al CERRAR la pestaña/navegador (no al navegar dentro del dashboard), sacar al
+  // agente de la cola de inmediato para que no le sigan entrando llamadas estando
+  // desconectado. beforeunload solo dispara en cierre/recarga real de la página.
+  window.addEventListener('beforeunload', onBeforeUnloadDisconnect);
 
   // Restore session after HMR / tab reload
   const raw = sessionStorage.getItem(SESSION_KEY);
@@ -751,6 +762,7 @@ onBeforeUnmount(() => {
   emitter.off('jabvox.dialer.call_ended', onCallEnded);
   emitter.off(BUS_EVENTS.WEBSOCKET_RECONNECT, onWebsocketReconnect);
   document.removeEventListener('click', closeDropdown);
+  window.removeEventListener('beforeunload', onBeforeUnloadDisconnect);
   stopHeartbeat();
   stopRequestCallPolling();
   clearWrapupTimer();

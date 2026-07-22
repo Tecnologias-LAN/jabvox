@@ -1,5 +1,6 @@
 /* global axios */
 import ApiClient from '../ApiClient';
+import Auth from '../auth';
 
 const campaignsClient = new ApiClient('jabvox/dialer_campaigns', {
   accountScoped: true,
@@ -80,6 +81,30 @@ export const dialerAccessesAPI = {
       campaign_id: campaignId,
     }),
   disconnect: () => axios.delete(`${dialerAccessesClient.url}/connect`),
+  // Desconexión apta para 'beforeunload' (cierre de pestaña/navegador): fetch con
+  // keepalive sobrevive al cierre de la página, cosa que axios no. Lleva los
+  // headers de auth manualmente (sendBeacon no puede). Best-effort: si falla, el
+  // reaper del servidor saca al agente de la cola en <=1 min de todos modos.
+  disconnectBeacon: () => {
+    try {
+      const { apiHost = '' } = window.jabvoxConfig || {};
+      const auth = Auth.hasAuthCookie() ? Auth.getAuthData() : {};
+      return fetch(`${apiHost}/${dialerAccessesClient.url}/connect`, {
+        method: 'DELETE',
+        keepalive: true,
+        headers: {
+          'Content-Type': 'application/json',
+          'access-token': auth['access-token'] || '',
+          'token-type': auth['token-type'] || '',
+          client: auth.client || '',
+          expiry: auth.expiry || '',
+          uid: auth.uid || '',
+        },
+      });
+    } catch {
+      return Promise.resolve();
+    }
+  },
   updateState: stateId =>
     axios.patch(`${dialerAccessesClient.url}/state`, { state_id: stateId }),
   // Marca/desmarca la gestión post-llamada (wrap-up) para el monitor en vivo.

@@ -14,13 +14,40 @@
 class Jabvox::DialerQueueReaperJob < ApplicationJob
   queue_as :scheduled_jobs
 
+  # Cuánto tiempo saltar una cuenta cuyo PBX no respondió, para no gastar el
+  # connect-timeout en cada corrida contra servidores apagados. Al expirar se
+  # reintenta sola (si encendieron el PBX, vuelve a reconciliarse).
+  UNREACHABLE_TTL = 5.minutes.to_i
+
   def perform
     total = 0
     Account.joins(:jabvox_voip_config).find_each do |account|
-      total += Jabvox::DialerQueueReconcilerService.reconcile_account(account)
+      next if pbx_unreachable_cached?(account.id)
+
+      result = Jabvox::DialerQueueReconcilerService.reconcile_account(account)
+      mark_unreachable(account.id) unless result[:reachable]
+      total += result[:removed].to_i
     rescue StandardError => e
       Rails.logger.error("[DialerQueueReaper] cuenta=#{account.id} #{e.class}: #{e.message}")
     end
     Rails.logger.info("[DialerQueueReaper] miembros fantasma removidos: #{total}") if total.positive?
+  end
+
+  private
+
+  def unreachable_key(account_id)
+    "jabvox_dialer_pbx_unreachable_#{account_id}"
+  end
+
+  def pbx_unreachable_cached?(account_id)
+    Redis::Alfred.get(unreachable_key(account_id)).present?
+  rescue StandardError
+    false
+  end
+
+  def mark_unreachable(account_id)
+    Redis::Alfred.set(unreachable_key(account_id), Time.current.to_i, ex: UNREACHABLE_TTL)
+  rescue StandardError => e
+    Rails.logger.warn("[DialerQueueReaper] no se pudo cachear PBX caído cuenta=#{account_id} | #{e.message}")
   end
 end
