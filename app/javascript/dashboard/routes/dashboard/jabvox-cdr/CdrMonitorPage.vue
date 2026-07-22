@@ -62,6 +62,13 @@ const statusClass = s => {
   return 'text-n-slate-11 bg-n-alpha-2';
 };
 
+const goToReports = () => {
+  router.push({
+    name: 'jabvox_cdr_reports_index',
+    params: { accountId: router.currentRoute.value.params.accountId },
+  });
+};
+
 onMounted(() => {
   load();
   timer = setInterval(load, REFRESH_MS);
@@ -74,6 +81,13 @@ onBeforeUnmount(() => clearInterval(timer));
     <div class="max-w-5xl mx-auto flex flex-col gap-5">
       <div class="flex items-center justify-between">
         <div>
+          <button
+            class="mb-2 inline-flex items-center gap-1 text-xs text-n-slate-11 hover:text-n-slate-12"
+            @click="goToReports"
+          >
+            <span class="i-lucide-arrow-left size-3.5" />
+            {{ t('JABVOX_CDR.MONITOR.BACK') }}
+          </button>
           <h1 class="text-xl font-semibold text-n-slate-12">
             {{ t('JABVOX_CDR.MONITOR.TITLE') }}
           </h1>

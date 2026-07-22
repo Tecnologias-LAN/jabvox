@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useAlert } from 'dashboard/composables';
 import { cdrReportsAPI } from 'dashboard/api/jabvox/cdr';
+import { typificationsAPI } from 'dashboard/api/jabvox/clickToCall';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
@@ -28,7 +29,13 @@ const filters = ref({
   ext_from: '',
   ext_to: '',
   disposition: '',
+  src: '',
+  dst: '',
+  medium: '',
+  typification_id: '',
 });
+
+const typifications = ref([]);
 
 const summary = ref([]);
 const records = ref([]);
@@ -45,6 +52,22 @@ const totalPages = computed(
 const dispositionOptions = computed(() => [
   { value: '', label: t('JABVOX_CDR.REPORTS.FILTERS.ALL') },
   ...DISPOSITIONS.map(d => ({ value: d, label: d })),
+]);
+
+// Opciones de medio con claves i18n literales (el linter exige claves estáticas).
+const mediumOptions = computed(() => [
+  { value: '', label: t('JABVOX_CDR.REPORTS.FILTERS.ALL') },
+  { value: 'dialer', label: t('JABVOX_CDR.REPORTS.MEDIUM_TYPES.DIALER') },
+  {
+    value: 'click_to_call',
+    label: t('JABVOX_CDR.REPORTS.MEDIUM_TYPES.CLICK_TO_CALL'),
+  },
+  { value: 'manual', label: t('JABVOX_CDR.REPORTS.MEDIUM_TYPES.MANUAL') },
+]);
+
+const typificationOptions = computed(() => [
+  { value: '', label: t('JABVOX_CDR.REPORTS.FILTERS.ALL') },
+  ...typifications.value.map(ty => ({ value: String(ty.id), label: ty.name })),
 ]);
 
 const kpis = computed(() => {
@@ -155,6 +178,10 @@ const resetFilters = () => {
     ext_from: '',
     ext_to: '',
     disposition: '',
+    src: '',
+    dst: '',
+    medium: '',
+    typification_id: '',
   };
   applyFilters();
 };
@@ -162,6 +189,15 @@ const resetFilters = () => {
 const switchView = view => {
   activeView.value = view;
   applyFilters();
+};
+
+// Navega al dashboard de monitoreo del sincronizador (ruta solo-admin).
+// La ruta requiere :accountId; lo tomamos de los params actuales.
+const goToMonitor = () => {
+  router.push({
+    name: 'jabvox_cdr_monitor',
+    params: { accountId: router.currentRoute.value.params.accountId },
+  });
 };
 
 const changePage = delta => {
@@ -193,6 +229,16 @@ const onTypified = ({ uniqueid, typification }) => {
 
 const scoreFor = uniqueid => analyses.value[uniqueid]?.final_score;
 
+// Tipificaciones de la cuenta para el filtro (mismo endpoint que usa el modal).
+const loadTypifications = async () => {
+  try {
+    const { data } = await typificationsAPI.getAll(true);
+    typifications.value = data.typifications || [];
+  } catch {
+    typifications.value = [];
+  }
+};
+
 onMounted(async () => {
   try {
     const { data } = await cdrReportsAPI.myAccess();
@@ -201,6 +247,7 @@ onMounted(async () => {
       router.replace({ name: 'home' });
       return;
     }
+    loadTypifications();
     // Al abrir la vista, sincroniza el CDR del PBX para traer las llamadas nuevas
     // desde la última sincronización (mejor esfuerzo: si el PBX no responde, la
     // vista carga igual con lo que ya está en la tabla local).
@@ -264,6 +311,17 @@ onMounted(async () => {
             {{ t('JABVOX_CDR.REPORTS.VIEW_RECORDS') }}
           </button>
         </div>
+      </div>
+
+      <!-- Acceso al monitoreo del sincronizador (solo admin) -->
+      <div v-if="access.is_admin" class="flex justify-end -mt-2">
+        <button
+          class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-n-weak text-n-slate-11 hover:bg-n-alpha-1"
+          @click="goToMonitor"
+        >
+          <span class="i-lucide-activity size-3.5" />
+          {{ t('JABVOX_CDR.REPORTS.MONITOR_LINK') }}
+        </button>
       </div>
 
       <!-- Not configured banner -->
@@ -332,6 +390,34 @@ onMounted(async () => {
                 :placeholder="t('JABVOX_CDR.REPORTS.FILTERS.EXT_TO')"
               />
             </div>
+          </div>
+        </div>
+        <!-- Tercer filtro: por origen, destino (número real), medio y tipificación -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Input
+            v-model="filters.src"
+            :label="t('JABVOX_CDR.REPORTS.FILTERS.SRC')"
+            :placeholder="t('JABVOX_CDR.REPORTS.FILTERS.SRC_PLACEHOLDER')"
+          />
+          <Input
+            v-model="filters.dst"
+            :label="t('JABVOX_CDR.REPORTS.FILTERS.DST')"
+            :placeholder="t('JABVOX_CDR.REPORTS.FILTERS.DST_PLACEHOLDER')"
+          />
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_CDR.REPORTS.FILTERS.MEDIUM') }}
+            </label>
+            <Select v-model="filters.medium" :options="mediumOptions" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_CDR.REPORTS.FILTERS.TYPIFICATION') }}
+            </label>
+            <Select
+              v-model="filters.typification_id"
+              :options="typificationOptions"
+            />
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">

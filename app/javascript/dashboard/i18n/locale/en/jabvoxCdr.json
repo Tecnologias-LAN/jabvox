@@ -4,6 +4,7 @@
     "MONITOR": {
       "TITLE": "CDR sync monitor",
       "SUBTITLE": "Real-time status of the PBX CDR synchronization.",
+      "BACK": "Back to reports",
       "REFRESH": "Refresh",
       "LOAD_ERROR": "Could not load the synchronizer status.",
       "PBX": "PBX",
@@ -35,6 +36,7 @@
       "TITLE": "CDR Reports",
       "VIEW_SUMMARY": "Agent summary",
       "VIEW_RECORDS": "Call detail",
+      "MONITOR_LINK": "Monitoring",
       "NOT_CONFIGURED": "CDR is not configured yet. Ask an administrator to set up the PBX connection.",
       "LOADING": "Loading…",
       "LOAD_ERROR": "Could not load CDR data.",
@@ -56,7 +58,13 @@
         "APPLY": "Apply",
         "TITLE": "Filtros",
         "EXTENSION_PLACEHOLDER": "Ej. 1001",
-        "RESET": "Limpiar"
+        "RESET": "Limpiar",
+        "SRC": "Origin",
+        "SRC_PLACEHOLDER": "Origin number",
+        "DST": "Destination",
+        "DST_PLACEHOLDER": "Destination number",
+        "MEDIUM": "Medium",
+        "TYPIFICATION": "Typification"
       },
       "KPI": {
         "TOTAL": "Total",

@@ -4,6 +4,7 @@
     "MONITOR": {
       "TITLE": "Monitoreo del sincronizador CDR",
       "SUBTITLE": "Estado en tiempo real de la sincronización del CDR del PBX.",
+      "BACK": "Volver a reportes",
       "REFRESH": "Actualizar",
       "LOAD_ERROR": "No se pudo cargar el estado del sincronizador.",
       "PBX": "PBX",
@@ -35,6 +36,7 @@
       "TITLE": "Reportes CDR",
       "VIEW_SUMMARY": "Resumen por agente",
       "VIEW_RECORDS": "Detalle de llamadas",
+      "MONITOR_LINK": "Monitoreo",
       "NOT_CONFIGURED": "El CDR aún no está configurado. Pídele a un administrador que configure la conexión con la PBX.",
       "LOADING": "Cargando…",
       "LOAD_ERROR": "No se pudieron cargar los datos del CDR.",
@@ -56,7 +58,13 @@
         "APPLY": "Aplicar",
         "TITLE": "Filtros",
         "EXTENSION_PLACEHOLDER": "Ej. 1001",
-        "RESET": "Limpiar"
+        "RESET": "Limpiar",
+        "SRC": "Origen",
+        "SRC_PLACEHOLDER": "Número de origen",
+        "DST": "Destino",
+        "DST_PLACEHOLDER": "Número de destino",
+        "MEDIUM": "Medio",
+        "TYPIFICATION": "Tipificación"
       },
       "KPI": {
         "TOTAL": "Total",
