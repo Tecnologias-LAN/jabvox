@@ -44,29 +44,69 @@ class Api::V1::Accounts::Jabvox::ClickToCall::CallLogsController < Api::V1::Acco
     params.dig(:call_log, :management)
   end
 
-  # When a note, a management state OR a typification is provided and the call is
-  # tied to a conversation, mirror it as a private note on the conversation so it
-  # surfaces in the agent's timeline and the lead detail's Notes tab.
+  # When a note, a management state OR a typification is provided, mirror it as a
+  # private note on the contact's conversation so it surfaces in the agent's
+  # timeline and the lead detail's Notes tab. Si el call log no tiene conversación
+  # vinculada (click-to-call sobre un contacto sin conversación previa), se crea/
+  # encuentra una — antes se hacía `return` y la gestión se perdía de la vista.
   def create_note_if_requested
     management = management_attributes
-    return if @call_log.conversation.blank?
     return if @call_log.note.blank? && management.blank? && @call_log.typification_id.blank?
 
-    attrs = (management.present? ? management.to_unsafe_h : {})
-            .merge('jabvox_call_source' => 'click_to_call')
-    attrs['jabvox_typification_name'] = typification_name if typification_name.present?
+    conversation = @call_log.conversation || find_or_create_conversation_for_log
+    return if conversation.blank?
 
-    @call_log.conversation.messages.create!(
+    conversation.messages.create!(
       account_id: Current.account.id,
-      inbox_id: @call_log.conversation.inbox_id,
+      inbox_id: conversation.inbox_id,
       message_type: :outgoing,
       private: true,
       content: note_content(management),
-      content_attributes: attrs,
+      content_attributes: note_content_attributes(management),
       sender: current_user
     )
   rescue StandardError => e
     Rails.logger.error "[ClickToCall] note creation failed: #{e.message}"
+  end
+
+  def note_content_attributes(management)
+    attrs = (management.present? ? management.to_unsafe_h : {})
+            .merge('jabvox_call_source' => 'click_to_call')
+    attrs['jabvox_typification_name'] = typification_name if typification_name.present?
+    attrs
+  end
+
+  # Conversación del contacto para colgar la gestión cuando el call log no tiene
+  # una vinculada. Reutiliza la más reciente del contacto; si no existe, crea una
+  # (misma lógica que el listener AMI). La deja además vinculada al call log.
+  def find_or_create_conversation_for_log
+    contact = @call_log.contact
+    return nil if contact.blank?
+
+    conv = Current.account.conversations.where(contact_id: contact.id).order(id: :desc).first
+    conv ||= build_conversation_for_contact(contact)
+    return nil if conv.blank?
+
+    @call_log.update_columns(conversation_id: conv.id) if @call_log.conversation_id.blank? # rubocop:disable Rails/SkipsModelValidations
+    conv
+  end
+
+  def build_conversation_for_contact(contact)
+    inbox = Current.account.inboxes.first
+    return nil if inbox.blank?
+
+    contact_inbox = ContactInbox.find_or_create_by!(contact: contact, inbox: inbox) do |ci|
+      ci.source_id = SecureRandom.uuid
+    end
+    Conversation.create!(
+      account_id: Current.account.id,
+      inbox_id: inbox.id,
+      contact_id: contact.id,
+      contact_inbox_id: contact_inbox.id
+    )
+  rescue StandardError => e
+    Rails.logger.error "[ClickToCall] conversation creation failed: #{e.message}"
+    nil
   end
 
   def typification_name
