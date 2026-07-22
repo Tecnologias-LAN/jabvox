@@ -4,23 +4,26 @@
 #
 # Table name: jabvox_app_states
 #
-#  id         :bigint           not null, primary key
-#  color      :string           default("#6b7280"), not null
-#  is_active  :boolean          default(TRUE), not null
-#  name       :string           not null
-#  position   :integer          default(0), not null
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  account_id :bigint           not null
+#  id            :bigint           not null, primary key
+#  color         :string           default("#6b7280"), not null
+#  is_active     :boolean          default(TRUE), not null
+#  name          :string           not null
+#  position      :integer          default(0), not null
+#  created_at    :datetime         not null
+#  updated_at    :datetime         not null
+#  account_id    :bigint           not null
+#  created_by_id :bigint
 #
 # Indexes
 #
 #  index_jabvox_app_states_on_account_id               (account_id)
 #  index_jabvox_app_states_on_account_id_and_position  (account_id,position)
+#  index_jabvox_app_states_on_created_by_id            (created_by_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #
 class JabvoxAppState < ApplicationRecord
   belongs_to :account

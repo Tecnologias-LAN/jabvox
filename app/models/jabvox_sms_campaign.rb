@@ -15,17 +15,20 @@
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
 #  account_id             :bigint           not null
+#  created_by_id          :bigint
 #  jabvox_campaign_id     :bigint
 #  jabvox_sms_provider_id :bigint
 #
 # Indexes
 #
 #  index_jabvox_sms_campaigns_on_account_id              (account_id)
+#  index_jabvox_sms_campaigns_on_created_by_id           (created_by_id)
 #  index_jabvox_sms_campaigns_on_jabvox_sms_provider_id  (jabvox_sms_provider_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (jabvox_campaign_id => jabvox_campaigns.id) ON DELETE => nullify
 #  fk_rails_...  (jabvox_sms_provider_id => jabvox_sms_providers.id)
 #

@@ -26,18 +26,7 @@ class Jabvox::ExternalExport::BackfillJob < ApplicationJob
     return unless Rails.cache.write(lock_key, 1, unless_exist: true, expires_in: LOCK_TTL)
 
     begin
-      since = incremental ? target.last_full_sync_at_jabvox : nil
-      target.update_columns(sync_status_jabvox: 'syncing') # rubocop:disable Rails/SkipsModelValidations
-      started = Time.current
-      result = Jabvox::ExternalExport::BackfillService.new(target).call(since: since)
-      # rubocop:disable Rails/SkipsModelValidations
-      target.update_columns(
-        sync_status_jabvox: 'ok',
-        last_full_sync_at_jabvox: started,
-        last_sync_result_jabvox: result,
-        last_error_jabvox: nil
-      )
-      # rubocop:enable Rails/SkipsModelValidations
+      run_sync(target, incremental)
     ensure
       Rails.cache.delete(lock_key)
     end
@@ -48,4 +37,26 @@ class Jabvox::ExternalExport::BackfillJob < ApplicationJob
     Rails.logger.error("[ExternalExport::Backfill] account=#{account_id} #{e.class}: #{e.message}")
     target&.update_columns(sync_status_jabvox: 'error', last_error_jabvox: 'Error durante la sincronización') # rubocop:disable Rails/SkipsModelValidations
   end
+
+  private
+
+  # rubocop:disable Rails/SkipsModelValidations
+  def run_sync(target, incremental)
+    since = incremental ? target.last_full_sync_at_jabvox : nil
+    target.update_columns(sync_status_jabvox: 'syncing')
+    started = Time.current
+    # On a FULL sync ("Sincronizar ahora" / enabling), (re)build the schema first
+    # so every table and column exists (incl. newly added ones like created_by_id,
+    # question_key). Self-healing: it deploys EVERYTHING for the account from
+    # scratch and never fails with "relation/column does not exist".
+    Jabvox::ExternalExport::SchemaBuilderService.new(target).call unless incremental
+    result = Jabvox::ExternalExport::BackfillService.new(target).call(since: since)
+    target.update_columns(
+      sync_status_jabvox: 'ok',
+      last_full_sync_at_jabvox: started,
+      last_sync_result_jabvox: result,
+      last_error_jabvox: nil
+    )
+  end
+  # rubocop:enable Rails/SkipsModelValidations
 end

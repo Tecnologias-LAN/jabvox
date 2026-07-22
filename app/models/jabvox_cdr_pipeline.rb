@@ -11,18 +11,21 @@
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
 #  account_id             :bigint           not null
+#  created_by_id          :bigint
 #  transcription_model_id :bigint
 #  typification_id        :bigint
 #
 # Indexes
 #
 #  index_jabvox_cdr_pipelines_on_account_id              (account_id)
+#  index_jabvox_cdr_pipelines_on_created_by_id           (created_by_id)
 #  index_jabvox_cdr_pipelines_on_transcription_model_id  (transcription_model_id)
 #  index_jabvox_cdr_pipelines_on_typification_id         (typification_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (transcription_model_id => jabvox_ai_chat_models.id)
 #  fk_rails_...  (typification_id => jabvox_typifications.id)
 #

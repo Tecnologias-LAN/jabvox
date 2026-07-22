@@ -17,6 +17,7 @@
 #  updated_at              :datetime         not null
 #  account_id              :bigint           not null
 #  assigned_agent_id       :bigint
+#  created_by_id           :bigint
 #  job_id                  :bigint           not null
 #  typification_id         :bigint
 #
@@ -24,6 +25,7 @@
 #
 #  index_jabvox_audio_results_on_account_id           (account_id)
 #  index_jabvox_audio_results_on_assigned_agent_id    (assigned_agent_id)
+#  index_jabvox_audio_results_on_created_by_id        (created_by_id)
 #  index_jabvox_audio_results_on_job_id               (job_id)
 #  index_jabvox_audio_results_on_job_id_and_file_key  (job_id,file_key)
 #  index_jabvox_audio_results_on_typification_id      (typification_id)
@@ -32,6 +34,7 @@
 #
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (assigned_agent_id => users.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (job_id => jabvox_audio_jobs.id)
 #  fk_rails_...  (typification_id => jabvox_typifications.id)
 #

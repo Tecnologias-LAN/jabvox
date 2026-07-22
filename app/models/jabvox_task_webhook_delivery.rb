@@ -13,6 +13,7 @@
 #  created_at           :datetime         not null
 #  account_id           :bigint           not null
 #  automation_id        :bigint
+#  created_by_id        :bigint
 #  task_id              :bigint
 #
 # Indexes
@@ -20,12 +21,14 @@
 #  idx_on_account_id_created_at_5aabb85ef6                (account_id,created_at)
 #  index_jabvox_task_webhook_deliveries_on_account_id     (account_id)
 #  index_jabvox_task_webhook_deliveries_on_automation_id  (automation_id)
+#  index_jabvox_task_webhook_deliveries_on_created_by_id  (created_by_id)
 #  index_jabvox_task_webhook_deliveries_on_task_id        (task_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (automation_id => jabvox_task_stage_automations.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (task_id => jabvox_tasks.id)
 #
 class JabvoxTaskWebhookDelivery < ApplicationRecord

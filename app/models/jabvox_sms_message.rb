@@ -12,6 +12,7 @@
 #  updated_at             :datetime         not null
 #  account_id             :bigint           not null
 #  contact_id             :bigint
+#  created_by_id          :bigint
 #  external_id            :string
 #  jabvox_sms_campaign_id :bigint
 #  jabvox_sms_provider_id :bigint
@@ -20,6 +21,7 @@
 #
 #  index_jabvox_sms_messages_on_account_id              (account_id)
 #  index_jabvox_sms_messages_on_contact_id              (contact_id)
+#  index_jabvox_sms_messages_on_created_by_id           (created_by_id)
 #  index_jabvox_sms_messages_on_jabvox_sms_campaign_id  (jabvox_sms_campaign_id)
 #  index_jabvox_sms_messages_on_jabvox_sms_provider_id  (jabvox_sms_provider_id)
 #  index_jabvox_sms_messages_on_status                  (status)
@@ -28,6 +30,7 @@
 #
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (contact_id => contacts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (jabvox_sms_campaign_id => jabvox_sms_campaigns.id)
 #  fk_rails_...  (jabvox_sms_provider_id => jabvox_sms_providers.id)
 #

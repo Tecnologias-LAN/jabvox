@@ -12,16 +12,19 @@
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
 #  account_id            :bigint           not null
+#  created_by_id         :bigint
 #
 # Indexes
 #
-#  idx_on_account_id_label_category_jabvox_d9404a8152  (account_id,label_category_jabvox)
-#  idx_on_account_id_s3_key_jabvox_1dc58f075a          (account_id,s3_key_jabvox) UNIQUE
-#  index_jabvox_response_bot_documents_on_account_id   (account_id)
+#  idx_on_account_id_label_category_jabvox_d9404a8152    (account_id,label_category_jabvox)
+#  idx_on_account_id_s3_key_jabvox_1dc58f075a            (account_id,s3_key_jabvox) UNIQUE
+#  index_jabvox_response_bot_documents_on_account_id     (account_id)
+#  index_jabvox_response_bot_documents_on_created_by_id  (created_by_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #
 class JabvoxResponseBotDocument < ApplicationRecord
   CATEGORIES = JabvoxResponseBotConfig::DOCUMENT_CATEGORIES

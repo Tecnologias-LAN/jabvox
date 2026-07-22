@@ -8,23 +8,28 @@
 #  lead_field_locked          :boolean          default(FALSE), not null
 #  options                    :jsonb            not null
 #  position                   :integer          default(0), not null
+#  question_key               :string
 #  question_type              :string           default("text"), not null
 #  required                   :boolean          default(FALSE), not null
 #  visibility                 :jsonb            not null
 #  created_at                 :datetime         not null
 #  updated_at                 :datetime         not null
 #  account_id                 :bigint           not null
+#  created_by_id              :bigint
 #  jabvox_management_state_id :bigint           not null
 #
 # Indexes
 #
+#  idx_mgmt_questions_account_question_key                (account_id,question_key)
 #  idx_on_jabvox_management_state_id_5c2de1c51d           (jabvox_management_state_id)
 #  idx_on_jabvox_management_state_id_position_5047167b84  (jabvox_management_state_id,position)
 #  index_jabvox_management_questions_on_account_id        (account_id)
+#  index_jabvox_management_questions_on_created_by_id     (created_by_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (jabvox_management_state_id => jabvox_management_states.id)
 #
 class JabvoxManagementQuestion < ApplicationRecord
@@ -51,6 +56,18 @@ class JabvoxManagementQuestion < ApplicationRecord
   before_validation :inherit_account
   before_validation :normalize_visibility
   before_validation :normalize_lead_field
+  before_validation :assign_question_key
+
+  # Stable key for "the same logical question" across every management state,
+  # derived from the label. Two questions with the same label (e.g. "¿Gestionado?"
+  # in different states) share the same question_key, so an external CRM can map
+  # once per key instead of per (per-state) id. Accent/case/punctuation-insensitive.
+  #   "¿Gestionado?" -> "gestionado" ; "Próxima Llamada" -> "proxima_llamada"
+  def self.slugify_label(text)
+    s = text.to_s.unicode_normalize(:nfkd).encode('ASCII', replace: '') # strip accents
+    s = s.downcase.gsub(/[^a-z0-9]+/, '_').gsub(/\A_+|_+\z/, '')
+    s.presence
+  end
 
   validates :label, presence: true, length: { maximum: 250 }
   validates :question_type, inclusion: { in: QUESTION_TYPES }
@@ -69,6 +86,15 @@ class JabvoxManagementQuestion < ApplicationRecord
 
   def inherit_account
     self.account_id ||= management_state&.account_id
+  end
+
+  # Keep question_key in sync with the label (unless it was set explicitly and the
+  # label hasn't changed). Recomputed whenever the label changes so the key stays
+  # meaningful; falls back to "campo" when the label has no slug-able characters.
+  def assign_question_key
+    return if question_key.present? && !label_changed?
+
+    self.question_key = self.class.slugify_label(label) || 'campo'
   end
 
   # Coerce visibility into a clean {logic, rules[]} hash, dropping junk. This

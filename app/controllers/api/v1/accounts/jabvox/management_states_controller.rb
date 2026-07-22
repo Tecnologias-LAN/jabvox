@@ -17,6 +17,7 @@ class Api::V1::Accounts::Jabvox::ManagementStatesController < Api::V1::Accounts:
 
   def create
     @state = Current.account.jabvox_management_states.new(state_params)
+    @state.created_by = current_user
     @state.save!
     render :show
   end

@@ -11,15 +11,18 @@
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
 #  account_id          :bigint           not null
+#  created_by_id       :bigint
 #
 # Indexes
 #
-#  idx_jabvox_ai_chat_docs_key                   (account_id,s3_key_jabvox) UNIQUE
-#  index_jabvox_ai_chat_documents_on_account_id  (account_id)
+#  idx_jabvox_ai_chat_docs_key                      (account_id,s3_key_jabvox) UNIQUE
+#  index_jabvox_ai_chat_documents_on_account_id     (account_id)
+#  index_jabvox_ai_chat_documents_on_created_by_id  (created_by_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #
 class JabvoxAiChatDocument < ApplicationRecord
   belongs_to :account

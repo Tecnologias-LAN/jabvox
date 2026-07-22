@@ -52,6 +52,9 @@ Rails.application.config.after_initialize do
   Jabvox::ExternalExport::Catalog.reset!
   Jabvox::ExternalExport::Catalog.exportable_models.each do |model|
     model.include Jabvox::ExportableToExternalDb
+    # Auto-fill created_by from Current.user on create, for models that have the
+    # column (so the export always records WHO created each record).
+    model.include Jabvox::TracksCreator if model.column_names.include?('created_by_id')
   rescue StandardError => e
     Rails.logger.error("[ExternalExport] could not hook #{model}: #{e.message}")
   end

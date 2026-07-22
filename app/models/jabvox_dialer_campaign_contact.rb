@@ -12,6 +12,7 @@
 #  updated_at                :datetime         not null
 #  account_id                :bigint           not null
 #  contact_id                :bigint
+#  created_by_id             :bigint
 #  jabvox_dialer_campaign_id :bigint           not null
 #
 # Indexes
@@ -20,12 +21,14 @@
 #  idx_dialer_contacts_unique_campaign_contact             (jabvox_dialer_campaign_id,contact_id) UNIQUE WHERE (contact_id IS NOT NULL)
 #  index_jabvox_dialer_campaign_contacts_on_account_id     (account_id)
 #  index_jabvox_dialer_campaign_contacts_on_contact_id     (contact_id)
+#  index_jabvox_dialer_campaign_contacts_on_created_by_id  (created_by_id)
 #  index_jabvox_dialer_campaign_contacts_on_status_jabvox  (status_jabvox)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (contact_id => contacts.id) ON DELETE => nullify
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (jabvox_dialer_campaign_id => jabvox_dialer_campaigns.id)
 #
 class JabvoxDialerCampaignContact < ApplicationRecord

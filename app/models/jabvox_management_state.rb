@@ -19,15 +19,18 @@
 #  created_at               :datetime         not null
 #  updated_at               :datetime         not null
 #  account_id               :bigint           not null
+#  created_by_id            :bigint
 #
 # Indexes
 #
-#  idx_jabvox_mgmt_states_on_account_and_group   (account_id,state_group_jabvox)
-#  index_jabvox_management_states_on_account_id  (account_id)
+#  idx_jabvox_mgmt_states_on_account_and_group      (account_id,state_group_jabvox)
+#  index_jabvox_management_states_on_account_id     (account_id)
+#  index_jabvox_management_states_on_created_by_id  (created_by_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #
 class JabvoxManagementState < ApplicationRecord
   self.table_name = 'jabvox_management_states'
@@ -49,6 +52,8 @@ class JabvoxManagementState < ApplicationRecord
   ].freeze
 
   belongs_to :account
+  # User who created this management state (nullable: existing rows predate this).
+  belongs_to :created_by, class_name: 'User', optional: true
   has_many :questions, -> { order(:position) }, class_name: 'JabvoxManagementQuestion',
                                                 foreign_key: :jabvox_management_state_id, dependent: :destroy, inverse_of: :management_state
   # Captured answers keep their history detached when the state is deleted

@@ -2,23 +2,26 @@
 #
 # Table name: jabvox_email_templates
 #
-#  id         :bigint           not null, primary key
-#  active     :boolean          default(TRUE), not null
-#  body       :text
-#  name       :string           not null
-#  subject    :string
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  account_id :bigint           not null
+#  id            :bigint           not null, primary key
+#  active        :boolean          default(TRUE), not null
+#  body          :text
+#  name          :string           not null
+#  subject       :string
+#  created_at    :datetime         not null
+#  updated_at    :datetime         not null
+#  account_id    :bigint           not null
+#  created_by_id :bigint
 #
 # Indexes
 #
 #  index_jabvox_email_templates_on_account_id           (account_id)
 #  index_jabvox_email_templates_on_account_id_and_name  (account_id,name) UNIQUE
+#  index_jabvox_email_templates_on_created_by_id        (created_by_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #
 class JabvoxEmailTemplate < ApplicationRecord
   belongs_to :account

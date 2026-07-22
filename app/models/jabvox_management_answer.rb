@@ -9,6 +9,7 @@
 #  created_at                    :datetime         not null
 #  updated_at                    :datetime         not null
 #  account_id                    :bigint           not null
+#  created_by_id                 :bigint
 #  jabvox_management_question_id :bigint
 #  jabvox_management_state_id    :bigint
 #  message_id                    :bigint
@@ -18,6 +19,7 @@
 #
 #  idx_on_jabvox_management_question_id_65239e4ba3                (jabvox_management_question_id)
 #  index_jabvox_management_answers_on_account_id                  (account_id)
+#  index_jabvox_management_answers_on_created_by_id               (created_by_id)
 #  index_jabvox_management_answers_on_jabvox_management_state_id  (jabvox_management_state_id)
 #  index_jabvox_management_answers_on_message_id                  (message_id)
 #  index_jabvox_management_answers_on_note_id                     (note_id)
@@ -25,6 +27,7 @@
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (jabvox_management_question_id => jabvox_management_questions.id) ON DELETE => nullify
 #  fk_rails_...  (jabvox_management_state_id => jabvox_management_states.id)
 #  fk_rails_...  (message_id => messages.id)

@@ -9,17 +9,20 @@
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
 #  account_id            :bigint           not null
+#  created_by_id         :bigint
 #  role_id               :bigint           not null
 #
 # Indexes
 #
-#  idx_jabvox_analytics_perms_unique                 (account_id,role_id,permission_key_jabvox) UNIQUE
-#  index_jabvox_analytics_permissions_on_account_id  (account_id)
-#  index_jabvox_analytics_permissions_on_role_id     (role_id)
+#  idx_jabvox_analytics_perms_unique                    (account_id,role_id,permission_key_jabvox) UNIQUE
+#  index_jabvox_analytics_permissions_on_account_id     (account_id)
+#  index_jabvox_analytics_permissions_on_created_by_id  (created_by_id)
+#  index_jabvox_analytics_permissions_on_role_id        (role_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (role_id => jabvox_analytics_roles.id)
 #
 class JabvoxAnalyticsPermission < ApplicationRecord

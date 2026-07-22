@@ -8,6 +8,7 @@
 #  updated_at      :datetime         not null
 #  account_id      :bigint           not null
 #  agent_id        :bigint
+#  created_by_id   :bigint
 #  storage_id      :bigint           not null
 #  typification_id :bigint
 #
@@ -15,6 +16,7 @@
 #
 #  index_jabvox_audio_assignments_on_account_id               (account_id)
 #  index_jabvox_audio_assignments_on_agent_id                 (agent_id)
+#  index_jabvox_audio_assignments_on_created_by_id            (created_by_id)
 #  index_jabvox_audio_assignments_on_storage_id               (storage_id)
 #  index_jabvox_audio_assignments_on_storage_id_and_file_key  (storage_id,file_key) UNIQUE
 #  index_jabvox_audio_assignments_on_typification_id          (typification_id)
@@ -23,6 +25,7 @@
 #
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (agent_id => users.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (storage_id => jabvox_audio_storages.id)
 #  fk_rails_...  (typification_id => jabvox_typifications.id)
 #

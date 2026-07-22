@@ -13,20 +13,23 @@
 #  created_at         :datetime         not null
 #  updated_at         :datetime         not null
 #  account_id         :bigint           not null
+#  created_by_id      :bigint
 #  dashboard_id       :bigint
 #  widget_id          :bigint
 #
 # Indexes
 #
-#  idx_on_account_id_dashboard_id_9c660e1919              (account_id,dashboard_id)
-#  idx_on_account_id_widget_id_9ad6238e06                 (account_id,widget_id)
-#  index_jabvox_analytics_widget_filters_on_account_id    (account_id)
-#  index_jabvox_analytics_widget_filters_on_dashboard_id  (dashboard_id)
-#  index_jabvox_analytics_widget_filters_on_widget_id     (widget_id)
+#  idx_on_account_id_dashboard_id_9c660e1919               (account_id,dashboard_id)
+#  idx_on_account_id_widget_id_9ad6238e06                  (account_id,widget_id)
+#  index_jabvox_analytics_widget_filters_on_account_id     (account_id)
+#  index_jabvox_analytics_widget_filters_on_created_by_id  (created_by_id)
+#  index_jabvox_analytics_widget_filters_on_dashboard_id   (dashboard_id)
+#  index_jabvox_analytics_widget_filters_on_widget_id      (widget_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (dashboard_id => jabvox_analytics_dashboards.id)
 #  fk_rails_...  (widget_id => jabvox_analytics_dashboard_widgets.id)
 #

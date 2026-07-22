@@ -7,6 +7,7 @@
 #  updated_at              :datetime         not null
 #  account_id              :bigint           not null
 #  conversation_id         :bigint
+#  created_by_id           :bigint
 #  jabvox_kanban_funnel_id :bigint           not null
 #  jabvox_kanban_stage_id  :bigint           not null
 #  jabvox_lead_id          :bigint
@@ -14,16 +15,18 @@
 #
 # Indexes
 #
-#  index_jabvox_conv_stages_account      (account_id)
-#  index_jabvox_conv_stages_funnel       (jabvox_kanban_funnel_id)
-#  index_jabvox_conv_stages_lead_funnel  (jabvox_lead_id,jabvox_kanban_funnel_id) UNIQUE WHERE (jabvox_lead_id IS NOT NULL)
-#  index_jabvox_conv_stages_stage        (jabvox_kanban_stage_id)
-#  index_jabvox_conv_stages_unique       (conversation_id,jabvox_kanban_funnel_id) UNIQUE
+#  index_jabvox_conv_stages_account                          (account_id)
+#  index_jabvox_conv_stages_funnel                           (jabvox_kanban_funnel_id)
+#  index_jabvox_conv_stages_lead_funnel                      (jabvox_lead_id,jabvox_kanban_funnel_id) UNIQUE WHERE (jabvox_lead_id IS NOT NULL)
+#  index_jabvox_conv_stages_stage                            (jabvox_kanban_stage_id)
+#  index_jabvox_conv_stages_unique                           (conversation_id,jabvox_kanban_funnel_id) UNIQUE
+#  index_jabvox_kanban_conversation_stages_on_created_by_id  (created_by_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (conversation_id => conversations.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (jabvox_kanban_funnel_id => jabvox_kanban_funnels.id)
 #  fk_rails_...  (jabvox_kanban_stage_id => jabvox_kanban_stages.id)
 #  fk_rails_...  (jabvox_lead_id => jabvox_leads.id)

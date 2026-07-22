@@ -17,16 +17,19 @@
 #  alegra_id       :integer
 #  contact_id      :bigint
 #  conversation_id :bigint
+#  created_by_id   :bigint
 #
 # Indexes
 #
 #  index_jabvox_orders_on_account_id       (account_id)
 #  index_jabvox_orders_on_contact_id       (contact_id)
 #  index_jabvox_orders_on_conversation_id  (conversation_id)
+#  index_jabvox_orders_on_created_by_id    (created_by_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #
 class JabvoxOrder < ApplicationRecord
   self.table_name = 'jabvox_orders'

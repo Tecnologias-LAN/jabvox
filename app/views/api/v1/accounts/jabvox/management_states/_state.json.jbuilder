@@ -14,6 +14,7 @@ json.position_jabvox state.position_jabvox
 json.note_mode state.note_mode
 json.questions state.questions.ordered do |question|
   json.id question.id
+  json.question_key question.question_key
   json.label question.label
   json.question_type question.question_type
   json.options question.options
@@ -23,5 +24,7 @@ json.questions state.questions.ordered do |question|
   json.lead_field question.lead_field
   json.lead_field_locked question.lead_field_locked
 end
+json.created_by_id state.created_by_id
+json.created_by_name state.created_by&.name
 json.created_at state.created_at
 json.updated_at state.updated_at

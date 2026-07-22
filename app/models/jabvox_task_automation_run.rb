@@ -12,6 +12,7 @@
 #  status_jabvox           :string           default("sent"), not null
 #  account_id              :bigint           not null
 #  automation_id           :bigint
+#  created_by_id           :bigint
 #  task_id                 :bigint           not null
 #
 # Indexes
@@ -19,12 +20,14 @@
 #  idx_on_account_id_task_id_run_at_jabvox_83a99062cf  (account_id,task_id,run_at_jabvox)
 #  index_jabvox_task_automation_runs_on_account_id     (account_id)
 #  index_jabvox_task_automation_runs_on_automation_id  (automation_id)
+#  index_jabvox_task_automation_runs_on_created_by_id  (created_by_id)
 #  index_jabvox_task_automation_runs_on_task_id        (task_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (automation_id => jabvox_task_automations.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (task_id => jabvox_tasks.id)
 #
 class JabvoxTaskAutomationRun < ApplicationRecord

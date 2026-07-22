@@ -12,7 +12,9 @@ class Api::V1::Accounts::Jabvox::TypificationsController < Api::V1::Accounts::Ba
   end
 
   def create
-    typification = Current.account.jabvox_typifications.create!(typification_params)
+    typification = Current.account.jabvox_typifications.create!(
+      typification_params.merge(created_by: current_user)
+    )
     render json: serialize(typification), status: :created
   end
 
@@ -82,7 +84,9 @@ class Api::V1::Accounts::Jabvox::TypificationsController < Api::V1::Accounts::Ba
       id: typification.id,
       name: typification.name,
       description: typification.description,
-      is_active: typification.is_active
+      is_active: typification.is_active,
+      created_by_id: typification.created_by_id,
+      created_by_name: typification.created_by&.name
     }
   end
 end

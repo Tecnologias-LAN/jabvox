@@ -13,6 +13,7 @@
 #  created_at         :datetime         not null
 #  updated_at         :datetime         not null
 #  account_id         :bigint           not null
+#  created_by_id      :bigint
 #  dashboard_id       :bigint           not null
 #  data_source_id     :bigint
 #
@@ -20,12 +21,14 @@
 #
 #  idx_on_account_id_dashboard_id_0dbd985dda                   (account_id,dashboard_id)
 #  index_jabvox_analytics_dashboard_widgets_on_account_id      (account_id)
+#  index_jabvox_analytics_dashboard_widgets_on_created_by_id   (created_by_id)
 #  index_jabvox_analytics_dashboard_widgets_on_dashboard_id    (dashboard_id)
 #  index_jabvox_analytics_dashboard_widgets_on_data_source_id  (data_source_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (dashboard_id => jabvox_analytics_dashboards.id)
 #  fk_rails_...  (data_source_id => jabvox_analytics_data_sources.id)
 #

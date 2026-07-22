@@ -15,6 +15,7 @@
 #  created_at                 :datetime         not null
 #  updated_at                 :datetime         not null
 #  account_id                 :bigint           not null
+#  created_by_id              :bigint
 #  jabvox_currency_id         :bigint
 #  jabvox_item_type_id        :bigint
 #  jabvox_unit_of_measure_id  :bigint
@@ -23,6 +24,7 @@
 #
 #  index_jabvox_products_account_name                  (account_id,name_jabvox) UNIQUE
 #  index_jabvox_products_on_account_id                 (account_id)
+#  index_jabvox_products_on_created_by_id              (created_by_id)
 #  index_jabvox_products_on_jabvox_currency_id         (jabvox_currency_id)
 #  index_jabvox_products_on_jabvox_item_type_id        (jabvox_item_type_id)
 #  index_jabvox_products_on_jabvox_unit_of_measure_id  (jabvox_unit_of_measure_id)
@@ -30,6 +32,7 @@
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (jabvox_currency_id => jabvox_currencies.id)
 #  fk_rails_...  (jabvox_item_type_id => jabvox_item_types.id)
 #  fk_rails_...  (jabvox_unit_of_measure_id => jabvox_units_of_measure.id)

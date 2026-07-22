@@ -82,7 +82,8 @@ class Api::V1::Accounts::Jabvox::DataExport::TargetsController < Api::V1::Accoun
     render json: serialize(@target)
   end
 
-  # POST /targets/:id/sync_now — enqueue a manual full backfill.
+  # POST /targets/:id/sync_now — "Sincronizar ahora": rebuilds the schema (all
+  # tables + columns) AND re-exports every record of the account from scratch.
   def sync_now
     Jabvox::ExternalExport::BackfillJob.perform_later(Current.account.id, incremental: false)
     render json: { queued: true }

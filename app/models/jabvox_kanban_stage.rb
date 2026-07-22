@@ -13,12 +13,14 @@
 #  updated_at                   :datetime         not null
 #  account_id                   :bigint           not null
 #  auto_advance_target_stage_id :bigint
+#  created_by_id                :bigint
 #  jabvox_kanban_funnel_id      :bigint           not null
 #
 # Indexes
 #
 #  index_jabvox_kanban_stages_on_account_id               (account_id)
 #  index_jabvox_kanban_stages_on_auto_advance_target      (auto_advance_target_stage_id)
+#  index_jabvox_kanban_stages_on_created_by_id            (created_by_id)
 #  index_jabvox_kanban_stages_on_jabvox_kanban_funnel_id  (jabvox_kanban_funnel_id)
 #  index_jabvox_stages_funnel_position                    (jabvox_kanban_funnel_id,position_jabvox)
 #
@@ -26,6 +28,7 @@
 #
 #  fk_jabvox_kanban_stages_auto_advance_target  (auto_advance_target_stage_id => jabvox_kanban_stages.id)
 #  fk_rails_...                                 (account_id => accounts.id)
+#  fk_rails_...                                 (created_by_id => users.id)
 #  fk_rails_...                                 (jabvox_kanban_funnel_id => jabvox_kanban_funnels.id)
 #
 class JabvoxKanbanStage < ApplicationRecord

@@ -12,6 +12,7 @@
 #  created_at               :datetime         not null
 #  updated_at               :datetime         not null
 #  account_id               :bigint           not null
+#  created_by_id            :bigint
 #  inbox_id                 :bigint
 #  jabvox_email_template_id :bigint
 #  jabvox_kanban_stage_id   :bigint           not null
@@ -21,6 +22,7 @@
 # Indexes
 #
 #  index_jabvox_kanban_stage_automations_on_account_id              (account_id)
+#  index_jabvox_kanban_stage_automations_on_created_by_id           (created_by_id)
 #  index_jabvox_kanban_stage_automations_on_inbox_id                (inbox_id)
 #  index_jabvox_kanban_stage_automations_on_jabvox_kanban_stage_id  (jabvox_kanban_stage_id)
 #  index_jabvox_stage_automations_on_target_stage                   (target_stage_id)
@@ -29,6 +31,7 @@
 #
 #  fk_jabvox_stage_automations_target_stage  (target_stage_id => jabvox_kanban_stages.id)
 #  fk_rails_...                              (account_id => accounts.id)
+#  fk_rails_...                              (created_by_id => users.id)
 #  fk_rails_...                              (inbox_id => inboxes.id)
 #  fk_rails_...                              (jabvox_email_template_id => jabvox_email_templates.id)
 #  fk_rails_...                              (jabvox_kanban_stage_id => jabvox_kanban_stages.id)

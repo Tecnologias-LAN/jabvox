@@ -14,17 +14,20 @@
 #  created_at              :datetime         not null
 #  updated_at              :datetime         not null
 #  account_id              :bigint           not null
+#  created_by_id           :bigint
 #  deleted_by_id           :bigint
 #
 # Indexes
 #
 #  index_jabvox_deleted_leads_on_account_id                        (account_id)
 #  index_jabvox_deleted_leads_on_account_id_and_deleted_at_jabvox  (account_id,deleted_at_jabvox)
+#  index_jabvox_deleted_leads_on_created_by_id                     (created_by_id)
 #  index_jabvox_deleted_leads_on_deleted_by_id                     (deleted_by_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (deleted_by_id => users.id)
 #
 class JabvoxDeletedLead < ApplicationRecord

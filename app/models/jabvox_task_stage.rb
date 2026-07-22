@@ -11,17 +11,20 @@
 #  updated_at      :datetime         not null
 #  account_id      :bigint           not null
 #  board_id        :bigint           not null
+#  created_by_id   :bigint
 #
 # Indexes
 #
 #  index_jabvox_task_stages_on_account_id                    (account_id)
 #  index_jabvox_task_stages_on_board_id                      (board_id)
 #  index_jabvox_task_stages_on_board_id_and_position_jabvox  (board_id,position_jabvox)
+#  index_jabvox_task_stages_on_created_by_id                 (created_by_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (board_id => jabvox_task_boards.id)
+#  fk_rails_...  (created_by_id => users.id)
 #
 class JabvoxTaskStage < ApplicationRecord
   self.table_name = 'jabvox_task_stages'
