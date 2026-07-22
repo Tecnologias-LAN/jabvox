@@ -23,6 +23,30 @@ const managementState = computed(() => {
   return { name, color: color || '#6366f1' };
 });
 
+// Origen de la gestión (desde dónde se tipificó) + tipificación, para mostrarlos
+// en el timeline del chat igual que en el detalle del lead.
+const SOURCE_LABEL_KEYS = {
+  dialer: 'JABVOX_LEADS.DETAIL.SOURCE_DIALER',
+  click_to_call: 'JABVOX_LEADS.DETAIL.SOURCE_CLICK_TO_CALL',
+  lead_detail: 'JABVOX_LEADS.DETAIL.SOURCE_LEAD_DETAIL',
+  kanban: 'JABVOX_LEADS.DETAIL.SOURCE_KANBAN',
+  conversations: 'JABVOX_LEADS.DETAIL.SOURCE_CONVERSATIONS',
+};
+const managementSourceKey = computed(() => {
+  if (!isPrivate?.value) return null;
+  const src =
+    contentAttributes.value?.jabvoxCallSource ||
+    contentAttributes.value?.jabvox_call_source;
+  return src ? SOURCE_LABEL_KEYS[src] : null;
+});
+const managementTypification = computed(
+  () =>
+    (isPrivate?.value &&
+      (contentAttributes.value?.jabvoxTypificationName ||
+        contentAttributes.value?.jabvox_typification_name)) ||
+    null
+);
+
 const { hasTranslations, translationContent } =
   useTranslations(contentAttributes);
 
@@ -77,6 +101,26 @@ const handleSeeOriginal = () => {
         />
         {{ managementState.name }}
       </span>
+      <!-- Origen (desde dónde se tipificó) + tipificación -->
+      <div
+        v-if="managementSourceKey || managementTypification"
+        class="flex flex-wrap gap-1 self-start"
+      >
+        <span
+          v-if="managementTypification"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-n-teal-3 text-n-teal-11 border border-n-teal-6"
+        >
+          <span class="i-lucide-tag size-3" />
+          {{ managementTypification }}
+        </span>
+        <span
+          v-if="managementSourceKey"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-n-alpha-2 text-n-slate-11 border border-n-weak"
+        >
+          <span class="i-lucide-phone-outgoing size-3" />
+          {{ $t(managementSourceKey) }}
+        </span>
+      </div>
       <span v-if="isEmpty" class="text-n-slate-11">
         {{ $t('CONVERSATION.NO_CONTENT') }}
       </span>

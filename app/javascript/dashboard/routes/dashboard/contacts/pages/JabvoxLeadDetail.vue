@@ -1,6 +1,7 @@
 <script setup>
 /* global axios */
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { emitter } from 'shared/helpers/mitt';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useStore } from 'vuex';
 import { useRouter, useRoute } from 'vue-router';
@@ -769,6 +770,16 @@ const loadLead = async () => {
 
 watch(leadId, loadLead);
 watch(leadsTableColumns, initEditForm, { deep: true });
+
+// Recargar las notas cuando una gestión se guarda desde otra vista (p. ej. el
+// overlay de click-to-call, que crea la nota en el backend): sin esto la gestión
+// solo aparecía tras recargar la página manualmente.
+const onManagementSaved = () => {
+  loadMessages();
+  loadContactNotes();
+  loadAllConversationNotes();
+};
+
 onMounted(async () => {
   store.dispatch('jabvoxManagementStates/fetchStates');
   store.dispatch('agents/get');
@@ -776,6 +787,11 @@ onMounted(async () => {
     await store.dispatch('jabvoxCustomization/fetchTables');
   }
   loadLead();
+  emitter.on('jabvox.management.saved', onManagementSaved);
+});
+
+onBeforeUnmount(() => {
+  emitter.off('jabvox.management.saved', onManagementSaved);
 });
 </script>
 

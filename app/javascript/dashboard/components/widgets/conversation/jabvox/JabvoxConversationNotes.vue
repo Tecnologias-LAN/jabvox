@@ -2,10 +2,11 @@
 // Notes tab for a conversation. A note is a PRIVATE message; here (unlike the
 // chat reply box) it carries the gestión (management-state) picker. Mirrors the
 // notes composer from the lead detail so both behave identically.
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
+import { emitter } from 'shared/helpers/mitt';
 import messageAPI from 'dashboard/api/inbox/message';
 import ManagementQuestionsForm from 'dashboard/components/jabvox/managementStates/ManagementQuestionsForm.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -87,6 +88,14 @@ const loadNotes = async () => {
 
 watch(displayId, loadNotes, { immediate: true });
 
+// Recargar cuando una gestión se guarda desde otra vista (p. ej. el overlay de
+// click-to-call) para que aparezca sin recargar la página.
+const onManagementSaved = () => loadNotes();
+onMounted(() => emitter.on('jabvox.management.saved', onManagementSaved));
+onBeforeUnmount(() =>
+  emitter.off('jabvox.management.saved', onManagementSaved)
+);
+
 const selectGroup = g => {
   group.value = group.value === g ? null : g;
   stateId.value = null;
@@ -148,6 +157,26 @@ const noteState = m =>
   m.content_attributes?.jabvox_management_state_name || null;
 const noteColor = m =>
   m.content_attributes?.jabvox_management_state_color || '#6b7280';
+
+// Origen (marcador / click-to-call / detalle / kanban / conversaciones) de la
+// gestión, para mostrar "desde dónde se tipificó" también en el chat.
+const SOURCE_LABEL_KEYS = {
+  dialer: 'JABVOX_LEADS.DETAIL.SOURCE_DIALER',
+  click_to_call: 'JABVOX_LEADS.DETAIL.SOURCE_CLICK_TO_CALL',
+  lead_detail: 'JABVOX_LEADS.DETAIL.SOURCE_LEAD_DETAIL',
+  kanban: 'JABVOX_LEADS.DETAIL.SOURCE_KANBAN',
+  conversations: 'JABVOX_LEADS.DETAIL.SOURCE_CONVERSATIONS',
+};
+const noteSource = m => {
+  const src =
+    m.content_attributes?.jabvox_call_source ||
+    m.content_attributes?.jabvoxCallSource;
+  return src && SOURCE_LABEL_KEYS[src] ? t(SOURCE_LABEL_KEYS[src]) : '';
+};
+const noteTypification = m =>
+  m.content_attributes?.jabvox_typification_name ||
+  m.content_attributes?.jabvoxTypificationName ||
+  '';
 </script>
 
 <template>
@@ -178,6 +207,26 @@ const noteColor = m =>
               :style="{ backgroundColor: noteColor(note) }"
             />
             <span class="text-n-slate-11">{{ noteState(note) }}</span>
+          </div>
+          <!-- Origen (desde dónde se tipificó) + tipificación -->
+          <div
+            v-if="noteSource(note) || noteTypification(note)"
+            class="flex flex-wrap gap-1 mb-1.5"
+          >
+            <span
+              v-if="noteTypification(note)"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-n-teal-3 text-n-teal-11 border border-n-teal-6"
+            >
+              <span class="i-lucide-tag size-3" />
+              {{ noteTypification(note) }}
+            </span>
+            <span
+              v-if="noteSource(note)"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-n-alpha-2 text-n-slate-11 border border-n-weak"
+            >
+              <span class="i-lucide-phone-outgoing size-3" />
+              {{ noteSource(note) }}
+            </span>
           </div>
           <p class="text-sm text-n-slate-12 whitespace-pre-wrap break-words">
             {{ note.content }}

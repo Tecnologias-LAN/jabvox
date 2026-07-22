@@ -69,6 +69,10 @@ export function useClickToCall() {
         note,
         management,
       });
+      // Avisar a las vistas abiertas (p. ej. el detalle del lead) para que
+      // recarguen sus notas: la gestión se creó en el backend y el detalle no se
+      // entera solo, así que sin esto no aparecía hasta recargar la página.
+      emitter.emit('jabvox.management.saved');
       if (!keepOpen) close();
       return true;
     } catch (error) {
