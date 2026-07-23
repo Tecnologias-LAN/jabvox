@@ -54,9 +54,7 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
 
   # GET /monitor — estado del sincronizador para el dashboard (solo admin).
   def monitor
-    unless jabvox_can?('jabvox_cdr_manage')
-      return render(json: { error: 'Solo administradores' }, status: :forbidden)
-    end
+    return render(json: { error: 'Solo administradores' }, status: :forbidden) unless jabvox_can?('jabvox_cdr_manage')
 
     render json: Jabvox::CdrMonitorService.new(Current.account).status
   end
@@ -100,14 +98,14 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
     name = record&.recording_file_jabvox.presence || cdr_service.recording_file(params[:uniqueid])
     return render(json: { error: 'Grabación no disponible' }, status: :not_found) if name.blank?
 
-    tmp = Jabvox::CdrRecordingService.new(@config).download(name)
-    return render(json: { error: 'No se pudo obtener la grabación' }, status: :unprocessable_entity) if tmp.nil?
+    # Descarga y convierte a un formato reproducible en el navegador. Las
+    # grabaciones de Asterisk son WAV-GSM, que el <audio> no decodifica (mostraba
+    # 0 segundos); download_playable las convierte a MP3 con ffmpeg.
+    result = Jabvox::CdrRecordingService.new(@config).download_playable(name)
+    return render(json: { error: 'No se pudo obtener la grabación' }, status: :unprocessable_entity) if result.nil?
 
-    # Content-Type según la extensión REAL del archivo. Las grabaciones de Asterisk
-    # suelen ser .WAV; enviarlas como audio/mpeg hacía que el navegador no calculara
-    # la duración (el reproductor mostraba 0 segundos).
-    send_data tmp.read, type: recording_content_type(name), disposition: 'inline',
-                        filename: File.basename(name)
+    tmp = result[:file]
+    send_recording(tmp, name, result)
   ensure
     tmp&.close!
   end
@@ -149,6 +147,16 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
     # el cooldown es una protección anti-abuso, no una garantía de correctitud.
     Rails.logger.warn "[CDR] cooldown sync_now no disponible: #{e.message}"
     true
+  end
+
+  # Envía la grabación al navegador con el nombre y MIME adecuados. Si se convirtió
+  # a MP3, usa ese content_type; si no, lo deriva de la extensión original.
+  def send_recording(tmp, name, result)
+    base = File.basename(name, '.*')
+    send_data tmp.read,
+              type: result[:content_type] || recording_content_type(name),
+              disposition: 'inline',
+              filename: "#{base}#{result[:ext]}"
   end
 
   # MIME real del archivo de grabación según su extensión. Asterisk graba en .WAV

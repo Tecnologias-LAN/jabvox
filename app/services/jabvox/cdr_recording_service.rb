@@ -1,13 +1,43 @@
 require 'net/ssh'
 require 'net/scp'
+require 'open3'
 
 # Downloads a call recording from the PBX over SSH/SCP into a local temp file.
 # The caller is responsible for cleaning up the returned Tempfile.
 class Jabvox::CdrRecordingService
   SSH_TIMEOUT = 15
+  # Timeout de la conversión de audio a MP3 (segundos).
+  TRANSCODE_TIMEOUT = 30
 
   def initialize(config)
     @config = config
+  end
+
+  # Descarga la grabación y devuelve un archivo REPRODUCIBLE en el navegador.
+  # Las grabaciones de Asterisk suelen ser WAV con códec GSM (0x0031), que el
+  # elemento <audio> del navegador NO decodifica (mostraba 0 segundos). Aquí
+  # convertimos a MP3 con ffmpeg. Devuelve { file:, content_type:, ext: } o nil.
+  # Si ffmpeg no está disponible o la conversión falla, cae al archivo original
+  # (mejor entregar el WAV crudo que nada).
+  def download_playable(recording_file)
+    src = download(recording_file)
+    return nil if src.nil?
+
+    mp3 = transcode_to_mp3(src.path)
+    if mp3
+      # Ya tenemos el MP3: el WAV original se borra de inmediato (no llena disco).
+      src.close!
+      { file: mp3, content_type: 'audio/mpeg', ext: '.mp3' }
+    else
+      # Fallback: el archivo original (WAV). Puede no reproducir si es GSM, pero
+      # es preferible a no entregar nada; el content_type se decide en el caller.
+      { file: src, content_type: nil, ext: File.extname(recording_file.to_s) }
+    end
+  rescue StandardError => e
+    # Ante cualquier fallo, no dejar temporales huérfanos.
+    src&.close!
+    Rails.logger.error "[CDR] download_playable falló: #{e.message}"
+    nil
   end
 
   # Verifies SSH credentials by opening a connection and running a trivial command.
@@ -48,6 +78,33 @@ class Jabvox::CdrRecordingService
   end
 
   private
+
+  # Convierte el archivo de audio a MP3 con ffmpeg. Devuelve un Tempfile .mp3 con
+  # contenido, o nil si ffmpeg no está o la conversión falla/da vacío. ffmpeg
+  # decodifica el WAV-GSM de Asterisk sin problema y produce MP3 universal.
+  def transcode_to_mp3(src_path)
+    out = Tempfile.new(['cdr_recording', '.mp3'], binmode: true)
+    # -y sobrescribe, -i entrada, -codec:a libmp3lame, -q:a 5 (~128kbps VBR).
+    cmd = ['ffmpeg', '-y', '-i', src_path, '-codec:a', 'libmp3lame', '-q:a', '5', out.path]
+    _stdout, stderr, status = Open3.capture3(*cmd, binmode: true)
+    if status.success? && File.size(out.path).positive?
+      out.rewind
+      out
+    else
+      Rails.logger.warn "[CDR] transcodificación a MP3 falló: #{stderr.to_s[0, 300]}"
+      out.close!
+      nil
+    end
+  rescue Errno::ENOENT
+    # ffmpeg no instalado: caemos al archivo original.
+    Rails.logger.warn '[CDR] ffmpeg no está instalado; se entrega el audio sin convertir.'
+    out&.close!
+    nil
+  rescue StandardError => e
+    Rails.logger.warn "[CDR] error transcodificando grabación: #{e.message}"
+    out&.close!
+    nil
+  end
 
   # Asterisk stores recordings in date-bucketed subfolders; `find` locates the file
   # regardless of layout. Falls back to joining the configured base path.
