@@ -135,6 +135,9 @@ onUnmounted(() => clearInterval(ticker));
                   {{ t('JABVOX_REPORTS.AGENTS.COLS.NOTES') }}
                 </th>
                 <th class="py-3 px-4 text-right">
+                  {{ t('JABVOX_REPORTS.AGENTS.COLS.MANAGEMENTS') }}
+                </th>
+                <th class="py-3 px-4 text-right">
                   {{ t('JABVOX_REPORTS.AGENTS.COLS.ORDERS') }}
                 </th>
                 <th class="py-3 px-4 text-right">
@@ -169,6 +172,16 @@ onUnmounted(() => clearInterval(ticker));
                       class="i-lucide-sticky-note size-3.5 text-n-slate-10"
                     />
                     {{ agent.notes_added }}
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <span
+                    class="inline-flex items-center gap-1 text-n-slate-12 font-semibold"
+                  >
+                    <span
+                      class="i-lucide-clipboard-list size-3.5 text-n-slate-10"
+                    />
+                    {{ agent.managements_added }}
                   </span>
                 </td>
                 <td class="py-3 px-4 text-right">

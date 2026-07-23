@@ -39,8 +39,22 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
     messages_sent = Message.where(account_id: account_id, message_type: 1, private: false, sender_type: 'User')
                            .where(created_at: date_range).reorder(nil).group(:sender_id).count
 
-    notes_added = Message.where(account_id: account_id, private: true, sender_type: 'User')
-                         .where(created_at: date_range).reorder(nil).group(:sender_id).count
+    # Notas privadas del agente, separadas en dos:
+    #   - Gestiones: notas con estado de gestión (creadas desde el apartado de
+    #     notas del detalle del lead / click-to-call / dialer). Se identifican
+    #     porque tienen filas en jabvox_management_answers ligadas al message_id.
+    #   - Notas: notas privadas normales escritas en el chat, SIN estado de gestión.
+    private_notes = Message.where(account_id: account_id, private: true, sender_type: 'User')
+                           .where(created_at: date_range)
+    # Subquery (no pluck): message_ids that carry a management state. A NOT EXISTS
+    # keeps this scalable — no list of ids is loaded into memory.
+    management_ids = JabvoxManagementAnswer.where(account_id: account_id)
+                                           .where('jabvox_management_answers.message_id = messages.id')
+                                           .select(1)
+    managements_added = private_notes.where('EXISTS (?)', management_ids)
+                                     .reorder(nil).group(:sender_id).count
+    notes_added = private_notes.where('NOT EXISTS (?)', management_ids)
+                               .reorder(nil).group(:sender_id).count
 
     orders_placed = JabvoxOrder.joins(:conversation)
                                .where(account_id: account_id)
@@ -70,6 +84,7 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
           avatar_url: u.avatar_url,
           messages_sent: messages_sent[u.id] || 0,
           notes_added: notes_added[u.id] || 0,
+          managements_added: managements_added[u.id] || 0,
           orders_placed: orders_placed[u.id] || 0,
           calls_made: calls_made[u.id] || 0,
           state_times: state_times[u.id] || {},
