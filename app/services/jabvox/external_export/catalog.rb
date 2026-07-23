@@ -15,9 +15,13 @@ module Jabvox::ExternalExport::Catalog
     JabvoxSmsProvider JabvoxSmtpConfig JabvoxVoipConfig JabvoxIntegrationConfig
     JabvoxResponseBotConfig JabvoxSaldoConfig JabvoxFormConfig
     JabvoxAnalyticsDataSource JabvoxAnalyticsDataSourcePermission
-    JabvoxLeadSource JabvoxLeadSourceRecord JabvoxExportTarget JabvoxExportSyncLog
+    JabvoxLeadSource JabvoxExportTarget JabvoxExportSyncLog
     JabvoxAnalyticsQueryCacheEntry JabvoxAnalyticsAuditLog
   ].freeze
+  # NOTE: JabvoxLeadSourceRecord is intentionally NOT excluded. Unlike JabvoxLeadSource
+  # (connection credentials), the record holds only the business mapping
+  # external_id_jabvox <-> jabvox_lead_id — no credentials — so it IS exported so the
+  # CRM can reconcile a lead to its origin row. It has account_id (auto-scan takes it).
 
   # Specific columns excluded per model even though their name doesn't match a
   # sensitive pattern: JSON blobs that can carry integration tokens / external
@@ -63,6 +67,13 @@ module Jabvox::ExternalExport::Catalog
     'JabvoxCustomTableRow' => lambda { |account_id|
       JabvoxCustomTableRow.joins(:jabvox_custom_table)
                           .where(jabvox_custom_tables: { account_id: account_id })
+    },
+    # The COLUMN definitions (names/labels/types/options) of the custom tables,
+    # reached through jabvox_custom_table. Without them the exported rows have no
+    # column names/labels — the schema of the multi-row tables would be lost.
+    'JabvoxCustomColumn' => lambda { |account_id|
+      JabvoxCustomColumn.joins(:jabvox_custom_table)
+                        .where(jabvox_custom_tables: { account_id: account_id })
     },
     # Only users that belong to THIS account (via account_users) — never the whole
     # users table. Uses a distinct id sub-select (NOT SELECT DISTINCT users.*,
@@ -122,7 +133,7 @@ module Jabvox::ExternalExport::Catalog
     { key: 'conversations', always: true, models: %w[Conversation Message Note] },
     { key: 'calls', feature: 'jabvox_click_to_call', models: %w[JabvoxCallLog] },
     { key: 'dialer', feature: 'jabvox_dialer', models: %w[JabvoxDialer] },
-    { key: 'custom_tables', always: true, models: %w[JabvoxCustomTableRow] },
+    { key: 'custom_tables', always: true, models: %w[JabvoxCustomTableRow JabvoxCustomColumn] },
     { key: 'kanban', feature: 'jabvox_kanban', models: %w[JabvoxKanban] },
     { key: 'tasks', feature: 'jabvox_tasks', models: %w[JabvoxTask] },
     { key: 'products', feature: 'jabvox_products', models: %w[JabvoxProduct JabvoxOrder JabvoxCurrency

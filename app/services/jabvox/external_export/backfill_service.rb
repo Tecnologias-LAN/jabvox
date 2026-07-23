@@ -18,7 +18,7 @@ class Jabvox::ExternalExport::BackfillService
     @account = target.account
     # Preload the contact->lead map ONCE so derived link columns (jabvox_lead_id
     # on conversations/messages/dialer calls) are hash lookups, not a query per row.
-    resolver = Jabvox::ExternalExport::DerivedColumns::LeadResolver.preloaded(@account.id)
+    resolver = Jabvox::ExternalExport::LeadResolver.preloaded(@account.id)
     @exporter = Jabvox::ExternalExport::RowExporterService.new(target, resolver: resolver)
     @adapter = Jabvox::ExternalExport::WriteAdapter.new(target)
   end
@@ -52,20 +52,28 @@ class Jabvox::ExternalExport::BackfillService
 
   private
 
+  # Associations to eager-load per model, so building the derived link columns
+  # (jabvox_lead_id on conversations/messages/dialer calls, account_id on custom
+  # table rows/columns, the lead↔source link on leads) doesn't N+1 over large
+  # tables during backfill.
+  EAGER_LOADS = {
+    'JabvoxLead' => :jabvox_lead_source_records,
+    'Message' => :conversation,
+    'JabvoxDialerCallLog' => :jabvox_dialer_campaign_contact,
+    'Note' => :contact,
+    'JabvoxCustomTableRow' => :jabvox_custom_table,
+    'JabvoxCustomColumn' => :jabvox_custom_table
+  }.freeze
+
   # Scope for this model given the watermark. Full backfill (since nil) = all rows.
   # Incremental = rows changed after `since`, using updated_at, or created_at for
   # append-only models that lack updated_at (so they aren't re-sent every 5 min).
-  # Eager-loads the lead↔source link to avoid an N+1 when building correlation ids.
   def incremental_scope(model, since)
     # Account scope handles models without a direct account_id (reached via an
     # association, e.g. custom table rows).
     scope = Jabvox::ExternalExport::Catalog.account_scope(model, @account.id)
-    scope = scope.includes(:jabvox_lead_source_records) if model == JabvoxLead
-    # Derived link columns walk associations; eager-load them to avoid N+1 over
-    # potentially huge message/call volumes during backfill.
-    scope = scope.includes(:conversation) if model == Message
-    scope = scope.includes(:jabvox_dialer_campaign_contact) if model == JabvoxDialerCallLog
-    scope = scope.includes(:contact) if model == Note
+    assoc = EAGER_LOADS[model.name]
+    scope = scope.includes(assoc) if assoc
     return scope unless since
 
     watermark = %w[updated_at created_at].find { |c| model.column_names.include?(c) }

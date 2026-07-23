@@ -6,14 +6,14 @@ class Jabvox::ExternalExport::RowExporterService
   # it is never written as a column itself.
   LEAD_JSONB_COLUMN = 'custom_fields_jabvox'.freeze
 
-  # resolver: an optional preloaded DerivedColumns::LeadResolver (backfill reuses
+  # resolver: an optional preloaded LeadResolver (backfill reuses
   # one so it doesn't query the contact->lead map per row). Real-time exports get
   # a per-call resolver that queries directly.
   def initialize(target, resolver: nil)
     @target = target
     @adapter = Jabvox::ExternalExport::WriteAdapter.new(target)
     @lead_custom = Jabvox::ExternalExport::LeadCustomColumns.new(target.account)
-    resolver ||= Jabvox::ExternalExport::DerivedColumns::LeadResolver.new(target.account_id)
+    resolver ||= Jabvox::ExternalExport::LeadResolver.new(target.account_id)
     @derived = Jabvox::ExternalExport::DerivedColumns.new(resolver)
   end
 

@@ -65,6 +65,7 @@ class Message < ApplicationRecord
 
   before_validation :ensure_content_type
   before_validation :prevent_message_flooding
+  before_validation :ensure_jabvox_call_source
   before_save :ensure_processed_message_content
   before_save :ensure_in_reply_to
 
@@ -337,6 +338,19 @@ class Message < ApplicationRecord
 
   def update_contact_activity
     sender.update(last_activity_at: DateTime.now) if sender.is_a?(Contact)
+  end
+
+  # Guarantees a management record always carries its origin. Every UI path sets
+  # jabvox_call_source, but if a message has a management state and no source
+  # (e.g. a future/alternate creation path), mark it 'unknown' so the export never
+  # loses the "from where" trace. Only touches management messages; never others.
+  def ensure_jabvox_call_source
+    attrs = content_attributes
+    return unless attrs.is_a?(Hash)
+    return if attrs['jabvox_management_state_id'].blank?
+    return if attrs['jabvox_call_source'].present?
+
+    self.content_attributes = attrs.merge('jabvox_call_source' => 'unknown')
   end
 
   def complete_jabvox_dialer_contact_on_gestion

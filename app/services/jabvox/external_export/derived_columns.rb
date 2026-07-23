@@ -32,9 +32,25 @@ class Jabvox::ExternalExport::DerivedColumns
       { name: 'contact_id', type: :integer },
       { name: 'jabvox_lead_id', type: :integer }
     ],
+    # CDR of calls (from the PBX). It only carries agent_extension/agent_name and
+    # uniqueid — no lead/contact link. We resolve lead/contact by matching uniqueid
+    # against the call logs that DO carry them (click-to-call/manual via
+    # JabvoxCallLog, dialer via JabvoxDialerCallLog -> campaign contact), so the CRM
+    # can join the call recording straight to the lead.
+    'JabvoxCdrRecord' => [
+      { name: 'contact_id', type: :integer },
+      { name: 'jabvox_lead_id', type: :integer }
+    ],
     # Multi-row custom tables reach the account through their custom table; surface
     # account_id so the mirror table is filterable/relatable like the rest.
     'JabvoxCustomTableRow' => [
+      { name: 'account_id', type: :integer }
+    ],
+    # Custom-column definitions also reach the account through their custom table.
+    # Surface account_id so the schema of the multi-row tables is filterable and
+    # joinable (jabvox_custom_table_id already travels as its own column, linking
+    # each column definition to its table and, transitively, to its rows).
+    'JabvoxCustomColumn' => [
       { name: 'account_id', type: :integer }
     ],
     # Users reach the account through account_users; surface account_id + the
@@ -45,32 +61,8 @@ class Jabvox::ExternalExport::DerivedColumns
     ]
   }.freeze
 
-  # Resolves contact_id -> lead_id. Without a preloaded map it queries per call
-  # (fine for the single-row real-time path); with one it's a hash lookup.
-  class LeadResolver
-    attr_reader :account_id
-
-    def initialize(account_id, map: nil)
-      @account_id = account_id
-      @map = map
-    end
-
-    # Preload the whole account's contact->lead map in one query (backfill path).
-    def self.preloaded(account_id)
-      map = JabvoxLead.where(account_id: account_id)
-                      .where.not(contact_id: nil)
-                      .pluck(:contact_id, :id)
-                      .to_h
-      new(account_id, map: map)
-    end
-
-    def lead_id_for(contact_id)
-      return nil if contact_id.blank?
-      return @map[contact_id] if @map
-
-      JabvoxLead.where(account_id: @account_id, contact_id: contact_id).pick(:id)
-    end
-  end
+  # LeadResolver (contact/uniqueid -> lead/contact) lives in its own file:
+  # app/services/jabvox/external_export/lead_resolver.rb
 
   def self.defs_for(model)
     # base_class so STI subclasses (SuperAdmin < User) resolve to the parent defs.
@@ -82,16 +74,22 @@ class Jabvox::ExternalExport::DerivedColumns
     @resolver = resolver
   end
 
+  # [class, handler] pairs. Ordered list (not a hash keyed by class) so STI
+  # subclasses match via is_a? — e.g. SuperAdmin < User resolves to :user_values.
+  HANDLERS = [
+    [Conversation, :conversation_values],
+    [Message, :message_values],
+    [JabvoxDialerCallLog, :dialer_call_values],
+    [JabvoxCustomTableRow, :custom_table_row_values],
+    [JabvoxCustomColumn, :custom_column_values],
+    [User, :user_values],
+    [Note, :note_values],
+    [JabvoxCdrRecord, :cdr_record_values]
+  ].freeze
+
   def for(record)
-    case record
-    when Conversation then conversation_values(record)
-    when Message then message_values(record)
-    when JabvoxDialerCallLog then dialer_call_values(record)
-    when JabvoxCustomTableRow then custom_table_row_values(record)
-    when User then user_values(record)
-    when Note then note_values(record)
-    else {}
-    end
+    pair = HANDLERS.find { |klass, _| record.is_a?(klass) }
+    pair ? send(pair.last, record) : {}
   end
 
   private
@@ -122,8 +120,19 @@ class Jabvox::ExternalExport::DerivedColumns
     { 'account_id' => row.jabvox_custom_table&.account_id }
   end
 
+  def custom_column_values(col)
+    { 'account_id' => col.jabvox_custom_table&.account_id }
+  end
+
   def note_values(note)
     { 'jabvox_lead_id' => @resolver.lead_id_for(note.contact_id) }
+  end
+
+  # CDR only has uniqueid; resolve lead/contact by matching it against the call
+  # logs that carry the link (see LeadResolver#cdr_link_for).
+  def cdr_record_values(cdr)
+    lead_id, contact_id = @resolver.cdr_link_for(cdr.uniqueid)
+    { 'jabvox_lead_id' => lead_id, 'contact_id' => contact_id }
   end
 
   # A user's account-scoped membership: the account_id we're exporting for and
