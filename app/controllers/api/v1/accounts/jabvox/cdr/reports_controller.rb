@@ -103,7 +103,10 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
     tmp = Jabvox::CdrRecordingService.new(@config).download(name)
     return render(json: { error: 'No se pudo obtener la grabación' }, status: :unprocessable_entity) if tmp.nil?
 
-    send_data tmp.read, type: 'audio/mpeg', disposition: 'inline',
+    # Content-Type según la extensión REAL del archivo. Las grabaciones de Asterisk
+    # suelen ser .WAV; enviarlas como audio/mpeg hacía que el navegador no calculara
+    # la duración (el reproductor mostraba 0 segundos).
+    send_data tmp.read, type: recording_content_type(name), disposition: 'inline',
                         filename: File.basename(name)
   ensure
     tmp&.close!
@@ -146,6 +149,17 @@ class Api::V1::Accounts::Jabvox::Cdr::ReportsController < Api::V1::Accounts::Jab
     # el cooldown es una protección anti-abuso, no una garantía de correctitud.
     Rails.logger.warn "[CDR] cooldown sync_now no disponible: #{e.message}"
     true
+  end
+
+  # MIME real del archivo de grabación según su extensión. Asterisk graba en .WAV
+  # (o .wav) por defecto; también soportamos mp3/gsm/ogg por si el PBX los usa.
+  def recording_content_type(name)
+    case File.extname(name.to_s).downcase
+    when '.mp3' then 'audio/mpeg'
+    when '.ogg' then 'audio/ogg'
+    when '.gsm' then 'audio/gsm'
+    else 'audio/wav' # .wav / .WAV y cualquier otro: los .WAV de Asterisk
+    end
   end
 
   # nil clears the typification; otherwise the account-scoped typification or nil.
