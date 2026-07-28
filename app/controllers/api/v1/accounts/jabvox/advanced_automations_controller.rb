@@ -15,18 +15,10 @@ class Api::V1::Accounts::Jabvox::AdvancedAutomationsController < Api::V1::Accoun
   # Devuelve { url } con el JWT en el query. No expone el secreto.
   def sso_token
     secret = sso_shared_secret
-    if secret.blank?
-      # rubocop:disable Rails/I18nLocaleTexts
-      return render json: { error: 'SSO no configurado' }, status: :service_unavailable
-      # rubocop:enable Rails/I18nLocaleTexts
-    end
+    return render json: { error: 'SSO no configurado' }, status: :service_unavailable if secret.blank?
 
     frontend = automations_frontend_url
-    if frontend.blank?
-      # rubocop:disable Rails/I18nLocaleTexts
-      return render json: { error: 'URL de Automations no configurada' }, status: :service_unavailable
-      # rubocop:enable Rails/I18nLocaleTexts
-    end
+    return render json: { error: 'URL de Automations no configurada' }, status: :service_unavailable if frontend.blank?
 
     token = JWT.encode(sso_claims, secret, 'HS256')
     render json: { url: "#{frontend.chomp('/')}/embed?sso=#{token}&theme=#{sanitized_theme}" }
@@ -42,7 +34,15 @@ class Api::V1::Accounts::Jabvox::AdvancedAutomationsController < Api::V1::Accoun
   private
 
   def sso_claims
-    now = Time.now.to_i
+    # `Time.current` (zona de la app) en vez de `Time.now` (zona del sistema):
+    # iat/exp son epoch UTC y el motor de Automations los valida contra su propio
+    # reloj, asi que un desfase de zona entre Rails y el sistema recortaria la
+    # vida util del token o lo haria nacer caducado.
+    #
+    # Se toma UN solo instante y se reutiliza: antes `exp` volvia a llamar a
+    # `Time.now`, de modo que iat y exp se median en momentos distintos y la
+    # ventana real no era exactamente SSO_TTL.
+    now = Time.current
     {
       iss: SSO_ISSUER,
       aud: SSO_AUDIENCE,
@@ -52,8 +52,8 @@ class Api::V1::Accounts::Jabvox::AdvancedAutomationsController < Api::V1::Accoun
       email: Current.user.email,
       name: Current.user.name,
       nonce: SecureRandom.hex(16),
-      iat: now,
-      exp: (Time.now + SSO_TTL).to_i
+      iat: now.to_i,
+      exp: (now + SSO_TTL).to_i
     }
   end
 
@@ -61,9 +61,7 @@ class Api::V1::Accounts::Jabvox::AdvancedAutomationsController < Api::V1::Accoun
   def ensure_account_administrator
     return if Current.account_user&.administrator?
 
-    # rubocop:disable Rails/I18nLocaleTexts
     render json: { error: 'Solo los administradores pueden acceder a este modulo' }, status: :forbidden
-    # rubocop:enable Rails/I18nLocaleTexts
   end
 
   def still_authorized?
