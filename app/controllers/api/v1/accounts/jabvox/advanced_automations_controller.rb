@@ -13,12 +13,21 @@ class Api::V1::Accounts::Jabvox::AdvancedAutomationsController < Api::V1::Accoun
 
   # POST /api/v1/accounts/:account_id/jabvox/advanced_automations/sso_token
   # Devuelve { url } con el JWT en el query. No expone el secreto.
+  # Los dos mensajes nombran la clave que falta y donde se rellena: este 503 lo
+  # ve un administrador de la plataforma, no un usuario final, y sin el nombre
+  # concreto no hay forma de saber cual de las dos configuraciones falta.
   def sso_token
     secret = sso_shared_secret
-    return render json: { error: 'SSO no configurado' }, status: :service_unavailable if secret.blank?
+    if secret.blank?
+      return render json: { error: 'Falta AUTOMATIONS_SSO_SECRET en Super Admin > Jabvox Automations' },
+                    status: :service_unavailable
+    end
 
     frontend = automations_frontend_url
-    return render json: { error: 'URL de Automations no configurada' }, status: :service_unavailable if frontend.blank?
+    if frontend.blank?
+      return render json: { error: 'Falta AUTOMATIONS_FRONTEND_URL (URL publica del iframe) en Super Admin > Jabvox Automations' },
+                    status: :service_unavailable
+    end
 
     token = JWT.encode(sso_claims, secret, 'HS256')
     render json: { url: "#{frontend.chomp('/')}/embed?sso=#{token}&theme=#{sanitized_theme}" }

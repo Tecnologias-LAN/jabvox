@@ -34,7 +34,14 @@ const resolveErrorMessage = error => {
     return t('JABVOX_ADVANCED_AUTOMATIONS.ERRORS.FORBIDDEN');
   }
   if (status === 503) {
-    return t('JABVOX_ADVANCED_AUTOMATIONS.ERRORS.NOT_CONFIGURED');
+    // El backend nombra la clave que falta (AUTOMATIONS_SSO_SECRET o
+    // AUTOMATIONS_FRONTEND_URL). Se muestra ese detalle: el texto genérico
+    // decía solo "no está configurado", que obliga a ir a leer los logs para
+    // saber cuál de las dos falta. Solo lo ven administradores de cuenta.
+    const detail = error?.response?.data?.error;
+    return detail
+      ? `${t('JABVOX_ADVANCED_AUTOMATIONS.ERRORS.NOT_CONFIGURED')} (${detail})`
+      : t('JABVOX_ADVANCED_AUTOMATIONS.ERRORS.NOT_CONFIGURED');
   }
   return t('JABVOX_ADVANCED_AUTOMATIONS.ERRORS.GENERIC');
 };

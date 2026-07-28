@@ -1,6 +1,6 @@
 class SuperAdmin::AutomationsConfigsController < SuperAdmin::ApplicationController
-  ALLOWED_CONFIGS = %w[AUTOMATIONS_SERVICE_URL AUTOMATIONS_PROVISION_KEY AUTOMATIONS_SSO_SECRET
-                       AUTOMATIONS_JABVOX_CALLBACK_URL].freeze
+  ALLOWED_CONFIGS = %w[AUTOMATIONS_SERVICE_URL AUTOMATIONS_FRONTEND_URL AUTOMATIONS_PROVISION_KEY
+                       AUTOMATIONS_SSO_SECRET AUTOMATIONS_JABVOX_CALLBACK_URL].freeze
 
   # Secretos que nunca se re-renderizan: un envio en blanco significa
   # "conservar el valor actual", no "borrarlo".

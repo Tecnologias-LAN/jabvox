@@ -42,6 +42,30 @@
 
     <div class="flex mb-8">
       <div class="field-unit__label">
+        <%= form.label 'app_config[AUTOMATIONS_FRONTEND_URL]', 'Frontend URL (iframe)' %>
+      </div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_field 'app_config[AUTOMATIONS_FRONTEND_URL]', value: @app_config['AUTOMATIONS_FRONTEND_URL'] %>
+        <p class="pt-2 text-xs italic text-slate-400">
+          URL <strong>pública</strong> de Automations: es la que se pone en el <code>src</code> del
+          iframe, así que la abre <strong>el navegador del usuario</strong>, no el servidor.
+          <br>
+          Aquí <strong>sí</strong> va el dominio público con HTTPS
+          (p.ej. <code>https://automatizaciones.midominio.com</code>): una IP interna como
+          <code>127.0.0.1</code> o <code>172.17.0.1</code> no la puede resolver el navegador del
+          usuario. Es la única de las tres URLs que es pública.
+          <br>
+          Debe coincidir con el origen que Automations tenga en <code>SSO_ALLOWED_ORIGINS</code>,
+          o el intercambio SSO responderá 401.
+          <br>
+          Si se deja vacía, abrir el módulo devuelve <strong>503</strong>: sin ella no se puede
+          construir la URL del iframe.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex mb-8">
+      <div class="field-unit__label">
         <%= form.label 'app_config[AUTOMATIONS_JABVOX_CALLBACK_URL]', 'Jabvox Callback URL' %>
       </div>
       <div class="-mt-2 field-unit__field">
