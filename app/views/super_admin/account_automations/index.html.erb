@@ -113,4 +113,196 @@
       </p>
     <% end %>
   </div>
+
+  <%# ------------------------------------------------------------------ %>
+  <%# Usuario de servicio de la cuenta (credencial SALIENTE).            %>
+  <%#                                                                    %>
+  <%# Son dos credenciales distintas y complementarias:                  %>
+  <%#   - ENTRANTE (bloque siguiente): la API key con la que Jabvox llama %>
+  <%#     a Automations.                                                 %>
+  <%#   - SALIENTE (este bloque): el access token con el que Automations  %>
+  <%#     llama de vuelta a Jabvox para leer/escribir datos de la cuenta. %>
+  <%# ------------------------------------------------------------------ %>
+  <div style="margin-top:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+    <h3 style="font-weight:600; font-size:14px; margin-bottom:6px;">Usuario de servicio de esta cuenta</h3>
+    <p style="font-size:13px; color:#374151; margin:0 0 12px;">
+      Identidad dedicada con la que Automations lee y escribe datos de ESTA cuenta.
+      Se crea automáticamente al activar el módulo: no es una persona, no puede iniciar sesión
+      (contraseña aleatoria no recuperable) y todo lo que hagan las automatizaciones queda
+      registrado a su nombre, no al de un administrador humano.
+    </p>
+
+    <% if @service_user_status.present? %>
+      <table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:12px;">
+        <tbody>
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:8px 4px; color:#6b7280; width:220px;">Usuario de servicio</td>
+            <td style="padding:8px 4px;">
+              <% if @service_user_status[:exists] %>
+                <strong><%= @service_user_status[:name] %></strong>
+                <span style="font-family:monospace; color:#6b7280;">(<%= @service_user_status[:email] %>)</span>
+              <% else %>
+                <span style="color:#854d0e;">Todavía no existe. Se creará al activar el módulo:</span>
+                <span style="font-family:monospace; color:#6b7280;"><%= @service_user_status[:email] %></span>
+              <% end %>
+            </td>
+          </tr>
+          <% if @service_user_status[:exists] %>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:8px 4px; color:#6b7280;">Estado en la cuenta</td>
+              <td style="padding:8px 4px;">
+                <% if @service_user_status[:member] %>
+                  <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#dcfce7; color:#166534;">
+                    Activo — rol <%= @service_user_status[:role] %>
+                  </span>
+                <% else %>
+                  <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#fee2e2; color:#991b1b;">
+                    Desactivado (sin acceso a la cuenta)
+                  </span>
+                <% end %>
+              </td>
+            </tr>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:8px 4px; color:#6b7280;">Token de acceso</td>
+              <td style="padding:8px 4px;">
+                <% if @service_user_status[:has_token] %>
+                  <span style="color:#166534;">Emitido</span>
+                  <span style="color:#6b7280;">
+                    el <%= @service_user_status[:token_created_at]&.strftime('%Y-%m-%d %H:%M') || '—' %>
+                  </span>
+                <% else %>
+                  <span style="color:#991b1b;">Sin token</span>
+                <% end %>
+                <%# El valor del token NUNCA se muestra: solo viaja server-to-server. %>
+              </td>
+            </tr>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:8px 4px; color:#6b7280;">Cuenta confirmada</td>
+              <td style="padding:8px 4px;">
+                <%= @service_user_status[:confirmed] ? 'Sí (necesario para que la API acepte el token)' : 'No' %>
+              </td>
+            </tr>
+          <% end %>
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:8px 4px; color:#6b7280;">Último aprovisionamiento</td>
+            <td style="padding:8px 4px;"><%= @config.last_provisioned_at&.strftime('%Y-%m-%d %H:%M') || '—' %></td>
+          </tr>
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:8px 4px; color:#6b7280;">Último estado de esta cuenta</td>
+            <td style="padding:8px 4px;">
+              <% if @config.last_status == 'ok' %>
+                <span style="color:#166534;">ok</span>
+              <% elsif @config.last_status.present? %>
+                <span style="color:#991b1b;"><%= @config.last_status %></span>
+              <% else %>
+                —
+              <% end %>
+            </td>
+          </tr>
+          <% if @config.last_error.present? %>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:8px 4px; color:#6b7280;">Último error</td>
+              <td style="padding:8px 4px; color:#991b1b;"><%= @config.last_error %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+
+      <% if @config.enabled? %>
+        <%= form_tag regenerate_service_token_super_admin_account_account_automations_path(@account), method: :post,
+              data: { turbo: false } do %>
+          <%= submit_tag 'Regenerar token del usuario de servicio', class: 'button',
+                data: { confirm: '¿Regenerar el token? El actual dejará de servir inmediatamente y se reenviará el nuevo a Automations.' } %>
+        <% end %>
+        <p style="margin-top:8px; font-size:12px; color:#6b7280;">
+          Úsalo si Automations devuelve 401/403 con esta cuenta: genera un token nuevo
+          y lo reenvía a Automations en la misma operación. Afecta solo a esta cuenta.
+        </p>
+      <% else %>
+        <p style="font-size:12px; color:#6b7280;">
+          Activa el módulo para crear el usuario de servicio y emitir su token.
+        </p>
+      <% end %>
+    <% end %>
+  </div>
+
+  <%# ------------------------------------------------------------------ %>
+  <%# Credencial PROPIA de esta cuenta. Se regenera en el panel /admin de %>
+  <%# Automations y se pega aquí; así un fallo de esta cuenta no afecta a %>
+  <%# las demás ni a la conexión global.                                  %>
+  <%# ------------------------------------------------------------------ %>
+  <div style="margin-top:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+    <h3 style="font-weight:600; font-size:14px; margin-bottom:6px;">Credencial de esta cuenta</h3>
+    <p style="font-size:13px; color:#374151; margin:0 0 12px;">
+      API key propia con la que Jabvox opera ESTA cuenta contra Automations.
+      Regenérala en el panel de Automations (Cuentas → Credenciales) y pégala aquí.
+      Si esta credencial falla, solo se ve afectada esta cuenta.
+    </p>
+
+    <table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:12px;">
+      <tbody>
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:8px 4px; color:#6b7280; width:220px;">Credencial en uso</td>
+          <td style="padding:8px 4px;">
+            <% if @config.own_api_key? %>
+              <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#dcfce7; color:#166534;">
+                Propia de la cuenta
+              </span>
+            <% else %>
+              <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#fef9c3; color:#854d0e;">
+                Provision Key maestra (global)
+              </span>
+            <% end %>
+          </td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:8px 4px; color:#6b7280;">API key guardada</td>
+          <td style="padding:8px 4px; font-family:monospace;"><%= @config.masked_api_key || '—' %></td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:8px 4px; color:#6b7280;">Guardada el</td>
+          <td style="padding:8px 4px;"><%= @config.api_key_set_at_jabvox&.strftime('%Y-%m-%d %H:%M') || '—' %></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <%= form_tag update_api_key_super_admin_account_account_automations_path(@account), method: :patch,
+          style: 'display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;',
+          data: { turbo: false } do %>
+      <label style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:4px;">
+        API key de la cuenta (vacío = conservar la actual)
+        <%= password_field_tag :api_key, nil, autocomplete: 'off', placeholder: 'jbx_…',
+              style: 'width:360px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px; font-family:monospace;' %>
+      </label>
+      <%= submit_tag 'Guardar credencial', class: 'button' %>
+      <% if @config.own_api_key? %>
+        <%= submit_tag 'Quitar', name: 'remove_api_key', class: 'button',
+              data: { confirm: '¿Quitar la credencial propia? Esta cuenta volverá a usar la Provision Key maestra.' } %>
+      <% end %>
+    <% end %>
+
+    <%= form_tag test_connection_super_admin_account_account_automations_path(@account), method: :post,
+          style: 'margin-top:12px;', data: { turbo: false } do %>
+      <%= submit_tag 'Probar conexión de esta cuenta', class: 'button' %>
+    <% end %>
+
+    <% if @account_health %>
+      <% if @account_health.success? %>
+        <p style="margin-top:12px; font-size:13px; color:#166534;">
+          Conexión correcta con la credencial
+          <strong><%= @credential_kind == :account ? 'propia de la cuenta' : 'maestra (global)' %></strong>.
+        </p>
+      <% else %>
+        <p style="margin-top:12px; font-size:13px; color:#991b1b;">
+          Falló la conexión de esta cuenta (credencial
+          <strong><%= @credential_kind == :account ? 'propia de la cuenta' : 'maestra (global)' %></strong>):
+          <%= @account_health.error %>
+        </p>
+        <p style="margin-top:6px; font-size:12px; color:#6b7280;">
+          Si el error es 401, regenera la API key de esta cuenta en el panel de Automations y pégala arriba.
+          Las demás cuentas y la conexión global no se ven afectadas.
+        </p>
+      <% end %>
+    <% end %>
+  </div>
 </section>

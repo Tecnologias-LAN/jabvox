@@ -1081,6 +1081,12 @@ Rails.application.routes.draw do
         resources :account_automations, only: [:index] do
           patch :toggle, on: :collection
           patch :update_limit, on: :collection
+          # Credencial propia de la cuenta: guardar/quitar y probar su conexión.
+          patch :update_api_key, on: :collection
+          post :test_connection, on: :collection
+          # Token SALIENTE: regenera el access token del usuario de servicio de la
+          # cuenta y lo reenvía a Automations. Vía de recuperación ante un 401.
+          post :regenerate_service_token, on: :collection
         end
         resources :jabvox_user_extensions, only: [:index, :create, :destroy]
       end

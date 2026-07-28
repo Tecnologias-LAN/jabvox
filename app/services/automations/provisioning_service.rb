@@ -31,9 +31,12 @@ class Automations::ProvisioningService
   # jabvox_base_url: URL interna por la que Automation vuelve a alcanzar este
   # Jabvox para leer/escribir datos de la cuenta. Se resuelve automáticamente
   # (ver .callback_base_url) si no se pasa explícitamente.
+  #
+  # SIEMPRE viaja con la Provision Key MAESTRA (master_client): la cuenta aún no
+  # existe en la plataforma remota, así que todavía no puede tener API key propia.
   def provision!(max_flows: nil, advanced_automations_enabled: true, jabvox_access_token: nil)
     require_account!
-    response = client.post('provisioning/accounts') do |req|
+    response = master_client.post('provisioning/accounts') do |req|
       req.body = {
         chatwootAccountId: @account.id,
         name: @account.name,
@@ -63,9 +66,13 @@ class Automations::ProvisioningService
   end
 
   # DELETE /provisioning/accounts/:chatwootAccountId — deactivates the remote account.
+  #
+  # Va con la MAESTRA: desactivar una cuenta es una operación de plataforma, y
+  # debe seguir siendo posible aunque la key propia de la cuenta esté revocada
+  # o desincronizada (que es justo cuando más falta hace poder desactivarla).
   def deprovision!
     require_account!
-    response = client.delete("provisioning/accounts/#{@account.id}")
+    response = master_client.delete("provisioning/accounts/#{@account.id}")
     build_result(response)
   rescue Faraday::Error, ConfigurationError, URI::Error => e
     failure(call_error_message(e))
@@ -88,6 +95,35 @@ class Automations::ProvisioningService
     build_result(response)
   rescue Faraday::Error, ConfigurationError, URI::Error => e
     failure(call_error_message(e))
+  end
+
+  # "Probar conexión de ESTA cuenta": comprueba de punta a punta la credencial de
+  # la cuenta contra la plataforma remota.
+  #
+  # POR QUÉ NO VALE EL /health GLOBAL: /health es público y no lleva ninguna
+  # credencial, así que responde OK aunque la key de la cuenta esté revocada. Y
+  # POR QUÉ ESTE ENDPOINT: /provisioning/accounts/:id es la operación por cuenta
+  # que Jabvox ya usa, es de lectura (idempotente, no muta nada) y devuelve un
+  # 401 si la credencial que enviamos no es válida — exactamente lo que hay que
+  # diagnosticar.
+  #
+  # AISLAMIENTO: el resultado se devuelve como Result, nunca como excepción, y
+  # todo el estado (cliente Faraday, credencial) es de ESTA instancia y de ESTA
+  # cuenta. Una key inválida en una cuenta produce un fallo en su propia fila y
+  # no toca ni la configuración global ni la conexión de las demás.
+  def account_health
+    require_account!
+    response = client.get("provisioning/accounts/#{@account.id}")
+    build_result(response)
+  rescue Faraday::Error, ConfigurationError, URI::Error => e
+    failure(call_error_message(e))
+  end
+
+  # Qué credencial se usará para las operaciones de esta cuenta: :account si
+  # tiene API key propia, :master si cae a la Provision Key global.
+  # La UI lo muestra para que el operador sepa qué está probando realmente.
+  def credential_kind
+    account_api_key.present? ? :account : :master
   end
 
   # GET /health — public endpoint, no auth needed.
@@ -214,9 +250,54 @@ class Automations::ProvisioningService
     key
   end
 
-  # Authenticated client used for provisioning endpoints.
+  # API key PROPIA de la cuenta (nil si no tiene: cuentas ya aprovisionadas antes
+  # de que existiera esta columna, o cuentas donde el operador no la ha pegado).
+  #
+  # Se lee de forma defensiva porque este servicio también se instancia sin
+  # cuenta (para el /health global) y porque una cuenta puede no tener aún fila
+  # de configuración.
+  def account_api_key
+    return nil if @account.nil?
+
+    config = @account.account_automation_config
+    config&.api_key_jabvox.presence
+  end
+
+  # Cliente autenticado para las operaciones de ESTA cuenta.
+  #
+  # ORDEN DE PRECEDENCIA (compatibilidad hacia atrás):
+  #   1. API key propia de la cuenta -> header `X-Api-Key`.
+  #   2. Si no tiene -> Provision Key maestra -> header `X-Provision-Key`.
+  #
+  # Se envía UNA credencial, no las dos: mandar también la maestra cuando existe
+  # key de cuenta anularía el aislamiento, porque la plataforma remota aceptaría
+  # la petición por la maestra y una key de cuenta revocada seguiría "funcionando"
+  # — el operador nunca vería el fallo que intenta diagnosticar.
+  #
+  # `provision_key` solo se exige (y por tanto solo puede lanzar
+  # ConfigurationError) en la rama 2: una cuenta con credencial propia no debe
+  # depender de que la maestra esté configurada.
   def client
-    @client ||= build_connection(base_url) do |f|
+    @client ||= begin
+      key = account_api_key
+      build_connection(base_url) do |f|
+        if key.present?
+          f.headers['X-Api-Key'] = key
+        else
+          f.headers['X-Provision-Key'] = provision_key
+        end
+      end
+    end
+  end
+
+  # Cliente que SIEMPRE usa la Provision Key maestra, ignorando la key de cuenta.
+  #
+  # Lo necesita el aprovisionamiento inicial: en ese momento la cuenta todavía no
+  # existe en la plataforma remota, así que no puede tener una API key propia
+  # (la key la emite Automations DESPUÉS de crear la cuenta). Crear/activar y
+  # desactivar son operaciones de plataforma, no de tenant.
+  def master_client
+    @master_client ||= build_connection(base_url) do |f|
       f.headers['X-Provision-Key'] = provision_key
     end
   end
