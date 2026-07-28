@@ -373,6 +373,9 @@ Rails.application.routes.draw do
           resources :upload, only: [:create]
 
           namespace :jabvox do
+            # Emisor de SSO + comprobacion de permisos para el iframe embebido.
+            post 'advanced_automations/sso_token', to: 'advanced_automations#sso_token'
+            get 'advanced_automations/permissions_check', to: 'advanced_automations#permissions_check'
             resources :kanban_funnels do
               resources :kanban_stages, only: [:index, :create, :update, :destroy] do
                 resources :kanban_stage_automations, only: [:index, :create, :show, :update, :destroy]
@@ -1077,6 +1080,7 @@ Rails.application.routes.draw do
         end
         resources :account_automations, only: [:index] do
           patch :toggle, on: :collection
+          patch :update_limit, on: :collection
         end
         resources :jabvox_user_extensions, only: [:index, :create, :destroy]
       end

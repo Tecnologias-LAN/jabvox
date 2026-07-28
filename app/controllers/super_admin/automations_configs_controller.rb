@@ -1,5 +1,10 @@
 class SuperAdmin::AutomationsConfigsController < SuperAdmin::ApplicationController
-  ALLOWED_CONFIGS = %w[AUTOMATIONS_SERVICE_URL AUTOMATIONS_PROVISION_KEY].freeze
+  ALLOWED_CONFIGS = %w[AUTOMATIONS_SERVICE_URL AUTOMATIONS_PROVISION_KEY AUTOMATIONS_SSO_SECRET
+                       AUTOMATIONS_JABVOX_CALLBACK_URL].freeze
+
+  # Secretos que nunca se re-renderizan: un envio en blanco significa
+  # "conservar el valor actual", no "borrarlo".
+  MASKED_SECRETS = %w[AUTOMATIONS_PROVISION_KEY AUTOMATIONS_SSO_SECRET].freeze
 
   before_action :load_app_config
 
@@ -43,9 +48,9 @@ class SuperAdmin::AutomationsConfigsController < SuperAdmin::ApplicationControll
   end
   # rubocop:enable Style/HashTransformValues
 
-  # The master provisioning key is never re-rendered, so a blank submission
-  # means "keep the current value" rather than "clear it".
+  # Los secretos enmascarados nunca se re-renderizan, asi que un envio en blanco
+  # significa "conservar el valor actual" en vez de "borrarlo".
   def skip_blank_secret?(key, value)
-    key == 'AUTOMATIONS_PROVISION_KEY' && value.blank?
+    MASKED_SECRETS.include?(key) && value.blank?
   end
 end

@@ -37,12 +37,47 @@
           </span>
         </p>
       </div>
-      <%= button_to @config.enabled? ? 'Desactivar' : 'Activar',
-            toggle_super_admin_account_account_automations_path(@account),
-            method: :patch,
-            data: { confirm: @config.enabled? ? '¿Desactivar Automations para esta cuenta?' : '¿Activar y aprovisionar Automations para esta cuenta?' },
-            class: 'button' %>
+      <%= form_tag toggle_super_admin_account_account_automations_path(@account), method: :patch,
+            style: 'display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;',
+            data: { turbo: false } do %>
+        <% unless @config.enabled? %>
+          <label style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:4px;">
+            Límite de flujos (vacío = ilimitado)
+            <%= number_field_tag :max_flows, @config.max_flows, min: 1, step: 1,
+                  style: 'width:180px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;' %>
+          </label>
+        <% end %>
+        <%= submit_tag @config.enabled? ? 'Desactivar' : 'Activar', class: 'button',
+              data: { confirm: @config.enabled? ? '¿Desactivar Automations para esta cuenta?' : '¿Activar y aprovisionar Automations para esta cuenta?' } %>
+      <% end %>
     </div>
+
+    <% if @config.enabled? %>
+      <%= form_tag update_limit_super_admin_account_account_automations_path(@account), method: :patch,
+            style: 'display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-top:12px;',
+            data: { turbo: false } do %>
+        <label style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:4px;">
+          Límite de flujos (vacío = ilimitado)
+          <%= number_field_tag :max_flows, @config.max_flows, min: 1, step: 1,
+                style: 'width:180px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;' %>
+        </label>
+        <%= submit_tag 'Actualizar límite', class: 'button' %>
+      <% end %>
+
+      <% if @module_status&.success? && @module_status.data.is_a?(Hash) %>
+        <% used = @module_status.data['flowCount'] %>
+        <% cap  = @module_status.data['maxFlows'] %>
+        <p style="margin-top:12px; font-size:13px; color:#374151;">
+          Uso actual de flujos:
+          <strong><%= used.nil? ? '—' : used %></strong>
+          / <strong><%= cap.nil? ? 'Ilimitado' : cap %></strong>
+        </p>
+      <% elsif @module_status && !@module_status.success? %>
+        <p style="margin-top:12px; font-size:12px; color:#991b1b;">
+          No se pudo consultar el uso del módulo: <%= @module_status.error %>
+        </p>
+      <% end %>
+    <% end %>
 
     <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:16px;">
       <tbody>

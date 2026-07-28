@@ -25,6 +25,7 @@ class DashboardController < ActionController::Base
     DISABLE_USER_PROFILE_UPDATE
     DEPLOYMENT_ENV
     INSTALLATION_PRICING_PLAN
+    AUTOMATIONS_FRONTEND_URL
   ].freeze
 
   before_action :check_jabvox_ip_for_account_page

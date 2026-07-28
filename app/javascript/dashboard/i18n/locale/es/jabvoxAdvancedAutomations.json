@@ -1,0 +1,17 @@
+{
+  "JABVOX_ADVANCED_AUTOMATIONS": {
+    "TITLE": "Automatizaciones Avanzadas",
+    "DESCRIPTION": "Diseña flujos de automatización avanzados en la plataforma Jabvox Automations conectada a esta cuenta.",
+    "LOADING": "Cargando Automatizaciones Avanzadas…",
+    "ERRORS": {
+      "FORBIDDEN": "No tienes acceso a este módulo. Debes ser administrador y tener el módulo activo en esta cuenta.",
+      "NOT_CONFIGURED": "El módulo de Automatizaciones Avanzadas aún no está configurado. Contacta al administrador de la plataforma.",
+      "GENERIC": "No se pudo cargar Automatizaciones Avanzadas. Inténtalo de nuevo más tarde."
+    },
+    "CARD": {
+      "TITLE": "Plataforma de Automatizaciones",
+      "BODY": "Crea y gestiona tus flujos avanzados (integraciones, disparadores y acciones encadenadas) en la app de Automatizaciones.",
+      "OPEN": "Abrir Automatizaciones Avanzadas"
+    }
+  }
+}

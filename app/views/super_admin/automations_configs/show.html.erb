@@ -35,6 +35,20 @@
 
     <div class="flex mb-8">
       <div class="field-unit__label">
+        <%= form.label 'app_config[AUTOMATIONS_JABVOX_CALLBACK_URL]', 'Jabvox Callback URL' %>
+      </div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_field 'app_config[AUTOMATIONS_JABVOX_CALLBACK_URL]', value: @app_config['AUTOMATIONS_JABVOX_CALLBACK_URL'] %>
+        <p class="pt-2 text-xs italic text-slate-400">
+          URL por la que Automation alcanza este Jabvox para leer/escribir datos de la cuenta.
+          En la misma VM usa <code>http://host.docker.internal:3000</code> (o la IP privada).
+          Si se deja vacío se usa <code>FRONTEND_URL</code> o el fallback de desarrollo. Nunca uses un dominio público si Jabvox y Automation están juntos.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex mb-8">
+      <div class="field-unit__label">
         <%= form.label 'app_config[AUTOMATIONS_PROVISION_KEY]', 'Provision Key (maestra)' %>
       </div>
       <div class="-mt-2 field-unit__field">
@@ -46,6 +60,26 @@
         <p class="pt-2 text-xs italic text-slate-400">
           API key maestra de aprovisionamiento. Estado:
           <strong><%= _key_set ? 'configurada' : 'sin configurar' %></strong>.
+          Por seguridad no se muestra el valor actual.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex mb-8">
+      <div class="field-unit__label">
+        <%= form.label 'app_config[AUTOMATIONS_SSO_SECRET]', 'SSO Shared Secret' %>
+      </div>
+      <div class="-mt-2 field-unit__field">
+        <% _sso_set = @app_config['AUTOMATIONS_SSO_SECRET'].present? %>
+        <%= form.password_field 'app_config[AUTOMATIONS_SSO_SECRET]',
+              value: '',
+              placeholder: _sso_set ? '•••••••• (configurado — deja en blanco para conservar)' : 'Sin configurar',
+              class: 'mt-2 border border-slate-100 p-1.5 rounded-md w-full' %>
+        <p class="pt-2 text-xs italic text-slate-400">
+          Secreto compartido para firmar el token SSO del iframe embebido (HS256).
+          Debe ser EXACTAMENTE el mismo valor que <code>SSO_SHARED_SECRET</code> en
+          la plataforma Automation. Estado:
+          <strong><%= _sso_set ? 'configurado' : 'sin configurar' %></strong>.
           Por seguridad no se muestra el valor actual.
         </p>
       </div>

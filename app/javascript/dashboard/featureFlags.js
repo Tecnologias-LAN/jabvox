@@ -74,6 +74,7 @@ export const FEATURE_FLAGS = {
   JABVOX_LEAD_IMPORT: 'jabvox_lead_import',
   JABVOX_DATA_EXPORT: 'jabvox_data_export',
   JABVOX_LEAD_DELETE: 'jabvox_lead_delete',
+  JABVOX_ADVANCED_AUTOMATIONS: 'jabvox_advanced_automations',
 };
 
 export const PREMIUM_FEATURES = [

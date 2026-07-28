@@ -46,6 +46,7 @@ import { routes as jabvoxWhatsappTemplatesRoutes } from './jabvox-whatsapp-templ
 import { routes as jabvoxBulkWhatsappRoutes } from './jabvox-bulk-whatsapp/routes';
 import { routes as jabvoxLeadImportRoutes } from './jabvox-lead-import/routes';
 import { routes as jabvoxDataExportRoutes } from './jabvox-data-export/routes';
+import { routes as jabvoxAdvancedAutomationsRoutes } from './jabvox-advanced-automations/routes';
 
 export default {
   routes: [
@@ -107,5 +108,6 @@ export default {
     ...jabvoxBulkWhatsappRoutes,
     ...jabvoxLeadImportRoutes,
     ...jabvoxDataExportRoutes,
+    ...jabvoxAdvancedAutomationsRoutes,
   ],
 };

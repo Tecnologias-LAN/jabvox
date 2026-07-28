@@ -22,10 +22,40 @@ class Automations::ProvisioningService
   end
 
   # POST /provisioning/accounts — creates/activates the remote account.
-  def provision!
+  # max_flows nil => cupo ilimitado. advanced_automations_enabled habilita el
+  # módulo "Automatizaciones Avanzadas" en la plataforma remota.
+  #
+  # jabvox_access_token: access token de un ADMINISTRADOR de esta cuenta. Viaja
+  # server-to-server (protegido por la Provision Key + TLS) y Automation lo cifra
+  # en reposo como su integración jabvox de la cuenta. NUNCA se registra en logs.
+  # jabvox_base_url: URL interna por la que Automation vuelve a alcanzar este
+  # Jabvox para leer/escribir datos de la cuenta. Se resuelve automáticamente
+  # (ver .callback_base_url) si no se pasa explícitamente.
+  def provision!(max_flows: nil, advanced_automations_enabled: true, jabvox_access_token: nil)
     require_account!
     response = client.post('provisioning/accounts') do |req|
-      req.body = { chatwootAccountId: @account.id, name: @account.name, active: true }
+      req.body = {
+        chatwootAccountId: @account.id,
+        name: @account.name,
+        active: true,
+        advancedAutomationsEnabled: advanced_automations_enabled,
+        maxFlows: max_flows,
+        # Auto-aprovisionamiento de credenciales: el usuario nunca las configura.
+        jabvoxAccessToken: jabvox_access_token,
+        jabvoxBaseUrl: self.class.callback_base_url
+      }.compact
+    end
+    build_result(response)
+  rescue Faraday::Error => e
+    failure(network_error_message(e))
+  end
+
+  # PATCH /provisioning/accounts/:chatwootAccountId/module — actualiza el estado
+  # del módulo y/o el límite de flujos sin re-aprovisionar la cuenta.
+  def update_module!(max_flows:, enabled:)
+    require_account!
+    response = client.patch("provisioning/accounts/#{@account.id}/module") do |req|
+      req.body = { advancedAutomationsEnabled: enabled, maxFlows: max_flows }
     end
     build_result(response)
   rescue Faraday::Error => e
@@ -50,6 +80,16 @@ class Automations::ProvisioningService
     failure(network_error_message(e))
   end
 
+  # GET /provisioning/accounts/:chatwootAccountId → { enabled, maxFlows, flowCount }
+  # Uso actual del módulo (para mostrar consumo de cupo en el super admin).
+  def module_status
+    require_account!
+    response = client.get("provisioning/accounts/#{@account.id}")
+    build_result(response)
+  rescue Faraday::Error => e
+    failure(network_error_message(e))
+  end
+
   # GET /health — public endpoint, no auth needed.
   def service_health
     response = health_client.get('health')
@@ -68,6 +108,28 @@ class Automations::ProvisioningService
 
   def self.provision_key
     GlobalConfigService.load('AUTOMATIONS_PROVISION_KEY', nil).to_s.strip
+  end
+
+  # URL interna por la que la plataforma Automation vuelve a alcanzar ESTA
+  # instancia de Jabvox (para que sus nodos lean/escriban datos de la cuenta con
+  # el access token aprovisionado).
+  #
+  # Orden de resolución:
+  #   1. InstallationConfig 'AUTOMATIONS_JABVOX_CALLBACK_URL' (super admin).
+  #   2. ENV['FRONTEND_URL'].
+  #   3. Fallback de desarrollo: http://host.docker.internal:3000.
+  #
+  # IMPORTANTE (producción): debe ser la URL INTERNA por la que Automation
+  # alcanza Jabvox. Si ambos corren en la misma VM, usa http://host.docker.internal:3000
+  # (o la IP privada). NUNCA un dominio público cuando están juntos.
+  def self.callback_base_url
+    configured = GlobalConfigService.load('AUTOMATIONS_JABVOX_CALLBACK_URL', nil).to_s.strip
+    return configured if configured.present?
+
+    env_url = ENV['FRONTEND_URL'].to_s.strip
+    return env_url if env_url.present?
+
+    'http://host.docker.internal:3000'
   end
 
   private

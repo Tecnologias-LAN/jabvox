@@ -31,7 +31,8 @@ class JabvoxModulesField < Administrate::Field::Base
     [:jabvox_bulk_whatsapp_enabled_jabvox, 'Jabvox WhatsApp Masivo'],
     [:jabvox_lead_import_enabled_jabvox, 'Jabvox Importar Leads'],
     [:jabvox_data_export_enabled_jabvox, 'Jabvox Exportar Datos'],
-    [:jabvox_lead_delete_enabled_jabvox, 'Jabvox Eliminar Leads']
+    [:jabvox_lead_delete_enabled_jabvox, 'Jabvox Eliminar Leads'],
+    [:jabvox_advanced_automations_enabled_jabvox, 'Automatizaciones Avanzadas']
   ].freeze
 
   # [[column, label, enabled_boolean], ...] for the current account.

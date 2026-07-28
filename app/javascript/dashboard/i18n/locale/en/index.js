@@ -70,6 +70,7 @@ import jabvoxWhatsappTemplates from './jabvoxWhatsappTemplates.json';
 import jabvoxBulkWhatsapp from './jabvoxBulkWhatsapp.json';
 import jabvoxLeadImport from './jabvoxLeadImport.json';
 import jabvoxDataExport from './jabvoxDataExport.json';
+import jabvoxAdvancedAutomations from './jabvoxAdvancedAutomations.json';
 
 export default {
   ...advancedFilters,
@@ -144,4 +145,5 @@ export default {
   ...jabvoxBulkWhatsapp,
   ...jabvoxLeadImport,
   ...jabvoxDataExport,
+  ...jabvoxAdvancedAutomations,
 };

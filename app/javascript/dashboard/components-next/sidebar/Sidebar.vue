@@ -917,6 +917,20 @@ const menuItems = computed(() => {
           icon: 'i-lucide-repeat',
           to: accountScopedRoute('automation_list'),
         },
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_ADVANCED_AUTOMATIONS
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Advanced Automations',
+                label: t('SIDEBAR.ADVANCED_AUTOMATION'),
+                icon: 'i-lucide-workflow',
+                to: accountScopedRoute('jabvox_advanced_automations_settings'),
+                activeOn: ['jabvox_advanced_automations_settings'],
+              },
+            ]
+          : []),
         {
           name: 'Settings Agent Bots',
           label: t('SIDEBAR.AGENT_BOTS'),

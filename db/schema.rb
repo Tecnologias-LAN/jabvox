@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_23_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_23_000003) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -39,6 +39,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_000001) do
     t.text "last_error"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "max_flows"
     t.index ["account_id"], name: "index_account_automation_configs_on_account_id_unique", unique: true
   end
 
@@ -119,6 +120,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_000001) do
     t.boolean "jabvox_lead_import_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_data_export_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_lead_delete_enabled_jabvox", default: false, null: false
+    t.boolean "jabvox_advanced_automations_enabled_jabvox", default: false, null: false
     t.index ["status"], name: "index_accounts_on_status"
   end
 

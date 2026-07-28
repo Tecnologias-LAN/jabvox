@@ -24,6 +24,7 @@ const {
   WIDGET_BRAND_URL: widgetBrandURL,
   DISABLE_USER_PROFILE_UPDATE: disableUserProfileUpdate,
   DEPLOYMENT_ENV: deploymentEnv,
+  AUTOMATIONS_FRONTEND_URL: automationsFrontendUrl,
 } = window.globalConfig || {};
 
 const state = {
@@ -48,6 +49,7 @@ const state = {
   privacyURL,
   termsURL,
   widgetBrandURL,
+  automationsFrontendUrl,
   isEnterprise: parseBoolean(isEnterprise),
 };
 

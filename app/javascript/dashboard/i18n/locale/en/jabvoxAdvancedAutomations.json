@@ -1,0 +1,17 @@
+{
+  "JABVOX_ADVANCED_AUTOMATIONS": {
+    "TITLE": "Advanced Automations",
+    "DESCRIPTION": "Build advanced automation flows in the Jabvox Automations platform connected to this account.",
+    "LOADING": "Loading Advanced Automations…",
+    "ERRORS": {
+      "FORBIDDEN": "You don't have access to this module. You must be an administrator and have the module enabled for this account.",
+      "NOT_CONFIGURED": "The Advanced Automations module is not configured yet. Please contact the platform administrator.",
+      "GENERIC": "Advanced Automations could not be loaded. Please try again later."
+    },
+    "CARD": {
+      "TITLE": "Automations Platform",
+      "BODY": "Create and manage your advanced flows (integrations, triggers and chained actions) in the Automations app.",
+      "OPEN": "Open Advanced Automations"
+    }
+  }
+}

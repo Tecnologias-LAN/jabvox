@@ -7,6 +7,7 @@
 #  last_error          :text
 #  last_provisioned_at :datetime
 #  last_status         :string
+#  max_flows           :integer
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
 #  account_id          :bigint           not null
@@ -26,6 +27,8 @@ class AccountAutomationConfig < ApplicationRecord
   belongs_to :account
 
   validates :account_id, uniqueness: true
+  # max_flows nil = ilimitado; si viene, debe ser positivo.
+  validates :max_flows, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
 
   scope :enabled, -> { where(enabled: true) }
 end

@@ -50,6 +50,7 @@ import jabvoxTasks from './jabvoxTasks.json';
 import jabvoxBulkWhatsapp from './jabvoxBulkWhatsapp.json';
 import jabvoxLeadImport from './jabvoxLeadImport.json';
 import jabvoxDataExport from './jabvoxDataExport.json';
+import jabvoxAdvancedAutomations from './jabvoxAdvancedAutomations.json';
 import jabvoxSaldo from './jabvoxSaldo.json';
 import jabvoxSms from './jabvoxSms.json';
 import jabvoxVoip from './jabvoxVoip.json';
@@ -119,6 +120,7 @@ export default {
   ...jabvoxBulkWhatsapp,
   ...jabvoxLeadImport,
   ...jabvoxDataExport,
+  ...jabvoxAdvancedAutomations,
   ...jabvoxSaldo,
   ...jabvoxSms,
   ...jabvoxVoip,
