@@ -46,8 +46,8 @@ class Automations::ProvisioningService
       }.compact
     end
     build_result(response)
-  rescue Faraday::Error => e
-    failure(network_error_message(e))
+  rescue Faraday::Error, ConfigurationError, URI::Error => e
+    failure(call_error_message(e))
   end
 
   # PATCH /provisioning/accounts/:chatwootAccountId/module — actualiza el estado
@@ -58,8 +58,8 @@ class Automations::ProvisioningService
       req.body = { advancedAutomationsEnabled: enabled, maxFlows: max_flows }
     end
     build_result(response)
-  rescue Faraday::Error => e
-    failure(network_error_message(e))
+  rescue Faraday::Error, ConfigurationError, URI::Error => e
+    failure(call_error_message(e))
   end
 
   # DELETE /provisioning/accounts/:chatwootAccountId — deactivates the remote account.
@@ -67,8 +67,8 @@ class Automations::ProvisioningService
     require_account!
     response = client.delete("provisioning/accounts/#{@account.id}")
     build_result(response)
-  rescue Faraday::Error => e
-    failure(network_error_message(e))
+  rescue Faraday::Error, ConfigurationError, URI::Error => e
+    failure(call_error_message(e))
   end
 
   # GET /provisioning/status/:chatwootAccountId
@@ -76,8 +76,8 @@ class Automations::ProvisioningService
     require_account!
     response = client.get("provisioning/status/#{@account.id}")
     build_result(response)
-  rescue Faraday::Error => e
-    failure(network_error_message(e))
+  rescue Faraday::Error, ConfigurationError, URI::Error => e
+    failure(call_error_message(e))
   end
 
   # GET /provisioning/accounts/:chatwootAccountId → { enabled, maxFlows, flowCount }
@@ -86,16 +86,29 @@ class Automations::ProvisioningService
     require_account!
     response = client.get("provisioning/accounts/#{@account.id}")
     build_result(response)
-  rescue Faraday::Error => e
-    failure(network_error_message(e))
+  rescue Faraday::Error, ConfigurationError, URI::Error => e
+    failure(call_error_message(e))
   end
 
   # GET /health — public endpoint, no auth needed.
+  #
+  # "Probar conexion" devolvia un 500 en los dos fallos de configuracion mas
+  # probables, en vez de un mensaje util:
+  #
+  #   - Sin "Service URL": el metodo privado `base_url` lanza ConfigurationError,
+  #     que no estaba capturado aqui.
+  #   - Con una URL sin esquema (p.ej. "172.17.0.1:3001"): `Faraday.new` lanza
+  #     `URI::BadURIError` ("both URI are relative"), que NO desciende de
+  #     `Faraday::Error`, asi que tampoco lo capturaba el rescue existente.
+  #
+  # Ambos se traducen ahora a un resultado de fallo con el motivo concreto: este
+  # boton existe justamente para diagnosticar la configuracion, asi que tiene que
+  # explicar lo que falta en lugar de romperse.
   def service_health
     response = health_client.get('health')
     build_result(response)
-  rescue Faraday::Error => e
-    failure(network_error_message(e))
+  rescue Faraday::Error, ConfigurationError, URI::Error => e
+    failure(call_error_message(e))
   end
 
   def self.configured?
@@ -159,6 +172,26 @@ class Automations::ProvisioningService
   def network_error_message(error)
     # Never surface secrets; only the error class/message from Faraday.
     "No se pudo conectar con Automations: #{error.message}"
+  end
+
+  # Traduce a un mensaje accionable los tres fallos que puede dar una llamada al
+  # servicio remoto. Los dos ultimos NO son `Faraday::Error` y antes subian como
+  # excepcion, dejando un 500 en el super admin en vez de explicar que faltaba:
+  #
+  #   - ConfigurationError: falta Service URL o Provision Key.
+  #   - URI::Error: la URL configurada no es valida (típicamente sin esquema, lo
+  #     que hace que Faraday lance URI::BadURIError al construir la conexion).
+  def call_error_message(error)
+    case error
+    when ConfigurationError
+      "#{error.message}. Revisa la configuracion global de Automations " \
+      '(Service URL, p.ej. http://172.17.0.1:3001/api/v1)'
+    when URI::Error
+      'La "Service URL" configurada no es una URL valida: debe incluir el esquema, ' \
+      'p.ej. http://172.17.0.1:3001/api/v1'
+    else
+      network_error_message(error)
+    end
   end
 
   def base_url
