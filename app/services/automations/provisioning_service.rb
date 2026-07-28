@@ -132,9 +132,15 @@ class Automations::ProvisioningService
   #   2. ENV['FRONTEND_URL'].
   #   3. Fallback de desarrollo: http://host.docker.internal:3000.
   #
-  # IMPORTANTE (producción): debe ser la URL INTERNA por la que Automation
-  # alcanza Jabvox. Si ambos corren en la misma VM, usa http://host.docker.internal:3000
-  # (o la IP privada). NUNCA un dominio público cuando están juntos.
+  # IMPORTANTE: quien usa esta URL es el CONTENEDOR de Automation, no este
+  # proceso, así que no vale 127.0.0.1 (dentro del contenedor es él mismo) ni
+  # `host.docker.internal`, que NO EXISTE en Docker para Linux (solo Mac/Windows).
+  #
+  # Si Jabvox escucha en todas las interfaces: la IP de docker0 (172.17.0.1).
+  # Si Jabvox escucha SOLO en 127.0.0.1 (lo habitual con nginx delante), ninguna
+  # IP interna lo alcanza desde el contenedor y hay que usar el dominio público,
+  # que entra por nginx. Es un salto de red extra, pero es la única ruta que
+  # existe con esa configuración.
   def self.callback_base_url
     configured = GlobalConfigService.load('AUTOMATIONS_JABVOX_CALLBACK_URL', nil).to_s.strip
     return configured if configured.present?

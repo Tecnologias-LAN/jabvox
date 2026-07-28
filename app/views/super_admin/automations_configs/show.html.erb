@@ -28,7 +28,14 @@
       <div class="-mt-2 field-unit__field">
         <%= form.text_field 'app_config[AUTOMATIONS_SERVICE_URL]', value: @app_config['AUTOMATIONS_SERVICE_URL'] %>
         <p class="pt-2 text-xs italic text-slate-400">
-          Base URL de la API (p.ej. http://host.docker.internal:3001/api/v1). Nunca uses un dominio público en local.
+          Base URL de la API de Automations. La llama <strong>este Jabvox</strong>, así que la
+          dirección es la que ve el proceso de Rails, no un contenedor.
+          <br>
+          Si Automations corre en Docker en <strong>esta misma máquina</strong> publicando el
+          puerto en el loopback (lo habitual): <code>http://127.0.0.1:3001/api/v1</code>.
+          <br>
+          Nunca uses un dominio público si los dos están en la misma máquina: la petición
+          saldría a internet y volvería.
         </p>
       </div>
     </div>
@@ -41,8 +48,22 @@
         <%= form.text_field 'app_config[AUTOMATIONS_JABVOX_CALLBACK_URL]', value: @app_config['AUTOMATIONS_JABVOX_CALLBACK_URL'] %>
         <p class="pt-2 text-xs italic text-slate-400">
           URL por la que Automation alcanza este Jabvox para leer/escribir datos de la cuenta.
-          En la misma VM usa <code>http://host.docker.internal:3000</code> (o la IP privada).
-          Si se deja vacío se usa <code>FRONTEND_URL</code> o el fallback de desarrollo. Nunca uses un dominio público si Jabvox y Automation están juntos.
+          Aquí quien llama es <strong>el contenedor de Automations</strong>, así que la dirección
+          es distinta a la de arriba: <em>no</em> vale <code>127.0.0.1</code>, que dentro del
+          contenedor es el propio contenedor.
+          <br>
+          Si Jabvox escucha en todas las interfaces, usa la IP de la puerta de Docker
+          (<code>ip -4 addr show docker0</code>, normalmente <code>http://172.17.0.1:3000</code>).
+          <strong>Si Jabvox solo escucha en <code>127.0.0.1</code></strong> (config habitual con
+          nginx delante), el contenedor no puede alcanzarlo por ninguna IP interna: usa el dominio
+          público, que entra por nginx. Compruébalo con:
+          <br>
+          <code>docker compose exec backend wget -qO- https://TU-DOMINIO/api</code>
+          <br>
+          Si se deja vacío se usa <code>FRONTEND_URL</code> o el fallback de desarrollo.
+          <br>
+          Nota: <code>host.docker.internal</code> <strong>no existe en Docker para Linux</strong>
+          (solo Mac y Windows).
         </p>
       </div>
     </div>
