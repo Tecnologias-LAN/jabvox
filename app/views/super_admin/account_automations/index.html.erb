@@ -24,13 +24,8 @@
     </div>
   <% end %>
 
-  <%# ------------------------------------------------------------------ %>
-  <%# Estado del ciclo de vida de esta cuenta (§7).                      %>
-  <%#                                                                    %>
-  <%# Se pinta ARRIBA y SIEMPRE, no como flash: es el estado real         %>
-  <%# derivado en Automations::StateService, no el resultado de la última %>
-  <%# acción. Un flash desaparece al recargar; esto no.                   %>
-  <%# ------------------------------------------------------------------ %>
+  <%# Estado derivado en Automations::StateService. Se pinta siempre, no como
+      flash: un flash desaparece al recargar y este estado no debe. %>
   <% presentation = @config.state_presentation %>
   <div style="margin-bottom:24px; padding:16px; border-radius:8px;
               background:<%= presentation[:background] %>;
@@ -48,15 +43,8 @@
     <% end %>
   </div>
 
-  <%# ---------------------------------------------------------------- %>
-  <%# Aviso PERSISTENTE de "pendiente de usuario" (§7).                 %>
-  <%#                                                                  %>
-  <%# NO es un flash: se pinta desde el estado guardado en la fila de   %>
-  <%# configuración (AccountAutomationConfig#pending_user_warning?), no %>
-  <%# desde `notice`/`alert`. Un toast desaparece al recargar y esta es %>
-  <%# justo la situación que no debe poder olvidarse: el módulo está    %>
-  <%# activo, el cliente lo ve, y las automatizaciones NO funcionan.    %>
-  <%# ---------------------------------------------------------------- %>
+  <%# Aviso persistente, no un flash: módulo activo y automatizaciones paradas es
+      justo lo que no debe poder olvidarse. %>
   <% if @config.pending_user_warning? %>
     <div style="margin-bottom:24px; padding:16px; background:#fffbeb; border-left:4px solid #f59e0b;
                 border-top:1px solid #fde68a; border-right:1px solid #fde68a; border-bottom:1px solid #fde68a;
@@ -100,7 +88,7 @@
           </label>
         <% end %>
         <%= submit_tag @config.enabled? ? 'Desactivar' : 'Activar', class: 'button',
-              data: { confirm: @config.enabled? ? '¿Desactivar Automations para esta cuenta?' : '¿Activar y aprovisionar Automations para esta cuenta?' } %>
+              data: { confirm: @config.enabled? ? '¿Desactivar Automations para esta cuenta?' : '¿Activar el módulo? Todavía no se aprovisionará: después habrá que elegir el usuario que preste su token.' } %>
       <% end %>
     </div>
 
@@ -166,17 +154,8 @@
     <% end %>
   </div>
 
-  <%# ------------------------------------------------------------------ %>
-  <%# Usuario para automatizaciones (credencial SALIENTE).                %>
-  <%#                                                                    %>
-  <%# Son dos credenciales distintas y complementarias:                  %>
-  <%#   - ENTRANTE (bloque siguiente): la API key con la que Jabvox llama %>
-  <%#     a Automations.                                                 %>
-  <%#   - SALIENTE (este bloque): el access token de un usuario REAL de   %>
-  <%#     la cuenta, con el que Automations llama de vuelta a Jabvox.     %>
-  <%#                                                                    %>
-  <%# El token NUNCA se renderiza completo: solo enmascarado a 4 dígitos. %>
-  <%# ------------------------------------------------------------------ %>
+  <%# Credencial SALIENTE: el access token de un usuario real de la cuenta, con el
+      que Automations llama de vuelta a Jabvox. Nunca se renderiza completo. %>
   <div style="margin-top:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
     <h3 style="font-weight:600; font-size:14px; margin-bottom:6px;">Usuario para automatizaciones</h3>
     <p style="font-size:13px; color:#374151; margin:0 0 12px;">
@@ -185,11 +164,8 @@
       las que es miembro, así que los flujos fallarían según en qué bandeja cayera la conversación.
     </p>
 
-    <%# ---------------------------------------------------------------- %>
-    <%# ADVERTENCIA OBLIGATORIA. Va SIEMPRE, esté o no elegido el         %>
-    <%# usuario: es una propiedad del diseño (un token por persona, sin   %>
-    <%# caducidad), no el aviso de un fallo puntual.                      %>
-    <%# ---------------------------------------------------------------- %>
+    <%# Va siempre, esté o no elegido el usuario: es una propiedad del diseño
+        (un token por persona, sin caducidad), no el aviso de un fallo puntual. %>
     <div style="margin-bottom:16px; padding:12px 14px; background:#fef3c7; border:1px solid #f59e0b; border-radius:6px;">
       <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:#92400e;">
         Atención: esta credencial está atada a una persona
@@ -290,10 +266,8 @@
               data: { turbo: false } do %>
           <label style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:4px;">
             Administradores de esta cuenta
-            <%# Solo administradores: es el requisito real (ver el texto de arriba).
-                Se construyen las opciones a mano en vez de con options_from_collection_for_select
-                para poder mostrar nombre, email y rol en la etiqueta, que es lo que el
-                operador necesita para distinguir a dos personas con el mismo nombre. %>
+            <%# Opciones a mano para mostrar nombre, email y rol: es lo que permite
+                distinguir a dos personas con el mismo nombre. %>
             <%= select_tag :automations_user_id,
                   options_for_select(
                     administrators.map { |u| ["#{u.name} — #{u.email} (administrador)", u.id] },

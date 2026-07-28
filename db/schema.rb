@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_23_000003) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_28_000002) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -40,7 +40,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_000003) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "max_flows"
+    t.text "api_key_jabvox"
+    t.string "api_key_prefix_jabvox"
+    t.datetime "api_key_set_at_jabvox"
+    t.bigint "automations_user_id"
+    t.integer "automations_state", default: 0, null: false
+    t.datetime "automations_user_set_at"
+    t.bigint "automations_user_set_by_id"
+    t.string "automations_user_set_ip"
     t.index ["account_id"], name: "index_account_automation_configs_on_account_id_unique", unique: true
+    t.index ["automations_user_id"], name: "index_account_automation_configs_on_automations_user_id"
   end
 
   create_table "account_saml_settings", force: :cascade do |t|
@@ -3415,6 +3424,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_000003) do
   end
 
   add_foreign_key "account_automation_configs", "accounts"
+  add_foreign_key "account_automation_configs", "users", column: "automations_user_id", on_delete: :nullify
   add_foreign_key "account_users", "jabvox_app_states", on_delete: :nullify
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"

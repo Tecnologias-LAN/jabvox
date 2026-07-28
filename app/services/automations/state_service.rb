@@ -1,39 +1,9 @@
-# Máquina de estados de la integración Automations POR CUENTA (§7).
+# Máquina de estados de la integración Automations por cuenta.
 #
-# ─────────────────────────────────────────────────────────────────────────────
-# LOS ESTADOS Y SU ORDEN
-# ─────────────────────────────────────────────────────────────────────────────
-#   sin_config_global : falta alguna de las condiciones de la config GLOBAL.
-#   pendiente_token   : global OK + módulo activo, pero SIN usuario seleccionado
-#                       (o el seleccionado ya no sirve).
-#   ok                : aprovisionado y verificado.
-#   error_auth        : Automations devolvió 401/403.
-#
-# ─────────────────────────────────────────────────────────────────────────────
-# LA REGLA QUE GOBIERNA TODO: NUNCA `ok` SI FALTA UNA CAPA PREVIA
-# ─────────────────────────────────────────────────────────────────────────────
-# `recalculate` NO es un setter: es un derivador. Se evalúan las capas de abajo
-# arriba y se devuelve la PRIMERA que falla, sin importar lo que dijera el estado
-# guardado. Así un `ok` histórico no puede sobrevivir a que se borre la Provision
-# Key global ni a que el usuario elegido deje de ser administrador: al siguiente
-# render la cuenta ya no dice `ok`.
-#
-# Es deliberado que el estado sea DERIVADO y no solo almacenado. Un estado
-# únicamente almacenado se queda obsoleto en silencio, que es precisamente el
-# modo de fallo que esta pantalla existe para hacer visible. Se persiste (columna
-# `automations_state`) para poder consultarlo sin recalcular y para tener el
-# histórico, pero la verdad se recalcula.
-#
-# ─────────────────────────────────────────────────────────────────────────────
-# ACTIVAR EL MÓDULO NO APROVISIONA (§7)
-# ─────────────────────────────────────────────────────────────────────────────
-# El toggle solo mueve la cuenta a `pendiente_token`. El aprovisionamiento ocurre
-# cuando hay usuario elegido. Antes, activar creaba un usuario y disparaba el
-# aprovisionamiento en el mismo clic: el operador no tenía forma de revisar con
-# qué identidad iba a conectarse la cuenta antes de que ocurriera.
+# El estado se DERIVA en cada consulta, no solo se almacena: así un `ok` histórico no
+# sobrevive a que falte la config global o a que el usuario elegido deje de servir.
 class Automations::StateService
-  # Enteros estables: son valores persistidos, así que reordenarlos reescribiría
-  # el significado de las filas existentes. Se añaden al final, nunca en medio.
+  # Enteros estables: son valores persistidos, se añaden al final y nunca en medio.
   STATES = {
     sin_config_global: 0,
     pendiente_token: 1,
@@ -41,8 +11,7 @@ class Automations::StateService
     error_auth: 3
   }.freeze
 
-  # Cómo se pinta cada estado y qué significa. Vive aquí, junto a la definición
-  # del estado, para que añadir un estado no deje la vista pintando un hueco.
+  # Junto a los estados para que añadir uno no deje la vista pintando un hueco.
   PRESENTATION = {
     sin_config_global: {
       label: 'Sin configuración global',
@@ -76,70 +45,59 @@ class Automations::StateService
     @account = account
   end
 
-  # ¿Está completa la configuración GLOBAL? Delega en el servicio que ya conoce
-  # las claves globales en vez de releer InstallationConfig por su cuenta: si
-  # mañana se añade una condición global, este método no tiene que enterarse.
-  #
-  # NOTA: la comprobación autenticada de la config global (el "Probar conexión"
-  # global) la está implementando otro agente en
-  # SuperAdmin::AutomationsConfigsController. Aquí solo se mira la PRESENCIA de la
-  # configuración, no su validez remota, para no acoplar el render de esta página
-  # a una llamada de red.
+  # Solo la PRESENCIA de la config global, no su validez remota: el render de esta
+  # página no debe depender de una llamada de red.
   def global_configured?
     Automations::ProvisioningService.configured?
   end
 
-  # Estado REAL de la cuenta, derivado de las capas. Ver la cabecera.
-  #
-  # `remote_result` (opcional): el Result de la última llamada remota que acabe de
-  # hacer el llamador. Solo se usa para distinguir `error_auth` de un fallo de red
-  # cualquiera: un timeout no es un problema de credenciales y no debe marcar la
-  # cuenta como `error_auth`.
+  # Devuelve la primera capa que falla, así que nunca da `ok` si falta una previa.
+  # `remote_result` solo sirve para distinguir un 401/403 de un fallo de red.
   def recalculate(remote_result: nil)
     return :sin_config_global unless global_configured?
 
     config = @account.account_automation_config
-    return :pendiente_token if config.nil? || !config.enabled?
-
-    # Sin usuario válido no se puede estar aprovisionado, dijera lo que dijera el
-    # estado anterior. Cubre a la vez "nunca se eligió" y "el elegido envejeció mal".
+    return :pendiente_token unless module_active?(config)
     return :pendiente_token unless Automations::UserTokenService.new(@account).validate!.valid?
-
-    return :error_auth if auth_failure?(remote_result)
-    # Un fallo remoto que NO es de autenticación (red, 5xx) no cambia el estado del
-    # ciclo de vida: la cuenta sigue aprovisionada, es el servicio el que no
-    # responde. Eso se cuenta con last_error, no degradando el estado.
-    return :error_auth if remote_result.nil? && config.automations_state == STATES[:error_auth]
+    return :error_auth if auth_error?(config, remote_result)
 
     :ok
   end
 
-  # Recalcula Y PERSISTE. Devuelve el símbolo del estado resultante.
-  #
-  # `update_column` y no `update!`: esto se llama desde el render de `index`, que
-  # es una petición GET. Disparar validaciones y callbacks (y por tanto una
-  # auditoría de `audited`) en cada visita a la página generaría ruido de
-  # auditoría por el simple hecho de MIRAR la pantalla. Solo se escribe si el
-  # valor cambia realmente.
+  # `update_column` y solo si cambia: esto corre en el render (GET) y no debe generar
+  # ruido de auditoría ni callbacks por el hecho de mirar la pantalla.
   def recalculate!(remote_result: nil)
     state = recalculate(remote_result: remote_result)
     config = @account.account_automation_config
     return state if config.nil?
 
-    desired = STATES.fetch(state)
-    config.update_column(:automations_state, desired) if config.automations_state != desired # rubocop:disable Rails/SkipsModelValidations
+    # El getter del enum devuelve el NOMBRE en string, no el entero: comparar contra
+    # STATES.fetch daría siempre distinto y escribiría en cada render.
+    if config.automations_state != state.to_s
+      # rubocop:disable Rails/SkipsModelValidations
+      config.update_column(:automations_state, STATES.fetch(state))
+      # rubocop:enable Rails/SkipsModelValidations
+    end
 
     state
   end
 
   private
 
-  # ¿El fallo remoto es de CREDENCIALES (401/403) y no de red?
-  #
-  # ProvisioningService devuelve el error ya formateado como texto
-  # ("Automations respondió 401: ...", ver #remote_error_message), no el objeto
-  # response, así que aquí solo se puede mirar el mensaje. Se acota a `\b40[13]\b`
-  # para no confundir un 401 con, por ejemplo, un cuerpo que mencione 4013.
+  def module_active?(config)
+    !config.nil? && config.enabled?
+  end
+
+  # Si no se ha comprobado nada (remote_result nil) se CONSERVA el error_auth guardado:
+  # no haber preguntado no es prueba de que se haya arreglado.
+  def auth_error?(config, remote_result)
+    return true if auth_failure?(remote_result)
+
+    remote_result.nil? && config.automations_state == :error_auth.to_s
+  end
+
+  # ProvisioningService ya formatea el error como texto, así que solo se puede mirar el
+  # mensaje. Un fallo de red o un 5xx no es de credenciales y no degrada el estado.
   def auth_failure?(remote_result)
     return false if remote_result.nil?
     return false if remote_result.success?
