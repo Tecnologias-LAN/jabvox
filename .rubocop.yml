@@ -18,6 +18,11 @@ Metrics/ClassLength:
   Exclude:
     - 'app/models/message.rb'
     - 'app/models/conversation.rb'
+    # Cliente HTTP de la plataforma Automations: es una clase por endpoint remoto
+    # (aprovisionar, actualizar modulo, desaprovisionar, estado, verify) mas los
+    # tres clientes Faraday. Partirla por tamano separaria metodos que comparten
+    # el mismo cliente y la misma traduccion de errores, sin ganar nada.
+    - 'app/services/automations/provisioning_service.rb'
     - 'db/migrate/**/*'
 
 Metrics/MethodLength:

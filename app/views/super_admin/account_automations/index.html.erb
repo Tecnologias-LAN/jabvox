@@ -24,6 +24,58 @@
     </div>
   <% end %>
 
+  <%# ------------------------------------------------------------------ %>
+  <%# Estado del ciclo de vida de esta cuenta (§7).                      %>
+  <%#                                                                    %>
+  <%# Se pinta ARRIBA y SIEMPRE, no como flash: es el estado real         %>
+  <%# derivado en Automations::StateService, no el resultado de la última %>
+  <%# acción. Un flash desaparece al recargar; esto no.                   %>
+  <%# ------------------------------------------------------------------ %>
+  <% presentation = @config.state_presentation %>
+  <div style="margin-bottom:24px; padding:16px; border-radius:8px;
+              background:<%= presentation[:background] %>;
+              border:1px solid <%= presentation[:color] %>33;">
+    <p style="margin:0 0 4px; font-size:13px; color:#374151;">
+      Estado de la integración:
+      <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600;
+                   background:#ffffff99; color:<%= presentation[:color] %>;">
+        <%= presentation[:label] %>
+      </span>
+      <span style="font-family:monospace; font-size:11px; color:#6b7280;">(<%= @config.automations_state %>)</span>
+    </p>
+    <% if presentation[:detail].present? %>
+      <p style="margin:0; font-size:12px; color:<%= presentation[:color] %>;"><%= presentation[:detail] %></p>
+    <% end %>
+  </div>
+
+  <%# ---------------------------------------------------------------- %>
+  <%# Aviso PERSISTENTE de "pendiente de usuario" (§7).                 %>
+  <%#                                                                  %>
+  <%# NO es un flash: se pinta desde el estado guardado en la fila de   %>
+  <%# configuración (AccountAutomationConfig#pending_user_warning?), no %>
+  <%# desde `notice`/`alert`. Un toast desaparece al recargar y esta es %>
+  <%# justo la situación que no debe poder olvidarse: el módulo está    %>
+  <%# activo, el cliente lo ve, y las automatizaciones NO funcionan.    %>
+  <%# ---------------------------------------------------------------- %>
+  <% if @config.pending_user_warning? %>
+    <div style="margin-bottom:24px; padding:16px; background:#fffbeb; border-left:4px solid #f59e0b;
+                border-top:1px solid #fde68a; border-right:1px solid #fde68a; border-bottom:1px solid #fde68a;
+                border-radius:6px;">
+      <p style="margin:0 0 4px; font-size:13px; font-weight:600; color:#92400e;">
+        Aprovisionamiento pendiente: falta elegir el usuario
+      </p>
+      <p style="margin:0; font-size:12px; color:#92400e;">
+        El módulo está activo pero ninguna automatización de esta cuenta puede ejecutarse todavía,
+        porque no hay un usuario válido que preste su access token.
+        Elige uno en «Usuario para automatizaciones» y pulsa «Guardar y aprovisionar».
+        <% if @user_status.present? && @user_status[:selected] && !@user_status[:valid] %>
+          <br>
+          <strong>Había un usuario elegido y ha dejado de servir:</strong> <%= @user_status[:message] %>
+        <% end %>
+      </p>
+    </div>
+  <% end %>
+
   <div style="padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
       <div>
@@ -115,89 +167,105 @@
   </div>
 
   <%# ------------------------------------------------------------------ %>
-  <%# Usuario de servicio de la cuenta (credencial SALIENTE).            %>
+  <%# Usuario para automatizaciones (credencial SALIENTE).                %>
   <%#                                                                    %>
   <%# Son dos credenciales distintas y complementarias:                  %>
   <%#   - ENTRANTE (bloque siguiente): la API key con la que Jabvox llama %>
   <%#     a Automations.                                                 %>
-  <%#   - SALIENTE (este bloque): el access token con el que Automations  %>
-  <%#     llama de vuelta a Jabvox para leer/escribir datos de la cuenta. %>
+  <%#   - SALIENTE (este bloque): el access token de un usuario REAL de   %>
+  <%#     la cuenta, con el que Automations llama de vuelta a Jabvox.     %>
+  <%#                                                                    %>
+  <%# El token NUNCA se renderiza completo: solo enmascarado a 4 dígitos. %>
   <%# ------------------------------------------------------------------ %>
   <div style="margin-top:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
-    <h3 style="font-weight:600; font-size:14px; margin-bottom:6px;">Usuario de servicio de esta cuenta</h3>
+    <h3 style="font-weight:600; font-size:14px; margin-bottom:6px;">Usuario para automatizaciones</h3>
     <p style="font-size:13px; color:#374151; margin:0 0 12px;">
-      Identidad dedicada con la que Automations lee y escribe datos de ESTA cuenta.
-      Se crea automáticamente al activar el módulo: no es una persona, no puede iniciar sesión
-      (contraseña aleatoria no recuperable) y todo lo que hagan las automatizaciones queda
-      registrado a su nombre, no al de un administrador humano.
+      Usuario de esta cuenta cuyo access token se envía a Automations para que pueda leer y escribir
+      datos de la cuenta. Debe ser <strong>administrador</strong>: un agente solo ve las bandejas de
+      las que es miembro, así que los flujos fallarían según en qué bandeja cayera la conversación.
     </p>
 
-    <% if @service_user_status.present? %>
+    <%# ---------------------------------------------------------------- %>
+    <%# ADVERTENCIA OBLIGATORIA. Va SIEMPRE, esté o no elegido el         %>
+    <%# usuario: es una propiedad del diseño (un token por persona, sin   %>
+    <%# caducidad), no el aviso de un fallo puntual.                      %>
+    <%# ---------------------------------------------------------------- %>
+    <div style="margin-bottom:16px; padding:12px 14px; background:#fef3c7; border:1px solid #f59e0b; border-radius:6px;">
+      <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:#92400e;">
+        Atención: esta credencial está atada a una persona
+      </p>
+      <p style="margin:0; font-size:12px; color:#92400e; line-height:1.5;">
+        Los access token de Jabvox son <strong>uno por usuario</strong> y <strong>no caducan</strong>.
+        Si la persona seleccionada sale de la empresa, se degrada a agente o le rotan el token,
+        <strong>las automatizaciones de esta cuenta se detienen</strong>.
+        Elige a alguien estable en la organización y revisa esta pantalla cuando haya cambios de personal.
+      </p>
+    </div>
+
+    <% if @user_status.present? && @user_status[:selected] %>
       <table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:12px;">
         <tbody>
           <tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:8px 4px; color:#6b7280; width:220px;">Usuario de servicio</td>
+            <td style="padding:8px 4px; color:#6b7280; width:220px;">Usuario seleccionado</td>
             <td style="padding:8px 4px;">
-              <% if @service_user_status[:exists] %>
-                <strong><%= @service_user_status[:name] %></strong>
-                <span style="font-family:monospace; color:#6b7280;">(<%= @service_user_status[:email] %>)</span>
+              <strong><%= @user_status[:name] %></strong>
+              <span style="font-family:monospace; color:#6b7280;">(<%= @user_status[:email] %>)</span>
+              <span style="color:#6b7280;">— id <%= @user_status[:user_id] %></span>
+            </td>
+          </tr>
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:8px 4px; color:#6b7280;">Sigue siendo válido</td>
+            <td style="padding:8px 4px;">
+              <% if @user_status[:valid] %>
+                <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#dcfce7; color:#166534;">
+                  Sí — rol <%= @user_status[:role] %>
+                </span>
               <% else %>
-                <span style="color:#854d0e;">Todavía no existe. Se creará al activar el módulo:</span>
-                <span style="font-family:monospace; color:#6b7280;"><%= @service_user_status[:email] %></span>
+                <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#fee2e2; color:#991b1b;">
+                  No
+                </span>
+                <p style="margin:6px 0 0; font-size:12px; color:#991b1b;"><%= @user_status[:message] %></p>
               <% end %>
             </td>
           </tr>
-          <% if @service_user_status[:exists] %>
-            <tr style="border-bottom:1px solid #f3f4f6;">
-              <td style="padding:8px 4px; color:#6b7280;">Estado en la cuenta</td>
-              <td style="padding:8px 4px;">
-                <% if @service_user_status[:member] %>
-                  <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#dcfce7; color:#166534;">
-                    Activo — rol <%= @service_user_status[:role] %>
-                  </span>
-                <% else %>
-                  <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#fee2e2; color:#991b1b;">
-                    Desactivado (sin acceso a la cuenta)
-                  </span>
-                <% end %>
-              </td>
-            </tr>
-            <tr style="border-bottom:1px solid #f3f4f6;">
-              <td style="padding:8px 4px; color:#6b7280;">Token de acceso</td>
-              <td style="padding:8px 4px;">
-                <% if @service_user_status[:has_token] %>
-                  <span style="color:#166534;">Emitido</span>
-                  <span style="color:#6b7280;">
-                    el <%= @service_user_status[:token_created_at]&.strftime('%Y-%m-%d %H:%M') || '—' %>
-                  </span>
-                <% else %>
-                  <span style="color:#991b1b;">Sin token</span>
-                <% end %>
-                <%# El valor del token NUNCA se muestra: solo viaja server-to-server. %>
-              </td>
-            </tr>
-            <tr style="border-bottom:1px solid #f3f4f6;">
-              <td style="padding:8px 4px; color:#6b7280;">Cuenta confirmada</td>
-              <td style="padding:8px 4px;">
-                <%= @service_user_status[:confirmed] ? 'Sí (necesario para que la API acepte el token)' : 'No' %>
-              </td>
-            </tr>
-          <% end %>
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:8px 4px; color:#6b7280;">Token de acceso</td>
+            <td style="padding:8px 4px;">
+              <% if @user_status[:has_token] %>
+                <span style="color:#166534;">Existe</span>
+                <span style="font-family:monospace; color:#6b7280;"><%= @user_status[:masked_token] %></span>
+                <span style="color:#6b7280;">
+                  — creado el <%= @user_status[:token_created_at]&.strftime('%Y-%m-%d %H:%M') || '—' %>
+                </span>
+              <% else %>
+                <span style="color:#854d0e;">Sin token todavía: se emitirá al aprovisionar.</span>
+              <% end %>
+              <%# El valor completo del token NUNCA se renderiza: solo los 4 últimos caracteres. %>
+            </td>
+          </tr>
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:8px 4px; color:#6b7280;">Cuenta confirmada</td>
+            <td style="padding:8px 4px;">
+              <%= @user_status[:confirmed] ? 'Sí (necesario para que la API acepte el token)' : 'No' %>
+            </td>
+          </tr>
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:8px 4px; color:#6b7280;">Elegido el</td>
+            <td style="padding:8px 4px;">
+              <%= @config.automations_user_set_at&.strftime('%Y-%m-%d %H:%M') || '—' %>
+              <% if @config.automations_user_set_by_id.present? %>
+                <span style="color:#6b7280;">
+                  por super-admin id <%= @config.automations_user_set_by_id %>
+                  <% if @config.automations_user_set_ip.present? %>
+                    desde <span style="font-family:monospace;"><%= @config.automations_user_set_ip %></span>
+                  <% end %>
+                </span>
+              <% end %>
+            </td>
+          </tr>
           <tr style="border-bottom:1px solid #f3f4f6;">
             <td style="padding:8px 4px; color:#6b7280;">Último aprovisionamiento</td>
             <td style="padding:8px 4px;"><%= @config.last_provisioned_at&.strftime('%Y-%m-%d %H:%M') || '—' %></td>
-          </tr>
-          <tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:8px 4px; color:#6b7280;">Último estado de esta cuenta</td>
-            <td style="padding:8px 4px;">
-              <% if @config.last_status == 'ok' %>
-                <span style="color:#166534;">ok</span>
-              <% elsif @config.last_status.present? %>
-                <span style="color:#991b1b;"><%= @config.last_status %></span>
-              <% else %>
-                —
-              <% end %>
-            </td>
           </tr>
           <% if @config.last_error.present? %>
             <tr style="border-bottom:1px solid #f3f4f6;">
@@ -207,22 +275,68 @@
           <% end %>
         </tbody>
       </table>
+    <% end %>
 
-      <% if @config.enabled? %>
-        <%= form_tag regenerate_service_token_super_admin_account_account_automations_path(@account), method: :post,
-              data: { turbo: false } do %>
-          <%= submit_tag 'Regenerar token del usuario de servicio', class: 'button',
-                data: { confirm: '¿Regenerar el token? El actual dejará de servir inmediatamente y se reenviará el nuevo a Automations.' } %>
-        <% end %>
-        <p style="margin-top:8px; font-size:12px; color:#6b7280;">
-          Úsalo si Automations devuelve 401/403 con esta cuenta: genera un token nuevo
-          y lo reenvía a Automations en la misma operación. Afecta solo a esta cuenta.
+    <% if @config.enabled? %>
+      <% administrators = @selectable_users ? @selectable_users[:administrators] : [] %>
+      <% if administrators.blank? %>
+        <p style="font-size:13px; color:#991b1b; margin:0;">
+          Esta cuenta no tiene ningún administrador al que asignar las automatizaciones.
+          Asciende a administrador a un usuario de la cuenta y vuelve aquí.
         </p>
       <% else %>
-        <p style="font-size:12px; color:#6b7280;">
-          Activa el módulo para crear el usuario de servicio y emitir su token.
+        <%= form_tag update_user_super_admin_account_account_automations_path(@account), method: :patch,
+              style: 'display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;',
+              data: { turbo: false } do %>
+          <label style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:4px;">
+            Administradores de esta cuenta
+            <%# Solo administradores: es el requisito real (ver el texto de arriba).
+                Se construyen las opciones a mano en vez de con options_from_collection_for_select
+                para poder mostrar nombre, email y rol en la etiqueta, que es lo que el
+                operador necesita para distinguir a dos personas con el mismo nombre. %>
+            <%= select_tag :automations_user_id,
+                  options_for_select(
+                    administrators.map { |u| ["#{u.name} — #{u.email} (administrador)", u.id] },
+                    @config.automations_user_id
+                  ),
+                  include_blank: '— Elige un usuario —',
+                  style: 'width:420px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;' %>
+          </label>
+          <%= submit_tag 'Guardar y aprovisionar', class: 'button',
+                data: { confirm: '¿Enviar el access token de este usuario a Automations? ' \
+                                 'Si esa persona pierde el acceso o le rotan el token, las automatizaciones se detendrán.' } %>
+        <% end %>
+
+        <div style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+          <% if @config.automations_user_id.present? %>
+            <%= form_tag reprovision_super_admin_account_account_automations_path(@account), method: :post,
+                  style: 'margin:0;', data: { turbo: false } do %>
+              <%= submit_tag 'Reaprovisionar', class: 'button' %>
+            <% end %>
+            <%= form_tag remove_user_super_admin_account_account_automations_path(@account), method: :delete,
+                  style: 'margin:0;', data: { turbo: false } do %>
+              <%= submit_tag 'Quitar usuario', class: 'button',
+                    data: { confirm: '¿Quitar el usuario? Las automatizaciones de esta cuenta se DETENDRÁN ' \
+                                     'hasta que elijas otro. No se toca el token personal de esa persona.' } %>
+            <% end %>
+          <% end %>
+        </div>
+
+        <p style="margin-top:12px; font-size:12px; color:#6b7280; line-height:1.5;">
+          <strong>Reaprovisionar</strong> reenvía a Automations el token que ya tiene el usuario y la API key
+          de la cuenta en una sola operación. Úsalo si Automations devuelve 401/403 o si se restauró un
+          backup del lado remoto.
+          <br>
+          <strong>No existe un botón para regenerar el token</strong>, y es a propósito: los token de Jabvox
+          son uno por usuario, así que regenerarlo revocaría el token <em>personal</em> de esa persona y le
+          rompería la aplicación móvil y sus propias integraciones. Si el token está comprometido, esa persona
+          debe rotarlo desde su perfil y luego se pulsa aquí «Reaprovisionar».
         </p>
       <% end %>
+    <% else %>
+      <p style="font-size:12px; color:#6b7280;">
+        Activa el módulo para poder elegir el usuario de automatizaciones.
+      </p>
     <% end %>
   </div>
 

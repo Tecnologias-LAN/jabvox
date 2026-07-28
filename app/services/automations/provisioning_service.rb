@@ -126,25 +126,61 @@ class Automations::ProvisioningService
     account_api_key.present? ? :account : :master
   end
 
-  # GET /health — public endpoint, no auth needed.
+  # POST /provisioning/verify — PRUEBA DE CONEXIÓN AUTENTICADA de la configuración
+  # global. Es el "Probar conexión" del super admin.
   #
-  # "Probar conexion" devolvia un 500 en los dos fallos de configuracion mas
-  # probables, en vez de un mensaje util:
+  # POR QUÉ NO SE LLAMA A /health (lo que se hacía antes): /health es PÚBLICO y no
+  # lleva credencial, así que responde 200 aunque la Provision Key guardada aquí
+  # sea basura o de otra instalación. El operador veía "correcto" y la integración
+  # fallaba con un 401 en el primer aprovisionamiento real, ya en producción. Por
+  # eso se eliminaron `service_health` y su cliente sin autenticar, en lugar de
+  # dejarlos ahí para que alguien volviera a usarlos.
   #
-  #   - Sin "Service URL": el metodo privado `base_url` lanza ConfigurationError,
-  #     que no estaba capturado aqui.
-  #   - Con una URL sin esquema (p.ej. "172.17.0.1:3001"): `Faraday.new` lanza
-  #     `URI::BadURIError` ("both URI are relative"), que NO desciende de
-  #     `Faraday::Error`, asi que tampoco lo capturaba el rescue existente.
+  # Los dos fallos de configuración que antes daban un 500 en esta pantalla (falta
+  # de Service URL -> ConfigurationError; URL sin esquema -> URI::BadURIError, que
+  # NO desciende de Faraday::Error) siguen cubiertos por el rescue de abajo y por
+  # `call_error_message`: este botón existe para diagnosticar la configuración, así
+  # que tiene que explicar lo que falta en vez de romperse.
   #
-  # Ambos se traducen ahora a un resultado de fallo con el motivo concreto: este
-  # boton existe justamente para diagnosticar la configuracion, asi que tiene que
-  # explicar lo que falta en lugar de romperse.
-  def service_health
-    response = health_client.get('health')
+  # Este endpoint va detrás del guard de la Provision Key en Automations, así que
+  # llegar a él DEMUESTRA que la clave que tenemos guardada es la correcta. Además
+  # registra la aprobación de la configuración global: sin ella, la plataforma
+  # remota responde 424 a cualquier POST de credenciales de cuenta. Es decir, esta
+  # llamada no es solo un diagnóstico, es el paso que DESBLOQUEA el módulo.
+  #
+  # Idempotente: repetirla refresca la aprobación. Así se re-aprueba tras rotar
+  # una clave, sin ningún paso manual extra en la plataforma remota.
+  #
+  # Las tres URLs viajan en el cuerpo porque viven en el InstallationConfig de
+  # ESTE Jabvox: Automations no tiene acceso a esta base de datos y no puede
+  # comprobarlas, solo dejar constancia de contra qué despliegue se aprobó. Se
+  # validan aquí antes de enviarlas (ver Automations::UrlValidator) para dar un
+  # mensaje concreto en lugar del 400 genérico del otro lado.
+  def verify_global_config
+    urls = declared_urls
+    invalid = Automations::UrlValidator.validation_error(urls)
+    return failure(invalid) if invalid
+
+    response = master_client.post('provisioning/verify') do |req|
+      req.body = urls
+    end
     build_result(response)
   rescue Faraday::Error, ConfigurationError, URI::Error => e
     failure(call_error_message(e))
+  end
+
+  # Las tres URLs declaradas, tal y como las espera el contrato de /provisioning/verify.
+  def declared_urls
+    {
+      serviceUrl: self.class.base_url,
+      frontendUrl: self.class.frontend_url,
+      jabvoxCallbackUrl: self.class.callback_base_url
+    }
+  end
+
+  # URL pública del frontend de Automations (la del `src` del iframe).
+  def self.frontend_url
+    GlobalConfigService.load('AUTOMATIONS_FRONTEND_URL', nil).to_s.strip
   end
 
   def self.configured?
@@ -300,11 +336,6 @@ class Automations::ProvisioningService
     @master_client ||= build_connection(base_url) do |f|
       f.headers['X-Provision-Key'] = provision_key
     end
-  end
-
-  # Unauthenticated client used only for the public /health endpoint.
-  def health_client
-    @health_client ||= build_connection(base_url)
   end
 
   def build_connection(url)

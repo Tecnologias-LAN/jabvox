@@ -2,27 +2,34 @@
 #
 # Table name: account_automation_configs
 #
-#  id                     :bigint           not null, primary key
-#  api_key_jabvox         :text
-#  api_key_prefix_jabvox  :string
-#  api_key_set_at_jabvox  :datetime
-#  enabled                :boolean          default(FALSE), not null
-#  last_error             :text
-#  last_provisioned_at    :datetime
-#  last_status            :string
-#  max_flows              :integer
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  account_id             :bigint           not null
-#  remote_account_id      :bigint
+#  id                          :bigint           not null, primary key
+#  api_key_jabvox              :text
+#  api_key_prefix_jabvox       :string
+#  api_key_set_at_jabvox       :datetime
+#  automations_state           :integer          default("sin_config_global"), not null
+#  automations_user_set_at     :datetime
+#  automations_user_set_ip     :string
+#  enabled                     :boolean          default(FALSE), not null
+#  last_error                  :text
+#  last_provisioned_at         :datetime
+#  last_status                 :string
+#  max_flows                   :integer
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  account_id                  :bigint           not null
+#  automations_user_id         :bigint
+#  automations_user_set_by_id  :bigint
+#  remote_account_id           :bigint
 #
 # Indexes
 #
-#  index_account_automation_configs_on_account_id_unique  (account_id) UNIQUE
+#  index_account_automation_configs_on_account_id_unique   (account_id) UNIQUE
+#  index_account_automation_configs_on_automations_user_id  (automations_user_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (automations_user_id => users.id) ON DELETE => nullify
 #
 class AccountAutomationConfig < ApplicationRecord
   self.table_name = 'account_automation_configs'
@@ -36,6 +43,31 @@ class AccountAutomationConfig < ApplicationRecord
   API_KEY_VISIBLE_SUFFIX = 4
 
   belongs_to :account
+
+  # Usuario que presta su access token a las automatizaciones de esta cuenta.
+  #
+  # `optional: true` porque la ausencia de usuario es un ESTADO LEGÍTIMO
+  # (`pendiente_token`), no un dato inválido: la fila de configuración se crea en
+  # cuanto se visita la pantalla, mucho antes de que alguien elija a nadie.
+  #
+  # La FK es `ON DELETE SET NULL` (ver la migración), así que borrar el User deja
+  # esta columna en NULL y la cuenta cae a `pendiente_token`. Que el usuario siga
+  # perteneciendo a la cuenta y siga siendo administrador NO lo garantiza el
+  # esquema: se valida en cada aprovisionamiento (Automations::UserTokenService#validate!).
+  belongs_to :automations_user, class_name: 'User', optional: true
+
+  # Estado del ciclo de vida de la integración en esta cuenta (§7).
+  #
+  # Entero, siguiendo el patrón de la casa (`AccountUser#role`), y en una columna
+  # NUEVA en lugar de reciclar `last_status` — la justificación completa está en
+  # la migración 20260728000002. En resumen: `last_status` es el diagnóstico de la
+  # última llamada remota (lo escribe incluso `test_connection`, que no
+  # aprovisiona), mientras que esto es en qué punto del ciclo de vida está la
+  # cuenta. Fundirlos haría que probar la conexión degradara el estado real.
+  #
+  # La verdad se DERIVA en Automations::StateService#recalculate; esta columna es
+  # la copia persistida para poder leerla sin recalcular.
+  enum automations_state: Automations::StateService::STATES, _prefix: :state
 
   # Cifrado en reposo con Active Record Encryption, mismo patrón que el resto de
   # credenciales del fork (JabvoxSaldoConfig, JabvoxCdrConfig, etc.): el guard
@@ -97,5 +129,30 @@ class AccountAutomationConfig < ApplicationRecord
     suffix = api_key_jabvox.to_s.last(API_KEY_VISIBLE_SUFFIX)
     prefix = api_key_prefix_jabvox.presence
     prefix ? "#{prefix}…•••• #{suffix}" : "•••• #{suffix}"
+  end
+
+  # Cómo pintar el estado actual: etiqueta, colores y explicación.
+  #
+  # Se resuelve contra `Automations::StateService::PRESENTATION` (definido junto a
+  # los estados) para que añadir un estado nuevo no deje la vista pintando un
+  # hueco. El `fetch` con fallback cubre un caso real: restaurar un dump escrito
+  # por una versión posterior del código, con un entero que esta versión aún no
+  # conoce. Preferimos "desconocido" a una excepción en el render del super admin.
+  def state_presentation
+    Automations::StateService::PRESENTATION.fetch(
+      automations_state&.to_sym,
+      { label: automations_state.to_s.presence || 'desconocido',
+        color: '#374151', background: '#f3f4f6', detail: nil }
+    )
+  end
+
+  # ¿Hay que pintar el aviso PERSISTENTE de "pendiente de usuario"? (§7)
+  #
+  # Es un método del modelo y no una condición suelta en la plantilla porque el
+  # requisito es explícito: el aviso es persistente, NO un toast. Un flash
+  # desaparece al recargar y esta es justo la situación que no debe poder
+  # olvidarse — la cuenta tiene el módulo activo y las automatizaciones paradas.
+  def pending_user_warning?
+    state_pendiente_token?
   end
 end

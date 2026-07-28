@@ -139,27 +139,93 @@
 
   <div style="padding:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-      <h3 style="font-weight:600; font-size:14px; margin:0;">Estado del servicio</h3>
+      <h3 style="font-weight:600; font-size:14px; margin:0;">Prueba de conexión y aprobación</h3>
       <%= link_to 'Probar conexión', health_super_admin_automations_config_path, class: 'button' %>
     </div>
 
+    <p style="margin-top:8px; font-size:12px; color:#374151;">
+      La prueba envía la <strong>Provision Key</strong> y las tres URLs a
+      <code>POST /provisioning/verify</code>. Es una prueba <strong>autenticada</strong>:
+      si la clave no es correcta, falla. Hasta que pase, Automations rechaza con
+      <strong>424</strong> el alta de credenciales de cada cuenta, así que este botón
+      es lo que <strong>habilita el módulo</strong>, no solo un diagnóstico.
+    </p>
+
     <% if @health %>
       <% if @health.success? %>
-        <% _h = @health.data.is_a?(Hash) ? @health.data : {} %>
-        <p style="margin-top:12px; font-size:13px; color:#166534;">
-          Conectado — status: <strong><%= _h['status'] || 'ok' %></strong>,
-          db: <strong><%= _h['db'] %></strong>,
-          version: <strong><%= _h['version'] %></strong>,
-          uptime: <strong><%= _h['uptime'] %></strong>
-        </p>
+        <%# Un 201 NO implica aprobado: si se rotó una credencial después de la
+            última aprobación, la plataforma responde 201 con approved:false y el
+            motivo en "reason". Pintarlo como éxito repetiría el mismo error que
+            tenía el /health público. %>
+        <% _v = @health.data.is_a?(Hash) ? @health.data : {} %>
+        <% _approved = _v['approved'] %>
+        <% if _approved %>
+          <p style="margin-top:12px; font-size:13px; color:#166534;">
+            <strong>Configuración aprobada.</strong>
+            Provision Key validada por Automations.
+            <% if _v['approvedAt'].present? %>
+              Aprobada el <strong><%= _v['approvedAt'] %></strong>
+            <% end %>
+            <% if _v['approvedBy'].present? %>
+              vía <strong><%= _v['approvedBy'] %></strong>.
+            <% end %>
+          </p>
+        <% else %>
+          <p style="margin-top:12px; font-size:13px; color:#991b1b;">
+            <strong>Conectado y autenticado, pero la configuración NO está aprobada.</strong>
+            <% if _v['reason'].present? %>
+              Motivo: <code><%= _v['reason'] %></code>.
+            <% end %>
+            <% if _v['staleKeys'].present? %>
+              Se rotó <strong><%= Array(_v['staleKeys']).join(', ') %></strong> después de
+              aprobar: pega los valores nuevos arriba y vuelve a probar.
+            <% end %>
+          </p>
+        <% end %>
+
+        <%# Las cinco condiciones, para que el operador vea CUÁL falta en vez de un
+            sí/no que no dice dónde mirar. %>
+        <% _conditions = _v['conditions'].is_a?(Hash) ? _v['conditions'] : {} %>
+        <% if _conditions.any? %>
+          <% _labels = {
+               'provisionKeyConfigured' => 'Provision Key configurada en Automations',
+               'ssoSecretConfigured' => 'SSO Shared Secret configurado en Automations',
+               'urlsDeclared' => 'Las tres URLs declaradas',
+               'credentialsSavedInJabvox' => 'Credenciales guardadas en Jabvox (comprobado por la propia llamada)',
+               'authenticatedTestPassed' => 'Prueba de conexión autenticada superada'
+             } %>
+          <ul style="margin-top:12px; font-size:13px; list-style:none; padding:0;">
+            <% _labels.each do |_key, _label| %>
+              <% _ok = _conditions[_key] %>
+              <li style="padding:2px 0; color:<%= _ok ? '#166534' : '#991b1b' %>;">
+                <%= _ok ? '✔' : '✘' %> <%= _label %>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+
+        <% _urls = _v['declaredUrls'].is_a?(Hash) ? _v['declaredUrls'] : {} %>
+        <% if _urls.any? %>
+          <p style="margin-top:8px; font-size:12px; color:#6b7280;">
+            URLs registradas en Automations:
+            <code><%= _urls['serviceUrl'] %></code>,
+            <code><%= _urls['frontendUrl'] %></code>,
+            <code><%= _urls['jabvoxCallbackUrl'] %></code>
+          </p>
+        <% end %>
       <% else %>
         <p style="margin-top:12px; font-size:13px; color:#991b1b;">
           Error: <%= @health.error %>
         </p>
+        <p style="margin-top:8px; font-size:12px; color:#6b7280;">
+          Un <strong>401</strong> significa que la Provision Key guardada aquí no es la
+          que espera Automations: vuelve a generarla allí y pégala arriba. Un
+          <strong>400</strong> apunta a una de las tres URLs.
+        </p>
       <% end %>
     <% else %>
       <p style="margin-top:12px; font-size:13px; color:#6b7280;">
-        Pulsa "Probar conexión" para consultar el <code>/health</code> del servicio.
+        Pulsa "Probar conexión" para validar la Provision Key y registrar la aprobación.
       </p>
     <% end %>
   </div>
