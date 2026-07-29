@@ -146,14 +146,24 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   # real desde Redis) y las llamadas que el marcador está sacando ahora mismo
   # (campaign_contacts en 'calling'). Pensado para poll corto (cada ~3s).
   def live_monitor
-    agents = live_monitor_agents
+    # Miembros REALES de la cola en Asterisk (cacheado ~8s para no golpear el AMI en
+    # cada poll de ~3s de cada admin abierto). Sirve para marcar por agente si de
+    # verdad está en la cola (revela el "fantasma": conectado en app pero no en cola).
+    queue_members = cached_queue_members_for(@campaign)
+    agents = live_monitor_agents(queue_members)
+    calling_count = @campaign.jabvox_dialer_campaign_contacts.where(status_jabvox: 'calling').count
     render json: {
       status: @campaign.status_jabvox,
+      # Salud de la campaña: por qué puede no estar marcando aunque haya agentes.
+      in_schedule: @campaign.in_schedule?,
+      pbx_reachable: queue_members != :unreachable,
+      remaining_leads: monitor_remaining_leads,
       agents: agents,
       active_calls: live_monitor_calls,
+      recent_calls: live_monitor_recent_calls,
       # Reutiliza los agentes ya calculados en vez de recomputarlos (Redis + users).
-      counts: { connected: agents.size,
-                calling: @campaign.jabvox_dialer_campaign_contacts.where(status_jabvox: 'calling').count },
+      counts: { connected: agents.size, calling: calling_count,
+                in_queue: agents.count { |a| a[:in_asterisk_queue] } },
       server_time: Time.current.iso8601
     }
   end
@@ -561,7 +571,7 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   # Agentes conectados a ESTA campaña, con su estado vivo desde Redis (misma
   # fuente que el dialer y el reporte de agentes). in_call_contact_id => en
   # llamada; state_id => en pausa (con nombre); si no, esperando llamada.
-  def live_monitor_agents # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+  def live_monitor_agents(queue_members = nil) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     ids = redis_connected_agent_ids
     return [] if ids.empty?
 
@@ -575,6 +585,15 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     end
     return [] if states.empty?
 
+    # Extensiones que Asterisk reporta como miembros de la cola de esta campaña.
+    queue_exts = queue_member_extensions(queue_members)
+    # Último call log por agente (para exponer motivo de por qué no recibe: si su
+    # última marcación falló, o su estado). Un solo query en lote.
+    last_logs = @campaign.jabvox_dialer_call_logs
+                         .where(agent_id_jabvox: states.keys)
+                         .order(started_at_jabvox: :desc)
+                         .group_by(&:agent_id_jabvox)
+
     # A quién está llamando cada agente, resuelto sin N+1:
     # 1) por in_call_contact_id (lo pone el listener al contestar), y
     # 2) respaldo por el call log abierto del agente (one_by_one: puede que el
@@ -585,6 +604,8 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
       user = users[uid]
       dialer_state, pause = agent_dialer_state(state, pause_names)
       target = call_targets[uid]
+      ext = state[:extension].to_s
+      last_log = last_logs[uid]&.first
       { user_id: uid, name: user.name, email: user.email, avatar_url: user.avatar_url,
         extension: state[:extension], state: dialer_state, pause_name: pause,
         in_call_contact_id: state[:in_call_contact_id],
@@ -592,6 +613,12 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
         calling_contact_name: target && target[:name],
         calling_contact_phone: target && target[:phone],
         calling_lead_number: target && target[:lead_number],
+        # ¿Está REALMENTE en la cola de Asterisk? nil si no pudimos consultar el AMI.
+        # false + state 'waiting' = fantasma (conectado en app, ausente en la cola).
+        in_asterisk_queue: (queue_exts.nil? ? nil : queue_exts.include?(ext)),
+        # Motivo por el que podría no recibir: su última marcación y su desenlace.
+        last_call_status: last_log&.status_jabvox,
+        last_call_at: last_log&.started_at_jabvox&.iso8601,
         since: epoch_iso(state[:state_changed_at] || state[:connected_at]) }
     end
   end
@@ -660,6 +687,67 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
         lead_number: lead_numbers[cc.contact_id],
         agent_extension: log&.phone_jabvox, since: (log&.started_at_jabvox || cc.last_attempt_at_jabvox)&.iso8601 }
     end
+  end
+
+  # Miembros REALES de la cola de la campaña desde Asterisk (QueueStatus), CACHEADOS
+  # en Redis (~8s). Una consulta AMI en cada poll de ~3s por cada admin abierto
+  # saturaría el PBX; el cache la comparte entre polls y admins. Devuelve el hash
+  # { "dialer_camp_X" => ["1501",...] }, o :unreachable si el AMI no respondió.
+  QUEUE_MEMBERS_CACHE_TTL = 8 # segundos
+
+  def cached_queue_members_for(_campaign)
+    key = "jabvox_dialer_qmembers_#{Current.account.id}"
+    cached = Redis::Alfred.get(key)
+    return JSON.parse(cached) if cached.present?
+
+    svc = Jabvox::DialerService.new(Current.account)
+    # dialer_queue_members devuelve {} tanto si el AMI falla como si no hay miembros;
+    # no podemos distinguirlos por su valor. Usamos ami_reachable? como señal de
+    # salud: si el PBX no responde, es :unreachable (el monitor muestra "desconocido"
+    # en vez de marcar a todos como fantasmas).
+    return :unreachable unless svc.ami_reachable?
+
+    members = svc.dialer_queue_members
+    Redis::Alfred.set(key, members.to_json, ex: QUEUE_MEMBERS_CACHE_TTL)
+    members
+  rescue StandardError => e
+    Rails.logger.warn "[Dialer] monitor queue members no disponible: #{e.message}"
+    :unreachable
+  end
+
+  # Extensiones (strings) que son miembros de la cola de ESTA campaña. nil si el AMI
+  # no respondió (para que el monitor muestre "desconocido" en vez de "fantasma").
+  def queue_member_extensions(queue_members)
+    return nil if queue_members.nil? || queue_members == :unreachable
+
+    qname = "dialer_camp_#{@campaign.id}"
+    Array(queue_members[qname]).map(&:to_s)
+  end
+
+  # Leads que faltan por marcar (reusa la lógica de #progress sin recomputar todo).
+  def monitor_remaining_leads
+    matching = live_lead_count(@campaign)
+    dialed = dialed_contact_ids.size
+    [matching - dialed, 0].max
+  rescue StandardError
+    nil
+  end
+
+  # Últimas ~15 llamadas de la campaña con su desenlace, para que el monitor muestre
+  # "qué pasó" (contestó / no contestó / falló) y no solo las que están sonando.
+  def live_monitor_recent_calls
+    logs = @campaign.jabvox_dialer_call_logs.order(started_at_jabvox: :desc).limit(15).to_a
+    lead_numbers = Current.account.jabvox_leads
+                          .where(contact_id: logs.map(&:contact_id).compact.uniq)
+                          .pluck(:contact_id, :lead_number).to_h
+    logs.map do |l|
+      { phone: l.phone_jabvox.to_s, agent_extension: l.phone_jabvox,
+        status: l.status_jabvox, answered: l.lead_answered_jabvox,
+        lead_number: lead_numbers[l.contact_id],
+        started_at: l.started_at_jabvox&.iso8601, ended_at: l.ended_at_jabvox&.iso8601 }
+    end
+  rescue StandardError
+    []
   end
 
   # Connected agents are stored as a native Redis SET (see DialerAccessesController):

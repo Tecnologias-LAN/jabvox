@@ -130,6 +130,11 @@ jabvox_dialer_stale_call_reaper_job:
 # removes any agent that is a queue member but is NOT connected to that campaign
 # (closed browser, dropped network, expired session). Strict rule: not connected
 # to the campaign => not in its queue. Only removes members; never touches queues.
+# NOTA (P3): la ruta principal de "desconexión limpia" ya NO depende de este cron:
+# al pulsar desconectar, DialerAccessesController#disconnect saca la extensión de
+# Asterisk de inmediato (force_offline_extension) y encola una reconciliación por
+# evento (DialerQueueReconcileAccountJob). Este cron es la red de seguridad para
+# los cierres SUCIOS (navegador cerrado / red caída) donde no hubo disconnect.
 jabvox_dialer_queue_reaper_job:
   cron: '*/1 * * * *'
   class: 'Jabvox::DialerQueueReaperJob'

@@ -3,6 +3,11 @@ require 'timeout'
 
 class Jabvox::DialerService
   AMI_TIMEOUT = 15
+  # Tiempo (s) que la cola timbra a un miembro antes de rendirse. DEBE coincidir con
+  # el timeout del Queue() en el dialplan (90s). Antes estaba en 30 y, siendo el más
+  # corto, tumbaba al lead que YA había contestado si el agente tardaba >30s en que
+  # su softphone auto-contestara (wrap-up, latencia). Configurable por campaña.
+  DEFAULT_QUEUE_TIMEOUT = 90
   # Cap the TCP connect itself so a dead/unreachable PBX (e.g. an account whose
   # Asterisk is powered off) fails fast instead of hanging on the OS default
   # connect timeout (which can be minutes and would tie up the request/worker).
@@ -74,10 +79,10 @@ class Jabvox::DialerService
   # Uses DelCat+NewCat so it is idempotent — safe to call on every campaign save.
   # wait_in_queue: true  → joinempty=yes / leavewhenempty=no  (leads wait in queue)
   # wait_in_queue: false → joinempty=no  / leavewhenempty=yes (leads hang up if no agent)
-  def ensure_queue_exists(queue_name, wait_in_queue: true)
+  def ensure_queue_exists(queue_name, wait_in_queue: true, queue_timeout: DEFAULT_QUEUE_TIMEOUT)
     Timeout.timeout(AMI_TIMEOUT) do
       with_ami_connection do |socket|
-        resp = write_queue_config(socket, queue_name, wait_in_queue: wait_in_queue)
+        resp = write_queue_config(socket, queue_name, wait_in_queue: wait_in_queue, queue_timeout: queue_timeout)
         Rails.logger.info "📡 [Dialer] Queue ensured | queue=#{queue_name} wait_in_queue=#{wait_in_queue} " \
                           "response=#{resp['response']} message=#{resp['message']}"
       end
@@ -267,7 +272,70 @@ class Jabvox::DialerService
     Rails.logger.error "❌ [Dialer] QueuePause failed | queue=#{queue_name} ext=#{extension} error=#{e.message}"
   end
 
+  # P3 — Deja a una extensión FUERA de servicio del marcador de forma robusta, sin
+  # depender de conocer la campaña. En UNA sola conexión AMI:
+  #   1) QueuePause=true en TODAS las colas dialer_camp_* donde sea miembro (efecto
+  #      inmediato: una pata pausada no recibe reparto aunque siga como miembro),
+  #   2) QueueRemove de esas mismas colas (la saca del todo),
+  #   3) Hangup del canal activo de esa extensión (corta una llamada ya en vuelo).
+  # Quita SOLO la extensión indicada — nunca toca a otros agentes. Idempotente:
+  # repetirlo no rompe nada (pausar/quitar algo ya ausente es no-op).
+  def force_offline_extension(extension)
+    return if extension.blank?
+
+    Timeout.timeout(AMI_TIMEOUT) do
+      with_ami_connection do |socket|
+        queues = queues_with_member(socket, extension)
+        queues.each do |q|
+          send_action(socket, 'QueuePause', queue: q, interface: "SIP/#{extension}", paused: 'true')
+          read_response(socket)
+          send_action(socket, 'QueueRemove', queue: q, interface: "SIP/#{extension}")
+          read_response(socket)
+        end
+        Rails.logger.info "📡 [Dialer] force_offline | ext=#{extension} colas=#{queues.inspect}"
+        hangup_channel_on(socket, extension)
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.error "❌ [Dialer] force_offline_extension failed | ext=#{extension} error=#{e.message}"
+  end
+
   private
+
+  # Colas dialer_camp_* donde la extensión figura como miembro (una pasada QueueStatus
+  # sobre el socket ya abierto). Para no depender de conocer el campaign_id al salir.
+  def queues_with_member(socket, extension)
+    target = "SIP/#{extension}"
+    found = []
+    send_action(socket, 'QueueStatus')
+    2000.times do
+      resp = read_response(socket)
+      break if resp.empty? || resp['event']&.casecmp?('QueueStatusComplete')
+
+      q = queue_member_match(resp, target)
+      found << q if q
+    end
+    found.uniq
+  end
+
+  # Nombre de la cola dialer_camp_* si este evento QueueMember es de `target`; si no, nil.
+  def queue_member_match(resp, target)
+    return nil unless resp['event']&.casecmp?('QueueMember')
+
+    q = resp['queue'].to_s
+    loc = (resp['location'].presence || resp['name']).to_s
+    q.start_with?('dialer_camp_') && loc.casecmp?(target) ? q : nil
+  end
+
+  # Cuelga el canal activo de la extensión sobre un socket ya abierto (si lo hay).
+  def hangup_channel_on(socket, extension)
+    channel = find_active_channel(socket, extension)
+    return if channel.blank?
+
+    send_action(socket, 'Hangup', channel: channel)
+    read_response(socket)
+    Rails.logger.info "📡 [Dialer] force_offline hangup | channel=#{channel}"
+  end
 
   def with_ami_connection
     socket = open_ami_socket
@@ -319,9 +387,11 @@ class Jabvox::DialerService
   #   [dialer-autoanswer]
   #   exten => s,1,Set(SIPADDHEADER=Alert-Info: info=auto-answer)
   #    same => n,Return()
-  def write_queue_config(socket, queue_name, wait_in_queue: true) # rubocop:disable Metrics/MethodLength
+  def write_queue_config(socket, queue_name, wait_in_queue: true, queue_timeout: DEFAULT_QUEUE_TIMEOUT) # rubocop:disable Metrics/MethodLength
     joinempty      = wait_in_queue ? 'yes' : 'no'
     leavewhenempty = wait_in_queue ? 'no'  : 'yes'
+    # Coincide con el timeout del Queue() en el dialplan; nunca menor (ver constante).
+    q_timeout = queue_timeout.to_i.clamp(30, 300)
 
     # Step 1: try to delete existing category — ignore error if it doesn't exist yet
     socket.write("Action: UpdateConfig\r\n" \
@@ -352,7 +422,7 @@ class Jabvox::DialerService
                  "Action-000002: Append\r\n" \
                  "Cat-000002: #{queue_name}\r\n" \
                  "Var-000002: timeout\r\n" \
-                 "Value-000002: 30\r\n" \
+                 "Value-000002: #{q_timeout}\r\n" \
                  "Action-000003: Append\r\n" \
                  "Cat-000003: #{queue_name}\r\n" \
                  "Var-000003: autopause\r\n" \

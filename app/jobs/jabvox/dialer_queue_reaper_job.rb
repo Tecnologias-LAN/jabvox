@@ -17,7 +17,10 @@ class Jabvox::DialerQueueReaperJob < ApplicationJob
   # Cuánto tiempo saltar una cuenta cuyo PBX no respondió, para no gastar el
   # connect-timeout en cada corrida contra servidores apagados. Al expirar se
   # reintenta sola (si encendieron el PBX, vuelve a reconciliarse).
-  UNREACHABLE_TTL = 5.minutes.to_i
+  # P3: bajado de 5 min a 90s — con 5 min, un PBX que parpadea dejaba agentes
+  # fantasma en cola hasta 5 min recibiendo llamadas tras desconectarse. 90s
+  # equilibra no martillar un PBX apagado y no dejar fantasmas demasiado tiempo.
+  UNREACHABLE_TTL = 90
 
   def perform
     total = 0

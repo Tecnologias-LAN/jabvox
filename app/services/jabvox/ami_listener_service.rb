@@ -197,11 +197,37 @@ module Jabvox
       # es un canal ajeno y NO debe correlacionarse con una llamada del dialer.
       return nil unless channel_belongs_to_dialer?(channel, event)
 
+      # P1 — Si el canal es el del AGENTE (SIP/<ext>-…), anclamos a SU llamada abierta
+      # por extensión (inequívoco aunque varias campañas/agentes marquen a la vez).
+      by_ext = open_dialer_log_by_agent_channel(channel)
+      return by_ext if by_ext
+
+      # Si el canal es del trunk (sin extensión de agente identificable), mantenemos
+      # la regla conservadora: solo correlacionamos si hay UNA sola llamada abierta.
       open = JabvoxDialerCallLog
              .where(account_id: @account_id, status_jabvox: %w[initiated calling])
              .where('started_at_jabvox > ?', 2.minutes.ago)
              .order(started_at_jabvox: :desc).limit(2).to_a
       open.size == 1 ? open.first : nil
+    rescue StandardError
+      nil
+    end
+
+    # Llamada abierta del AGENTE dueño de la extensión del canal (SIP/<ext>-…), o nil
+    # si el canal no lleva extensión de agente conocida. Ancla la recuperación al
+    # agente correcto en predictivo (evita el cruce de leads del P1).
+    def open_dialer_log_by_agent_channel(channel)
+      ext = channel.to_s[%r{\A(?:SIP|PJSIP)/(\d{1,10})-}, 1]
+      return nil if ext.blank?
+
+      user_ext = JabvoxUserExtension.find_by(account_id: @account_id, extension_jabvox: ext)
+      return nil if user_ext.nil?
+
+      JabvoxDialerCallLog
+        .where(account_id: @account_id, agent_id_jabvox: user_ext.user_id,
+               status_jabvox: %w[initiated calling])
+        .where('started_at_jabvox > ?', 2.minutes.ago)
+        .order(started_at_jabvox: :desc).first
     rescue StandardError
       nil
     end
@@ -363,19 +389,27 @@ module Jabvox
       Rails.logger.error "❌ [AmiListener] handle_agent_connect failed | #{e.message}"
     end
 
-    # Best-effort recovery of the lead+agent currently being dialed on a campaign
-    # when the channel markers aren't present. Uses the newest 'calling'
-    # campaign-contact and its call log's agent.
-    def recover_dialer_call(campaign_id, _extension)
-      return {} if campaign_id.blank?
+    # P1 — Recuperación del lead+agente cuando los marcadores del canal no llegaron.
+    # ANCLADA A LA EXTENSIÓN del agente que contestó (viene en el AgentConnect como
+    # member/interface), NO a "el 'calling' más reciente de la campaña": con varios
+    # agentes marcando a la vez, "el más reciente" podía ser el lead de OTRO agente
+    # y se cruzaban nombre/teléfono. Aquí buscamos el call log ABIERTO de ESE agente
+    # (por su extensión → user), que es el que corresponde a este canal.
+    def recover_dialer_call(campaign_id, extension)
+      return {} if extension.blank?
 
-      cc = JabvoxDialerCampaignContact
-           .where(account_id: @account_id, jabvox_dialer_campaign_id: campaign_id, status_jabvox: 'calling')
-           .order(last_attempt_at_jabvox: :desc).first
-      return {} unless cc
+      user_ext = JabvoxUserExtension.find_by(account_id: @account_id, extension_jabvox: extension)
+      return {} if user_ext.nil?
 
-      log = JabvoxDialerCallLog.where(jabvox_dialer_campaign_contact_id: cc.id).order(started_at_jabvox: :desc).first
-      { contact_id: cc.contact_id, user_id: log&.agent_id_jabvox }
+      scope = JabvoxDialerCallLog
+              .where(account_id: @account_id, agent_id_jabvox: user_ext.user_id,
+                     status_jabvox: %w[initiated calling])
+      scope = scope.where(jabvox_dialer_campaign_id: campaign_id) if campaign_id.present?
+      log = scope.order(started_at_jabvox: :desc).first
+      return {} unless log
+
+      cc = JabvoxDialerCampaignContact.find_by(id: log.jabvox_dialer_campaign_contact_id)
+      { contact_id: cc&.contact_id, user_id: log.agent_id_jabvox }
     rescue StandardError
       {}
     end

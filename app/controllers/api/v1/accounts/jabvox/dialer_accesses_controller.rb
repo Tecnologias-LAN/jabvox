@@ -58,16 +58,20 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
 
   def disconnect
     data = read_agent_state
-    # Garantizar el QueueRemove SIEMPRE, aunque la sesión Redis haya expirado
-    # (TTL) y data sea nil: si no, el agente quedaba como miembro de la cola en
-    # Asterisk aun "desconectado" y el proveedor le seguía enviando llamadas.
-    # Reconstruimos extensión y campaña desde datos persistentes cuando falten.
-    ext         = data&.dig(:extension) || user_extension
-    campaign_id = data&.dig(:campaign_id) || last_connected_campaign_id
-    sync_queue_membership(campaign_id, ext, add: false)
-    remove_agent_state
+    ext  = data&.dig(:extension) || user_extension
+    # P3 — El agente deja de estar en el set de conectados ANTES de tocar Asterisk,
+    # para que el reconciler/reaper ya lo considere ilegítimo si algo se solapa.
     unregister_connected_agent(current_user.id)
+    # Saca la extensión de Asterisk de forma ROBUSTA y sin depender de conocer la
+    # campaña: pausa + QueueRemove de TODAS las colas donde sea miembro + cuelga la
+    # llamada en vuelo. Así "desconectar" garantiza no recibir más, aunque la sesión
+    # Redis haya expirado o falte el campaign_id.
+    force_offline_extension(ext)
+    remove_agent_state
     record_agent_state('inactive')
+    # Red de seguridad: reconcilia la cuenta en background (con debounce) por si el
+    # force_offline no alcanzó algún leg o hubo una llamada solapada de otro agente.
+    Jabvox::DialerQueueReconcileAccountJob.perform_later(Current.account.id)
     head :no_content
   end
 
@@ -312,6 +316,20 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     add ? service.add_to_queue(queue_name, extension) : service.remove_from_queue(queue_name, extension)
   rescue StandardError => e
     Rails.logger.error "❌ [Dialer] sync_queue_membership failed | #{e.message}"
+  end
+
+  # P3 — Saca la extensión de servicio del marcador de forma robusta al desconectar:
+  # pausa + QueueRemove de todas las colas donde esté + cuelga la llamada en vuelo.
+  # No requiere campaign_id (a diferencia de sync_queue_membership).
+  def force_offline_extension(extension)
+    return if extension.blank?
+
+    config = Current.account.jabvox_voip_config
+    return unless config&.host.present?
+
+    Jabvox::DialerService.new(config).force_offline_extension(extension)
+  rescue StandardError => e
+    Rails.logger.error "❌ [Dialer] force_offline_extension (controller) failed | #{e.message}"
   end
 
   def sync_queue_pause(campaign_id, extension, paused:)
