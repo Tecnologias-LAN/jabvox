@@ -487,15 +487,29 @@ module Jabvox
 
       channel = event['channel'].to_s
       log_id  = channel_var(channel, 'JABVOX_DIALER_LOG_ID', event)
-      # Sin marcador (canal nunca creado): el reaper sigue siendo el respaldo.
+      # Fallback CLAVE: cuando el Originate falla de inmediato el canal nunca se creó,
+      # así que JABVOX_DIALER_LOG_ID del canal viene vacío. El ActionID que pusimos en
+      # el Originate ("jabvoxdlog-<id>") SÍ vuelve en el OriginateResponse — extraemos
+      # de ahí el call_log_id para cerrar el log igual (no depende del canal).
+      log_id = log_id.presence || log_id_from_action_id(event['actionid'])
       return if log_id.blank?
-      return unless channel_belongs_to_account?(channel, 'JABVOX_ACCOUNT_ID', event)
+      # Validación de cuenta SOLO si el canal existe (trae el marcador). En un fallo
+      # sin canal no hay marcador de cuenta; el lookup de close_dialer_log ya está
+      # scopeado por @account_id (find_by ... account_id:), así que es seguro.
+      return if channel.present? && !channel_belongs_to_account?(channel, 'JABVOX_ACCOUNT_ID', event)
 
       Rails.logger.info "📵 [AmiListener] OriginateResponse Failure | account=#{@account_id} log=#{log_id} reason=#{event['reason']}"
       close_dialer_log(log_id.to_i, event, status: 'failed')
       notify_dialer_call_ended(log_id.to_i)
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] handle_originate_response failed | #{e.message}"
+    end
+
+    # Extrae el call_log_id del ActionID "jabvoxdlog-<id>" que viaja en el Originate
+    # y vuelve en el OriginateResponse. nil si el ActionID no tiene ese formato.
+    def log_id_from_action_id(action_id)
+      m = action_id.to_s.match(/\Ajabvoxdlog-(\d+)\z/)
+      m && m[1]
     end
 
     def handle_hangup(event)
@@ -715,9 +729,16 @@ module Jabvox
       user_ext = JabvoxUserExtension.find_by(account_id: @account_id, extension_jabvox: ext)
       return if user_ext.nil?
 
-      log = JabvoxCallLog.where(account_id: @account_id, user_id: user_ext.user_id, status: 'calling')
-                         .where('called_at >= ?', CTC_FALLBACK_WINDOW.ago)
-                         .order(called_at: :desc).first
+      # Preferimos el log AÚN en 'calling'; pero en algunos troncales el otro leg
+      # (trunk) cierra el log a 'ended' ANTES de que llegue este Hangup del agente,
+      # y entonces no habría 'calling' que casar y la tipificación nunca abría.
+      # Caemos a un 'ended' MUY reciente del mismo agente (no 'typified': eso ya se
+      # gestionó) para reemitir el aviso de fin. Robusto para cualquier troncal.
+      base = JabvoxCallLog.where(account_id: @account_id, user_id: user_ext.user_id)
+                          .where('called_at >= ?', CTC_FALLBACK_WINDOW.ago)
+                          .order(called_at: :desc)
+      log = base.where(status: 'calling').first
+      log ||= base.where(status: 'ended').where('called_at >= ?', 60.seconds.ago).first
       log&.id
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] fallback_ctc_by_extension failed | #{e.message}"
@@ -731,6 +752,16 @@ module Jabvox
     # ("0200218") and the "+"/country code never break the match.
     CTC_FALLBACK_WINDOW = 30.minutes
     MATCH_DIGITS = 8 # local subscriber number length — ignores prefixes/country code
+
+    # ¿El log casa el número marcado (por sufijo de N dígitos)? Un 'ended' solo
+    # cuenta si es muy reciente (evita casar una llamada anterior ya cerrada).
+    def ctc_number_matches?(log, dialed_tail)
+      return false if log.status == 'ended' && log.called_at < 60.seconds.ago
+
+      num = log.phone_number.to_s.gsub(/\D/, '')
+      num.length >= MATCH_DIGITS && num[-MATCH_DIGITS..] == dialed_tail
+    end
+
     def fallback_ctc_log_id(_channel, event)
       # The dialed number comes from the exten (the number Asterisk dialed) — NOT
       # the channel name, which carries junk digits like "-3c" that corrupt it.
@@ -738,17 +769,16 @@ module Jabvox
       dialed = event['calleridnum'].to_s.gsub(/\D/, '') if dialed.length < MATCH_DIGITS
       return if dialed.length < MATCH_DIGITS
 
-      # Match by the last N digits only, so a provider prefix ("0200218") or the
+      # Match by the last N digits only, so a provider prefix ("0200218"/"57") or the
       # country code on either side never breaks the correlation.
       dialed_tail = dialed[-MATCH_DIGITS..]
-      log = JabvoxCallLog.where(account_id: @account_id, status: 'calling')
-                         .where('called_at >= ?', CTC_FALLBACK_WINDOW.ago)
-                         .order(called_at: :desc)
-                         .detect do |l|
-        num = l.phone_number.to_s.gsub(/\D/, '')
-        num.length >= MATCH_DIGITS && num[-MATCH_DIGITS..] == dialed_tail
-      end
-      log&.id
+      # 'calling' o 'ended' muy reciente (no 'typified'): igual que el fallback por
+      # extensión, cubre troncales donde el leg del trunk cerró el log antes del
+      # Hangup que dispara la tipificación.
+      candidates = JabvoxCallLog.where(account_id: @account_id, status: %w[calling ended])
+                                .where('called_at >= ?', CTC_FALLBACK_WINDOW.ago)
+                                .order(called_at: :desc)
+      candidates.detect { |l| ctc_number_matches?(l, dialed_tail) }&.id
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] click_to_call hangup failed | #{e.message}"
     end

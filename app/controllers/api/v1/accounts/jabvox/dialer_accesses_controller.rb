@@ -240,8 +240,19 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     end
 
     phone = contact.phone_jabvox
-    log_originate(contact, campaign, agent[:extension])
     service = Jabvox::DialerService.new(config)
+    # No marcar si el agente TODAVÍA tiene un canal activo en Asterisk (sigue en la
+    # llamada anterior). Si marcáramos, cuando este lead conteste la cola no tendría
+    # al agente disponible y se le colgaría con silencio. Liberamos la reserva del
+    # lead (sin gastar intento) y el frontend reintenta en el siguiente ciclo, ya
+    # con el agente realmente libre. NO compensa que el agente tarde en descolgar su
+    # softphone (eso es del agente); solo evita marcar sobre una llamada en curso.
+    if service.agent_busy_on_channel?(agent[:extension].to_s)
+      release_reserved_lead(contact)
+      Rails.logger.info "⏳ [Dialer] Agente aún en llamada, no se marca | ext=#{agent[:extension]} cuenta=#{Current.account.id}"
+      return render json: { queued: false, message: 'Agent still on a call' }
+    end
+    log_originate(contact, campaign, agent[:extension])
     service.prepare_agent_for_call("dialer_camp_#{campaign.id}", agent[:extension])
     result = service.originate_call(
       phone: phone,
@@ -289,6 +300,28 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
   end
 
   private
+
+  # Revierte la reserva de un lead que NO se llegó a marcar (el agente seguía en
+  # llamada). Si era la PRIMERA marcación (attempts pasó a 1), borra el
+  # campaign-contact para que el picker lo trate como FRESCO de nuevo (en one_by_one
+  # un row existente ya no se re-elige como fresco). Si era un reintento (attempts
+  # >1), conserva el row pero revierte estado/intento. Así el lead se vuelve a marcar
+  # en el siguiente ciclo, sin consumir intento ni perderse.
+  def release_reserved_lead(contact)
+    return if contact.blank?
+
+    if contact.attempts_jabvox.to_i <= 1
+      contact.destroy!
+    else
+      contact.update_columns( # rubocop:disable Rails/SkipsModelValidations
+        status_jabvox: 'pending',
+        attempts_jabvox: contact.attempts_jabvox.to_i - 1,
+        last_attempt_at_jabvox: nil
+      )
+    end
+  rescue StandardError => e
+    Rails.logger.warn "⚠️ [Dialer] release_reserved_lead failed | contact=#{contact&.id} error=#{e.message}"
+  end
 
   # Extensión SIP del usuario actual (fuente persistente, no depende de Redis).
   def user_extension

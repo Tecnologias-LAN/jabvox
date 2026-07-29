@@ -224,6 +224,26 @@ class Jabvox::DialerService
     Rails.logger.warn "⚠️ [Dialer] hangup_extension failed | ext=#{extension} error=#{e.message}"
   end
 
+  # ¿La extensión del agente tiene un canal ACTIVO en Asterisk ahora mismo? Se usa
+  # ANTES de originar: si el agente sigue en una llamada (o su leg anterior aún no
+  # se destruyó / está en wrap-up en el softphone), NO debemos marcar otro lead,
+  # porque cuando ese lead conteste la cola no tendrá al agente disponible y se le
+  # colgará con silencio (los "JOINEMPTY/LEAVEEMPTY"). Cierra la ventana de carrera
+  # entre el Originate y el Answer del lead. Si el AMI no responde, devuelve false
+  # (no bloquea la marcación: el pacing lo maneja el flujo 1:1 igualmente).
+  def agent_busy_on_channel?(extension)
+    return false if extension.blank?
+
+    Timeout.timeout(AMI_TIMEOUT) do
+      with_ami_connection do |socket|
+        find_active_channel(socket, extension).present?
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.warn "⚠️ [Dialer] agent_busy_on_channel? failed | ext=#{extension} error=#{e.message}"
+    false
+  end
+
   def prepare_agent_for_call(queue_name, extension)
     # Solo asegurar la cola si NO existe (p. ej. tras reinicio de Asterisk). Antes
     # se reescribía la config en CADA marcación, disparando un QueueReload que podía
@@ -471,6 +491,12 @@ class Jabvox::DialerService
       priority: 1,
       timeout: 30_000,
       async: 'true',
+      # ActionID que el OriginateResponse devuelve TAL CUAL. Lleva el call_log_id
+      # embebido para que el listener cierre el log si el Originate FALLA de
+      # inmediato (trunk congestionado / número inválido): en ese caso el canal
+      # nunca se crea y leer JABVOX_DIALER_LOG_ID del canal da vacío, dejando el
+      # log 'initiated' y al agente pegado en "Marcando…" hasta el reaper (~15min).
+      actionid: "jabvoxdlog-#{call_log_id}",
       # `__` = variable HEREDABLE en Asterisk: se propaga a los canales hijos y
       # sobrevive al bridge, así el contexto dialer-answered puede hacer
       # Set(CDR(dst)=${DIALER_PHONE}) con el número real. Sin el `__`, DIALER_PHONE
