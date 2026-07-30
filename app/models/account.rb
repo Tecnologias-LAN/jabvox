@@ -36,7 +36,9 @@
 #  jabvox_saldo_enabled_jabvox                :boolean          default(FALSE), not null
 #  jabvox_sms_enabled_jabvox                  :boolean          default(FALSE), not null
 #  jabvox_tasks_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_voice_broadcast_enabled_jabvox      :boolean          default(FALSE), not null
 #  jabvox_voip_enabled_jabvox                 :boolean          default(FALSE), not null
+#  jabvox_whatsapp_groups_enabled_jabvox      :boolean          default(FALSE), not null
 #  jabvox_whatsapp_templates_enabled_jabvox   :boolean          default(FALSE), not null
 #  limits                                     :jsonb
 #  locale                                     :integer          default("en")
@@ -222,6 +224,9 @@ class Account < ApplicationRecord
   has_one :jabvox_bulk_whatsapp_config, dependent: :destroy
   has_many :jabvox_bulk_whatsapp_batches, dependent: :delete_all
   has_many :jabvox_bulk_whatsapp_recipients, class_name: 'JabvoxBulkWhatsappRecipient', dependent: :delete_all
+  has_many :jabvox_whatsapp_groups, class_name: 'JabvoxWhatsappGroup', dependent: :destroy_async
+  has_many :jabvox_whatsapp_group_members, class_name: 'JabvoxWhatsappGroupMember', dependent: :delete_all
+  has_many :jabvox_conversation_label_logs, class_name: 'JabvoxConversationLabelLog', dependent: :delete_all
   has_many :jabvox_lead_sources, dependent: :destroy
   has_many :jabvox_lead_source_records, dependent: :delete_all
   has_many :jabvox_deleted_leads, dependent: :delete_all

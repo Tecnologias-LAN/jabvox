@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_30_000003) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -131,6 +131,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.boolean "jabvox_lead_delete_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_advanced_automations_enabled_jabvox", default: false, null: false
     t.bigint "feature_flags_ext_1", default: 0, null: false
+    t.boolean "jabvox_whatsapp_groups_enabled_jabvox", default: false, null: false
+    t.boolean "jabvox_voice_broadcast_enabled_jabvox", default: false, null: false
     t.index ["status"], name: "index_accounts_on_status"
   end
 
@@ -367,6 +369,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.datetime "updated_at", null: false
     t.index ["account_id", "contact_id"], name: "index_calls_on_account_id_and_contact_id"
     t.index ["account_id", "conversation_id"], name: "index_calls_on_account_id_and_conversation_id"
+    t.index ["account_id", "created_at"], name: "index_calls_on_account_id_and_created_at"
     t.index ["message_id"], name: "index_calls_on_message_id"
     t.index ["provider", "provider_call_id"], name: "index_calls_on_provider_and_provider_call_id", unique: true
   end
@@ -468,6 +471,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.datetime "last_synced_at"
     t.datetime "last_sync_attempted_at"
     t.index "assistant_id, md5(external_link)", name: "idx_captain_documents_on_assistant_id_and_external_link_md5", unique: true
+    t.index ["account_id", "assistant_id", "sync_status", "last_synced_at"], name: "idx_captain_documents_on_account_assistant_sync_stats"
     t.index ["account_id", "sync_status"], name: "index_captain_documents_on_account_id_and_sync_status"
     t.index ["account_id"], name: "index_captain_documents_on_account_id"
     t.index ["assistant_id"], name: "index_captain_documents_on_assistant_id"
@@ -753,6 +757,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "contacts_count"
+    t.jsonb "additional_attributes", default: {}
+    t.jsonb "custom_attributes", default: {}
+    t.datetime "last_activity_at", precision: nil
     t.index ["account_id", "domain"], name: "index_companies_on_account_and_domain", unique: true, where: "(domain IS NOT NULL)"
     t.index ["account_id"], name: "index_companies_on_account_id"
     t.index ["name", "account_id"], name: "index_companies_on_name_and_account_id"
@@ -955,57 +962,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_dashboard_apps_on_account_id"
     t.index ["user_id"], name: "index_dashboard_apps_on_user_id"
-  end
-
-  create_table "data_import_errors", force: :cascade do |t|
-    t.bigint "data_import_id", null: false
-    t.bigint "data_import_item_id"
-    t.string "source_object_type"
-    t.string "source_object_id"
-    t.string "error_code", null: false
-    t.text "message"
-    t.jsonb "details", default: {}, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["data_import_id"], name: "index_data_import_errors_on_data_import_id"
-    t.index ["data_import_item_id"], name: "index_data_import_errors_on_data_import_item_id"
-    t.index ["source_object_type", "source_object_id"], name: "idx_data_import_errors_on_source"
-  end
-
-  create_table "data_import_items", force: :cascade do |t|
-    t.bigint "data_import_id", null: false
-    t.string "source_provider", null: false
-    t.string "source_object_type", null: false
-    t.string "source_object_id", null: false
-    t.integer "status", default: 0, null: false
-    t.string "chatwoot_record_type"
-    t.bigint "chatwoot_record_id"
-    t.integer "attempt_count", default: 0, null: false
-    t.string "last_error_code"
-    t.text "last_error_message"
-    t.jsonb "metadata", default: {}, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["chatwoot_record_type", "chatwoot_record_id"], name: "idx_data_import_items_on_record"
-    t.index ["data_import_id", "source_object_type", "source_object_id"], name: "idx_data_import_items_on_import_and_source", unique: true
-    t.index ["data_import_id"], name: "index_data_import_items_on_data_import_id"
-    t.index ["source_provider", "source_object_type", "source_object_id"], name: "idx_data_import_items_on_source"
-  end
-
-  create_table "data_import_mappings", force: :cascade do |t|
-    t.integer "account_id", null: false
-    t.bigint "data_import_id", null: false
-    t.string "source_provider", null: false
-    t.string "source_object_type", null: false
-    t.string "source_object_id", null: false
-    t.string "chatwoot_record_type", null: false
-    t.bigint "chatwoot_record_id", null: false
-    t.jsonb "metadata", default: {}, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id", "source_provider", "source_object_type", "source_object_id"], name: "idx_data_import_mappings_on_account_and_source", unique: true
-    t.index ["chatwoot_record_type", "chatwoot_record_id"], name: "idx_data_import_mappings_on_record"
-    t.index ["data_import_id"], name: "index_data_import_mappings_on_data_import_id"
   end
 
   create_table "data_imports", force: :cascade do |t|
@@ -1971,6 +1927,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.datetime "updated_at", null: false
     t.index ["account_id", "started_at"], name: "idx_cdr_sync_runs_account_started"
     t.index ["account_id"], name: "index_jabvox_cdr_sync_runs_on_account_id"
+  end
+
+  create_table "jabvox_conversation_label_logs", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.integer "conversation_id", null: false
+    t.string "label_jabvox", null: false
+    t.datetime "applied_at_jabvox", null: false
+    t.datetime "removed_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "label_jabvox"], name: "idx_conv_label_logs_account_label"
+    t.index ["conversation_id", "label_jabvox"], name: "idx_conv_label_logs_open_unique", unique: true, where: "(removed_at_jabvox IS NULL)"
+    t.index ["conversation_id"], name: "idx_conv_label_logs_conversation"
   end
 
   create_table "jabvox_currencies", force: :cascade do |t|
@@ -3140,6 +3109,79 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.index ["user_id"], name: "index_jabvox_user_extensions_on_user_id"
   end
 
+  create_table "jabvox_voice_broadcast_audits", force: :cascade do |t|
+    t.bigint "jabvox_voice_broadcast_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "user_id"
+    t.string "action_jabvox", null: false
+    t.jsonb "metadata_jabvox", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "created_at"], name: "idx_vba_account_time"
+    t.index ["jabvox_voice_broadcast_id"], name: "idx_vba_broadcast"
+  end
+
+  create_table "jabvox_voice_broadcast_recipients", force: :cascade do |t|
+    t.bigint "jabvox_voice_broadcast_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "contact_id"
+    t.string "phone_jabvox", null: false
+    t.string "name_jabvox"
+    t.string "status_jabvox", default: "pending", null: false
+    t.string "outcome_jabvox"
+    t.string "amd_status_jabvox"
+    t.boolean "played_full_jabvox", default: false, null: false
+    t.string "dtmf_pressed_jabvox"
+    t.integer "duration_ms_jabvox"
+    t.integer "attempts_jabvox", default: 0, null: false
+    t.datetime "last_attempt_at_jabvox"
+    t.string "recording_file_jabvox"
+    t.string "uniqueid_jabvox"
+    t.string "linkedid_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "uniqueid_jabvox"], name: "idx_vbr_account_uniqueid", where: "(uniqueid_jabvox IS NOT NULL)"
+    t.index ["account_id"], name: "idx_vbr_account"
+    t.index ["jabvox_voice_broadcast_id", "phone_jabvox"], name: "idx_vbr_unique_phone", unique: true
+    t.index ["jabvox_voice_broadcast_id", "status_jabvox"], name: "idx_vbr_broadcast_status"
+    t.index ["jabvox_voice_broadcast_id"], name: "idx_vbr_broadcast"
+  end
+
+  create_table "jabvox_voice_broadcasts", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "jabvox_dialer_campaign_id", null: false
+    t.bigint "created_by_id"
+    t.string "name_jabvox", default: "", null: false
+    t.string "status_jabvox", default: "draft", null: false
+    t.string "audio_filename_jabvox"
+    t.string "audio_original_name_jabvox"
+    t.integer "audio_duration_ms_jabvox"
+    t.boolean "audio_deployed_jabvox", default: false, null: false
+    t.string "caller_id_jabvox", default: "", null: false
+    t.integer "max_concurrent_jabvox", default: 5, null: false
+    t.integer "cps_jabvox", default: 1, null: false
+    t.integer "max_retries_jabvox", default: 0, null: false
+    t.integer "retry_interval_jabvox", default: 300, null: false
+    t.boolean "amd_enabled_jabvox", default: true, null: false
+    t.boolean "dtmf_enabled_jabvox", default: false, null: false
+    t.string "dtmf_optout_digit_jabvox", default: "9"
+    t.string "calling_hours_start_jabvox"
+    t.string "calling_hours_end_jabvox"
+    t.integer "total_recipients_jabvox", default: 0, null: false
+    t.integer "dialed_count_jabvox", default: 0, null: false
+    t.integer "answered_human_count_jabvox", default: 0, null: false
+    t.integer "answered_machine_count_jabvox", default: 0, null: false
+    t.integer "played_complete_count_jabvox", default: 0, null: false
+    t.integer "failed_count_jabvox", default: 0, null: false
+    t.datetime "started_at_jabvox"
+    t.datetime "finished_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "status_jabvox"], name: "idx_vb_account_status"
+    t.index ["account_id"], name: "idx_vb_account"
+    t.index ["jabvox_dialer_campaign_id"], name: "idx_vb_campaign"
+  end
+
   create_table "jabvox_voip_configs", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "host", default: "", null: false
@@ -3156,6 +3198,41 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.string "dial_prefix_jabvox"
     t.string "dialer_provider_prefix", default: "", null: false
     t.index ["account_id"], name: "index_jabvox_voip_configs_on_account_id", unique: true
+  end
+
+  create_table "jabvox_whatsapp_group_members", force: :cascade do |t|
+    t.integer "whatsapp_group_id", null: false
+    t.integer "account_id", null: false
+    t.integer "contact_id"
+    t.string "phone_number_jabvox", null: false
+    t.string "name_jabvox"
+    t.string "role_jabvox", default: "member", null: false
+    t.string "invite_status_jabvox", default: "pending", null: false
+    t.datetime "joined_at_jabvox"
+    t.datetime "left_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["whatsapp_group_id", "phone_number_jabvox"], name: "idx_wa_group_members_unique", unique: true
+    t.index ["whatsapp_group_id"], name: "idx_wa_group_members_group"
+  end
+
+  create_table "jabvox_whatsapp_groups", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.integer "inbox_id", null: false
+    t.integer "conversation_id"
+    t.integer "created_by_id"
+    t.string "provider_group_id_jabvox"
+    t.string "name_jabvox", null: false
+    t.text "description_jabvox"
+    t.string "avatar_url_jabvox"
+    t.text "invite_link_jabvox"
+    t.string "status_jabvox", default: "active", null: false
+    t.jsonb "metadata_jabvox", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "idx_wa_groups_account"
+    t.index ["inbox_id"], name: "idx_wa_groups_inbox"
+    t.index ["provider_group_id_jabvox"], name: "idx_wa_groups_provider_id", unique: true, where: "(provider_group_id_jabvox IS NOT NULL)"
   end
 
   create_table "jabvox_whatsapp_template_logs", force: :cascade do |t|
@@ -3324,6 +3401,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["created_at"], name: "index_messages_on_created_at"
     t.index ["inbox_id"], name: "index_messages_on_inbox_id"
+    t.index ["sender_type", "sender_id", "created_at"], name: "index_messages_on_sender_and_created"
     t.index ["sender_type", "sender_id"], name: "index_messages_on_sender_type_and_sender_id"
     t.index ["source_id"], name: "index_messages_on_source_id"
   end

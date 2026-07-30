@@ -12,11 +12,11 @@ const props = defineProps({
   // 'template' | 'text' | null — derived from the inbox by the parent.
   mode: { type: String, default: null },
   configReady: { type: Boolean, default: false },
-  responseEmail: { type: String, default: '' },
-  emailValid: { type: Boolean, default: false },
+  // Wizard step driven by the parent: 2 audience, 3 message, 4 preview.
+  step: { type: Number, default: 2 },
 });
 
-const emit = defineEmits(['sent']);
+const emit = defineEmits(['sent', 'validity']);
 
 const { t } = useI18n();
 const rootStore = useStore();
@@ -231,7 +231,6 @@ const isRowChecked = id =>
 const canSend = computed(
   () =>
     props.configReady &&
-    props.emailValid &&
     !!props.inboxId &&
     !!props.senderUserId &&
     !!props.mode &&
@@ -239,6 +238,41 @@ const canSend = computed(
     (props.mode === 'template'
       ? !!templateName.value && !!language.value && allVariablesMapped.value
       : !!text.value.trim())
+);
+
+// Step 2 (audience) is valid once at least one lead is selected. Step 3 (message)
+// is valid once the template+variables or text are complete.
+const audienceValid = computed(() => selectedCount.value > 0);
+const messageValid = computed(() =>
+  props.mode === 'template'
+    ? !!templateName.value && !!language.value && allVariablesMapped.value
+    : !!text.value.trim()
+);
+
+// Preview of what will be sent (step 4): the template + how each variable maps
+// to a lead field, or the plain text. No real send — display only.
+const previewLines = computed(() => {
+  if (props.mode === 'template') {
+    return templateVariables.value.map(n => ({
+      var: varLabel(n),
+      field:
+        variableFieldOptions.value.find(o => o.value === variableMap.value[n])
+          ?.label || '—',
+    }));
+  }
+  return [];
+});
+
+// Tell the parent whether the current step lets "Next"/"Send" proceed.
+const stepValidity = () => {
+  if (props.step === 2) return audienceValid.value;
+  if (props.step === 3) return messageValid.value;
+  return canSend.value; // step 4
+};
+watch(
+  [() => props.step, audienceValid, messageValid, canSend],
+  () => emit('validity', stepValidity()),
+  { immediate: true }
 );
 
 const loadLeads = async () => {
@@ -326,7 +360,6 @@ const onSend = async () => {
     await bulkWhatsappAPI.sendLeads({
       inboxId: props.inboxId,
       senderUserId: props.senderUserId,
-      responseEmail: props.responseEmail,
       all: selectAll.value,
       leadIds: selectAll.value ? [] : [...selectedIds.value],
       excludedIds: selectAll.value ? [...excludedIds.value] : [],
@@ -348,6 +381,9 @@ const onSend = async () => {
     sending.value = false;
   }
 };
+
+// Exposed so the parent wizard's step-4 Send button can trigger the leads send.
+defineExpose({ send: () => onSend() });
 
 const contactName = lead => lead.contact?.name || lead.name || '—';
 const contactPhone = lead => lead.contact?.phone_number || lead.phone || '—';
@@ -400,8 +436,11 @@ onMounted(() => {
       </p>
     </div>
 
-    <!-- Filters (collapsible) -->
-    <section class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm">
+    <!-- Filters (collapsible) — Paso 2: audiencia -->
+    <section
+      v-show="step === 2"
+      class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm"
+    >
       <button
         type="button"
         class="flex items-center justify-between w-full px-4 py-3"
@@ -768,6 +807,7 @@ onMounted(() => {
 
     <!-- Selection summary -->
     <div
+      v-show="step === 2"
       class="flex flex-wrap items-center justify-between gap-2 text-sm text-n-slate-11"
     >
       <div class="flex items-center gap-2">
@@ -798,7 +838,10 @@ onMounted(() => {
     </div>
 
     <!-- Lead table -->
-    <div class="overflow-x-auto rounded-2xl border border-n-weak bg-n-solid-1">
+    <div
+      v-show="step === 2"
+      class="overflow-x-auto rounded-2xl border border-n-weak bg-n-solid-1"
+    >
       <table class="w-full text-sm">
         <thead class="bg-n-alpha-1 text-n-slate-11">
           <tr>
@@ -845,7 +888,7 @@ onMounted(() => {
 
     <!-- Pagination -->
     <div
-      v-if="totalPages > 1"
+      v-if="step === 2 && totalPages > 1"
       class="flex items-center justify-center gap-2 text-sm"
     >
       <button
@@ -869,8 +912,9 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- Message body -->
+    <!-- Message body — Paso 3: plantilla + variables / texto -->
     <section
+      v-show="step === 3"
       class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm space-y-3"
     >
       <p v-if="!mode" class="text-sm text-n-slate-10">
@@ -981,21 +1025,49 @@ onMounted(() => {
       </template>
     </section>
 
-    <div class="flex justify-end">
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-n-brand text-white hover:opacity-90 disabled:opacity-50"
-        :disabled="!canSend || sending"
-        @click="onSend"
+    <!-- Preview — Paso 4: previsualización (no envía) -->
+    <section
+      v-show="step === 4"
+      class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm space-y-3"
+    >
+      <p class="text-sm font-medium text-n-slate-12">
+        {{ t('JABVOX_BULK_WA.PREVIEW.TITLE') }}
+      </p>
+      <ul class="text-sm text-n-slate-11 space-y-1">
+        <li>
+          {{ t('JABVOX_BULK_WA.PREVIEW.RECIPIENTS', { count: selectedCount }) }}
+        </li>
+        <li v-if="mode === 'template'">
+          {{
+            t('JABVOX_BULK_WA.PREVIEW.TEMPLATE', {
+              name: templateName,
+              lang: language,
+            })
+          }}
+        </li>
+      </ul>
+      <div
+        v-if="mode === 'template' && previewLines.length"
+        class="rounded-lg bg-n-alpha-1 p-3 space-y-1"
       >
-        <span
-          v-if="sending"
-          class="i-lucide-loader-2 size-4 animate-spin"
-          aria-hidden="true"
-        />
-        <span v-else class="i-lucide-send size-4" aria-hidden="true" />
-        {{ t('JABVOX_BULK_WA.LEADS.SEND', { count: selectedCount }) }}
-      </button>
-    </div>
+        <p class="text-[11px] text-n-slate-9">
+          {{ t('JABVOX_BULK_WA.PREVIEW.VARS') }}
+        </p>
+        <div
+          v-for="(line, idx) in previewLines"
+          :key="`prev-${idx}`"
+          class="flex items-center gap-2 text-xs"
+        >
+          <span class="font-mono rounded bg-n-alpha-2 px-1.5 py-0.5">{{
+            line.var
+          }}</span>
+          <span class="i-lucide-arrow-right size-3" aria-hidden="true" />
+          <span class="text-n-slate-12">{{ line.field }}</span>
+        </div>
+      </div>
+      <div v-else-if="mode === 'text'" class="rounded-lg bg-n-alpha-1 p-3">
+        <p class="text-sm text-n-slate-12 whitespace-pre-wrap">{{ text }}</p>
+      </div>
+    </section>
   </div>
 </template>

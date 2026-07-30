@@ -370,6 +370,7 @@
     "ONE_OFF": "One Off",
     "REPORTS_SLA": "SLA",
     "REPORTS_BOT": "Bot",
+    "REPORTS_WHATSAPP": "WhatsApp",
     "REPORTS_AGENT": "Agentes",
     "REPORTS_LABEL": "Etiquetas",
     "REPORTS_INBOX": "Bandeja de entrada",

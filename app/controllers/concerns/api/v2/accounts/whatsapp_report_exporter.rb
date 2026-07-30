@@ -30,6 +30,10 @@ module Api::V2::Accounts::WhatsappReportExporter
     head :not_found
   end
 
+  def whatsapp_label_durations
+    render json: whatsapp_builder.label_durations
+  end
+
   def whatsapp_export
     rows = whatsapp_builder.agents
     if params[:format].to_s == 'xlsx'

@@ -16,6 +16,11 @@ const { t } = useI18n();
 
 const POLL_MS = 4000;
 const RUNNING = ['queued', 'running', 'pending'];
+// Delivered/read indicators (WhatsApp-style ticks), kept as constants so the
+// template stays free of bare literals.
+const CHECK = '✓';
+const DOUBLE_CHECK = '✓✓';
+const DASH = '—';
 
 const open = ref(false);
 const loading = ref(false);
@@ -33,6 +38,8 @@ const totals = computed(() => ({
   sent: batch.value?.sent_count || 0,
   failed: batch.value?.failed_count || 0,
   total: batch.value?.total_rows_jabvox || 0,
+  delivered: batch.value?.delivery_summary?.delivered || 0,
+  read: batch.value?.delivery_summary?.read || 0,
 }));
 
 const load = async () => {
@@ -142,6 +149,14 @@ defineExpose({ openDialog });
                   total: totals.total,
                 })
               }}
+              <span class="ml-2 text-n-teal-11">
+                {{
+                  t('JABVOX_BULK_WA.REPORT.TOTALS_DELIVERY', {
+                    delivered: totals.delivered,
+                    read: totals.read,
+                  })
+                }}
+              </span>
               <span v-if="isRunning" class="ml-2 text-n-amber-11">
                 {{ t('JABVOX_BULK_WA.REPORT.LIVE') }}
               </span>
@@ -163,6 +178,8 @@ defineExpose({ openDialog });
               v-for="opt in [
                 { v: '', l: 'FILTER_ALL' },
                 { v: 'sent', l: 'FILTER_SENT' },
+                { v: 'delivered', l: 'FILTER_DELIVERED' },
+                { v: 'read', l: 'FILTER_READ' },
                 { v: 'failed', l: 'FILTER_FAILED' },
                 { v: 'pending', l: 'FILTER_PENDING' },
               ]"
@@ -226,6 +243,12 @@ defineExpose({ openDialog });
                   {{ t('JABVOX_BULK_WA.REPORT.COLS.STATUS') }}
                 </th>
                 <th class="py-2 px-3">
+                  {{ t('JABVOX_BULK_WA.REPORT.COLS.DELIVERED') }}
+                </th>
+                <th class="py-2 px-3">
+                  {{ t('JABVOX_BULK_WA.REPORT.COLS.READ') }}
+                </th>
+                <th class="py-2 px-3">
                   {{ t('JABVOX_BULK_WA.REPORT.COLS.ERROR_CODE') }}
                 </th>
                 <th class="py-2 px-3">
@@ -246,6 +269,22 @@ defineExpose({ openDialog });
                   :class="statusClass(r.status)"
                 >
                   {{ statusLabel(r.status) }}
+                </td>
+                <td class="py-2 px-3 text-n-slate-11">
+                  <span
+                    :title="r.delivered_at || ''"
+                    :class="r.delivered ? 'text-n-teal-11' : 'text-n-slate-9'"
+                  >
+                    {{ r.delivered ? CHECK : DASH }}
+                  </span>
+                </td>
+                <td class="py-2 px-3 text-n-slate-11">
+                  <span
+                    :title="r.read_at || ''"
+                    :class="r.read ? 'text-n-teal-11' : 'text-n-slate-9'"
+                  >
+                    {{ r.read ? DOUBLE_CHECK : DASH }}
+                  </span>
                 </td>
                 <td class="py-2 px-3 text-n-slate-11">{{ r.error_code }}</td>
                 <td class="py-2 px-3 text-n-slate-11 max-w-xs truncate">

@@ -113,7 +113,8 @@
       "PREVIEW_MORE": "…and {count} more",
       "SUBMIT": "Send messages",
       "SUCCESS": "Sent to n8n for processing.",
-      "ERROR": "Could not send. Check the file and the webhook settings."
+      "ERROR": "Could not send. Check the file and the webhook settings.",
+      "CSV_TEMPLATE_INFO": "Each message template and language come from the CSV \"template\" and \"idioma\" columns. Review the preview below before continuing."
     },
     "HISTORY": {
       "LOADING": "Loading history…",
@@ -159,8 +160,13 @@
         "STATUS": "Status",
         "ERROR_CODE": "Error code",
         "ERROR_MESSAGE": "Error message",
-        "SENT_AT": "Sent at"
-      }
+        "SENT_AT": "Sent at",
+        "DELIVERED": "Delivered",
+        "READ": "Read"
+      },
+      "FILTER_DELIVERED": "Delivered",
+      "FILTER_READ": "Read",
+      "TOTALS_DELIVERY": "· {delivered} delivered · {read} read"
     },
     "SETTINGS": {
       "WEBHOOK_URL": "n8n webhook URL",
@@ -172,6 +178,12 @@
       "SAVE": "Save",
       "SAVED": "Settings saved.",
       "ERROR": "Could not save the settings."
+    },
+    "PREVIEW": {
+      "TITLE": "Preview",
+      "RECIPIENTS": "Will be sent to {count} recipient(s).",
+      "TEMPLATE": "Template: {name} ({lang})",
+      "VARS": "Mapped variables:"
     }
   }
 }

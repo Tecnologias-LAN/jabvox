@@ -1,0 +1,89 @@
+{
+  "JABVOX_WHATSAPP_GROUPS": {
+    "TITLE": "Grupos de WhatsApp",
+    "SUBTITLE": "Salas pequeñas y colaborativas (máximo 8 miembros, solo por invitación). No es difusión: para envíos masivos usa el módulo de Envío Masivo.",
+    "INBOX_LABEL": "Bandeja",
+    "NO_CLOUD_INBOX": "No hay bandejas de WhatsApp Cloud API en esta cuenta. Los grupos requieren una bandeja de WhatsApp Cloud API.",
+    "INVITE_ONLY_HINT": "Los grupos son salas por invitación de hasta {max} miembros. Los participantes entran con el link de invitación.",
+    "CANCEL": "Cancelar",
+    "CLOSE": "Cerrar",
+    "ELIGIBILITY": {
+      "BLOCKED_TITLE": "Los grupos no están disponibles para esta bandeja",
+      "REASONS": {
+        "NOT_CLOUD_API": "Los grupos solo funcionan con WhatsApp Cloud API de Meta.",
+        "COEXISTENCE": "Los grupos no están disponibles en números de Coexistencia (Multi-solución) ni de la app de WhatsApp Business.",
+        "NOT_OFFICIAL_BUSINESS": "Los grupos requieren una Cuenta de Empresa Oficial (OBA, con el tick verde de Meta).",
+        "ERROR": "No se pudo verificar la elegibilidad de esta bandeja."
+      }
+    },
+    "STATUS": {
+      "DRAFT": "Borrador",
+      "ACTIVE": "Activo",
+      "ARCHIVED": "Archivado"
+    },
+    "ROLE": {
+      "ADMIN": "Administrador",
+      "MEMBER": "Miembro"
+    },
+    "INVITE_STATUS": {
+      "PENDING": "Pendiente",
+      "JOINED": "Unido",
+      "LEFT": "Salió",
+      "REMOVED": "Removido"
+    },
+    "TABLE": {
+      "NAME": "Nombre",
+      "MEMBERS": "Miembros",
+      "STATUS": "Estado",
+      "MANAGE": "Gestionar"
+    },
+    "LIST": {
+      "EMPTY": "Aún no hay grupos. Crea el primero.",
+      "LOAD_ERROR": "No se pudieron cargar los grupos."
+    },
+    "CREATE": {
+      "BUTTON": "Crear grupo",
+      "TITLE": "Nuevo grupo de WhatsApp",
+      "NAME": "Nombre del grupo",
+      "DESCRIPTION": "Descripción (opcional)",
+      "MEMBERS": "Miembros iniciales (un número por línea, opcional)",
+      "MEMBERS_PLACEHOLDER": "573001112233\n573004445566",
+      "TOO_MANY": "Un grupo no puede tener más de {max} miembros.",
+      "CONFIRM": "Crear grupo",
+      "SUCCESS": "Grupo creado.",
+      "ERROR": "No se pudo crear el grupo."
+    },
+    "DETAIL": {
+      "INVITE_LINK": "Link de invitación",
+      "COPY": "Copiar",
+      "REFRESH": "Regenerar",
+      "INVITE_COPIED": "Link de invitación copiado.",
+      "MEMBERS": "Miembros",
+      "ADD": "Añadir",
+      "ADD_PLACEHOLDER": "Número (ej. 573001112233)",
+      "ADD_ERROR": "No se pudo añadir el miembro.",
+      "AT_CAPACITY": "El grupo alcanzó el máximo de {max} miembros.",
+      "PROMOTE": "Hacer admin",
+      "DEMOTE": "Quitar admin",
+      "REMOVE": "Quitar",
+      "SEND_MESSAGE": "Enviar mensaje al grupo",
+      "SEND": "Enviar",
+      "MESSAGE_SENT": "Mensaje enviado al grupo.",
+      "MESSAGE_ERROR": "No se pudo enviar el mensaje."
+    },
+    "REPORT": {
+      "TITLE": "Reporte de Grupos de WhatsApp",
+      "TOTAL_GROUPS": "Grupos totales",
+      "ACTIVE_GROUPS": "Grupos activos",
+      "ARCHIVED_GROUPS": "Grupos archivados",
+      "TOTAL_MEMBERS": "Miembros totales",
+      "AVG_MEMBERS": "Promedio de miembros por grupo",
+      "MESSAGES_SENT": "Mensajes enviados",
+      "TABLE_NAME": "Grupo",
+      "TABLE_MEMBERS": "Miembros",
+      "TABLE_MESSAGES": "Mensajes",
+      "TABLE_STATUS": "Estado",
+      "TABLE_CREATED": "Creado"
+    }
+  }
+}

@@ -31,21 +31,15 @@ const SOURCES = ['csv', 'leads'];
 const allInboxes = useMapGetter('inboxes/getInboxes');
 const senders = ref([]);
 
-// Paso 1 solo ofrece bandejas de canal WhatsApp (oficial o Twilio-whatsapp).
+// Paso 1 solo ofrece bandejas de canal WhatsApp (Cloud API oficial).
 const inboxes = computed(() =>
-  (allInboxes.value || []).filter(
-    ib =>
-      ib.channel_type === 'Channel::Whatsapp' ||
-      (ib.channel_type === 'Channel::TwilioSms' && ib.medium === 'whatsapp')
-  )
+  (allInboxes.value || []).filter(ib => ib.channel_type === 'Channel::Whatsapp')
 );
 
-// El emisor debe ser ADMINISTRADOR de la cuenta: no se muestran agentes ni
-// roles personalizados. `senders` viene del backend (id/name/email/role); si el
-// backend no expone role, se cae al listado tal cual (defensivo).
-const adminSenders = computed(() =>
-  (senders.value || []).filter(s => !s.role || s.role === 'administrator')
-);
+// Todos los usuarios de la cuenta que devuelve el backend pueden ser emisores;
+// el propio backend valida quién puede enviar (admin o rol con permiso). No se
+// vuelve a filtrar por rol aquí para no ocultar agentes/roles autorizados.
+const availableSenders = computed(() => senders.value || []);
 
 // ── Config (webhook only; the report email is chosen per send) ───────────────
 const webhookUrl = ref('');
@@ -57,8 +51,6 @@ const configReady = computed(() => !!webhookUrl.value.trim());
 // ── Send form ─────────────────────────────────────────────────────────────
 const selectedInboxId = ref('');
 const selectedSenderId = ref('');
-// Report email, required before any send (CSV or leads).
-const responseEmail = ref('');
 const file = ref(null);
 const parsedPreview = ref([]);
 const parseError = ref('');
@@ -66,9 +58,6 @@ const sending = ref(false);
 const fileInput = ref(null);
 
 const REQUIRED_HEADERS = ['nombre', 'numero', 'template', 'idioma'];
-// Basic email shape check, mirrors the backend validation.
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const emailValid = computed(() => EMAIL_RE.test(responseEmail.value.trim()));
 
 const selectedInbox = computed(() =>
   inboxes.value.find(ib => ib.id === Number(selectedInboxId.value))
@@ -79,16 +68,13 @@ const selectedInbox = computed(() =>
 const sendMode = computed(() => {
   const ib = selectedInbox.value;
   if (!ib) return null;
-  const isOfficial =
-    ib.channel_type === 'Channel::Whatsapp' ||
-    (ib.channel_type === 'Channel::TwilioSms' && ib.medium === 'whatsapp');
-  return isOfficial ? 'template' : 'text';
+  // Solo bandejas WhatsApp Cloud API → envío por plantilla aprobada.
+  return ib.channel_type === 'Channel::Whatsapp' ? 'template' : 'text';
 });
 
 const canSend = computed(
   () =>
     configReady.value &&
-    emailValid.value &&
     !!file.value &&
     !!selectedInboxId.value &&
     !!selectedSenderId.value &&
@@ -96,41 +82,47 @@ const canSend = computed(
     parsedPreview.value.length > 0
 );
 
-// ── Wizard stepper (4 pasos, secuencial y obligatorio) ──────────────────────
-// 1: bandeja + emisor admin | 2: origen (CSV/leads) | 3: plantilla+variables
-// (solo leads; en CSV se omite) | 4: preview + enviar.
-// El flujo "leads" (plantilla, variables, preview, enviar) lo maneja
-// LeadsPickerTab internamente una vez fijada la audiencia en el paso 2.
+// ── Wizard stepper (4 pasos, secuencial y obligatorio para AMBOS flujos) ─────
+// 1: bandeja + emisor | 2: destinatarios (CSV: archivo / leads: audiencia) |
+// 3: plantilla + variables (o texto) | 4: previsualización + enviar.
+// Tanto CSV como leads recorren los 4 pasos. En leads, LeadsPickerTab muestra la
+// sección que corresponde al paso vía la prop `step`.
 const wizardStep = ref(1);
+const leadsRef = ref(null);
+// Validez del paso actual reportada por LeadsPickerTab (audiencia/mensaje/envío).
+const leadsStepValid = ref(false);
+const onLeadsValidity = valid => {
+  leadsStepValid.value = valid;
+};
 
 // Validez de cada paso — "Siguiente" se bloquea si el paso actual no es válido.
 const step1Valid = computed(
   () => configReady.value && !!selectedInboxId.value && !!selectedSenderId.value
 );
-const step2Valid = computed(() =>
-  source.value === 'csv'
-    ? !parseError.value && parsedPreview.value.length > 0
-    : true
+const step2Valid = computed(() => {
+  if (source.value === 'csv') {
+    return !parseError.value && parsedPreview.value.length > 0;
+  }
+  return leadsStepValid.value; // audiencia seleccionada
+});
+// Paso 3 (plantilla/variables): en CSV la plantilla va en el archivo, así que no
+// requiere acción; en leads depende de que el mensaje esté completo.
+const step3Valid = computed(() =>
+  source.value === 'csv' ? true : leadsStepValid.value
 );
 const canGoNext = computed(() => {
   if (wizardStep.value === 1) return step1Valid.value;
   if (wizardStep.value === 2) return step2Valid.value;
+  if (wizardStep.value === 3) return step3Valid.value;
   return true;
 });
 
-// CSV omite el paso 3 (plantilla/variables por fila) → salta 2 → 4.
 const nextStep = () => {
   if (!canGoNext.value) return;
-  wizardStep.value =
-    wizardStep.value === 2 && source.value === 'csv'
-      ? 4
-      : Math.min(wizardStep.value + 1, 4);
+  wizardStep.value = Math.min(wizardStep.value + 1, 4);
 };
 const prevStep = () => {
-  wizardStep.value =
-    wizardStep.value === 4 && source.value === 'csv'
-      ? 2
-      : Math.max(wizardStep.value - 1, 1);
+  wizardStep.value = Math.max(wizardStep.value - 1, 1);
 };
 const resetWizard = () => {
   wizardStep.value = 1;
@@ -267,7 +259,6 @@ const onSend = async () => {
       file: file.value,
       inboxId: selectedInboxId.value,
       senderUserId: selectedSenderId.value,
-      responseEmail: responseEmail.value.trim(),
     });
     useAlert(t('JABVOX_BULK_WA.SEND.SUCCESS'));
     resetForm();
@@ -277,6 +268,21 @@ const onSend = async () => {
     useAlert(error?.response?.data?.error || t('JABVOX_BULK_WA.SEND.ERROR'));
   } finally {
     sending.value = false;
+  }
+};
+
+// Step 4 can submit when CSV is ready, or when LeadsPickerTab reports it can send.
+const canSubmitStep4 = computed(() =>
+  source.value === 'csv' ? canSend.value : leadsStepValid.value
+);
+
+// Unified step-4 submit: CSV sends here; leads delegates to LeadsPickerTab
+// (which owns the audience/template state) via its exposed send().
+const submitWizard = () => {
+  if (source.value === 'csv') {
+    onSend();
+  } else {
+    leadsRef.value?.send();
   }
 };
 
@@ -499,7 +505,7 @@ onMounted(() => {
                 <option value="">
                   {{ t('JABVOX_BULK_WA.SEND.SENDER_PLACEHOLDER') }}
                 </option>
-                <option v-for="u in adminSenders" :key="u.id" :value="u.id">
+                <option v-for="u in availableSenders" :key="u.id" :value="u.id">
                   {{ u.name }} ({{ u.email }})
                 </option>
               </select>
@@ -507,27 +513,6 @@ onMounted(() => {
                 {{ t('JABVOX_BULK_WA.SEND.SENDER_HINT') }}
               </span>
             </div>
-          </div>
-
-          <!-- Report email (required per send) -->
-          <div class="flex flex-col gap-1">
-            <label class="text-xs text-n-slate-11">{{
-              t('JABVOX_BULK_WA.SEND.REPORT_EMAIL')
-            }}</label>
-            <input
-              v-model="responseEmail"
-              type="email"
-              :placeholder="t('JABVOX_BULK_WA.SEND.REPORT_EMAIL_PLACEHOLDER')"
-              class="reset-base text-sm rounded-lg border bg-n-alpha-1 px-3 py-2"
-              :class="
-                responseEmail && !emailValid
-                  ? 'border-n-ruby-8'
-                  : 'border-n-weak'
-              "
-            />
-            <span class="text-[11px] text-n-slate-9">
-              {{ t('JABVOX_BULK_WA.SEND.REPORT_EMAIL_HINT') }}
-            </span>
           </div>
         </section>
 
@@ -561,23 +546,25 @@ onMounted(() => {
         <LeadsPickerTab
           v-if="source === 'leads'"
           v-show="wizardStep >= 2"
+          ref="leadsRef"
           :inbox-id="selectedInboxId"
           :sender-user-id="selectedSenderId"
           :mode="sendMode"
           :config-ready="configReady"
-          :response-email="responseEmail.trim()"
-          :email-valid="emailValid"
+          :step="wizardStep"
           @sent="onLeadsSent"
+          @validity="onLeadsValidity"
         />
 
-        <!-- CSV source: preview del primer registro y enviar (pasos 2 y 4) -->
+        <!-- CSV source: subir (paso 2) · guía plantilla (paso 3) · preview+enviar (paso 4) -->
         <section
           v-else
-          v-show="wizardStep === 2 || wizardStep === 4"
+          v-show="wizardStep >= 2"
           class="rounded-2xl border border-n-weak bg-n-solid-1 p-5 shadow-sm space-y-4"
         >
-          <!-- Sample CSV -->
+          <!-- Sample CSV (paso 2) -->
           <div
+            v-show="wizardStep === 2"
             class="flex items-center justify-between gap-3 rounded-lg bg-n-alpha-1 px-3 py-2.5"
           >
             <div class="flex items-center gap-2 min-w-0">
@@ -608,8 +595,8 @@ onMounted(() => {
             </button>
           </div>
 
-          <!-- File -->
-          <div class="flex flex-col gap-1">
+          <!-- File (paso 2) -->
+          <div v-show="wizardStep === 2" class="flex flex-col gap-1">
             <label class="text-xs text-n-slate-11">{{
               t('JABVOX_BULK_WA.SEND.FILE')
             }}</label>
@@ -626,14 +613,22 @@ onMounted(() => {
           </div>
 
           <p
-            v-if="parseError"
+            v-if="parseError && wizardStep === 2"
             class="text-sm text-n-ruby-11 bg-n-ruby-3 rounded-lg px-3 py-2"
           >
             {{ parseError }}
           </p>
 
-          <!-- Preview -->
-          <div v-if="parsedPreview.length" class="space-y-2">
+          <!-- Paso 3 (CSV): la plantilla e idioma van en las columnas del CSV -->
+          <div
+            v-show="wizardStep === 3"
+            class="rounded-lg bg-n-alpha-1 px-3 py-2.5 text-xs text-n-slate-11"
+          >
+            {{ t('JABVOX_BULK_WA.SEND.CSV_TEMPLATE_INFO') }}
+          </div>
+
+          <!-- Preview (pasos 3 y 4) -->
+          <div v-if="parsedPreview.length && wizardStep >= 3" class="space-y-2">
             <p class="text-xs text-n-slate-10">
               {{ t('JABVOX_BULK_WA.SEND.PREVIEW_COUNT', parsedPreview.length) }}
             </p>
@@ -678,24 +673,6 @@ onMounted(() => {
               }}
             </p>
           </div>
-
-          <div class="flex justify-end pt-2">
-            <button
-              v-show="wizardStep === 4"
-              type="button"
-              class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-n-brand text-white hover:opacity-90 disabled:opacity-50"
-              :disabled="!canSend || sending"
-              @click="onSend"
-            >
-              <span
-                v-if="sending"
-                class="i-lucide-loader-2 size-4 animate-spin"
-                aria-hidden="true"
-              />
-              <span v-else class="i-lucide-send size-4" aria-hidden="true" />
-              {{ t('JABVOX_BULK_WA.SEND.SUBMIT') }}
-            </button>
-          </div>
         </section>
 
         <!-- Navegación del wizard: Atrás / Siguiente (no salta pasos ni avanza
@@ -719,7 +696,7 @@ onMounted(() => {
             }}
           </span>
           <button
-            v-show="wizardStep < 4 && !(source === 'leads' && wizardStep >= 2)"
+            v-show="wizardStep < 4"
             type="button"
             class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-n-brand text-white hover:opacity-90 disabled:opacity-50"
             :disabled="!canGoNext"
@@ -727,6 +704,22 @@ onMounted(() => {
           >
             {{ t('JABVOX_BULK_WA.WIZARD.NEXT') }}
             <span class="i-lucide-arrow-right size-4" aria-hidden="true" />
+          </button>
+          <!-- Envío final unificado (paso 4): CSV o leads según el origen. -->
+          <button
+            v-show="wizardStep === 4"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-n-brand text-white hover:opacity-90 disabled:opacity-50"
+            :disabled="!canSubmitStep4 || sending"
+            @click="submitWizard"
+          >
+            <span
+              v-if="sending"
+              class="i-lucide-loader-2 size-4 animate-spin"
+              aria-hidden="true"
+            />
+            <span v-else class="i-lucide-send size-4" aria-hidden="true" />
+            {{ t('JABVOX_BULK_WA.SEND.SUBMIT') }}
           </button>
         </div>
       </div>

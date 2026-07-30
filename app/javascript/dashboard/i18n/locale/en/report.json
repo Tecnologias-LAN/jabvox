@@ -666,5 +666,61 @@
     "AVG_REPLY_TIME": "Avg. Customer Waiting Time",
     "RESOLUTION_COUNT": "Resolution Count",
     "CONVERSATIONS": "No. of conversations"
+  },
+  "WHATSAPP_REPORTS": {
+    "HEADER_TITLE": "WhatsApp Reports",
+    "FILTER_DATE": "Date range",
+    "SUMMARY": {
+      "TITLE": "Overview",
+      "SENT": "Messages sent",
+      "DELIVERED": "Delivered",
+      "READ": "Read",
+      "FAILED": "Failed",
+      "RECEIVED": "Messages received",
+      "TEMPLATES": "Templates",
+      "MEDIA_SENT": "Media sent",
+      "RESPONDED": "Responded conversations",
+      "RESOLVED": "Resolved",
+      "DELIVERY_RATE": "Delivery %",
+      "READ_RATE": "Read %",
+      "TIME_TO_DELIVER": "Time to deliver (median)",
+      "TIME_TO_READ": "Time to read (median)",
+      "FIRST_RESPONSE": "First response (median)",
+      "RESOLUTION": "Resolution (median)"
+    },
+    "TYPES": {
+      "TITLE_IN": "Received by type",
+      "TITLE_OUT": "Sent by type",
+      "TEXT": "Text",
+      "IMAGE": "Images",
+      "VIDEO": "Videos",
+      "AUDIO": "Audios",
+      "DOCUMENT": "Documents",
+      "LOCATION": "Locations",
+      "TOTAL": "Total"
+    },
+    "AGENTS": {
+      "TITLE": "By agent",
+      "AGENT": "Agent",
+      "SENT": "Sent",
+      "RECEIVED": "Received",
+      "DELIVERED": "Delivered",
+      "READ": "Read",
+      "FAILED": "Failed",
+      "DELIVERY_RATE": "Delivery %",
+      "READ_RATE": "Read %",
+      "TIME_TO_DELIVER": "Deliver t.",
+      "TIME_TO_READ": "Read t.",
+      "MEDIA": "Media"
+    },
+    "LABELS": {
+      "TITLE": "Time per label",
+      "LABEL": "Label",
+      "TOTAL": "Total time",
+      "AVG": "Average",
+      "OCCURRENCES": "Times applied",
+      "NOTE": "Measured from when this feature was enabled; no prior history."
+    },
+    "EMPTY": "No data for the selected range."
   }
 }

@@ -4,6 +4,8 @@ require 'csv'
 # through and the user whose API token n8n will use, then dispatch it to the account's webhook.
 # Also exposes the send history and the list of selectable sender users. Admin-only.
 class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Accounts::Jabvox::BulkWhatsapp::BaseController
+  include Jabvox::BulkWhatsappDeliveryStatus
+
   before_action :ensure_admin
 
   def index
@@ -22,8 +24,11 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     respond_to do |format|
       format.csv { send_data recipients_csv(scope), filename: "envio_#{batch.id}.csv" }
       format.json do
+        recipients = scope.limit(5000).to_a
+        status_map = delivery_status_map(recipients)
         render json: serialize(batch).merge(
-          recipients: scope.limit(5000).map { |r| serialize_recipient(r) }
+          delivery_summary: delivery_summary(batch),
+          recipients: recipients.map { |r| serialize_recipient(r, status_map) }
         )
       end
     end
@@ -176,7 +181,7 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
   # Recipients de un batch, filtrados por estado y/o búsqueda (nombre/número).
   def filtered_recipients(batch)
     scope = batch.recipients
-    scope = scope.where(status_jabvox: params[:status]) if params[:status].present?
+    scope = filter_recipients_by_status(batch, scope, params[:status].to_s) if params[:status].present?
     if params[:q].present?
       q = "%#{params[:q].to_s.strip}%"
       scope = scope.where('name_jabvox ILIKE :q OR phone_number_jabvox ILIKE :q', q: q)
@@ -199,17 +204,7 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     JabvoxBulkWhatsappRecipient.insert_all(rows) if rows.any?
   end
 
-  def recipients_csv(scope)
-    CSV.generate(headers: true) do |csv|
-      csv << ['Nombre', 'Número', 'Plantilla', 'Estado', 'Código error', 'Mensaje error', 'Enviado a las']
-      scope.each do |r|
-        csv << [r.name_jabvox, r.phone_number_jabvox, r.template_name_jabvox,
-                r.status_jabvox, r.error_code_jabvox, r.error_message_jabvox, r.sent_at_jabvox]
-      end
-    end
-  end
-
-  def serialize_recipient(recipient)
+  def serialize_recipient(recipient, status_map = {})
     {
       id: recipient.id,
       name: recipient.name_jabvox,
@@ -221,7 +216,7 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       rendered_content: recipient.rendered_content_jabvox,
       conversation_id: recipient.conversation_id,
       sent_at: recipient.sent_at_jabvox
-    }
+    }.merge(recipient_delivery_fields(recipient, status_map))
   end
 
   def serialize(batch)

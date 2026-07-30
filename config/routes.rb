@@ -649,6 +649,19 @@ Rails.application.routes.draw do
               collection { patch :typify }
               member { patch :typify }
             end
+            # Agente virtual / Voice Broadcast saliente (reutiliza la lista de una campaña).
+            resources :voice_broadcasts, only: [:index, :show, :create, :update, :destroy] do
+              member do
+                post :audio
+                post :start
+                post :pause
+                post :resume
+                post :stop
+                get :live_monitor
+                get :report
+                get :report_csv
+              end
+            end
             resources :dialer_states, only: [:index, :create, :update, :destroy]
             resources :dialer_accesses, only: [:index, :update] do
               collection do
@@ -771,6 +784,19 @@ Rails.application.routes.draw do
               end
               # Callback de n8n por batch_uuid (autenticado por token, no por admin).
               post 'batches/:batch_uuid/results', to: 'callbacks#results'
+            end
+
+            namespace :whatsapp_groups do
+              get 'inboxes/:inbox_id/eligibility', to: 'groups#eligibility'
+              resources :groups, only: [:index, :show, :create, :update] do
+                member do
+                  post :invite
+                  post :members, action: :add_member
+                  delete 'members/:member_id', action: :remove_member
+                  patch 'members/:member_id', action: :update_member
+                  post :messages, action: :send_message
+                end
+              end
             end
 
             # Lead Import (pull leads from external databases) module
@@ -958,7 +984,11 @@ Rails.application.routes.draw do
               get 'whatsapp/summary', action: :whatsapp_summary
               get 'whatsapp/rankings', action: :whatsapp_rankings
               get 'whatsapp/conversations/:conversation_id/timeline', action: :whatsapp_timeline
+              get 'whatsapp/label_durations', action: :whatsapp_label_durations
               get 'whatsapp/export', action: :whatsapp_export
+              # Reporte de Grupos de WhatsApp: resumen y tabla por grupo.
+              get 'whatsapp_groups/summary', action: :whatsapp_groups_summary
+              get 'whatsapp_groups/list', action: :whatsapp_groups_list
               get :inboxes
               get :labels
               get :teams

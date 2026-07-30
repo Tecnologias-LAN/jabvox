@@ -15,16 +15,50 @@ module V2::Reports::WhatsappReport::MessageStatusStats
                              message_id: agent_outgoing(uid).select(:id)).count
   end
 
+  # Delivered/read/failed counts and rates for one agent's outgoing messages.
+  def agent_delivery_stats(uid)
+    sent = agent_outgoing(uid).count
+    delivered = agent_status_count(uid, 'delivered')
+    read = agent_status_count(uid, 'read')
+    {
+      delivered: delivered,
+      read: read,
+      failed: agent_outgoing(uid).where(status: :failed).count,
+      delivery_rate: rate(delivered, sent),
+      read_rate: rate(read, delivered)
+    }
+  end
+
   # time-to-read of the customer: read.occurred_at − message.created_at, per
   # outgoing message the agent sent. Requires message_status_events (read).
   def customer_read_times(uid)
-    reads = MessageStatusEvent.where(account_id: account.id, status: MessageStatusEvent.statuses['read'],
-                                     message_id: agent_outgoing(uid).select(:id))
-                              .pluck(:message_id, :occurred_at)
-    return [] if reads.empty?
+    elapsed_times_for('read', agent_outgoing(uid).select(:id))
+  end
 
-    created = account.messages.where(id: reads.map(&:first)).pluck(:id, :created_at).to_h
-    reads.filter_map { |mid, read_at| (read_at - created[mid]).to_i if created[mid] }
+  # time-to-deliver: delivered.occurred_at − message.created_at, per agent message.
+  def customer_delivery_times(uid)
+    elapsed_times_for('delivered', agent_outgoing(uid).select(:id))
+  end
+
+  # Global (non-per-agent) elapsed times over all outgoing messages in scope.
+  def all_read_times
+    elapsed_times_for('read', outgoing_messages.select(:id))
+  end
+
+  def all_delivery_times
+    elapsed_times_for('delivered', outgoing_messages.select(:id))
+  end
+
+  # Seconds between a message's created_at and its first `status` event, for every
+  # message in the given id relation that reached that status.
+  def elapsed_times_for(status, message_id_relation)
+    events = MessageStatusEvent.where(account_id: account.id, status: MessageStatusEvent.statuses[status],
+                                      message_id: message_id_relation)
+                               .pluck(:message_id, :occurred_at)
+    return [] if events.empty?
+
+    created = account.messages.where(id: events.map(&:first)).pluck(:id, :created_at).to_h
+    events.filter_map { |mid, at| (at - created[mid]).to_i if created[mid] }
   end
 
   def read_timestamp(message)

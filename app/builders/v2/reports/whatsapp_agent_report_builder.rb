@@ -15,6 +15,8 @@
 class V2::Reports::WhatsappAgentReportBuilder
   include V2::Reports::WhatsappReport::Scopes
   include V2::Reports::WhatsappReport::MessageStatusStats
+  include V2::Reports::WhatsappReport::MessageTypeBreakdown
+  include V2::Reports::WhatsappReport::LabelDurations
   include V2::Reports::WhatsappReport::Stats
 
   # Meta 24h service window and default SLA (overridable via params[:sla_seconds]).
@@ -91,18 +93,23 @@ class V2::Reports::WhatsappAgentReportBuilder
       sent: sent, delivered: delivered, read: read, failed: failed,
       received: incoming_messages.count,
       templates: outgoing_messages.where(message_type: :template).count,
+      media_sent: outgoing_media_count,
       responded: responded_conversations_count,
       resolved: resolved_conversations_count,
       delivery_rate: rate(delivered, sent),
       read_rate: rate(read, delivered),
-      fail_rate: rate(failed, sent)
+      fail_rate: rate(failed, sent),
+      incoming_by_type: incoming_breakdown,
+      outgoing_by_type: outgoing_breakdown
     }
   end
 
   def time_summary
     {
       first_response: time_stats(reporting_values('first_response')),
-      resolution: time_stats(reporting_values('conversation_resolved'))
+      resolution: time_stats(reporting_values('conversation_resolved')),
+      time_to_deliver: time_stats(all_delivery_times),
+      time_to_read: time_stats(all_read_times)
     }
   end
 
@@ -160,6 +167,7 @@ class V2::Reports::WhatsappAgentReportBuilder
   end
 
   def agent_volume(uid, convs)
+    breakdown = type_breakdown(agent_outgoing(uid))
     {
       conversations_assigned: convs.size,
       conversations_handled: handled_count(uid, convs),
@@ -167,12 +175,9 @@ class V2::Reports::WhatsappAgentReportBuilder
       no_reply: no_reply_count(uid, convs),
       sent: agent_outgoing(uid).count,
       templates: agent_outgoing(uid).where(message_type: :template).count,
-      received: incoming_for_convs(convs).count,
-      delivered: agent_status_count(uid, 'delivered'),
-      read: agent_status_count(uid, 'read'),
-      failed: agent_outgoing(uid).where(status: :failed).count,
-      read_rate: rate(agent_status_count(uid, 'read'), agent_status_count(uid, 'delivered'))
-    }
+      media_sent: breakdown[:total] - breakdown[:text],
+      received: incoming_for_convs(convs).count
+    }.merge(agent_delivery_stats(uid))
   end
 
   def agent_times(uid)
@@ -180,6 +185,7 @@ class V2::Reports::WhatsappAgentReportBuilder
       first_response: time_stats(reporting_values('first_response', uid)),
       reply_time: time_stats(reporting_values('reply_time', uid)),
       resolution: time_stats(reporting_values('conversation_resolved', uid)),
+      time_to_deliver: time_stats(customer_delivery_times(uid)),
       time_to_read: time_stats(customer_read_times(uid))
     }
   end

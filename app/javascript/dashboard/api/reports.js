@@ -97,6 +97,31 @@ class ReportsAPI extends ApiClient {
     });
   }
 
+  // ── Reportes de WhatsApp por agente (Jabvox) ──────────────────────────────
+  getWhatsappSummary({ from: since, to: until, businessHours } = {}) {
+    return axios.get(`${this.url}/whatsapp/summary`, {
+      params: { from: since, to: until, business_hours: businessHours },
+    });
+  }
+
+  getWhatsappAgents({ from: since, to: until, businessHours } = {}) {
+    return axios.get(`${this.url}/whatsapp/agents`, {
+      params: { from: since, to: until, business_hours: businessHours },
+    });
+  }
+
+  getWhatsappLabelDurations({ from: since, to: until } = {}) {
+    return axios.get(`${this.url}/whatsapp/label_durations`, {
+      params: { from: since, to: until },
+    });
+  }
+
+  getWhatsappConversationTimeline(conversationId) {
+    return axios.get(
+      `${this.url}/whatsapp/conversations/${conversationId}/timeline`
+    );
+  }
+
   getConversationsSummaryReports({ from: since, to: until, businessHours }) {
     return axios.get(`${this.url}/conversations_summary`, {
       params: { since, until, business_hours: businessHours },

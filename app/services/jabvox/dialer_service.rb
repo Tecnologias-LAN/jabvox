@@ -73,6 +73,53 @@ class Jabvox::DialerService
     { success: false, message: e.message }
   end
 
+  # VOICE BROADCAST — Origina una llamada hacia el contexto del agente virtual
+  # (dialer-voicebot), que reproduce el audio a quien contesta. NO usa la Queue del
+  # dialer predictivo: el destino es el trunk directo y el dialplan hace
+  # Answer→[AMD]→Playback→[DTMF]→Hangup. Las variables __JABVOX_BROADCAST_* viajan
+  # heredables para que el AMI listener correlacione los eventos con el destinatario.
+  # Devuelve { success:, message:, actionid: }.
+  def originate_voicebot(phone:, broadcast:, recipient:, playback_ref:) # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
+    dial    = "#{provider_prefix}#{Jabvox::PhoneNormalizer.for_dialing(phone)}"
+    trunk   = @config.dialer_trunk.presence
+    channel = trunk ? "SIP/#{dial}@#{trunk}" : "SIP/#{dial}"
+    action_id = "jabvoxvb-#{recipient.id}"
+    result = { success: false, message: 'Connection error', actionid: action_id }
+    Timeout.timeout(AMI_TIMEOUT) do
+      with_ami_connection do |socket|
+        params = {
+          channel: channel,
+          context: 'dialer-voicebot',
+          exten: 's',
+          priority: 1,
+          timeout: 30_000,
+          async: 'true',
+          actionid: action_id,
+          variable: [
+            "__JABVOX_BROADCAST_ID=#{broadcast.id}",
+            "__JABVOX_VB_RECIPIENT_ID=#{recipient.id}",
+            "__JABVOX_ACCOUNT_ID=#{broadcast.account_id}",
+            "__JABVOX_VB_AUDIO=#{playback_ref}",
+            "__JABVOX_VB_AMD=#{broadcast.amd_enabled_jabvox ? '1' : '0'}",
+            "__JABVOX_VB_DTMF=#{broadcast.dtmf_enabled_jabvox ? '1' : '0'}",
+            "__JABVOX_VB_OPTOUT=#{broadcast.dtmf_optout_digit_jabvox}"
+          ]
+        }
+        cid = resolve_caller_id(broadcast.caller_id_jabvox.presence, nil)
+        params[:callerid] = cid if cid.present?
+        Rails.logger.info "📡 [VoiceBroadcast] Originate | channel=#{channel} broadcast=#{broadcast.id} recipient=#{recipient.id}"
+        send_action(socket, 'Originate', **params)
+        resp = read_response(socket)
+        result = { success: resp['response'] == 'Success', message: resp['message'] || resp['response'], actionid: action_id }
+      end
+    end
+    result
+  rescue Timeout::Error
+    { success: false, message: 'Connection timeout', actionid: action_id }
+  rescue StandardError => e
+    { success: false, message: e.message, actionid: action_id }
+  end
+
   # Creates or replaces the queue in queues_custom.conf and applies it with a
   # SELECTIVE reload (QueueReload, members preserved — never a full app_queue.so
   # reload, which would drop dynamic members of every queue).
@@ -532,7 +579,8 @@ class Jabvox::DialerService
     digits = raw.to_s.gsub(/\D/, '')
     return nil if digits.blank?
 
-    name = contact.name_jabvox.to_s.gsub(/["<>]/, '').strip
+    # contact es nil en el voice broadcast (no hay ficha de lead en el CallerID).
+    name = contact&.name_jabvox.to_s.gsub(/["<>]/, '').strip
     name.present? ? "\"#{name}\" <#{digits}>" : digits
   end
 

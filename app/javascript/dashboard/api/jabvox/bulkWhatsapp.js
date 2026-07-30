@@ -52,13 +52,12 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     });
   }
 
-  // Uploads the CSV (multipart) plus the chosen inbox, sender user and report email.
-  send({ file, inboxId, senderUserId, responseEmail }) {
+  // Uploads the CSV (multipart) plus the chosen inbox and sender user.
+  send({ file, inboxId, senderUserId }) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('inbox_id', inboxId);
     formData.append('sender_user_id', senderUserId);
-    formData.append('response_email', responseEmail);
     return axios.post(`${this.url}/batches`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -68,7 +67,6 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
   sendLeads({
     inboxId,
     senderUserId,
-    responseEmail,
     all,
     leadIds,
     excludedIds,
@@ -83,7 +81,6 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
       source: 'leads',
       inbox_id: inboxId,
       sender_user_id: senderUserId,
-      response_email: responseEmail,
       all,
       lead_ids: leadIds,
       excluded_ids: excludedIds,

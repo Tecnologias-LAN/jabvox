@@ -8,7 +8,7 @@
 #  phone_number                   :string           not null
 #  phone_number_health            :jsonb            not null
 #  phone_number_health_checked_at :datetime
-#  phone_number_health_error      :string
+#  phone_number_health_error      :string(500)
 #  provider                       :string           default("default")
 #  provider_config                :jsonb
 #  created_at                     :datetime         not null
@@ -64,6 +64,41 @@ class Channel::Whatsapp < ApplicationRecord
   # on even though calling_enabled would persist.
   def voice_calling_supported?
     provider == 'whatsapp_cloud'
+  end
+
+  # WhatsApp Groups API eligibility (Meta rules): Cloud API only, Official
+  # Business Account (green tick), and NOT a Coexistence / SMB app number. Returns
+  # true only when the inbox can host groups AND the account feature is on.
+  def whatsapp_groups_enabled?
+    whatsapp_groups_supported? && account.feature_enabled?('jabvox_whatsapp_groups')
+  end
+
+  # Can this inbox host groups at all, regardless of the account feature toggle?
+  def whatsapp_groups_supported?
+    whatsapp_groups_ineligibility_reason.nil?
+  end
+
+  # nil when eligible; otherwise a stable machine key explaining why groups are
+  # blocked, so the UI can show the specific reason instead of failing silently.
+  def whatsapp_groups_ineligibility_reason
+    return 'not_cloud_api' unless provider == 'whatsapp_cloud'
+    return 'coexistence' if coexistence_number?
+    return 'not_official_business' unless official_business_account?
+
+    nil
+  end
+
+  # Coexistence / Multi-solution numbers (SMB app) are excluded by Meta. Detected
+  # from the WhatsApp app source recorded on the channel.
+  def coexistence_number?
+    provider_config['source'].to_s == 'coexistence' ||
+      ActiveModel::Type::Boolean.new.cast(provider_config['coexistence'])
+  end
+
+  # OBA status as recorded on the channel. Meta only exposes it via the WABA, so
+  # it is cached in provider_config when known; absent = treat as not verified.
+  def official_business_account?
+    ActiveModel::Type::Boolean.new.cast(provider_config['is_official_business_account'])
   end
 
   def provider_service

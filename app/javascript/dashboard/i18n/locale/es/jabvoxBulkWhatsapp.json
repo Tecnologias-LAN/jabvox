@@ -113,7 +113,8 @@
       "PREVIEW_MORE": "…y {count} más",
       "SUBMIT": "Enviar mensajes",
       "SUCCESS": "Enviado a n8n para su procesamiento.",
-      "ERROR": "No se pudo enviar. Revisa el archivo y la configuración del webhook."
+      "ERROR": "No se pudo enviar. Revisa el archivo y la configuración del webhook.",
+      "CSV_TEMPLATE_INFO": "La plantilla y el idioma de cada mensaje se toman de las columnas \"template\" e \"idioma\" del CSV. Revisa la vista previa abajo antes de continuar."
     },
     "HISTORY": {
       "LOADING": "Cargando historial…",
@@ -159,8 +160,13 @@
         "STATUS": "Estado",
         "ERROR_CODE": "Código de error",
         "ERROR_MESSAGE": "Mensaje de error",
-        "SENT_AT": "Enviado a las"
-      }
+        "SENT_AT": "Enviado a las",
+        "DELIVERED": "Entregado",
+        "READ": "Leído"
+      },
+      "FILTER_DELIVERED": "Entregados",
+      "FILTER_READ": "Leídos",
+      "TOTALS_DELIVERY": "· {delivered} entregados · {read} leídos"
     },
     "SETTINGS": {
       "WEBHOOK_URL": "URL del webhook de n8n",
@@ -172,6 +178,12 @@
       "SAVE": "Guardar",
       "SAVED": "Ajustes guardados.",
       "ERROR": "No se pudieron guardar los ajustes."
+    },
+    "PREVIEW": {
+      "TITLE": "Previsualización",
+      "RECIPIENTS": "Se enviará a {count} destinatario(s).",
+      "TEMPLATE": "Plantilla: {name} ({lang})",
+      "VARS": "Variables mapeadas:"
     }
   }
 }

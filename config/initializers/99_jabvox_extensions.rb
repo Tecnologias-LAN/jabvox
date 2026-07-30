@@ -17,6 +17,7 @@ Rails.application.config.to_prepare do
   Account.prepend Jabvox::AccountEmailFeature
   Account.prepend Jabvox::AccountFormsFeature
   Account.prepend Jabvox::AccountCdrFeature
+  Account.prepend Jabvox::AccountVoiceBroadcastFeature
   Account.prepend Jabvox::AccountAudioAnalysisFeature
   Account.prepend Jabvox::AccountClickToCallFeature
   Account.prepend Jabvox::AccountCustomizationFeature
@@ -24,6 +25,7 @@ Rails.application.config.to_prepare do
   Account.prepend Jabvox::AccountWhatsappTemplatesFeature
   Account.prepend Jabvox::AccountTasksFeature
   Account.prepend Jabvox::AccountBulkWhatsappFeature
+  Account.prepend Jabvox::AccountWhatsappGroupsFeature
   Account.prepend Jabvox::AccountLeadImportFeature
   Account.prepend Jabvox::AccountDataExportFeature
   Account.prepend Jabvox::AccountLeadDeleteFeature
@@ -41,7 +43,13 @@ Rails.application.config.to_prepare do
 
   Contact.include Jabvox::ContactLeadsIntegration
   Note.include Jabvox::NoteManagementAnswers
+  # Records label apply/remove intervals per conversation for the WhatsApp report.
+  Conversation.include Jabvox::ConversationLabelLogging
   Api::V1::Accounts::ContactsController.include Jabvox::ContactFieldProtection
+
+  # Route WhatsApp Groups API webhook events (group_* fields) into the Jabvox
+  # handler; non-group payloads fall through to the existing chain.
+  Webhooks::WhatsappEventsJob.prepend Jabvox::WhatsappGroupEventsJob
 end
 
 # Real-time export: mirror every exportable jabvox model to the account's external

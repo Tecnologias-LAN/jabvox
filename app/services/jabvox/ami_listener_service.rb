@@ -134,7 +134,25 @@ module Jabvox
         handle_hangup(event)
       when 'originateresponse'
         handle_originate_response(event)
+      when 'userevent', 'dtmfend'
+        # Eventos del VOICE BROADCAST (agente virtual). Se delegan a un handler
+        # dedicado para no engordar este listener; es idempotente y se ancla al
+        # JABVOX_VB_RECIPIENT_ID del canal (nunca por "el más reciente").
+        handle_voice_broadcast_event(evt_name.downcase, event)
       end
+      # El broadcast también reacciona a Hangup/OriginateResponse (fin/fallo de la
+      # llamada del agente virtual); esos dos handlers de arriba ya corrieron para el
+      # dialer, y aquí complementamos para el broadcast sin interferir.
+      handle_voice_broadcast_event(evt_name.downcase, event) if %w[hangup originateresponse].include?(evt_name.downcase)
+    end
+
+    # Delega el evento al handler del voice broadcast SOLO si el canal lleva el
+    # marcador del broadcast (JABVOX_BROADCAST_ID) o el ActionID "jabvoxvb-". Así no
+    # gasta trabajo en eventos ajenos al agente virtual.
+    def handle_voice_broadcast_event(evt_name, event)
+      Jabvox::VoiceBroadcast::EventHandler.new(@account_id, self).handle(evt_name, event)
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] voice_broadcast event failed | #{e.message}"
     end
 
     # En modo one_by_one NO hay cola Asterisk, así que AgentConnect nunca llega y

@@ -938,6 +938,11 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.REPORTS_BOT'),
           to: accountScopedRoute('bot_reports'),
         },
+        {
+          name: 'Reports WhatsApp',
+          label: t('SIDEBAR.REPORTS_WHATSAPP'),
+          to: accountScopedRoute('whatsapp_reports'),
+        },
       ],
     },
     {
