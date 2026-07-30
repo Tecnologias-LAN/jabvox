@@ -68,10 +68,30 @@ class Call < ApplicationRecord
     "conf_account_#{account_id}_call_#{id}"
   end
 
-  # Browser ↔ Meta WebRTC needs at least one STUN server to discover its public srflx candidate.
+  # Browser ↔ Meta WebRTC needs at least one STUN server to discover its public srflx candidate,
+  # and a TURN server to relay audio when a direct path is blocked by NAT/firewall (the common
+  # case in production). TURN credentials are optional and read from the environment.
   def self.default_ice_servers
-    urls = ENV.fetch('VOICE_CALL_STUN_URLS', DEFAULT_STUN_URL).split(',').filter_map { |u| u.strip.presence }
-    [{ urls: urls }]
+    servers = [{ urls: stun_ice_urls }]
+    turn = turn_ice_server
+    servers << turn if turn
+    servers
+  end
+
+  def self.stun_ice_urls
+    ENV.fetch('VOICE_CALL_STUN_URLS', DEFAULT_STUN_URL).split(',').filter_map { |u| u.strip.presence }
+  end
+
+  def self.turn_ice_server
+    urls = ENV.fetch('VOICE_CALL_TURN_URLS', '').split(',').filter_map { |u| u.strip.presence }
+    return nil if urls.empty?
+
+    server = { urls: urls }
+    username = ENV.fetch('VOICE_CALL_TURN_USERNAME', '').presence
+    credential = ENV.fetch('VOICE_CALL_TURN_CREDENTIAL', '').presence
+    server[:username] = username if username
+    server[:credential] = credential if credential
+    server
   end
 
   def direction_label
