@@ -221,14 +221,6 @@ GEM
       activerecord (>= 5.a)
       database_cleaner-core (~> 2.0.0)
     database_cleaner-core (2.0.1)
-    datadog (2.38.0)
-      cgi
-      datadog-ruby_core_source (~> 3.5, >= 3.5.3)
-      libdatadog (~> 36.0.0.1.0)
-      libddwaf (~> 1.30.0.0.0)
-      logger
-      msgpack
-    datadog-ruby_core_source (3.5.3)
     date (3.5.1)
     debug (1.8.0)
       irb (>= 1.5.0)
@@ -535,17 +527,6 @@ GEM
       logger (~> 1.6)
     letter_opener (1.10.0)
       launchy (>= 2.2, < 4)
-    libdatadog (36.0.0.1.0)
-    libdatadog (36.0.0.1.0-arm64-darwin)
-    libdatadog (36.0.0.1.0-x86_64-linux)
-    libddwaf (1.30.0.0.2)
-      ffi (~> 1.0)
-    libddwaf (1.30.0.0.2-arm64-darwin)
-      ffi (~> 1.0)
-    libddwaf (1.30.0.0.2-x86_64-darwin)
-      ffi (~> 1.0)
-    libddwaf (1.30.0.0.2-x86_64-linux)
-      ffi (~> 1.0)
     line-bot-api (1.28.0)
     lint_roller (1.1.0)
     liquid (5.4.0)
@@ -1112,7 +1093,6 @@ DEPENDENCIES
   commonmarker
   csv-safe
   database_cleaner
-  datadog (~> 2.0)
   debug (~> 1.8)
   devise (>= 4.9.4)
   devise-secure_password!
