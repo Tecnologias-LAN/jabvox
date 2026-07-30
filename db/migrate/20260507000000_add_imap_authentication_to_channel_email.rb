@@ -1,5 +1,7 @@
 class AddImapAuthenticationToChannelEmail < ActiveRecord::Migration[7.0]
   def change
+    return if column_exists?(:channel_email, :imap_authentication)
+
     add_column :channel_email, :imap_authentication, :string, default: 'plain'
   end
 end

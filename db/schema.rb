@@ -268,6 +268,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.string "slug", null: false
     t.integer "position"
     t.string "locale", default: "en", null: false
+    t.string "draft_title"
+    t.text "draft_content"
     t.index ["account_id"], name: "index_articles_on_account_id"
     t.index ["associated_article_id"], name: "index_articles_on_associated_article_id"
     t.index ["author_id"], name: "index_articles_on_author_id"
@@ -288,6 +290,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.boolean "enabled", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "exclude_older_than_hours", default: 168
     t.index ["account_id", "name"], name: "index_assignment_policies_on_account_id_and_name", unique: true
     t.index ["account_id"], name: "index_assignment_policies_on_account_id"
     t.index ["enabled"], name: "index_assignment_policies_on_enabled"
@@ -423,7 +426,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
   create_table "captain_assistants", force: :cascade do |t|
     t.string "name", null: false
     t.bigint "account_id", null: false
-    t.string "description"
+    t.text "description"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "config", default: {}, null: false
@@ -453,7 +456,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
 
   create_table "captain_documents", force: :cascade do |t|
     t.string "name"
-    t.string "external_link", null: false
+    t.text "external_link", null: false
     t.text "content"
     t.bigint "assistant_id", null: false
     t.bigint "account_id", null: false
@@ -464,9 +467,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.integer "sync_status"
     t.datetime "last_synced_at"
     t.datetime "last_sync_attempted_at"
+    t.index "assistant_id, md5(external_link)", name: "idx_captain_documents_on_assistant_id_and_external_link_md5", unique: true
     t.index ["account_id", "sync_status"], name: "index_captain_documents_on_account_id_and_sync_status"
     t.index ["account_id"], name: "index_captain_documents_on_account_id"
-    t.index ["assistant_id", "external_link"], name: "index_captain_documents_on_assistant_id_and_external_link", unique: true
     t.index ["assistant_id"], name: "index_captain_documents_on_assistant_id"
     t.index ["status"], name: "index_captain_documents_on_status"
   end
@@ -558,6 +561,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.bigint "parent_category_id"
     t.bigint "associated_category_id"
     t.string "icon", default: ""
+    t.string "icon_color", default: ""
     t.index ["associated_category_id"], name: "index_categories_on_associated_category_id"
     t.index ["locale", "account_id"], name: "index_categories_on_locale_and_account_id"
     t.index ["locale"], name: "index_categories_on_locale"
@@ -604,6 +608,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.jsonb "provider_config", default: {}
     t.string "provider"
     t.boolean "verified_for_sending", default: false, null: false
+    t.string "imap_authentication", default: "plain"
     t.index ["email"], name: "index_channel_email_on_email", unique: true
     t.index ["forward_to_email"], name: "index_channel_email_on_forward_to_email", unique: true
   end
@@ -683,6 +688,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.string "api_key_sid"
     t.jsonb "content_templates", default: {}
     t.datetime "content_templates_last_updated"
+    t.boolean "voice_enabled", default: false, null: false
+    t.string "twiml_app_sid"
+    t.string "api_key_secret"
+    t.jsonb "provider_config", default: {}
     t.index ["account_sid", "phone_number"], name: "index_channel_twilio_sms_on_account_sid_and_phone_number", unique: true
     t.index ["messaging_service_sid"], name: "index_channel_twilio_sms_on_messaging_service_sid", unique: true
     t.index ["phone_number"], name: "index_channel_twilio_sms_on_phone_number", unique: true
@@ -697,18 +706,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.datetime "updated_at", null: false
     t.boolean "tweets_enabled", default: true
     t.index ["account_id", "profile_id"], name: "index_channel_twitter_profiles_on_account_id_and_profile_id", unique: true
-  end
-
-  create_table "channel_voice", force: :cascade do |t|
-    t.string "phone_number", null: false
-    t.string "provider", default: "twilio", null: false
-    t.jsonb "provider_config", null: false
-    t.integer "account_id", null: false
-    t.jsonb "additional_attributes", default: {}
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id"], name: "index_channel_voice_on_account_id"
-    t.index ["phone_number"], name: "index_channel_voice_on_phone_number", unique: true
   end
 
   create_table "channel_web_widgets", id: :serial, force: :cascade do |t|
@@ -741,7 +738,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.datetime "updated_at", null: false
     t.jsonb "message_templates", default: {}
     t.datetime "message_templates_last_updated", precision: nil
+    t.jsonb "phone_number_health", default: {}, null: false
+    t.datetime "phone_number_health_checked_at"
+    t.string "phone_number_health_error", limit: 500
     t.index ["phone_number"], name: "index_channel_whatsapp_on_phone_number", unique: true
+    t.index ["phone_number_health_checked_at"], name: "index_channel_whatsapp_on_phone_number_health_checked_at"
   end
 
   create_table "companies", force: :cascade do |t|
@@ -1016,7 +1017,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.integer "processed_records"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "name"
+    t.string "source_type"
+    t.string "source_provider"
+    t.jsonb "import_types", default: [], null: false
+    t.integer "initiated_by_id"
+    t.text "access_token"
+    t.jsonb "source_metadata", default: {}, null: false
+    t.jsonb "stats", default: {}, null: false
+    t.jsonb "cursor", default: {}, null: false
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.datetime "abandoned_at"
+    t.datetime "last_error_at"
     t.index ["account_id"], name: "index_data_imports_on_account_id"
+    t.index ["initiated_by_id"], name: "index_data_imports_on_initiated_by_id"
+    t.index ["source_provider"], name: "index_data_imports_on_source_provider"
   end
 
   create_table "email_templates", force: :cascade do |t|
@@ -1027,7 +1043,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.integer "locale", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["name", "account_id"], name: "index_email_templates_on_name_and_account_id", unique: true
+    t.integer "inbox_id"
+    t.index ["account_id", "name", "template_type", "locale"], name: "index_email_templates_on_account_scope", unique: true, where: "((account_id IS NOT NULL) AND (inbox_id IS NULL))"
+    t.index ["inbox_id", "name", "template_type", "locale"], name: "index_email_templates_on_inbox_scope", unique: true, where: "(inbox_id IS NOT NULL)"
+    t.index ["inbox_id"], name: "index_email_templates_on_inbox_id"
+    t.index ["name", "template_type", "locale"], name: "index_email_templates_on_installation_scope", unique: true, where: "((account_id IS NULL) AND (inbox_id IS NULL))"
   end
 
   create_table "folders", force: :cascade do |t|
@@ -3537,6 +3557,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_29_000004) do
     t.bigint "account_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "icon", default: ""
+    t.string "icon_color", default: ""
     t.index ["account_id"], name: "index_teams_on_account_id"
     t.index ["name", "account_id"], name: "index_teams_on_name_and_account_id", unique: true
   end

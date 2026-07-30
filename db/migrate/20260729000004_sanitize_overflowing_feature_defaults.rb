@@ -1,37 +1,15 @@
-# Disables any account-level default feature whose FlagShihTzu bit does not fit
-# in the signed bigint `feature_flags` column (bit >= 64). Leaving such a
-# feature enabled by default makes Account creation raise ActiveModel::RangeError
-# (HTTP 500). Idempotent and data-only; safe to run on any environment.
+# OBSOLETA tras el upgrade a Chatwoot v4.16.2.
+#
+# Su propósito era desactivar defaults cuyo bit FlagShihTzu no cabía en el bigint
+# `feature_flags` (bit >= 64), evitando un 500 al crear cuentas. El upgrade
+# resuelve eso de raíz con el mecanismo multi-columna (feature_flags +
+# feature_flags_ext_1, ver Featurable), y las constantes que esta migración usaba
+# (Account::FEATURES, AccountFeatureFlagGuard::MAX_SAFE_FEATURE_BIT) ya no existen.
+# Se deja como no-op para no romper `db:migrate` en entornos que aún no la
+# tenían registrada; el saneamiento real de defaults renombrados lo hace la
+# migración 20260629000000 (repurpose).
 class SanitizeOverflowingFeatureDefaults < ActiveRecord::Migration[7.1]
-  def up
-    config = InstallationConfig.find_by(name: 'ACCOUNT_LEVEL_FEATURE_DEFAULTS')
-    return if config.blank?
+  def up; end
 
-    overflowing = overflowing_feature_names
-    return if overflowing.empty?
-
-    cleaned = config.value.map { |feature| disable_if_overflowing(feature, overflowing) }
-    config.update!(value: cleaned) if cleaned != config.value
-  end
-
-  def down
-    # No-op: re-enabling overflowing defaults would reintroduce the 500.
-  end
-
-  private
-
-  # Returns the feature with enabled:false if it overflows and was on; else as-is.
-  def disable_if_overflowing(feature, overflowing)
-    name = (feature['name'] || feature[:name]).to_s
-    enabled = feature['enabled'] || feature[:enabled]
-    return feature unless overflowing.include?(name) && enabled
-
-    feature.merge('enabled' => false)
-  end
-
-  # Feature names (without the "feature_" prefix) whose bit overflows bigint.
-  def overflowing_feature_names
-    Account::FEATURES.select { |bit, _name| bit > Jabvox::AccountFeatureFlagGuard::MAX_SAFE_FEATURE_BIT }
-                     .values.map { |sym| sym.to_s.delete_prefix('feature_') }
-  end
+  def down; end
 end

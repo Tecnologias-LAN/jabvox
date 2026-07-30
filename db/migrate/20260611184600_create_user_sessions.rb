@@ -1,5 +1,7 @@
 class CreateUserSessions < ActiveRecord::Migration[7.0]
   def change
+    return if table_exists?(:user_sessions)
+
     create_table :user_sessions do |t|
       t.references :user, null: false, foreign_key: true
       t.string :client_id, null: false

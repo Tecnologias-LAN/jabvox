@@ -1,5 +1,7 @@
 class CreateDataImportMappings < ActiveRecord::Migration[7.1]
   def change
+    return if table_exists?(:data_import_mappings)
+
     create_table :data_import_mappings do |t|
       t.integer :account_id, null: false
       t.references :data_import, null: false, index: true

@@ -1,5 +1,7 @@
 class CreateAgentSessions < ActiveRecord::Migration[7.1]
   def change
+    return if table_exists?(:agent_sessions)
+
     create_table :agent_sessions do |t|
       t.integer :session_type, null: false
       t.references :subject, polymorphic: true, null: false, index: false

@@ -1,5 +1,7 @@
 class CreateDataImportErrors < ActiveRecord::Migration[7.1]
   def change
+    return if table_exists?(:data_import_errors)
+
     create_table :data_import_errors do |t|
       t.references :data_import, null: false, index: true
       t.references :data_import_item, null: true, index: true

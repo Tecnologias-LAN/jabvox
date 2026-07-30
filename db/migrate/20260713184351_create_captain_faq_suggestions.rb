@@ -1,5 +1,7 @@
 class CreateCaptainFaqSuggestions < ActiveRecord::Migration[7.1]
   def change
+    return if table_exists?(:captain_faq_suggestions)
+
     create_faq_suggestions
     create_faq_observations
   end

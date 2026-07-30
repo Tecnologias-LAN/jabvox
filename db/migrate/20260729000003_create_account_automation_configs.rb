@@ -1,5 +1,10 @@
 class CreateAccountAutomationConfigs < ActiveRecord::Migration[7.1]
+  # Idempotente: esta migración fue renombrada desde un timestamp anterior para
+  # resolver una colisión, así que en instalaciones que ya la corrieron la tabla
+  # existe. Solo la crea si falta.
   def change
+    return if table_exists?(:account_automation_configs)
+
     create_table :account_automation_configs do |t|
       t.references :account, null: false, foreign_key: true, index: false
       t.boolean :enabled, null: false, default: false

@@ -1,5 +1,7 @@
 class CreateDataImportItems < ActiveRecord::Migration[7.1]
   def change
+    return if table_exists?(:data_import_items)
+
     create_data_import_items
     add_data_import_item_indexes
   end

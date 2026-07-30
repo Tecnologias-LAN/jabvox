@@ -1,5 +1,7 @@
 class CreateCaptainMessageReports < ActiveRecord::Migration[7.1]
   def change
+    return if table_exists?(:captain_message_reports)
+
     create_table :captain_message_reports do |t|
       t.references :account, null: false
       t.references :conversation, null: false

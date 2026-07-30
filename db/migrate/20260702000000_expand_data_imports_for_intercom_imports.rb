@@ -1,5 +1,7 @@
 class ExpandDataImportsForIntercomImports < ActiveRecord::Migration[7.1]
   def change
+    return if column_exists?(:data_imports, :source_provider)
+
     add_data_import_columns
     add_data_import_indexes
   end

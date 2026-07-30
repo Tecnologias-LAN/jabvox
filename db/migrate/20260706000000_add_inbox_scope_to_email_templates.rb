@@ -1,5 +1,7 @@
 class AddInboxScopeToEmailTemplates < ActiveRecord::Migration[7.1]
   def up
+    return if column_exists?(:email_templates, :inbox_id)
+
     add_column :email_templates, :inbox_id, :integer
     add_index :email_templates, :inbox_id, name: 'index_email_templates_on_inbox_id'
 
