@@ -87,8 +87,20 @@ class DashboardController < ActionController::Base
       AZURE_APP_ID: GlobalConfigService.load('AZURE_APP_ID', ''),
       GIT_SHA: GIT_HASH,
       ALLOWED_LOGIN_METHODS: allowed_login_methods,
-      ACTIVE_PLATFORM_BANNERS: active_platform_banners
+      ACTIVE_PLATFORM_BANNERS: active_platform_banners,
+      VOICE_CALL_ICE_SERVERS: voice_call_ice_servers
     }
+  end
+
+  # ICE servers (STUN + optional TURN) for WhatsApp WebRTC calls. Exposed so the
+  # outbound flow can build its PeerConnection with TURN — it creates the SDP
+  # offer before the initiate response arrives, so it can't rely on that payload.
+  def voice_call_ice_servers
+    return [] unless defined?(Call)
+
+    Call.default_ice_servers
+  rescue StandardError
+    []
   end
 
   def active_platform_banners

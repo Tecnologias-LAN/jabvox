@@ -65,10 +65,18 @@ const RECORDER_MIME_CANDIDATES = [
   'audio/ogg;codecs=opus',
 ];
 
-// Outbound calls have no backend-supplied ice_servers (the call doesn't exist
-// at offer time). Without STUN the browser only sends host candidates and
-// browser→Meta media silently drops through any non-trivial NAT.
-const DEFAULT_OUTBOUND_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+// Outbound calls have no backend-supplied ice_servers in the initiate response
+// at offer time (the call doesn't exist yet), so we read the same STUN+TURN set
+// the backend exposes via window.globalConfig. Without a TURN relay, browser→Meta
+// media silently drops through any non-trivial NAT. Falls back to STUN-only.
+const STUN_ONLY_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+
+const outboundIceServers = () => {
+  const configured = window.globalConfig?.VOICE_CALL_ICE_SERVERS;
+  return Array.isArray(configured) && configured.length
+    ? configured
+    : STUN_ONLY_ICE_SERVERS;
+};
 
 const waitForIceGatheringComplete = peer =>
   new Promise(resolve => {
@@ -251,7 +259,7 @@ export function useWhatsappCallSession() {
   const prepareOutboundOffer = async () => {
     cleanup();
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    buildPeerConnection(DEFAULT_OUTBOUND_ICE_SERVERS);
+    buildPeerConnection(outboundIceServers());
     localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
