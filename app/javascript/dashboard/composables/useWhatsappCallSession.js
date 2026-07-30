@@ -264,12 +264,44 @@ export function useWhatsappCallSession() {
 
   const prepareOutboundOffer = async () => {
     cleanup();
+    // eslint-disable-next-line no-console
+    console.info('[WhatsApp Call][diag] prepareOutboundOffer: getUserMedia…');
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // eslint-disable-next-line no-console
+    console.info(
+      '[WhatsApp Call][diag] mic ok; building PC with',
+      outboundIceServers()
+    );
     buildPeerConnection(outboundIceServers());
+    let relayCount = 0;
+    pc.addEventListener('icecandidate', e => {
+      // eslint-disable-next-line no-console
+      console.info(
+        '[WhatsApp Call][diag] candidate:',
+        e.candidate ? e.candidate.candidate : 'END'
+      );
+      if (e.candidate && e.candidate.candidate.includes('relay'))
+        relayCount += 1;
+    });
+    pc.addEventListener('iceconnectionstatechange', () => {
+      // eslint-disable-next-line no-console
+      console.info(
+        '[WhatsApp Call][diag] iceConnectionState:',
+        pc.iceConnectionState
+      );
+    });
     localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+    // eslint-disable-next-line no-console
+    console.info('[WhatsApp Call][diag] tracks added; creating offer…');
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
+    // eslint-disable-next-line no-console
+    console.info('[WhatsApp Call][diag] localDescription set; gathering ICE…');
     await waitForIceGatheringComplete(pc);
+    // eslint-disable-next-line no-console
+    console.info(
+      `[WhatsApp Call][diag] gathering done; relay candidates=${relayCount}`
+    );
     return pc.localDescription.sdp;
   };
 
@@ -335,7 +367,14 @@ export function useWhatsappCallSession() {
     isInitiatingOutbound.value = true;
     try {
       const sdpOffer = await prepareOutboundOffer();
+      // eslint-disable-next-line no-console
+      console.info('[WhatsApp Call][diag] offer ready; calling initiate API…');
       const response = await WhatsappCallsAPI.initiate(target, sdpOffer);
+      // eslint-disable-next-line no-console
+      console.info(
+        '[WhatsApp Call][diag] initiate response:',
+        JSON.stringify(response)
+      );
       if (response?.id) {
         activeCallId = response.id;
         // A connect webhook that raced ahead of this response was buffered;
@@ -357,6 +396,12 @@ export function useWhatsappCallSession() {
       cleanup();
       return response;
     } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(
+        '[WhatsApp Call][diag] initiateOutboundCall error:',
+        e?.message,
+        e
+      );
       cleanup();
       // BE returns 422 when the contact hasn't opted in (permission template
       // sent or already pending). Surface it to the caller as a normal
