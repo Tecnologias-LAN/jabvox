@@ -108,6 +108,12 @@ class Rack::Attack
     end
   end
 
+  ## Bulk WhatsApp n8n callback: token-authenticated but external, so cap per IP
+  ## to blunt any brute-forcing of the per-batch token.
+  throttle('jabvox_bulk_wa_callback/ip', limit: 300, period: 1.minute) do |req|
+    req.ip if req.post? && req.path.match?(%r{/jabvox/bulk_whatsapp/batches/[^/]+/results\z})
+  end
+
   ## Reset password throttling
   throttle('reset_password/ip', limit: 5, period: 30.minutes) do |req|
     req.ip if req.path_without_extentions == '/auth/password' && req.post?

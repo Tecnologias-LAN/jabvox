@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_28_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_28_000004) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1515,12 +1515,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_28_000002) do
     t.string "response_email_jabvox", default: "", null: false
     t.jsonb "payload_jabvox", default: {}, null: false
     t.integer "attempts_jabvox", default: 0, null: false
+    t.uuid "batch_uuid_jabvox"
+    t.string "callback_token_jabvox"
+    t.string "source_type_jabvox"
+    t.string "template_name_jabvox"
+    t.string "template_language_jabvox"
+    t.string "template_category_jabvox"
+    t.jsonb "variable_mapping_jabvox", default: {}, null: false
+    t.jsonb "filters_jabvox", default: {}, null: false
+    t.integer "sent_count_jabvox", default: 0, null: false
+    t.integer "failed_count_jabvox", default: 0, null: false
+    t.bigint "source_batch_id_jabvox"
+    t.datetime "finished_at_jabvox"
     t.index ["account_id", "created_at"], name: "idx_on_account_id_created_at_793a6e41e6"
     t.index ["account_id", "status_jabvox"], name: "idx_on_account_id_status_jabvox_8e3a4a349f"
     t.index ["account_id"], name: "index_jabvox_bulk_whatsapp_batches_on_account_id"
+    t.index ["batch_uuid_jabvox"], name: "idx_bulk_wa_batches_uuid", unique: true
     t.index ["created_by_id"], name: "index_jabvox_bulk_whatsapp_batches_on_created_by_id"
     t.index ["inbox_id"], name: "index_jabvox_bulk_whatsapp_batches_on_inbox_id"
     t.index ["sender_user_id"], name: "index_jabvox_bulk_whatsapp_batches_on_sender_user_id"
+    t.index ["source_batch_id_jabvox"], name: "idx_bulk_wa_batches_source_batch"
   end
 
   create_table "jabvox_bulk_whatsapp_configs", force: :cascade do |t|
@@ -1532,6 +1546,32 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_28_000002) do
     t.bigint "created_by_id"
     t.index ["account_id"], name: "index_jabvox_bulk_whatsapp_configs_on_account_id", unique: true
     t.index ["created_by_id"], name: "index_jabvox_bulk_whatsapp_configs_on_created_by_id"
+  end
+
+  create_table "jabvox_bulk_whatsapp_recipients", force: :cascade do |t|
+    t.bigint "bulk_whatsapp_batch_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "contact_id"
+    t.string "lead_id_jabvox"
+    t.string "name_jabvox", default: "", null: false
+    t.string "phone_number_jabvox", default: "", null: false
+    t.string "email_jabvox"
+    t.string "template_name_jabvox"
+    t.string "template_language_jabvox"
+    t.jsonb "processed_params_jabvox", default: {}, null: false
+    t.text "rendered_content_jabvox"
+    t.string "status_jabvox", default: "pending", null: false
+    t.bigint "conversation_id"
+    t.bigint "chatwoot_message_id"
+    t.string "error_code_jabvox"
+    t.text "error_message_jabvox"
+    t.datetime "sent_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["bulk_whatsapp_batch_id", "status_jabvox"], name: "idx_bulk_wa_recipients_batch_status"
+    t.index ["bulk_whatsapp_batch_id"], name: "idx_bulk_wa_recipients_batch"
+    t.index ["chatwoot_message_id"], name: "idx_bulk_wa_recipients_message"
+    t.index ["status_jabvox"], name: "idx_bulk_wa_recipients_status"
   end
 
   create_table "jabvox_calendar_event_participants", force: :cascade do |t|
@@ -3093,6 +3133,21 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_28_000002) do
     t.index ["conversation_id"], name: "index_mentions_on_conversation_id"
     t.index ["user_id", "conversation_id"], name: "index_mentions_on_user_id_and_conversation_id", unique: true
     t.index ["user_id"], name: "index_mentions_on_user_id"
+  end
+
+  create_table "message_status_events", force: :cascade do |t|
+    t.bigint "message_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id"
+    t.bigint "inbox_id"
+    t.integer "status", null: false
+    t.datetime "occurred_at", null: false
+    t.string "error_code"
+    t.string "error_title"
+    t.datetime "created_at", null: false
+    t.index ["account_id", "occurred_at"], name: "idx_message_status_events_account_time"
+    t.index ["inbox_id"], name: "idx_message_status_events_inbox"
+    t.index ["message_id", "status"], name: "idx_message_status_events_unique", unique: true
   end
 
   create_table "messages", id: :serial, force: :cascade do |t|

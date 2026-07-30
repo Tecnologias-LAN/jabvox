@@ -690,13 +690,18 @@ Rails.application.routes.draw do
             # Bulk WhatsApp (mass template send via CSV -> n8n webhook) module
             namespace :bulk_whatsapp do
               resource :config, only: [:show, :update], controller: 'config'
-              resources :batches, only: [:index, :create] do
+              resources :batches, only: [:index, :create, :show] do
                 collection do
                   get :senders
                   get :lead_fields
                   get :field_values
                 end
+                member do
+                  post :reuse
+                end
               end
+              # Callback de n8n por batch_uuid (autenticado por token, no por admin).
+              post 'batches/:batch_uuid/results', to: 'callbacks#results'
             end
 
             # Lead Import (pull leads from external databases) module
@@ -877,6 +882,13 @@ Rails.application.routes.draw do
               get :summary
               get :bot_summary
               get :agents
+              # Panel de WhatsApp por agente (estudio de negocio): tabla por agente,
+              # resumen+embudo, rankings, timeline por turnos y export.
+              get 'whatsapp/agents', action: :whatsapp_agents
+              get 'whatsapp/summary', action: :whatsapp_summary
+              get 'whatsapp/rankings', action: :whatsapp_rankings
+              get 'whatsapp/conversations/:conversation_id/timeline', action: :whatsapp_timeline
+              get 'whatsapp/export', action: :whatsapp_export
               get :inboxes
               get :labels
               get :teams

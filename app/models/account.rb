@@ -214,6 +214,7 @@ class Account < ApplicationRecord
   has_many :jabvox_task_automation_runs, dependent: :delete_all
   has_one :jabvox_bulk_whatsapp_config, dependent: :destroy
   has_many :jabvox_bulk_whatsapp_batches, dependent: :delete_all
+  has_many :jabvox_bulk_whatsapp_recipients, class_name: 'JabvoxBulkWhatsappRecipient', dependent: :delete_all
   has_many :jabvox_lead_sources, dependent: :destroy
   has_many :jabvox_lead_source_records, dependent: :delete_all
   has_many :jabvox_deleted_leads, dependent: :delete_all

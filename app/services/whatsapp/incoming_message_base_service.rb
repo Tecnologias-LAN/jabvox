@@ -55,11 +55,36 @@ class Whatsapp::IncomingMessageBaseService
 
   def update_message_with_status(message, status)
     message.status = status[:status]
-    if status[:status] == 'failed' && status[:errors].present?
-      error = status[:errors]&.first
-      message.external_error = "#{error[:code]}: #{error[:title]}"
-    end
+    error = status[:errors]&.first if status[:status] == 'failed' && status[:errors].present?
+    message.external_error = "#{error[:code]}: #{error[:title]}" if error
     message.save!
+    # Log the transition WITH its timestamp (Chatwoot only keeps the latest
+    # status, not when it changed) so the WhatsApp report can time delivered/read.
+    record_status_event(message, status, error)
+  end
+
+  # Records one MessageStatusEvent per (message, status). Idempotent: a repeated
+  # webhook for the same transition is ignored. Never raises into the webhook
+  # flow — a logging failure must not drop the status update.
+  def record_status_event(message, status, error = nil)
+    occurred_at = parse_status_timestamp(status[:timestamp])
+    MessageStatusEvent.find_or_create_by!(message_id: message.id, status: status[:status]) do |event|
+      event.account_id = message.account_id
+      event.conversation_id = message.conversation_id
+      event.inbox_id = message.inbox_id
+      event.occurred_at = occurred_at
+      event.error_code = error && error[:code].to_s
+      event.error_title = error && error[:title].to_s
+    end
+  rescue StandardError => e
+    Rails.logger.error "[WhatsappStatusEvent] message=#{message&.id} #{e.class}: #{e.message}"
+  end
+
+  # Meta sends a unix-seconds string; fall back to now if absent/malformed.
+  def parse_status_timestamp(raw)
+    Time.zone.at(Integer(raw))
+  rescue ArgumentError, TypeError
+    Time.current
   end
 
   def create_messages

@@ -78,6 +78,15 @@
       "FIELD_AFFILIATE": "Affiliate",
       "FIELD_ASSIGNEE": "Assigned agent"
     },
+    "WIZARD": {
+      "STEP1": "Inbox & sender",
+      "STEP2": "Recipients",
+      "STEP3": "Template & variables",
+      "STEP4": "Test & send",
+      "NEXT": "Next",
+      "BACK": "Back",
+      "STEP_OF": "Step {current} of {total}"
+    },
     "SEND": {
       "INBOX": "Inbox",
       "INBOX_PLACEHOLDER": "Select the inbox to send from",
@@ -123,7 +132,35 @@
     "STATUS": {
       "SENT": "Sent",
       "FAILED": "Failed",
-      "PENDING": "Pending"
+      "PENDING": "Pending",
+      "DRAFT": "Draft",
+      "QUEUED": "Queued",
+      "RUNNING": "Sending…",
+      "COMPLETED": "Completed",
+      "PARTIAL": "Partial"
+    },
+    "REPORT": {
+      "TITLE": "Send report",
+      "LOADING": "Loading report…",
+      "EMPTY": "No recipients in this send.",
+      "TOTALS": "{sent} sent · {failed} failed · {total} total",
+      "SEARCH_PLACEHOLDER": "Search by name or number…",
+      "FILTER_ALL": "All",
+      "FILTER_SENT": "Sent",
+      "FILTER_FAILED": "Failed",
+      "FILTER_PENDING": "Pending",
+      "EXPORT_CSV": "Export CSV",
+      "REUSE": "Resend to this audience",
+      "LIVE": "Live updating…",
+      "COLS": {
+        "NAME": "Name",
+        "PHONE": "Number",
+        "TEMPLATE": "Template",
+        "STATUS": "Status",
+        "ERROR_CODE": "Error code",
+        "ERROR_MESSAGE": "Error message",
+        "SENT_AT": "Sent at"
+      }
     },
     "SETTINGS": {
       "WEBHOOK_URL": "n8n webhook URL",

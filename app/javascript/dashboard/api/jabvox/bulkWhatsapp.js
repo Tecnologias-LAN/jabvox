@@ -19,6 +19,22 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     return axios.get(`${this.url}/batches`);
   }
 
+  // Detalle de una ejecución + sus destinatarios (para el reporte). Soporta
+  // filtro por estado y búsqueda por nombre/número.
+  getBatch(id, { status, q } = {}) {
+    return axios.get(`${this.url}/batches/${id}`, { params: { status, q } });
+  }
+
+  // URL de descarga del reporte en CSV (para abrir en nueva pestaña / <a download>).
+  batchCsvUrl(id) {
+    return `${this.url}/batches/${id}.csv`;
+  }
+
+  // Clona la audiencia de un batch en uno nuevo (draft) para reenviar.
+  reuseBatch(id) {
+    return axios.post(`${this.url}/batches/${id}/reuse`);
+  }
+
   getSenders() {
     return axios.get(`${this.url}/batches/senders`);
   }
@@ -61,6 +77,7 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     language,
     text,
     variableMap,
+    sourceBatchId,
   }) {
     return axios.post(`${this.url}/batches`, {
       source: 'leads',
@@ -75,6 +92,7 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
       language,
       text,
       variable_map: variableMap,
+      source_batch_id: sourceBatchId,
     });
   }
 }

@@ -1,3 +1,5 @@
+require 'csv'
+
 # Bulk WhatsApp sends: upload a CSV (nombre, numero, template, idioma), pick the inbox it goes
 # through and the user whose API token n8n will use, then dispatch it to the account's webhook.
 # Also exposes the send history and the list of selectable sender users. Admin-only.
@@ -11,10 +13,48 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     render json: batches.map { |b| serialize(b) }
   end
 
+  # Detalle de una ejecución + sus destinatarios. Soporta filtro por estado,
+  # búsqueda por nombre/número y export CSV (?format=csv).
+  def show
+    batch = Current.account.jabvox_bulk_whatsapp_batches.find(params[:id])
+    scope = filtered_recipients(batch).order(:id)
+
+    respond_to do |format|
+      format.csv { send_data recipients_csv(scope), filename: "envio_#{batch.id}.csv" }
+      format.json do
+        render json: serialize(batch).merge(
+          recipients: scope.limit(5000).map { |r| serialize_recipient(r) }
+        )
+      end
+    end
+  end
+
+  # Clona los destinatarios de un batch en uno NUEVO (draft) para reenviar a la
+  # misma audiencia. Devuelve el id del nuevo batch para saltar al Paso 3.
+  def reuse
+    source = Current.account.jabvox_bulk_whatsapp_batches.find(params[:id])
+    new_batch = Current.account.jabvox_bulk_whatsapp_batches.create!(
+      inbox: source.inbox, sender_user: source.sender_user, created_by: current_user,
+      mode_jabvox: source.mode_jabvox, status_jabvox: 'draft',
+      source_type_jabvox: source.source_type_jabvox,
+      variable_mapping_jabvox: source.variable_mapping_jabvox,
+      filters_jabvox: source.filters_jabvox,
+      source_batch_id_jabvox: source.id,
+      total_rows_jabvox: source.recipients.count, valid_rows_jabvox: source.recipients.count,
+      payload_jabvox: {}
+    )
+    clone_recipients(source, new_batch)
+    render json: serialize(new_batch), status: :created
+  end
+
   # Users of this account, for choosing whose API token is forwarded to n8n.
+  # Includes each user's account role so the UI can restrict the sender to
+  # administrators only (agents / custom roles are excluded in the wizard).
   def senders
-    users = Current.account.users.select(:id, :name, :email)
-    render json: users.map { |u| { id: u.id, name: u.name, email: u.email } }
+    account_users = Current.account.account_users.includes(:user)
+    render json: account_users.map do |au|
+      { id: au.user_id, name: au.user.name, email: au.user.email, role: au.role }
+    end
   end
 
   # Every lead custom field the picker can filter by, ALL of them selectable.
@@ -109,7 +149,7 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       account: Current.account, inbox: inbox, sender_user: sender, actor: current_user,
       response_email: params[:response_email], leads_selection: leads_selection_params,
       template_name: params[:template_name], language: params[:language], text: params[:text],
-      variable_map: variable_map_params
+      variable_map: variable_map_params, source_batch_id: params[:source_batch_id].presence
     )
   end
 
@@ -133,22 +173,81 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     }
   end
 
+  # Recipients de un batch, filtrados por estado y/o búsqueda (nombre/número).
+  def filtered_recipients(batch)
+    scope = batch.recipients
+    scope = scope.where(status_jabvox: params[:status]) if params[:status].present?
+    if params[:q].present?
+      q = "%#{params[:q].to_s.strip}%"
+      scope = scope.where('name_jabvox ILIKE :q OR phone_number_jabvox ILIKE :q', q: q)
+    end
+    scope
+  end
+
+  # Clona los recipients de source → target conservando lead_id/contact_id para
+  # re-resolver campos frescos al reenviar. Todos vuelven a 'pending'.
+  def clone_recipients(source, target)
+    rows = source.recipients.order(:id).map do |r|
+      {
+        bulk_whatsapp_batch_id: target.id, account_id: Current.account.id,
+        contact_id: r.contact_id, lead_id_jabvox: r.lead_id_jabvox,
+        name_jabvox: r.name_jabvox, phone_number_jabvox: r.phone_number_jabvox,
+        email_jabvox: r.email_jabvox, status_jabvox: 'pending',
+        created_at: Time.current, updated_at: Time.current
+      }
+    end
+    JabvoxBulkWhatsappRecipient.insert_all(rows) if rows.any?
+  end
+
+  def recipients_csv(scope)
+    CSV.generate(headers: true) do |csv|
+      csv << ['Nombre', 'Número', 'Plantilla', 'Estado', 'Código error', 'Mensaje error', 'Enviado a las']
+      scope.each do |r|
+        csv << [r.name_jabvox, r.phone_number_jabvox, r.template_name_jabvox,
+                r.status_jabvox, r.error_code_jabvox, r.error_message_jabvox, r.sent_at_jabvox]
+      end
+    end
+  end
+
+  def serialize_recipient(recipient)
+    {
+      id: recipient.id,
+      name: recipient.name_jabvox,
+      phone_number: recipient.phone_number_jabvox,
+      template_name: recipient.template_name_jabvox,
+      status: recipient.status_jabvox,
+      error_code: recipient.error_code_jabvox,
+      error_message: recipient.error_message_jabvox,
+      rendered_content: recipient.rendered_content_jabvox,
+      conversation_id: recipient.conversation_id,
+      sent_at: recipient.sent_at_jabvox
+    }
+  end
+
   def serialize(batch)
     {
       id: batch.id,
+      batch_uuid: batch.batch_uuid_jabvox,
       inbox_id: batch.inbox_id,
       inbox_name: batch.inbox&.name,
       sender_user_id: batch.sender_user_id,
       sender_name: batch.sender_user&.name,
       created_by_name: batch.created_by&.name,
+      source_type: batch.source_type_jabvox,
+      template_name: batch.template_name_jabvox,
+      template_language: batch.template_language_jabvox,
       total_rows_jabvox: batch.total_rows_jabvox,
       valid_rows_jabvox: batch.valid_rows_jabvox,
+      sent_count: batch.sent_count_jabvox,
+      failed_count: batch.failed_count_jabvox,
+      source_batch_id: batch.source_batch_id_jabvox,
       mode_jabvox: batch.mode_jabvox,
       status_jabvox: batch.status_jabvox,
       error_jabvox: batch.error_jabvox,
       file_name_jabvox: batch.file_name_jabvox,
       response_email_jabvox: batch.response_email_jabvox,
       sent_at_jabvox: batch.sent_at_jabvox,
+      finished_at_jabvox: batch.finished_at_jabvox,
       token_expires_at_jabvox: batch.token_expires_at_jabvox,
       created_at: batch.created_at
     }

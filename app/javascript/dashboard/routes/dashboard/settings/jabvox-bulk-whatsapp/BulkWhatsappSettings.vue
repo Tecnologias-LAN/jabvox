@@ -6,11 +6,15 @@ import { useAlert } from 'dashboard/composables';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import bulkWhatsappAPI from 'dashboard/api/jabvox/bulkWhatsapp';
 import LeadsPickerTab from './LeadsPickerTab.vue';
+import BatchReportDialog from './components/BatchReportDialog.vue';
 
 const { t } = useI18n();
 const rootStore = useStore();
 const { isAdmin } = useAdmin();
 const currentUserId = useMapGetter('getCurrentUserID');
+
+const reportDialog = ref(null);
+const reuseBatch = ref(null); // batch clonado para reenviar (fija audiencia + salta a plantilla)
 
 const activeTab = ref('send');
 // Only real administrators manage the webhook config; custom-role senders get
@@ -24,8 +28,24 @@ const source = ref('csv');
 const SOURCES = ['csv', 'leads'];
 
 // ── Catalogs ────────────────────────────────────────────────────────────────
-const inboxes = useMapGetter('inboxes/getInboxes');
+const allInboxes = useMapGetter('inboxes/getInboxes');
 const senders = ref([]);
+
+// Paso 1 solo ofrece bandejas de canal WhatsApp (oficial o Twilio-whatsapp).
+const inboxes = computed(() =>
+  (allInboxes.value || []).filter(
+    ib =>
+      ib.channel_type === 'Channel::Whatsapp' ||
+      (ib.channel_type === 'Channel::TwilioSms' && ib.medium === 'whatsapp')
+  )
+);
+
+// El emisor debe ser ADMINISTRADOR de la cuenta: no se muestran agentes ni
+// roles personalizados. `senders` viene del backend (id/name/email/role); si el
+// backend no expone role, se cae al listado tal cual (defensivo).
+const adminSenders = computed(() =>
+  (senders.value || []).filter(s => !s.role || s.role === 'administrator')
+);
 
 // ── Config (webhook only; the report email is chosen per send) ───────────────
 const webhookUrl = ref('');
@@ -75,6 +95,46 @@ const canSend = computed(
     !parseError.value &&
     parsedPreview.value.length > 0
 );
+
+// ── Wizard stepper (4 pasos, secuencial y obligatorio) ──────────────────────
+// 1: bandeja + emisor admin | 2: origen (CSV/leads) | 3: plantilla+variables
+// (solo leads; en CSV se omite) | 4: preview + enviar.
+// El flujo "leads" (plantilla, variables, preview, enviar) lo maneja
+// LeadsPickerTab internamente una vez fijada la audiencia en el paso 2.
+const wizardStep = ref(1);
+
+// Validez de cada paso — "Siguiente" se bloquea si el paso actual no es válido.
+const step1Valid = computed(
+  () => configReady.value && !!selectedInboxId.value && !!selectedSenderId.value
+);
+const step2Valid = computed(() =>
+  source.value === 'csv'
+    ? !parseError.value && parsedPreview.value.length > 0
+    : true
+);
+const canGoNext = computed(() => {
+  if (wizardStep.value === 1) return step1Valid.value;
+  if (wizardStep.value === 2) return step2Valid.value;
+  return true;
+});
+
+// CSV omite el paso 3 (plantilla/variables por fila) → salta 2 → 4.
+const nextStep = () => {
+  if (!canGoNext.value) return;
+  wizardStep.value =
+    wizardStep.value === 2 && source.value === 'csv'
+      ? 4
+      : Math.min(wizardStep.value + 1, 4);
+};
+const prevStep = () => {
+  wizardStep.value =
+    wizardStep.value === 4 && source.value === 'csv'
+      ? 2
+      : Math.max(wizardStep.value - 1, 1);
+};
+const resetWizard = () => {
+  wizardStep.value = 1;
+};
 
 // Downloads a sample CSV that matches the selected inbox's mode: for official WhatsApp the
 // 'template' column holds an approved template name; for API inboxes it holds the message text.
@@ -161,6 +221,7 @@ const resetForm = () => {
   parsedPreview.value = [];
   parseError.value = '';
   if (fileInput.value) fileInput.value.value = '';
+  resetWizard();
 };
 
 // ── History ───────────────────────────────────────────────────────────────
@@ -182,7 +243,20 @@ const loadBatches = async () => {
 // After a leads-based send, jump to the history tab and refresh it.
 const onLeadsSent = () => {
   activeTab.value = 'history';
+  reuseBatch.value = null;
   loadBatches();
+};
+
+// Abre el reporte por ejecución de un batch del historial.
+const openReport = batch => reportDialog.value?.openDialog(batch);
+
+// "Reenviar a esta audiencia": el batch clonado (draft) ya trae bandeja/audiencia;
+// vamos al tab de envío en modo leads para que el usuario elija plantilla (Paso 3)
+// y confirme. reuseBatch queda disponible para que LeadsPickerTab lo consuma.
+const onBatchReused = batch => {
+  reuseBatch.value = batch;
+  source.value = 'leads';
+  activeTab.value = 'send';
 };
 
 const onSend = async () => {
@@ -339,8 +413,37 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Common: inbox + sender + source toggle -->
+        <!-- Stepper: 4 pasos, secuencial y obligatorio -->
+        <div class="flex items-center gap-2">
+          <div
+            v-for="(labelKey, i) in ['STEP1', 'STEP2', 'STEP3', 'STEP4']"
+            :key="labelKey"
+            class="flex items-center gap-2"
+            :class="i > 0 ? 'flex-1' : ''"
+          >
+            <span
+              v-if="i > 0"
+              class="h-px flex-1"
+              :class="wizardStep > i ? 'bg-n-brand' : 'bg-n-weak'"
+            />
+            <span
+              class="inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full px-2.5 py-1"
+              :class="
+                wizardStep === i + 1
+                  ? 'bg-n-brand text-white'
+                  : wizardStep > i + 1
+                    ? 'bg-n-teal-3 text-n-teal-11'
+                    : 'bg-n-alpha-1 text-n-slate-10'
+              "
+            >
+              {{ i + 1 }}. {{ t(`JABVOX_BULK_WA.WIZARD.${labelKey}`) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Paso 1: bandeja + emisor (source toggle vive en el paso 2) -->
         <section
+          v-show="wizardStep === 1"
           class="rounded-2xl border border-n-weak bg-n-solid-1 p-5 shadow-sm space-y-4"
         >
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -396,7 +499,7 @@ onMounted(() => {
                 <option value="">
                   {{ t('JABVOX_BULK_WA.SEND.SENDER_PLACEHOLDER') }}
                 </option>
-                <option v-for="u in senders" :key="u.id" :value="u.id">
+                <option v-for="u in adminSenders" :key="u.id" :value="u.id">
                   {{ u.name }} ({{ u.email }})
                 </option>
               </select>
@@ -426,7 +529,13 @@ onMounted(() => {
               {{ t('JABVOX_BULK_WA.SEND.REPORT_EMAIL_HINT') }}
             </span>
           </div>
+        </section>
 
+        <!-- Paso 2: origen de destinatarios (CSV o Desde Jabvox) -->
+        <section
+          v-show="wizardStep === 2"
+          class="rounded-2xl border border-n-weak bg-n-solid-1 p-5 shadow-sm space-y-4"
+        >
           <!-- Source toggle -->
           <div
             class="flex items-center gap-1 p-0.5 rounded-lg bg-n-alpha-1 w-fit"
@@ -448,9 +557,10 @@ onMounted(() => {
           </div>
         </section>
 
-        <!-- Leads source -->
+        <!-- Leads source (pasos 2B/3/4 los gestiona internamente) -->
         <LeadsPickerTab
           v-if="source === 'leads'"
+          v-show="wizardStep >= 2"
           :inbox-id="selectedInboxId"
           :sender-user-id="selectedSenderId"
           :mode="sendMode"
@@ -460,9 +570,10 @@ onMounted(() => {
           @sent="onLeadsSent"
         />
 
-        <!-- CSV source -->
+        <!-- CSV source: preview del primer registro y enviar (pasos 2 y 4) -->
         <section
           v-else
+          v-show="wizardStep === 2 || wizardStep === 4"
           class="rounded-2xl border border-n-weak bg-n-solid-1 p-5 shadow-sm space-y-4"
         >
           <!-- Sample CSV -->
@@ -570,6 +681,7 @@ onMounted(() => {
 
           <div class="flex justify-end pt-2">
             <button
+              v-show="wizardStep === 4"
               type="button"
               class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-n-brand text-white hover:opacity-90 disabled:opacity-50"
               :disabled="!canSend || sending"
@@ -585,6 +697,38 @@ onMounted(() => {
             </button>
           </div>
         </section>
+
+        <!-- Navegación del wizard: Atrás / Siguiente (no salta pasos ni avanza
+             con datos incompletos). El envío final vive en el Paso 4. -->
+        <div class="flex items-center justify-between pt-1">
+          <button
+            v-show="wizardStep > 1"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-n-weak text-n-slate-12 hover:bg-n-alpha-1"
+            @click="prevStep"
+          >
+            <span class="i-lucide-arrow-left size-4" aria-hidden="true" />
+            {{ t('JABVOX_BULK_WA.WIZARD.BACK') }}
+          </button>
+          <span class="text-xs text-n-slate-10">
+            {{
+              t('JABVOX_BULK_WA.WIZARD.STEP_OF', {
+                current: wizardStep,
+                total: 4,
+              })
+            }}
+          </span>
+          <button
+            v-show="wizardStep < 4 && !(source === 'leads' && wizardStep >= 2)"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-n-brand text-white hover:opacity-90 disabled:opacity-50"
+            :disabled="!canGoNext"
+            @click="nextStep"
+          >
+            {{ t('JABVOX_BULK_WA.WIZARD.NEXT') }}
+            <span class="i-lucide-arrow-right size-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       <!-- HISTORY -->
@@ -626,6 +770,7 @@ onMounted(() => {
                 <th class="text-left px-4 py-2.5 font-medium">
                   {{ t('JABVOX_BULK_WA.HISTORY.DATE') }}
                 </th>
+                <th class="px-4 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -678,6 +823,15 @@ onMounted(() => {
                 <td class="px-4 py-2.5 text-n-slate-10">
                   {{ formatDate(b.sent_at_jabvox || b.created_at) }}
                 </td>
+                <td class="px-4 py-2.5 text-right">
+                  <button
+                    type="button"
+                    class="text-n-brand hover:underline text-xs font-medium"
+                    @click="openReport(b)"
+                  >
+                    {{ t('JABVOX_BULK_WA.REPORT.TITLE') }}
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -722,5 +876,8 @@ onMounted(() => {
         </section>
       </div>
     </div>
+
+    <!-- Report dialog (fuera del switch de tabs para no romper el v-if/v-else) -->
+    <BatchReportDialog ref="reportDialog" @reused="onBatchReused" />
   </div>
 </template>

@@ -36,7 +36,7 @@ class Jabvox::BulkWhatsappDispatchService
 
   def initialize(account:, inbox:, sender_user:, actor:, response_email: '', csv_io: nil,
                  file_name: '', leads_selection: nil, template_name: nil, language: nil, text: nil,
-                 variable_map: nil)
+                 variable_map: nil, source_batch_id: nil)
     @account = account
     @inbox = inbox
     @sender_user = sender_user
@@ -48,6 +48,7 @@ class Jabvox::BulkWhatsappDispatchService
     @template_name = template_name
     @language = language
     @text = text
+    @source_batch_id = source_batch_id
     # { "1" => "nombre", "2" => "custom:fecha_entrega2_c", ... } — which lead field
     # fills each {{n}} placeholder of the template body.
     @variable_map = normalize_variable_map(variable_map)
@@ -77,16 +78,20 @@ class Jabvox::BulkWhatsappDispatchService
     @account = batch.account
     @inbox = batch.inbox
     @sender_user = batch.sender_user
+    @batch = batch
     messages = expand_messages(batch.payload_jabvox)
-    if messages.empty?
-      return finalize(batch, status: 'failed',
-                      error: 'Sin destinatarios válidos: ninguno de los leads seleccionados tiene número de teléfono.')
-    end
+    return deliver_nothing(batch) if messages.empty?
+
+    # Persist one recipient row per message BEFORE dispatch so the per-execution
+    # report exists immediately and n8n's per-recipient callbacks have a row to
+    # update. Idempotent: only seeds when the batch has no recipients yet.
+    persist_recipients(batch, messages)
 
     token = mint_ephemeral_token
     begin
       post_all(batch, messages, token.token)
-      finalize(batch, status: 'sent', sent_at: Time.current)
+      # 'queued'/'running' — the real terminal state comes from n8n callbacks.
+      finalize(batch, status: 'running', sent_at: Time.current)
     rescue StandardError => e
       token.destroy # never leave a live credential if we couldn't hand it off
       finalize(batch, status: 'failed', error: e.message)
@@ -97,6 +102,11 @@ class Jabvox::BulkWhatsappDispatchService
   end
 
   private
+
+  def deliver_nothing(batch)
+    finalize(batch, status: 'failed',
+                    error: 'Sin destinatarios válidos: ninguno de los leads seleccionados tiene número de teléfono.')
+  end
 
   # ── Validation ──────────────────────────────────────────────────────────────
   def ensure_configured!
@@ -111,10 +121,14 @@ class Jabvox::BulkWhatsappDispatchService
     raise Error, 'El usuario emisor no es válido para esta cuenta.'
   end
 
+  # El correo de reporte ya NO es obligatorio: los resultados vuelven a la app por
+  # callback de n8n. Solo se valida el formato si el usuario lo proporciona
+  # (compatibilidad con quien aún quiera el correo).
   def ensure_email!
+    return if @response_email.blank?
     return if @response_email.match?(URI::MailTo::EMAIL_REGEXP)
 
-    raise Error, 'Ingresa un correo válido para recibir el reporte.'
+    raise Error, 'El correo de reporte no tiene un formato válido.'
   end
 
   # ── Phase 1 helpers: snapshot what to send ──────────────────────────────────
@@ -160,11 +174,18 @@ class Jabvox::BulkWhatsappDispatchService
   def create_pending_batch(payload)
     # For leads we don't know the exact count until the job resolves it; store what we can.
     total = payload['kind'] == 'csv' ? payload['rows'].size : (@total_rows || 0)
+    source_type = payload['kind'] == 'csv' ? 'csv' : 'jabvox'
     @account.jabvox_bulk_whatsapp_batches.create!(
       inbox: @inbox, sender_user: @sender_user, created_by: @actor,
       response_email_jabvox: @response_email, mode_jabvox: send_mode,
       total_rows_jabvox: total, valid_rows_jabvox: total,
-      status_jabvox: 'pending', file_name_jabvox: @file_name, payload_jabvox: payload
+      status_jabvox: 'pending', file_name_jabvox: @file_name, payload_jabvox: payload,
+      # Reporting/reuse snapshot (additive columns).
+      source_type_jabvox: source_type,
+      template_name_jabvox: @template_name, template_language_jabvox: @language,
+      variable_mapping_jabvox: @variable_map || {},
+      filters_jabvox: (@leads_selection || {})['filters'] || {},
+      source_batch_id_jabvox: @source_batch_id
     )
   end
 
@@ -318,6 +339,47 @@ class Jabvox::BulkWhatsappDispatchService
     end
   end
 
+  # ── Recipients (per-execution report seed) ──────────────────────────────────
+  # Seeds one recipient row per outgoing message so the report has a full roster
+  # from the start; n8n callbacks then flip each to sent/failed. Idempotent.
+  def persist_recipients(batch, messages)
+    return if batch.recipients.exists?
+
+    rows = messages.map do |m|
+      {
+        bulk_whatsapp_batch_id: batch.id,
+        account_id: @account.id,
+        contact_id: m['contact_id'],
+        lead_id_jabvox: m['lead_id']&.to_s,
+        name_jabvox: m['nombre'].to_s,
+        phone_number_jabvox: m['numero'].to_s,
+        email_jabvox: m['email'],
+        template_name_jabvox: m['template'].to_s,
+        template_language_jabvox: m['idioma'].to_s,
+        processed_params_jabvox: m['processed_params'] || {},
+        rendered_content_jabvox: render_content(m),
+        status_jabvox: 'pending',
+        created_at: Time.current, updated_at: Time.current
+      }
+    end
+    JabvoxBulkWhatsappRecipient.insert_all(rows) if rows.any?
+    batch.update!(total_recipients_count(batch))
+  end
+
+  def total_recipients_count(batch)
+    { total_rows_jabvox: batch.recipients.count, valid_rows_jabvox: batch.recipients.count }
+  end
+
+  # Best-effort human-readable body for the report (the real send uses
+  # processed_params). For templates we don't have the body text here, so we
+  # fall back to the template name + resolved params joined.
+  def render_content(message)
+    params = message['processed_params'] || {}
+    return message['template'].to_s if params.blank?
+
+    "#{message['template']} — #{params.values.join(' | ')}"
+  end
+
   # ── Delivery ────────────────────────────────────────────────────────────────
   # POST the messages to n8n in chunks so a 1000+ send never becomes one huge request. Each
   # chunk is retried on transient failures; a chunk that keeps failing aborts the batch.
@@ -356,22 +418,29 @@ class Jabvox::BulkWhatsappDispatchService
   # hardcoding the app host; batch_id ties every chunk back to its send.
   def payload_body(batch, messages, api_token, chunk_index, total_chunks)
     {
-      base_url: base_url,
-      account_id: @account.id,
-      batch_id: batch.id,
-      inbox_id: @inbox&.id,
-      inbox_name: @inbox&.name,
-      mode: send_mode,
-      channel_type: @inbox&.channel_type,
-      api_token: api_token,
-      token_expires_at: TOKEN_TTL.from_now.iso8601,
-      response_email: @response_email,
-      sent_by: @actor&.id,
-      sent_by_name: @actor&.name,
-      chunk_index: chunk_index,
-      total_chunks: total_chunks,
-      messages: messages
+      base_url: base_url, account_id: @account.id, batch_id: batch.id,
+      inbox_id: @inbox&.id, inbox_name: @inbox&.name, mode: send_mode,
+      channel_type: @inbox&.channel_type, api_token: api_token,
+      token_expires_at: TOKEN_TTL.from_now.iso8601, response_email: @response_email,
+      sent_by: @actor&.id, sent_by_name: @actor&.name,
+      chunk_index: chunk_index, total_chunks: total_chunks, messages: messages
+    }.merge(callback_fields(batch))
+  end
+
+  # Additive: n8n devuelve el resultado por callback (reemplaza el correo). Se
+  # mantiene response_email en el payload por compatibilidad con workflows viejos.
+  def callback_fields(batch)
+    {
+      batch_uuid: batch.batch_uuid_jabvox,
+      callback_url: callback_url(batch),
+      callback_token: batch.callback_token_jabvox
     }
+  end
+
+  # URL del endpoint que n8n llama con los resultados por destinatario y el
+  # resumen final. Usa base_url (FRONTEND_URL) + la ruta del batch por uuid.
+  def callback_url(batch)
+    "#{base_url}/api/v1/accounts/#{@account.id}/jabvox/bulk_whatsapp/batches/#{batch.batch_uuid_jabvox}/results"
   end
 
   def base_url

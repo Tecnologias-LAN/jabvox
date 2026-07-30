@@ -135,6 +135,9 @@ class Message < ApplicationRecord
   has_many :attachments, dependent: :destroy, autosave: true, before_add: :validate_attachments_limit
   has_one :csat_survey_response, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
+  # WhatsApp delivery-status transitions with their real timestamps (see
+  # MessageStatusEvent) — used by the WhatsApp agent report for time-to-read etc.
+  has_many :message_status_events, dependent: :delete_all
 
   after_create_commit :execute_after_create_commit_callbacks
 

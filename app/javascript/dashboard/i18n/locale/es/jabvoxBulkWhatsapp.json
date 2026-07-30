@@ -78,6 +78,15 @@
       "FIELD_AFFILIATE": "Afiliado",
       "FIELD_ASSIGNEE": "Asesor asignado"
     },
+    "WIZARD": {
+      "STEP1": "Bandeja y emisor",
+      "STEP2": "Destinatarios",
+      "STEP3": "Plantilla y variables",
+      "STEP4": "Prueba y enviar",
+      "NEXT": "Siguiente",
+      "BACK": "Atrás",
+      "STEP_OF": "Paso {current} de {total}"
+    },
     "SEND": {
       "INBOX": "Bandeja",
       "INBOX_PLACEHOLDER": "Selecciona la bandeja de envío",
@@ -123,7 +132,35 @@
     "STATUS": {
       "SENT": "Enviado",
       "FAILED": "Fallido",
-      "PENDING": "Pendiente"
+      "PENDING": "Pendiente",
+      "DRAFT": "Borrador",
+      "QUEUED": "Encolado",
+      "RUNNING": "Enviando…",
+      "COMPLETED": "Completado",
+      "PARTIAL": "Parcial"
+    },
+    "REPORT": {
+      "TITLE": "Reporte del envío",
+      "LOADING": "Cargando reporte…",
+      "EMPTY": "Sin destinatarios en este envío.",
+      "TOTALS": "{sent} enviados · {failed} fallidos · {total} total",
+      "SEARCH_PLACEHOLDER": "Buscar por nombre o número…",
+      "FILTER_ALL": "Todos",
+      "FILTER_SENT": "Enviados",
+      "FILTER_FAILED": "Fallidos",
+      "FILTER_PENDING": "Pendientes",
+      "EXPORT_CSV": "Exportar CSV",
+      "REUSE": "Reenviar a esta audiencia",
+      "LIVE": "Actualizando en vivo…",
+      "COLS": {
+        "NAME": "Nombre",
+        "PHONE": "Número",
+        "TEMPLATE": "Plantilla",
+        "STATUS": "Estado",
+        "ERROR_CODE": "Código de error",
+        "ERROR_MESSAGE": "Mensaje de error",
+        "SENT_AT": "Enviado a las"
+      }
     },
     "SETTINGS": {
       "WEBHOOK_URL": "URL del webhook de n8n",

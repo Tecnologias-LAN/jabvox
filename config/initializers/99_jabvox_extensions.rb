@@ -50,13 +50,26 @@ end
 # Runs once at boot; in production models are already eager-loaded, in development
 # the catalog forces an eager_load! before scanning.
 Rails.application.config.after_initialize do
-  Jabvox::ExternalExport::Catalog.reset!
-  Jabvox::ExternalExport::Catalog.exportable_models.each do |model|
-    model.include Jabvox::ExportableToExternalDb
-    # Auto-fill created_by from Current.user on create, for models that have the
-    # column (so the export always records WHO created each record).
-    model.include Jabvox::TracksCreator if model.column_names.include?('created_by_id')
-  rescue StandardError => e
-    Rails.logger.error("[ExternalExport] could not hook #{model}: #{e.message}")
+  # Skip when the DB isn't migrated yet (e.g. db:schema:load / db:migrate on a
+  # fresh database): the export catalog eager-loads models, and some (Administrate
+  # dashboards → GlobalConfig → installation_configs) query tables that don't
+  # exist yet, hard-failing the boot of rake db tasks. On a migrated DB this guard
+  # is a no-op.
+  db_ready = begin
+    ActiveRecord::Base.connection.table_exists?('installation_configs')
+  rescue StandardError
+    false
+  end
+
+  if db_ready
+    Jabvox::ExternalExport::Catalog.reset!
+    Jabvox::ExternalExport::Catalog.exportable_models.each do |model|
+      model.include Jabvox::ExportableToExternalDb
+      # Auto-fill created_by from Current.user on create, for models that have the
+      # column (so the export always records WHO created each record).
+      model.include Jabvox::TracksCreator if model.column_names.include?('created_by_id')
+    rescue StandardError => e
+      Rails.logger.error("[ExternalExport] could not hook #{model}: #{e.message}")
+    end
   end
 end
