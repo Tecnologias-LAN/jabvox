@@ -88,7 +88,8 @@ class DashboardController < ActionController::Base
       GIT_SHA: GIT_HASH,
       ALLOWED_LOGIN_METHODS: allowed_login_methods,
       ACTIVE_PLATFORM_BANNERS: active_platform_banners,
-      VOICE_CALL_ICE_SERVERS: voice_call_ice_servers
+      VOICE_CALL_ICE_SERVERS: voice_call_ice_servers,
+      VOICE_CALL_FORCE_RELAY: ActiveModel::Type::Boolean.new.cast(GlobalConfigService.load('VOICE_CALL_FORCE_RELAY', false))
     }
   end
 

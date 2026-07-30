@@ -150,6 +150,12 @@ const cleanup = () => {
 
 const buildPeerConnection = iceServers => {
   const config = iceServers && iceServers.length ? { iceServers } : {};
+  // Optional: force media to go through TURN only (relay candidates). Useful for
+  // diagnosing/working around NATs where host/srflx paths never establish audio.
+  // Enable by setting VOICE_CALL_FORCE_RELAY=true in the backend config.
+  if (window.globalConfig?.VOICE_CALL_FORCE_RELAY) {
+    config.iceTransportPolicy = 'relay';
+  }
   pc = new RTCPeerConnection(config);
   remoteStream = new MediaStream();
   pc.ontrack = event => {
