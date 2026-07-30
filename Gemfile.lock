@@ -25,7 +25,7 @@ GIT
 GEM
   remote: https://rubygems.org/
   specs:
-    acme-client (2.0.31)
+    acme-client (2.0.32)
       base64 (~> 0.2)
       faraday (>= 1.0, < 3.0.0)
       faraday-retry (>= 1.0, < 3.0.0)
@@ -130,19 +130,17 @@ GEM
       jbuilder (~> 2)
       rails (>= 4.2, < 7.2)
       selectize-rails (~> 0.6)
-    ai-agents (0.9.1)
-      ruby_llm (~> 1.9.1)
+    ai-agents (0.12.0)
+      ruby_llm (~> 1.14)
     annotaterb (4.20.0)
       activerecord (>= 6.0.0)
       activesupport (>= 6.0.0)
-    anonymous_loader (0.1.2)
-      version_gem (~> 1.1, >= 1.1.13)
     ast (2.4.3)
     attr_extras (7.1.0)
     audited (5.4.1)
       activerecord (>= 5.0, < 7.7)
       activesupport (>= 5.0, < 7.7)
-    auth-sanitizer (0.2.2)
+    auth-sanitizer (0.2.1)
       version_gem (~> 1.1, >= 1.1.10)
     aws-actionmailbox-ses (0.1.0)
       actionmailbox (>= 7.1.0)
@@ -177,7 +175,7 @@ GEM
     bcrypt (3.1.22)
     bcrypt_pbkdf (1.1.2)
     benchmark (0.4.1)
-    bigdecimal (3.2.2)
+    bigdecimal (3.3.1)
     bindex (0.8.1)
     bootsnap (1.16.0)
       msgpack (~> 1.2)
@@ -193,23 +191,27 @@ GEM
       bundler (>= 1.2.0, < 3)
       thor (~> 1.0)
     byebug (11.1.3)
-    caxlsx (4.4.2)
+    caxlsx (4.5.0)
       htmlentities (~> 4.3, >= 4.3.4)
       marcel (~> 1.0)
       nokogiri (~> 1.10, >= 1.10.4)
       rubyzip (>= 2.4, < 4)
+    cgi (0.5.1)
     childprocess (5.1.0)
       logger (~> 1.5)
     cld3 (3.7.0)
     climate_control (1.2.0)
     coderay (1.1.3)
     commonmarker (0.23.10)
-    concurrent-ruby (1.3.5)
+    concurrent-ruby (1.3.7)
     connection_pool (2.5.5)
     crack (1.0.0)
       bigdecimal
       rexml
-    crass (1.0.6)
+    crass (1.0.7)
+    cronex (0.15.0)
+      tzinfo
+      unicode (>= 0.4.4.5)
     csv (3.3.0)
     csv-safe (3.3.1)
       csv (~> 3.0)
@@ -219,14 +221,15 @@ GEM
       activerecord (>= 5.a)
       database_cleaner-core (~> 2.0.0)
     database_cleaner-core (2.0.1)
-    datadog (2.19.0)
-      datadog-ruby_core_source (~> 3.4, >= 3.4.1)
-      libdatadog (~> 18.1.0.1.0)
-      libddwaf (~> 1.24.1.0.3)
+    datadog (2.38.0)
+      cgi
+      datadog-ruby_core_source (~> 3.5, >= 3.5.3)
+      libdatadog (~> 36.0.0.1.0)
+      libddwaf (~> 1.30.0.0.0)
       logger
       msgpack
-    datadog-ruby_core_source (3.4.1)
-    date (3.4.1)
+    datadog-ruby_core_source (3.5.3)
+    date (3.5.1)
     debug (1.8.0)
       irb (>= 1.5.0)
       reline (>= 0.3.1)
@@ -282,8 +285,8 @@ GEM
       dry-logic (~> 1.5)
       dry-types (~> 1.8)
       zeitwerk (~> 2.6)
-    dry-types (1.8.3)
-      bigdecimal (~> 3.0)
+    dry-types (1.9.1)
+      bigdecimal (>= 3.0)
       concurrent-ruby (~> 1.0)
       dry-core (~> 1.0)
       dry-inflector (~> 1.0)
@@ -313,7 +316,7 @@ GEM
       railties (>= 5.0.0)
     faker (3.2.0)
       i18n (>= 1.8.11, < 2)
-    faraday (2.14.1)
+    faraday (2.14.3)
       faraday-net_http (>= 2.0, < 3.5)
       json
       logger
@@ -322,9 +325,9 @@ GEM
     faraday-mashify (1.0.0)
       faraday (~> 2.0)
       hashie
-    faraday-multipart (1.0.4)
-      multipart-post (~> 2)
-    faraday-net_http (3.4.2)
+    faraday-multipart (1.2.0)
+      multipart-post (~> 2.0)
+    faraday-net_http (3.4.4)
       net-http (~> 0.5)
     faraday-net_http_persistent (2.1.0)
       faraday (~> 2.5)
@@ -351,6 +354,7 @@ GEM
     ffi-compiler (1.0.1)
       ffi (>= 1.0.0)
       rake
+    firecrawl-sdk (1.4.1)
     flag_shih_tzu (0.3.23)
     foreman (0.87.2)
     fugit (1.11.1)
@@ -364,6 +368,7 @@ GEM
       googleapis-common-protos-types (>= 1.3.1, < 2.a)
       googleauth (~> 1.0)
       grpc (~> 1.36)
+    gemoji (4.1.0)
     geocoder (1.8.1)
     gli (2.22.2)
       ostruct
@@ -408,7 +413,6 @@ GEM
     google-cloud-translate-v3 (0.10.0)
       gapic-common (>= 0.20.0, < 2.a)
       google-cloud-errors (~> 1.0)
-    google-logging-utils (0.2.0)
     google-protobuf (3.25.7)
     googleapis-common-protos (1.6.0)
       google-protobuf (>= 3.18, < 5.a)
@@ -416,13 +420,12 @@ GEM
       grpc (~> 1.41)
     googleapis-common-protos-types (1.20.0)
       google-protobuf (>= 3.18, < 5.a)
-    googleauth (1.17.1)
+    googleauth (1.11.2)
       faraday (>= 1.0, < 3.a)
-      google-cloud-env (~> 2.2)
-      google-logging-utils (~> 0.1)
-      jwt (>= 1.4, < 4.0)
+      google-cloud-env (~> 2.1)
+      jwt (>= 1.4, < 3.0)
+      multi_json (~> 1.11)
       os (>= 0.9, < 2.0)
-      pstore (~> 0.1)
       signet (>= 0.16, < 2.a)
     groupdate (6.2.1)
       activesupport (>= 5.2)
@@ -447,7 +450,8 @@ GEM
     hana (1.3.7)
     hash_diff (1.1.1)
     hashdiff (1.1.0)
-    hashie (5.0.0)
+    hashie (5.1.0)
+      logger
     html2text (0.4.0)
       nokogiri (>= 1.0, < 2.0)
     htmlentities (4.4.2)
@@ -483,7 +487,7 @@ GEM
       rails-dom-testing (>= 1, < 3)
       railties (>= 4.2.0)
       thor (>= 0.14, < 2.0)
-    json (2.19.2)
+    json (2.19.9)
     json_refs (0.1.8)
       hana
     json_schemer (0.2.24)
@@ -504,7 +508,7 @@ GEM
     judoscale-sidekiq (1.8.2)
       judoscale-ruby (= 1.8.2)
       sidekiq (>= 5.0)
-    jwt (3.2.0)
+    jwt (2.10.3)
       base64
     kaminari (1.2.2)
       activesupport (>= 4.1.0)
@@ -531,15 +535,16 @@ GEM
       logger (~> 1.6)
     letter_opener (1.10.0)
       launchy (>= 2.2, < 4)
-    libdatadog (18.1.0.1.0)
-    libdatadog (18.1.0.1.0-x86_64-linux)
-    libddwaf (1.24.1.0.3)
+    libdatadog (36.0.0.1.0)
+    libdatadog (36.0.0.1.0-arm64-darwin)
+    libdatadog (36.0.0.1.0-x86_64-linux)
+    libddwaf (1.30.0.0.2)
       ffi (~> 1.0)
-    libddwaf (1.24.1.0.3-arm64-darwin)
+    libddwaf (1.30.0.0.2-arm64-darwin)
       ffi (~> 1.0)
-    libddwaf (1.24.1.0.3-x86_64-darwin)
+    libddwaf (1.30.0.0.2-x86_64-darwin)
       ffi (~> 1.0)
-    libddwaf (1.24.1.0.3-x86_64-linux)
+    libddwaf (1.30.0.0.2-x86_64-linux)
       ffi (~> 1.0)
     line-bot-api (1.28.0)
     lint_roller (1.1.0)
@@ -556,7 +561,7 @@ GEM
       activesupport (>= 4)
       railties (>= 4)
       request_store (~> 1.0)
-    loofah (2.23.1)
+    loofah (2.25.2)
       crass (~> 1.0.2)
       nokogiri (>= 1.12.0)
     mail (2.8.1)
@@ -580,9 +585,9 @@ GEM
     minitest (5.25.5)
     mock_redis (0.36.0)
       ruby2_keywords
-    msgpack (1.8.0)
+    msgpack (1.8.3)
     multi_json (1.15.0)
-    multi_xml (0.8.0)
+    multi_xml (0.9.1)
       bigdecimal (>= 3.1, < 5)
     multipart-post (2.4.1)
     mutex_m (0.3.0)
@@ -594,7 +599,7 @@ GEM
       uri (>= 0.11.1)
     net-http-persistent (4.0.2)
       connection_pool (~> 2.2)
-    net-imap (0.4.20)
+    net-imap (0.6.4.1)
       date
       net-protocol
     net-pop (0.1.2)
@@ -605,40 +610,44 @@ GEM
       net-ssh (>= 2.6.5, < 8.0.0)
     net-smtp (0.3.4)
       net-protocol
-    net-ssh (7.3.2)
+    net-ssh (7.3.3)
     netrc (0.11.0)
     newrelic-sidekiq-metrics (1.6.2)
       newrelic_rpm (>= 8.0.0)
       sidekiq
     newrelic_rpm (9.6.0)
       base64
-    nio4r (2.7.3)
-    nokogiri (1.19.3)
+    nio4r (2.7.5)
+    nokogiri (1.19.4)
       mini_portile2 (~> 2.8.2)
       racc (~> 1.4)
-    nokogiri (1.19.3-arm64-darwin)
+    nokogiri (1.19.4-arm64-darwin)
       racc (~> 1.4)
-    nokogiri (1.19.3-x86_64-darwin)
+    nokogiri (1.19.4-x86_64-darwin)
       racc (~> 1.4)
-    nokogiri (1.19.3-x86_64-linux-gnu)
+    nokogiri (1.19.4-x86_64-linux-gnu)
       racc (~> 1.4)
-    oauth (1.1.0)
-      oauth-tty (~> 1.0, >= 1.0.1)
-      snaky_hash (~> 2.0)
-      version_gem (~> 1.1)
-    oauth-tty (1.0.5)
-      version_gem (~> 1.1, >= 1.1.1)
-    oauth2 (2.0.24)
-      anonymous_loader (~> 0.1, >= 0.1.1)
-      auth-sanitizer (~> 0.2, >= 0.2.2)
+    oauth (1.1.6)
+      auth-sanitizer (~> 0.2, >= 0.2.1)
+      base64 (~> 0.1)
+      cgi
+      oauth-tty (~> 1.0, >= 1.0.8)
+      snaky_hash (~> 2.0, >= 2.0.5)
+      version_gem (~> 1.1, >= 1.1.11)
+    oauth-tty (1.0.8)
+      auth-sanitizer (~> 0.1, >= 0.1.3)
+      cgi
+      version_gem (~> 1.1, >= 1.1.9)
+    oauth2 (2.0.22)
+      auth-sanitizer (~> 0.2, >= 0.2.1)
       faraday (>= 0.17.3, < 4.0)
       jwt (>= 1.0, < 4.0)
       logger (~> 1.2)
       multi_xml (~> 0.5)
       rack (>= 1.2, < 4)
-      snaky_hash (~> 2.0, >= 2.0.6)
-      version_gem (~> 1.1, >= 1.1.12)
-    oj (3.16.10)
+      snaky_hash (~> 2.0, >= 2.0.5)
+      version_gem (~> 1.1, >= 1.1.11)
+    oj (3.17.3)
       bigdecimal (>= 3.0)
       ostruct (>= 0.2)
     omniauth (2.1.4)
@@ -663,7 +672,7 @@ GEM
     opensearch-ruby (3.4.0)
       faraday (>= 1.0, < 3)
       multi_json (>= 1.0)
-    openssl (4.0.2)
+    openssl (3.2.0)
     opentelemetry-api (1.7.0)
     opentelemetry-common (0.23.0)
       opentelemetry-api (~> 1.0)
@@ -685,7 +694,7 @@ GEM
       opentelemetry-api (~> 1.0)
     orm_adapter (0.5.0)
     os (1.1.4)
-    ostruct (0.6.1)
+    ostruct (0.6.3)
     parallel (1.27.0)
     parser (3.3.8.0)
       ast (~> 2.4.1)
@@ -712,9 +721,8 @@ GEM
       method_source (~> 1.0)
     pry-rails (0.3.9)
       pry (>= 0.10.4)
-    pstore (0.2.1)
-    public_suffix (6.0.2)
-    puma (6.4.3)
+    public_suffix (7.0.5)
+    puma (7.2.1)
       nio4r (~> 2.0)
     pundit (2.3.0)
       activesupport (>= 3.0.0)
@@ -727,7 +735,7 @@ GEM
       rack (< 4)
     rack-cors (2.0.0)
       rack (>= 2.0.0)
-    rack-mini-profiler (4.0.1)
+    rack-mini-profiler (3.2.0)
       rack (>= 1.2.0)
     rack-protection (4.2.1)
       base64 (>= 0.1.0)
@@ -761,9 +769,12 @@ GEM
       activesupport (>= 5.0.0)
       minitest
       nokogiri (>= 1.6)
-    rails-html-sanitizer (1.6.1)
-      loofah (~> 2.21)
+    rails-html-sanitizer (1.7.1)
+      loofah (~> 2.25, >= 2.25.2)
       nokogiri (>= 1.15.7, != 1.16.7, != 1.16.6, != 1.16.5, != 1.16.4, != 1.16.3, != 1.16.2, != 1.16.1, != 1.16.0.rc1, != 1.16.0)
+    rails-i18n (7.0.10)
+      i18n (>= 0.7, < 2)
+      railties (>= 6.0.0, < 8)
     railties (7.1.5.2)
       actionpack (= 7.1.5.2)
       activesupport (= 7.1.5.2)
@@ -868,20 +879,20 @@ GEM
     ruby2ruby (2.5.0)
       ruby_parser (~> 3.1)
       sexp_processor (~> 4.6)
-    ruby_llm (1.9.2)
+    ruby_llm (1.15.0)
       base64
       event_stream_parser (~> 1)
       faraday (>= 1.10.0)
       faraday-multipart (>= 1)
       faraday-net_http (>= 1)
       faraday-retry (>= 1)
-      marcel (~> 1.0)
-      ruby_llm-schema (~> 0.2.1)
+      marcel (~> 1)
+      ruby_llm-schema (~> 0)
       zeitwerk (~> 2)
-    ruby_llm-schema (0.2.5)
+    ruby_llm-schema (0.3.0)
     ruby_parser (3.20.0)
       sexp_processor (~> 4.16)
-    rubyzip (3.2.2)
+    rubyzip (3.4.1)
     sass (3.7.4)
       sass-listen (~> 4.0.0)
     sass-listen (4.0.0)
@@ -934,17 +945,19 @@ GEM
       logger
       rack (>= 2.2.4)
       redis-client (>= 0.22.2)
-    sidekiq-cron (1.12.0)
-      fugit (~> 1.8)
+    sidekiq-cron (2.4.0)
+      cronex (>= 0.13.0)
+      fugit (~> 1.8, >= 1.11.1)
       globalid (>= 1.0.1)
-      sidekiq (>= 6)
+      sidekiq (>= 6.5.0)
     sidekiq_alive (2.5.0)
       gserver (~> 0.0.1)
       sidekiq (>= 5, < 9)
-    signet (0.22.0)
+    signet (0.17.0)
       addressable (~> 2.8)
       faraday (>= 0.17.5, < 3.a)
-      jwt (>= 1.5, < 4.0)
+      jwt (>= 1.5, < 3.0)
+      multi_json (~> 1.10)
     simplecov (0.22.0)
       docile (~> 1.1)
       simplecov-html (~> 0.11)
@@ -961,7 +974,7 @@ GEM
       gli
       hashie
       logger
-    snaky_hash (2.0.6)
+    snaky_hash (2.0.5)
       hashie (>= 0.1.0, < 6)
       version_gem (>= 1.1.8, < 3)
     sorbet-runtime (0.5.11934)
@@ -994,13 +1007,13 @@ GEM
     time_diff (0.3.0)
       activesupport
       i18n
-    timeout (0.4.3)
+    timeout (0.6.1)
     trailblazer-option (0.1.2)
     ttfunk (1.8.0)
       bigdecimal (~> 3.1)
-    twilio-ruby (7.10.7)
-      faraday (>= 2.0, < 3.0)
-      jwt (>= 1.5, < 4.0)
+    twilio-ruby (7.6.0)
+      faraday (>= 0.9, < 3.0)
+      jwt (>= 1.5, < 3.0)
       nokogiri (>= 1.6, < 2.0)
     twitty (0.1.5)
       oauth
@@ -1014,6 +1027,7 @@ GEM
     unf (0.1.4)
       unf_ext
     unf_ext (0.0.8.2)
+    unicode (0.4.4.5)
     unicode-display_width (3.1.4)
       unicode-emoji (~> 4.0, >= 4.0.4)
     unicode-emoji (4.0.4)
@@ -1024,12 +1038,14 @@ GEM
     valid_email2 (5.2.6)
       activemodel (>= 3.2)
       mail (~> 2.5)
-    version_gem (1.1.13)
-    vite_rails (3.0.17)
-      railties (>= 5.1, < 8)
+    version_gem (1.1.11)
+    vite_rails (3.10.0)
+      railties (>= 5.1, < 9)
       vite_ruby (~> 3.0, >= 3.2.2)
-    vite_ruby (3.8.0)
+    vite_ruby (3.10.2)
       dry-cli (>= 0.7, < 2)
+      logger (~> 1.6)
+      mutex_m
       rack-proxy (~> 0.6, >= 0.6.1)
       zeitwerk (~> 2.2)
     warden (1.2.9)
@@ -1039,14 +1055,14 @@ GEM
       activemodel (>= 6.0.0)
       bindex (>= 0.4.0)
       railties (>= 6.0.0)
-    web-push (3.1.0)
-      jwt (~> 3.0)
-      openssl (>= 3.0)
+    web-push (3.0.1)
+      jwt (~> 2.0)
+      openssl (~> 3.0)
     webmock (3.23.1)
       addressable (>= 2.8.0)
       crack (>= 0.3.2)
       hashdiff (>= 0.4.0, < 2.0.0)
-    websocket-driver (0.7.7)
+    websocket-driver (0.8.2)
       base64
       websocket-extensions (>= 0.1.0)
     websocket-extensions (0.1.5)
@@ -1054,7 +1070,7 @@ GEM
     working_hours (1.4.1)
       activesupport (>= 3.2)
       tzinfo
-    zeitwerk (2.7.4)
+    zeitwerk (2.7.5)
 
 PLATFORMS
   arm64-darwin-20
@@ -1075,7 +1091,7 @@ DEPENDENCIES
   administrate (>= 0.20.1)
   administrate-field-active_storage (>= 1.0.3)
   administrate-field-belongs_to_search (>= 0.9.0)
-  ai-agents (>= 0.9.1)
+  ai-agents (>= 0.12.0)
   annotaterb
   attr_extras
   audited (~> 5.4, >= 5.4.1)
@@ -1113,8 +1129,10 @@ DEPENDENCIES
   faker
   faraday_middleware-aws-sigv4
   fcm
+  firecrawl-sdk (~> 1.0)
   flag_shih_tzu
   foreman
+  gemoji
   geocoder
   gmail_xoauth
   google-cloud-dialogflow-v2 (>= 0.24.0)
@@ -1133,7 +1151,7 @@ DEPENDENCIES
   json_schemer
   judoscale-rails
   judoscale-sidekiq
-  jwt
+  jwt (~> 2.10, >= 2.10.3)
   kaminari
   koala
   letter_opener
@@ -1167,13 +1185,14 @@ DEPENDENCIES
   prawn-table (~> 0.2)
   procore-sift
   pry-rails
-  puma
+  puma (~> 7.2, >= 7.2.1)
   pundit
   rack-attack (>= 6.7.0)
   rack-cors (= 2.0.0)
   rack-mini-profiler (>= 3.2.0)
   rack-timeout
   rails (~> 7.1)
+  rails-i18n (~> 7.0)
   redis
   redis-namespace
   responders (>= 3.1.1)
@@ -1187,7 +1206,7 @@ DEPENDENCIES
   rubocop-rails
   rubocop-rspec
   ruby-openai
-  ruby_llm (>= 1.8.2)
+  ruby_llm (>= 1.14.1)
   ruby_llm-schema
   scss_lint
   searchkick
@@ -1197,8 +1216,8 @@ DEPENDENCIES
   sentry-sidekiq (>= 5.19.0)
   shopify_api
   shoulda-matchers
-  sidekiq (>= 7.3.1)
-  sidekiq-cron (>= 1.12.0)
+  sidekiq (~> 7.3, >= 7.3.1)
+  sidekiq-cron (>= 2.4.0)
   sidekiq_alive
   simplecov (>= 0.21)
   simplecov_json_formatter

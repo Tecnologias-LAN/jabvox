@@ -27,6 +27,7 @@ json.accounts do
     json.id account_user.account_id
     json.name account_user.account.name
     json.status account_user.account.status
+    json.onboarding_step account_user.account.onboarding_step
     json.active_at account_user.active_at
     json.role account_user.role
     json.permissions account_user.permissions
@@ -39,6 +40,7 @@ json.accounts do
     # availability derived from presence
     json.availability_status account_user.availability_status
     json.auto_offline account_user.auto_offline
+    json.api_and_webhooks account_user.account.feature_enabled?('api_and_webhooks')
     json.partial! 'api/v1/models/account_user', account_user: account_user if JabvoxApp.enterprise?
   end
 end

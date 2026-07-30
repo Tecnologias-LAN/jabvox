@@ -12,12 +12,15 @@ import JabvoxCallButton from './jabvox/JabvoxCallButton.vue';
 import JabvoxSmsButton from './jabvox/JabvoxSmsButton.vue';
 import JabvoxEmailButton from './jabvox/JabvoxEmailButton.vue';
 import JabvoxQuickButtons from './jabvox/JabvoxQuickButtons.vue';
+import ConversationCallButton from './ConversationCallButton.vue';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
 import { useInbox } from 'dashboard/composables/useInbox';
+import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import { copyTextToClipboard } from 'shared/helpers/clipboard';
 
 const props = defineProps({
   chat: {
@@ -95,7 +98,9 @@ const hasMultipleInboxes = computed(
   () => store.getters['inboxes/getInboxes'].length > 1
 );
 
-const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
+const hasSlaPolicyId = computed(
+  () => props.chat?.applied_sla?.id && !currentContact.value?.blocked
+);
 
 const isVoipEnabled = computed(() =>
   store.getters['accounts/isFeatureEnabledonAccount'](
@@ -113,6 +118,15 @@ const isCustomizationEnabled = computed(() =>
 
 const contactPhone = computed(() => currentContact.value?.phone_number);
 const contactEmail = computed(() => currentContact.value?.email);
+
+const copyConversationId = async () => {
+  try {
+    await copyTextToClipboard(String(props.chat.id));
+    useAlert(t('CONVERSATION.HEADER.COPY_ID_SUCCESS'));
+  } catch (error) {
+    // error
+  }
+};
 </script>
 
 <template>
@@ -134,7 +148,6 @@ const contactEmail = computed(() => currentContact.value?.email);
         :size="32"
         :status="currentContact.availability_status"
         hide-offline-status
-        rounded-full
       />
       <div
         class="flex flex-col items-start min-w-0 ml-2 overflow-hidden rtl:ml-0 rtl:mr-2"
@@ -155,9 +168,18 @@ const contactEmail = computed(() => currentContact.value?.email);
         </div>
 
         <div
-          class="flex items-center gap-2 overflow-hidden text-xs conversation--header--actions text-ellipsis whitespace-nowrap"
+          class="flex items-center gap-1 overflow-hidden text-xs conversation--header--actions text-n-slate-11 text-ellipsis whitespace-nowrap"
         >
+          <button
+            type="button"
+            class="truncate text-label-small text-n-slate-11 hover:text-n-slate-12 !p-0 cucursor-pointer"
+            @click="copyConversationId"
+          >
+            {{ `#${chat.id}` }}
+          </button>
+          <span v-if="hasMultipleInboxes">•</span>
           <InboxName v-if="hasMultipleInboxes" :inbox="inbox" class="!mx-0" />
+          <span v-if="isSnoozed">•</span>
           <span v-if="isSnoozed" class="font-medium text-n-amber-10">
             {{ snoozedDisplayText }}
           </span>
@@ -195,6 +217,7 @@ const contactEmail = computed(() => currentContact.value?.email);
         :contact="currentContact"
         size="sm"
       />
+      <ConversationCallButton :inbox="inbox" :chat="currentChat" />
       <MoreActions :conversation-id="currentChat.id" />
     </div>
   </div>

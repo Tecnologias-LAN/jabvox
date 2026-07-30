@@ -55,7 +55,6 @@ const updateSignature = () => {
       :placeholder="$t('PROFILE_SETTINGS.FORM.MESSAGE_SIGNATURE.PLACEHOLDER')"
       channel-type="Context::MessageSignature"
       :enable-suggestions="false"
-      show-image-resize-toolbar
     />
     <div>
       <NextButton

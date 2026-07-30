@@ -8,8 +8,6 @@ import { useEventListener } from '@vueuse/core';
 import { ALLOWED_FILE_TYPES } from 'shared/constants/messages';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import FileUpload from 'vue-upload-component';
-import { INBOX_TYPES } from 'dashboard/helper/inbox';
-
 import Button from 'dashboard/components-next/button/Button.vue';
 import WhatsAppOptions from './WhatsAppOptions.vue';
 import ContentTemplateSelector from './ContentTemplateSelector.vue';
@@ -32,6 +30,7 @@ const props = defineProps({
   inboxId: { type: Number, default: null },
   // Jabvox: contact whose lead fields can auto-fill template variables.
   contactId: { type: [Number, String], default: null },
+  voiceEnabled: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -56,8 +55,9 @@ const generateUid = () => {
 const uploadAttachment = ref(null);
 const isEmojiPickerOpen = ref(false);
 
-const EmojiInput = defineAsyncComponent(
-  () => import('shared/components/emoji/EmojiInput.vue')
+const EmojiIconPicker = defineAsyncComponent(
+  () =>
+    import('dashboard/components-next/emoji-icon-picker/EmojiIconPicker.vue')
 );
 
 const {
@@ -84,11 +84,9 @@ const isRegularMessageMode = computed(() => {
   return !props.isWhatsappInbox && !props.isTwilioWhatsAppInbox;
 });
 
-const isVoiceInbox = computed(() => props.channelType === INBOX_TYPES.VOICE);
-
 const shouldShowSignatureButton = computed(() => {
   return (
-    props.hasSelectedInbox && isRegularMessageMode.value && !isVoiceInbox.value
+    props.hasSelectedInbox && isRegularMessageMode.value && !props.voiceEnabled
   );
 });
 
@@ -113,7 +111,7 @@ watch(
   () => props.hasSelectedInbox,
   newValue => {
     nextTick(() => {
-      if (newValue && !isVoiceInbox.value) setSignature();
+      if (newValue && !props.voiceEnabled) setSignature();
     });
   },
   { immediate: true }
@@ -221,10 +219,11 @@ useEventListener(document, 'paste', onPaste);
           class="!w-10"
           @click="isEmojiPickerOpen = !isEmojiPickerOpen"
         />
-        <EmojiInput
+        <EmojiIconPicker
           v-if="isEmojiPickerOpen"
+          mode="emoji"
           class="!top-auto !bottom-full mb-1.5 ltr:left-0 rtl:right-0"
-          :on-click="onClickInsertEmoji"
+          @select="onClickInsertEmoji($event.value)"
         />
       </div>
       <FileUpload

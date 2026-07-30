@@ -26,6 +26,7 @@ import profile from './profile/profile.routes';
 import security from './security/security.routes';
 import conversationWorkflow from './conversationWorkflow/conversationWorkflow.routes';
 import captain from './captain/captain.routes';
+import data from './data/data.routes';
 import { routes as jabvoxKanbanSettingsRoutes } from './jabvox-kanban/routes';
 import { routes as jabvoxVoipRoutes } from './jabvox-voip/routes';
 import { routes as jabvoxCdrSettingsRoutes } from './jabvox-cdr/routes';
@@ -78,6 +79,7 @@ export default {
     ...canned.routes,
     ...inbox.routes,
     ...integrations.routes,
+    ...data.routes,
     ...labels.routes,
     ...macros.routes,
     ...reports.routes,

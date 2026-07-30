@@ -8,6 +8,12 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::CallbacksController < Api::V1::Ac
 
   skip_before_action :authenticate_user!, raise: false
   skip_before_action :check_authorization, raise: false
+  # n8n authenticates with the per-batch token, not a Jabvox user/access token, so
+  # the inherited user-scoped account gate must not run here; we resolve the
+  # account ourselves from the route and rely on the per-batch token instead.
+  skip_before_action :current_account, raise: false
+  skip_before_action :validate_token_api_access, raise: false
+  before_action :set_current_account_unscoped
   before_action :set_batch_by_uuid
   before_action :verify_callback_token
 
@@ -25,6 +31,12 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::CallbacksController < Api::V1::Ac
   end
 
   private
+
+  # Resolve the account from the route without the user/bot authorization check;
+  # the request is authenticated by the per-batch token in verify_callback_token.
+  def set_current_account_unscoped
+    Current.account = Account.find(params[:account_id])
+  end
 
   def set_batch_by_uuid
     uuid = params[:batch_uuid].to_s

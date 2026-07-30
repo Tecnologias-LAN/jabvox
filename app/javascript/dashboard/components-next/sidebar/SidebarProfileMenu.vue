@@ -44,6 +44,12 @@ const showChatSupport = computed(() => {
   );
 });
 
+const toggleChatSupport = () => {
+  if (window.$jabvox) {
+    window.$jabvox.toggle();
+  }
+};
+
 const menuItems = computed(() => {
   return [
     {
@@ -51,9 +57,7 @@ const menuItems = computed(() => {
       showOnCustomBrandedInstance: false,
       label: t('SIDEBAR_ITEMS.CONTACT_SUPPORT'),
       icon: 'i-lucide-life-buoy',
-      click: () => {
-        window.$jabvox.toggle();
-      },
+      click: toggleChatSupport,
     },
     {
       show: true,
@@ -127,7 +131,6 @@ const allowedMenuItems = computed(() => {
           :src="currentUser.avatar_url"
           :status="currentUserAvailability"
           class="flex-shrink-0"
-          rounded-full
         />
         <div v-if="!isCollapsed" class="min-w-0">
           <div class="text-sm font-medium leading-4 truncate text-n-slate-12">

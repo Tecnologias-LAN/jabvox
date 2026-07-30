@@ -1,13 +1,5 @@
 <script setup>
-import {
-  reactive,
-  onMounted,
-  ref,
-  defineProps,
-  watch,
-  nextTick,
-  computed,
-} from 'vue';
+import { reactive, onMounted, ref, watch, nextTick, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
@@ -20,7 +12,7 @@ import Icon from 'dashboard/components-next/icon/Icon.vue';
 import WithLabel from 'v3/components/Form/WithLabel.vue';
 import SettingsToggleSection from 'dashboard/components-next/Settings/SettingsToggleSection.vue';
 import CSATDisplayTypeSelector from './components/CSATDisplayTypeSelector.vue';
-import CSATTemplate from 'dashboard/components-next/message/bubbles/Template/CSAT.vue';
+import CSATTemplate from 'dashboard/components-next/template-preview/CSATTemplate.vue';
 import Editor from 'dashboard/components-next/Editor/Editor.vue';
 import FilterSelect from 'dashboard/components-next/filter/inputs/FilterSelect.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';

@@ -18,6 +18,7 @@ class AccountDashboard < Administrate::BaseDashboard
 
                                  # Add all_features last so it appears after manually_managed_features
                                  attributes[:all_features] = AccountFeaturesField
+                                 attributes[:captain_models] = CaptainModelOverridesField
 
                                  attributes
                                else
@@ -32,7 +33,8 @@ class AccountDashboard < Administrate::BaseDashboard
     users: CountField,
     conversations: CountField,
     locale: Field::Select.with_options(collection: LANGUAGES_CONFIG.map { |_x, y| y[:iso_639_1_code] }),
-    status: Field::Select.with_options(collection: [%w[Active active], %w[Suspended suspended]]),
+    status: AccountStatusField.with_options(collection: [%w[Active active], %w[Suspended suspended]]),
+    suspension_history: SuspensionHistoryField,
     account_users: Field::HasMany,
     custom_attributes: Field::String,
     # All per-account Jabvox module toggles rendered as one grid of tiles.
@@ -63,6 +65,7 @@ class AccountDashboard < Administrate::BaseDashboard
                                       attrs = %i[custom_attributes limits]
                                       attrs << :manually_managed_features if JabvoxApp.jabvox_cloud?
                                       attrs << :all_features
+                                      attrs << :captain_models
                                       attrs
                                     else
                                       []
@@ -74,6 +77,7 @@ class AccountDashboard < Administrate::BaseDashboard
     updated_at
     locale
     status
+    suspension_history
     conversations
     account_users
     jabvox_modules
@@ -89,6 +93,7 @@ class AccountDashboard < Administrate::BaseDashboard
                                  attrs = %i[limits]
                                  attrs << :manually_managed_features if JabvoxApp.jabvox_cloud?
                                  attrs << :all_features
+                                 attrs << :captain_models
                                  attrs
                                else
                                  []
@@ -138,7 +143,8 @@ class AccountDashboard < Administrate::BaseDashboard
   ].freeze
 
   def permitted_attributes(action)
-    attrs = super + [limits: {}]
+    attrs = super + [limits: {}, captain_models: {}]
+    attrs += %i[suspension_category suspension_reason] if action == 'update'
     # Module toggles are derived from the single source of truth in the field.
     attrs.concat(JabvoxModulesField::MODULES.map(&:first))
     attrs.concat(JABVOX_NUMERIC_ATTRS)
