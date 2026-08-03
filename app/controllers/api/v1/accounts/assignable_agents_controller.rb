@@ -2,16 +2,13 @@ class Api::V1::Accounts::AssignableAgentsController < Api::V1::Accounts::BaseCon
   before_action :fetch_inboxes
 
   def index
+    # Jabvox: cualquier agente de la cuenta es asignable, sin importar si es
+    # miembro de la bandeja (así se puede asignar a quien no ve todas las
+    # conversaciones). Solo validamos acceso a la bandeja del que consulta.
     # TODO: Remove this opt-in once mobile clients support AgentBot assignees in this payload.
     @include_agent_bots = params[:include_agent_bots].present?
-    agent_ids = @inboxes.map do |inbox|
-      authorize inbox, :show?
-      member_ids = inbox.members.pluck(:user_id)
-      member_ids
-    end
-    agent_ids = agent_ids.inject(:&)
-    agents = Current.account.users.where(id: agent_ids)
-    @assignable_agents = (agents + Current.account.administrators).uniq
+    @inboxes.each { |inbox| authorize inbox, :show? }
+    @assignable_agents = Current.account.users.uniq
     @agent_bots = @include_agent_bots ? AgentBot.accessible_to(Current.account) : []
   end
 
