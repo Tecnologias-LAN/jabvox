@@ -37,7 +37,7 @@ disable_branding:
 voice_calls:
   name: 'Voice Calls'
   description: 'Enable voice calling capabilities for your agents and customers.'
-  enabled: <%= (ChatwootHub.pricing_plan != 'community') %>
+  enabled: <%= (JabvoxHub.pricing_plan != 'community') %>
   icon: 'icon-voice-line'
   enterprise: true
 
