@@ -172,7 +172,10 @@ export default {
         {
           path: 'whatsapp',
           name: 'whatsapp_reports',
-          meta,
+          // Reporte Jabvox: accesible para admins/report_manage SIN depender del
+          // feature core 'reports' de Chatwoot (que suele venir desactivado y
+          // bloqueaba la ruta redirigiendo al dashboard).
+          meta: { permissions: ['administrator', 'report_manage'] },
           component: WhatsappReports,
         },
       ],

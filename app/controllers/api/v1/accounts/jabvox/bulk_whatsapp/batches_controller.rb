@@ -5,6 +5,7 @@ require 'csv'
 # Also exposes the send history and the list of selectable sender users. Admin-only.
 class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Accounts::Jabvox::BulkWhatsapp::BaseController
   include Jabvox::BulkWhatsappDeliveryStatus
+  include Jabvox::BulkWhatsappAnalytics
 
   before_action :ensure_admin
 
@@ -13,6 +14,11 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
                      .includes(:inbox, :sender_user, :created_by)
                      .order(created_at: :desc).limit(100)
     render json: batches.map { |b| serialize(b) }
+  end
+
+  # Reportes agregados (totales + serie por envío/día/semana); lógica en el concern.
+  def analytics
+    render json: analytics_report
   end
 
   # Detalle de una ejecución + sus destinatarios. Soporta filtro por estado,
@@ -222,30 +228,18 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
 
   def serialize(batch)
     {
-      id: batch.id,
-      batch_uuid: batch.batch_uuid_jabvox,
-      inbox_id: batch.inbox_id,
-      inbox_name: batch.inbox&.name,
-      sender_user_id: batch.sender_user_id,
-      sender_name: batch.sender_user&.name,
-      created_by_name: batch.created_by&.name,
-      source_type: batch.source_type_jabvox,
-      template_name: batch.template_name_jabvox,
-      template_language: batch.template_language_jabvox,
-      total_rows_jabvox: batch.total_rows_jabvox,
-      valid_rows_jabvox: batch.valid_rows_jabvox,
-      sent_count: batch.sent_count_jabvox,
-      failed_count: batch.failed_count_jabvox,
-      source_batch_id: batch.source_batch_id_jabvox,
-      mode_jabvox: batch.mode_jabvox,
-      status_jabvox: batch.status_jabvox,
-      error_jabvox: batch.error_jabvox,
-      file_name_jabvox: batch.file_name_jabvox,
-      response_email_jabvox: batch.response_email_jabvox,
-      sent_at_jabvox: batch.sent_at_jabvox,
-      finished_at_jabvox: batch.finished_at_jabvox,
-      token_expires_at_jabvox: batch.token_expires_at_jabvox,
-      created_at: batch.created_at
+      id: batch.id, batch_uuid: batch.batch_uuid_jabvox,
+      inbox_id: batch.inbox_id, inbox_name: batch.inbox&.name,
+      sender_user_id: batch.sender_user_id, sender_name: batch.sender_user&.name,
+      created_by_name: batch.created_by&.name, source_type: batch.source_type_jabvox,
+      template_name: batch.template_name_jabvox, template_language: batch.template_language_jabvox,
+      total_rows_jabvox: batch.total_rows_jabvox, valid_rows_jabvox: batch.valid_rows_jabvox,
+      sent_count: batch.sent_count_jabvox, failed_count: batch.failed_count_jabvox,
+      source_batch_id: batch.source_batch_id_jabvox, mode_jabvox: batch.mode_jabvox,
+      status_jabvox: batch.status_jabvox, error_jabvox: batch.error_jabvox,
+      file_name_jabvox: batch.file_name_jabvox, response_email_jabvox: batch.response_email_jabvox,
+      sent_at_jabvox: batch.sent_at_jabvox, finished_at_jabvox: batch.finished_at_jabvox,
+      token_expires_at_jabvox: batch.token_expires_at_jabvox, created_at: batch.created_at
     }
   end
 end

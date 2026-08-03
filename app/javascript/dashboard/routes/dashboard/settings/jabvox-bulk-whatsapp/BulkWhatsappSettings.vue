@@ -7,6 +7,7 @@ import { useAdmin } from 'dashboard/composables/useAdmin';
 import bulkWhatsappAPI from 'dashboard/api/jabvox/bulkWhatsapp';
 import LeadsPickerTab from './LeadsPickerTab.vue';
 import BatchReportDialog from './components/BatchReportDialog.vue';
+import AnalyticsTab from './components/AnalyticsTab.vue';
 
 const { t } = useI18n();
 const rootStore = useStore();
@@ -20,7 +21,9 @@ const activeTab = ref('send');
 // Only real administrators manage the webhook config; custom-role senders get
 // the send + history tabs (matches the backend split in ConfigController).
 const TABS = computed(() =>
-  isAdmin.value ? ['send', 'history', 'settings'] : ['send', 'history']
+  isAdmin.value
+    ? ['send', 'history', 'reports', 'settings']
+    : ['send', 'history', 'reports']
 );
 
 // Within the Send tab: choose the recipient source (CSV upload or existing leads).
@@ -843,6 +846,9 @@ onMounted(() => {
           </table>
         </div>
       </div>
+
+      <!-- REPORTS (agregados: totales + serie por envío/día/semana) -->
+      <AnalyticsTab v-else-if="activeTab === 'reports'" />
 
       <!-- SETTINGS -->
       <div v-else class="mx-auto w-full max-w-2xl">

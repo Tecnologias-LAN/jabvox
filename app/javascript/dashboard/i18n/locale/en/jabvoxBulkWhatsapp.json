@@ -5,7 +5,36 @@
     "TABS": {
       "SEND": "Send",
       "HISTORY": "History",
+      "REPORTS": "Reports",
       "SETTINGS": "Settings"
+    },
+    "ANALYTICS": {
+      "TOTAL": "Recipients",
+      "SENT": "Sent successfully",
+      "DELIVERED": "Delivered",
+      "READ": "Read",
+      "FAILED": "Failed",
+      "PENDING": "Pending",
+      "DELIVERY_RATE": "Delivery %",
+      "READ_RATE": "Read %",
+      "FROM": "From",
+      "TO": "To",
+      "EMPTY": "No sends in this range.",
+      "ERROR": "Could not load the report.",
+      "GROUP": {
+        "BATCH": "By send",
+        "DAY": "By day",
+        "WEEK": "By week"
+      },
+      "COLS": {
+        "GROUP": "Send / Date",
+        "TOTAL": "Total",
+        "SENT": "Sent",
+        "DELIVERED": "Delivered",
+        "READ": "Read",
+        "FAILED": "Failed",
+        "READ_RATE": "Read %"
+      }
     },
     "SOURCE": {
       "CSV": "CSV file",

@@ -777,6 +777,7 @@ Rails.application.routes.draw do
                   get :senders
                   get :lead_fields
                   get :field_values
+                  get :analytics
                 end
                 member do
                   post :reuse

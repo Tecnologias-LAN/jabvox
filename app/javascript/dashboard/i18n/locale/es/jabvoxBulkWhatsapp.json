@@ -5,7 +5,36 @@
     "TABS": {
       "SEND": "Enviar",
       "HISTORY": "Historial",
+      "REPORTS": "Reportes",
       "SETTINGS": "Ajustes"
+    },
+    "ANALYTICS": {
+      "TOTAL": "Destinatarios",
+      "SENT": "Enviados con éxito",
+      "DELIVERED": "Entregados",
+      "READ": "Leídos",
+      "FAILED": "Fallidos",
+      "PENDING": "Pendientes",
+      "DELIVERY_RATE": "% de entrega",
+      "READ_RATE": "% de lectura",
+      "FROM": "Desde",
+      "TO": "Hasta",
+      "EMPTY": "No hay envíos en este rango.",
+      "ERROR": "No se pudo cargar el reporte.",
+      "GROUP": {
+        "BATCH": "Por envío",
+        "DAY": "Por día",
+        "WEEK": "Por semana"
+      },
+      "COLS": {
+        "GROUP": "Envío / Fecha",
+        "TOTAL": "Total",
+        "SENT": "Enviados",
+        "DELIVERED": "Entregados",
+        "READ": "Leídos",
+        "FAILED": "Fallidos",
+        "READ_RATE": "% lectura"
+      }
     },
     "SOURCE": {
       "CSV": "Archivo CSV",

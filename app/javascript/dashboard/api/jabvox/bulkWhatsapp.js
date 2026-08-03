@@ -19,6 +19,17 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     return axios.get(`${this.url}/batches`);
   }
 
+  // Reportes agregados: totales + serie por envío/día/semana, con rango opcional.
+  getAnalytics({ groupBy = 'batch', from, to } = {}) {
+    return axios.get(`${this.url}/batches/analytics`, {
+      params: {
+        group_by: groupBy,
+        from: from || undefined,
+        to: to || undefined,
+      },
+    });
+  }
+
   // Detalle de una ejecución + sus destinatarios (para el reporte). Soporta
   // filtro por estado y búsqueda por nombre/número.
   getBatch(id, { status, q } = {}) {
