@@ -34,6 +34,12 @@ module V2::Reports::WhatsappReport::Scopes
     end
   end
 
+  # Bandejas de WhatsApp (id + nombre) para el desplegable del filtro por bandeja.
+  def whatsapp_inboxes
+    account.inboxes.where(id: whatsapp_inbox_ids).order(:name).pluck(:id, :name)
+           .map { |id, name| { id: id, name: name } }
+  end
+
   def conversation_ids
     @conversation_ids ||= conversations.pluck(:id)
   end

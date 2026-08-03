@@ -12,6 +12,8 @@ const agents = ref([]);
 const labelDurations = ref([]);
 const templates = ref([]);
 const selectedTemplate = ref('');
+const inboxes = ref([]);
+const selectedInbox = ref('');
 const loading = ref(false);
 // Filtro de fechas (epoch segundos) + horario laboral, igual que Informes core.
 const range = ref({ from: null, to: null, businessHours: false });
@@ -19,6 +21,7 @@ const range = ref({ from: null, to: null, businessHours: false });
 const queryParams = () => ({
   ...range.value,
   templateName: selectedTemplate.value || undefined,
+  inboxId: selectedInbox.value || undefined,
 });
 
 const fetchAll = async () => {
@@ -45,6 +48,17 @@ const loadTemplates = async () => {
     templates.value = [];
   }
 };
+
+const loadInboxes = async () => {
+  try {
+    const { data } = await ReportsAPI.getWhatsappInboxes();
+    inboxes.value = Array.isArray(data) ? data : [];
+  } catch {
+    inboxes.value = [];
+  }
+};
+
+const onInboxChange = () => fetchAll();
 
 const onFilterChange = ({ from, to, businessHours }) => {
   range.value = { from, to, businessHours };
@@ -246,6 +260,7 @@ const typeRows = computed(() => {
 
 onMounted(() => {
   loadTemplates();
+  loadInboxes();
   fetchAll();
 });
 </script>
@@ -256,26 +271,45 @@ onMounted(() => {
   <div class="flex flex-col gap-6">
     <OverviewReportFilters @filter-change="onFilterChange" />
 
-    <!-- Filtro por plantilla de WhatsApp (lista desplegable) -->
+    <!-- Filtros por bandeja y por plantilla (listas desplegables) -->
     <div
-      v-if="templates.length"
-      class="flex flex-wrap items-center gap-2 rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+      v-if="inboxes.length || templates.length"
+      class="flex flex-wrap items-center gap-4 rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
     >
-      <label class="text-sm font-medium text-n-slate-11">
-        {{ t('WHATSAPP_REPORTS.FILTERS.TEMPLATE') }}
-      </label>
-      <select
-        v-model="selectedTemplate"
-        class="text-sm rounded-lg border border-n-weak bg-n-solid-1 px-3 py-1.5 text-n-slate-12"
-        @change="onTemplateChange"
-      >
-        <option value="">
-          {{ t('WHATSAPP_REPORTS.FILTERS.ALL_TEMPLATES') }}
-        </option>
-        <option v-for="name in templates" :key="name" :value="name">
-          {{ name }}
-        </option>
-      </select>
+      <div v-if="inboxes.length" class="flex items-center gap-2">
+        <label class="text-sm font-medium text-n-slate-11">
+          {{ t('WHATSAPP_REPORTS.FILTERS.INBOX') }}
+        </label>
+        <select
+          v-model="selectedInbox"
+          class="text-sm rounded-lg border border-n-weak bg-n-solid-1 px-3 py-1.5 text-n-slate-12"
+          @change="onInboxChange"
+        >
+          <option value="">
+            {{ t('WHATSAPP_REPORTS.FILTERS.ALL_INBOXES') }}
+          </option>
+          <option v-for="ib in inboxes" :key="ib.id" :value="ib.id">
+            {{ ib.name }}
+          </option>
+        </select>
+      </div>
+      <div v-if="templates.length" class="flex items-center gap-2">
+        <label class="text-sm font-medium text-n-slate-11">
+          {{ t('WHATSAPP_REPORTS.FILTERS.TEMPLATE') }}
+        </label>
+        <select
+          v-model="selectedTemplate"
+          class="text-sm rounded-lg border border-n-weak bg-n-solid-1 px-3 py-1.5 text-n-slate-12"
+          @change="onTemplateChange"
+        >
+          <option value="">
+            {{ t('WHATSAPP_REPORTS.FILTERS.ALL_TEMPLATES') }}
+          </option>
+          <option v-for="name in templates" :key="name" :value="name">
+            {{ name }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <p v-if="!summary && !loading" class="text-sm text-n-slate-10">

@@ -672,7 +672,9 @@
     "FILTER_DATE": "Rango de fechas",
     "FILTERS": {
       "TEMPLATE": "Plantilla",
-      "ALL_TEMPLATES": "Todas las plantillas"
+      "ALL_TEMPLATES": "Todas las plantillas",
+      "INBOX": "Bandeja",
+      "ALL_INBOXES": "Todas las bandejas"
     },
     "SUMMARY": {
       "TITLE": "Volumen",

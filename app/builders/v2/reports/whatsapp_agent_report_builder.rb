@@ -45,7 +45,7 @@ class V2::Reports::WhatsappAgentReportBuilder
     sent = outgoing_messages.count
     delivered = status_event_counts['delivered'] || 0
     read = status_event_counts['read'] || 0
-    failed = outgoing_messages.where(status: :failed).count
+    failed = status_event_counts['failed'] || 0
     volume_summary(sent, delivered, read, failed).merge(
       time_summary,
       funnel: funnel(sent, delivered, read),

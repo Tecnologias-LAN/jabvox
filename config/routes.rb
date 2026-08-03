@@ -993,6 +993,7 @@ Rails.application.routes.draw do
               get 'whatsapp/conversations/:conversation_id/timeline', action: :whatsapp_timeline
               get 'whatsapp/label_durations', action: :whatsapp_label_durations
               get 'whatsapp/templates', action: :whatsapp_templates
+              get 'whatsapp/inboxes', action: :whatsapp_inboxes
               get 'whatsapp/export', action: :whatsapp_export
               # Reporte de Grupos de WhatsApp: resumen y tabla por grupo.
               get 'whatsapp_groups/summary', action: :whatsapp_groups_summary

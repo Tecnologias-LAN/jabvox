@@ -39,6 +39,11 @@ module Api::V2::Accounts::WhatsappReportExporter
     render json: whatsapp_builder.template_names
   end
 
+  # Lista de bandejas de WhatsApp, para el desplegable del filtro por bandeja.
+  def whatsapp_inboxes
+    render json: whatsapp_builder.whatsapp_inboxes
+  end
+
   def whatsapp_export
     rows = whatsapp_builder.agents
     if params[:format].to_s == 'xlsx'

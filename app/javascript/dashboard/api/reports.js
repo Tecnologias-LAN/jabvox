@@ -103,6 +103,7 @@ class ReportsAPI extends ApiClient {
     to: until,
     businessHours,
     templateName,
+    inboxId,
   } = {}) {
     return axios.get(`${this.url}/whatsapp/summary`, {
       params: {
@@ -110,6 +111,7 @@ class ReportsAPI extends ApiClient {
         to: until,
         business_hours: businessHours,
         template_name: templateName || undefined,
+        inbox_id: inboxId || undefined,
       },
     });
   }
@@ -119,6 +121,7 @@ class ReportsAPI extends ApiClient {
     to: until,
     businessHours,
     templateName,
+    inboxId,
   } = {}) {
     return axios.get(`${this.url}/whatsapp/agents`, {
       params: {
@@ -126,6 +129,7 @@ class ReportsAPI extends ApiClient {
         to: until,
         business_hours: businessHours,
         template_name: templateName || undefined,
+        inbox_id: inboxId || undefined,
       },
     });
   }
@@ -138,6 +142,10 @@ class ReportsAPI extends ApiClient {
 
   getWhatsappTemplates() {
     return axios.get(`${this.url}/whatsapp/templates`);
+  }
+
+  getWhatsappInboxes() {
+    return axios.get(`${this.url}/whatsapp/inboxes`);
   }
 
   getWhatsappConversationTimeline(conversationId) {

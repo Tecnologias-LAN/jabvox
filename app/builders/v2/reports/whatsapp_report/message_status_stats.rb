@@ -1,18 +1,27 @@
-# Delivery/read/failed stats sourced from message_status_events (the timestamps
-# Meta sends on each status transition). Split out of the builder to keep it
-# focused; relies on the builder's account/outgoing scopes.
+# Delivery/read/failed stats. Los CONTEOS salen de messages.status (Chatwoot
+# guarda ahí el último estado de cada mensaje, con datos históricos completos);
+# message_status_events solo se usa para los TIEMPOS (guarda el "cuándo" de cada
+# transición) y puede estar vacía en cuentas anteriores a su despliegue.
+#
+# messages.status es acumulativo hacia atrás: un mensaje 'read' también fue
+# entregado, así que delivered = (delivered + read).
 module V2::Reports::WhatsappReport::MessageStatusStats
+  # { 'delivered' => n, 'read' => n, 'failed' => n } sobre messages.status,
+  # con delivered incluyendo los leídos.
   def status_event_counts
-    # group(:status) already yields the enum's string names ("delivered"/"read"/…),
-    # so no key transform is needed.
-    @status_event_counts ||= MessageStatusEvent
-                             .where(account_id: account.id, message_id: outgoing_messages.select(:id))
-                             .group(:status).count
+    @status_event_counts ||= begin
+      raw = outgoing_messages.unscope(:order).group(:status).count
+      read = raw['read'].to_i
+      { 'delivered' => raw['delivered'].to_i + read, 'read' => read, 'failed' => raw['failed'].to_i }
+    end
   end
 
+  # Cuenta por agente desde messages.status (delivered incluye read).
   def agent_status_count(uid, status_name)
-    MessageStatusEvent.where(account_id: account.id, status: MessageStatusEvent.statuses[status_name],
-                             message_id: agent_outgoing(uid).select(:id)).count
+    scope = agent_outgoing(uid).unscope(:order)
+    return scope.where(status: %i[delivered read]).count if status_name == 'delivered'
+
+    scope.where(status: status_name).count
   end
 
   # Delivered/read/failed counts and rates for one agent's outgoing messages.
@@ -23,7 +32,7 @@ module V2::Reports::WhatsappReport::MessageStatusStats
     {
       delivered: delivered,
       read: read,
-      failed: agent_outgoing(uid).where(status: :failed).count,
+      failed: agent_outgoing(uid).unscope(:order).where(status: :failed).count,
       delivery_rate: rate(delivered, sent),
       read_rate: rate(read, delivered)
     }
@@ -66,11 +75,16 @@ module V2::Reports::WhatsappReport::MessageStatusStats
                       .order(:occurred_at).first&.occurred_at
   end
 
-  # Failures grouped by Meta error code, for the fail-rate breakdown.
+  # Fallidos agrupados por el error de Meta guardado en
+  # content_attributes.external_error de cada mensaje. Robusto: si un mensaje
+  # fallido no trae error, cuenta como 'unknown'.
   def error_breakdown
-    MessageStatusEvent.where(account_id: account.id, status: MessageStatusEvent.statuses['failed'],
-                             message_id: outgoing_messages.select(:id))
-                      .group(:error_code).count
-                      .map { |code, count| { code: code.presence || 'unknown', count: count } }
+    # content_attributes es columna json (no jsonb) y el acceso ->> es poco fiable
+    # aquí; lo leemos vía el modelo (el hash siempre trae external_error).
+    rows = outgoing_messages.unscope(:order).where(status: :failed)
+                            .pluck(:content_attributes)
+    rows.group_by { |attrs| (attrs.is_a?(Hash) ? attrs['external_error'] : nil).presence || 'unknown' }
+        .map { |code, list| { code: code, count: list.size } }
+        .sort_by { |r| -r[:count] }
   end
 end
