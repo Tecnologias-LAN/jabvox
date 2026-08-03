@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import ReportsAPI from 'dashboard/api/reports';
 import ReportHeader from './components/ReportHeader.vue';
 import OverviewReportFilters from './components/OverviewReportFilters.vue';
+import WhatsappAgentDetailDialog from './components/WhatsappAgentDetailDialog.vue';
 
 const { t } = useI18n();
 
@@ -59,6 +60,12 @@ const loadInboxes = async () => {
 };
 
 const onInboxChange = () => fetchAll();
+
+// Drill-down: al hacer clic en un agente abre el detalle de sus mensajes.
+const agentDetailDialog = ref(null);
+const openAgentDetail = agentRow => {
+  agentDetailDialog.value?.open(agentRow, queryParams());
+};
 
 const onFilterChange = ({ from, to, businessHours }) => {
   range.value = { from, to, businessHours };
@@ -444,9 +451,12 @@ onMounted(() => {
 
     <!-- Por agente -->
     <section>
-      <h3 class="text-sm font-medium text-n-slate-12 mb-2">
+      <h3 class="text-sm font-medium text-n-slate-12 mb-1">
         {{ t('WHATSAPP_REPORTS.AGENTS.TITLE') }}
       </h3>
+      <p class="text-[11px] text-n-slate-9 mb-2">
+        {{ t('WHATSAPP_REPORTS.AGENTS.CLICK_HINT') }}
+      </p>
       <div class="overflow-x-auto rounded-lg border border-n-weak">
         <table class="w-full text-sm">
           <thead class="bg-n-alpha-1 text-n-slate-11 sticky top-0 z-[1]">
@@ -468,9 +478,14 @@ onMounted(() => {
             <tr
               v-for="a in agents"
               :key="a.id"
-              class="border-t border-n-weak text-n-slate-12 hover:bg-n-alpha-1"
+              class="border-t border-n-weak text-n-slate-12 hover:bg-n-alpha-1 cursor-pointer"
+              @click="openAgentDetail(a)"
             >
-              <td class="px-3 py-1.5 whitespace-nowrap">{{ a.name }}</td>
+              <td class="px-3 py-1.5 whitespace-nowrap">
+                <span class="text-n-brand hover:underline font-medium">
+                  {{ a.name }}
+                </span>
+              </td>
               <td class="px-3 py-1.5 text-right tabular-nums">
                 {{ fmtInt(a.sent) }}
               </td>
@@ -562,5 +577,7 @@ onMounted(() => {
         </table>
       </div>
     </section>
+
+    <WhatsappAgentDetailDialog ref="agentDetailDialog" />
   </div>
 </template>

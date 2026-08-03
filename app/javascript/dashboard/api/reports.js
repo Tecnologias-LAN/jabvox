@@ -148,6 +148,30 @@ class ReportsAPI extends ApiClient {
     return axios.get(`${this.url}/whatsapp/inboxes`);
   }
 
+  // Detalle por agente: mensajes con contacto, estado y error.
+  getWhatsappAgentDetail(
+    agentId,
+    {
+      from: since,
+      to: until,
+      businessHours,
+      templateName,
+      inboxId,
+      msgStatus,
+    } = {}
+  ) {
+    return axios.get(`${this.url}/whatsapp/agents/${agentId}/detail`, {
+      params: {
+        from: since,
+        to: until,
+        business_hours: businessHours,
+        template_name: templateName || undefined,
+        inbox_id: inboxId || undefined,
+        msg_status: msgStatus || undefined,
+      },
+    });
+  }
+
   getWhatsappConversationTimeline(conversationId) {
     return axios.get(
       `${this.url}/whatsapp/conversations/${conversationId}/timeline`

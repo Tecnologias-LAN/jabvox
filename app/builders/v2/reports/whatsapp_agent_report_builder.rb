@@ -15,6 +15,7 @@
 class V2::Reports::WhatsappAgentReportBuilder
   include V2::Reports::WhatsappReport::Scopes
   include V2::Reports::WhatsappReport::TemplateFilter
+  include V2::Reports::WhatsappReport::AgentDetail
   include V2::Reports::WhatsappReport::MessageStatusStats
   include V2::Reports::WhatsappReport::MessageTypeBreakdown
   include V2::Reports::WhatsappReport::LabelDurations

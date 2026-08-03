@@ -44,6 +44,16 @@ module Api::V2::Accounts::WhatsappReportExporter
     render json: whatsapp_builder.whatsapp_inboxes
   end
 
+  # Detalle por agente: mensajes con contacto, estado y error. Filtro opcional
+  # por estado (?status=failed) para ver solo los fallidos, etc.
+  def whatsapp_agent_detail
+    uid = params[:agent_id].to_i
+    render json: {
+      summary: whatsapp_builder.agent_status_summary(uid),
+      messages: whatsapp_builder.agent_messages(uid, status_filter: params[:msg_status])
+    }
+  end
+
   def whatsapp_export
     rows = whatsapp_builder.agents
     if params[:format].to_s == 'xlsx'

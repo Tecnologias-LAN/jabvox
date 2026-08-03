@@ -735,9 +735,36 @@
       "LOCATION": "Ubicaciones",
       "TOTAL": "Total"
     },
+    "DETAIL": {
+      "TITLE": "Detalle de {name}",
+      "EMPTY": "No hay mensajes con este filtro.",
+      "LOAD_ERROR": "No se pudo cargar el detalle.",
+      "TABS": {
+        "ALL": "Todos",
+        "SENT": "Enviados",
+        "DELIVERED": "Entregados",
+        "READ": "Leídos",
+        "FAILED": "Fallidos"
+      },
+      "STATUS": {
+        "SENT": "Enviado",
+        "DELIVERED": "Entregado",
+        "READ": "Leído",
+        "FAILED": "Fallido"
+      },
+      "COLS": {
+        "CONTACT": "Contacto",
+        "PHONE": "Número",
+        "STATUS": "Estado",
+        "TEMPLATE": "Plantilla",
+        "ERROR": "Error",
+        "DATE": "Fecha"
+      }
+    },
     "AGENTS": {
       "TITLE": "Por agente",
       "AGENT": "Agente",
+      "CLICK_HINT": "Haz clic en un agente para ver el detalle de sus mensajes y errores.",
       "EMPTY": "No hay actividad de agentes en este periodo.",
       "SENT": "Enviados",
       "RECEIVED": "Recibidos",

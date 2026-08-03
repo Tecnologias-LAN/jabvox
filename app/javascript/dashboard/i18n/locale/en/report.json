@@ -735,9 +735,36 @@
       "LOCATION": "Locations",
       "TOTAL": "Total"
     },
+    "DETAIL": {
+      "TITLE": "Detail for {name}",
+      "EMPTY": "No messages with this filter.",
+      "LOAD_ERROR": "Could not load the detail.",
+      "TABS": {
+        "ALL": "All",
+        "SENT": "Sent",
+        "DELIVERED": "Delivered",
+        "READ": "Read",
+        "FAILED": "Failed"
+      },
+      "STATUS": {
+        "SENT": "Sent",
+        "DELIVERED": "Delivered",
+        "READ": "Read",
+        "FAILED": "Failed"
+      },
+      "COLS": {
+        "CONTACT": "Contact",
+        "PHONE": "Phone",
+        "STATUS": "Status",
+        "TEMPLATE": "Template",
+        "ERROR": "Error",
+        "DATE": "Date"
+      }
+    },
     "AGENTS": {
       "TITLE": "By agent",
       "AGENT": "Agent",
+      "CLICK_HINT": "Click an agent to see the detail of their messages and errors.",
       "EMPTY": "No agent activity in this period.",
       "SENT": "Sent",
       "RECEIVED": "Received",
