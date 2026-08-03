@@ -670,6 +670,10 @@
   "WHATSAPP_REPORTS": {
     "HEADER_TITLE": "WhatsApp Reports",
     "FILTER_DATE": "Date range",
+    "FILTERS": {
+      "TEMPLATE": "Template",
+      "ALL_TEMPLATES": "All templates"
+    },
     "SUMMARY": {
       "TITLE": "Overview",
       "SENT": "Messages sent",

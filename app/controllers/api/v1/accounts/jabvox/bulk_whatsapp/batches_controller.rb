@@ -56,10 +56,11 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
   # Includes each user's account role so the UI can restrict the sender to
   # administrators only (agents / custom roles are excluded in the wizard).
   def senders
-    account_users = Current.account.account_users.includes(:user)
-    render json: account_users.map do |au|
+    # includes(:user) + reject huérfanos (user borrado) evita nulos/NoMethodError.
+    account_users = Current.account.account_users.includes(:user).select(&:user)
+    render json: account_users.map { |au|
       { id: au.user_id, name: au.user.name, email: au.user.email, role: au.role }
-    end
+    }
   end
 
   # Every lead custom field the picker can filter by, ALL of them selectable.

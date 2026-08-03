@@ -34,6 +34,11 @@ module Api::V2::Accounts::WhatsappReportExporter
     render json: whatsapp_builder.label_durations
   end
 
+  # Lista de plantillas usadas en masivos, para el desplegable del filtro.
+  def whatsapp_templates
+    render json: whatsapp_builder.template_names
+  end
+
   def whatsapp_export
     rows = whatsapp_builder.agents
     if params[:format].to_s == 'xlsx'
@@ -57,7 +62,7 @@ module Api::V2::Accounts::WhatsappReportExporter
   def whatsapp_report_params
     params.permit(
       :from, :to, :inbox_id, :team_id, :status, :priority, :business_hours,
-      :sla_seconds, :batch_uuid, :sort_by, :order, :metric,
+      :sla_seconds, :batch_uuid, :template_name, :sort_by, :order, :metric,
       agent_ids: [], labels: [], business: BUSINESS_FILTER_KEYS
     )
   end

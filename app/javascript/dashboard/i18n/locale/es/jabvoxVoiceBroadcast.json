@@ -1,0 +1,82 @@
+{
+  "JABVOX_VOICE_BROADCAST": {
+    "TITLE": "Voice Broadcast",
+    "SUBTITLE": "Campañas de voz salientes: llama a los contactos de una campaña del marcador y reproduce un audio.",
+    "NEW": "Nueva campaña de voz",
+    "OPEN": "Abrir",
+    "EMPTY": "Aún no hay campañas de voz. Crea una para empezar.",
+    "LOAD_ERROR": "No se pudieron cargar las campañas de voz.",
+    "CONTROL_ERROR": "No se pudo ejecutar la acción.",
+    "AUDIO_ERROR": "No se pudo subir el audio.",
+    "AUDIO_READY": "Listo",
+    "AUDIO_MISSING": "Falta",
+    "AUDIO_DEPLOYED": "Audio subido y desplegado al PBX.",
+    "AUDIO_UPLOADED_NOT_DEPLOYED": "Audio subido, pero no se pudo desplegar al PBX.",
+    "STATUS": {
+      "DRAFT": "Borrador",
+      "RUNNING": "En curso",
+      "PAUSED": "Pausada",
+      "COMPLETED": "Completada",
+      "STOPPED": "Detenida"
+    },
+    "COLS": {
+      "NAME": "Nombre",
+      "STATUS": "Estado",
+      "TOTAL": "Total",
+      "DIALED": "Marcados",
+      "AUDIO": "Audio",
+      "ACTIONS": "Acciones"
+    },
+    "COUNTS": {
+      "TOTAL": "Total",
+      "DIALED": "Marcados",
+      "ANSWERED_HUMAN": "Contestó persona",
+      "ANSWERED_MACHINE": "Contestó máquina",
+      "PLAYED_COMPLETE": "Escuchó completo",
+      "FAILED": "Fallidos"
+    },
+    "FORM": {
+      "NEW_TITLE": "Nueva campaña de voz",
+      "EDIT_TITLE": "Editar campaña de voz",
+      "NAME": "Nombre",
+      "CAMPAIGN": "Campaña del marcador (contactos)",
+      "CAMPAIGN_PLACEHOLDER": "Selecciona una campaña",
+      "CALLER_ID": "Caller ID",
+      "MAX_CONCURRENT": "Llamadas simultáneas",
+      "CPS": "Llamadas por segundo",
+      "MAX_RETRIES": "Reintentos",
+      "RETRY_INTERVAL": "Intervalo reintento (s)",
+      "HOURS_START": "Hora inicio",
+      "HOURS_END": "Hora fin",
+      "HOURS_INVALID": "Formato de hora inválido (usa HH:MM).",
+      "AMD": "Detección de contestador (AMD)",
+      "DTMF": "Permitir opt-out por tecla (DTMF)",
+      "DTMF_DIGIT": "Tecla opt-out",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "SAVED": "Campaña de voz guardada.",
+      "ERROR": "No se pudo guardar la campaña de voz."
+    },
+    "DETAIL": {
+      "STATUS_LINE": "Estado: {status}",
+      "PBX_OK": "PBX conectado",
+      "PBX_DOWN": "PBX sin conexión",
+      "AUDIO_TITLE": "Audio",
+      "AUDIO_NONE": "Sin audio. Sube un archivo antes de iniciar.",
+      "UPLOAD_AUDIO": "Subir audio",
+      "START": "Iniciar",
+      "PAUSE": "Pausar",
+      "RESUME": "Reanudar",
+      "STOP": "Detener",
+      "NEED_AUDIO": "Sube y despliega el audio para poder iniciar.",
+      "REPORT_TITLE": "Reporte",
+      "EXPORT_CSV": "Exportar CSV"
+    },
+    "REPORT": {
+      "ANSWER_RATE": "Tasa de contestación",
+      "PLAYED_RATE": "Escuchó completo (%)",
+      "ANSWERED_HUMAN": "Contestó persona",
+      "ANSWERED_MACHINE": "Contestó máquina"
+    }
+  }
+}

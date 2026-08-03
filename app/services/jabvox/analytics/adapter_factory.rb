@@ -5,7 +5,8 @@ class Jabvox::Analytics::AdapterFactory
     'postgresql' => Jabvox::Analytics::Adapters::PostgresAdapter,
     'mysql' => Jabvox::Analytics::Adapters::MysqlAdapter,
     'mariadb' => Jabvox::Analytics::Adapters::MysqlAdapter,
-    'sqlite' => Jabvox::Analytics::Adapters::SqliteAdapter
+    'sqlite' => Jabvox::Analytics::Adapters::SqliteAdapter,
+    'sqlserver' => Jabvox::Analytics::Adapters::SqlserverAdapter
   }.freeze
 
   def self.for(data_source)

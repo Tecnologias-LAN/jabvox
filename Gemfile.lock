@@ -989,6 +989,10 @@ GEM
       activesupport
       i18n
     timeout (0.6.1)
+    tiny_tds (3.4.0)
+      bigdecimal (>= 2.0.0)
+    tiny_tds (3.4.0-x86_64-linux-gnu)
+      bigdecimal (>= 2.0.0)
     trailblazer-option (0.1.2)
     ttfunk (1.8.0)
       bigdecimal (~> 3.1)
@@ -1214,6 +1218,7 @@ DEPENDENCIES
   test-prof
   tidewave
   time_diff
+  tiny_tds (~> 3.1)
   twilio-ruby
   twitty (~> 0.1.5)
   tzinfo-data

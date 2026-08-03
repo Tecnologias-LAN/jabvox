@@ -419,6 +419,8 @@
     "JABVOX_VOIP": "VoIP",
     "JABVOX_WHATSAPP_TEMPLATES": "Plantillas WA",
     "JABVOX_BULK_WHATSAPP": "WhatsApp Masivo",
+    "JABVOX_WHATSAPP_GROUPS": "WhatsApp Grupos",
+    "JABVOX_VOICE_BROADCAST": "Voice Broadcast",
     "JABVOX_LEAD_IMPORT": "Importar Leads",
     "JABVOX_DATA_EXPORT": "Exportar Datos",
     "JABVOX_CUSTOM_DATA": "Datos Personalizados",

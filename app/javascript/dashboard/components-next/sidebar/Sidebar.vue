@@ -1326,6 +1326,37 @@ const menuItems = computed(() => {
               },
             ]
           : []),
+        ...(jabvoxCan('jabvox_whatsapp_groups_manage') &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_WHATSAPP_GROUPS
+        )
+          ? [
+              {
+                name: 'Settings Jabvox WhatsApp Groups',
+                label: t('SIDEBAR.JABVOX_WHATSAPP_GROUPS'),
+                icon: 'i-lucide-users-round',
+                to: accountScopedRoute('jabvox_whatsapp_groups_settings_index'),
+                activeOn: ['jabvox_whatsapp_groups_settings_index'],
+              },
+            ]
+          : []),
+        ...((jabvoxCan('jabvox_voice_broadcast_manage') ||
+          jabvoxCan('jabvox_dialer_manage')) &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_VOICE_BROADCAST
+        )
+          ? [
+              {
+                name: 'Settings Jabvox Voice Broadcast',
+                label: t('SIDEBAR.JABVOX_VOICE_BROADCAST'),
+                icon: 'i-lucide-megaphone',
+                to: accountScopedRoute('jabvox_voice_broadcast_settings_index'),
+                activeOn: ['jabvox_voice_broadcast_settings_index'],
+              },
+            ]
+          : []),
         ...(jabvoxCan('jabvox_audio_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,

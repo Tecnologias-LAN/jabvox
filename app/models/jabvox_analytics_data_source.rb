@@ -40,9 +40,9 @@
 class JabvoxAnalyticsDataSource < ApplicationRecord
   self.table_name = 'jabvox_analytics_data_sources'
 
-  ENGINES = %w[postgresql mysql mariadb sqlite].freeze
+  ENGINES = %w[postgresql mysql mariadb sqlite sqlserver].freeze
   STATUSES = %w[untested ok error].freeze
-  DEFAULT_PORTS = { 'postgresql' => 5432, 'mysql' => 3306, 'mariadb' => 3306 }.freeze
+  DEFAULT_PORTS = { 'postgresql' => 5432, 'mysql' => 3306, 'mariadb' => 3306, 'sqlserver' => 1433 }.freeze
 
   belongs_to :account
   belongs_to :created_by, class_name: 'User', optional: true

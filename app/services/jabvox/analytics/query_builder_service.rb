@@ -100,8 +100,21 @@ class Jabvox::Analytics::QueryBuilderService
       "DATE_TRUNC('#{unit}', #{col})"
     when :mysql
       mysql_date_bucket(col, unit)
+    when :sqlserver
+      sqlserver_date_bucket(col, unit)
     else # sqlite
       sqlite_date_bucket(col, unit)
+    end
+  end
+
+  # T-SQL has no DATE_TRUNC. Truncate by casting to date (day) or rebuilding the
+  # date at the period boundary with DATEFROMPARTS/DATEADD.
+  def sqlserver_date_bucket(col, unit)
+    case unit
+    when 'day' then "CAST(#{col} AS date)"
+    when 'week' then "CAST(DATEADD(DAY, -((DATEPART(WEEKDAY, #{col}) + 5) % 7), #{col}) AS date)"
+    when 'month' then "DATEFROMPARTS(YEAR(#{col}), MONTH(#{col}), 1)"
+    when 'year' then "DATEFROMPARTS(YEAR(#{col}), 1, 1)"
     end
   end
 

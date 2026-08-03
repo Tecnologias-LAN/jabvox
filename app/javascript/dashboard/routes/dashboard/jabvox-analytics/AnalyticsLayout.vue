@@ -45,6 +45,17 @@ const tabs = computed(() => {
         'jabvox_analytics_sql',
       ],
     },
+    {
+      key: 'cross-reports',
+      label: t('JABVOX_ANALYTICS.NAV.CROSS_REPORTS'),
+      icon: 'i-lucide-combine',
+      routeName: 'jabvox_analytics_cross_reports',
+      activeOn: [
+        'jabvox_analytics_cross_reports',
+        'jabvox_analytics_cross_report_new',
+        'jabvox_analytics_cross_report_edit',
+      ],
+    },
   ];
   if (capabilities.isAdmin) {
     items.push({

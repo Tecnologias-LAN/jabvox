@@ -45,6 +45,14 @@ const emptyForm = () => ({
 
 const form = reactive(emptyForm());
 
+// The child form emits a brand-new object on every field change. `form` is a
+// reactive() object, so we merge into it (Object.assign) instead of reassigning
+// the reference — reassigning a const reactive throws "Assignment to constant
+// variable" and silently drops the input.
+const updateForm = next => {
+  Object.assign(form, next);
+};
+
 const isEdit = computed(() => Boolean(props.dataSource?.id));
 
 const resetForm = () => {
@@ -140,7 +148,12 @@ const handleSave = async () => {
           </button>
         </div>
 
-        <DataSourceForm ref="formRef" v-model="form" :is-edit="isEdit" />
+        <DataSourceForm
+          ref="formRef"
+          :model-value="form"
+          :is-edit="isEdit"
+          @update:model-value="updateForm"
+        />
 
         <!-- Optional connection test — does not block saving -->
         <div class="mt-5 flex flex-col gap-3 border-t border-n-weak pt-4">

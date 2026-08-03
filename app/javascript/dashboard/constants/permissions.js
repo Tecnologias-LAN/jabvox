@@ -57,6 +57,10 @@ export const JABVOX_PERMISSION_GROUPS = [
     permissions: ['jabvox_bulk_whatsapp_send'],
   },
   {
+    module: 'whatsapp_groups',
+    permissions: ['jabvox_whatsapp_groups_manage'],
+  },
+  {
     module: 'custom_data',
     permissions: ['jabvox_custom_data_manage'],
   },

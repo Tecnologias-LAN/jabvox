@@ -64,10 +64,23 @@
       "INBOX": "Bandeja",
       "MANAGEMENT_STATE": "Última gestión",
       "MANAGEMENT_DATE": "Fecha última gestión",
+      "MANAGEMENTS_COUNT": "Gestiones",
+      "MANAGEMENTS_N": "{count} gestiones",
+      "MANAGEMENT_SOURCE": "Medio",
+      "TYPIFICATIONS_COUNT": "Tipificaciones",
+      "TOTAL_MANAGEMENTS": "{count} gestiones en total",
+      "NO_MANAGEMENTS": "Sin gestiones en el rango",
       "ASSIGNEE": "Asignado a",
       "ACTIONS": "Acciones",
       "BOOL_YES": "Sí",
       "BOOL_NO": "No"
+    },
+    "MANAGEMENT_SOURCE": {
+      "DIALER": "Marcador",
+      "CLICK_TO_CALL": "Click-to-call",
+      "LEAD_DETAIL": "Detalle del lead",
+      "CONVERSATIONS": "Conversaciones",
+      "KANBAN": "Kanban"
     },
     "BULK": {
       "SELECT_LABEL": "Sel:",

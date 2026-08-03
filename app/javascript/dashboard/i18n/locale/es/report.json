@@ -670,6 +670,10 @@
   "WHATSAPP_REPORTS": {
     "HEADER_TITLE": "Reportes de WhatsApp",
     "FILTER_DATE": "Rango de fechas",
+    "FILTERS": {
+      "TEMPLATE": "Plantilla",
+      "ALL_TEMPLATES": "Todas las plantillas"
+    },
     "SUMMARY": {
       "TITLE": "Resumen general",
       "SENT": "Mensajes enviados",

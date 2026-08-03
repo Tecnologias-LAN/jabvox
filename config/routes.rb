@@ -850,6 +850,12 @@ Rails.application.routes.draw do
                 resources :data_source_permissions, only: [:index, :create, :update, :destroy]
               end
 
+              # Cross-source reports: join data across several data sources (e.g.
+              # Wimpos' databases on different servers) by a mapped common field.
+              resources :cross_reports do
+                member { post :execute }
+              end
+
               resources :folders
               resources :dashboards do
                 collection do
@@ -985,6 +991,7 @@ Rails.application.routes.draw do
               get 'whatsapp/rankings', action: :whatsapp_rankings
               get 'whatsapp/conversations/:conversation_id/timeline', action: :whatsapp_timeline
               get 'whatsapp/label_durations', action: :whatsapp_label_durations
+              get 'whatsapp/templates', action: :whatsapp_templates
               get 'whatsapp/export', action: :whatsapp_export
               # Reporte de Grupos de WhatsApp: resumen y tabla por grupo.
               get 'whatsapp_groups/summary', action: :whatsapp_groups_summary

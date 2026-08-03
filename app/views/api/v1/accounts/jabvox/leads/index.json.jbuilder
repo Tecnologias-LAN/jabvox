@@ -34,6 +34,20 @@ json.data do
     json.conversation_display_id conv[:conversation_display_id]
     json.last_management_state conv[:last_management_state]
     json.last_management_at conv[:last_management_at]
+    json.last_management_source conv[:last_management_source]
+    # All managements for this lead within the active date range (historic view),
+    # newest-first: each with its state, medium (jabvox_call_source) and agent, so
+    # the row can expand to show every gestión of the day, not just the latest.
+    json.managements(@managements_by_contact&.dig(lead.contact_id) || []) do |m|
+      json.state m.state
+      json.source m.source
+      json.at m.at
+      json.agent_name m.agent_name
+      json.origin m.origin
+    end
+    # Per-lead counts for the summary columns.
+    json.managements_count(@management_counts_by_contact&.dig(lead.contact_id) || 0)
+    json.typifications_count(@typification_counts&.dig(lead.id) || 0)
     json.is_sold_jabvox lead.is_sold_jabvox
     json.affiliate_id lead.jabvox_affiliate_id
     json.affiliate_name lead.jabvox_affiliate&.name
@@ -48,6 +62,9 @@ json.meta do
   json.total @total
   json.current_page @leads.current_page
   json.total_pages @leads.total_pages
+  # Global total of managements across the whole filter (all matching leads within
+  # the date range), for the "X gestiones en total" summary above the list.
+  json.total_managements @management_total
 end
 
 # Only present on the first page (static per session); the frontend caches it and

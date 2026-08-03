@@ -197,6 +197,40 @@ const fetchLeads = () => {
   });
 };
 
+// --- Historic gestiones (expandable rows + medium labels) ---
+// Rows the user has expanded to see all their gestiones in the range.
+const expandedManagements = ref(new Set());
+const toggleManagements = leadId => {
+  const next = new Set(expandedManagements.value);
+  if (next.has(leadId)) next.delete(leadId);
+  else next.add(leadId);
+  expandedManagements.value = next;
+};
+
+// Human label for a gestión medium (jabvox_call_source).
+const MANAGEMENT_SOURCE_KEYS = {
+  dialer: 'JABVOX_LEADS.MANAGEMENT_SOURCE.DIALER',
+  click_to_call: 'JABVOX_LEADS.MANAGEMENT_SOURCE.CLICK_TO_CALL',
+  lead_detail: 'JABVOX_LEADS.MANAGEMENT_SOURCE.LEAD_DETAIL',
+  conversations: 'JABVOX_LEADS.MANAGEMENT_SOURCE.CONVERSATIONS',
+  kanban: 'JABVOX_LEADS.MANAGEMENT_SOURCE.KANBAN',
+};
+const managementSourceLabel = source => {
+  if (!source) return '—';
+  const key = MANAGEMENT_SOURCE_KEYS[source];
+  return key ? t(key) : source;
+};
+
+// Global gestiones count in the current filter (summary banner).
+const totalManagements = computed(() => meta.value?.totalManagements ?? 0);
+// The banner only makes sense when a management/date filter is active.
+const hasManagementFilter = computed(
+  () =>
+    !!filterManagementState.value ||
+    !!filterDateFrom.value ||
+    !!filterDateTo.value
+);
+
 const goToPage = delta => {
   const next = currentPage.value + delta;
   if (next < 1 || next > (meta.value.totalPages || 1)) return;
@@ -486,6 +520,14 @@ const DEFAULT_COLUMNS = [
     labelKey: 'JABVOX_LEADS.TABLE.MANAGEMENT_DATE',
     sortKey: 'created_at',
   },
+  // Historic gestión columns: count of managements in the filter (expandable),
+  // medium of the latest gestión, and call-typification count.
+  { id: 'managements_count', labelKey: 'JABVOX_LEADS.TABLE.MANAGEMENTS_COUNT' },
+  { id: 'management_source', labelKey: 'JABVOX_LEADS.TABLE.MANAGEMENT_SOURCE' },
+  {
+    id: 'typifications_count',
+    labelKey: 'JABVOX_LEADS.TABLE.TYPIFICATIONS_COUNT',
+  },
   { id: 'assignee', labelKey: 'JABVOX_LEADS.TABLE.ASSIGNEE' },
 ];
 const COLUMN_SLOTS = DEFAULT_COLUMNS.length;
@@ -655,6 +697,14 @@ onUnmounted(() => {
             {{ t('JABVOX_LEADS.SUBTITLE') }}
             <span v-if="meta.total" class="text-n-slate-10">
               · {{ t('JABVOX_LEADS.PAGINATION.TOTAL', { count: meta.total }) }}
+            </span>
+            <span v-if="hasManagementFilter" class="text-n-brand font-medium">
+              ·
+              {{
+                t('JABVOX_LEADS.TABLE.TOTAL_MANAGEMENTS', {
+                  count: totalManagements,
+                })
+              }}
             </span>
           </p>
         </div>
@@ -1381,122 +1431,200 @@ onUnmounted(() => {
               </tr>
             </thead>
             <tbody class="divide-y divide-n-weak">
-              <tr
-                v-for="lead in leads"
-                :key="lead.id"
-                class="cursor-pointer transition-colors group/row"
-                :class="
-                  isSelected(lead.id)
-                    ? 'bg-n-alpha-2'
-                    : 'odd:bg-transparent even:bg-n-alpha-1/40 hover:!bg-n-alpha-1'
-                "
-                @click="goToLead(lead.id)"
-              >
-                <td class="px-3 py-2.5 w-8" @click.stop>
-                  <input
-                    type="checkbox"
-                    :checked="isSelected(lead.id)"
-                    class="rounded accent-n-brand cursor-pointer"
-                    @change="toggleSelect(lead.id)"
-                  />
-                </td>
-                <!-- 11 configurable data cells matching visibleColumns -->
-                <td
-                  v-for="col in visibleColumns"
-                  :key="col.uid"
-                  class="px-3 py-2.5"
+              <template v-for="lead in leads" :key="lead.id">
+                <tr
+                  class="cursor-pointer transition-colors group/row"
+                  :class="
+                    isSelected(lead.id)
+                      ? 'bg-n-alpha-2'
+                      : 'odd:bg-transparent even:bg-n-alpha-1/40 hover:!bg-n-alpha-1'
+                  "
+                  @click="goToLead(lead.id)"
                 >
-                  <template v-if="col.kind === 'default'">
-                    <span
-                      v-if="col.id === 'lead_number'"
-                      class="inline-flex items-center gap-0.5 rounded-md bg-n-alpha-2 px-2 py-0.5 text-xs font-bold font-mono text-n-brand ring-1 ring-inset ring-n-brand/20"
-                    >
-                      #{{ lead.lead_number }}
-                    </span>
-                    <div
-                      v-else-if="col.id === 'name'"
-                      class="flex items-center gap-2"
-                    >
-                      <Avatar
-                        :name="lead.contact.name || '?'"
-                        :src="lead.contact.avatar_url"
-                        :size="28"
-                        rounded-full
-                      />
-                      <span class="text-sm text-n-slate-12 whitespace-nowrap">
-                        {{ lead.contact.name || '—' }}
-                      </span>
-                    </div>
-                    <span
-                      v-else-if="col.id === 'email'"
-                      class="block text-sm text-n-slate-11 max-w-[180px] truncate"
-                    >
-                      {{ lead.contact.email || '—' }}
-                    </span>
-                    <span
-                      v-else-if="col.id === 'phone'"
-                      class="text-sm text-n-slate-11 whitespace-nowrap"
-                    >
-                      {{ lead.contact.phone_number || '—' }}
-                    </span>
-                    <span
-                      v-else-if="col.id === 'country'"
-                      class="text-sm text-n-slate-11 whitespace-nowrap"
-                    >
-                      {{ lead.contact.country || '—' }}
-                    </span>
-                    <span
-                      v-else-if="col.id === 'affiliate'"
-                      class="text-sm text-n-slate-11 whitespace-nowrap"
-                    >
-                      {{
-                        lead.affiliate_name ||
-                        t('JABVOX_LEADS.TABLE.AFFILIATE_OWN')
-                      }}
-                    </span>
-                    <span
-                      v-else-if="col.id === 'campaign'"
-                      class="text-sm text-n-slate-11 whitespace-nowrap"
-                    >
-                      {{ lead.campaign?.name || '—' }}
-                    </span>
-                    <span
-                      v-else-if="col.id === 'inbox'"
-                      class="text-sm text-n-slate-11 whitespace-nowrap"
-                    >
-                      {{ lead.inbox_name || '—' }}
-                    </span>
-                    <template v-else-if="col.id === 'management_state'">
+                  <td class="px-3 py-2.5 w-8" @click.stop>
+                    <input
+                      type="checkbox"
+                      :checked="isSelected(lead.id)"
+                      class="rounded accent-n-brand cursor-pointer"
+                      @change="toggleSelect(lead.id)"
+                    />
+                  </td>
+                  <!-- 11 configurable data cells matching visibleColumns -->
+                  <td
+                    v-for="col in visibleColumns"
+                    :key="col.uid"
+                    class="px-3 py-2.5"
+                  >
+                    <template v-if="col.kind === 'default'">
                       <span
-                        v-if="lead.last_management_state"
-                        class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-n-alpha-2 text-n-brand whitespace-nowrap"
+                        v-if="col.id === 'lead_number'"
+                        class="inline-flex items-center gap-0.5 rounded-md bg-n-alpha-2 px-2 py-0.5 text-xs font-bold font-mono text-n-brand ring-1 ring-inset ring-n-brand/20"
                       >
-                        {{ lead.last_management_state }}
+                        #{{ lead.lead_number }}
                       </span>
-                      <span v-else class="text-sm text-n-slate-9">—</span>
+                      <div
+                        v-else-if="col.id === 'name'"
+                        class="flex items-center gap-2"
+                      >
+                        <Avatar
+                          :name="lead.contact.name || '?'"
+                          :src="lead.contact.avatar_url"
+                          :size="28"
+                          rounded-full
+                        />
+                        <span class="text-sm text-n-slate-12 whitespace-nowrap">
+                          {{ lead.contact.name || '—' }}
+                        </span>
+                      </div>
+                      <span
+                        v-else-if="col.id === 'email'"
+                        class="block text-sm text-n-slate-11 max-w-[180px] truncate"
+                      >
+                        {{ lead.contact.email || '—' }}
+                      </span>
+                      <span
+                        v-else-if="col.id === 'phone'"
+                        class="text-sm text-n-slate-11 whitespace-nowrap"
+                      >
+                        {{ lead.contact.phone_number || '—' }}
+                      </span>
+                      <span
+                        v-else-if="col.id === 'country'"
+                        class="text-sm text-n-slate-11 whitespace-nowrap"
+                      >
+                        {{ lead.contact.country || '—' }}
+                      </span>
+                      <span
+                        v-else-if="col.id === 'affiliate'"
+                        class="text-sm text-n-slate-11 whitespace-nowrap"
+                      >
+                        {{
+                          lead.affiliate_name ||
+                          t('JABVOX_LEADS.TABLE.AFFILIATE_OWN')
+                        }}
+                      </span>
+                      <span
+                        v-else-if="col.id === 'campaign'"
+                        class="text-sm text-n-slate-11 whitespace-nowrap"
+                      >
+                        {{ lead.campaign?.name || '—' }}
+                      </span>
+                      <span
+                        v-else-if="col.id === 'inbox'"
+                        class="text-sm text-n-slate-11 whitespace-nowrap"
+                      >
+                        {{ lead.inbox_name || '—' }}
+                      </span>
+                      <template v-else-if="col.id === 'management_state'">
+                        <span
+                          v-if="lead.last_management_state"
+                          class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-n-alpha-2 text-n-brand whitespace-nowrap"
+                        >
+                          {{ lead.last_management_state }}
+                        </span>
+                        <span v-else class="text-sm text-n-slate-9">—</span>
+                      </template>
+                      <span
+                        v-else-if="col.id === 'management_date'"
+                        class="text-sm text-n-slate-10 whitespace-nowrap"
+                      >
+                        {{ formatDate(lead.last_management_at) }}
+                      </span>
+                      <template v-else-if="col.id === 'managements_count'">
+                        <button
+                          v-if="(lead.managements_count || 0) > 0"
+                          type="button"
+                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-n-alpha-2 text-n-slate-12 hover:bg-n-alpha-3 whitespace-nowrap"
+                          @click="toggleManagements(lead.id)"
+                        >
+                          <fluent-icon
+                            :icon="
+                              expandedManagements.has(lead.id)
+                                ? 'chevron-down'
+                                : 'chevron-right'
+                            "
+                            size="12"
+                          />
+                          {{
+                            $t('JABVOX_LEADS.TABLE.MANAGEMENTS_N', {
+                              count: lead.managements_count,
+                            })
+                          }}
+                        </button>
+                        <span v-else class="text-sm text-n-slate-9">—</span>
+                      </template>
+                      <span
+                        v-else-if="col.id === 'management_source'"
+                        class="text-sm text-n-slate-11 whitespace-nowrap"
+                      >
+                        {{ managementSourceLabel(lead.last_management_source) }}
+                      </span>
+                      <span
+                        v-else-if="col.id === 'typifications_count'"
+                        class="text-sm text-n-slate-11 whitespace-nowrap"
+                      >
+                        {{ lead.typifications_count || 0 }}
+                      </span>
+                      <span
+                        v-else-if="col.id === 'assignee'"
+                        class="text-sm text-n-slate-11 whitespace-nowrap"
+                      >
+                        {{ lead.assignee_name || '—' }}
+                      </span>
                     </template>
                     <span
-                      v-else-if="col.id === 'management_date'"
-                      class="text-sm text-n-slate-10 whitespace-nowrap"
+                      v-else
+                      class="block text-sm text-n-slate-11 max-w-[200px] truncate"
+                      :title="customCellValue(lead, col.key)"
                     >
-                      {{ formatDate(lead.last_management_at) }}
+                      {{ customCellValue(lead, col.key) }}
                     </span>
-                    <span
-                      v-else-if="col.id === 'assignee'"
-                      class="text-sm text-n-slate-11 whitespace-nowrap"
-                    >
-                      {{ lead.assignee_name || '—' }}
-                    </span>
-                  </template>
-                  <span
-                    v-else
-                    class="block text-sm text-n-slate-11 max-w-[200px] truncate"
-                    :title="customCellValue(lead, col.key)"
-                  >
-                    {{ customCellValue(lead, col.key) }}
-                  </span>
-                </td>
-              </tr>
+                  </td>
+                </tr>
+                <!-- Expanded historic gestiones for this lead (all managements in
+                   the active date range, each with its medium and agent). -->
+                <tr
+                  v-if="expandedManagements.has(lead.id)"
+                  :key="`mgmt-${lead.id}`"
+                  class="bg-n-alpha-1"
+                >
+                  <td :colspan="columnConfig.length + 1" />
+                  <td :colspan="1" class="px-3 py-2">
+                    <div class="flex flex-col gap-1.5">
+                      <div
+                        v-for="(m, i) in lead.managements || []"
+                        :key="i"
+                        class="flex items-center gap-2 text-xs text-n-slate-11 whitespace-nowrap"
+                      >
+                        <span
+                          class="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-n-alpha-2 text-n-brand"
+                        >
+                          {{ m.state }}
+                        </span>
+                        <span class="text-n-slate-10">
+                          {{ managementSourceLabel(m.source) }}
+                        </span>
+                        <span class="text-n-slate-9">·</span>
+                        <span class="text-n-slate-10">
+                          {{ formatDate(m.at) }}
+                        </span>
+                        <template v-if="m.agent_name">
+                          <span class="text-n-slate-9">·</span>
+                          <span class="text-n-slate-10">{{
+                            m.agent_name
+                          }}</span>
+                        </template>
+                      </div>
+                      <span
+                        v-if="!(lead.managements || []).length"
+                        class="text-xs text-n-slate-9"
+                      >
+                        {{ $t('JABVOX_LEADS.TABLE.NO_MANAGEMENTS') }}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>

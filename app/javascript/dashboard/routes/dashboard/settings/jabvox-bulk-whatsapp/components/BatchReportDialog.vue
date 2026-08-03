@@ -15,6 +15,12 @@ const emit = defineEmits(['reused']);
 const { t } = useI18n();
 
 const POLL_MS = 4000;
+// Tras terminar el envío, delivered/read siguen llegando de Meta de forma
+// asíncrona (el cliente lee minutos/horas después). Mientras el diálogo esté
+// abierto seguimos refrescando, más lento, para reflejar leídos en tiempo real
+// hasta este tope desde la apertura.
+const POST_SEND_POLL_MS = 10000;
+const POST_SEND_POLL_LIMIT_MS = 10 * 60 * 1000;
 const RUNNING = ['queued', 'running', 'pending'];
 // Delivered/read indicators (WhatsApp-style ticks), kept as constants so the
 // template stays free of bare literals.
@@ -29,6 +35,7 @@ const recipients = ref([]);
 const statusFilter = ref('');
 const search = ref('');
 let pollTimer = null;
+let openedAt = 0;
 
 const isRunning = computed(() =>
   batch.value ? RUNNING.includes(batch.value.status_jabvox) : false
@@ -42,8 +49,26 @@ const totals = computed(() => ({
   read: batch.value?.delivery_summary?.read || 0,
 }));
 
+const stopPolling = () => {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
+};
+
+// Re-arma el intervalo del poll según el estado actual: rápido mientras el envío
+// corre, lento tras terminar (para captar entregado/leído tardíos de Meta) y
+// detenido al superar el tope. `runner` es el callback que refresca (load).
+const restartPolling = runner => {
+  stopPolling();
+  if (isRunning.value) {
+    pollTimer = setInterval(runner, POLL_MS);
+  } else if (Date.now() - openedAt < POST_SEND_POLL_LIMIT_MS) {
+    pollTimer = setInterval(runner, POST_SEND_POLL_MS);
+  }
+};
+
 const load = async () => {
   if (!batch.value) return;
+  const wasRunning = isRunning.value;
   try {
     const { data } = await bulkWhatsappAPI.getBatch(batch.value.id, {
       status: statusFilter.value || undefined,
@@ -53,18 +78,19 @@ const load = async () => {
     recipients.value = data.recipients || [];
   } catch (e) {
     useAlert(e?.response?.data?.error || t('JABVOX_BULK_WA.HISTORY.ERROR'));
+    return;
+  }
+  // Al terminar el envío (running→terminal) o al superar el tope, re-evaluamos el
+  // ritmo del poll (rápido → lento → detenido) para seguir captando leídos.
+  if (
+    wasRunning !== isRunning.value ||
+    Date.now() - openedAt >= POST_SEND_POLL_LIMIT_MS
+  ) {
+    restartPolling(load);
   }
 };
 
-const stopPolling = () => {
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = null;
-};
-
-const startPolling = () => {
-  stopPolling();
-  if (isRunning.value) pollTimer = setInterval(load, POLL_MS);
-};
+const startPolling = () => restartPolling(load);
 
 const openDialog = async batchRow => {
   open.value = true;
@@ -72,6 +98,7 @@ const openDialog = async batchRow => {
   recipients.value = [];
   statusFilter.value = '';
   search.value = '';
+  openedAt = Date.now();
   loading.value = true;
   await load();
   loading.value = false;

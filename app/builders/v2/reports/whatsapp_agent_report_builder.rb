@@ -33,7 +33,9 @@ class V2::Reports::WhatsappAgentReportBuilder
   def agents
     users = @account.users.select(:id, :name, :email).index_by(&:id)
     rows = users.keys.map { |uid| agent_row(uid, users[uid]) }
-    sort_rows(rows)
+    # Solo agentes con alguna actividad (enviaron, recibieron o tuvieron
+    # conversaciones asignadas): evita una tabla llena de ceros que parece vacía.
+    sort_rows(rows.select { |r| agent_active?(r) })
   end
 
   # Global totals + funnel (sent → delivered → read → responded → resolved) for

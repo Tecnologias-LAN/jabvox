@@ -36,10 +36,12 @@ class Api::V1::Accounts::Jabvox::Analytics::DashboardWidgetsController < Api::V1
 
   # Run this widget's query (visual spec or custom SQL) against its data source, cached.
   def execute
+    config = @widget.config_jabvox.is_a?(Hash) ? @widget.config_jabvox : {}
     # Internal report widgets resolve to a pre-baked Ruby service scoped to the
     # current account — no data source, no raw SQL, no cross-account access.
-    report_key = @widget.config_jabvox.is_a?(Hash) ? @widget.config_jabvox['report_key'] : nil
-    return execute_internal_report(report_key) if report_key.present?
+    return execute_internal_report(config['report_key']) if config['report_key'].present?
+    # Cross-source report widgets run a saved cross report (join across sources).
+    return execute_cross_report(config['cross_report_id']) if config['cross_report_id'].present?
 
     execute_data_source_widget
   rescue Jabvox::Analytics::QueryExecutionService::RejectedError, Jabvox::Analytics::QueryBuilderService::InvalidSpec => e
@@ -47,6 +49,19 @@ class Api::V1::Accounts::Jabvox::Analytics::DashboardWidgetsController < Api::V1
   rescue StandardError => e
     Rails.logger.error "[Analytics::Widget] execute failed: #{e.message}"
     render json: { error: 'No se pudo ejecutar el widget' }, status: :unprocessable_entity
+  end
+
+  # Runs a widget backed by a saved cross-source report. The report is looked up
+  # scoped to the current account (tenant isolation) and executed by the cross
+  # engine, returning the same { columns, rows } shape widgets already render.
+  def execute_cross_report(cross_report_id)
+    report = JabvoxAnalyticsCrossReport.find_by(id: cross_report_id, account_id: Current.account.id)
+    return render json: { error: 'El reporte cruzado no existe' }, status: :not_found unless report
+
+    result = Jabvox::Analytics::CrossReportExecutionService.new(report).call
+    render json: { columns: result.columns, rows: result.rows, row_count: result.row_count }
+  rescue Jabvox::Analytics::CrossReportExecutionService::ExecutionError => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   # Runs a widget backed by an external/SQL data source (visual spec or custom SQL).

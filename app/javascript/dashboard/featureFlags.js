@@ -78,6 +78,7 @@ export const FEATURE_FLAGS = {
   JABVOX_TASKS: 'jabvox_tasks',
   JABVOX_BULK_WHATSAPP: 'jabvox_bulk_whatsapp',
   JABVOX_WHATSAPP_GROUPS: 'jabvox_whatsapp_groups',
+  JABVOX_VOICE_BROADCAST: 'jabvox_voice_broadcast',
   JABVOX_LEAD_IMPORT: 'jabvox_lead_import',
   JABVOX_DATA_EXPORT: 'jabvox_data_export',
   JABVOX_LEAD_DELETE: 'jabvox_lead_delete',

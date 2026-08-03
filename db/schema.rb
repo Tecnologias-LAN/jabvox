@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_30_000003) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_02_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1236,6 +1236,48 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_30_000003) do
     t.index ["account_id", "created_at"], name: "index_jabvox_analytics_audit_logs_on_account_id_and_created_at"
     t.index ["account_id"], name: "index_jabvox_analytics_audit_logs_on_account_id"
     t.index ["user_id"], name: "index_jabvox_analytics_audit_logs_on_user_id"
+  end
+
+  create_table "jabvox_analytics_cross_joins", force: :cascade do |t|
+    t.bigint "cross_report_id", null: false
+    t.bigint "left_source_id", null: false
+    t.string "left_column_jabvox", null: false
+    t.bigint "right_source_id", null: false
+    t.string "right_column_jabvox", null: false
+    t.string "join_type_jabvox", default: "inner", null: false
+    t.integer "position_jabvox", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cross_report_id"], name: "index_jabvox_analytics_cross_joins_on_cross_report_id"
+    t.index ["left_source_id"], name: "index_jabvox_analytics_cross_joins_on_left_source_id"
+    t.index ["right_source_id"], name: "index_jabvox_analytics_cross_joins_on_right_source_id"
+  end
+
+  create_table "jabvox_analytics_cross_reports", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name_jabvox", null: false
+    t.text "description_jabvox"
+    t.integer "row_limit_jabvox", default: 1000, null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_analytics_cross_reports_on_account_id"
+    t.index ["created_by_id"], name: "index_jabvox_analytics_cross_reports_on_created_by_id"
+  end
+
+  create_table "jabvox_analytics_cross_sources", force: :cascade do |t|
+    t.bigint "cross_report_id", null: false
+    t.bigint "data_source_id", null: false
+    t.string "table_jabvox", null: false
+    t.string "alias_jabvox", null: false
+    t.jsonb "columns_jabvox", default: [], null: false
+    t.jsonb "filters_jabvox", default: [], null: false
+    t.integer "position_jabvox", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cross_report_id", "alias_jabvox"], name: "idx_cross_sources_report_alias", unique: true
+    t.index ["cross_report_id"], name: "index_jabvox_analytics_cross_sources_on_cross_report_id"
+    t.index ["data_source_id"], name: "index_jabvox_analytics_cross_sources_on_data_source_id"
   end
 
   create_table "jabvox_analytics_dashboard_widgets", force: :cascade do |t|
@@ -3753,6 +3795,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_30_000003) do
   add_foreign_key "jabvox_ai_chat_user_permissions", "users"
   add_foreign_key "jabvox_analytics_audit_logs", "accounts"
   add_foreign_key "jabvox_analytics_audit_logs", "users"
+  add_foreign_key "jabvox_analytics_cross_joins", "jabvox_analytics_cross_reports", column: "cross_report_id"
+  add_foreign_key "jabvox_analytics_cross_joins", "jabvox_analytics_cross_sources", column: "left_source_id"
+  add_foreign_key "jabvox_analytics_cross_joins", "jabvox_analytics_cross_sources", column: "right_source_id"
+  add_foreign_key "jabvox_analytics_cross_reports", "accounts"
+  add_foreign_key "jabvox_analytics_cross_reports", "users", column: "created_by_id"
+  add_foreign_key "jabvox_analytics_cross_sources", "jabvox_analytics_cross_reports", column: "cross_report_id"
+  add_foreign_key "jabvox_analytics_cross_sources", "jabvox_analytics_data_sources", column: "data_source_id"
   add_foreign_key "jabvox_analytics_dashboard_widgets", "accounts"
   add_foreign_key "jabvox_analytics_dashboard_widgets", "jabvox_analytics_dashboards", column: "dashboard_id"
   add_foreign_key "jabvox_analytics_dashboard_widgets", "jabvox_analytics_data_sources", column: "data_source_id"

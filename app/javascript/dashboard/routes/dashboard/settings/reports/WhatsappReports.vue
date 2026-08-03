@@ -11,16 +11,23 @@ const { t } = useI18n();
 const summary = ref(null);
 const agents = ref([]);
 const labelDurations = ref([]);
+const templates = ref([]);
+const selectedTemplate = ref('');
 const loading = ref(false);
 // Filtro de fechas (epoch segundos) + horario laboral, igual que Informes core.
 const range = ref({ from: null, to: null, businessHours: false });
+
+const queryParams = () => ({
+  ...range.value,
+  templateName: selectedTemplate.value || undefined,
+});
 
 const fetchAll = async () => {
   loading.value = true;
   try {
     const [s, a, l] = await Promise.all([
-      ReportsAPI.getWhatsappSummary(range.value),
-      ReportsAPI.getWhatsappAgents(range.value),
+      ReportsAPI.getWhatsappSummary(queryParams()),
+      ReportsAPI.getWhatsappAgents(queryParams()),
       ReportsAPI.getWhatsappLabelDurations(range.value),
     ]);
     summary.value = s.data;
@@ -31,10 +38,21 @@ const fetchAll = async () => {
   }
 };
 
+const loadTemplates = async () => {
+  try {
+    const { data } = await ReportsAPI.getWhatsappTemplates();
+    templates.value = Array.isArray(data) ? data : [];
+  } catch {
+    templates.value = [];
+  }
+};
+
 const onFilterChange = ({ from, to, businessHours }) => {
   range.value = { from, to, businessHours };
   fetchAll();
 };
+
+const onTemplateChange = () => fetchAll();
 
 // ── Formatters ──────────────────────────────────────────────────────────────
 const fmtInt = v => (v == null ? '—' : Number(v).toLocaleString());
@@ -119,7 +137,10 @@ const typeRows = computed(() => {
   }));
 });
 
-onMounted(fetchAll);
+onMounted(() => {
+  loadTemplates();
+  fetchAll();
+});
 </script>
 
 <template>
@@ -127,6 +148,25 @@ onMounted(fetchAll);
 
   <div class="flex flex-col gap-6">
     <OverviewReportFilters @filter-change="onFilterChange" />
+
+    <!-- Filtro por plantilla de WhatsApp (lista desplegable) -->
+    <div v-if="templates.length" class="flex items-center gap-2">
+      <label class="text-sm text-n-slate-11">
+        {{ t('WHATSAPP_REPORTS.FILTERS.TEMPLATE') }}
+      </label>
+      <select
+        v-model="selectedTemplate"
+        class="text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-1.5 text-n-slate-12"
+        @change="onTemplateChange"
+      >
+        <option value="">
+          {{ t('WHATSAPP_REPORTS.FILTERS.ALL_TEMPLATES') }}
+        </option>
+        <option v-for="name in templates" :key="name" :value="name">
+          {{ name }}
+        </option>
+      </select>
+    </div>
 
     <!-- Resumen general -->
     <section>
@@ -209,6 +249,9 @@ onMounted(fetchAll);
                 {{ t('WHATSAPP_REPORTS.AGENTS.FAILED') }}
               </th>
               <th class="text-right px-3 py-2 font-medium">
+                {{ t('WHATSAPP_REPORTS.AGENTS.DELIVERY_RATE') }}
+              </th>
+              <th class="text-right px-3 py-2 font-medium">
                 {{ t('WHATSAPP_REPORTS.AGENTS.READ_RATE') }}
               </th>
               <th class="text-right px-3 py-2 font-medium">
@@ -234,6 +277,9 @@ onMounted(fetchAll);
               <td class="px-3 py-1.5 text-right">{{ fmtInt(a.delivered) }}</td>
               <td class="px-3 py-1.5 text-right">{{ fmtInt(a.read) }}</td>
               <td class="px-3 py-1.5 text-right">{{ fmtInt(a.failed) }}</td>
+              <td class="px-3 py-1.5 text-right">
+                {{ fmtPct(a.delivery_rate) }}
+              </td>
               <td class="px-3 py-1.5 text-right">{{ fmtPct(a.read_rate) }}</td>
               <td class="px-3 py-1.5 text-right">
                 {{ median(a.time_to_deliver) }}

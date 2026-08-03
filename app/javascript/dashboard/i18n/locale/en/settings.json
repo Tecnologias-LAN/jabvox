@@ -422,6 +422,8 @@
     "JABVOX_CDR": "CDR Settings",
     "JABVOX_WHATSAPP_TEMPLATES": "WA Templates",
     "JABVOX_BULK_WHATSAPP": "Bulk WhatsApp",
+    "JABVOX_WHATSAPP_GROUPS": "WhatsApp Groups",
+    "JABVOX_VOICE_BROADCAST": "Voice Broadcast",
     "JABVOX_AUDIO_ANALYSIS": "Audio Analysis",
     "JABVOX_LEAD_IMPORT": "Import Leads",
     "JABVOX_DATA_EXPORT": "Export Data",

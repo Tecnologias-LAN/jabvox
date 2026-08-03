@@ -98,15 +98,35 @@ class ReportsAPI extends ApiClient {
   }
 
   // ── Reportes de WhatsApp por agente (Jabvox) ──────────────────────────────
-  getWhatsappSummary({ from: since, to: until, businessHours } = {}) {
+  getWhatsappSummary({
+    from: since,
+    to: until,
+    businessHours,
+    templateName,
+  } = {}) {
     return axios.get(`${this.url}/whatsapp/summary`, {
-      params: { from: since, to: until, business_hours: businessHours },
+      params: {
+        from: since,
+        to: until,
+        business_hours: businessHours,
+        template_name: templateName || undefined,
+      },
     });
   }
 
-  getWhatsappAgents({ from: since, to: until, businessHours } = {}) {
+  getWhatsappAgents({
+    from: since,
+    to: until,
+    businessHours,
+    templateName,
+  } = {}) {
     return axios.get(`${this.url}/whatsapp/agents`, {
-      params: { from: since, to: until, business_hours: businessHours },
+      params: {
+        from: since,
+        to: until,
+        business_hours: businessHours,
+        template_name: templateName || undefined,
+      },
     });
   }
 
@@ -114,6 +134,10 @@ class ReportsAPI extends ApiClient {
     return axios.get(`${this.url}/whatsapp/label_durations`, {
       params: { from: since, to: until },
     });
+  }
+
+  getWhatsappTemplates() {
+    return axios.get(`${this.url}/whatsapp/templates`);
   }
 
   getWhatsappConversationTimeline(conversationId) {

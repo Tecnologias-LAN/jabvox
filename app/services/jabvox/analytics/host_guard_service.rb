@@ -31,7 +31,7 @@ class Jabvox::Analytics::HostGuardService
     '100.64.0.0/10'                    # CGNAT
   ].map { |cidr| IPAddr.new(cidr) }.freeze
 
-  DEFAULT_ALLOWED_PORTS = [5432, 3306, 5433, 3307].freeze
+  DEFAULT_ALLOWED_PORTS = [5432, 3306, 5433, 3307, 1433].freeze
 
   # With the explicit private-network override (an admin-only, per-connection
   # opt-in) any unprivileged port is accepted — real customer DBs often listen

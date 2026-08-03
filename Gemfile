@@ -209,10 +209,13 @@ gem 'ed25519', '>= 1.2'
 gem 'bcrypt_pbkdf', '>= 1.0'
 
 # Jabvox Analytics & Dashboards (BI) module: connect to external customer databases
-# (PostgreSQL via pg, MySQL/MariaDB via mysql2, SQLite via sqlite3) read-only, validate
-# custom SQL is read-only with the real Postgres parser (pg_query), and render exports.
+# (PostgreSQL via pg, MySQL/MariaDB via mysql2, SQLite via sqlite3, SQL Server via
+# tiny_tds) read-only, validate custom SQL is read-only with the real Postgres parser
+# (pg_query), and render exports. tiny_tds needs FreeTDS installed on the host
+# (apt-get install freetds-dev / brew install freetds).
 gem 'sqlite3', '~> 1.7'
 gem 'pg_query', '~> 6.1'
+gem 'tiny_tds', '~> 3.1'
 gem 'prawn', '~> 2.5'
 gem 'prawn-table', '~> 0.2'
 

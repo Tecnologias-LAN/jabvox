@@ -4,6 +4,25 @@
 # Conversation (see Jabvox::ConversationLabelLogging), so it captures changes made
 # by agents AND automations. Only counts from deploy onward — no historical
 # backfill.
+# == Schema Information
+#
+# Table name: jabvox_conversation_label_logs
+#
+#  id                :bigint           not null, primary key
+#  applied_at_jabvox :datetime         not null
+#  label_jabvox      :string           not null
+#  removed_at_jabvox :datetime
+#  created_at        :datetime         not null
+#  updated_at        :datetime         not null
+#  account_id        :integer          not null
+#  conversation_id   :integer          not null
+#
+# Indexes
+#
+#  idx_conv_label_logs_account_label  (account_id,label_jabvox)
+#  idx_conv_label_logs_conversation   (conversation_id)
+#  idx_conv_label_logs_open_unique    (conversation_id,label_jabvox) UNIQUE WHERE (removed_at_jabvox IS NULL)
+#
 class JabvoxConversationLabelLog < ApplicationRecord
   self.table_name = 'jabvox_conversation_label_logs'
 

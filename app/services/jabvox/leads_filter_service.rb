@@ -104,23 +104,47 @@ class Jabvox::LeadsFilterService
   end
   # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
-  # rubocop:disable Metrics/AbcSize
+  # Filters leads to those with at least one gestión matching the state and/or date
+  # range. A gestión lives either as a private message (reached through the
+  # conversation's contact) OR as a contact note (leads without a conversation), so
+  # we union both sources — otherwise leads managed only from the lead detail (notes)
+  # would silently drop out of the filter.
   def apply_management_filters(leads)
     return leads unless @filters[:management_state].present? || @filters[:date_from].present? || @filters[:date_to].present?
 
-    msg_q = @account.messages.where(private: true)
-                    .where("(content_attributes #>> '{}')::json->>'jabvox_management_state_name' IS NOT NULL")
-                    .where("(content_attributes #>> '{}')::json->>'jabvox_management_state_name' <> ''")
-    if @filters[:management_state].present?
-      msg_q = msg_q.where("(content_attributes #>> '{}')::json->>'jabvox_management_state_name' = ?", @filters[:management_state])
-    end
     from = safe_date(@filters[:date_from])
     to = safe_date(@filters[:date_to])
-    msg_q = msg_q.where('messages.created_at >= ?', from.beginning_of_day) if from
-    msg_q = msg_q.where('messages.created_at <= ?', to.end_of_day) if to
-    leads.where(contact_id: @account.conversations.where(id: msg_q.select(:conversation_id)).select(:contact_id))
+    contact_ids = management_contact_ids_from_messages(from, to) | management_contact_ids_from_notes(from, to)
+    leads.where(contact_id: contact_ids)
   end
-  # rubocop:enable Metrics/AbcSize
+
+  # Contacts with a matching gestión stored as a private message.
+  def management_contact_ids_from_messages(from, to)
+    q = with_state_and_range(@account.messages.where(private: true), 'messages', from, to)
+    @account.conversations.where(id: q.select(:conversation_id)).reorder(nil).distinct.pluck(:contact_id).compact
+  end
+
+  # Contacts with a matching gestión stored as a contact note (no conversation).
+  def management_contact_ids_from_notes(from, to)
+    return [] unless Note.column_names.include?('contact_id')
+
+    with_state_and_range(@account.notes, 'notes', from, to).reorder(nil).distinct.pluck(:contact_id).compact
+  end
+
+  # Shared predicate: rows carrying a management state name (optionally a specific
+  # state) within the optional date range, for either messages or notes.
+  def with_state_and_range(scope, table, from, to)
+    # A gestión is identified by carrying a management STATE ID (not the name) —
+    # that's what tells it apart from a plain private note (text only, no state id).
+    id_sql = "(#{table}.content_attributes #>> '{}')::json->>'jabvox_management_state_id'"
+    name_sql = "(#{table}.content_attributes #>> '{}')::json->>'jabvox_management_state_name'"
+    scope = scope.where("#{id_sql} IS NOT NULL AND #{id_sql} <> ''")
+    # A specific state is still matched by the name the user picked in the dropdown.
+    scope = scope.where("#{name_sql} = ?", @filters[:management_state]) if @filters[:management_state].present?
+    scope = scope.where("#{table}.created_at >= ?", from.beginning_of_day) if from
+    scope = scope.where("#{table}.created_at <= ?", to.end_of_day) if to
+    scope
+  end
 
   # A malformed date filter must narrow nothing, not crash the request.
   def safe_date(value)

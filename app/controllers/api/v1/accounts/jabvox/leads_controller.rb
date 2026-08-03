@@ -28,6 +28,7 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     @total = filter_scope.count
     @leads = filter_scope.includes(:contact, :jabvox_campaign, :assignee, :jabvox_affiliate).page(params[:page] || 1).per(per_page)
     @conv_data = load_conversation_data(@leads.map(&:contact_id))
+    load_management_history(@leads)
     # Filter options are static per session (management states, campaigns, inboxes,
     # teams, assignees, affiliates) — 6 extra queries. Only build them on the first
     # page (or when explicitly requested) so paginating/searching stays fast; the
@@ -340,6 +341,45 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     ).scope
   end
 
+  # Historic gestiones for the current page: ALL managements per lead within the
+  # active date range (not just the latest), the per-lead management count, the
+  # per-lead call-typification count, and the global total of managements in the
+  # filter. Computed with grouped, batched queries (no N+1). Exposed to the view
+  # via @managements_by_contact / @typification_counts / @management_totals.
+  def load_management_history(leads)
+    contact_ids = leads.filter_map(&:contact_id)
+    from = safe_date_param(params[:date_from])
+    to = safe_date_param(params[:date_to])
+
+    mgmt = Jabvox::LeadManagementsService.new(Current.account, contact_ids, date_from: from, date_to: to)
+    @managements_by_contact = mgmt.by_contact
+    @management_counts_by_contact = mgmt.counts_by_contact
+    @typification_counts = Jabvox::LeadTypificationCountsService.new(Current.account, leads).by_lead
+
+    # Global total of managements across the WHOLE filter (all matching leads, not
+    # just this page), shown as the "X gestiones en total" summary.
+    @management_total = management_total_for_filter(from, to)
+  end
+
+  # Total managements in the active filter, across every matching lead (capped by
+  # the matching-ids limit so it never scans an unbounded set).
+  def management_total_for_filter(from, to)
+    all_contact_ids = build_filter_scope.where.not('jabvox_leads.contact_id' => nil)
+                                        .limit(MATCHING_IDS_LIMIT).pluck('jabvox_leads.contact_id')
+    return 0 if all_contact_ids.empty?
+
+    Jabvox::LeadManagementsService.new(Current.account, all_contact_ids, date_from: from, date_to: to).total
+  end
+
+  # Parse a yyyy-mm-dd param into a Date, or nil (never raises on bad input).
+  def safe_date_param(value)
+    return nil if value.blank?
+
+    Date.parse(value.to_s)
+  rescue ArgumentError, TypeError
+    nil
+  end
+
   # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
   def load_conversation_data(contact_ids)
     return {} if contact_ids.empty?
@@ -365,7 +405,8 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
         inbox_id: inbox_id,
         inbox_name: inbox_id&.positive? ? inboxes[inbox_id]&.name : nil,
         last_management_state: mgmt&.fetch('last_management_state', nil),
-        last_management_at: mgmt&.fetch('last_management_at', nil)
+        last_management_at: mgmt&.fetch('last_management_at', nil),
+        last_management_source: mgmt&.fetch('last_management_source', nil)
       }
     end
   end
@@ -389,14 +430,15 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     sql = <<~SQL.squish
       SELECT DISTINCT ON (c.contact_id) c.contact_id,
         (m.content_attributes #>> '{}')::json->>'jabvox_management_state_name' AS last_management_state,
+        (m.content_attributes #>> '{}')::json->>'jabvox_call_source' AS last_management_source,
         m.created_at AS last_management_at
       FROM conversations c
       JOIN messages m ON m.conversation_id = c.id
       WHERE c.account_id = #{account_id}
         AND c.contact_id IN (#{contact_ids.join(', ')})
         AND m.private = true
-        AND (m.content_attributes #>> '{}')::json->>'jabvox_management_state_name' IS NOT NULL
-        AND (m.content_attributes #>> '{}')::json->>'jabvox_management_state_name' <> ''
+        AND (m.content_attributes #>> '{}')::json->>'jabvox_management_state_id' IS NOT NULL
+        AND (m.content_attributes #>> '{}')::json->>'jabvox_management_state_id' <> ''
       ORDER BY c.contact_id, m.created_at DESC
     SQL
     ApplicationRecord.connection.execute(sql).index_by { |r| r['contact_id'].to_i }

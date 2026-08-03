@@ -17,7 +17,16 @@ const emit = defineEmits(['update:modelValue']);
 
 const { t } = useI18n();
 
-const ENGINES = ['postgresql', 'mysql', 'mariadb', 'sqlite'];
+const ENGINES = ['postgresql', 'mysql', 'mariadb', 'sqlite', 'sqlserver'];
+// Friendly labels for the engine dropdown (value stays the technical key).
+const ENGINE_LABELS = {
+  postgresql: 'PostgreSQL',
+  mysql: 'MySQL',
+  mariadb: 'MariaDB',
+  sqlite: 'SQLite',
+  sqlserver: 'SQL Server',
+};
+const engineLabel = e => ENGINE_LABELS[e] || e;
 
 const update = (key, value) => {
   emit('update:modelValue', { ...props.modelValue, [key]: value });
@@ -82,7 +91,7 @@ defineExpose({ validate });
         @change="update('engineJabvox', $event.target.value)"
       >
         <option v-for="engine in ENGINES" :key="engine" :value="engine">
-          {{ engine }}
+          {{ engineLabel(engine) }}
         </option>
       </select>
     </div>

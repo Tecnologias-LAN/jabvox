@@ -10,7 +10,7 @@ const state = {
     teams: [],
     assignees: [],
   },
-  meta: { total: 0, currentPage: 1, totalPages: 1 },
+  meta: { total: 0, currentPage: 1, totalPages: 1, totalManagements: 0 },
   uiFlags: { isFetching: false, isFetchingOne: false },
 };
 
@@ -43,6 +43,8 @@ const mutations = {
       total: m.total ?? 0,
       currentPage: m.current_page ?? m.currentPage ?? 1,
       totalPages: m.total_pages ?? m.totalPages ?? 1,
+      // Global count of gestiones across the whole filter (for the summary banner).
+      totalManagements: m.total_managements ?? m.totalManagements ?? 0,
     };
   },
 };

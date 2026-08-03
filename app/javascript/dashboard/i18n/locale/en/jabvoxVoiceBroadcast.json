@@ -1,0 +1,82 @@
+{
+  "JABVOX_VOICE_BROADCAST": {
+    "TITLE": "Voice Broadcast",
+    "SUBTITLE": "Outbound voice campaigns: call the contacts of a dialer campaign and play an audio message.",
+    "NEW": "New voice campaign",
+    "OPEN": "Open",
+    "EMPTY": "No voice campaigns yet. Create one to get started.",
+    "LOAD_ERROR": "Could not load voice campaigns.",
+    "CONTROL_ERROR": "Could not perform the action.",
+    "AUDIO_ERROR": "Could not upload the audio.",
+    "AUDIO_READY": "Ready",
+    "AUDIO_MISSING": "Missing",
+    "AUDIO_DEPLOYED": "Audio uploaded and deployed to the PBX.",
+    "AUDIO_UPLOADED_NOT_DEPLOYED": "Audio uploaded, but it could not be deployed to the PBX.",
+    "STATUS": {
+      "DRAFT": "Draft",
+      "RUNNING": "Running",
+      "PAUSED": "Paused",
+      "COMPLETED": "Completed",
+      "STOPPED": "Stopped"
+    },
+    "COLS": {
+      "NAME": "Name",
+      "STATUS": "Status",
+      "TOTAL": "Total",
+      "DIALED": "Dialed",
+      "AUDIO": "Audio",
+      "ACTIONS": "Actions"
+    },
+    "COUNTS": {
+      "TOTAL": "Total",
+      "DIALED": "Dialed",
+      "ANSWERED_HUMAN": "Answered (human)",
+      "ANSWERED_MACHINE": "Answered (machine)",
+      "PLAYED_COMPLETE": "Played fully",
+      "FAILED": "Failed"
+    },
+    "FORM": {
+      "NEW_TITLE": "New voice campaign",
+      "EDIT_TITLE": "Edit voice campaign",
+      "NAME": "Name",
+      "CAMPAIGN": "Dialer campaign (contacts)",
+      "CAMPAIGN_PLACEHOLDER": "Select a campaign",
+      "CALLER_ID": "Caller ID",
+      "MAX_CONCURRENT": "Concurrent calls",
+      "CPS": "Calls per second",
+      "MAX_RETRIES": "Retries",
+      "RETRY_INTERVAL": "Retry interval (s)",
+      "HOURS_START": "Start time",
+      "HOURS_END": "End time",
+      "HOURS_INVALID": "Invalid time format (use HH:MM).",
+      "AMD": "Answering-machine detection (AMD)",
+      "DTMF": "Allow opt-out by key press (DTMF)",
+      "DTMF_DIGIT": "Opt-out key",
+      "SAVE": "Save",
+      "CANCEL": "Cancel",
+      "SAVED": "Voice campaign saved.",
+      "ERROR": "Could not save the voice campaign."
+    },
+    "DETAIL": {
+      "STATUS_LINE": "Status: {status}",
+      "PBX_OK": "PBX connected",
+      "PBX_DOWN": "PBX unreachable",
+      "AUDIO_TITLE": "Audio",
+      "AUDIO_NONE": "No audio. Upload a file before starting.",
+      "UPLOAD_AUDIO": "Upload audio",
+      "START": "Start",
+      "PAUSE": "Pause",
+      "RESUME": "Resume",
+      "STOP": "Stop",
+      "NEED_AUDIO": "Upload and deploy the audio to be able to start.",
+      "REPORT_TITLE": "Report",
+      "EXPORT_CSV": "Export CSV"
+    },
+    "REPORT": {
+      "ANSWER_RATE": "Answer rate",
+      "PLAYED_RATE": "Played fully (%)",
+      "ANSWERED_HUMAN": "Answered (human)",
+      "ANSWERED_MACHINE": "Answered (machine)"
+    }
+  }
+}

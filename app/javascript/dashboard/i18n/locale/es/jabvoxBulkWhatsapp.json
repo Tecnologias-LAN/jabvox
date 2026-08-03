@@ -92,6 +92,7 @@
       "INBOX_PLACEHOLDER": "Selecciona la bandeja de envío",
       "SENDER": "Enviar como usuario",
       "SENDER_PLACEHOLDER": "Selecciona un usuario",
+      "SENDERS_ERROR": "No se pudieron cargar los usuarios de la cuenta.",
       "SENDER_HINT": "Se crea un token temporal (válido 30 min) para este usuario para que n8n envíe en su nombre. Expira automáticamente.",
       "REPORT_EMAIL": "Correo del reporte",
       "REPORT_EMAIL_PLACEHOLDER": "reportes{'@'}tu-empresa.com",

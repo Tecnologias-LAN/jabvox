@@ -6,6 +6,7 @@ import analyticsFoldersAPI from './analytics/folders';
 import analyticsDashboardsAPI from './analytics/dashboards';
 import analyticsExportsAPI from './analytics/exports';
 import analyticsPermissionsAPI from './analytics/permissions';
+import analyticsCrossReportsAPI from './analytics/crossReports';
 
 export {
   analyticsDataSourcesAPI,
@@ -13,4 +14,5 @@ export {
   analyticsDashboardsAPI,
   analyticsExportsAPI,
   analyticsPermissionsAPI,
+  analyticsCrossReportsAPI,
 };

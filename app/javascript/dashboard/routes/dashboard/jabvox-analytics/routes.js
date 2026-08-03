@@ -11,6 +11,8 @@ const SqlEditorPage = () => import('./sql/SqlEditorPage.vue');
 const DashboardsIndex = () => import('./dashboards/DashboardsIndex.vue');
 const DashboardBuilder = () => import('./dashboards/DashboardBuilder.vue');
 const PermissionsIndex = () => import('./permissions/PermissionsIndex.vue');
+const CrossReportsIndex = () => import('./cross-reports/CrossReportsIndex.vue');
+const CrossReportEditor = () => import('./cross-reports/CrossReportEditor.vue');
 
 const meta = {
   featureFlag: FEATURE_FLAGS.JABVOX_ANALYTICS,
@@ -78,6 +80,24 @@ export const routes = [
         name: 'jabvox_analytics_dashboard_show',
         meta,
         component: DashboardBuilder,
+      },
+      {
+        path: 'cross-reports',
+        name: 'jabvox_analytics_cross_reports',
+        meta,
+        component: CrossReportsIndex,
+      },
+      {
+        path: 'cross-reports/new',
+        name: 'jabvox_analytics_cross_report_new',
+        meta,
+        component: CrossReportEditor,
+      },
+      {
+        path: 'cross-reports/:crossReportId',
+        name: 'jabvox_analytics_cross_report_edit',
+        meta,
+        component: CrossReportEditor,
       },
       {
         path: 'permissions',

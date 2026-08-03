@@ -3,7 +3,9 @@
 # Jabvox::LeadsFilterService. Split out of the builder to keep it focused.
 module V2::Reports::WhatsappReport::Scopes
   def conversations
-    @conversations ||= filter_by_business(filter_by_batch(filter_by_labels(base_conversations)))
+    @conversations ||= filter_by_template(
+      filter_by_business(filter_by_batch(filter_by_labels(base_conversations)))
+    )
   end
 
   def base_conversations
@@ -16,8 +18,20 @@ module V2::Reports::WhatsappReport::Scopes
     scope
   end
 
+  # Every inbox that carries WhatsApp traffic, across providers:
+  #   - Channel::Whatsapp (Cloud API / 360dialog), and
+  #   - Channel::TwilioSms configured with medium=whatsapp.
+  # An explicit params[:inbox_id] narrows to that inbox (still validated as WA).
   def whatsapp_inbox_ids
-    @whatsapp_inbox_ids ||= account.inboxes.where(channel_type: 'Channel::Whatsapp').pluck(:id)
+    @whatsapp_inbox_ids ||= begin
+      ids = account.inboxes.where(channel_type: 'Channel::Whatsapp').pluck(:id)
+      wa_medium = Channel::TwilioSms.defined_enums['medium']['whatsapp']
+      twilio_wa = account.inboxes.where(channel_type: 'Channel::TwilioSms')
+                         .joins('INNER JOIN channel_twilio_sms ON channel_twilio_sms.id = inboxes.channel_id')
+                         .where(channel_twilio_sms: { medium: wa_medium })
+                         .pluck(:id)
+      ids + twilio_wa
+    end
   end
 
   def conversation_ids
@@ -36,6 +50,12 @@ module V2::Reports::WhatsappReport::Scopes
 
   def agent_outgoing(uid)
     outgoing_messages.where(sender_type: 'User', sender_id: uid)
+  end
+
+  # Un agente entra en la tabla si envió, recibió o tuvo conversaciones asignadas.
+  def agent_active?(row)
+    row[:sent].to_i.positive? || row[:received].to_i.positive? ||
+      row[:conversations_assigned].to_i.positive?
   end
 
   def incoming_for_convs(conv_ids)
@@ -63,6 +83,27 @@ module V2::Reports::WhatsappReport::Scopes
     return scope if params[:labels].blank?
 
     scope.tagged_with(Array(params[:labels]), any: true)
+  end
+
+  # Filtra por plantilla de WhatsApp: solo conversaciones cuyos destinatarios de
+  # envíos masivos usaron esa plantilla. La fuente confiable del nombre de
+  # plantilla son los recipients del masivo (template_name_jabvox).
+  def filter_by_template(scope)
+    return scope if params[:template_name].blank?
+
+    conv_ids = JabvoxBulkWhatsappRecipient
+               .where(account_id: account.id, template_name_jabvox: params[:template_name])
+               .where.not(conversation_id: nil).distinct.pluck(:conversation_id)
+    conv_ids.empty? ? scope.none : scope.where(id: conv_ids)
+  end
+
+  # Nombres de plantilla distintos usados en envíos masivos (para el desplegable
+  # del filtro del reporte). Ordenados alfabéticamente, sin nulos/vacíos.
+  def template_names
+    JabvoxBulkWhatsappRecipient.where(account_id: account.id)
+                               .where.not(template_name_jabvox: [nil, ''])
+                               .distinct.order(:template_name_jabvox)
+                               .pluck(:template_name_jabvox)
   end
 
   # Ties the report to a bulk-send lot: only conversations whose recipients belong

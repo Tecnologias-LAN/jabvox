@@ -92,6 +92,7 @@
       "INBOX_PLACEHOLDER": "Select the inbox to send from",
       "SENDER": "Send as user",
       "SENDER_PLACEHOLDER": "Select a user",
+      "SENDERS_ERROR": "Could not load the account users.",
       "SENDER_HINT": "A temporary token (valid 30 min) is created for this user so n8n can send on their behalf. It expires automatically.",
       "REPORT_EMAIL": "Report email",
       "REPORT_EMAIL_PLACEHOLDER": "reports{'@'}your-company.com",

@@ -67,6 +67,8 @@ class CustomRole < ApplicationRecord
     jabvox_lead_import_manage
     jabvox_data_export_manage
     jabvox_bulk_whatsapp_send
+    jabvox_whatsapp_groups_manage
+    jabvox_voice_broadcast_manage
     jabvox_custom_data_manage
     jabvox_dialer_use
     jabvox_dialer_manage
@@ -113,6 +115,8 @@ class CustomRole < ApplicationRecord
     %w[jabvox_lead_import_manage] => 'jabvox_lead_import',
     %w[jabvox_data_export_manage] => 'jabvox_data_export',
     %w[jabvox_bulk_whatsapp_send] => 'jabvox_bulk_whatsapp',
+    %w[jabvox_whatsapp_groups_manage] => 'jabvox_whatsapp_groups',
+    %w[jabvox_voice_broadcast_manage] => 'jabvox_voice_broadcast',
     %w[jabvox_custom_data_manage] => 'jabvox_customization',
     %w[jabvox_dialer_use jabvox_dialer_manage] => 'jabvox_dialer',
     %w[jabvox_click_to_call_use] => 'jabvox_click_to_call',

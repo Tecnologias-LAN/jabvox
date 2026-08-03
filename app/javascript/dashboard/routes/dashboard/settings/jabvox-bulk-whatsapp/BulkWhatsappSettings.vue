@@ -41,6 +41,14 @@ const inboxes = computed(() =>
 // vuelve a filtrar por rol aquí para no ocultar agentes/roles autorizados.
 const availableSenders = computed(() => senders.value || []);
 
+// Etiqueta legible del emisor tolerante a datos faltantes: evita mostrar "()".
+const senderLabel = u => {
+  const name = (u?.name || '').trim();
+  const email = (u?.email || '').trim();
+  if (name && email) return `${name} (${email})`;
+  return name || email || `#${u?.id}`;
+};
+
 // ── Config (webhook only; the report email is chosen per send) ───────────────
 const webhookUrl = ref('');
 const savingConfig = ref(false);
@@ -330,16 +338,21 @@ const saveConfig = async () => {
 const loadSenders = async () => {
   try {
     const { data } = await bulkWhatsappAPI.getSenders();
+    const list = Array.isArray(data) ? data : [];
     // Non-admins can only send as themselves (enforced by the backend too),
     // so the picker offers just their own user, preselected.
     if (isAdmin.value) {
-      senders.value = data;
+      senders.value = list;
     } else {
-      senders.value = data.filter(u => u.id === currentUserId.value);
+      senders.value = list.filter(u => u.id === currentUserId.value);
       selectedSenderId.value = currentUserId.value;
     }
-  } catch {
-    // non-fatal for the screen
+  } catch (e) {
+    // Surface the failure instead of leaving an empty "()" picker.
+    senders.value = [];
+    useAlert(
+      e?.response?.data?.error || t('JABVOX_BULK_WA.SEND.SENDERS_ERROR')
+    );
   }
 };
 
@@ -506,7 +519,7 @@ onMounted(() => {
                   {{ t('JABVOX_BULK_WA.SEND.SENDER_PLACEHOLDER') }}
                 </option>
                 <option v-for="u in availableSenders" :key="u.id" :value="u.id">
-                  {{ u.name }} ({{ u.email }})
+                  {{ senderLabel(u) }}
                 </option>
               </select>
               <span class="text-[11px] text-n-slate-9">
