@@ -21,6 +21,16 @@
       "TO": "Hasta",
       "EMPTY": "No hay envíos en este rango.",
       "ERROR": "No se pudo cargar el reporte.",
+      "HINTS": {
+        "TOTAL": "Total de destinatarios de los envíos en el periodo.",
+        "SENT": "Mensajes que se enviaron con éxito.",
+        "DELIVERED": "Mensajes que llegaron al teléfono del cliente.",
+        "READ": "Mensajes que el cliente abrió.",
+        "FAILED": "Mensajes que no se pudieron entregar por algún error.",
+        "PENDING": "Mensajes que aún no se han procesado.",
+        "DELIVERY_RATE": "Porcentaje de mensajes enviados que se entregaron. Entregados ÷ Enviados.",
+        "READ_RATE": "Porcentaje de mensajes entregados que el cliente leyó. Leídos ÷ Entregados."
+      },
       "GROUP": {
         "BATCH": "Por envío",
         "DAY": "Por día",

@@ -21,6 +21,16 @@
       "TO": "To",
       "EMPTY": "No sends in this range.",
       "ERROR": "Could not load the report.",
+      "HINTS": {
+        "TOTAL": "Total recipients across sends in the period.",
+        "SENT": "Messages sent successfully.",
+        "DELIVERED": "Messages that reached the customer's phone.",
+        "READ": "Messages the customer opened.",
+        "FAILED": "Messages that could not be delivered due to an error.",
+        "PENDING": "Messages not yet processed.",
+        "DELIVERY_RATE": "Percentage of sent messages that were delivered. Delivered ÷ Sent.",
+        "READ_RATE": "Percentage of delivered messages the customer read. Read ÷ Delivered."
+      },
       "GROUP": {
         "BATCH": "By send",
         "DAY": "By day",

@@ -85,26 +85,8 @@ module V2::Reports::WhatsappReport::Scopes
     scope.tagged_with(Array(params[:labels]), any: true)
   end
 
-  # Filtra por plantilla de WhatsApp: solo conversaciones cuyos destinatarios de
-  # envíos masivos usaron esa plantilla. La fuente confiable del nombre de
-  # plantilla son los recipients del masivo (template_name_jabvox).
-  def filter_by_template(scope)
-    return scope if params[:template_name].blank?
-
-    conv_ids = JabvoxBulkWhatsappRecipient
-               .where(account_id: account.id, template_name_jabvox: params[:template_name])
-               .where.not(conversation_id: nil).distinct.pluck(:conversation_id)
-    conv_ids.empty? ? scope.none : scope.where(id: conv_ids)
-  end
-
-  # Nombres de plantilla distintos usados en envíos masivos (para el desplegable
-  # del filtro del reporte). Ordenados alfabéticamente, sin nulos/vacíos.
-  def template_names
-    JabvoxBulkWhatsappRecipient.where(account_id: account.id)
-                               .where.not(template_name_jabvox: [nil, ''])
-                               .distinct.order(:template_name_jabvox)
-                               .pluck(:template_name_jabvox)
-  end
+  # filter_by_template / template_names viven en TemplateFilter (incluido por el
+  # builder) para mantener este módulo enfocado.
 
   # Ties the report to a bulk-send lot: only conversations whose recipients belong
   # to that batch_uuid.

@@ -47,6 +47,8 @@ const load = async () => {
 const fmtInt = v => (v == null ? '0' : Number(v).toLocaleString());
 const fmtPct = v => (v == null ? '—' : `${v}%`);
 
+const TIP = key => t(`JABVOX_BULK_WA.ANALYTICS.HINTS.${key}`);
+
 const cards = computed(() => {
   const s = totals.value;
   if (!s) return [];
@@ -55,41 +57,52 @@ const cards = computed(() => {
       key: 'recipients',
       label: t('JABVOX_BULK_WA.ANALYTICS.TOTAL'),
       value: fmtInt(s.recipients),
+      tip: TIP('TOTAL'),
     },
     {
       key: 'sent',
       label: t('JABVOX_BULK_WA.ANALYTICS.SENT'),
       value: fmtInt(s.sent),
+      tip: TIP('SENT'),
     },
     {
       key: 'delivered',
       label: t('JABVOX_BULK_WA.ANALYTICS.DELIVERED'),
       value: fmtInt(s.delivered),
+      tip: TIP('DELIVERED'),
     },
     {
       key: 'read',
       label: t('JABVOX_BULK_WA.ANALYTICS.READ'),
       value: fmtInt(s.read),
+      tip: TIP('READ'),
     },
     {
       key: 'failed',
       label: t('JABVOX_BULK_WA.ANALYTICS.FAILED'),
       value: fmtInt(s.failed),
+      tip: TIP('FAILED'),
+      danger: (s.failed || 0) > 0,
     },
     {
       key: 'pending',
       label: t('JABVOX_BULK_WA.ANALYTICS.PENDING'),
       value: fmtInt(s.pending),
+      tip: TIP('PENDING'),
     },
     {
       key: 'delivery_rate',
       label: t('JABVOX_BULK_WA.ANALYTICS.DELIVERY_RATE'),
       value: fmtPct(s.delivery_rate),
+      tip: TIP('DELIVERY_RATE'),
+      positive: true,
     },
     {
       key: 'read_rate',
       label: t('JABVOX_BULK_WA.ANALYTICS.READ_RATE'),
       value: fmtPct(s.read_rate),
+      tip: TIP('READ_RATE'),
+      positive: true,
     },
   ];
 });
@@ -147,10 +160,22 @@ onMounted(load);
         <div
           v-for="card in cards"
           :key="card.key"
-          class="rounded-lg border border-n-weak px-3 py-2"
+          v-tooltip="card.tip"
+          :aria-label="`${card.label}: ${card.value}`"
+          tabindex="0"
+          class="rounded-xl border border-n-weak bg-n-solid-1 px-4 py-3 shadow-sm transition-colors hover:border-n-slate-6 focus:outline-none focus:ring-2 focus:ring-n-brand"
         >
-          <div class="text-xs text-n-slate-11">{{ card.label }}</div>
-          <div class="text-lg font-semibold text-n-slate-12">
+          <div class="flex items-center gap-1 text-xs text-n-slate-11">
+            <span>{{ card.label }}</span>
+            <span class="i-lucide-info w-3 h-3 text-n-slate-9" />
+          </div>
+          <div
+            class="text-2xl font-semibold mt-1"
+            :class="[
+              card.positive ? 'text-n-teal-11' : '',
+              card.danger ? 'text-n-ruby-11' : 'text-n-slate-12',
+            ]"
+          >
             {{ card.value }}
           </div>
         </div>
@@ -159,7 +184,7 @@ onMounted(load);
       <!-- Serie por envío / día / semana -->
       <div class="overflow-x-auto rounded-lg border border-n-weak">
         <table class="w-full text-sm">
-          <thead class="bg-n-alpha-1 text-n-slate-11">
+          <thead class="bg-n-alpha-1 text-n-slate-11 sticky top-0 z-[1]">
             <tr>
               <th class="text-left px-3 py-2 font-medium">
                 {{ t('JABVOX_BULK_WA.ANALYTICS.COLS.GROUP') }}
@@ -188,15 +213,30 @@ onMounted(load);
             <tr
               v-for="row in series"
               :key="row.key"
-              class="border-t border-n-weak text-n-slate-12"
+              class="border-t border-n-weak text-n-slate-12 hover:bg-n-alpha-1"
             >
-              <td class="px-3 py-2">{{ row.label }}</td>
-              <td class="px-3 py-2 text-right">{{ fmtInt(row.total) }}</td>
-              <td class="px-3 py-2 text-right">{{ fmtInt(row.sent) }}</td>
-              <td class="px-3 py-2 text-right">{{ fmtInt(row.delivered) }}</td>
-              <td class="px-3 py-2 text-right">{{ fmtInt(row.read) }}</td>
-              <td class="px-3 py-2 text-right">{{ fmtInt(row.failed) }}</td>
-              <td class="px-3 py-2 text-right">{{ fmtPct(row.read_rate) }}</td>
+              <td class="px-3 py-2 whitespace-nowrap">{{ row.label }}</td>
+              <td class="px-3 py-2 text-right tabular-nums">
+                {{ fmtInt(row.total) }}
+              </td>
+              <td class="px-3 py-2 text-right tabular-nums">
+                {{ fmtInt(row.sent) }}
+              </td>
+              <td class="px-3 py-2 text-right tabular-nums">
+                {{ fmtInt(row.delivered) }}
+              </td>
+              <td class="px-3 py-2 text-right tabular-nums">
+                {{ fmtInt(row.read) }}
+              </td>
+              <td
+                class="px-3 py-2 text-right tabular-nums"
+                :class="row.failed > 0 ? 'text-n-ruby-11' : ''"
+              >
+                {{ fmtInt(row.failed) }}
+              </td>
+              <td class="px-3 py-2 text-right tabular-nums text-n-teal-11">
+                {{ fmtPct(row.read_rate) }}
+              </td>
             </tr>
             <tr v-if="!series.length">
               <td colspan="7" class="px-3 py-8 text-center text-n-slate-10">

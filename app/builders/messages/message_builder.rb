@@ -114,7 +114,10 @@ class Messages::MessageBuilder
   end
 
   def sender
-    message_type == 'outgoing' ? (message_sender || @user) : @conversation.contact
+    # Las plantillas (message_type 'template') también son salientes: deben
+    # atribuirse al usuario que las envía, no al contacto. Sin esto el reporte por
+    # agente no contaba las plantillas como "enviadas" por el agente.
+    %w[outgoing template].include?(message_type) ? (message_sender || @user) : @conversation.contact
   end
 
   def external_created_at

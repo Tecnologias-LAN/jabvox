@@ -14,6 +14,7 @@
 # stays at the last known state (surfaced as approximate in the UI).
 class V2::Reports::WhatsappAgentReportBuilder
   include V2::Reports::WhatsappReport::Scopes
+  include V2::Reports::WhatsappReport::TemplateFilter
   include V2::Reports::WhatsappReport::MessageStatusStats
   include V2::Reports::WhatsappReport::MessageTypeBreakdown
   include V2::Reports::WhatsappReport::LabelDurations
