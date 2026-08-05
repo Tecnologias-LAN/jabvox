@@ -18,6 +18,8 @@
 #  idx_ticket_comments_ticket_created  (ticket_id,created_at)
 #
 class JabvoxTicketComment < ApplicationRecord
+  include Jabvox::TicketImageAttachable
+
   self.table_name = 'jabvox_ticket_comments'
 
   belongs_to :ticket, class_name: 'JabvoxTicket', inverse_of: :comments

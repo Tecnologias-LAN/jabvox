@@ -58,11 +58,20 @@ export default {
 
   // Comentarios
   getComments: ticketId => axios.get(`${client.url}/${ticketId}/comments`),
-  addComment: (ticketId, body, isPrivate = false) =>
-    axios.post(`${client.url}/${ticketId}/comments`, {
-      body,
-      private: isPrivate,
-    }),
+  // images: array opcional de File (solo imágenes). Con imágenes usa multipart.
+  addComment: (ticketId, body, isPrivate = false, images = []) => {
+    const url = `${client.url}/${ticketId}/comments`;
+    if (images && images.length) {
+      const fd = new FormData();
+      fd.append('body', body);
+      fd.append('private', isPrivate);
+      images.forEach(f => fd.append('attachments[]', f));
+      return axios.post(url, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+    return axios.post(url, { body, private: isPrivate });
+  },
 
   // Categorías
   getCategories: () => axios.get(categoriesClient.url),

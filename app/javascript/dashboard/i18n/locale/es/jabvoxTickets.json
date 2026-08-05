@@ -13,14 +13,21 @@
       "PRIORITY": "Prioridad",
       "STATUS": "Estado",
       "REQUESTER": "Solicitante",
-      "ASSIGNEE": "Responsable"
+      "ASSIGNEE": "Responsable",
+      "ELAPSED": "Transcurrido"
     },
     "FILTERS": {
       "SEARCH": "Buscar por título o descripción…",
       "ALL_TYPES": "Todos los tipos",
       "ALL_STATUSES": "Todos los estados",
       "ALL_PRIORITIES": "Todas las prioridades",
-      "OVERDUE": "Solo vencidos"
+      "OVERDUE": "Solo vencidos",
+      "TITLE": "Filtros",
+      "ALL_TOPICS": "Todos los temas",
+      "ALL_AGENTS": "Todos los agentes",
+      "RESET": "Limpiar",
+      "DATE_FROM": "Desde",
+      "DATE_TO": "Hasta"
     },
     "TYPE": {
       "INCIDENT": "Incidente",
@@ -89,7 +96,9 @@
       "DUE": "Vence",
       "SATISFACTION": "Satisfacción",
       "UPDATED": "Ticket actualizado.",
-      "ERROR": "No se pudo completar la acción."
+      "ERROR": "No se pudo completar la acción.",
+      "PRIVATE_PLACEHOLDER": "Nota interna (solo visible para el equipo)…",
+      "ATTACH_IMAGE": "Adjuntar imagen"
     },
     "METRICS": {
       "TITLE": "Métricas",
@@ -106,7 +115,19 @@
       "BY_PRIORITY": "Por prioridad",
       "BY_CATEGORY": "Por tema",
       "BY_AGENT": "Por agente",
-      "NO_DATA": "Sin datos"
+      "NO_DATA": "Sin datos",
+      "TREND": "Tendencia (30 días)",
+      "HINT": {
+        "TOTAL": "Total de solicitudes registradas.",
+        "OPEN": "Solicitudes abiertas (sin resolver ni cerrar).",
+        "RESOLVED": "Solicitudes marcadas como resueltas.",
+        "CLOSED": "Solicitudes cerradas.",
+        "OVERDUE": "Solicitudes abiertas que superaron su SLA.",
+        "SLA": "Porcentaje resuelto dentro del SLA.",
+        "AVG_RESOLUTION": "Tiempo promedio entre creación y resolución.",
+        "SATISFACTION": "Calificación media de satisfacción (1–5).",
+        "TREND": "Solicitudes creadas por día en los últimos 30 días."
+      }
     },
     "CATEGORIES": {
       "TITLE": "Temas",
@@ -147,7 +168,9 @@
     "SLA": {
       "NO_DUE": "Sin vencimiento",
       "DUE_IN": "Vence en {time}",
-      "OVERDUE_BY": "Vencido hace {time}"
+      "OVERDUE_BY": "Vencido hace {time}",
+      "OVERDUE_CAPTION": "Vencido",
+      "REMAINING_CAPTION": "Restante para el SLA"
     },
     "VIEWS": {
       "TITLE": "Vistas rápidas",
@@ -164,7 +187,8 @@
       "ARCHIVE": "Archivar",
       "CLEAR": "Limpiar selección",
       "DONE": "{processed} procesados, {failed} con error",
-      "CONFIRM_ARCHIVE": "¿Archivar los tickets seleccionados?"
+      "CONFIRM_ARCHIVE": "¿Archivar los tickets seleccionados?",
+      "SELECT_ALL": "Seleccionar todo"
     },
     "MERGE": {
       "TITLE": "Fusionar en otro ticket",
@@ -181,6 +205,51 @@
     },
     "RESTORE": "Restaurar",
     "ARCHIVED_TAG": "Archivado",
-    "COMMENTS_COUNT": "{count} comentarios"
+    "COMMENTS_COUNT": "{count} comentarios",
+    "WIZARD": {
+      "STEP_TYPE": "Tipo",
+      "STEP_TOPIC": "Tema",
+      "STEP_SUBTOPIC": "Subtema",
+      "STEP_DETAILS": "Detalles",
+      "STEP_CONFIRM": "Confirmar",
+      "TYPE_HINT": "¿Qué tipo de solicitud quieres registrar?",
+      "TYPE_DESC": {
+        "INCIDENT": "Algo que falla o dejó de funcionar.",
+        "REQUIREMENT": "Necesito algo nuevo o un cambio.",
+        "REQUEST": "Una consulta o gestión general."
+      },
+      "TOPIC_HINT": "Elige el tema que mejor describe tu solicitud.",
+      "SUBTOPIC_HINT": "Especifica el subtema.",
+      "NO_TOPICS": "Aún no hay temas configurados para registrar solicitudes.",
+      "TITLE_PLACEHOLDER": "Resume el asunto en una frase",
+      "DESC_PLACEHOLDER": "Describe con detalle lo que ocurre o lo que necesitas",
+      "DROP_HINT": "Arrastra archivos aquí o haz clic para adjuntar",
+      "CONFIRM_HINT": "Revisa el resumen antes de enviar.",
+      "BACK": "Atrás",
+      "NEXT": "Siguiente",
+      "SUBMIT": "Enviar solicitud",
+      "ONLY_IMAGES": "Solo se permiten imágenes.",
+      "IMAGES_ONLY_HINT": "PNG, JPG, GIF o WebP · máx. 15 MB"
+    },
+    "SUCCESS": {
+      "LABEL": "Tu solicitud fue registrada con el número",
+      "MESSAGE": "Tu solicitud fue registrada y escalada al área experta.",
+      "VIEW": "Ver mi solicitud",
+      "ANOTHER": "Registrar otra"
+    },
+    "TIME": {
+      "AGO": "hace {time}",
+      "OPEN_FOR": "abierto {time}",
+      "RESOLVED_IN": "resuelto en {time}",
+      "TO_DUE": "vence en {time}",
+      "OPEN_LABEL": "Abierto hace",
+      "RESOLUTION_LABEL": "Tiempo de resolución"
+    },
+    "VIEW": {
+      "LIST": "Lista",
+      "BOARD": "Tablero",
+      "DENSITY": "Densidad"
+    },
+    "UNASSIGNED": "Sin asignar"
   }
 }

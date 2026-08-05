@@ -94,4 +94,48 @@ RSpec.describe 'Jabvox Tickets filters', type: :request do
       expect(ids_for(q: 'producción')).to include(accented.id)
     end
   end
+
+  describe 'ordenamiento (sort_by / sort_dir)' do
+    let!(:low) do
+      create(:jabvox_ticket, account: account, requester: requester, priority_jabvox: :low)
+    end
+    let!(:urgent) do
+      create(:jabvox_ticket, account: account, requester: requester, priority_jabvox: :urgent)
+    end
+
+    it 'ordena por prioridad ascendente' do
+      ids = ids_for(sort_by: 'priority_jabvox', sort_dir: 'asc')
+      expect(ids.index(low.id)).to be < ids.index(urgent.id)
+    end
+
+    it 'ordena por prioridad descendente' do
+      ids = ids_for(sort_by: 'priority_jabvox', sort_dir: 'desc')
+      expect(ids.index(urgent.id)).to be < ids.index(low.id)
+    end
+
+    it 'ignora columnas no permitidas y cae al orden por defecto' do
+      expect { ids_for(sort_by: 'account_id; DROP TABLE', sort_dir: 'asc') }.not_to raise_error
+    end
+  end
+
+  describe 'rango de fechas (date_from / date_to)' do
+    let!(:old_ticket) do
+      t = create(:jabvox_ticket, account: account, requester: requester)
+      t.update_column(:created_at, 10.days.ago) # rubocop:disable Rails/SkipsModelValidations
+      t
+    end
+    let!(:recent_ticket) { create(:jabvox_ticket, account: account, requester: requester) }
+
+    it 'filtra por fecha desde' do
+      ids = ids_for(date_from: 2.days.ago.to_date.iso8601)
+      expect(ids).to include(recent_ticket.id)
+      expect(ids).not_to include(old_ticket.id)
+    end
+
+    it 'filtra por fecha hasta' do
+      ids = ids_for(date_to: 5.days.ago.to_date.iso8601)
+      expect(ids).to include(old_ticket.id)
+      expect(ids).not_to include(recent_ticket.id)
+    end
+  end
 end

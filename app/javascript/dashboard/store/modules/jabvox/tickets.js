@@ -151,8 +151,13 @@ const actions = {
     const { data } = await ticketsAPI.getComments(ticketId);
     commit('SET_COMMENTS', data.data);
   },
-  async addComment({ commit }, { ticketId, body, isPrivate }) {
-    const { data } = await ticketsAPI.addComment(ticketId, body, isPrivate);
+  async addComment({ commit }, { ticketId, body, isPrivate, images = [] }) {
+    const { data } = await ticketsAPI.addComment(
+      ticketId,
+      body,
+      isPrivate,
+      images
+    );
     commit('ADD_COMMENT', data);
     return data;
   },

@@ -35,6 +35,6 @@ class Api::V1::Accounts::Jabvox::Tickets::CategoriesController <
   def category_params
     params.permit(:name_jabvox, :category_type_jabvox, :color_jabvox, :description_jabvox,
                   :responsible_id, :sla_response_minutes_jabvox, :sla_resolution_minutes_jabvox,
-                  :position_jabvox, :active_jabvox)
+                  :position_jabvox, :active_jabvox, :parent_id)
   end
 end

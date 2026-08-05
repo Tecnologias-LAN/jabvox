@@ -5,6 +5,9 @@ module Api::V1::Accounts::Jabvox::Tickets::TicketFilters
 
   PER_PAGE_OPTIONS = [10, 25, 50, 100].freeze
   DEFAULT_PER_PAGE = 25
+  # Columnas por las que se puede ordenar (lista blanca → evita inyección/SQL arbitrario).
+  SORTABLE_COLUMNS = %w[created_at due_at_jabvox priority_jabvox status_jabvox].freeze
+  DEFAULT_SORT = 'created_at'.freeze
 
   def apply_filters(scope)
     scope = filter_by_search(scope)
@@ -15,7 +18,15 @@ module Api::V1::Accounts::Jabvox::Tickets::TicketFilters
     scope = filter_by_assignee(scope)
     scope = filter_by_unassigned(scope)
     scope = filter_by_due_today(scope)
+    scope = filter_by_date_range(scope)
     filter_by_overdue(scope)
+  end
+
+  # Ordenamiento seguro: solo columnas de la lista blanca; por defecto created_at desc.
+  def apply_sort(scope)
+    column = SORTABLE_COLUMNS.include?(params[:sort_by]) ? params[:sort_by] : DEFAULT_SORT
+    direction = params[:sort_dir].to_s.downcase == 'asc' ? :asc : :desc
+    scope.order(column => direction)
   end
 
   private
@@ -80,6 +91,25 @@ module Api::V1::Accounts::Jabvox::Tickets::TicketFilters
     today = Time.now.in_time_zone(tickets_time_zone).to_date
     range = today.beginning_of_day.in_time_zone(tickets_time_zone)..today.end_of_day.in_time_zone(tickets_time_zone)
     scope.where(due_at_jabvox: range)
+  end
+
+  # Rango de fechas de creación (date_from / date_to), inclusive, en la zona de la
+  # cuenta. Cada extremo es opcional.
+  def filter_by_date_range(scope)
+    zone = tickets_time_zone
+    from = parse_date(params[:date_from])
+    to = parse_date(params[:date_to])
+    scope = scope.where('created_at >= ?', from.beginning_of_day.in_time_zone(zone)) if from
+    scope = scope.where('created_at <= ?', to.end_of_day.in_time_zone(zone)) if to
+    scope
+  end
+
+  def parse_date(value)
+    return nil if value.blank?
+
+    Date.parse(value.to_s)
+  rescue ArgumentError
+    nil
   end
 
   # Zona horaria para los filtros de fecha: la del horario laboral del helpdesk, con

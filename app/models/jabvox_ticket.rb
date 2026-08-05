@@ -54,6 +54,7 @@
 # rubocop:enable Layout/LineLength
 class JabvoxTicket < ApplicationRecord
   include Jabvox::TicketLifecycle
+  include Jabvox::TicketImageAttachable
   include PgSearch::Model
 
   self.table_name = 'jabvox_tickets'
@@ -90,7 +91,6 @@ class JabvoxTicket < ApplicationRecord
                       inverse_of: :ticket, dependent: :destroy, counter_cache: :comments_count_jabvox
   has_many :activities, class_name: 'JabvoxTicketActivity', foreign_key: :ticket_id,
                         inverse_of: :ticket, dependent: :destroy
-  has_many_attached :attachments
 
   enum category_type_jabvox: { incident: 0, requirement: 1, request: 2 }, _prefix: :type
   enum priority_jabvox: { low: 0, medium: 1, high: 2, urgent: 3 }, _prefix: :priority
@@ -100,19 +100,8 @@ class JabvoxTicket < ApplicationRecord
 
   OPEN_STATUSES = %w[new_ticket assigned in_progress on_hold reopened].freeze
 
-  # Adjuntos: tope de tamaño y lista blanca de tipos (anti-abuso).
-  MAX_ATTACHMENT_BYTES = 25.megabytes
-  ALLOWED_ATTACHMENT_TYPES = %w[
-    image/png image/jpeg image/gif image/webp
-    application/pdf text/plain text/csv
-    application/msword application/vnd.openxmlformats-officedocument.wordprocessingml.document
-    application/vnd.ms-excel application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-    application/zip
-  ].freeze
-
   validates :title_jabvox, presence: true
   validates :satisfaction_rating_jabvox, inclusion: { in: 1..5 }, allow_nil: true
-  validate :acceptable_attachments
 
   before_validation :assign_display_id, on: :create
   before_validation :denormalize_category_type
@@ -209,27 +198,5 @@ class JabvoxTicket < ApplicationRecord
   # Bumpea el epoch de caché de métricas de la cuenta al cambiar cualquier ticket.
   def invalidate_metrics_cache
     Jabvox::Tickets::MetricsService.touch_cache!(account_id)
-  end
-
-  # Valida tipo y tamaño de cada adjunto nuevo (anti-abuso / vector de subida).
-  def acceptable_attachments
-    attachments.each do |attachment|
-      next unless attachment.new_record?
-
-      validate_attachment_size(attachment)
-      validate_attachment_type(attachment)
-    end
-  end
-
-  def validate_attachment_size(attachment)
-    return if attachment.blob.byte_size <= MAX_ATTACHMENT_BYTES
-
-    errors.add(:attachments, "excede el tamaño máximo de #{MAX_ATTACHMENT_BYTES / 1.megabyte} MB")
-  end
-
-  def validate_attachment_type(attachment)
-    return if ALLOWED_ATTACHMENT_TYPES.include?(attachment.blob.content_type)
-
-    errors.add(:attachments, "tipo de archivo no permitido: #{attachment.blob.content_type}")
   end
 end

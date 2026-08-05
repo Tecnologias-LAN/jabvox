@@ -8,4 +8,6 @@ json.sla_response_minutes category.sla_response_minutes_jabvox
 json.sla_resolution_minutes category.sla_resolution_minutes_jabvox
 json.position category.position_jabvox
 json.active category.active_jabvox
+json.parent_id category.parent_id
+json.is_subtopic category.subtopic?
 json.created_at category.created_at

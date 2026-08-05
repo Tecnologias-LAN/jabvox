@@ -36,21 +36,27 @@ RSpec.describe JabvoxTicket do
     end
   end
 
-  describe 'validación de adjuntos' do
+  describe 'validación de adjuntos (solo imágenes)' do
     let(:ticket) { build(:jabvox_ticket, account: account) }
 
-    it 'rechaza un tipo de archivo no permitido' do
-      ticket.attachments.attach(
-        io: StringIO.new('MZ'), filename: 'malware.exe',
-        content_type: 'application/x-msdownload'
-      )
-      expect(ticket).not_to be_valid
-      expect(ticket.errors[:attachments].join).to match(/no permitido/)
-    end
-
-    it 'acepta un PDF dentro del límite' do
+    it 'rechaza un archivo que no es imagen (p. ej. PDF)' do
       ticket.attachments.attach(
         io: StringIO.new('%PDF-1.4'), filename: 'doc.pdf', content_type: 'application/pdf'
+      )
+      expect(ticket).not_to be_valid
+      expect(ticket.errors[:attachments].join).to match(/solo se permiten imágenes/)
+    end
+
+    it 'rechaza un ejecutable' do
+      ticket.attachments.attach(
+        io: StringIO.new('MZ'), filename: 'malware.exe', content_type: 'application/x-msdownload'
+      )
+      expect(ticket).not_to be_valid
+    end
+
+    it 'acepta una imagen PNG' do
+      ticket.attachments.attach(
+        io: StringIO.new('\x89PNG'), filename: 'captura.png', content_type: 'image/png'
       )
       expect(ticket).to be_valid
     end

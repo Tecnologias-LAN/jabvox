@@ -13,8 +13,8 @@ class Api::V1::Accounts::Jabvox::Tickets::TicketsController <
     scoped = policy_scope(JabvoxTicket)
     scoped = apply_filters(scoped)
     @total = scoped.count
-    @tickets = scoped.includes(:category, :requester, :assignee, :contact)
-                     .order(created_at: :desc).page(params[:page] || 1).per(per_page)
+    @tickets = apply_sort(scoped.includes(:category, :requester, :assignee, :contact))
+               .page(params[:page] || 1).per(per_page)
   end
 
   def show; end
