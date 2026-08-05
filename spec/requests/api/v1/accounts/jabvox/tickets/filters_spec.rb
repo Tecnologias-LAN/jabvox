@@ -95,6 +95,24 @@ RSpec.describe 'Jabvox Tickets filters', type: :request do
     end
   end
 
+  describe 'búsqueda por número de solicitud (display_id)' do
+    let!(:t1) { create(:jabvox_ticket, account: account, requester: requester) }
+    let!(:t2) { create(:jabvox_ticket, account: account, requester: requester) }
+
+    it 'encuentra la solicitud por su número escribiéndolo en q' do
+      expect(ids_for(q: t2.display_id_jabvox.to_s)).to include(t2.id)
+      expect(ids_for(q: t2.display_id_jabvox.to_s)).not_to include(t1.id)
+    end
+
+    it 'acepta el número con # delante' do
+      expect(ids_for(q: "##{t1.display_id_jabvox}")).to include(t1.id)
+    end
+
+    it 'filtra por el param dedicado display_id' do
+      expect(ids_for(display_id: t1.display_id_jabvox)).to contain_exactly(t1.id)
+    end
+  end
+
   describe 'ordenamiento (sort_by / sort_dir)' do
     let!(:low) do
       create(:jabvox_ticket, account: account, requester: requester, priority_jabvox: :low)

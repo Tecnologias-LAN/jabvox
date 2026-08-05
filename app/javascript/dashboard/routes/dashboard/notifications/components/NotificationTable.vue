@@ -85,7 +85,8 @@ export default {
                 {{
                   `#${
                     notificationItem.primary_actor
-                      ? notificationItem.primary_actor.id
+                      ? notificationItem.primary_actor.display_id ||
+                        notificationItem.primary_actor.id
                       : $t(`NOTIFICATIONS_PAGE.DELETE_TITLE`)
                   }`
                 }}
@@ -108,7 +109,7 @@ export default {
           </td>
           <td class="thumbnail--column">
             <Avatar
-              v-if="notificationItem.primary_actor.meta.assignee"
+              v-if="notificationItem.primary_actor?.meta?.assignee"
               :src="notificationItem.primary_actor.meta.assignee.thumbnail"
               :size="28"
               :name="notificationItem.primary_actor.meta.assignee.name"

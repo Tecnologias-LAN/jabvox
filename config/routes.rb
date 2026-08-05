@@ -803,6 +803,7 @@ Rails.application.routes.draw do
             namespace :tickets do
               resource :permissions, only: [:show]
               resource :metrics, only: [:show]
+              resource :counts, only: [:show]
               resource :notification_preferences, only: [:show, :update]
               resources :categories, only: [:index, :create, :update, :destroy]
               resources :tickets, only: [:index, :show, :create, :update, :destroy] do

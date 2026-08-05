@@ -61,7 +61,7 @@ class Notification < ApplicationRecord
   after_destroy_commit :dispatch_destroy_event
   after_update_commit :dispatch_update_event
 
-  PRIMARY_ACTORS = ['Conversation'].freeze
+  PRIMARY_ACTORS = %w[Conversation JabvoxTicket].freeze
 
   def push_event_data
     # Secondary actor could be nil for cases like system assigning conversation

@@ -11,7 +11,8 @@ RSpec.describe 'Jabvox Tickets API', type: :request do
   let(:account) { create(:account, jabvox_tickets_enabled_jabvox: true) }
   let(:owner) { create(:user, account: account, role: :agent) }
   let(:stranger) { create(:user, account: account, role: :agent) }
-  let(:category) { create(:jabvox_ticket_category, account: account) }
+  # Los temas viven en la cuenta gestora (centralizados).
+  let(:category) { create(:jabvox_ticket_category, account: manager_account) }
 
   before { create(:jabvox_ticket_helpdesk_config, account: manager_account, auto_assign_mode_jabvox: :manual) }
 

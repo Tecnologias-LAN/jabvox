@@ -13,6 +13,7 @@ const state = {
     resolver_sees_all: false,
   },
   notificationPreferences: { in_app: true, email: true },
+  counts: { today: 0, overdue_previous: 0, total_pending: 0 },
   meta: { total: 0, currentPage: 1, totalPages: 1 },
   uiFlags: {
     isFetching: false,
@@ -36,6 +37,7 @@ const getters = {
   isManager: s => s.permissions.manager,
   resolverSeesAll: s => s.permissions.resolver_sees_all,
   getNotificationPreferences: s => s.notificationPreferences,
+  getCounts: s => s.counts,
 };
 
 const mutations = {
@@ -73,6 +75,9 @@ const mutations = {
   },
   SET_NOTIFICATION_PREFERENCES(s, prefs) {
     s.notificationPreferences = { ...s.notificationPreferences, ...prefs };
+  },
+  SET_COUNTS(s, counts) {
+    s.counts = { ...s.counts, ...counts };
   },
 };
 
@@ -172,6 +177,11 @@ const actions = {
   async fetchPermissions({ commit }) {
     const { data } = await ticketsAPI.getPermissions();
     commit('SET_PERMISSIONS', data);
+  },
+  async fetchCounts({ commit }) {
+    const { data } = await ticketsAPI.getCounts();
+    commit('SET_COUNTS', data);
+    return data;
   },
 };
 

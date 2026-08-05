@@ -566,6 +566,21 @@ onMounted(load);
                   <span class="truncate">{{ ticket.requester?.name }}</span>
                 </dd>
               </div>
+              <div
+                v-if="ticket.account?.name"
+                class="flex items-center justify-between gap-2"
+              >
+                <dt class="text-n-slate-10">
+                  {{ t('JABVOX_TICKETS.DETAIL.SOURCE_ACCOUNT') }}
+                </dt>
+                <dd class="flex items-center gap-1.5 text-n-slate-12 min-w-0">
+                  <span
+                    class="i-lucide-building-2 w-3.5 h-3.5 text-n-slate-9"
+                    aria-hidden="true"
+                  />
+                  <span class="truncate">{{ ticket.account.name }}</span>
+                </dd>
+              </div>
               <div class="flex items-center justify-between gap-2">
                 <dt class="text-n-slate-10">
                   {{ t('JABVOX_TICKETS.COLS.ASSIGNEE') }}

@@ -13,6 +13,9 @@ const metricsClient = new ApiClient('jabvox/tickets/metrics', {
 const permissionsClient = new ApiClient('jabvox/tickets/permissions', {
   accountScoped: true,
 });
+const countsClient = new ApiClient('jabvox/tickets/counts', {
+  accountScoped: true,
+});
 const notificationPrefsClient = new ApiClient(
   'jabvox/tickets/notification_preferences',
   { accountScoped: true }
@@ -83,6 +86,7 @@ export default {
   // Métricas y permisos
   getMetrics: () => axios.get(metricsClient.url),
   getPermissions: () => axios.get(permissionsClient.url),
+  getCounts: () => axios.get(countsClient.url),
 
   // Preferencias de notificación del usuario
   getNotificationPreferences: () => axios.get(notificationPrefsClient.url),

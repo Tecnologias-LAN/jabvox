@@ -167,7 +167,14 @@
       "conversation_mention": "Mention",
       "sla_missed_first_response": "SLA Missed",
       "sla_missed_next_response": "SLA Missed",
-      "sla_missed_resolution": "SLA Missed"
+      "sla_missed_resolution": "SLA Missed",
+      "jabvox_ticket_created": "New request",
+      "jabvox_ticket_assigned": "Request assigned",
+      "jabvox_ticket_status_changed": "Status changed",
+      "jabvox_ticket_resolved": "Request resolved",
+      "jabvox_ticket_reopened": "Request reopened",
+      "jabvox_ticket_comment": "New comment",
+      "jabvox_ticket_sla_escalation": "SLA breached"
     }
   },
   "NETWORK": {

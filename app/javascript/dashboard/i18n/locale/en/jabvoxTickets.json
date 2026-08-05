@@ -98,7 +98,8 @@
       "UPDATED": "Ticket updated.",
       "ERROR": "Could not complete the action.",
       "PRIVATE_PLACEHOLDER": "Internal note (only visible to the team)…",
-      "ATTACH_IMAGE": "Attach image"
+      "ATTACH_IMAGE": "Attach image",
+      "SOURCE_ACCOUNT": "Source account"
     },
     "METRICS": {
       "TITLE": "Metrics",
@@ -140,7 +141,12 @@
       "SLA_RESOLUTION": "Resolution SLA (min)",
       "SAVE": "Save",
       "SAVED": "Topic saved.",
-      "ERROR": "Could not save the topic."
+      "ERROR": "Could not save the topic.",
+      "PARENT": "Parent topic (for subtopics)",
+      "NO_PARENT": "None (this is a main topic)",
+      "PARENT_HINT": "If you pick a parent topic, this becomes a subtopic of it.",
+      "SUBTOPIC": "Subtopic",
+      "EMPTY": "No topics yet. Create the first one."
     },
     "notifications": {
       "jabvox_ticket_created": {
@@ -250,6 +256,10 @@
       "BOARD": "Board",
       "DENSITY": "Density"
     },
-    "UNASSIGNED": "Unassigned"
+    "UNASSIGNED": "Unassigned",
+    "BADGE": {
+      "TODAY": "Pending today",
+      "OVERDUE_PREVIOUS": "Overdue from previous days"
+    }
   }
 }

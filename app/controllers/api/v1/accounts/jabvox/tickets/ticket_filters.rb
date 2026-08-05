@@ -11,6 +11,7 @@ module Api::V1::Accounts::Jabvox::Tickets::TicketFilters
 
   def apply_filters(scope)
     scope = filter_by_search(scope)
+    scope = filter_by_display_id(scope)
     scope = filter_by_category_type(scope)
     scope = filter_by_status(scope)
     scope = filter_by_priority(scope)
@@ -31,13 +32,23 @@ module Api::V1::Accounts::Jabvox::Tickets::TicketFilters
 
   private
 
-  # Full-text sobre la columna tsvector generada (índice GIN, insensible a acentos),
-  # en vez de ILIKE '%..%'.
+  # Full-text sobre la columna tsvector generada (índice GIN, insensible a acentos).
+  # Si el término es puramente numérico (con o sin #), busca por número de solicitud
+  # (display_id) — así escribir "42" encuentra la solicitud #42.
   def filter_by_search(scope)
     term = params[:q].to_s.strip
     return scope if term.blank?
 
+    return scope.where(display_id_jabvox: term.delete('#').to_i) if term.match?(/\A#?\d+\z/)
+
     scope.merge(JabvoxTicket.accent_insensitive_search(term))
+  end
+
+  # Filtro dedicado por número de solicitud (display_id), indexado.
+  def filter_by_display_id(scope)
+    return scope if params[:display_id].blank?
+
+    scope.where(display_id_jabvox: params[:display_id].to_s.delete('#').to_i)
   end
 
   def filter_by_category_type(scope)
@@ -88,9 +99,8 @@ module Api::V1::Accounts::Jabvox::Tickets::TicketFilters
   def filter_by_due_today(scope)
     return scope unless ActiveModel::Type::Boolean.new.cast(params[:due_today])
 
-    today = Time.now.in_time_zone(tickets_time_zone).to_date
-    range = today.beginning_of_day.in_time_zone(tickets_time_zone)..today.end_of_day.in_time_zone(tickets_time_zone)
-    scope.where(due_at_jabvox: range)
+    now = Time.current.in_time_zone(tickets_time_zone)
+    scope.where(due_at_jabvox: now.all_day)
   end
 
   # Rango de fechas de creación (date_from / date_to), inclusive, en la zona de la

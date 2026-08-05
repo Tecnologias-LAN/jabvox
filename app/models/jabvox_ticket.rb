@@ -102,6 +102,7 @@ class JabvoxTicket < ApplicationRecord
 
   validates :title_jabvox, presence: true
   validates :satisfaction_rating_jabvox, inclusion: { in: 1..5 }, allow_nil: true
+  validate :category_belongs_to_manager_account
 
   before_validation :assign_display_id, on: :create
   before_validation :denormalize_category_type
@@ -164,6 +165,17 @@ class JabvoxTicket < ApplicationRecord
     log_activity!('archived', actor: actor)
   end
 
+  # Datos para el push (FCM/móvil) de una notificación cuyo primary_actor es este
+  # ticket. Notification#fcm_push_data llama a este método; sin él rompería el push.
+  def push_event_data
+    {
+      id: id,
+      display_id: display_id_jabvox,
+      title: title_jabvox,
+      status: status_jabvox
+    }
+  end
+
   private
 
   # Umbral de "ámbar": el máximo entre 60 min y el 10% del SLA de la categoría.
@@ -182,6 +194,18 @@ class JabvoxTicket < ApplicationRecord
 
   def denormalize_category_type
     self.category_type_jabvox = category.category_type_jabvox if category.present?
+  end
+
+  # Seguridad: los temas están centralizados en la cuenta gestora. Un ticket solo
+  # puede referenciar una categoría que pertenezca a esa cuenta gestora (impide
+  # inyectar una categoría arbitraria de otra cuenta vía la API).
+  def category_belongs_to_manager_account
+    return if category.nil?
+
+    manager_account = JabvoxTicketHelpdeskConfig.manager_account
+    return if manager_account && category.account_id == manager_account.id
+
+    errors.add(:ticket_category_id, 'no pertenece a la cuenta gestora del helpdesk')
   end
 
   # SLA de resolución de la categoría → due_at, calculado sobre el horario laboral

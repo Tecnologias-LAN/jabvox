@@ -44,6 +44,12 @@ json.requester do
   json.avatar_url ticket.requester.avatar_url
 end
 
+# Cuenta de origen del ticket (de qué cuenta cliente proviene).
+json.account do
+  json.id ticket.account_id
+  json.name ticket.account&.name
+end
+
 json.assignee do
   if ticket.assignee
     json.id ticket.assignee.id

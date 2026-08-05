@@ -6,10 +6,14 @@ RSpec.describe JabvoxTicket, type: :model do
   let(:account) { create(:account) }
   let(:requester) { create(:user, account: account) }
   let(:agent) { create(:user, account: account) }
+  # Los temas están centralizados en la cuenta gestora del helpdesk.
+  let(:manager_account) { create(:account) }
   let(:category) do
-    create(:jabvox_ticket_category, account: account, category_type_jabvox: :incident,
+    create(:jabvox_ticket_category, account: manager_account, category_type_jabvox: :incident,
                                     sla_resolution_minutes_jabvox: 120)
   end
+
+  before { create(:jabvox_ticket_helpdesk_config, account: manager_account) }
 
   describe 'creation' do
     it 'assigns a sequential display_id per account' do

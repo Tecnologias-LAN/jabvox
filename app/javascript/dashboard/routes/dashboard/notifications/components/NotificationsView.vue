@@ -45,6 +45,19 @@ export default {
         unreadCount: this.meta.unreadCount,
       });
 
+      // Los tickets de Jabvox navegan a su propia vista de detalle; el resto son
+      // conversaciones (comportamiento original).
+      if (primaryActorType === 'JabvoxTicket') {
+        this.$router.push({
+          name: 'jabvox_tickets_detail',
+          params: {
+            accountId: this.accountId,
+            ticketId: primaryActorId,
+          },
+        });
+        return;
+      }
+
       this.$router.push(
         `/app/accounts/${this.accountId}/conversations/${conversationId}`
       );

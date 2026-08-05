@@ -20,6 +20,7 @@ import SidebarProfileMenu from './SidebarProfileMenu.vue';
 import SidebarChangelogCard from './SidebarChangelogCard.vue';
 import SidebarChangelogButton from './SidebarChangelogButton.vue';
 import ChannelLeaf from './ChannelLeaf.vue';
+import TicketsSidebarLeaf from './TicketsSidebarLeaf.vue';
 import ChannelIcon from 'next/icon/ChannelIcon.vue';
 import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
@@ -659,6 +660,11 @@ const menuItems = computed(() => {
               'jabvox_tickets_metrics',
               'jabvox_tickets_categories',
             ],
+            component: leafProps =>
+              h(TicketsSidebarLeaf, {
+                label: leafProps.label,
+                icon: leafProps.icon,
+              }),
           },
         ]
       : []),

@@ -98,7 +98,8 @@
       "UPDATED": "Ticket actualizado.",
       "ERROR": "No se pudo completar la acción.",
       "PRIVATE_PLACEHOLDER": "Nota interna (solo visible para el equipo)…",
-      "ATTACH_IMAGE": "Adjuntar imagen"
+      "ATTACH_IMAGE": "Adjuntar imagen",
+      "SOURCE_ACCOUNT": "Cuenta de origen"
     },
     "METRICS": {
       "TITLE": "Métricas",
@@ -140,7 +141,12 @@
       "SLA_RESOLUTION": "SLA resolución (min)",
       "SAVE": "Guardar",
       "SAVED": "Tema guardado.",
-      "ERROR": "No se pudo guardar el tema."
+      "ERROR": "No se pudo guardar el tema.",
+      "PARENT": "Tema padre (para subtemas)",
+      "NO_PARENT": "Ninguno (es un tema principal)",
+      "PARENT_HINT": "Si eliges un tema padre, este será un subtema suyo.",
+      "SUBTOPIC": "Subtema",
+      "EMPTY": "Aún no hay temas. Crea el primero."
     },
     "notifications": {
       "jabvox_ticket_created": {
@@ -250,6 +256,10 @@
       "BOARD": "Tablero",
       "DENSITY": "Densidad"
     },
-    "UNASSIGNED": "Sin asignar"
+    "UNASSIGNED": "Sin asignar",
+    "BADGE": {
+      "TODAY": "Pendientes de hoy",
+      "OVERDUE_PREVIOUS": "Vencidas de días anteriores"
+    }
   }
 }

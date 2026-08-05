@@ -653,6 +653,9 @@ onMounted(() => {
               <th class="py-2 px-3 hidden lg:table-cell">
                 {{ t('JABVOX_TICKETS.COLS.ELAPSED') }}
               </th>
+              <th class="py-2 px-3 hidden md:table-cell">
+                {{ t('JABVOX_TICKETS.COLS.REQUESTER') }}
+              </th>
               <th class="py-2 px-3">{{ t('JABVOX_TICKETS.COLS.ASSIGNEE') }}</th>
             </tr>
           </thead>
@@ -706,6 +709,26 @@ onMounted(() => {
                 :class="rowPad"
               >
                 {{ elapsedFor(ticket) }}
+              </td>
+              <td class="px-3 hidden md:table-cell" :class="rowPad">
+                <div class="flex items-center gap-2 min-w-0">
+                  <Avatar
+                    :name="ticket.requester?.name || '?'"
+                    :src="ticket.requester?.avatar_url"
+                    :size="22"
+                  />
+                  <div class="min-w-0 leading-tight">
+                    <p class="text-n-slate-12 truncate max-w-[9rem]">
+                      {{ ticket.requester?.name }}
+                    </p>
+                    <p
+                      v-if="ticket.account?.name"
+                      class="text-[11px] text-n-slate-9 truncate max-w-[9rem]"
+                    >
+                      {{ ticket.account.name }}
+                    </p>
+                  </div>
+                </div>
               </td>
               <td class="px-3" :class="rowPad">
                 <div v-if="ticket.assignee" class="flex items-center gap-2">

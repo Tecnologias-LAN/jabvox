@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Draggable from 'vuedraggable';
+import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import TicketBadges from './TicketBadges.vue';
 import SlaCountdown from './SlaCountdown.vue';
 
@@ -97,6 +98,23 @@ const onDrop = (targetStatus, event) => {
               <p class="text-sm font-medium text-n-slate-12 line-clamp-2 mb-2">
                 {{ element.title }}
               </p>
+              <!-- Solicitante + cuenta de origen -->
+              <div
+                v-if="element.requester?.name"
+                class="flex items-center gap-1.5 mb-2 text-xs text-n-slate-11 min-w-0"
+              >
+                <Avatar
+                  :name="element.requester.name"
+                  :src="element.requester.avatar_url"
+                  :size="18"
+                />
+                <span class="truncate">
+                  {{ element.requester.name
+                  }}<template v-if="element.account?.name">
+                    · {{ element.account.name }}</template
+                  >
+                </span>
+              </div>
               <div class="flex items-center justify-between gap-2">
                 <TicketBadges kind="type" :value="element.category_type" />
                 <SlaCountdown
