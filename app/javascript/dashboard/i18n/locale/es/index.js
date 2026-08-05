@@ -51,6 +51,7 @@ import jabvoxTasks from './jabvoxTasks.json';
 import jabvoxBulkWhatsapp from './jabvoxBulkWhatsapp.json';
 import jabvoxWhatsappGroups from './jabvoxWhatsappGroups.json';
 import jabvoxVoiceBroadcast from './jabvoxVoiceBroadcast.json';
+import jabvoxTickets from './jabvoxTickets.json';
 import jabvoxLeadImport from './jabvoxLeadImport.json';
 import jabvoxDataExport from './jabvoxDataExport.json';
 import jabvoxAdvancedAutomations from './jabvoxAdvancedAutomations.json';
@@ -127,6 +128,7 @@ export default {
   ...jabvoxBulkWhatsapp,
   ...jabvoxWhatsappGroups,
   ...jabvoxVoiceBroadcast,
+  ...jabvoxTickets,
   ...jabvoxLeadImport,
   ...jabvoxDataExport,
   ...jabvoxAdvancedAutomations,

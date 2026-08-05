@@ -1,0 +1,11 @@
+json.id category.id
+json.name category.name_jabvox
+json.category_type category.category_type_jabvox
+json.color category.color_jabvox
+json.description category.description_jabvox
+json.responsible_id category.responsible_id
+json.sla_response_minutes category.sla_response_minutes_jabvox
+json.sla_resolution_minutes category.sla_resolution_minutes_jabvox
+json.position category.position_jabvox
+json.active category.active_jabvox
+json.created_at category.created_at

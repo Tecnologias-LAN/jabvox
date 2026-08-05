@@ -36,6 +36,7 @@
 #  jabvox_saldo_enabled_jabvox                :boolean          default(FALSE), not null
 #  jabvox_sms_enabled_jabvox                  :boolean          default(FALSE), not null
 #  jabvox_tasks_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_tickets_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_voice_broadcast_enabled_jabvox      :boolean          default(FALSE), not null
 #  jabvox_voip_enabled_jabvox                 :boolean          default(FALSE), not null
 #  jabvox_whatsapp_groups_enabled_jabvox      :boolean          default(FALSE), not null
@@ -123,6 +124,8 @@ class Account < ApplicationRecord
   has_many :notes, dependent: :destroy_async
   has_many :notification_settings, dependent: :destroy_async
   has_many :notifications, dependent: :destroy_async
+  has_many :jabvox_tickets, dependent: :destroy_async
+  has_many :jabvox_ticket_categories, dependent: :destroy_async
   has_many :jabvox_kanban_funnels, dependent: :destroy_async
   has_many :jabvox_kanban_stages, dependent: :destroy_async
   has_many :jabvox_kanban_conversation_stages, dependent: :destroy_async

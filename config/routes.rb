@@ -800,6 +800,28 @@ Rails.application.routes.draw do
               end
             end
 
+            namespace :tickets do
+              resource :permissions, only: [:show]
+              resource :metrics, only: [:show]
+              resource :notification_preferences, only: [:show, :update]
+              resources :categories, only: [:index, :create, :update, :destroy]
+              resources :tickets, only: [:index, :show, :create, :update, :destroy] do
+                collection do
+                  post :bulk_action # asignar/cerrar/archivar varios de una
+                end
+                member do
+                  post :assign
+                  post :change_status
+                  post :resolve
+                  post :reopen
+                  post :rate
+                  post :restore
+                  post :merge # fusionar en otro ticket (duplicados)
+                end
+                resources :comments, only: [:index, :create]
+              end
+            end
+
             # Lead Import (pull leads from external databases) module
             namespace :lead_import do
               resources :sources, only: [:index, :show, :create, :update, :destroy] do
@@ -1192,6 +1214,7 @@ Rails.application.routes.draw do
 
       # order of resources affect the order of sidebar navigation in super admin
       resources :jabvox_saldo_configs, only: [:index, :new, :create, :destroy]
+      resources :jabvox_ticket_helpdesk_configs
       resources :jabvox_response_bot_seats
       resources :jabvox_response_bot_roles
       resources :jabvox_deleted_leads, only: [:index, :show] do

@@ -162,3 +162,9 @@ jabvox_voice_broadcast_tick_job:
   cron: '*/1 * * * *'
   class: 'Jabvox::VoiceBroadcast::TickJob'
   queue: scheduled_jobs
+
+# Jabvox Tickets: escala tickets vencidos (SLA), cada 15 minutos
+jabvox_tickets_sla_escalation_job:
+  cron: '*/15 * * * *'
+  class: 'Jabvox::Tickets::SlaEscalationJob'
+  queue: scheduled_jobs

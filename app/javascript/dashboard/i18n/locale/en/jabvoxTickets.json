@@ -1,0 +1,186 @@
+{
+  "JABVOX_TICKETS": {
+    "TITLE": "Requests & Tickets",
+    "SUBTITLE": "Register and manage incidents, requirements and requests.",
+    "NEW": "New request",
+    "EMPTY": "No tickets match these filters.",
+    "OVERDUE_TAG": "Overdue",
+    "PREV": "Previous",
+    "NEXT": "Next",
+    "COLS": {
+      "TITLE": "Title",
+      "TYPE": "Type",
+      "PRIORITY": "Priority",
+      "STATUS": "Status",
+      "REQUESTER": "Requester",
+      "ASSIGNEE": "Assignee"
+    },
+    "FILTERS": {
+      "SEARCH": "Search by title or description…",
+      "ALL_TYPES": "All types",
+      "ALL_STATUSES": "All statuses",
+      "ALL_PRIORITIES": "All priorities",
+      "OVERDUE": "Overdue only"
+    },
+    "TYPE": {
+      "INCIDENT": "Incident",
+      "REQUIREMENT": "Requirement",
+      "REQUEST": "Request"
+    },
+    "PRIORITY": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "STATUS": {
+      "NEW_TICKET": "New",
+      "ASSIGNED": "Assigned",
+      "IN_PROGRESS": "In progress",
+      "ON_HOLD": "On hold",
+      "RESOLVED": "Resolved",
+      "CLOSED": "Closed",
+      "REOPENED": "Reopened"
+    },
+    "RESOLUTION_TYPE": {
+      "SOLVED": "Solved",
+      "DUPLICATE": "Duplicate",
+      "REJECTED": "Rejected"
+    },
+    "ACTIVITY": {
+      "ASSIGNED": "assigned the ticket",
+      "STATUS_CHANGED": "changed the status",
+      "RESOLVED": "resolved the ticket",
+      "REOPENED": "reopened the ticket",
+      "RATED": "rated the service",
+      "COMMENTED": "commented",
+      "SLA_ESCALATED": "escalated due to SLA breach"
+    },
+    "FORM": {
+      "TITLE": "Register request",
+      "FIELD_TITLE": "Title",
+      "CATEGORY": "Topic",
+      "NO_CATEGORY": "No topic",
+      "PRIORITY": "Priority",
+      "DESCRIPTION": "Description",
+      "ATTACH": "Attach files",
+      "FILES": "file(s)",
+      "SUBMIT": "Create",
+      "CANCEL": "Cancel",
+      "CREATED": "Ticket created successfully.",
+      "ERROR": "Could not create the ticket."
+    },
+    "DETAIL": {
+      "BACK": "Back",
+      "RESOLVE": "Resolve",
+      "REOPEN": "Reopen",
+      "RESOLUTION_PLACEHOLDER": "Describe how it was resolved…",
+      "COMMENTS": "Comments",
+      "COMMENT_PLACEHOLDER": "Write a comment…",
+      "ADD_COMMENT": "Comment",
+      "PRIVATE_NOTE": "Internal note",
+      "INTERNAL_NOTE": "Internal note",
+      "RATE_TITLE": "How was the service?",
+      "RATE_COMMENT": "Comment (optional)",
+      "SEND_RATING": "Send rating",
+      "TIMELINE": "History",
+      "SYSTEM": "System",
+      "CATEGORY": "Topic",
+      "DUE": "Due",
+      "SATISFACTION": "Satisfaction",
+      "UPDATED": "Ticket updated.",
+      "ERROR": "Could not complete the action."
+    },
+    "METRICS": {
+      "TITLE": "Metrics",
+      "TOTAL": "Total",
+      "OPEN": "Open",
+      "RESOLVED": "Resolved",
+      "CLOSED": "Closed",
+      "OVERDUE": "Overdue",
+      "SLA": "SLA compliance",
+      "AVG_RESOLUTION": "Avg. resolution time",
+      "SATISFACTION": "Satisfaction",
+      "BY_STATUS": "By status",
+      "BY_TYPE": "By type",
+      "BY_PRIORITY": "By priority",
+      "BY_CATEGORY": "By topic",
+      "BY_AGENT": "By agent",
+      "NO_DATA": "No data"
+    },
+    "CATEGORIES": {
+      "TITLE": "Topics",
+      "NEW": "New topic",
+      "NAME": "Name",
+      "TYPE": "Type",
+      "COLOR": "Color",
+      "DESCRIPTION": "Description",
+      "SLA_RESPONSE": "Response SLA (min)",
+      "SLA_RESOLUTION": "Resolution SLA (min)",
+      "SAVE": "Save",
+      "SAVED": "Topic saved.",
+      "ERROR": "Could not save the topic."
+    },
+    "notifications": {
+      "jabvox_ticket_created": {
+        "title": "New ticket #{id}"
+      },
+      "jabvox_ticket_assigned": {
+        "title": "You were assigned ticket #{id}"
+      },
+      "jabvox_ticket_status_changed": {
+        "title": "Ticket #{id} changed status"
+      },
+      "jabvox_ticket_resolved": {
+        "title": "Ticket #{id} was resolved"
+      },
+      "jabvox_ticket_reopened": {
+        "title": "Ticket #{id} was reopened"
+      },
+      "jabvox_ticket_comment": {
+        "title": "New comment on ticket #{id}"
+      },
+      "jabvox_ticket_sla_escalation": {
+        "title": "Ticket #{id} breached its SLA"
+      }
+    },
+    "SLA": {
+      "NO_DUE": "No due date",
+      "DUE_IN": "Due in {time}",
+      "OVERDUE_BY": "Overdue by {time}"
+    },
+    "VIEWS": {
+      "TITLE": "Quick views",
+      "ALL": "All",
+      "MY_OPEN": "My open",
+      "UNASSIGNED": "Unassigned",
+      "OVERDUE": "Overdue",
+      "DUE_TODAY": "Due today"
+    },
+    "BULK": {
+      "SELECTED": "{count} selected",
+      "ASSIGN": "Assign",
+      "CHANGE_STATUS": "Change status",
+      "ARCHIVE": "Archive",
+      "CLEAR": "Clear selection",
+      "DONE": "{processed} processed, {failed} failed",
+      "CONFIRM_ARCHIVE": "Archive the selected tickets?"
+    },
+    "MERGE": {
+      "TITLE": "Merge into another ticket",
+      "PLACEHOLDER": "Target ticket ID (#)",
+      "ACTION": "Merge",
+      "HINT": "This ticket will be marked as duplicate and archived.",
+      "SUCCESS": "Ticket merged"
+    },
+    "NOTIF_PREFS": {
+      "TITLE": "Ticket notifications",
+      "IN_APP": "In-app",
+      "EMAIL": "Email",
+      "SAVED": "Preferences saved"
+    },
+    "RESTORE": "Restore",
+    "ARCHIVED_TAG": "Archived",
+    "COMMENTS_COUNT": "{count} comments"
+  }
+}

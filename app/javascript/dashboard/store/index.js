@@ -74,6 +74,7 @@ import jabvoxDialer from './modules/jabvox/dialer';
 import jabvoxOrders from './modules/jabvox/orders';
 import jabvoxFieldVisibilities from './modules/jabvox/fieldVisibilities';
 import jabvoxLeads from './modules/jabvox/leads';
+import jabvoxTickets from './modules/jabvox/tickets';
 import jabvoxAffiliates from './modules/jabvox/affiliates';
 import jabvoxCalendar from './modules/jabvox/calendar';
 import jabvoxInternalChat from './modules/jabvox/internalChat';
@@ -162,6 +163,7 @@ export default createStore({
     jabvoxOrders,
     jabvoxFieldVisibilities,
     jabvoxLeads,
+    jabvoxTickets,
     jabvoxAffiliates,
     jabvoxCalendar,
     jabvoxInternalChat,

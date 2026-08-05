@@ -1,0 +1,186 @@
+{
+  "JABVOX_TICKETS": {
+    "TITLE": "Solicitudes y Tickets",
+    "SUBTITLE": "Registra y gestiona incidentes, requerimientos y solicitudes.",
+    "NEW": "Nueva solicitud",
+    "EMPTY": "No hay tickets con estos filtros.",
+    "OVERDUE_TAG": "Vencido",
+    "PREV": "Anterior",
+    "NEXT": "Siguiente",
+    "COLS": {
+      "TITLE": "Título",
+      "TYPE": "Tipo",
+      "PRIORITY": "Prioridad",
+      "STATUS": "Estado",
+      "REQUESTER": "Solicitante",
+      "ASSIGNEE": "Responsable"
+    },
+    "FILTERS": {
+      "SEARCH": "Buscar por título o descripción…",
+      "ALL_TYPES": "Todos los tipos",
+      "ALL_STATUSES": "Todos los estados",
+      "ALL_PRIORITIES": "Todas las prioridades",
+      "OVERDUE": "Solo vencidos"
+    },
+    "TYPE": {
+      "INCIDENT": "Incidente",
+      "REQUIREMENT": "Requerimiento",
+      "REQUEST": "Solicitud"
+    },
+    "PRIORITY": {
+      "LOW": "Baja",
+      "MEDIUM": "Media",
+      "HIGH": "Alta",
+      "URGENT": "Urgente"
+    },
+    "STATUS": {
+      "NEW_TICKET": "Nuevo",
+      "ASSIGNED": "Asignado",
+      "IN_PROGRESS": "En progreso",
+      "ON_HOLD": "En espera",
+      "RESOLVED": "Resuelto",
+      "CLOSED": "Cerrado",
+      "REOPENED": "Reabierto"
+    },
+    "RESOLUTION_TYPE": {
+      "SOLVED": "Solucionado",
+      "DUPLICATE": "Duplicado",
+      "REJECTED": "No procede"
+    },
+    "ACTIVITY": {
+      "ASSIGNED": "asignó el ticket",
+      "STATUS_CHANGED": "cambió el estado",
+      "RESOLVED": "resolvió el ticket",
+      "REOPENED": "reabrió el ticket",
+      "RATED": "calificó la atención",
+      "COMMENTED": "comentó",
+      "SLA_ESCALATED": "escaló por SLA vencido"
+    },
+    "FORM": {
+      "TITLE": "Registrar solicitud",
+      "FIELD_TITLE": "Título",
+      "CATEGORY": "Tema",
+      "NO_CATEGORY": "Sin tema",
+      "PRIORITY": "Prioridad",
+      "DESCRIPTION": "Descripción",
+      "ATTACH": "Adjuntar archivos",
+      "FILES": "archivo(s)",
+      "SUBMIT": "Crear",
+      "CANCEL": "Cancelar",
+      "CREATED": "Ticket creado correctamente.",
+      "ERROR": "No se pudo crear el ticket."
+    },
+    "DETAIL": {
+      "BACK": "Volver",
+      "RESOLVE": "Resolver",
+      "REOPEN": "Reabrir",
+      "RESOLUTION_PLACEHOLDER": "Describe cómo se resolvió…",
+      "COMMENTS": "Comentarios",
+      "COMMENT_PLACEHOLDER": "Escribe un comentario…",
+      "ADD_COMMENT": "Comentar",
+      "PRIVATE_NOTE": "Nota interna",
+      "INTERNAL_NOTE": "Nota interna",
+      "RATE_TITLE": "¿Cómo fue la atención?",
+      "RATE_COMMENT": "Comentario (opcional)",
+      "SEND_RATING": "Enviar calificación",
+      "TIMELINE": "Historial",
+      "SYSTEM": "Sistema",
+      "CATEGORY": "Tema",
+      "DUE": "Vence",
+      "SATISFACTION": "Satisfacción",
+      "UPDATED": "Ticket actualizado.",
+      "ERROR": "No se pudo completar la acción."
+    },
+    "METRICS": {
+      "TITLE": "Métricas",
+      "TOTAL": "Total",
+      "OPEN": "Abiertos",
+      "RESOLVED": "Resueltos",
+      "CLOSED": "Cerrados",
+      "OVERDUE": "Vencidos",
+      "SLA": "Cumplimiento SLA",
+      "AVG_RESOLUTION": "Tiempo medio resolución",
+      "SATISFACTION": "Satisfacción",
+      "BY_STATUS": "Por estado",
+      "BY_TYPE": "Por tipo",
+      "BY_PRIORITY": "Por prioridad",
+      "BY_CATEGORY": "Por tema",
+      "BY_AGENT": "Por agente",
+      "NO_DATA": "Sin datos"
+    },
+    "CATEGORIES": {
+      "TITLE": "Temas",
+      "NEW": "Nuevo tema",
+      "NAME": "Nombre",
+      "TYPE": "Tipo",
+      "COLOR": "Color",
+      "DESCRIPTION": "Descripción",
+      "SLA_RESPONSE": "SLA respuesta (min)",
+      "SLA_RESOLUTION": "SLA resolución (min)",
+      "SAVE": "Guardar",
+      "SAVED": "Tema guardado.",
+      "ERROR": "No se pudo guardar el tema."
+    },
+    "notifications": {
+      "jabvox_ticket_created": {
+        "title": "Nuevo ticket #{id}"
+      },
+      "jabvox_ticket_assigned": {
+        "title": "Se te asignó el ticket #{id}"
+      },
+      "jabvox_ticket_status_changed": {
+        "title": "El ticket #{id} cambió de estado"
+      },
+      "jabvox_ticket_resolved": {
+        "title": "El ticket #{id} fue resuelto"
+      },
+      "jabvox_ticket_reopened": {
+        "title": "El ticket #{id} fue reabierto"
+      },
+      "jabvox_ticket_comment": {
+        "title": "Nuevo comentario en el ticket #{id}"
+      },
+      "jabvox_ticket_sla_escalation": {
+        "title": "El ticket #{id} venció su SLA"
+      }
+    },
+    "SLA": {
+      "NO_DUE": "Sin vencimiento",
+      "DUE_IN": "Vence en {time}",
+      "OVERDUE_BY": "Vencido hace {time}"
+    },
+    "VIEWS": {
+      "TITLE": "Vistas rápidas",
+      "ALL": "Todos",
+      "MY_OPEN": "Mis abiertos",
+      "UNASSIGNED": "Sin asignar",
+      "OVERDUE": "Vencidos",
+      "DUE_TODAY": "Por vencer hoy"
+    },
+    "BULK": {
+      "SELECTED": "{count} seleccionados",
+      "ASSIGN": "Asignar",
+      "CHANGE_STATUS": "Cambiar estado",
+      "ARCHIVE": "Archivar",
+      "CLEAR": "Limpiar selección",
+      "DONE": "{processed} procesados, {failed} con error",
+      "CONFIRM_ARCHIVE": "¿Archivar los tickets seleccionados?"
+    },
+    "MERGE": {
+      "TITLE": "Fusionar en otro ticket",
+      "PLACEHOLDER": "ID del ticket destino (#)",
+      "ACTION": "Fusionar",
+      "HINT": "Este ticket se marcará como duplicado y se archivará.",
+      "SUCCESS": "Ticket fusionado"
+    },
+    "NOTIF_PREFS": {
+      "TITLE": "Notificaciones de tickets",
+      "IN_APP": "En la aplicación",
+      "EMAIL": "Por correo",
+      "SAVED": "Preferencias guardadas"
+    },
+    "RESTORE": "Restaurar",
+    "ARCHIVED_TAG": "Archivado",
+    "COMMENTS_COUNT": "{count} comentarios"
+  }
+}

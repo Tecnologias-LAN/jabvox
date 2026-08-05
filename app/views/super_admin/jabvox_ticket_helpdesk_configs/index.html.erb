@@ -1,0 +1,56 @@
+<div style="max-width:900px;margin:0 auto;padding:24px;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
+    <div>
+      <h1 style="font-size:20px;font-weight:700;color:#111827;margin:0 0 4px;">Tickets — Helpdesk central</h1>
+      <p style="font-size:14px;color:#6b7280;margin:0;">
+        Designa la cuenta gestora que recibe y gestiona todos los tickets del sistema.
+      </p>
+    </div>
+    <%= link_to 'Nueva config', new_super_admin_jabvox_ticket_helpdesk_config_path,
+        style: 'background:#1f64e7;color:white;border:none;border-radius:6px;padding:10px 20px;font-size:14px;font-weight:600;text-decoration:none;' %>
+  </div>
+
+  <% if @configs.empty? %>
+    <div style="border:1px dashed #d1d5db;border-radius:8px;padding:40px;text-align:center;color:#6b7280;font-size:14px;">
+      No hay ninguna cuenta gestora configurada. Crea una para habilitar la gestión central de tickets.
+    </div>
+  <% else %>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:12px;text-transform:uppercase;">
+          <th style="padding:8px;">Cuenta gestora</th>
+          <th style="padding:8px;">Asignación</th>
+          <th style="padding:8px;">Estado</th>
+          <th style="padding:8px;">Creada</th>
+          <th style="padding:8px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @configs.each do |config| %>
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:8px;font-weight:600;color:#111827;">
+              <%= config.account&.name || "##{config.account_id}" %>
+            </td>
+            <td style="padding:8px;color:#374151;"><%= config.auto_assign_mode_jabvox %></td>
+            <td style="padding:8px;">
+              <% if config.active_jabvox? %>
+                <span style="background:#dcfce7;color:#15803d;border-radius:9999px;padding:2px 10px;font-size:12px;font-weight:600;">Activa</span>
+              <% else %>
+                <span style="background:#f3f4f6;color:#6b7280;border-radius:9999px;padding:2px 10px;font-size:12px;">Inactiva</span>
+              <% end %>
+            </td>
+            <td style="padding:8px;color:#6b7280;"><%= config.created_at.strftime('%Y-%m-%d %H:%M') %></td>
+            <td style="padding:8px;text-align:right;white-space:nowrap;">
+              <%= link_to 'Editar', edit_super_admin_jabvox_ticket_helpdesk_config_path(config),
+                  style: 'color:#1f64e7;text-decoration:none;margin-right:12px;' %>
+              <%= link_to 'Eliminar', super_admin_jabvox_ticket_helpdesk_config_path(config),
+                  data: { turbo_method: :delete, turbo_confirm: '¿Eliminar esta config de helpdesk?' },
+                  method: :delete,
+                  style: 'color:#b91c1c;text-decoration:none;' %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>

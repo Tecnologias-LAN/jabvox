@@ -645,6 +645,25 @@ const menuItems = computed(() => {
       : []),
     ...(isFeatureEnabledonAccount.value(
       accountId.value,
+      FEATURE_FLAGS.JABVOX_TICKETS
+    )
+      ? [
+          {
+            name: 'Jabvox Tickets',
+            label: t('SIDEBAR.JABVOX_TICKETS'),
+            icon: 'i-lucide-ticket',
+            to: accountScopedRoute('jabvox_tickets_index'),
+            activeOn: [
+              'jabvox_tickets_index',
+              'jabvox_tickets_detail',
+              'jabvox_tickets_metrics',
+              'jabvox_tickets_categories',
+            ],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
       FEATURE_FLAGS.JABVOX_INTERNAL_CHAT
     )
       ? [

@@ -10,14 +10,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_02_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_08_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
+  enable_extension "unaccent"
   enable_extension "vector"
 
+
+  # Función IMMUTABLE para búsqueda insensible a acentos (módulo Jabvox Tickets).
+  unless connection.select_value("SELECT to_regprocedure('jabvox_immutable_unaccent(text)') IS NOT NULL")
+    execute("CREATE FUNCTION jabvox_immutable_unaccent(text) RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT AS $func$ SELECT public.unaccent('public.unaccent'::regdictionary, $1) $func$")
+  end
   create_table "access_tokens", force: :cascade do |t|
     t.string "owner_type"
     t.bigint "owner_id"
@@ -133,6 +139,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_000001) do
     t.bigint "feature_flags_ext_1", default: 0, null: false
     t.boolean "jabvox_whatsapp_groups_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_voice_broadcast_enabled_jabvox", default: false, null: false
+    t.boolean "jabvox_tickets_enabled_jabvox", default: false, null: false
     t.index ["status"], name: "index_accounts_on_status"
   end
 
@@ -3111,6 +3118,100 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_000001) do
     t.index ["account_id", "name_jabvox"], name: "index_jabvox_tax_rates_account_name", unique: true
     t.index ["account_id"], name: "index_jabvox_tax_rates_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_tax_rates_on_created_by_id"
+  end
+
+  create_table "jabvox_ticket_activities", force: :cascade do |t|
+    t.integer "ticket_id", null: false
+    t.integer "user_id"
+    t.string "action_jabvox", null: false
+    t.string "from_value_jabvox"
+    t.string "to_value_jabvox"
+    t.jsonb "metadata_jabvox", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ticket_id"], name: "idx_ticket_activities_ticket"
+  end
+
+  create_table "jabvox_ticket_categories", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.integer "responsible_id"
+    t.string "name_jabvox", null: false
+    t.integer "category_type_jabvox", default: 0, null: false
+    t.string "color_jabvox", default: "#1F93FF", null: false
+    t.text "description_jabvox"
+    t.integer "sla_response_minutes_jabvox", default: 60, null: false
+    t.integer "sla_resolution_minutes_jabvox", default: 1440, null: false
+    t.integer "position_jabvox", default: 0, null: false
+    t.boolean "active_jabvox", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "active_jabvox"], name: "idx_ticket_categories_account_active"
+    t.index ["account_id"], name: "idx_ticket_categories_account"
+  end
+
+  create_table "jabvox_ticket_comments", force: :cascade do |t|
+    t.integer "ticket_id", null: false
+    t.integer "user_id", null: false
+    t.text "body_jabvox", null: false
+    t.boolean "private_jabvox", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ticket_id", "created_at"], name: "idx_ticket_comments_ticket_created"
+    t.index ["ticket_id"], name: "idx_ticket_comments_ticket"
+  end
+
+  create_table "jabvox_ticket_helpdesk_configs", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.integer "auto_assign_mode_jabvox", default: 0, null: false
+    t.boolean "active_jabvox", default: true, null: false
+    t.jsonb "settings_jabvox", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "business_hours_jabvox", default: {}, null: false
+    t.integer "resolver_visibility_jabvox", default: 0, null: false
+    t.index ["account_id"], name: "idx_ticket_helpdesk_account", unique: true
+  end
+
+  create_table "jabvox_tickets", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.integer "display_id_jabvox", null: false
+    t.string "title_jabvox", null: false
+    t.text "description_jabvox"
+    t.integer "ticket_category_id"
+    t.integer "category_type_jabvox", default: 0, null: false
+    t.integer "priority_jabvox", default: 1, null: false
+    t.integer "status_jabvox", default: 0, null: false
+    t.integer "requester_id", null: false
+    t.integer "assignee_id"
+    t.integer "conversation_id"
+    t.integer "contact_id"
+    t.datetime "due_at_jabvox"
+    t.datetime "first_response_at_jabvox"
+    t.datetime "resolved_at_jabvox"
+    t.datetime "closed_at_jabvox"
+    t.text "resolution_jabvox"
+    t.integer "resolution_type_jabvox"
+    t.integer "satisfaction_rating_jabvox"
+    t.text "satisfaction_comment_jabvox"
+    t.integer "reopened_count_jabvox", default: 0, null: false
+    t.jsonb "custom_attributes_jabvox", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "sla_escalated_at_jabvox"
+    t.datetime "sla_warned_at_jabvox"
+    t.integer "lock_version", default: 0, null: false
+    t.integer "comments_count_jabvox", default: 0, null: false
+    t.datetime "deleted_at_jabvox"
+    t.virtual "search_vector_jabvox", type: :tsvector, as: "(setweight(to_tsvector('simple'::regconfig, jabvox_immutable_unaccent((COALESCE(title_jabvox, ''::character varying))::text)), 'A'::\"char\") || setweight(to_tsvector('simple'::regconfig, jabvox_immutable_unaccent(COALESCE(description_jabvox, ''::text))), 'B'::\"char\"))", stored: true
+    t.index ["account_id", "assignee_id"], name: "idx_tickets_account_assignee"
+    t.index ["account_id", "category_type_jabvox"], name: "idx_tickets_account_ctype"
+    t.index ["account_id", "deleted_at_jabvox"], name: "idx_tickets_account_deleted"
+    t.index ["account_id", "display_id_jabvox"], name: "idx_tickets_account_display", unique: true
+    t.index ["account_id", "due_at_jabvox"], name: "idx_tickets_open_due", where: "((status_jabvox <> ALL (ARRAY[4, 5])) AND (deleted_at_jabvox IS NULL))"
+    t.index ["account_id", "requester_id"], name: "idx_tickets_account_requester"
+    t.index ["account_id", "status_jabvox"], name: "idx_tickets_account_status"
+    t.index ["due_at_jabvox"], name: "idx_tickets_sla_pending", where: "((status_jabvox <> ALL (ARRAY[4, 5])) AND (sla_escalated_at_jabvox IS NULL) AND (deleted_at_jabvox IS NULL))"
+    t.index ["search_vector_jabvox"], name: "idx_tickets_search_vector", using: :gin
   end
 
   create_table "jabvox_typifications", force: :cascade do |t|

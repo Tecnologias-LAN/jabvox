@@ -1,0 +1,98 @@
+<%= form_with model: [:super_admin, config], local: true do |f| %>
+  <% if config.errors.any? %>
+    <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:12px;margin-bottom:16px;">
+      <ul style="margin:0;padding-left:16px;">
+        <% config.errors.full_messages.each do |msg| %>
+          <li style="color:#b91c1c;font-size:14px;"><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div style="margin-bottom:16px;">
+    <%= f.label :account_id, 'Cuenta gestora (helpdesk)', style: 'display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:4px;' %>
+    <p style="font-size:12px;color:#6b7280;margin:0 0 6px;">
+      Sus administradores ven y gestionan TODOS los tickets; sus agentes ven solo los asignados a ellos.
+    </p>
+    <%= f.collection_select :account_id, Account.order(:name), :id, :name,
+        { prompt: 'Selecciona una cuenta' },
+        style: 'width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;' %>
+  </div>
+
+  <div style="margin-bottom:16px;">
+    <%= f.label :auto_assign_mode_jabvox, 'Modo de asignación automática', style: 'display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:4px;' %>
+    <p style="font-size:12px;color:#6b7280;margin:0 0 6px;">
+      manual: sin asignación · round_robin: reparte entre resolutores · by_category: al responsable de la categoría.
+    </p>
+    <%= f.select :auto_assign_mode_jabvox,
+        JabvoxTicketHelpdeskConfig.auto_assign_mode_jabvoxes.keys,
+        {},
+        style: 'width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;' %>
+  </div>
+
+  <div style="margin-bottom:16px;">
+    <%= f.label :resolver_visibility_jabvox, 'Visibilidad de los resolutores (agentes)', style: 'display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:4px;' %>
+    <p style="font-size:12px;color:#6b7280;margin:0 0 6px;">
+      assigned_only: cada agente ve solo lo asignado a él · full_inbox: los agentes ven la bandeja completa.
+    </p>
+    <%= f.select :resolver_visibility_jabvox,
+        JabvoxTicketHelpdeskConfig.resolver_visibility_jabvoxes.keys,
+        {},
+        style: 'width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;' %>
+  </div>
+
+  <fieldset style="margin-bottom:16px;border:1px solid #e5e7eb;border-radius:8px;padding:12px;">
+    <legend style="font-size:13px;font-weight:600;color:#374151;padding:0 6px;">Horario laboral (SLA)</legend>
+    <p style="font-size:12px;color:#6b7280;margin:0 0 10px;">
+      Si se activa, el vencimiento de los SLA se calcula sobre el calendario laboral (no cuenta noches ni días no hábiles).
+    </p>
+    <% bh = config.business_hours_jabvox || {} %>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <%= check_box_tag 'business_hours[enabled]', '1', bh['enabled'], id: 'bh_enabled', style: 'width:16px;height:16px;' %>
+      <label for="bh_enabled" style="font-size:14px;color:#374151;">Calcular SLA por horario laboral</label>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+      <div>
+        <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">Inicio (minutos desde medianoche, 540 = 09:00)</label>
+        <%= number_field_tag 'business_hours[start_minute]', bh['start_minute'] || 540, min: 0, max: 1439,
+            style: 'width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;' %>
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">Fin (minutos desde medianoche, 1080 = 18:00)</label>
+        <%= number_field_tag 'business_hours[end_minute]', bh['end_minute'] || 1080, min: 1, max: 1440,
+            style: 'width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;' %>
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">Días laborales</label>
+      <% day_labels = { 1 => 'Lun', 2 => 'Mar', 3 => 'Mié', 4 => 'Jue', 5 => 'Vie', 6 => 'Sáb', 0 => 'Dom' } %>
+      <% selected_days = Array(bh['days']).map(&:to_i) %>
+      <% selected_days = [1, 2, 3, 4, 5] if selected_days.empty? %>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <% day_labels.each do |num, label| %>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;color:#374151;">
+            <%= check_box_tag 'business_hours[days][]', num, selected_days.include?(num), style: 'width:14px;height:14px;' %>
+            <%= label %>
+          </label>
+        <% end %>
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">Zona horaria (ej. America/Bogota)</label>
+      <%= text_field_tag 'business_hours[time_zone]', bh['time_zone'] || 'America/Bogota',
+          style: 'width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;' %>
+    </div>
+  </fieldset>
+
+  <div style="margin-bottom:24px;display:flex;align-items:center;gap:8px;">
+    <%= f.check_box :active_jabvox, style: 'width:16px;height:16px;' %>
+    <%= f.label :active_jabvox, 'Activa (al activar se desactiva cualquier otra config)', style: 'font-size:14px;color:#374151;' %>
+  </div>
+
+  <div style="display:flex;gap:8px;">
+    <%= f.submit config.persisted? ? 'Actualizar config' : 'Crear config',
+        style: 'background:#1f64e7;color:white;border:none;border-radius:6px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;' %>
+    <%= link_to 'Cancelar', super_admin_jabvox_ticket_helpdesk_configs_path,
+        style: 'background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:10px 20px;font-size:14px;font-weight:600;text-decoration:none;' %>
+  </div>
+<% end %>
