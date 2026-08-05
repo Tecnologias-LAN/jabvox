@@ -28,6 +28,7 @@ class JabvoxModulesField < Administrate::Field::Base
     [:jabvox_analytics_enabled_jabvox, 'Jabvox Analytics'],
     [:jabvox_whatsapp_templates_enabled_jabvox, 'Jabvox WhatsApp Templates'],
     [:jabvox_tasks_enabled_jabvox, 'Jabvox Tareas'],
+    [:jabvox_tickets_enabled_jabvox, 'Jabvox Tickets'],
     [:jabvox_bulk_whatsapp_enabled_jabvox, 'Jabvox WhatsApp Masivo'],
     [:jabvox_whatsapp_groups_enabled_jabvox, 'Jabvox WhatsApp Grupos'],
     [:jabvox_voice_broadcast_enabled_jabvox, 'Jabvox Voice Broadcast'],
