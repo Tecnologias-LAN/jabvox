@@ -783,7 +783,22 @@
       "TOTAL": "Total time",
       "AVG": "Average",
       "OCCURRENCES": "Times applied",
-      "NOTE": "Measured from when this feature was enabled; no prior history."
+      "NOTE": "Measured from when this feature was enabled; no prior history.",
+      "CLICK_HINT": "Click a label to see its leads.",
+      "DETAIL": {
+        "TITLE": "Leads with label “{label}”",
+        "EMPTY": "No leads with this label in the period.",
+        "LOAD_ERROR": "Could not load the detail.",
+        "ACTIVE": "Applied",
+        "REMOVED": "Removed",
+        "COLS": {
+          "LEAD": "Lead",
+          "PHONE": "Phone",
+          "APPLIED_AT": "Applied since",
+          "DURATION": "Time applied",
+          "STATE": "State"
+        }
+      }
     },
     "EMPTY": "No data for the selected range."
   }

@@ -5,6 +5,7 @@ import ReportsAPI from 'dashboard/api/reports';
 import ReportHeader from './components/ReportHeader.vue';
 import OverviewReportFilters from './components/OverviewReportFilters.vue';
 import WhatsappAgentDetailDialog from './components/WhatsappAgentDetailDialog.vue';
+import WhatsappLabelDetailDialog from './components/WhatsappLabelDetailDialog.vue';
 
 const { t } = useI18n();
 
@@ -65,6 +66,11 @@ const onInboxChange = () => fetchAll();
 const agentDetailDialog = ref(null);
 const openAgentDetail = agentRow => {
   agentDetailDialog.value?.open(agentRow, queryParams());
+};
+
+const labelDetailDialog = ref(null);
+const openLabelDetail = labelRow => {
+  labelDetailDialog.value?.open(labelRow, queryParams());
 };
 
 const onFilterChange = ({ from, to, businessHours }) => {
@@ -538,6 +544,10 @@ onMounted(() => {
       <p class="text-[11px] text-n-slate-9 mb-2">
         {{ t('WHATSAPP_REPORTS.LABELS.NOTE') }}
       </p>
+      <p class="text-[11px] text-n-slate-10 mb-2 flex items-center gap-1">
+        <span class="i-lucide-mouse-pointer-click w-3 h-3" aria-hidden="true" />
+        {{ t('WHATSAPP_REPORTS.LABELS.CLICK_HINT') }}
+      </p>
       <div class="overflow-x-auto rounded-lg border border-n-weak">
         <table class="w-full text-sm">
           <thead class="bg-n-alpha-1 text-n-slate-11">
@@ -560,7 +570,8 @@ onMounted(() => {
             <tr
               v-for="row in labelDurations"
               :key="row.label"
-              class="border-t border-n-weak text-n-slate-12"
+              class="border-t border-n-weak text-n-slate-12 cursor-pointer hover:bg-n-alpha-1"
+              @click="openLabelDetail(row)"
             >
               <td class="px-3 py-1.5">{{ row.label }}</td>
               <td class="px-3 py-1.5 text-right">
@@ -579,5 +590,6 @@ onMounted(() => {
     </section>
 
     <WhatsappAgentDetailDialog ref="agentDetailDialog" />
+    <WhatsappLabelDetailDialog ref="labelDetailDialog" />
   </div>
 </template>

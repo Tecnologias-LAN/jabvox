@@ -29,8 +29,28 @@ RSpec.describe 'WhatsApp report extended metrics', type: :model do
     expect(row[:occurrences]).to eq(1)
   end
 
+  it 'lists label detail per lead with contact and duration', :aggregate_failures do
+    conversation.update!(label_list: ['ventas'])
+    log = JabvoxConversationLabelLog.find_by(conversation_id: conversation.id, label_jabvox: 'ventas')
+    log.update!(applied_at_jabvox: 2.hours.ago)
+
+    leads = builder.label_lead_details('ventas')
+    expect(leads.size).to eq(1)
+    lead = leads.first
+    expect(lead[:conversation_id]).to eq(conversation.id)
+    expect(lead[:contact_name]).to eq(contact.name)
+    expect(lead[:active]).to be(true)
+    expect(lead[:duration_seconds]).to be >= 7000 # ~2h
+  end
+
+  it 'filters label detail by the given label', :aggregate_failures do
+    conversation.update!(label_list: %w[ventas soporte])
+    leads = builder.label_lead_details('soporte')
+    expect(leads.map { |l| l[:label] }.uniq).to eq(['soporte'])
+  end
+
   it 'breaks messages down by media type', :aggregate_failures do
-    txt = create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :incoming, content: 'hola')
+    create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :incoming, content: 'hola')
     img = create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :incoming)
     img.attachments.create!(account: account, file_type: :image)
 

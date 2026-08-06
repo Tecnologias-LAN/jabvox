@@ -442,6 +442,9 @@ Rails.application.routes.draw do
           resources :upload, only: [:create]
 
           namespace :jabvox do
+            # Fecha en que se aplicó una etiqueta (para automatizaciones que la retiran
+            # tras cierto tiempo). No lo ofrece la API estándar de Chatwoot.
+            resources :label_logs, only: [:index]
             # Emisor de SSO + comprobacion de permisos para el iframe embebido.
             post 'advanced_automations/sso_token', to: 'advanced_automations#sso_token'
             get 'advanced_automations/permissions_check', to: 'advanced_automations#permissions_check'
@@ -992,6 +995,7 @@ Rails.application.routes.draw do
               get 'whatsapp/rankings', action: :whatsapp_rankings
               get 'whatsapp/conversations/:conversation_id/timeline', action: :whatsapp_timeline
               get 'whatsapp/label_durations', action: :whatsapp_label_durations
+              get 'whatsapp/label_leads', action: :whatsapp_label_leads
               get 'whatsapp/templates', action: :whatsapp_templates
               get 'whatsapp/inboxes', action: :whatsapp_inboxes
               get 'whatsapp/agents/:agent_id/detail', action: :whatsapp_agent_detail
