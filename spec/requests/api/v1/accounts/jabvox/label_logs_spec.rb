@@ -43,6 +43,8 @@ RSpec.describe 'Jabvox label logs', type: :request do
     expect(row['hours_applied']).to be >= 30
     expect(row['applied_at']).to eq(vieja.applied_at_jabvox.iso8601)
     expect(row['applied_at_epoch']).to eq(vieja.applied_at_jabvox.to_i)
+    # display_id es lo que usan las URLs de la API de conversaciones (no el id interno).
+    expect(row['display_id']).to eq(conversation.display_id)
   end
 
   it 'no incluye etiquetas ya retiradas (intervalo cerrado)' do

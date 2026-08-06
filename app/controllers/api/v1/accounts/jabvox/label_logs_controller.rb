@@ -14,12 +14,13 @@ class Api::V1::Accounts::Jabvox::LabelLogsController < Api::V1::Accounts::BaseCo
 
     now = Time.current
     logs = open_logs_for(label)
+    display_ids = display_ids_for(logs.map(&:conversation_id))
 
     render json: {
       label: label,
       now: now.iso8601,
       count: logs.size,
-      data: logs.map { |log| serialize(log, now) }
+      data: logs.map { |log| serialize(log, now, display_ids) }
     }
   end
 
@@ -34,9 +35,18 @@ class Api::V1::Accounts::Jabvox::LabelLogsController < Api::V1::Accounts::BaseCo
                               .limit(result_limit)
   end
 
-  def serialize(log, now)
+  # id interno -> display_id (lo que usan las URLs de la API de conversaciones).
+  def display_ids_for(conversation_ids)
+    ids = conversation_ids.compact.uniq
+    return {} if ids.empty?
+
+    Current.account.conversations.where(id: ids).pluck(:id, :display_id).to_h
+  end
+
+  def serialize(log, now, display_ids)
     {
       conversation_id: log.conversation_id,
+      display_id: display_ids[log.conversation_id],
       label: log.label_jabvox,
       applied_at: log.applied_at_jabvox.iso8601,
       applied_at_epoch: log.applied_at_jabvox.to_i,
