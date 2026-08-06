@@ -8,9 +8,11 @@ module V2::Reports::WhatsappReport::Scopes
     )
   end
 
+  # Conversaciones candidatas: WhatsApp + filtros de bandeja/estado/etc. El rango NO
+  # se aplica aquí por created_at (eso perdía la actividad de conversaciones viejas);
+  # se aplica sobre los mensajes (ver conversation_ids / *_messages).
   def base_conversations
     scope = account.conversations.where(inbox_id: whatsapp_inbox_ids)
-    scope = scope.where(created_at: range) if range
     { inbox_id: params[:inbox_id], team_id: params[:team_id],
       status: params[:status], priority: params[:priority] }.each do |column, value|
       scope = scope.where(column => value) if value.present?
@@ -40,18 +42,39 @@ module V2::Reports::WhatsappReport::Scopes
            .map { |id, name| { id: id, name: name } }
   end
 
+  # IDs de las conversaciones candidatas (respeta bandeja/etiqueta/plantilla/business).
+  def candidate_conversation_ids
+    @candidate_conversation_ids ||= conversations.pluck(:id)
+  end
+
+  # Conversaciones del reporte = candidatas que tuvieron AL MENOS un mensaje dentro
+  # del rango. Así se incluye la actividad de conversaciones antiguas y se excluyen
+  # las que no tuvieron movimiento en el periodo.
   def conversation_ids
-    @conversation_ids ||= conversations.pluck(:id)
+    @conversation_ids ||= begin
+      msgs = account.messages.where(conversation_id: candidate_conversation_ids)
+      msgs = msgs.where(created_at: range) if range
+      # reorder(nil) quita el order por defecto de Message (choca con DISTINCT en PG).
+      msgs.reorder(nil).distinct.pluck(:conversation_id)
+    end
   end
 
+  # Salientes DENTRO del rango (por la fecha del propio mensaje).
   def outgoing_messages
-    @outgoing_messages ||= account.messages
-                                  .where(conversation_id: conversation_ids, private: false)
-                                  .where(message_type: %i[outgoing template])
+    @outgoing_messages ||= begin
+      scope = account.messages
+                     .where(conversation_id: candidate_conversation_ids, private: false)
+                     .where(message_type: %i[outgoing template])
+      range ? scope.where(created_at: range) : scope
+    end
   end
 
+  # Entrantes DENTRO del rango (por la fecha del propio mensaje).
   def incoming_messages
-    @incoming_messages ||= account.messages.where(conversation_id: conversation_ids, message_type: :incoming)
+    @incoming_messages ||= begin
+      scope = account.messages.where(conversation_id: candidate_conversation_ids, message_type: :incoming)
+      range ? scope.where(created_at: range) : scope
+    end
   end
 
   def agent_outgoing(uid)
@@ -65,7 +88,8 @@ module V2::Reports::WhatsappReport::Scopes
   end
 
   def incoming_for_convs(conv_ids)
-    account.messages.where(conversation_id: conv_ids, message_type: :incoming)
+    scope = account.messages.where(conversation_id: conv_ids, message_type: :incoming)
+    range ? scope.where(created_at: range) : scope
   end
 
   # reporting_events already stores the computed times (first_response, reply_time,

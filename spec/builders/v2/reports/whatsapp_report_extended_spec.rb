@@ -12,6 +12,40 @@ RSpec.describe 'WhatsApp report extended metrics', type: :model do
     V2::Reports::WhatsappAgentReportBuilder.new(account: account, params: params)
   end
 
+  # Bug: el reporte filtraba por created_at de la conversación y perdía actividad de
+  # conversaciones viejas. Ahora cuenta por la fecha de los mensajes.
+  it 'incluye actividad del rango en conversaciones creadas ANTES del rango', :aggregate_failures do
+    # Conversación vieja (creada hace 40 días), mensaje dentro del rango de hoy.
+    conversation.update_column(:created_at, 40.days.ago) # rubocop:disable Rails/SkipsModelValidations
+    create(:message, account: account, inbox: inbox, conversation: conversation,
+                     message_type: :outgoing, sender: agent, created_at: 1.hour.ago)
+
+    params = { from: 2.hours.ago.to_i.to_s, to: 5.minutes.from_now.to_i.to_s }
+    s = builder(params).summary
+    expect(s[:sent]).to eq(1) # antes daba 0 porque la conversación quedaba fuera
+  end
+
+  it 'excluye mensajes fuera del rango aunque la conversación sea reciente', :aggregate_failures do
+    create(:message, account: account, inbox: inbox, conversation: conversation,
+                     message_type: :outgoing, sender: agent, created_at: 10.days.ago)
+
+    params = { from: 2.hours.ago.to_i.to_s, to: 5.minutes.from_now.to_i.to_s }
+    s = builder(params).summary
+    expect(s[:sent]).to eq(0) # el mensaje de hace 10 días no cuenta en el rango de hoy
+  end
+
+  it 'muestra una etiqueta aplicada antes del rango pero aún activa en él', :aggregate_failures do
+    create(:message, account: account, inbox: inbox, conversation: conversation,
+                     message_type: :outgoing, sender: agent, created_at: 1.hour.ago)
+    conversation.update!(label_list: ['detener-bot-masivo'])
+    log = JabvoxConversationLabelLog.find_by(conversation_id: conversation.id, label_jabvox: 'detener-bot-masivo')
+    log.update!(applied_at_jabvox: 3.days.ago) # aplicada antes del rango, aún activa
+
+    params = { from: 2.hours.ago.to_i.to_s, to: 5.minutes.from_now.to_i.to_s }
+    durations = builder(params).label_durations
+    expect(durations.map { |r| r[:label] }).to include('detener-bot-masivo')
+  end
+
   it 'logs label apply/remove intervals and aggregates duration', :aggregate_failures do
     conversation.update!(label_list: ['ventas'])
     log = JabvoxConversationLabelLog.find_by(conversation_id: conversation.id, label_jabvox: 'ventas')

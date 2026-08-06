@@ -194,9 +194,10 @@ class V2::Reports::WhatsappAgentReportBuilder
     }
   end
 
-  # ── Aggregations by agent ────────────────────────────────────────────────
+  # Conversaciones del agente CON actividad en el rango (no todo su histórico).
   def agent_conversation_ids(uid)
-    @assigned_by_agent ||= conversations.where.not(assignee_id: nil).pluck(:assignee_id, :id)
+    @assigned_by_agent ||= conversations.where.not(assignee_id: nil).where(id: conversation_ids)
+                                        .pluck(:assignee_id, :id)
                                         .group_by(&:first).transform_values { |v| v.map(&:last) }
     @assigned_by_agent[uid] || []
   end
