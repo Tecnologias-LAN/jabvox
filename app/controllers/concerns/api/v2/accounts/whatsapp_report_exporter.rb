@@ -34,6 +34,11 @@ module Api::V2::Accounts::WhatsappReportExporter
     render json: whatsapp_builder.label_durations
   end
 
+  # Detalle por lead de una etiqueta (quién la tiene/tuvo y cuánto tiempo).
+  def whatsapp_label_leads
+    render json: whatsapp_builder.label_lead_details(params[:label].presence)
+  end
+
   # Lista de plantillas usadas en masivos, para el desplegable del filtro.
   def whatsapp_templates
     render json: whatsapp_builder.template_names

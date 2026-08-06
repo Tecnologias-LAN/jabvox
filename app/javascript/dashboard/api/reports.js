@@ -140,6 +140,12 @@ class ReportsAPI extends ApiClient {
     });
   }
 
+  getWhatsappLabelLeads({ from: since, to: until, label } = {}) {
+    return axios.get(`${this.url}/whatsapp/label_leads`, {
+      params: { from: since, to: until, label },
+    });
+  }
+
   getWhatsappTemplates() {
     return axios.get(`${this.url}/whatsapp/templates`);
   }

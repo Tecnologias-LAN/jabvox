@@ -783,7 +783,22 @@
       "TOTAL": "Tiempo total",
       "AVG": "Promedio",
       "OCCURRENCES": "Veces aplicada",
-      "NOTE": "Se mide desde que se activó esta función; no incluye historial anterior."
+      "NOTE": "Se mide desde que se activó esta función; no incluye historial anterior.",
+      "CLICK_HINT": "Haz clic en una etiqueta para ver los leads.",
+      "DETAIL": {
+        "TITLE": "Leads con la etiqueta “{label}”",
+        "EMPTY": "No hay leads con esta etiqueta en el periodo.",
+        "LOAD_ERROR": "No se pudo cargar el detalle.",
+        "ACTIVE": "Puesta",
+        "REMOVED": "Retirada",
+        "COLS": {
+          "LEAD": "Lead",
+          "PHONE": "Teléfono",
+          "APPLIED_AT": "Aplicada desde",
+          "DURATION": "Tiempo puesta",
+          "STATE": "Estado"
+        }
+      }
     },
     "EMPTY": "Sin datos para el rango seleccionado."
   }
