@@ -4,9 +4,7 @@
 module V2::Reports::WhatsappReport::LabelDurations
   # [{ label:, total_seconds:, avg_seconds:, occurrences: }], sorted by total desc.
   def label_durations
-    logs = JabvoxConversationLabelLog.where(account_id: account.id, conversation_id: conversation_ids)
-    logs = logs.where(applied_at_jabvox: range) if range
-    rows = logs.pluck(:label_jabvox, :applied_at_jabvox, :removed_at_jabvox)
+    rows = label_logs_in_range.pluck(:label_jabvox, :applied_at_jabvox, :removed_at_jabvox)
     return [] if rows.empty?
 
     now = Time.current
@@ -32,6 +30,20 @@ module V2::Reports::WhatsappReport::LabelDurations
 
   private
 
+  # Logs de etiqueta cuyas conversaciones son candidatas del reporte y cuyo intervalo
+  # (applied_at..removed_at) SE SOLAPA con el rango. Así aparece una etiqueta aplicada
+  # antes del rango pero aún activa dentro de él, o aplicada dentro del rango, sin
+  # depender de que la conversación haya tenido mensajes en el periodo.
+  def label_logs_in_range
+    logs = JabvoxConversationLabelLog.where(account_id: account.id,
+                                            conversation_id: candidate_conversation_ids)
+    return logs unless range
+
+    # Solape: applied_at <= range.end  AND  (removed_at IS NULL OR removed_at >= range.begin)
+    logs.where('applied_at_jabvox <= ?', range.end)
+        .where('removed_at_jabvox IS NULL OR removed_at_jabvox >= ?', range.begin)
+  end
+
   def label_row(label, entries, now)
     durations = entries.map { |(_l, applied, removed)| ((removed || now) - applied).to_i }
     total = durations.sum
@@ -44,8 +56,7 @@ module V2::Reports::WhatsappReport::LabelDurations
   end
 
   def label_detail_rows(label)
-    logs = JabvoxConversationLabelLog.where(account_id: account.id, conversation_id: conversation_ids)
-    logs = logs.where(applied_at_jabvox: range) if range
+    logs = label_logs_in_range
     logs = logs.where(label_jabvox: label) if label.present?
     logs.pluck(:conversation_id, :label_jabvox, :applied_at_jabvox, :removed_at_jabvox)
   end

@@ -23,6 +23,10 @@ Metrics/ClassLength:
     # tres clientes Faraday. Partirla por tamano separaria metodos que comparten
     # el mismo cliente y la misma traduccion de errores, sin ganar nada.
     - 'app/services/automations/provisioning_service.rb'
+    # Builder del reporte de WhatsApp: es una clase de agregaciones (volumen, tiempos,
+    # por agente, rankings, timeline). Partirla separaría métricas que comparten los
+    # mismos scopes y helpers, sin ganar claridad.
+    - 'app/builders/v2/reports/whatsapp_agent_report_builder.rb'
     - 'db/migrate/**/*'
 
 Metrics/MethodLength:
