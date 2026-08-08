@@ -469,6 +469,9 @@ Rails.application.routes.draw do
                 post :send_to_contact
               end
             end
+            resource :email, only: [], controller: 'emails' do
+              post :send_message, on: :collection
+            end
             resources :products do
               collection do
                 post :import
