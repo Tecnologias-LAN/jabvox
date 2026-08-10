@@ -30,9 +30,14 @@
 #  fk_rails_...  (folder_id => jabvox_analytics_folders.id)
 #
 class JabvoxAnalyticsDashboard < ApplicationRecord
+  include Jabvox::AccountResourceLimit
+
   self.table_name = 'jabvox_analytics_dashboards'
 
   belongs_to :account
+
+  # Cuota por cuenta (paquete): nº de dashboards de analytics.
+  jabvox_resource_limit :analytics_dashboards
   belongs_to :folder, class_name: 'JabvoxAnalyticsFolder', optional: true
   belongs_to :created_by, class_name: 'User', optional: true
 

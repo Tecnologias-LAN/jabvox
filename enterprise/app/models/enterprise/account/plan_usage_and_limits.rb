@@ -4,6 +4,10 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
   CAPTAIN_RESPONSES_USAGE = 'captain_responses_usage'.freeze
   CAPTAIN_DOCUMENTS_USAGE = 'captain_documents_usage'.freeze
 
+  # Recursos Jabvox con cuota por cuenta (además de agents/inboxes/captain de Chatwoot).
+  # nil / ausente en limits = ilimitado (JabvoxApp.max_limit).
+  JABVOX_LIMIT_KEYS = %w[automation_rules analytics_dashboards ai_documents].freeze
+
   def usage_limits
     {
       agents: agent_limits.to_i,
@@ -12,7 +16,13 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
         documents: get_captain_limits(:documents),
         responses: get_captain_limits(:responses)
       }
-    }
+    }.merge(jabvox_usage_limits)
+  end
+
+  # Límites de recursos Jabvox contables. Cada uno resuelve: limits['<key>'] →
+  # GlobalConfig ACCOUNT_<KEY>_LIMIT → ilimitado.
+  def jabvox_usage_limits
+    JABVOX_LIMIT_KEYS.index_with { |key| get_limits(key.to_sym).to_i }.symbolize_keys
   end
 
   def increment_response_usage
@@ -170,7 +180,11 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
         'agents' => { 'type': 'number' },
         'captain_responses' => { 'type': 'number' },
         'captain_documents' => { 'type': 'number' },
-        'emails' => { 'type': 'number' }
+        'emails' => { 'type': 'number' },
+        # Recursos Jabvox con cuota por cuenta.
+        'automation_rules' => { 'type': 'number' },
+        'analytics_dashboards' => { 'type': 'number' },
+        'ai_documents' => { 'type': 'number' }
       },
       'required' => [],
       'additionalProperties' => false

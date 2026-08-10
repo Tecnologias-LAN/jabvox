@@ -25,7 +25,13 @@
 #  fk_rails_...  (created_by_id => users.id)
 #
 class JabvoxAiChatDocument < ApplicationRecord
+  include Jabvox::AccountResourceLimit
+
   belongs_to :account
+
+  # Cuota por cuenta (paquete): docs de IA = AI Chat + Response Bot (suman al mismo tope).
+  jabvox_resource_limit :ai_documents,
+                        counts_with: %w[JabvoxAiChatDocument JabvoxResponseBotDocument]
 
   validates :name_jabvox, presence: true, length: { maximum: 300 }
   validates :s3_key_jabvox, presence: true, length: { maximum: 500 }

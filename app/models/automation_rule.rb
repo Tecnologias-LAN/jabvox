@@ -20,9 +20,13 @@
 class AutomationRule < ApplicationRecord
   include Rails.application.routes.url_helpers
   include Reauthorizable
+  include Jabvox::AccountResourceLimit
 
   belongs_to :account
   has_many_attached :files
+
+  # Cuota por cuenta (paquete): nº de reglas de automatización.
+  jabvox_resource_limit :automation_rules
 
   validate :json_conditions_format
   validate :json_actions_format
