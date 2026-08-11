@@ -43,6 +43,12 @@ RSpec.describe Conversations::EventDataPresenter do
       # the exceptions are the values that would be added in enterprise edition.
       expect(presenter.push_data.except(:applied_sla, :sla_events)).to include(expected_data)
     end
+
+    it 'includes account_id so the frontend does not discard the ActionCable event' do
+      # Sin account_id, isAValidEvent (actionCable.js) descarta el evento en silencio y
+      # la lista no refresca cambios como las etiquetas en tiempo real.
+      expect(presenter.push_data[:account_id]).to eq(conversation.account_id)
+    end
   end
 
   describe '#webhook_data' do
