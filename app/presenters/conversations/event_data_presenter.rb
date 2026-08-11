@@ -1,6 +1,10 @@
 class Conversations::EventDataPresenter < SimpleDelegator
-  def push_data
+  # account_id es OBLIGATORIO en el payload: sin él, isAValidEvent (actionCable.js)
+  # descarta el evento y la lista no refresca en tiempo real (p.ej. etiquetas) hasta
+  # recargar la app.
+  def push_data # rubocop:disable Metrics/MethodLength
     {
+      account_id: account_id,
       additional_attributes: additional_attributes,
       can_reply: can_reply?,
       channel: inbox.try(:channel_type),
