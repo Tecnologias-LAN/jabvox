@@ -31,6 +31,7 @@
 #  jabvox_lead_delete_enabled_jabvox          :boolean          default(FALSE), not null
 #  jabvox_lead_import_enabled_jabvox          :boolean          default(FALSE), not null
 #  jabvox_leads_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_plan_expires_at                     :datetime
 #  jabvox_products_enabled_jabvox             :boolean          default(FALSE), not null
 #  jabvox_response_bot_enabled_jabvox         :boolean          default(FALSE), not null
 #  jabvox_saldo_enabled_jabvox                :boolean          default(FALSE), not null
@@ -49,10 +50,12 @@
 #  support_email                              :string(100)
 #  created_at                                 :datetime         not null
 #  updated_at                                 :datetime         not null
+#  jabvox_plan_id                             :bigint
 #
 # Indexes
 #
-#  index_accounts_on_status  (status)
+#  index_accounts_on_jabvox_plan_id  (jabvox_plan_id)
+#  index_accounts_on_status          (status)
 #
 
 class Account < ApplicationRecord
@@ -124,6 +127,10 @@ class Account < ApplicationRecord
   has_many :notes, dependent: :destroy_async
   has_many :notification_settings, dependent: :destroy_async
   has_many :notifications, dependent: :destroy_async
+  # Plan de cobro vigente de la cuenta (billing). optional: la mayoría de cuentas no
+  # tienen plan asignado (creadas por otros medios).
+  belongs_to :jabvox_plan, optional: true
+  has_many :jabvox_provisioning_transactions, dependent: :nullify
   has_many :jabvox_tickets, dependent: :destroy_async
   has_many :jabvox_ticket_categories, dependent: :destroy_async
   has_many :jabvox_kanban_funnels, dependent: :destroy_async

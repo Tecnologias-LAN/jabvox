@@ -442,6 +442,10 @@ Rails.application.routes.draw do
           resources :upload, only: [:create]
 
           namespace :jabvox do
+            # Cobro/aprovisionamiento: inicia el checkout (token firmado + URL de la web).
+            namespace :billing do
+              resource :checkout, only: [:create], controller: 'checkouts'
+            end
             # Fecha en que se aplicó una etiqueta (para automatizaciones que la retiran
             # tras cierto tiempo). No lo ofrece la API estándar de Chatwoot.
             resources :label_logs, only: [:index]
@@ -1157,6 +1161,12 @@ Rails.application.routes.draw do
   mount Facebook::Messenger::Server, at: 'bot'
   get 'webhooks/twitter', to: 'api/v1/webhooks#twitter_crc'
   post 'webhooks/twitter', to: 'api/v1/webhooks#twitter_events'
+  # Cobro/aprovisionamiento por pasarela de pago (Bold/Wompi/Mono).
+  #   process_payload  <- la pasarela (webhook firmado)
+  #   resolve/checkout <- la web de cobro (canal interno autenticado)
+  post 'webhooks/jabvox/billing/resolve', to: 'webhooks/jabvox/billing#resolve_token'
+  post 'webhooks/jabvox/billing/checkout', to: 'webhooks/jabvox/billing#create_checkout'
+  post 'webhooks/jabvox/billing/:gateway', to: 'webhooks/jabvox/billing#process_payload'
   post 'webhooks/line/:line_channel_id', to: 'webhooks/line#process_payload'
   post 'webhooks/telegram/:bot_token', to: 'webhooks/telegram#process_payload'
   post 'webhooks/sms/:phone_number', to: 'webhooks/sms#process_payload'
@@ -1223,6 +1233,12 @@ Rails.application.routes.draw do
       end
 
       # order of resources affect the order of sidebar navigation in super admin
+      # Cobro/aprovisionamiento por pasarela de pago.
+      resources :jabvox_plans
+      resources :jabvox_payment_gateway_configs, except: [:destroy]
+      resources :jabvox_provisioning_transactions, only: [:index, :show] do
+        post :retry_provisioning, on: :member
+      end
       resources :jabvox_saldo_configs, only: [:index, :new, :create, :destroy]
       resources :jabvox_ticket_helpdesk_configs
       resources :jabvox_response_bot_seats

@@ -675,3 +675,14 @@ en:
       no_subscriptions_to_test: 'Select at least one subscription to test.'
       no_subscriptions_to_delete: 'Select at least one subscription to delete.'
       subscriptions_deleted: "Deleted %{count} subscription(s). The user's device(s) will re-register on next app launch."
+  jabvox:
+    billing:
+      credentials_mailer:
+        set_password:
+          subject: 'Your Jabvox account is ready — set your password'
+      renewal_mailer:
+        reminder:
+          subject: 'Your Jabvox plan expires in %{days} day(s) — renew to keep access'
+      transactions:
+        retry_enqueued: 'Provisioning retry enqueued.'
+        not_retriable: "Cannot retry in status '%{status}'."

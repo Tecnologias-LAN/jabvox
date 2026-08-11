@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_10_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_11_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -140,6 +140,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_10_000001) do
     t.boolean "jabvox_whatsapp_groups_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_voice_broadcast_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_tickets_enabled_jabvox", default: false, null: false
+    t.bigint "jabvox_plan_id"
+    t.datetime "jabvox_plan_expires_at"
+    t.index ["jabvox_plan_id"], name: "index_accounts_on_jabvox_plan_id"
     t.index ["status"], name: "index_accounts_on_status"
   end
 
@@ -2712,6 +2715,37 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_10_000001) do
     t.index ["created_by_id"], name: "index_jabvox_orders_on_created_by_id"
   end
 
+  create_table "jabvox_payment_gateway_configs", force: :cascade do |t|
+    t.string "provider", null: false
+    t.boolean "active", default: false, null: false
+    t.string "public_token"
+    t.string "checkout_base_url"
+    t.jsonb "settings", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "idx_one_active_gateway", unique: true, where: "(active = true)"
+    t.index ["provider"], name: "index_jabvox_payment_gateway_configs_on_provider", unique: true
+  end
+
+  create_table "jabvox_plans", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.integer "price_cents", default: 0, null: false
+    t.string "currency", default: "COP", null: false
+    t.integer "duration_days", default: 30, null: false
+    t.jsonb "modules", default: [], null: false
+    t.jsonb "chatwoot_features", default: [], null: false
+    t.jsonb "limits", default: {}, null: false
+    t.string "whatsapp_number"
+    t.integer "status", default: 0, null: false
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "billing_period", default: 0, null: false
+    t.index ["slug"], name: "index_jabvox_plans_on_slug", unique: true
+    t.index ["status"], name: "index_jabvox_plans_on_status"
+  end
+
   create_table "jabvox_products", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "name_jabvox", null: false
@@ -2735,6 +2769,30 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_10_000001) do
     t.index ["jabvox_currency_id"], name: "index_jabvox_products_on_jabvox_currency_id"
     t.index ["jabvox_item_type_id"], name: "index_jabvox_products_on_jabvox_item_type_id"
     t.index ["jabvox_unit_of_measure_id"], name: "index_jabvox_products_on_jabvox_unit_of_measure_id"
+  end
+
+  create_table "jabvox_provisioning_transactions", force: :cascade do |t|
+    t.bigint "account_id"
+    t.bigint "jabvox_plan_id"
+    t.string "buyer_email"
+    t.string "gateway", null: false
+    t.string "gateway_reference"
+    t.string "idempotency_key", null: false
+    t.integer "amount_cents"
+    t.string "currency", default: "COP"
+    t.integer "status", default: 0, null: false
+    t.string "status_reason"
+    t.integer "attempts", default: 0, null: false
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "payment_approved_at"
+    t.datetime "provisioned_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_provisioning_transactions_on_account_id"
+    t.index ["gateway_reference"], name: "index_jabvox_provisioning_transactions_on_gateway_reference"
+    t.index ["idempotency_key"], name: "index_jabvox_provisioning_transactions_on_idempotency_key", unique: true
+    t.index ["jabvox_plan_id"], name: "index_jabvox_provisioning_transactions_on_jabvox_plan_id"
+    t.index ["status"], name: "index_jabvox_provisioning_transactions_on_status"
   end
 
   create_table "jabvox_quick_buttons", force: :cascade do |t|
@@ -4122,6 +4180,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_10_000001) do
   add_foreign_key "jabvox_products", "jabvox_item_types"
   add_foreign_key "jabvox_products", "jabvox_units_of_measure", column: "jabvox_unit_of_measure_id"
   add_foreign_key "jabvox_products", "users", column: "created_by_id"
+  add_foreign_key "jabvox_provisioning_transactions", "accounts"
+  add_foreign_key "jabvox_provisioning_transactions", "jabvox_plans"
   add_foreign_key "jabvox_quick_buttons", "accounts"
   add_foreign_key "jabvox_quick_buttons", "users", column: "created_by_id"
   add_foreign_key "jabvox_response_bot_configs", "accounts"

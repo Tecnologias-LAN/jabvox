@@ -619,3 +619,14 @@ es:
       no_subscriptions_to_test: 'Seleccione al menos una suscripción para probar.'
       no_subscriptions_to_delete: 'Seleccione al menos una suscripción a eliminar.'
       subscriptions_deleted: "Suscripción(es) %{count} eliminada(s). El dispositivo(s) del usuario volverá a registrarse en el próximo lanzamiento de la aplicación."
+  jabvox:
+    billing:
+      credentials_mailer:
+        set_password:
+          subject: 'Tu cuenta Jabvox está lista — establece tu contraseña'
+      renewal_mailer:
+        reminder:
+          subject: 'Tu plan Jabvox vence en %{days} día(s) — renueva para no perder acceso'
+      transactions:
+        retry_enqueued: 'Reintento de aprovisionamiento encolado.'
+        not_retriable: "No se puede reintentar en estado '%{status}'."
