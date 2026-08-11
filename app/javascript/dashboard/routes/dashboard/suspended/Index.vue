@@ -6,11 +6,9 @@ import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useMapGetter } from 'dashboard/composables/store';
 
 const { isAdmin } = useAdmin();
-const isOnChatwootCloud = useMapGetter('globalConfig/isOnChatwootCloud');
+const isOnJabvoxCloud = useMapGetter('globalConfig/isOnJabvoxCloud');
 
-const showBillingLink = computed(
-  () => isAdmin.value && isOnChatwootCloud.value
-);
+const showBillingLink = computed(() => isAdmin.value && isOnJabvoxCloud.value);
 
 const toggleSupportWidgetVisibility = () => {
   if (window.$jabvox) {

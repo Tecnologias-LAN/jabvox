@@ -101,10 +101,10 @@ export default {
       currentUser: 'getCurrentUser',
       currentUserId: 'getCurrentUserID',
       globalConfig: 'globalConfig/get',
-      isOnChatwootCloud: 'globalConfig/isOnChatwootCloud',
+      isOnJabvoxCloud: 'globalConfig/isOnJabvoxCloud',
     }),
     apiAndWebhooksEnabled() {
-      if (!this.isOnChatwootCloud) return true;
+      if (!this.isOnJabvoxCloud) return true;
 
       return this.currentUser.accounts.some(
         account => account.api_and_webhooks

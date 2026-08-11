@@ -44,11 +44,11 @@ export default {
       uiFlags: 'webhooks/getUIFlags',
       accountId: 'getCurrentAccountId',
       isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
-      isOnChatwootCloud: 'globalConfig/isOnChatwootCloud',
+      isOnJabvoxCloud: 'globalConfig/isOnJabvoxCloud',
     }),
     apiAndWebhooksEnabled() {
       return (
-        !this.isOnChatwootCloud ||
+        !this.isOnJabvoxCloud ||
         this.isFeatureEnabledonAccount(
           this.accountId,
           FEATURE_FLAGS.API_AND_WEBHOOKS

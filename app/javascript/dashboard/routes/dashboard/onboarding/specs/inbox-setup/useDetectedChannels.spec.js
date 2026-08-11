@@ -15,7 +15,7 @@ const mountComposable = ({
   brandInfo,
   features = { channel_instagram: true },
   inboxes = [],
-  isOnChatwootCloud = false,
+  isOnJabvoxCloud = false,
 } = {}) => {
   const store = createStore({
     modules: {
@@ -23,7 +23,7 @@ const mountComposable = ({
         namespaced: true,
         getters: {
           get: () => ({}),
-          isOnChatwootCloud: () => isOnChatwootCloud,
+          isOnJabvoxCloud: () => isOnJabvoxCloud,
         },
       },
       accounts: {
@@ -60,7 +60,7 @@ beforeEach(() => {
   useRoute.mockReturnValue({ params: { accountId: '1' } });
   // Configure the installation OAuth credentials so detected channels aren't
   // hidden by the config gate; individual tests clear this to assert hiding.
-  window.chatwootConfig = {
+  window.jabvoxConfig = {
     fbAppId: 'fb',
     instagramAppId: 'ig',
     tiktokAppId: 'tt',
@@ -70,7 +70,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete window.chatwootConfig;
+  delete window.jabvoxConfig;
 });
 
 describe('useDetectedChannels', () => {
@@ -184,7 +184,7 @@ describe('useDetectedChannels', () => {
     });
 
     it('gates the default suggestions by installation config, keeping the list non-empty', () => {
-      window.chatwootConfig = {}; // no OAuth credentials configured
+      window.jabvoxConfig = {}; // no OAuth credentials configured
       const { displayedChannels } = mountComposable({ brandInfo: undefined });
 
       // Only the credential-free defaults survive (Telegram, LINE).
@@ -195,7 +195,7 @@ describe('useDetectedChannels', () => {
     });
 
     it('hides detected channels whose installation OAuth credentials are missing', () => {
-      window.chatwootConfig = {}; // nothing configured
+      window.jabvoxConfig = {}; // nothing configured
       const { displayedChannels } = mountComposable({
         brandInfo: {
           socials: [
@@ -213,7 +213,7 @@ describe('useDetectedChannels', () => {
 
     it('keeps Instagram available on Chatwoot Cloud when enabled for the account', () => {
       const { displayedChannels } = mountComposable({
-        isOnChatwootCloud: true,
+        isOnJabvoxCloud: true,
         brandInfo: {
           socials: [
             { type: 'instagram', url: 'https://instagram.com/acme' },
@@ -231,7 +231,7 @@ describe('useDetectedChannels', () => {
     it('hides Instagram when disabled for the account', () => {
       const { displayedChannels } = mountComposable({
         features: { channel_instagram: false },
-        isOnChatwootCloud: true,
+        isOnJabvoxCloud: true,
         brandInfo: {
           socials: [
             { type: 'instagram', url: 'https://instagram.com/acme' },
@@ -286,7 +286,7 @@ describe('useDetectedChannels', () => {
     });
 
     it('excludes channels whose installation OAuth credentials are missing', () => {
-      window.chatwootConfig = {}; // nothing configured
+      window.jabvoxConfig = {}; // nothing configured
       const { remainingChannels } = mountComposable({ brandInfo: {} });
 
       // The only configured channels (Telegram, LINE) are shown as default rows,
