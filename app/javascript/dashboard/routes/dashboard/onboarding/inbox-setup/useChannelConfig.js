@@ -9,15 +9,15 @@ import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 // Mirrors the availability checks in ChannelItem.vue.
 export function useChannelConfig() {
   const globalConfig = useMapGetter('globalConfig/get');
-  const isOnChatwootCloud = useMapGetter('globalConfig/isOnChatwootCloud');
+  const isOnJabvoxCloud = useMapGetter('globalConfig/isOnJabvoxCloud');
   const { isCloudFeatureEnabled } = useAccount();
-  const installationConfig = window.chatwootConfig || {};
+  const installationConfig = window.jabvoxConfig || {};
 
   const CHANNEL_CONFIGURED = {
     // WhatsApp is onboarded only via Meta embedded signup, which needs both the
     // app id (not the 'none' sentinel) and the signup configuration id.
     whatsapp: () =>
-      (!isOnChatwootCloud.value ||
+      (!isOnJabvoxCloud.value ||
         isCloudFeatureEnabled(FEATURE_FLAGS.WHATSAPP_EMBEDDED_SIGNUP_FLOW)) &&
       Boolean(installationConfig.whatsappAppId) &&
       installationConfig.whatsappAppId !== 'none' &&

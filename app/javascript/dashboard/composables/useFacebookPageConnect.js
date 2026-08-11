@@ -25,8 +25,8 @@ export function useFacebookPageConnect() {
   const preloadSdk = () => {
     if (!sdkSetupPromise) {
       sdkSetupPromise = setupFacebookSdk(
-        window.chatwootConfig?.fbAppId,
-        window.chatwootConfig?.fbApiVersion
+        window.jabvoxConfig?.fbAppId,
+        window.jabvoxConfig?.fbApiVersion
       ).catch(error => {
         sdkSetupPromise = null;
         throw error;

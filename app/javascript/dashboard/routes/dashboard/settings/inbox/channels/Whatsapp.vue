@@ -13,7 +13,7 @@ import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
-const { isCloudFeatureEnabled, isOnChatwootCloud } = useAccount();
+const { isCloudFeatureEnabled, isOnJabvoxCloud } = useAccount();
 
 const PROVIDER_TYPES = {
   WHATSAPP: 'whatsapp',
@@ -41,7 +41,7 @@ const shouldShowWhatsappEmbeddedSignup = computed(() => {
   return (
     selectedProvider.value === PROVIDER_TYPES.WHATSAPP &&
     hasWhatsappAppId.value &&
-    (!isOnChatwootCloud.value ||
+    (!isOnJabvoxCloud.value ||
       isCloudFeatureEnabled(FEATURE_FLAGS.WHATSAPP_EMBEDDED_SIGNUP_FLOW))
   );
 });
