@@ -36,14 +36,19 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     return axios.get(`${this.url}/batches/${id}`, { params: { status, q } });
   }
 
-  // URL de descarga del reporte en CSV (para abrir en nueva pestaña / <a download>).
-  batchCsvUrl(id) {
-    return `${this.url}/batches/${id}.csv`;
+  // Descarga el CSV del reporte vía axios (lleva el api_access_token). window.open no
+  // envía ese header y caía en el login de Devise ("You need to sign in").
+  downloadBatchCsv(id, { status, q } = {}) {
+    return axios.get(`${this.url}/batches/${id}.csv`, {
+      params: { status, q },
+      responseType: 'blob',
+    });
   }
 
-  // Clona la audiencia de un batch en uno nuevo (draft) para reenviar.
-  reuseBatch(id) {
-    return axios.post(`${this.url}/batches/${id}/reuse`);
+  // Clona la audiencia de un batch en uno nuevo (draft) para reenviar. status: estados a
+  // clonar (p. ej. 'failed' o 'failed,pending'); vacío = toda la audiencia.
+  reuseBatch(id, { status } = {}) {
+    return axios.post(`${this.url}/batches/${id}/reuse`, { status });
   }
 
   getSenders() {

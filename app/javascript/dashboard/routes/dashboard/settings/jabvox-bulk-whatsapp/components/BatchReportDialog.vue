@@ -37,6 +37,20 @@ const search = ref('');
 let pollTimer = null;
 let openedAt = 0;
 
+// "Reenviar a esta audiencia": estados a los que reenviar. Se combinan (multi) y
+// se mandan como cadena separada por coma (p. ej. "failed,pending"); vacío = toda
+// la audiencia.
+const REUSE_STATUSES = ['failed', 'sent', 'delivered', 'read', 'pending'];
+const reuseOpen = ref(false);
+const reuseStatuses = ref(new Set());
+const reusing = ref(false);
+
+const toggleReuseStatus = s => {
+  if (reuseStatuses.value.has(s)) reuseStatuses.value.delete(s);
+  else reuseStatuses.value.add(s);
+  reuseStatuses.value = new Set(reuseStatuses.value);
+};
+
 const isRunning = computed(() =>
   batch.value ? RUNNING.includes(batch.value.status_jabvox) : false
 );
@@ -109,6 +123,8 @@ const close = () => {
   open.value = false;
   stopPolling();
   batch.value = null;
+  reuseOpen.value = false;
+  reuseStatuses.value = new Set();
 };
 
 // Filtro/búsqueda: recargan del servidor (respeta paginación futura y CSV).
@@ -118,20 +134,46 @@ const applyFilter = async value => {
 };
 const submitSearch = () => load();
 
-const exportCsv = () => {
-  if (!batch.value) return;
-  window.open(bulkWhatsappAPI.batchCsvUrl(batch.value.id), '_blank');
-};
-
-const reuse = async () => {
+// Descarga el CSV vía axios (lleva el token) y fuerza la descarga en el
+// navegador. window.open no enviaba el header y caía en el login de Devise.
+const exportCsv = async () => {
   if (!batch.value) return;
   try {
-    const { data } = await bulkWhatsappAPI.reuseBatch(batch.value.id);
-    useAlert(t('JABVOX_BULK_WA.REPORT.REUSE'));
-    close();
-    emit('reused', data); // el padre abre el wizard en Paso 3 con este batch
+    const { data: blob } = await bulkWhatsappAPI.downloadBatchCsv(
+      batch.value.id,
+      { status: statusFilter.value || undefined }
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `envio_${batch.value.id}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   } catch (e) {
     useAlert(e?.response?.data?.error || t('JABVOX_BULK_WA.HISTORY.ERROR'));
+  }
+};
+
+// Reenviar a esta audiencia: clona los leads de los estados elegidos (o toda la
+// audiencia si no se eligió ninguno) y emite `reused` con los lead_ids listos
+// para precargar el envío.
+const reuse = async () => {
+  if (!batch.value || reusing.value) return;
+  reusing.value = true;
+  try {
+    const status = [...reuseStatuses.value].join(',') || undefined;
+    const { data } = await bulkWhatsappAPI.reuseBatch(batch.value.id, {
+      status,
+    });
+    useAlert(t('JABVOX_BULK_WA.REPORT.REUSE'));
+    close();
+    emit('reused', data); // el padre abre el wizard con esta audiencia precargada
+  } catch (e) {
+    useAlert(e?.response?.data?.error || t('JABVOX_BULK_WA.HISTORY.ERROR'));
+  } finally {
+    reusing.value = false;
   }
 };
 
@@ -233,12 +275,53 @@ defineExpose({ openDialog });
             size="sm"
             @click="exportCsv"
           />
-          <Button
-            :label="t('JABVOX_BULK_WA.REPORT.REUSE')"
-            icon="i-lucide-repeat"
-            size="sm"
-            @click="reuse"
-          />
+          <!-- Reenviar a esta audiencia + selector de estados destino -->
+          <div class="relative">
+            <Button
+              :label="t('JABVOX_BULK_WA.REPORT.REUSE')"
+              icon="i-lucide-repeat"
+              size="sm"
+              :is-loading="reusing"
+              @click="reuseOpen = !reuseOpen"
+            />
+            <div
+              v-if="reuseOpen"
+              class="absolute right-0 z-10 mt-1 w-64 rounded-xl border border-n-weak bg-n-solid-1 shadow-lg p-3 space-y-2"
+            >
+              <p class="text-xs font-medium text-n-slate-12">
+                {{ t('JABVOX_BULK_WA.REPORT.REUSE_STATUS_TITLE') }}
+              </p>
+              <p class="text-[11px] text-n-slate-10">
+                {{ t('JABVOX_BULK_WA.REPORT.REUSE_STATUS_HINT') }}
+              </p>
+              <label
+                v-for="s in REUSE_STATUSES"
+                :key="s"
+                class="flex items-center gap-2 text-sm text-n-slate-12 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  class="rounded accent-n-brand shrink-0"
+                  :checked="reuseStatuses.has(s)"
+                  @change="toggleReuseStatus(s)"
+                />
+                <span>
+                  {{
+                    t(`JABVOX_BULK_WA.REPORT.REUSE_STATUS_${s.toUpperCase()}`)
+                  }}
+                </span>
+              </label>
+              <div class="flex justify-end pt-1">
+                <Button
+                  :label="t('JABVOX_BULK_WA.REPORT.REUSE_CONFIRM')"
+                  icon="i-lucide-repeat"
+                  size="xs"
+                  :is-loading="reusing"
+                  @click="reuse"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Body -->

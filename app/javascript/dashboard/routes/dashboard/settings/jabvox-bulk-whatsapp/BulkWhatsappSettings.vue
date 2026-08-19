@@ -15,7 +15,9 @@ const { isAdmin } = useAdmin();
 const currentUserId = useMapGetter('getCurrentUserID');
 
 const reportDialog = ref(null);
-const reuseBatch = ref(null); // batch clonado para reenviar (fija audiencia + salta a plantilla)
+// Audiencia a reenviar: respuesta de reuseBatch con los lead_ids ya filtrados por
+// estado, para precargar la selección en LeadsPickerTab.
+const reuseData = ref(null);
 
 const activeTab = ref('send');
 // Only real administrators manage the webhook config; custom-role senders get
@@ -246,19 +248,24 @@ const loadBatches = async () => {
 // After a leads-based send, jump to the history tab and refresh it.
 const onLeadsSent = () => {
   activeTab.value = 'history';
-  reuseBatch.value = null;
+  reuseData.value = null;
   loadBatches();
 };
 
 // Abre el reporte por ejecución de un batch del historial.
 const openReport = batch => reportDialog.value?.openDialog(batch);
 
-// "Reenviar a esta audiencia": el batch clonado (draft) ya trae bandeja/audiencia;
-// vamos al tab de envío en modo leads para que el usuario elija plantilla (Paso 3)
-// y confirme. reuseBatch queda disponible para que LeadsPickerTab lo consuma.
-const onBatchReused = batch => {
-  reuseBatch.value = batch;
+// "Reenviar a esta audiencia": la respuesta trae los lead_ids ya filtrados por
+// estado, la bandeja, el emisor y (si aplica) plantilla/idioma/variables. Vamos
+// al tab de envío en modo leads con la audiencia precargada; el usuario puede
+// avanzar el wizard y confirmar. reuseData lo consume LeadsPickerTab vía prop.
+const onBatchReused = data => {
+  reuseData.value = data;
   source.value = 'leads';
+  if (data?.inbox_id != null) selectedInboxId.value = data.inbox_id;
+  if (data?.sender_user_id != null)
+    selectedSenderId.value = data.sender_user_id;
+  wizardStep.value = 2;
   activeTab.value = 'send';
 };
 
@@ -568,6 +575,7 @@ onMounted(() => {
           :mode="sendMode"
           :config-ready="configReady"
           :step="wizardStep"
+          :preselect="reuseData"
           @sent="onLeadsSent"
           @validity="onLeadsValidity"
         />

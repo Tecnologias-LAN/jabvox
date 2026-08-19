@@ -96,7 +96,8 @@
       "MESSAGE_PLACEHOLDER": "Write the message to send…",
       "SEND": "Send to {count} leads",
       "FILTER_EMPTY": "(Empty / no value)",
-      "FILTER_DOCUMENT": "Document…"
+      "FILTER_DOCUMENT": "Document…",
+      "PRESELECTED": "Audience preloaded from the previous send: {count} leads ready to resend."
     },
     "COLS": {
       "NAME": "Name",
@@ -192,6 +193,14 @@
       "FILTER_PENDING": "Pending",
       "EXPORT_CSV": "Export CSV",
       "REUSE": "Resend to this audience",
+      "REUSE_STATUS_TITLE": "Resend to whom?",
+      "REUSE_STATUS_HINT": "Pick the statuses to resend to. With none selected, the whole audience is resent.",
+      "REUSE_STATUS_FAILED": "Failed",
+      "REUSE_STATUS_SENT": "Sent",
+      "REUSE_STATUS_DELIVERED": "Delivered",
+      "REUSE_STATUS_READ": "Read",
+      "REUSE_STATUS_PENDING": "Pending",
+      "REUSE_CONFIRM": "Resend",
       "LIVE": "Live updating…",
       "COLS": {
         "NAME": "Name",

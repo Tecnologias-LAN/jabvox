@@ -14,6 +14,10 @@ const props = defineProps({
   configReady: { type: Boolean, default: false },
   // Wizard step driven by the parent: 2 audience, 3 message, 4 preview.
   step: { type: Number, default: 2 },
+  // "Reenviar a esta audiencia": respuesta de reuseBatch con los lead_ids ya
+  // filtrados por estado + plantilla/idioma/variables del envío original. Cuando
+  // llega, precarga la selección y el mensaje en vez de partir de cero.
+  preselect: { type: Object, default: null },
 });
 
 const emit = defineEmits(['sent', 'validity']);
@@ -134,6 +138,10 @@ const templateName = ref('');
 const language = ref('');
 const text = ref('');
 const sending = ref(false);
+
+// Batch de origen cuando la audiencia viene de "Reenviar a esta audiencia".
+// Se manda al backend para registrar la trazabilidad del reenvío.
+const sourceBatchId = ref(null);
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(total.value / PER_PAGE))
@@ -351,6 +359,23 @@ const clearSelection = () => {
   selectAll.value = false;
   selectedIds.value = new Set();
   excludedIds.value = new Set();
+  sourceBatchId.value = null;
+};
+
+// Precarga la audiencia y el mensaje desde la respuesta de reuseBatch: fija la
+// selección a los lead_ids devueltos (nunca "todos"), y copia plantilla/idioma/
+// variables del envío original para que el usuario solo confirme.
+const applyPreselect = data => {
+  if (!data) return;
+  selectAll.value = false;
+  excludedIds.value = new Set();
+  selectedIds.value = new Set(data.lead_ids || []);
+  sourceBatchId.value = data.source_batch_id ?? null;
+  if (data.template_name) templateName.value = data.template_name;
+  if (data.language) language.value = data.language;
+  if (data.variable_map && typeof data.variable_map === 'object') {
+    variableMap.value = { ...data.variable_map };
+  }
 };
 
 const onSend = async () => {
@@ -371,6 +396,7 @@ const onSend = async () => {
         props.mode === 'template' && templateVariables.value.length
           ? variableMap.value
           : undefined,
+      sourceBatchId: sourceBatchId.value || undefined,
     });
     useAlert(t('JABVOX_BULK_WA.SEND.SUCCESS'));
     clearSelection();
@@ -412,6 +438,15 @@ const loadCustomFields = async () => {
     customFields.value = [];
   }
 };
+
+// Cuando el padre entrega una audiencia a reenviar, precárgala. Registrado tras
+// el watcher de inboxId para ganarle: el padre fija bandeja y preselect en el
+// mismo tick, y no queremos que el reset de plantilla/idioma pise el preselect.
+watch(
+  () => props.preselect,
+  data => applyPreselect(data),
+  { immediate: true }
+);
 
 onMounted(() => {
   rootStore.dispatch('inboxes/get');
@@ -804,6 +839,22 @@ onMounted(() => {
         </div>
       </div>
     </section>
+
+    <!-- Aviso: audiencia precargada desde "Reenviar a esta audiencia" -->
+    <div
+      v-if="preselect && step === 2"
+      class="flex items-center gap-2 rounded-xl border border-n-teal-6 bg-n-teal-3 px-4 py-2.5 text-sm text-n-teal-12"
+    >
+      <span
+        class="i-lucide-repeat size-4 text-n-teal-11 shrink-0"
+        aria-hidden="true"
+      />
+      {{
+        t('JABVOX_BULK_WA.LEADS.PRESELECTED', {
+          count: preselect.lead_count ?? selectedCount,
+        })
+      }}
+    </div>
 
     <!-- Selection summary -->
     <div

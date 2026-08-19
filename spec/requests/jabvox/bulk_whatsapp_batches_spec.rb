@@ -5,13 +5,6 @@ require 'rails_helper'
 RSpec.describe 'Jabvox bulk WhatsApp batches', type: :request do
   # Enable the feature via its real column (feature_enabled? reads it).
   let(:account) { create(:account, jabvox_bulk_whatsapp_enabled_jabvox: true) }
-  let(:admin) { create(:user, account: account, role: :administrator) }
-  let(:inbox) { create(:inbox, account: account) }
-
-  def base_url
-    "/api/v1/accounts/#{account.id}/jabvox/bulk_whatsapp/batches"
-  end
-
   let!(:batch) do
     account.jabvox_bulk_whatsapp_batches.create!(
       inbox: inbox, sender_user: admin, created_by: admin,
@@ -25,6 +18,12 @@ RSpec.describe 'Jabvox bulk WhatsApp batches', type: :request do
   let!(:recipient_b) do
     JabvoxBulkWhatsappRecipient.create!(bulk_whatsapp_batch_id: batch.id, account_id: account.id,
                                         name_jabvox: 'B', phone_number_jabvox: '573000000002', status_jabvox: 'pending')
+  end
+  let(:admin) { create(:user, account: account, role: :administrator) }
+  let(:inbox) { create(:inbox, account: account) }
+
+  def base_url
+    "/api/v1/accounts/#{account.id}/jabvox/bulk_whatsapp/batches"
   end
 
   describe 'GET #show' do
@@ -45,18 +44,36 @@ RSpec.describe 'Jabvox bulk WhatsApp batches', type: :request do
   end
 
   describe 'POST #reuse' do
-    it 'clones recipients into a new draft batch linked to the source' do
-      recipient_a.update!(status_jabvox: 'sent')
+    before do
+      recipient_a.update!(status_jabvox: 'sent', lead_id_jabvox: '11')
+      recipient_b.update!(status_jabvox: 'failed', lead_id_jabvox: '22')
+    end
+
+    it 'devuelve los lead_ids de toda la audiencia + los datos del envío origen' do
+      post "#{base_url}/#{batch.id}/reuse", headers: admin.create_new_auth_token, as: :json
+      expect(response).to have_http_status(:success)
+      body = response.parsed_body
+      expect(body['source_batch_id']).to eq(batch.id)
+      expect(body['lead_ids']).to contain_exactly('11', '22')
+      expect(body['lead_count']).to eq(2)
+    end
+
+    it 'filtra la audiencia por estado (solo fallidos)' do
+      post "#{base_url}/#{batch.id}/reuse", params: { status: 'failed' },
+                                            headers: admin.create_new_auth_token, as: :json
+      expect(response.parsed_body['lead_ids']).to eq(['22'])
+    end
+
+    it 'soporta estados combinados (fallidos + enviados)' do
+      post "#{base_url}/#{batch.id}/reuse", params: { status: 'failed,sent' },
+                                            headers: admin.create_new_auth_token, as: :json
+      expect(response.parsed_body['lead_ids']).to contain_exactly('11', '22')
+    end
+
+    it 'no crea un batch nuevo (el reenvío se arma en el paso 3)' do
       expect do
         post "#{base_url}/#{batch.id}/reuse", headers: admin.create_new_auth_token, as: :json
-      end.to change(account.jabvox_bulk_whatsapp_batches, :count).by(1)
-
-      new_batch = account.jabvox_bulk_whatsapp_batches.order(:id).last
-      expect(new_batch.status_jabvox).to eq('draft')
-      expect(new_batch.source_batch_id_jabvox).to eq(batch.id)
-      # All cloned recipients reset to pending regardless of the source outcome.
-      expect(new_batch.recipients.count).to eq(2)
-      expect(new_batch.recipients.pluck(:status_jabvox).uniq).to eq(['pending'])
+      end.not_to change(account.jabvox_bulk_whatsapp_batches, :count)
     end
   end
 

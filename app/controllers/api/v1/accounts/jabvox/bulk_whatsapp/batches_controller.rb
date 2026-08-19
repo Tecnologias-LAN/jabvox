@@ -40,22 +40,28 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     end
   end
 
-  # Clona los destinatarios de un batch en uno NUEVO (draft) para reenviar a la
-  # misma audiencia. Devuelve el id del nuevo batch para saltar al Paso 3.
+  # Prepara un reenvío a la audiencia de un batch, opcionalmente FILTRADA por estado
+  # (params[:status]: 'failed', 'sent', 'delivered', 'read', 'pending', o combinados con
+  # coma). Devuelve los lead_ids de esos destinatarios + los datos del envío origen para
+  # que el frontend pre-cargue el Paso 3 y reenvíe. Así "leads a enviar" nunca queda vacío.
   def reuse
     source = Current.account.jabvox_bulk_whatsapp_batches.find(params[:id])
-    new_batch = Current.account.jabvox_bulk_whatsapp_batches.create!(
-      inbox: source.inbox, sender_user: source.sender_user, created_by: current_user,
-      mode_jabvox: source.mode_jabvox, status_jabvox: 'draft',
-      source_type_jabvox: source.source_type_jabvox,
-      variable_mapping_jabvox: source.variable_mapping_jabvox,
-      filters_jabvox: source.filters_jabvox,
-      source_batch_id_jabvox: source.id,
-      total_rows_jabvox: source.recipients.count, valid_rows_jabvox: source.recipients.count,
-      payload_jabvox: {}
-    )
-    clone_recipients(source, new_batch)
-    render json: serialize(new_batch), status: :created
+    recipients = filtered_recipients(source)
+    lead_ids = recipients.where.not(lead_id_jabvox: nil).distinct.pluck(:lead_id_jabvox)
+
+    render json: {
+      source_batch_id: source.id,
+      inbox_id: source.inbox_id,
+      sender_user_id: source.sender_user_id,
+      mode: source.mode_jabvox,
+      variable_map: source.variable_mapping_jabvox,
+      template_name: source.template_name_jabvox,
+      language: source.template_language_jabvox,
+      lead_ids: lead_ids,
+      lead_count: lead_ids.size,
+      total_recipients: recipients.count,
+      status_filter: params[:status]
+    }
   end
 
   # Users of this account, for choosing whose API token is forwarded to n8n.
@@ -185,10 +191,11 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     }
   end
 
-  # Recipients de un batch, filtrados por estado y/o búsqueda (nombre/número).
+  # Recipients de un batch, filtrados por estado(s) y/o búsqueda (nombre/número).
+  # params[:status] acepta uno o varios estados separados por coma (p. ej. "failed,pending").
   def filtered_recipients(batch)
     scope = batch.recipients
-    scope = filter_recipients_by_status(batch, scope, params[:status].to_s) if params[:status].present?
+    scope = filter_by_statuses(batch, scope, params[:status]) if params[:status].present?
     if params[:q].present?
       q = "%#{params[:q].to_s.strip}%"
       scope = scope.where('name_jabvox ILIKE :q OR phone_number_jabvox ILIKE :q', q: q)
@@ -196,19 +203,15 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     scope
   end
 
-  # Clona los recipients de source → target conservando lead_id/contact_id para
-  # re-resolver campos frescos al reenviar. Todos vuelven a 'pending'.
-  def clone_recipients(source, target)
-    rows = source.recipients.order(:id).map do |r|
-      {
-        bulk_whatsapp_batch_id: target.id, account_id: Current.account.id,
-        contact_id: r.contact_id, lead_id_jabvox: r.lead_id_jabvox,
-        name_jabvox: r.name_jabvox, phone_number_jabvox: r.phone_number_jabvox,
-        email_jabvox: r.email_jabvox, status_jabvox: 'pending',
-        created_at: Time.current, updated_at: Time.current
-      }
-    end
-    JabvoxBulkWhatsappRecipient.insert_all(rows) if rows.any?
+  # Combina uno o varios estados (OR): la unión de los recipients que están en cualquiera
+  # de los estados pedidos, reutilizando filter_recipients_by_status por estado.
+  def filter_by_statuses(batch, scope, status_param)
+    statuses = status_param.to_s.split(',').map(&:strip).reject(&:blank?).uniq
+    return scope if statuses.empty?
+    return filter_recipients_by_status(batch, scope, statuses.first) if statuses.one?
+
+    ids = statuses.flat_map { |st| filter_recipients_by_status(batch, batch.recipients, st).pluck(:id) }.uniq
+    scope.where(id: ids)
   end
 
   def serialize_recipient(recipient, status_map = {})
