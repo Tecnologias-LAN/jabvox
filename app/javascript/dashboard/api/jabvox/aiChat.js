@@ -20,6 +20,10 @@ const storagesClient = new ApiClient('jabvox/ai_chat_storages', {
 const hermesCronClient = new ApiClient('jabvox/ai_chat_hermes_cron_jobs', {
   accountScoped: true,
 });
+// Handoff de Hermes (recurso singular): conectar/sincronizar un Hermes existente.
+const hermesClient = new ApiClient('jabvox/ai_chat_hermes', {
+  accountScoped: true,
+});
 
 export const aiChatAPI = {
   getMyAccess: () => axios.get(`${chatClient.url}/my_access`),
@@ -73,6 +77,15 @@ export const aiChatHermesCronAPI = {
   toggleCronJob: (id, enabled) =>
     axios.patch(`${hermesCronClient.url}/${id}/toggle`, { enabled }),
   deleteCronJob: id => axios.delete(`${hermesCronClient.url}/${id}`),
+};
+
+// Handoff de Hermes: conectar un Hermes ya existente a la cuenta y sincronizar
+// modelos. Recurso singular; connect/sync_models son acciones custom. El GET y
+// los POST pueden devolver 422 ({error}) cuando la conexión falla o falta.
+export const aiChatHermesAPI = {
+  getStatus: () => axios.get(hermesClient.url),
+  connect: payload => axios.post(`${hermesClient.url}/connect`, payload),
+  syncModels: () => axios.post(`${hermesClient.url}/sync_models`),
 };
 
 // Shared storage buckets (JabvoxAudioStorage) managed from AI Chat, gated by

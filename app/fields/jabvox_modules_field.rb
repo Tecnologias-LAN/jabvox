@@ -41,8 +41,15 @@ class JabvoxModulesField < Administrate::Field::Base
   ].freeze
 
   # [[column, label, enabled_boolean], ...] for the current account.
+  # Skips any module whose column is not present yet (e.g. a code deploy that ran
+  # ahead of its migration) so the Super Admin never 500s over a missing column.
   def modules
-    MODULES.map { |column, label| [column, label, resource.public_send(column)] }
+    available = resource.class.column_names
+    MODULES.filter_map do |column, label|
+      next unless available.include?(column.to_s)
+
+      [column, label, resource.public_send(column)]
+    end
   end
 
   def enabled_count
