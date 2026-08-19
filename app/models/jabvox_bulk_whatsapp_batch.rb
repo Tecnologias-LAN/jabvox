@@ -86,25 +86,39 @@ class JabvoxBulkWhatsappBatch < ApplicationRecord
     sent = recipients.where(status_jabvox: 'sent').count
     failed = recipients.where(status_jabvox: 'failed').count
     total = recipients.count
+    new_status = next_status(sent, failed, total, final)
 
-    new_status = if final || ((sent + failed) >= total && total.positive?)
-                   if failed.zero? then 'completed'
-                   elsif sent.zero? then 'failed'
-                   else
-                     'partial'
-                   end
-                 else
-                   'running'
-                 end
-
+    terminal = %w[completed partial failed].include?(new_status)
     update!(
       sent_count_jabvox: sent, failed_count_jabvox: failed,
       status_jabvox: new_status,
-      finished_at_jabvox: %w[completed partial failed].include?(new_status) ? (finished_at_jabvox || Time.current) : finished_at_jabvox
+      finished_at_jabvox: terminal ? (finished_at_jabvox || Time.current) : finished_at_jabvox
     )
+    revoke_access_token! if terminal
+  end
+
+  # Borra el token efímero del envío en cuanto el batch termina (lo confirma n8n por
+  # callback). Así el token no expira a mitad del envío (no tiene expiración por tiempo)
+  # y tampoco queda vivo tras terminar. El cleanup job de respaldo lo cubre si el callback
+  # final nunca llega.
+  def revoke_access_token!
+    return if access_token_id_jabvox.blank?
+
+    AccessToken.where(id: access_token_id_jabvox).destroy_all
+    # rubocop:disable Rails/SkipsModelValidations
+    update_column(:access_token_id_jabvox, nil) # solo limpia el puntero; sin callbacks
+    # rubocop:enable Rails/SkipsModelValidations
   end
 
   private
+
+  def next_status(sent, failed, total, final)
+    return 'running' unless final || ((sent + failed) >= total && total.positive?)
+    return 'completed' if failed.zero?
+    return 'failed' if sent.zero?
+
+    'partial'
+  end
 
   def assign_batch_uuid
     self.batch_uuid_jabvox ||= SecureRandom.uuid

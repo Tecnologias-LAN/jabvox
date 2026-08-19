@@ -19,7 +19,14 @@ class Jabvox::BulkWhatsappDispatchService
   MAX_ROWS = 20_000
   CHUNK_SIZE = 200
   MAX_ATTEMPTS = 3
-  TOKEN_TTL = 30.minutes
+  # El token del envío NO expira por tiempo: un TTL fijo de 30 min caducaba a mitad de los
+  # envíos grandes -> 401 "Invalid Access Token". Se revoca cuando el batch termina (lo
+  # confirma n8n por callback, ver JabvoxBulkWhatsappBatch#revoke_access_token!).
+  # Como RESPALDO, si el callback final nunca llega, un cleanup lo borra tras este tope
+  # (dimensionado al volumen para no matar un envío enorme aún en curso).
+  BACKUP_CLEANUP_MIN = 6.hours
+  BACKUP_CLEANUP_PER_MESSAGE = 3.seconds
+  BACKUP_CLEANUP_MAX = 48.hours
 
   class Error < StandardError; end
 
@@ -88,6 +95,7 @@ class Jabvox::BulkWhatsappDispatchService
     persist_recipients(batch, messages)
 
     token = mint_ephemeral_token
+    batch.update!(access_token_id_jabvox: token.id) # el batch revoca este token al terminar
     begin
       post_all(batch, messages, token.token)
       # 'queued'/'running' — the real terminal state comes from n8n callbacks.
@@ -97,7 +105,7 @@ class Jabvox::BulkWhatsappDispatchService
       finalize(batch, status: 'failed', error: e.message)
       raise
     end
-    schedule_token_cleanup(token)
+    schedule_token_cleanup(token, backup_cleanup_for(messages.size))
     batch
   end
 
@@ -389,7 +397,8 @@ class Jabvox::BulkWhatsappDispatchService
     total_chunks = (messages.size.to_f / CHUNK_SIZE).ceil
 
     messages.each_slice(CHUNK_SIZE).with_index do |chunk, idx|
-      post_chunk_with_retries(url, payload_body(batch, chunk, api_token, idx, total_chunks))
+      meta = { chunk_index: idx, total_chunks: total_chunks }
+      post_chunk_with_retries(url, payload_body(batch, chunk, api_token, meta))
     end
     batch.update!(total_rows_jabvox: messages.size, valid_rows_jabvox: messages.size)
   end
@@ -416,14 +425,16 @@ class Jabvox::BulkWhatsappDispatchService
 
   # base_url lets one n8n workflow serve every account and installation without
   # hardcoding the app host; batch_id ties every chunk back to its send.
-  def payload_body(batch, messages, api_token, chunk_index, total_chunks)
+  def payload_body(batch, messages, api_token, meta)
     {
       base_url: base_url, account_id: @account.id, batch_id: batch.id,
       inbox_id: @inbox&.id, inbox_name: @inbox&.name, mode: send_mode,
       channel_type: @inbox&.channel_type, api_token: api_token,
-      token_expires_at: TOKEN_TTL.from_now.iso8601, response_email: @response_email,
+      # El token ya no expira por tiempo (se revoca al terminar el batch); n8n no debe
+      # asumir una caducidad. Se mantiene la clave por compatibilidad del workflow.
+      token_expires_at: nil, response_email: @response_email,
       sent_by: @actor&.id, sent_by_name: @actor&.name,
-      chunk_index: chunk_index, total_chunks: total_chunks, messages: messages
+      chunk_index: meta[:chunk_index], total_chunks: meta[:total_chunks], messages: messages
     }.merge(callback_fields(batch))
   end
 
@@ -461,12 +472,20 @@ class Jabvox::BulkWhatsappDispatchService
   end
 
   # ── Token ───────────────────────────────────────────────────────────────────
-  def mint_ephemeral_token
-    AccessToken.create!(owner: @sender_user, expires_at: TOKEN_TTL.from_now)
+  # Ventana del cleanup de RESPALDO: cuánto esperar antes de borrar el token si el batch
+  # nunca llega a estado terminal (callback final perdido). Proporcional al volumen.
+  def backup_cleanup_for(message_count)
+    [[BACKUP_CLEANUP_MIN, BACKUP_CLEANUP_PER_MESSAGE * message_count.to_i].max, BACKUP_CLEANUP_MAX].min
   end
 
-  def schedule_token_cleanup(token)
-    Jabvox::BulkWhatsappTokenCleanupJob.set(wait: TOKEN_TTL + 1.minute).perform_later(token.id)
+  # Token SIN expiración por tiempo: lo revoca el batch al terminar (o el cleanup de
+  # respaldo). Así nunca caduca a mitad del envío.
+  def mint_ephemeral_token
+    AccessToken.create!(owner: @sender_user, expires_at: nil)
+  end
+
+  def schedule_token_cleanup(token, wait)
+    Jabvox::BulkWhatsappTokenCleanupJob.set(wait: wait + 1.minute).perform_later(token.id)
   end
 
   # ── Webhook plumbing ────────────────────────────────────────────────────────
