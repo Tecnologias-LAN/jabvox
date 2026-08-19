@@ -2,16 +2,18 @@
 #
 # Table name: jabvox_ai_chat_models
 #
-#  id                :bigint           not null, primary key
-#  api_key_jabvox    :text
-#  base_url_jabvox   :string(500)
-#  is_default_jabvox :boolean          default(FALSE), not null
-#  model_jabvox      :string(200)      not null
-#  name_jabvox       :string(150)      not null
-#  provider_jabvox   :string(50)       not null
-#  created_at        :datetime         not null
-#  updated_at        :datetime         not null
-#  account_id        :bigint           not null
+#  id                     :bigint           not null, primary key
+#  api_key_jabvox         :text
+#  base_url_jabvox        :string(500)
+#  hermes_model_id_jabvox :string
+#  is_default_jabvox      :boolean          default(FALSE), not null
+#  model_jabvox           :string(200)      not null
+#  name_jabvox            :string(150)      not null
+#  provider_jabvox        :string(50)       not null
+#  source_jabvox          :string           default("local"), not null
+#  created_at             :datetime         not null
+#  updated_at             :datetime         not null
+#  account_id             :bigint           not null
 #
 # Indexes
 #

@@ -16,6 +16,10 @@ const documentsClient = new ApiClient('jabvox/ai_chat_documents', {
 const storagesClient = new ApiClient('jabvox/ai_chat_storages', {
   accountScoped: true,
 });
+// Cron jobs de Hermes: agenda de tareas del asistente por cuenta.
+const hermesCronClient = new ApiClient('jabvox/ai_chat_hermes_cron_jobs', {
+  accountScoped: true,
+});
 
 export const aiChatAPI = {
   getMyAccess: () => axios.get(`${chatClient.url}/my_access`),
@@ -57,6 +61,18 @@ export const aiChatDocumentsAPI = {
       jabvox_ai_chat_document: data,
     }),
   destroy: id => axios.delete(`${documentsClient.url}/${id}`),
+};
+
+// Cron jobs de Hermes: listar, crear, alternar (enabled) y eliminar.
+// Endpoints accountScoped, auth por sesión. El GET puede devolver 422
+// ({error}) cuando la cuenta aún no está aprovisionada.
+export const aiChatHermesCronAPI = {
+  getCronJobs: () => axios.get(hermesCronClient.url),
+  createCronJob: ({ name, schedule, prompt, enabled }) =>
+    axios.post(hermesCronClient.url, { name, schedule, prompt, enabled }),
+  toggleCronJob: (id, enabled) =>
+    axios.patch(`${hermesCronClient.url}/${id}/toggle`, { enabled }),
+  deleteCronJob: id => axios.delete(`${hermesCronClient.url}/${id}`),
 };
 
 // Shared storage buckets (JabvoxAudioStorage) managed from AI Chat, gated by

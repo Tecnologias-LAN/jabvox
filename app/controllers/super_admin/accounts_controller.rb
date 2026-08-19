@@ -66,6 +66,21 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
     # rubocop:enable Rails/I18nLocaleTexts
   end
 
+  # Aprovisiona Hermes/ContextForge para la cuenta (team → MCPs → virtual server →
+  # scoped token). Idempotente. Async: el aprovisionamiento toca recursos remotos.
+  def provision_context_forge
+    # rubocop:disable Rails/I18nLocaleTexts
+    unless ContextForge::Service.configured?
+      redirect_back(fallback_location: [namespace, requested_resource],
+                    alert: 'ContextForge no está configurado. Configúralo en Módulos → ContextForge.')
+      return
+    end
+    ContextForge::AccountProvisionJob.perform_later(requested_resource.id)
+    redirect_back(fallback_location: [namespace, requested_resource],
+                  notice: 'Aprovisionamiento de ContextForge/Hermes iniciado. Recarga en unos segundos.')
+    # rubocop:enable Rails/I18nLocaleTexts
+  end
+
   def provision_ssl_form_config
     config = requested_resource.jabvox_form_config || requested_resource.build_jabvox_form_config
     config.save! unless config.persisted?
@@ -79,7 +94,8 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
       return
     end
     Jabvox::SslProvisionJob.perform_later(config.id)
-    redirect_back(fallback_location: [namespace, requested_resource], notice: 'Generación de certificado SSL iniciada. Recarga la página en unos minutos.')
+    redirect_back(fallback_location: [namespace, requested_resource],
+                  notice: 'Generación de certificado SSL iniciada. Recarga la página en unos minutos.')
     # rubocop:enable Rails/I18nLocaleTexts
   end
 
@@ -94,7 +110,7 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
     redirect_back(fallback_location: [namespace, requested_resource], notice: 'Dominio y certificado eliminados correctamente.')
     # rubocop:enable Rails/I18nLocaleTexts
   rescue StandardError => e
-    redirect_back(fallback_location: [namespace, requested_resource], alert: "Error: #{e.message}") # rubocop:disable Rails/I18nLocaleTexts
+    redirect_back(fallback_location: [namespace, requested_resource], alert: "Error: #{e.message}")
   end
 
   def destroy
@@ -106,9 +122,7 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
     redirect_to [:super_admin, Account], notice: 'Account deleted successfully.'
     # rubocop:enable Rails/I18nLocaleTexts
   rescue StandardError => e
-    # rubocop:disable Rails/I18nLocaleTexts
     redirect_to [:super_admin, Account], alert: "Error deleting account: #{e.message}"
-    # rubocop:enable Rails/I18nLocaleTexts
   end
 
   private

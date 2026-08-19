@@ -725,6 +725,25 @@ Rails.application.routes.draw do
                 post :test
               end
             end
+            # Chat Aprovisionamiento: el usuario (con permiso) le pide al Hermes
+            # Provisioner de SU cuenta crear/aprovisionar MCPs. Aislado por cuenta.
+            resources :provisioning_chat_messages, only: [:index, :create], controller: 'provisioning_chat_messages' do
+              collection do
+                get :status
+                post :provision
+              end
+            end
+            # Estado del Consumer (Chat IA) + sync de modelos con el Hermes de la cuenta.
+            resource :ai_chat_hermes, only: [:show], controller: 'ai_chat_hermes' do
+              post :sync_models
+              post :connect
+              get :tools
+            end
+            # Cron jobs de Hermes de la cuenta (aislados por el scoped token). Ver + gestionar.
+            resources :ai_chat_hermes_cron_jobs, only: [:index, :create, :destroy],
+                                                 controller: 'ai_chat_hermes_cron_jobs' do
+              patch :toggle, on: :member
+            end
             resources :response_bot_seats, only: [:index]
             resources :response_bot_roles, only: [:index]
             resources :response_bot_configs, only: [:index, :create, :update, :destroy] do
@@ -1238,6 +1257,9 @@ Rails.application.routes.draw do
       resource :automations_config, only: [:show, :create] do
         get :health, on: :collection
       end
+      resource :context_forge_config, only: [:show, :create] do
+        get :health, on: :collection
+      end
       resource :push_diagnostics, only: [:show, :create] do
         post :destroy_subscriptions, on: :collection
       end
@@ -1267,6 +1289,9 @@ Rails.application.routes.draw do
         post :reset_cache, on: :member
         post :provision_ssl_form_config, on: :member
         delete :revoke_domain_form_config, on: :member
+        # Aprovisiona Hermes/ContextForge para la cuenta (team → MCPs → virtual server
+        # → scoped token). Idempotente. Requiere ContextForge configurado.
+        post :provision_context_forge, on: :member
         resource :jabvox_saldo_config, only: [:show, :update]
         resources :jabvox_ip_whitelists, only: [:index, :create, :destroy] do
           patch :toggle, on: :member

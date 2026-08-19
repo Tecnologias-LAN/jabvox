@@ -60,6 +60,7 @@ export const FEATURE_FLAGS = {
   JABVOX_SALDO: 'jabvox_saldo',
   JABVOX_SMS: 'jabvox_sms',
   JABVOX_AI_CHAT: 'jabvox_ai_chat',
+  JABVOX_AI_CHAT_PROVISIONING: 'jabvox_ai_chat_provisioning',
   JABVOX_MANAGEMENT_STATES: 'jabvox_management_states',
   JABVOX_DIALER: 'jabvox_dialer',
   JABVOX_LEADS: 'jabvox_leads',

@@ -19,6 +19,7 @@ import ModelFormDialog from './components/ModelFormDialog.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import DocumentPickerDialog from './components/DocumentPickerDialog.vue';
 import SharedStoragesManager from './components/SharedStoragesManager.vue';
+import HermesCronManager from './components/HermesCronManager.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -30,6 +31,7 @@ const activeTab = ref(sessionStorage.getItem(ACTIVE_TAB_KEY) || 'models');
 const tabs = [
   { key: 'models', icon: 'i-lucide-cpu' },
   { key: 'documents', icon: 'i-lucide-file-text' },
+  { key: 'cron', icon: 'i-lucide-clock' },
   { key: 'config', icon: 'i-lucide-settings-2' },
 ];
 
@@ -567,6 +569,11 @@ onMounted(async () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- ── CRON JOBS DE HERMES ── -->
+      <div v-else-if="activeTab === 'cron'" class="w-full">
+        <HermesCronManager />
       </div>
 
       <!-- ── CONFIG ── -->

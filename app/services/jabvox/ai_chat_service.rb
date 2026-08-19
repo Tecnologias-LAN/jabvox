@@ -81,10 +81,24 @@ module Jabvox
 
     def build_client
       require 'openai'
-      options = { access_token: @model_record.api_key_jabvox.to_s }
+      options = { access_token: hermes_scoped_api_key || @model_record.api_key_jabvox.to_s }
       base = @model_record.base_url_jabvox.presence
       options[:uri_base] = base if base
       OpenAI::Client.new(**options)
+    end
+
+    # AISLAMIENTO DURO: para un modelo servido por Hermes (source='hermes'), la api_key
+    # SIEMPRE es el scoped token del handoff de ESTA cuenta — nunca el que traiga el
+    # registro del modelo. Así un modelo Hermes de la cuenta N jamás puede ejecutarse con
+    # el token de otra cuenta, aunque el registro estuviera mal copiado. Devuelve nil si
+    # el modelo no es Hermes (usa su api_key normal).
+    def hermes_scoped_api_key
+      return nil unless @model_record.respond_to?(:source_jabvox) && @model_record.source_jabvox == 'hermes'
+
+      handoff = @account.jabvox_context_forge_handoff
+      return nil unless handoff&.operational?
+
+      handoff.scoped_token
     end
   end
 end

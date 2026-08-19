@@ -1,0 +1,39 @@
+{
+  "JABVOX_PROVISIONING_CHAT": {
+    "TITLE": "Chat de Aprovisionamiento",
+    "SUBTITLE": "Pídele a Hermes que cree los MCPs de tu cuenta",
+    "PLACEHOLDER": "Escribe un mensaje para Hermes…",
+    "SEND": "Enviar",
+    "PROVISION_BUTTON": "Aprovisionar mi cuenta",
+    "PROVISIONING": "Aprovisionando…",
+    "THINKING": "Hermes está pensando…",
+    "LOADING": "Cargando…",
+    "EMPTY": "Aún no hay mensajes. Escribe algo para comenzar.",
+    "RELOAD": "Actualizar estado",
+    "STATUS": {
+      "LABEL": "Estado del aprovisionamiento",
+      "PENDING": "Pendiente de aprovisionar",
+      "PROVISIONING": "Aprovisionando tu cuenta…",
+      "READY": "Aprovisionamiento listo",
+      "FAILED": "El aprovisionamiento falló",
+      "UNKNOWN": "Estado desconocido",
+      "PENDING_HINT": "Tu cuenta todavía no tiene MCPs. Pulsa el botón para crear Hermes y sus MCPs.",
+      "PROVISIONING_HINT": "Estamos creando Hermes y sus MCPs. Esto puede tardar un momento.",
+      "READY_HINT": "Hermes y tus MCPs están listos para usarse.",
+      "FAILED_HINT": "Ocurrió un error durante el aprovisionamiento. Puedes reintentarlo.",
+      "VIRTUAL_SERVER": "Servidor virtual",
+      "MCP_SERVERS": "Servidores MCP",
+      "NO_MCP_SERVERS": "Sin servidores MCP todavía",
+      "BASE_URL": "URL base de ContextForge",
+      "HAS_TOKEN": "Token configurado",
+      "NO_TOKEN": "Sin token",
+      "LAST_ERROR": "Último error"
+    },
+    "ERROR": {
+      "LOAD_STATUS": "No se pudo cargar el estado del aprovisionamiento.",
+      "LOAD_MESSAGES": "No se pudo cargar el historial de mensajes.",
+      "SEND": "No se pudo enviar el mensaje.",
+      "PROVISION": "No se pudo iniciar el aprovisionamiento."
+    }
+  }
+}

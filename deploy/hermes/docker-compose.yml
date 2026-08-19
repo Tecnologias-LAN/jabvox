@@ -1,0 +1,64 @@
+# Integración Hermes + ContextForge para Jabvox.
+#
+# Levanta lo que aporta ESTA integración (NO Jabvox, que corre aparte):
+#   - contextforge : IBM MCP Gateway (mcp-contextforge-gateway). Crea teams / virtual
+#                    servers / tokens. Requiere Python 3.11+ (por eso va en contenedor).
+#   - mcp-backend  : servidor MCP (FastMCP) con las MCPs por defecto por cuenta
+#                    (jabvox_core, analytics_db, reports). Se federa en ContextForge.
+#   - hermes       : gateway de Hermes (Nous Research) en modo servidor (endpoint
+#                    OpenAI-compatible que consume el ai-chat de Jabvox).
+#
+# Jabvox se conecta a estos servicios por HTTP; se configuran en el super admin
+# (Módulos → ContextForge): CONTEXTFORGE_SERVICE_URL, CONTEXTFORGE_ADMIN_KEY,
+# CONTEXTFORGE_HERMES_URL, CONTEXTFORGE_JABVOX_CALLBACK_URL.
+#
+# ⚠️ Rellena las variables en un archivo .env junto a este compose (ver README).
+
+services:
+  contextforge:
+    image: ghcr.io/ibm/mcp-context-forge:latest
+    container_name: jabvox-contextforge
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:4444:4444' # solo loopback: Jabvox lo alcanza en 127.0.0.1:4444
+    environment:
+      - HOST=0.0.0.0
+      - PORT=4444
+      - JWT_SECRET_KEY=${CONTEXTFORGE_JWT_SECRET:?set CONTEXTFORGE_JWT_SECRET}
+      - BASIC_AUTH_USER=${CONTEXTFORGE_ADMIN_USER:-admin}
+      - BASIC_AUTH_PASSWORD=${CONTEXTFORGE_ADMIN_PASSWORD:?set CONTEXTFORGE_ADMIN_PASSWORD}
+      - DATABASE_URL=sqlite:////data/contextforge.db
+    volumes:
+      - contextforge_data:/data
+    networks: [hermesnet]
+
+  mcp-backend:
+    build: ./mcp-backend
+    container_name: jabvox-mcp-backend
+    restart: unless-stopped
+    environment:
+      # URL por la que el MCP vuelve a Jabvox para leer datos de la cuenta.
+      - JABVOX_CALLBACK_URL=${CONTEXTFORGE_JABVOX_CALLBACK_URL:-http://host.docker.internal:3000}
+    networks: [hermesnet]
+
+  hermes:
+    image: ${HERMES_IMAGE:-nousresearch/hermes:latest}
+    container_name: jabvox-hermes
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8088:8088' # endpoint OpenAI-compat que consume el ai-chat de Jabvox
+    environment:
+      # Proveedor de modelo de Hermes (uno de estos según tu setup).
+      - MODEL_PROVIDER=${HERMES_MODEL_PROVIDER:-openai}
+      - MODEL_API_KEY=${HERMES_MODEL_API_KEY:?set HERMES_MODEL_API_KEY}
+      - MODEL_BASE_URL=${HERMES_MODEL_BASE_URL:-}
+      - CONTEXTFORGE_URL=http://contextforge:4444
+    depends_on: [contextforge]
+    networks: [hermesnet]
+
+volumes:
+  contextforge_data:
+
+networks:
+  hermesnet:
+    driver: bridge

@@ -27,6 +27,7 @@ import integrations from './integrations.json';
 import jabvoxAffiliatePortal from './jabvoxAffiliatePortal.json';
 import jabvoxAffiliates from './jabvoxAffiliates.json';
 import jabvoxAiChat from './jabvoxAiChat.json';
+import jabvoxProvisioningChat from './jabvoxProvisioningChat.json';
 import jabvoxAudioAnalysis from './jabvoxAudioAnalysis.json';
 import jabvoxAnalytics from './jabvoxAnalytics.json';
 import jabvoxCdr from './jabvoxCdr.json';
@@ -105,6 +106,7 @@ export default {
   ...jabvoxAffiliatePortal,
   ...jabvoxAffiliates,
   ...jabvoxAiChat,
+  ...jabvoxProvisioningChat,
   ...jabvoxAudioAnalysis,
   ...jabvoxAnalytics,
   ...jabvoxCdr,

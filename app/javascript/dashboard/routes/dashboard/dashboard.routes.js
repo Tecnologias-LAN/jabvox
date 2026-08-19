@@ -14,6 +14,7 @@ import { routes as jabvoxKanbanRoutes } from './jabvox-kanban/routes';
 import { routes as jabvoxProductsRoutes } from './jabvox-products/routes';
 import { routes as jabvoxSmsRoutes } from './jabvox-sms/routes';
 import { routes as jabvoxAiChatRoutes } from './jabvox-ai-chat/routes';
+import { routes as jabvoxProvisioningChatRoutes } from './jabvox-provisioning-chat/routes';
 import { routes as jabvoxDialerRoutes } from './jabvox-dialer/routes';
 import { routes as jabvoxCalendarRoutes } from './jabvox-calendar/routes';
 import { routes as jabvoxInternalChatRoutes } from './jabvox-internal-chat/routes';
@@ -51,6 +52,7 @@ export default {
         ...jabvoxProductsRoutes,
         ...jabvoxSmsRoutes,
         ...jabvoxAiChatRoutes,
+        ...jabvoxProvisioningChatRoutes,
         ...jabvoxDialerRoutes,
         ...jabvoxCalendarRoutes,
         ...jabvoxInternalChatRoutes,

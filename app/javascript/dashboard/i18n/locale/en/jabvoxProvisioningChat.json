@@ -1,0 +1,39 @@
+{
+  "JABVOX_PROVISIONING_CHAT": {
+    "TITLE": "Provisioning Chat",
+    "SUBTITLE": "Ask Hermes to create the MCPs for your account",
+    "PLACEHOLDER": "Type a message for Hermes…",
+    "SEND": "Send",
+    "PROVISION_BUTTON": "Provision my account",
+    "PROVISIONING": "Provisioning…",
+    "THINKING": "Hermes is thinking…",
+    "LOADING": "Loading…",
+    "EMPTY": "No messages yet. Type something to get started.",
+    "RELOAD": "Refresh status",
+    "STATUS": {
+      "LABEL": "Provisioning status",
+      "PENDING": "Pending provisioning",
+      "PROVISIONING": "Provisioning your account…",
+      "READY": "Provisioning ready",
+      "FAILED": "Provisioning failed",
+      "UNKNOWN": "Unknown status",
+      "PENDING_HINT": "Your account has no MCPs yet. Press the button to create Hermes and its MCPs.",
+      "PROVISIONING_HINT": "We are creating Hermes and its MCPs. This may take a moment.",
+      "READY_HINT": "Hermes and your MCPs are ready to use.",
+      "FAILED_HINT": "An error occurred during provisioning. You can retry.",
+      "VIRTUAL_SERVER": "Virtual server",
+      "MCP_SERVERS": "MCP servers",
+      "NO_MCP_SERVERS": "No MCP servers yet",
+      "BASE_URL": "ContextForge base URL",
+      "HAS_TOKEN": "Token configured",
+      "NO_TOKEN": "No token",
+      "LAST_ERROR": "Last error"
+    },
+    "ERROR": {
+      "LOAD_STATUS": "Could not load the provisioning status.",
+      "LOAD_MESSAGES": "Could not load the message history.",
+      "SEND": "Could not send the message.",
+      "PROVISION": "Could not start provisioning."
+    }
+  }
+}

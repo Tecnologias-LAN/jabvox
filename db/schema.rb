@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_19_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_19_000002) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -143,6 +143,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_000001) do
     t.bigint "jabvox_plan_id"
     t.datetime "jabvox_plan_expires_at"
     t.boolean "jabvox_softphone_enabled_jabvox", default: false, null: false
+    t.boolean "jabvox_ai_chat_provisioning_enabled_jabvox", default: false, null: false
     t.index ["jabvox_plan_id"], name: "index_accounts_on_jabvox_plan_id"
     t.index ["status"], name: "index_accounts_on_status"
   end
@@ -1203,6 +1204,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_000001) do
     t.boolean "is_default_jabvox", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "source_jabvox", default: "local", null: false
+    t.string "hermes_model_id_jabvox"
     t.index ["account_id"], name: "index_jabvox_ai_chat_models_on_account_id"
   end
 
@@ -1980,6 +1983,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_000001) do
     t.datetime "updated_at", null: false
     t.index ["account_id", "started_at"], name: "idx_cdr_sync_runs_account_started"
     t.index ["account_id"], name: "index_jabvox_cdr_sync_runs_on_account_id"
+  end
+
+  create_table "jabvox_context_forge_handoffs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "status", default: "pending", null: false
+    t.string "contextforge_base_url"
+    t.string "virtual_server_id"
+    t.string "team_id"
+    t.string "hermes_instance_id"
+    t.text "scoped_token"
+    t.jsonb "mcp_servers", default: [], null: false
+    t.string "last_error"
+    t.datetime "provisioned_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_context_forge_handoffs_on_account_id", unique: true
   end
 
   create_table "jabvox_conversation_label_logs", force: :cascade do |t|
@@ -2770,6 +2789,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_000001) do
     t.index ["jabvox_currency_id"], name: "index_jabvox_products_on_jabvox_currency_id"
     t.index ["jabvox_item_type_id"], name: "index_jabvox_products_on_jabvox_item_type_id"
     t.index ["jabvox_unit_of_measure_id"], name: "index_jabvox_products_on_jabvox_unit_of_measure_id"
+  end
+
+  create_table "jabvox_provisioning_chat_messages", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "user_id", null: false
+    t.string "role", null: false
+    t.text "content"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "created_at"], name: "idx_on_account_id_created_at_0050c7615e"
+    t.index ["account_id"], name: "index_jabvox_provisioning_chat_messages_on_account_id"
+    t.index ["user_id"], name: "index_jabvox_provisioning_chat_messages_on_user_id"
   end
 
   create_table "jabvox_provisioning_transactions", force: :cascade do |t|
@@ -4144,6 +4176,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_000001) do
   add_foreign_key "jabvox_cdr_stages", "jabvox_ai_chat_models", column: "llm_model_id"
   add_foreign_key "jabvox_cdr_stages", "jabvox_cdr_pipelines", column: "pipeline_id"
   add_foreign_key "jabvox_cdr_sync_runs", "accounts"
+  add_foreign_key "jabvox_context_forge_handoffs", "accounts"
   add_foreign_key "jabvox_currencies", "accounts"
   add_foreign_key "jabvox_currencies", "users", column: "created_by_id"
   add_foreign_key "jabvox_custom_columns", "jabvox_custom_tables"
@@ -4258,6 +4291,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_000001) do
   add_foreign_key "jabvox_products", "jabvox_item_types"
   add_foreign_key "jabvox_products", "jabvox_units_of_measure", column: "jabvox_unit_of_measure_id"
   add_foreign_key "jabvox_products", "users", column: "created_by_id"
+  add_foreign_key "jabvox_provisioning_chat_messages", "accounts"
+  add_foreign_key "jabvox_provisioning_chat_messages", "users"
   add_foreign_key "jabvox_provisioning_transactions", "accounts"
   add_foreign_key "jabvox_provisioning_transactions", "jabvox_plans"
   add_foreign_key "jabvox_quick_buttons", "accounts"

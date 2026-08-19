@@ -133,6 +133,27 @@ as well as a link to its edit page.
             super_admin_account_account_automations_path(page.resource),
             class: 'button' %>
     </div>
+
+    <div style="flex:1; min-width:220px; padding:16px; background:#ecfeff; border:1px solid #a5f3fc; border-radius:8px;">
+      <h3 style="font-weight:600; font-size:14px; margin-bottom:8px;">Hermes / ContextForge</h3>
+      <% _handoff = page.resource.jabvox_context_forge_handoff %>
+      <p style="font-size:13px; color:#374151; margin-bottom:10px;">
+        <% if _handoff&.operational? %>
+          Aprovisionado — virtual server <code><%= _handoff.virtual_server_id %></code>,
+          <%= _handoff.mcp_servers.size %> MCP(s).
+        <% elsif _handoff&.status == 'failed' %>
+          Falló: <%= _handoff.last_error %>
+        <% elsif _handoff&.status == 'provisioning' %>
+          Aprovisionando… recarga en unos segundos.
+        <% else %>
+          Sin aprovisionar. Crea team → MCPs → virtual server → token para esta cuenta.
+        <% end %>
+      </p>
+      <%= link_to 'Aprovisionar cuenta',
+            provision_context_forge_super_admin_account_path(page.resource),
+            method: :post, data: { confirm: '¿Aprovisionar Hermes/ContextForge para esta cuenta? (idempotente)' },
+            class: 'button' %>
+    </div>
   </div>
 
   <%

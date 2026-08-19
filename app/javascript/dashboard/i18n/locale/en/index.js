@@ -54,6 +54,7 @@ import jabvoxSaldo from './jabvoxSaldo.json';
 import jabvoxSms from './jabvoxSms.json';
 import jabvoxIpWhitelist from './jabvoxIpWhitelist.json';
 import jabvoxAiChat from './jabvoxAiChat.json';
+import jabvoxProvisioningChat from './jabvoxProvisioningChat.json';
 import jabvoxManagementStates from './jabvoxManagementStates.json';
 import jabvoxDialer from './jabvoxDialer.json';
 import jabvoxFieldSecurity from './jabvoxFieldSecurity.json';
@@ -136,6 +137,7 @@ export default {
   ...jabvoxSms,
   ...jabvoxIpWhitelist,
   ...jabvoxAiChat,
+  ...jabvoxProvisioningChat,
   ...jabvoxManagementStates,
   ...jabvoxDialer,
   ...jabvoxFieldSecurity,

@@ -15,6 +15,7 @@
 #  jabvox_ai_chat_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_ai_chat_max_documents_jabvox        :integer          default(0), not null
 #  jabvox_ai_chat_max_open_chats_jabvox       :integer          default(0), not null
+#  jabvox_ai_chat_provisioning_enabled_jabvox :boolean          default(FALSE), not null
 #  jabvox_analytics_enabled_jabvox            :boolean          default(FALSE), not null
 #  jabvox_audio_analysis_enabled_jabvox       :boolean          default(FALSE), not null
 #  jabvox_bulk_whatsapp_enabled_jabvox        :boolean          default(FALSE), not null
@@ -185,6 +186,8 @@ class Account < ApplicationRecord
   has_many :jabvox_ai_chat_user_permissions, dependent: :destroy_async
   has_many :jabvox_ai_chat_documents, dependent: :destroy_async
   has_many :jabvox_ai_chat_storages, dependent: :destroy_async
+  has_one :jabvox_context_forge_handoff, dependent: :destroy
+  has_many :jabvox_provisioning_chat_messages, dependent: :destroy_async
   has_many :jabvox_response_bot_configs, dependent: :destroy_async
   has_many :jabvox_response_bot_documents, dependent: :destroy_async
   has_many :jabvox_management_states, dependent: :destroy_async
