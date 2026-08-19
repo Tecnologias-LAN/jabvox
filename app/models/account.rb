@@ -36,6 +36,7 @@
 #  jabvox_response_bot_enabled_jabvox         :boolean          default(FALSE), not null
 #  jabvox_saldo_enabled_jabvox                :boolean          default(FALSE), not null
 #  jabvox_sms_enabled_jabvox                  :boolean          default(FALSE), not null
+#  jabvox_softphone_enabled_jabvox            :boolean          default(FALSE), not null
 #  jabvox_tasks_enabled_jabvox                :boolean          default(FALSE), not null
 #  jabvox_tickets_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_voice_broadcast_enabled_jabvox      :boolean          default(FALSE), not null
@@ -131,6 +132,11 @@ class Account < ApplicationRecord
   # tienen plan asignado (creadas por otros medios).
   belongs_to :jabvox_plan, optional: true
   has_many :jabvox_provisioning_transactions, dependent: :nullify
+  # Softphone WebRTC (módulo nuevo, independiente del dialer AMI).
+  has_one :jabvox_softphone_config, dependent: :destroy
+  has_many :jabvox_softphone_extensions, dependent: :destroy
+  has_many :jabvox_softphone_call_logs, dependent: :destroy
+  has_many :jabvox_softphone_call_events, dependent: :destroy
   has_many :jabvox_tickets, dependent: :destroy_async
   has_many :jabvox_ticket_categories, dependent: :destroy_async
   has_many :jabvox_kanban_funnels, dependent: :destroy_async

@@ -74,6 +74,7 @@ export const FEATURE_FLAGS = {
   JABVOX_AUDIO_ANALYSIS: 'jabvox_audio_analysis',
   JABVOX_CUSTOMIZATION: 'jabvox_customization',
   JABVOX_CLICK_TO_CALL: 'jabvox_click_to_call',
+  JABVOX_SOFTPHONE: 'jabvox_softphone',
   JABVOX_ANALYTICS: 'jabvox_analytics',
   JABVOX_TASKS: 'jabvox_tasks',
   JABVOX_BULK_WHATSAPP: 'jabvox_bulk_whatsapp',

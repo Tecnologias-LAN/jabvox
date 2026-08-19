@@ -1,0 +1,223 @@
+<% content_for(:title) { 'Estado del Softphone' } %>
+<% auto = params[:auto] == '1' %>
+<% if auto %><meta http-equiv="refresh" content="15"><% end %>
+
+<style>
+  .st-wrap { max-width: 1100px; }
+  .st-toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px; }
+  .st-card { border:1px solid #e5e7eb; border-radius:12px; margin-bottom:16px; overflow:hidden; }
+  .st-card-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; background:#f8fafc; border-bottom:1px solid #e5e7eb; flex-wrap:wrap; }
+  .st-acc { font-size:15px; font-weight:700; color:#0f172a; }
+  .st-server { font-size:12px; color:#64748b; font-family:monospace; }
+  .st-badge { font-size:12px; font-weight:600; padding:3px 10px; border-radius:100px; white-space:nowrap; }
+  .st-ok { background:#dcfce7; color:#15803d; }
+  .st-warn { background:#fef9c3; color:#a16207; }
+  .st-err { background:#fee2e2; color:#b91c1c; }
+  .st-muted { background:#f1f5f9; color:#64748b; }
+  .st-info { background:#dbeafe; color:#1d4ed8; }
+  .st-table { width:100%; border-collapse:collapse; }
+  .st-table th { text-align:left; font-size:11px; text-transform:uppercase; color:#94a3b8; padding:8px 16px; border-bottom:1px solid #eef2f7; }
+  .st-table td { font-size:13px; color:#334155; padding:10px 16px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+  .st-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .st-on { background:#22c55e; } .st-off { background:#cbd5e1; } .st-unk { background:#f59e0b; } .st-bad { background:#ef4444; } .st-call { background:#3b82f6; } .st-conn { background:#f59e0b; }
+  .st-empty { padding:16px; font-size:13px; color:#94a3b8; }
+  .st-reason { font-size:12px; color:#b91c1c; padding:8px 16px; display:flex; gap:8px; align-items:center; }
+  .st-code { font-family:monospace; font-size:11px; background:#fee2e2; color:#b91c1c; padding:1px 6px; border-radius:4px; }
+  .st-live { font-size:12px; color:#64748b; display:flex; align-items:center; gap:6px; }
+  .st-live .st-dot { background:#22c55e; animation:pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .st-meta { font-size:11px; color:#94a3b8; }
+  .st-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; padding:14px 16px; background:#f8fafc; border-bottom:1px solid #e5e7eb; }
+  .st-filters label { font-size:11px; color:#64748b; display:block; margin-bottom:3px; }
+  .st-filters input, .st-filters select { font-size:13px; padding:5px 8px; border:1px solid #cbd5e1; border-radius:6px; }
+  .st-sec-title { font-size:14px; font-weight:700; color:#0f172a; padding:14px 16px 0; }
+  .st-pager { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; font-size:13px; color:#64748b; }
+</style>
+
+<div class="st-wrap">
+  <div class="st-toolbar">
+    <header class="main-content__header" style="margin:0;">
+      <h1 class="main-content__page-title">Estado del Softphone</h1>
+    </header>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <% if auto %>
+        <span class="st-live"><span class="st-dot"></span>En vivo (15s)</span>
+        <%= link_to 'Pausar', status_super_admin_jabvox_softphone_extensions_path(request.query_parameters.except(:auto)), class: 'button' %>
+      <% else %>
+        <%= link_to '● En vivo', status_super_admin_jabvox_softphone_extensions_path(request.query_parameters.merge(auto: 1)), class: 'button' %>
+      <% end %>
+      <%= link_to 'Configuración', super_admin_jabvox_softphone_extensions_path, class: 'button' %>
+    </div>
+  </div>
+
+  <%#=== Estado en vivo por cuenta / extensión ===%>
+  <% if @accounts_status.empty? %>
+    <div class="st-card"><p class="st-empty">Ninguna cuenta tiene el softphone habilitado.</p></div>
+  <% end %>
+
+  <% @accounts_status.each do |account, st| %>
+    <div class="st-card">
+      <div class="st-card-head">
+        <div>
+          <div class="st-acc">#<%= account.id %> · <%= account.name %></div>
+          <% if st[:server].present? %>
+            <div class="st-server"><%= st[:server] %></div>
+          <% end %>
+        </div>
+        <%
+          badge = case st[:account_status]
+                  when Jabvox::Softphone::StatusService::OK then ['st-ok', 'Operativo']
+                  when Jabvox::Softphone::StatusService::DISABLED then ['st-muted', 'Deshabilitado']
+                  when Jabvox::Softphone::StatusService::NO_CONFIG then ['st-warn', 'Sin configuración']
+                  when Jabvox::Softphone::StatusService::NOT_CONFIGURED then ['st-warn', 'Servidor incompleto']
+                  else ['st-muted', st[:account_status]]
+                  end
+        %>
+        <span class="st-badge <%= badge[0] %>"><%= badge[1] %></span>
+      </div>
+
+      <% if st[:reason].present? %>
+        <div class="st-reason">
+          <span>⚠ <%= st[:reason] %></span>
+          <% if st[:error_code].present? %><span class="st-code"><%= st[:error_code] %></span><% end %>
+        </div>
+      <% end %>
+
+      <% if st[:extensions].any? %>
+        <table class="st-table">
+          <thead>
+            <tr><th>Extensión</th><th>Usuario</th><th>Credencial SIP</th><th>Estado en tiempo real</th><th>Último visto</th><th>IP</th></tr>
+          </thead>
+          <tbody>
+            <% st[:extensions].each do |ext| %>
+              <tr>
+                <td><strong><%= ext[:extension] %></strong></td>
+                <td><%= ext[:user] || '—' %></td>
+                <td>
+                  <% if ext[:has_credential] && ext[:webrtc_enabled] %>
+                    <span class="st-badge st-ok">Lista</span>
+                  <% elsif ext[:has_credential] %>
+                    <span class="st-badge st-muted">Deshabilitada</span>
+                  <% else %>
+                    <span class="st-badge st-err">Falta secreto</span>
+                  <% end %>
+                </td>
+                <td>
+                  <%
+                    dot, label = case ext[:state]
+                                 when 'online'          then ['st-on',   'Conectada']
+                                 when 'on_call'         then ['st-call', 'En llamada']
+                                 when 'connecting'      then ['st-conn', 'Conectando']
+                                 when 'offline'         then ['st-off',  'Desconectada']
+                                 when 'error'           then ['st-bad',  'Con error']
+                                 when 'never_connected' then ['st-off',  'Nunca conectó']
+                                 when 'no_credential'   then ['st-off',  'Sin credencial']
+                                 else ['st-unk', 'Desconocido']
+                                 end
+                  %>
+                  <span><span class="st-dot <%= dot %>"></span><%= label %></span>
+                  <% if ext[:last_error].present? %>
+                    <div><span class="st-code"><%= ext[:last_error] %></span></div>
+                  <% end %>
+                </td>
+                <td class="st-meta"><%= ext[:last_seen_at] ? "#{time_ago_in_words(ext[:last_seen_at])} atrás" : '—' %></td>
+                <td class="st-meta"><%= ext[:remote_ip] || '—' %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <p class="st-empty">Sin extensiones ligadas en esta cuenta.</p>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%#=== Historial de llamadas con filtros ===%>
+  <div class="st-card">
+    <div class="st-sec-title">Historial de llamadas</div>
+    <%= form_tag status_super_admin_jabvox_softphone_extensions_path, method: :get, class: 'st-filters' do %>
+      <%= hidden_field_tag :auto, params[:auto] if params[:auto].present? %>
+      <div>
+        <label>Cuenta</label>
+        <%= select_tag :account_id,
+              options_from_collection_for_select(@filter_accounts, :id, ->(a) { "##{a.id} #{a.name}" }, params[:account_id]),
+              include_blank: 'Todas' %>
+      </div>
+      <div>
+        <label>Extensión</label>
+        <%= text_field_tag :extension, params[:extension], placeholder: 'ej. 1012', size: 8 %>
+      </div>
+      <div>
+        <label>Estado</label>
+        <%= select_tag :status,
+              options_for_select([['Todos', ''], ['Sonando', 'ringing'], ['Contestada', 'answered'], ['No contestada', 'missed'], ['Fallida', 'failed'], ['Terminada', 'ended']], params[:status]) %>
+      </div>
+      <div>
+        <label>Dirección</label>
+        <%= select_tag :direction,
+              options_for_select([['Todas', ''], ['Saliente', 'outbound'], ['Entrante', 'inbound']], params[:direction]) %>
+      </div>
+      <div>
+        <label>Desde</label>
+        <%= date_field_tag :from, params[:from] %>
+      </div>
+      <div>
+        <label>Hasta</label>
+        <%= date_field_tag :to, params[:to] %>
+      </div>
+      <div>
+        <%= submit_tag 'Filtrar', class: 'button' %>
+        <%= link_to 'Limpiar', status_super_admin_jabvox_softphone_extensions_path, class: 'button' %>
+      </div>
+    <% end %>
+
+    <% if @call_logs.any? %>
+      <table class="st-table">
+        <thead>
+          <tr><th>Fecha</th><th>Cuenta</th><th>Ext</th><th>Usuario</th><th>Número</th><th>Dir</th><th>Estado</th><th>Quién colgó</th><th>Codec</th><th>Duración</th><th>Fallo</th></tr>
+        </thead>
+        <tbody>
+          <% @call_logs.each do |log| %>
+            <tr>
+              <td class="st-meta"><%= log.started_at&.strftime('%d/%m %H:%M:%S') %></td>
+              <td class="st-meta">#<%= log.account_id %></td>
+              <td><strong><%= log.extension %></strong></td>
+              <td><%= log.user&.name || log.user&.email || '—' %></td>
+              <td><%= log.contact_name.present? ? "#{log.contact_name} (#{log.phone_number})" : log.phone_number %></td>
+              <td>
+                <span class="st-badge <%= log.direction == 'inbound' ? 'st-info' : 'st-muted' %>">
+                  <%= log.direction == 'inbound' ? '↓ Entra' : '↑ Sale' %>
+                </span>
+              </td>
+              <td>
+                <%
+                  scls = case log.status
+                         when 'answered', 'ended' then 'st-ok'
+                         when 'missed' then 'st-warn'
+                         when 'failed' then 'st-err'
+                         else 'st-muted'
+                         end
+                  slbl = { 'ringing' => 'Sonando', 'answered' => 'Contestada', 'missed' => 'No contestada', 'failed' => 'Fallida', 'ended' => 'Terminada' }[log.status] || log.status
+                %>
+                <span class="st-badge <%= scls %>"><%= slbl %></span>
+              </td>
+              <td class="st-meta"><%= { 'agent' => 'Agente', 'remote' => 'Remoto' }[log.ended_by] || '—' %></td>
+              <td class="st-meta"><%= log.codec || '—' %></td>
+              <td class="st-meta"><%= log.duration_seconds ? "#{log.duration_seconds}s" : '—' %></td>
+              <td class="st-meta"><% if log.failure_reason.present? %><span class="st-code"><%= log.failure_reason %></span><% end %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <div class="st-pager">
+        <span><%= @total_logs %> llamada(s) · página <%= @page %> de <%= (@total_logs / @per_page.to_f).ceil %></span>
+        <span>
+          <% if @page > 1 %><%= link_to '‹ Anterior', status_super_admin_jabvox_softphone_extensions_path(request.query_parameters.merge(page: @page - 1)), class: 'button' %><% end %>
+          <% if @page * @per_page < @total_logs %><%= link_to 'Siguiente ›', status_super_admin_jabvox_softphone_extensions_path(request.query_parameters.merge(page: @page + 1)), class: 'button' %><% end %>
+        </span>
+      </div>
+    <% else %>
+      <p class="st-empty">No hay llamadas con los filtros seleccionados.</p>
+    <% end %>
+  </div>
+</div>

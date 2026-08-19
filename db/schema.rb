@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_11_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_19_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -142,6 +142,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_11_000001) do
     t.boolean "jabvox_tickets_enabled_jabvox", default: false, null: false
     t.bigint "jabvox_plan_id"
     t.datetime "jabvox_plan_expires_at"
+    t.boolean "jabvox_softphone_enabled_jabvox", default: false, null: false
     t.index ["jabvox_plan_id"], name: "index_accounts_on_jabvox_plan_id"
     t.index ["status"], name: "index_accounts_on_status"
   end
@@ -2971,6 +2972,83 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_11_000001) do
     t.index ["account_id"], name: "index_jabvox_smtp_configs_on_account_id", unique: true
   end
 
+  create_table "jabvox_softphone_call_events", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "jabvox_softphone_call_log_id", null: false
+    t.string "event_type", null: false
+    t.string "detail"
+    t.datetime "occurred_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "occurred_at"], name: "idx_on_account_id_occurred_at_0799b713a5"
+    t.index ["account_id"], name: "index_jabvox_softphone_call_events_on_account_id"
+    t.index ["jabvox_softphone_call_log_id"], name: "idx_sp_events_on_call_log"
+  end
+
+  create_table "jabvox_softphone_call_logs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "user_id", null: false
+    t.string "extension", null: false
+    t.string "phone_number", null: false
+    t.string "contact_name"
+    t.integer "direction", default: 0, null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "started_at"
+    t.datetime "answered_at"
+    t.datetime "ended_at"
+    t.integer "duration_seconds", default: 0, null: false
+    t.string "call_uuid"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "codec"
+    t.string "failure_reason"
+    t.string "failure_code"
+    t.string "sip_context"
+    t.string "remote_ip"
+    t.string "ended_by"
+    t.index ["account_id", "user_id", "created_at"], name: "idx_on_account_id_user_id_created_at_b9ba2ecdbd"
+    t.index ["account_id"], name: "index_jabvox_softphone_call_logs_on_account_id"
+    t.index ["call_uuid"], name: "index_jabvox_softphone_call_logs_on_call_uuid"
+    t.index ["user_id"], name: "index_jabvox_softphone_call_logs_on_user_id"
+  end
+
+  create_table "jabvox_softphone_configs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.boolean "enabled", default: false, null: false
+    t.string "wss_url"
+    t.string "sip_domain"
+    t.jsonb "codecs", default: ["opus", "alaw", "ulaw"], null: false
+    t.boolean "auto_answer", default: false, null: false
+    t.string "dtmf_mode", default: "rfc2833", null: false
+    t.boolean "transfer_enabled", default: true, null: false
+    t.string "default_context", default: "from-webrtc", null: false
+    t.jsonb "stun_servers", default: [], null: false
+    t.string "turn_url"
+    t.text "turn_secret"
+    t.integer "credential_ttl", default: 3600, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_softphone_configs_on_account_id", unique: true
+  end
+
+  create_table "jabvox_softphone_extensions", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "user_id", null: false
+    t.text "sip_secret"
+    t.boolean "webrtc_enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "live_state", default: "disconnected", null: false
+    t.datetime "last_seen_at"
+    t.string "last_error"
+    t.string "remote_ip"
+    t.string "user_agent_info"
+    t.index ["account_id", "user_id"], name: "index_jabvox_softphone_extensions_on_account_id_and_user_id", unique: true
+    t.index ["account_id"], name: "index_jabvox_softphone_extensions_on_account_id"
+    t.index ["last_seen_at"], name: "index_jabvox_softphone_extensions_on_last_seen_at"
+    t.index ["user_id"], name: "index_jabvox_softphone_extensions_on_user_id"
+  end
+
   create_table "jabvox_task_activities", force: :cascade do |t|
     t.bigint "task_id", null: false
     t.bigint "account_id", null: false
@@ -4207,6 +4285,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_11_000001) do
   add_foreign_key "jabvox_sms_messages", "users", column: "created_by_id"
   add_foreign_key "jabvox_sms_providers", "accounts"
   add_foreign_key "jabvox_smtp_configs", "accounts"
+  add_foreign_key "jabvox_softphone_call_events", "accounts"
+  add_foreign_key "jabvox_softphone_call_events", "jabvox_softphone_call_logs"
+  add_foreign_key "jabvox_softphone_call_logs", "accounts"
+  add_foreign_key "jabvox_softphone_call_logs", "users"
+  add_foreign_key "jabvox_softphone_configs", "accounts"
+  add_foreign_key "jabvox_softphone_extensions", "accounts"
+  add_foreign_key "jabvox_softphone_extensions", "users"
   add_foreign_key "jabvox_task_activities", "accounts"
   add_foreign_key "jabvox_task_activities", "jabvox_tasks", column: "task_id"
   add_foreign_key "jabvox_task_activities", "users"

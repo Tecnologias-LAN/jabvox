@@ -442,6 +442,16 @@ Rails.application.routes.draw do
           resources :upload, only: [:create]
 
           namespace :jabvox do
+            # Softphone WebRTC: credenciales efímeras + historial de llamadas.
+            namespace :softphone do
+              resource :credentials, only: [:show], controller: 'credentials'
+              resources :call_logs, only: [:index, :create, :update], controller: 'call_logs' do
+                post :event, on: :member
+              end
+              # Heartbeat de presencia: el navegador reporta su estado en vivo
+              # (registrado/en llamada/caído) para el panel de estado del super admin.
+              resource :presence, only: [:update], controller: 'presence'
+            end
             # Cobro/aprovisionamiento: inicia el checkout (token firmado + URL de la web).
             namespace :billing do
               resource :checkout, only: [:create], controller: 'checkouts'
@@ -1238,6 +1248,11 @@ Rails.application.routes.draw do
       resources :jabvox_payment_gateway_configs, except: [:destroy]
       resources :jabvox_provisioning_transactions, only: [:index, :show] do
         post :retry_provisioning, on: :member
+      end
+      # Softphone WebRTC: configuración por cuenta + extensiones ligadas a usuarios.
+      resources :jabvox_softphone_configs
+      resources :jabvox_softphone_extensions do
+        get :status, on: :collection
       end
       resources :jabvox_saldo_configs, only: [:index, :new, :create, :destroy]
       resources :jabvox_ticket_helpdesk_configs

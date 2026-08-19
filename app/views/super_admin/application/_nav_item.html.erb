@@ -1,7 +1,7 @@
 <li class="px-3 mb-0.5">
   <% active = current_page?(url) %>
-  <%= link_to(url, class: "focus:outline-none cursor-pointer flex items-center px-2 py-1.5 rounded-lg transition-colors " + (active ? "bg-white/60 text-[#15605A] font-semibold" : "text-[#2d5a52] hover:bg-white/40")) do %>
-    <svg width="16" height="16"><use xlink:href="#<%= icon %>" /></svg>
-    <span class="ml-2 text-sm"><%= label %></span>
+  <%= link_to(url, title: label, class: "focus:outline-none cursor-pointer flex items-center justify-center sm:justify-start px-2 py-1.5 rounded-lg transition-colors " + (active ? "bg-white/60 text-[#15605A] font-semibold" : "text-[#2d5a52] hover:bg-white/40")) do %>
+    <svg width="16" height="16" class="flex-shrink-0"><use xlink:href="#<%= icon %>" /></svg>
+    <span class="ml-2 text-sm hidden sm:inline"><%= label %></span>
   <% end %>
 </li>

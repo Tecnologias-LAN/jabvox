@@ -2,6 +2,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { emitter } from 'shared/helpers/mitt';
 import { useAlert } from 'dashboard/composables';
 import { clickToCallAPI } from 'dashboard/api/jabvox/clickToCall';
+import { dialViaSoftphone } from 'dashboard/routes/dashboard/jabvox-softphone/helpers/softphoneDialer';
 
 // Shared singleton state so the call overlay is global (one active call at a time).
 const phase = ref(null); // null | 'calling' | 'typify'
@@ -22,6 +23,11 @@ export function useClickToCall() {
     phone,
   }) => {
     target.value = { name: name || '', phone: phone || '' };
+
+    // Si el softphone WebRTC está activo, la llamada sale desde la extensión del usuario en
+    // el navegador (no por originate AMI). El origen no cambia su UI aquí.
+    if (phone && dialViaSoftphone(phone, { name })) return;
+
     try {
       const payload = {};
       if (leadId) payload.lead_id = leadId;

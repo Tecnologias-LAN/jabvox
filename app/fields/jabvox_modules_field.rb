@@ -35,7 +35,8 @@ class JabvoxModulesField < Administrate::Field::Base
     [:jabvox_lead_import_enabled_jabvox, 'Jabvox Importar Leads'],
     [:jabvox_data_export_enabled_jabvox, 'Jabvox Exportar Datos'],
     [:jabvox_lead_delete_enabled_jabvox, 'Jabvox Eliminar Leads'],
-    [:jabvox_advanced_automations_enabled_jabvox, 'Automatizaciones Avanzadas']
+    [:jabvox_advanced_automations_enabled_jabvox, 'Automatizaciones Avanzadas'],
+    [:jabvox_softphone_enabled_jabvox, 'Jabvox Softphone']
   ].freeze
 
   # [[column, label, enabled_boolean], ...] for the current account.

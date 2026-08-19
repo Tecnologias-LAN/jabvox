@@ -1,0 +1,169 @@
+<%# Wizard paso a paso para la configuración WebRTC del softphone. Responsive, con pasos:
+    1) Cuenta y servidor  2) Codecs y DTMF  3) Comportamiento  4) STUN/TURN %>
+<% config = local_assigns[:config] || (defined?(page) ? page.resource : nil) %>
+
+<style>
+  .sp-wizard { max-width: 720px; }
+  .sp-steps { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+  .sp-step-pill { flex:1; min-width:120px; text-align:center; padding:8px 6px; border-radius:8px;
+    background:#f1f5f9; color:#64748b; font-size:12px; font-weight:600; cursor:pointer; border:1px solid transparent; }
+  .sp-step-pill.active { background:#0f766e; color:#fff; }
+  .sp-step-pill.done { background:#ccfbf1; color:#0f766e; }
+  .sp-panel { display:none; }
+  .sp-panel.active { display:block; }
+  .sp-field { margin-bottom:16px; }
+  .sp-label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:4px; }
+  .sp-help { font-size:12px; color:#6b7280; margin:0 0 6px; }
+  .sp-input { width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; box-sizing:border-box; }
+  .sp-row { display:flex; flex-wrap:wrap; gap:16px; }
+  .sp-row > .sp-field { flex:1; min-width:200px; }
+  .sp-check { display:flex; align-items:center; gap:8px; font-size:14px; color:#374151; }
+  .sp-nav { display:flex; justify-content:space-between; gap:8px; margin-top:20px; }
+  .sp-btn { padding:9px 18px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; border:1px solid #d1d5db; background:#fff; color:#374151; }
+  .sp-btn-primary { background:#0f766e; color:#fff; border-color:#0f766e; }
+  @media (max-width:640px){ .sp-step-pill{min-width:80px;font-size:11px;} }
+</style>
+
+<%= form_with model: [:super_admin, config], local: true, html: { class: 'sp-wizard', id: 'sp-form' } do |f| %>
+  <% if config.errors.any? %>
+    <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:12px;margin-bottom:16px;">
+      <ul style="margin:0;padding-left:16px;">
+        <% config.errors.full_messages.each do |msg| %>
+          <li style="color:#b91c1c;font-size:14px;"><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="sp-steps">
+    <div class="sp-step-pill active" data-step="0">1 · Servidor</div>
+    <div class="sp-step-pill" data-step="1">2 · Codecs y DTMF</div>
+    <div class="sp-step-pill" data-step="2">3 · Comportamiento</div>
+    <div class="sp-step-pill" data-step="3">4 · STUN / TURN</div>
+  </div>
+
+  <!-- Paso 1: Cuenta y servidor -->
+  <div class="sp-panel active" data-panel="0">
+    <div class="sp-field">
+      <%= f.label :account_id, 'Cuenta', class: 'sp-label' %>
+      <p class="sp-help">La cuenta a la que aplica esta configuración de softphone.</p>
+      <%= f.collection_select :account_id, Account.order(:name), :id, :name,
+          { prompt: 'Selecciona una cuenta' }, class: 'sp-input' %>
+    </div>
+    <div class="sp-field">
+      <label class="sp-check"><%= f.check_box :enabled %> Softphone habilitado para la cuenta</label>
+    </div>
+    <div class="sp-row">
+      <div class="sp-field">
+        <%= f.label :wss_url, 'URL del servidor (WSS)', class: 'sp-label' %>
+        <p class="sp-help">WebSocket seguro del PBX. Ej: wss://pbx.jabvox.com:8089/ws</p>
+        <%= f.text_field :wss_url, class: 'sp-input', placeholder: 'wss://pbx.jabvox.com:8089/ws' %>
+      </div>
+      <div class="sp-field">
+        <%= f.label :sip_domain, 'Dominio SIP', class: 'sp-label' %>
+        <p class="sp-help">Dominio del PBX. Ej: pbx.jabvox.com</p>
+        <%= f.text_field :sip_domain, class: 'sp-input', placeholder: 'pbx.jabvox.com' %>
+      </div>
+    </div>
+    <div class="sp-field">
+      <%= f.label :default_context, 'Contexto por defecto (dialplan)', class: 'sp-label' %>
+      <p class="sp-help">Contexto de Asterisk para las llamadas del softphone. Ej: from-webrtc</p>
+      <%= f.text_field :default_context, class: 'sp-input' %>
+    </div>
+  </div>
+
+  <!-- Paso 2: Codecs y DTMF -->
+  <div class="sp-panel" data-panel="1">
+    <div class="sp-field">
+      <%= f.label :codecs, 'Codecs permitidos', class: 'sp-label' %>
+      <p class="sp-help">Marca los codecs que puede usar el softphone (deben coincidir con el PBX).</p>
+      <% selected = Array(config.codecs).map(&:to_s) %>
+      <% %w[opus alaw ulaw g722].each do |codec| %>
+        <label class="sp-check" style="margin-bottom:6px;">
+          <%= check_box_tag 'jabvox_softphone_config[codecs][]', codec, selected.include?(codec) %>
+          <%= codec.upcase %>
+        </label>
+      <% end %>
+    </div>
+    <div class="sp-field">
+      <%= f.label :dtmf_mode, 'Modo DTMF', class: 'sp-label' %>
+      <p class="sp-help">Cómo se envían los tonos del teclado durante la llamada.</p>
+      <%= f.select :dtmf_mode, JabvoxSoftphoneConfig::DTMF_MODES, {}, class: 'sp-input' %>
+    </div>
+  </div>
+
+  <!-- Paso 3: Comportamiento -->
+  <div class="sp-panel" data-panel="2">
+    <div class="sp-field">
+      <label class="sp-check"><%= f.check_box :auto_answer %> Respuesta automática (auto-answer)</label>
+      <p class="sp-help">Si se activa, las llamadas entrantes se contestan solas. Si no, el usuario contesta con el botón.</p>
+    </div>
+    <div class="sp-field">
+      <label class="sp-check"><%= f.check_box :transfer_enabled %> Permitir transferir llamadas (REFER)</label>
+    </div>
+    <div class="sp-field">
+      <%= f.label :credential_ttl, 'Vida de la credencial (segundos)', class: 'sp-label' %>
+      <p class="sp-help">Cada cuánto se renuevan las credenciales efímeras. Recomendado: 3600.</p>
+      <%= f.number_field :credential_ttl, class: 'sp-input', min: 60 %>
+    </div>
+  </div>
+
+  <!-- Paso 4: STUN / TURN -->
+  <div class="sp-panel" data-panel="3">
+    <div class="sp-field">
+      <%= f.label :stun_servers, 'Servidores STUN', class: 'sp-label' %>
+      <p class="sp-help">Uno por línea. Ej: stun:pbx.jabvox.com:3478</p>
+      <%= text_area_tag 'jabvox_softphone_config[stun_servers_text]',
+          Array(config.stun_servers).join("\n"), rows: 3, class: 'sp-input' %>
+    </div>
+    <div class="sp-field">
+      <%= f.label :turn_url, 'URL del servidor TURN', class: 'sp-label' %>
+      <p class="sp-help">Necesario para audio tras NAT/firewalls. Ej: turn:pbx.jabvox.com:3478</p>
+      <%= f.text_field :turn_url, class: 'sp-input', placeholder: 'turn:pbx.jabvox.com:3478' %>
+    </div>
+    <div class="sp-field">
+      <%= f.label :turn_secret, 'Secreto TURN', class: 'sp-label' %>
+      <p class="sp-help">El mismo static-auth-secret de coturn. Se guarda cifrado (déjalo vacío para no cambiarlo).</p>
+      <%= f.password_field :turn_secret, class: 'sp-input', autocomplete: 'new-password' %>
+    </div>
+  </div>
+
+  <div class="sp-nav">
+    <button type="button" class="sp-btn" id="sp-prev" style="visibility:hidden;">← Anterior</button>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="sp-btn sp-btn-primary" id="sp-next">Siguiente →</button>
+      <%= f.submit 'Guardar', class: 'sp-btn sp-btn-primary', id: 'sp-save', style: 'display:none;' %>
+    </div>
+  </div>
+<% end %>
+
+<script>
+  (function () {
+    var form = document.getElementById('sp-form');
+    if (!form) return;
+    var panels = form.querySelectorAll('[data-panel]');
+    var pills = form.querySelectorAll('.sp-step-pill');
+    var prev = document.getElementById('sp-prev');
+    var next = document.getElementById('sp-next');
+    var save = document.getElementById('sp-save');
+    var current = 0;
+    var total = panels.length;
+
+    function render() {
+      panels.forEach(function (p, i) { p.classList.toggle('active', i === current); });
+      pills.forEach(function (p, i) {
+        p.classList.toggle('active', i === current);
+        p.classList.toggle('done', i < current);
+      });
+      prev.style.visibility = current === 0 ? 'hidden' : 'visible';
+      next.style.display = current === total - 1 ? 'none' : 'inline-block';
+      save.style.display = current === total - 1 ? 'inline-block' : 'none';
+    }
+    next.addEventListener('click', function () { if (current < total - 1) { current++; render(); } });
+    prev.addEventListener('click', function () { if (current > 0) { current--; render(); } });
+    pills.forEach(function (p) {
+      p.addEventListener('click', function () { current = parseInt(p.dataset.step, 10); render(); });
+    });
+    render();
+  })();
+</script>
