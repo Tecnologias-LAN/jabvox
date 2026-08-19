@@ -96,7 +96,8 @@
       "MESSAGE_PLACEHOLDER": "Escribe el mensaje a enviar…",
       "SEND": "Enviar a {count} leads",
       "FILTER_EMPTY": "(Vacío / sin valor)",
-      "FILTER_DOCUMENT": "Documento…"
+      "FILTER_DOCUMENT": "Documento…",
+      "PRESELECTED": "Audiencia precargada del envío anterior: {count} leads listos para reenviar."
     },
     "COLS": {
       "NAME": "Nombre",
@@ -192,6 +193,14 @@
       "FILTER_PENDING": "Pendientes",
       "EXPORT_CSV": "Exportar CSV",
       "REUSE": "Reenviar a esta audiencia",
+      "REUSE_STATUS_TITLE": "¿A quién reenviar?",
+      "REUSE_STATUS_HINT": "Elige los estados a reenviar. Sin selección se reenvía a toda la audiencia.",
+      "REUSE_STATUS_FAILED": "Fallidos",
+      "REUSE_STATUS_SENT": "Enviados",
+      "REUSE_STATUS_DELIVERED": "Entregados",
+      "REUSE_STATUS_READ": "Leídos",
+      "REUSE_STATUS_PENDING": "Pendientes",
+      "REUSE_CONFIRM": "Reenviar",
       "LIVE": "Actualizando en vivo…",
       "COLS": {
         "NAME": "Nombre",
