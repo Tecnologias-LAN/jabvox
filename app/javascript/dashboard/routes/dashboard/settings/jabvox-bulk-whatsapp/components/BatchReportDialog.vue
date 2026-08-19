@@ -275,52 +275,63 @@ defineExpose({ openDialog });
             size="sm"
             @click="exportCsv"
           />
-          <!-- Reenviar a esta audiencia + selector de estados destino -->
-          <div class="relative">
+          <!-- Reenviar a esta audiencia -->
+          <Button
+            :label="t('JABVOX_BULK_WA.REPORT.REUSE')"
+            icon="i-lucide-repeat"
+            size="sm"
+            :is-loading="reusing"
+            @click="reuseOpen = !reuseOpen"
+          />
+        </div>
+
+        <!-- Panel de reenvío: inline (no popover flotante) para que siempre sea visible
+             y con scroll propio; así el botón de confirmar nunca queda cortado. -->
+        <div
+          v-if="reuseOpen"
+          class="shrink-0 mx-4 mt-2 rounded-xl border border-n-weak bg-n-alpha-1 p-3 sm:p-4 max-h-[45vh] overflow-y-auto"
+        >
+          <p class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_BULK_WA.REPORT.REUSE_STATUS_TITLE') }}
+          </p>
+          <p class="text-xs text-n-slate-10 mt-0.5">
+            {{ t('JABVOX_BULK_WA.REPORT.REUSE_STATUS_HINT') }}
+          </p>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
+            <label
+              v-for="s in REUSE_STATUSES"
+              :key="s"
+              class="flex items-center gap-2 text-sm text-n-slate-12 cursor-pointer rounded-lg border border-n-weak px-3 py-2"
+              :class="
+                reuseStatuses.has(s) ? 'bg-n-brand/10 border-n-brand' : ''
+              "
+            >
+              <input
+                type="checkbox"
+                class="rounded accent-n-brand shrink-0"
+                :checked="reuseStatuses.has(s)"
+                @change="toggleReuseStatus(s)"
+              />
+              <span>{{
+                t(`JABVOX_BULK_WA.REPORT.REUSE_STATUS_${s.toUpperCase()}`)
+              }}</span>
+            </label>
+          </div>
+          <div class="flex flex-wrap justify-end gap-2 pt-3">
             <Button
-              :label="t('JABVOX_BULK_WA.REPORT.REUSE')"
+              :label="t('JABVOX_BULK_WA.REPORT.REUSE_CANCEL')"
+              variant="ghost"
+              color="slate"
+              size="sm"
+              @click="reuseOpen = false"
+            />
+            <Button
+              :label="t('JABVOX_BULK_WA.REPORT.REUSE_CONFIRM')"
               icon="i-lucide-repeat"
               size="sm"
               :is-loading="reusing"
-              @click="reuseOpen = !reuseOpen"
+              @click="reuse"
             />
-            <div
-              v-if="reuseOpen"
-              class="absolute right-0 z-10 mt-1 w-64 rounded-xl border border-n-weak bg-n-solid-1 shadow-lg p-3 space-y-2"
-            >
-              <p class="text-xs font-medium text-n-slate-12">
-                {{ t('JABVOX_BULK_WA.REPORT.REUSE_STATUS_TITLE') }}
-              </p>
-              <p class="text-[11px] text-n-slate-10">
-                {{ t('JABVOX_BULK_WA.REPORT.REUSE_STATUS_HINT') }}
-              </p>
-              <label
-                v-for="s in REUSE_STATUSES"
-                :key="s"
-                class="flex items-center gap-2 text-sm text-n-slate-12 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  class="rounded accent-n-brand shrink-0"
-                  :checked="reuseStatuses.has(s)"
-                  @change="toggleReuseStatus(s)"
-                />
-                <span>
-                  {{
-                    t(`JABVOX_BULK_WA.REPORT.REUSE_STATUS_${s.toUpperCase()}`)
-                  }}
-                </span>
-              </label>
-              <div class="flex justify-end pt-1">
-                <Button
-                  :label="t('JABVOX_BULK_WA.REPORT.REUSE_CONFIRM')"
-                  icon="i-lucide-repeat"
-                  size="xs"
-                  :is-loading="reusing"
-                  @click="reuse"
-                />
-              </div>
-            </div>
           </div>
         </div>
 

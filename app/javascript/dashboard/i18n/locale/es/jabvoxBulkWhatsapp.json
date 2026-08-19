@@ -201,6 +201,7 @@
       "REUSE_STATUS_READ": "Leídos",
       "REUSE_STATUS_PENDING": "Pendientes",
       "REUSE_CONFIRM": "Reenviar",
+      "REUSE_CANCEL": "Cancelar",
       "LIVE": "Actualizando en vivo…",
       "COLS": {
         "NAME": "Nombre",
