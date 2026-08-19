@@ -1,4 +1,9 @@
+# CRUD + acciones del lead-import; larga por el nº de endpoints, cada método es simple.
+# rubocop:disable Metrics/ClassLength
 class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accounts::Jabvox::LeadImport::BaseController
+  # Un 'syncing' más viejo que esto se considera colgado (worker muerto) y puede relanzarse.
+  SYNC_STALE_AFTER = 15.minutes
+
   before_action :set_source, only: %i[show update destroy test_connection tables columns sync sync_status]
 
   def index
@@ -75,26 +80,11 @@ class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accoun
   # returned as-is instead of erroring or duplicating. Everything is account-scoped
   # so different accounts can never collide.
   def create_custom_field
-    # Normalize the key to a safe slug so it can't inject junk keys into the
-    # lead's data_jabvox JSON or break rendering. Type is whitelisted.
-    key = params.require(:name).to_s.downcase.gsub(/[^a-z0-9_]/, '_').gsub(/_+/, '_').gsub(/\A_|_\z/, '')
+    key = normalized_field_key(params[:name])
     return render(json: { error: 'Clave inválida' }, status: :unprocessable_entity) if key.blank?
 
-    type = params[:column_type].to_s
-    type = 'text' unless JabvoxCustomColumn::COLUMN_TYPES.include?(type)
-
-    table = leads_custom_table
-    existing = table.jabvox_custom_columns.find_by(name_jabvox: key)
-    return render(json: custom_field_json(existing)) if existing
-
-    column = table.jabvox_custom_columns.create!(
-      name_jabvox: key, label_jabvox: params.require(:label),
-      column_type_jabvox: type,
-      position_jabvox: table.jabvox_custom_columns.count
-    )
-    render json: custom_field_json(column), status: :created
+    render json: upsert_custom_field(key)
   rescue ActiveRecord::RecordNotUnique
-    # Lost a race with a concurrent create — return the row that won.
     winner = leads_custom_table.jabvox_custom_columns.find_by(name_jabvox: key)
     return render(json: custom_field_json(winner)) if winner
 
@@ -108,8 +98,9 @@ class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accoun
     return render(json: { error: 'Configura tabla y mapeo antes de sincronizar' }, status: :unprocessable_entity) \
       if @source.table_jabvox.blank? || @source.external_id_column_jabvox.blank? || @source.field_mapping_jabvox.blank?
 
-    # Prevent double-enqueue while a sync is already running.
-    return render(json: { status: 'syncing' }) if @source.status_jabvox == 'syncing'
+    # Bloquea solo si hay un sync REALMENTE en curso; un 'syncing' obsoleto no bloquea.
+    en_curso = @source.status_jabvox == 'syncing' && @source.updated_at > SYNC_STALE_AFTER.ago
+    return render(json: { status: 'syncing', note: 'ya_en_curso' }) if en_curso
 
     @source.update!(status_jabvox: 'syncing')
     Jabvox::LeadImport::SyncJob.perform_later(@source.id)
@@ -148,6 +139,26 @@ class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accoun
     end
   end
 
+  # Slug seguro para la clave del custom field (evita inyectar claves basura en el JSON).
+  def normalized_field_key(raw)
+    raw.to_s.downcase.gsub(/[^a-z0-9_]/, '_').squeeze('_').gsub(/\A_|_\z/, '')
+  end
+
+  # Crea el custom field o devuelve el existente (idempotente, account-scoped).
+  def upsert_custom_field(key)
+    type = params[:column_type].to_s
+    type = 'text' unless JabvoxCustomColumn::COLUMN_TYPES.include?(type)
+    table = leads_custom_table
+    existing = table.jabvox_custom_columns.find_by(name_jabvox: key)
+    return custom_field_json(existing) if existing
+
+    column = table.jabvox_custom_columns.create!(
+      name_jabvox: key, label_jabvox: params.require(:label),
+      column_type_jabvox: type, position_jabvox: table.jabvox_custom_columns.count
+    )
+    custom_field_json(column)
+  end
+
   def custom_field_json(column)
     { key: column.name_jabvox, label: column.label_jabvox,
       column_type: column.column_type_jabvox }
@@ -156,25 +167,27 @@ class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accoun
   # All contact fields available for mapping (a lead is backed by a Contact).
   # `kind` tells the sync where to write each one:
   #   contact column, additional_attributes key, or a social_profiles entry.
+  STANDARD_LEAD_FIELDS = [
+    { key: 'name', label: 'Nombre', kind: 'name' },
+    { key: 'last_name', label: 'Apellido', kind: 'last_name' },
+    { key: 'email', label: 'Correo electrónico', kind: 'email' },
+    { key: 'phone', label: 'Teléfono', kind: 'phone' },
+    { key: 'city', label: 'Ciudad', kind: 'attr:city' },
+    { key: 'country_code', label: 'País (código ISO)', kind: 'attr:country_code' },
+    { key: 'company_name', label: 'Empresa', kind: 'attr:company_name' },
+    { key: 'identification_number', label: 'Documento / Identificación', kind: 'attr:jabvox_identification_number' },
+    { key: 'description', label: 'Biografía', kind: 'attr:description' },
+    { key: 'linkedin', label: 'LinkedIn', kind: 'social:linkedin' },
+    { key: 'facebook', label: 'Facebook', kind: 'social:facebook' },
+    { key: 'instagram', label: 'Instagram', kind: 'social:instagram' },
+    { key: 'twitter', label: 'Twitter/X', kind: 'social:twitter' },
+    { key: 'telegram', label: 'Telegram', kind: 'social:telegram' },
+    { key: 'tiktok', label: 'TikTok', kind: 'social:tiktok' },
+    { key: 'github', label: 'Github', kind: 'social:github' }
+  ].freeze
+
   def standard_lead_fields
-    [
-      { key: 'name', label: 'Nombre', kind: 'name' },
-      { key: 'last_name', label: 'Apellido', kind: 'last_name' },
-      { key: 'email', label: 'Correo electrónico', kind: 'email' },
-      { key: 'phone', label: 'Teléfono', kind: 'phone' },
-      { key: 'city', label: 'Ciudad', kind: 'attr:city' },
-      { key: 'country_code', label: 'País (código ISO)', kind: 'attr:country_code' },
-      { key: 'company_name', label: 'Empresa', kind: 'attr:company_name' },
-      { key: 'identification_number', label: 'Documento / Identificación', kind: 'attr:jabvox_identification_number' },
-      { key: 'description', label: 'Biografía', kind: 'attr:description' },
-      { key: 'linkedin', label: 'LinkedIn', kind: 'social:linkedin' },
-      { key: 'facebook', label: 'Facebook', kind: 'social:facebook' },
-      { key: 'instagram', label: 'Instagram', kind: 'social:instagram' },
-      { key: 'twitter', label: 'Twitter/X', kind: 'social:twitter' },
-      { key: 'telegram', label: 'Telegram', kind: 'social:telegram' },
-      { key: 'tiktok', label: 'TikTok', kind: 'social:tiktok' },
-      { key: 'github', label: 'Github', kind: 'social:github' }
-    ]
+    STANDARD_LEAD_FIELDS
   end
 
   def custom_lead_fields
@@ -203,6 +216,8 @@ class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accoun
   end
 
   # NEVER exposes the password. Only whether one is set.
+  # Mapeo plano de columnas a JSON; largo por el nº de campos, no por complejidad.
+  # rubocop:disable Metrics/MethodLength
   def serialize(source)
     {
       id: source.id,
@@ -229,4 +244,6 @@ class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accoun
       created_at: source.created_at
     }
   end
+  # rubocop:enable Metrics/MethodLength
 end
+# rubocop:enable Metrics/ClassLength
