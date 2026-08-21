@@ -42,6 +42,7 @@ as defined by the routes in the `admin/` namespace
         jabvox_ticket_helpdesk_configs automations_configs account_automations
         jabvox_softphone_configs jabvox_softphone_extensions
         jabvox_plans jabvox_payment_gateway_configs jabvox_provisioning_transactions
+        context_forge_configs jabvox_billing_configs
       ] %>
       <% Administrate::Namespace.new(namespace).resources.each do |resource| %>
         <% next if hidden_resources.include? resource.resource %>
