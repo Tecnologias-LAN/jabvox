@@ -4,6 +4,7 @@ import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useAccount } from 'dashboard/composables/useAccount';
 import BillingAPI from 'dashboard/api/jabvox/billing';
 import PublicPlansAPI from 'dashboard/api/jabvox/publicPlans';
+import Auth from 'dashboard/api/auth';
 
 // Modal de bloqueo NO cerrable: se muestra cuando la cuenta no está activa
 // (payment_pending o suspended). Obliga a pagar para usar la plataforma.
@@ -30,9 +31,19 @@ export default {
   computed: {
     ...mapGetters({
       getAccount: 'accounts/getAccount',
+      currentUser: 'getCurrentUser',
     }),
     account() {
       return this.getAccount(this.accountId) || {};
+    },
+    // Otras cuentas del usuario (distintas a la actual). Si tiene más de una, el modal
+    // ofrece cambiar a ellas: solo se bloquea la cuenta actual sin plan, no al usuario.
+    otherAccounts() {
+      const accounts = this.currentUser?.accounts || [];
+      return accounts.filter(a => Number(a.id) !== Number(this.accountId));
+    },
+    hasOtherAccounts() {
+      return this.otherAccounts.length > 0;
     },
     // La cuenta debe pagar cuando NO está activa. status viene del API (_account.json.jbuilder).
     requiresPayment() {
@@ -111,7 +122,12 @@ export default {
       }
     },
     logout() {
-      this.$store.dispatch('logout');
+      Auth.logout();
+    },
+    switchAccount(accountId) {
+      // Cambia a otra cuenta del usuario (útil si tiene varias y solo una está sin
+      // pagar): navega a esa cuenta; el modal desaparece si esa cuenta está activa.
+      window.location.href = `/app/accounts/${accountId}/dashboard`;
     },
   },
 };
@@ -206,6 +222,25 @@ export default {
       </div>
 
       <!-- Footer -->
+      <!-- Cambiar de cuenta: si el usuario tiene otras cuentas, puede ir a ellas sin
+           quedar atrapado por la cuenta actual sin plan. -->
+      <div v-if="hasOtherAccounts" class="px-8 pb-4">
+        <p class="mb-2 text-xs text-n-slate-11">
+          {{ $t('JABVOX_BILLING.MODAL.SWITCH_ACCOUNT') }}
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="acc in otherAccounts"
+            :key="acc.id"
+            type="button"
+            class="px-3 py-1.5 text-xs font-medium transition-colors border rounded-lg border-n-weak text-n-slate-12 hover:border-n-brand hover:text-n-brand"
+            @click="switchAccount(acc.id)"
+          >
+            {{ acc.name }}
+          </button>
+        </div>
+      </div>
+
       <div
         class="flex items-center justify-between px-8 py-4 border-t border-n-weak"
       >

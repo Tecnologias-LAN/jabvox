@@ -27,7 +27,7 @@
       }
 
       a {
-        color: #2781F6;
+        color: #15605a;
       }
 
       .email-container {
@@ -37,7 +37,7 @@
 
       .main-card {
         width: 100%;
-        border: 1px solid #DCE7F5;
+        border: 1px solid #DAEBDB;
         border-radius: 24px;
         background-color: #FFFFFF;
         box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
@@ -46,7 +46,7 @@
 
       .accent-bar {
         height: 6px;
-        background-color: #2781F6;
+        background-color: #15605a;
         font-size: 0;
         line-height: 0;
       }
@@ -64,7 +64,7 @@
       }
 
       .footer a {
-        color: #2781F6;
+        color: #15605a;
         font-weight: 600;
         text-decoration: none;
       }
@@ -103,12 +103,17 @@
           <table class="email-container" role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width: 100%; max-width: 640px; margin: 0 auto;">
             <tr style="margin: 0;">
               <td style="margin: 0;">
-                <table class="main-card" role="presentation" width="100%" cellpadding="0" cellspacing="0" itemprop="action" itemscope itemtype="http://schema.org/ConfirmAction" style="width: 100%; border: 1px solid #DCE7F5; border-radius: 24px; background-color: #FFFFFF; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06); overflow: hidden;" bgcolor="#FFFFFF">
+                <table class="main-card" role="presentation" width="100%" cellpadding="0" cellspacing="0" itemprop="action" itemscope itemtype="http://schema.org/ConfirmAction" style="width: 100%; border: 1px solid #DAEBDB; border-radius: 24px; background-color: #FFFFFF; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06); overflow: hidden;" bgcolor="#FFFFFF">
                   <tr style="margin: 0;">
-                    <td class="accent-bar" style="height: 6px; background-color: #2781F6; font-size: 0; line-height: 0;">&nbsp;</td>
+                    <td class="accent-bar" style="height: 6px; background-color: #15605a; font-size: 0; line-height: 0;">&nbsp;</td>
                   </tr>
                   <tr style="margin: 0;">
-                    <td class="content-wrap" style="vertical-align: top; margin: 0; padding: 40px 36px 20px; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;" valign="top">
+                    <td align="center" style="padding: 28px 36px 0;">
+                      <img src="{{ brand_url | default: 'https://app.jabvox.co' }}/jabvox/public/logo.png" alt="{{ brand_name }}" height="44" style="height: 44px; width: auto; display: block;" />
+                    </td>
+                  </tr>
+                  <tr style="margin: 0;">
+                    <td class="content-wrap" style="vertical-align: top; margin: 0; padding: 24px 36px 20px; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;" valign="top">
                       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width: 100%; margin: 0;">
                         {{ content_for_layout }}
                       </table>
@@ -120,9 +125,9 @@
             {% if brand_name != '' %}
               <tr style="margin: 0;">
                 <td class="footer" style="padding: 20px 8px 0; text-align: center; color: #64748B; font-size: 13px; line-height: 21px;">
-                  This email was sent by
+                  Este correo fue enviado por
                   {% if brand_url != nil and brand_url != '' %}
-                    <a href="{{ brand_url }}" style="color: #2781F6; font-weight: 600; text-decoration: none;">{{ brand_name }}</a>.
+                    <a href="{{ brand_url }}" style="color: #15605a; font-weight: 600; text-decoration: none;">{{ brand_name }}</a>.
                   {% else %}
                     <span style="color: #0F172A; font-weight: 600;">{{ brand_name }}</span>.
                   {% endif %}

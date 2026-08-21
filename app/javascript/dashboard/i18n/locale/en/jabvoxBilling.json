@@ -13,6 +13,7 @@
       "PER_DAYS": "/ {days} days",
       "MODULES": "included modules",
       "CONTACT_ADMIN": "Your account requires payment to activate. Please contact your account administrator to complete the process.",
+      "SWITCH_ACCOUNT": "Have another account? Switch to:",
       "LOGOUT": "Log out"
     }
   }

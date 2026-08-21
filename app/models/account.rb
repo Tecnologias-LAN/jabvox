@@ -290,6 +290,19 @@ class Account < ApplicationRecord
     ((Time.current - created_at) / 1.day).floor
   end
 
+  # Nombre del plan actual (o "Sin plan") para el panel Super Admin.
+  def current_plan_name
+    jabvox_plan&.name || 'Sin plan'
+  end
+
+  # Días que faltan para que venza el plan (negativo si ya venció, nil si no hay fecha).
+  # Para el panel Super Admin: ver de un vistazo qué cuentas están por vencer.
+  def days_until_expiration
+    return nil if jabvox_plan_expires_at.blank?
+
+    ((jabvox_plan_expires_at - Time.current) / 1.day).ceil
+  end
+
   def administrators
     users.where(account_users: { role: :administrator })
   end

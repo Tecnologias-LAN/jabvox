@@ -6,17 +6,17 @@
   account_name = account_user&.account&.name
   invited_user = inviter.present? && @resource.unconfirmed_email.blank?
 
-  eyebrow = 'Welcome'
-  heading = 'Confirm your email to get started'
+  eyebrow = 'Bienvenido'
+  heading = 'Confirma tu correo para empezar'
   intro_text =
-    "Welcome to #{brand_name}. We just need to verify your email address before you can start using your account."
-  supporting_text = 'This only takes a moment.'
-  action_text = 'Confirm my account'
+    "Bienvenido a #{brand_name}. Solo necesitamos verificar tu dirección de correo antes de que empieces a usar tu cuenta."
+  supporting_text = 'Solo toma un momento.'
+  action_text = 'Confirmar mi cuenta'
   action_url = frontend_url('auth/confirmation', confirmation_token: @token)
   info_title = nil
   info_text = nil
   detail_rows = []
-  detail_rows << ['New email', @resource.unconfirmed_email] if @resource.unconfirmed_email.present?
+  detail_rows << ['Nuevo correo', @resource.unconfirmed_email] if @resource.unconfirmed_email.present?
 
   if @resource.unconfirmed_email.present?
     eyebrow = 'Email update'

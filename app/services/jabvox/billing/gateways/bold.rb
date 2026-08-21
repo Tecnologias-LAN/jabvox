@@ -123,12 +123,14 @@ class Jabvox::Billing::Gateways::Bold < Jabvox::Billing::Gateways::Base
     currency.to_s.upcase == 'USD' ? (amount_cents / 100.0) : (amount_cents / 100)
   end
 
-  # La API key (llave privada) se administra desde el Super Admin (cifrada en reposo).
+  # La API de Payment Links de Bold se autentica con la LLAVE SECRETA en el header
+  # `Authorization: x-api-key {secret_key}` (NO con la llave de identidad, que es solo
+  # para el botón/checkout embebido en el frontend). Usar la de identidad da 403.
   def auth_header
-    key = config.api_key.to_s
+    key = config.secret_key.to_s
     if key.blank?
       raise Jabvox::Billing::Gateways::GatewayError,
-            'La api_key de Bold no está configurada en el Super Admin'
+            'La llave secreta (secret_key) de Bold no está configurada en el Super Admin'
     end
     "x-api-key #{key}"
   end
