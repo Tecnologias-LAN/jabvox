@@ -9,15 +9,15 @@ require 'net/http'
 # cambia es la LLAVE (de pruebas vs producción) y, en sandbox, el secreto del webhook es
 # cadena vacía. Ver https://developers.bold.co/api-integrations/integration-sandbox
 #
-# Secretos (en .env, NUNCA en BD):
-#   BOLD_API_KEY        - llave de identidad para llamar a la API (header x-api-key)
-#   BOLD_SECRET_KEY     - llave secreta que firma los webhooks (vacía en sandbox)
+# TODO se administra desde el Super Admin (JabvoxPaymentGatewayConfig); ya NO hay
+# secretos en variables de entorno. Los secretos van CIFRADOS en reposo:
+#   api_key      - llave privada de identidad para la API (header x-api-key). Cifrada.
+#   secret_key   - llave que firma los webhooks (vacía/ignorada en sandbox). Cifrada.
+#   public_token - llave PÚBLICA para el botón de checkout en la web.
+#   checkout_base_url - base del checkout de Bold.
+#   sandbox      - modo pruebas (booleano). En sandbox el secreto de firma es cadena vacía.
 #
-# Datos públicos (en JabvoxPaymentGatewayConfig, editable desde Super Admin):
-#   public_token        - llave de identidad pública para el botón de checkout en la web
-#   checkout_base_url   - base del checkout de Bold
-#
-# Modo sandbox: se activa con BOLD_ENV=sandbox (o config.settings['env']=='sandbox').
+# Única variable de entorno restante (no secreta): BOLD_API_BASE, la URL base de la API.
 class Jabvox::Billing::Gateways::Bold < Jabvox::Billing::Gateways::Base
   API_BASE = ENV.fetch('BOLD_API_BASE', 'https://integrations.api.bold.co')
   APPROVED_TYPES = %w[SALE_APPROVED].freeze
@@ -93,21 +93,22 @@ class Jabvox::Billing::Gateways::Bold < Jabvox::Billing::Gateways::Base
 
   private
 
+  # Modo sandbox: se administra desde el Super Admin (columna `sandbox`).
   def sandbox?
-    ENV.fetch('BOLD_ENV', config.settings&.dig('env')).to_s == 'sandbox'
+    config.sandbox?
   end
 
   # La llave que firma el webhook. En sandbox es cadena vacía (doc oficial). En
   # producción DEBE existir: si faltara, un secreto vacío haría la firma trivialmente
   # falsificable (cualquiera podría firmar un pago). Por eso levantamos en vez de caer
-  # a '' silenciosamente.
+  # a '' silenciosamente. Se administra desde el Super Admin (cifrada en reposo).
   def webhook_secret
     return '' if sandbox?
 
-    secret = ENV.fetch('BOLD_SECRET_KEY', nil).to_s
+    secret = config.secret_key.to_s
     if secret.blank?
       raise Jabvox::Billing::Gateways::GatewayError,
-            'BOLD_SECRET_KEY no está configurada: no se puede verificar la firma del webhook'
+            'La secret_key de Bold no está configurada en el Super Admin: no se puede verificar la firma del webhook'
     end
     secret
   end
@@ -122,8 +123,14 @@ class Jabvox::Billing::Gateways::Bold < Jabvox::Billing::Gateways::Base
     currency.to_s.upcase == 'USD' ? (amount_cents / 100.0) : (amount_cents / 100)
   end
 
+  # La API key (llave privada) se administra desde el Super Admin (cifrada en reposo).
   def auth_header
-    "x-api-key #{env_secret('API_KEY')}"
+    key = config.api_key.to_s
+    if key.blank?
+      raise Jabvox::Billing::Gateways::GatewayError,
+            'La api_key de Bold no está configurada en el Super Admin'
+    end
+    "x-api-key #{key}"
   end
 
   def extract_amount_cents(data)

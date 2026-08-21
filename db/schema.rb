@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_20_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_21_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2752,6 +2752,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_20_000002) do
     t.jsonb "settings", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "api_key"
+    t.text "secret_key"
+    t.boolean "sandbox", default: false, null: false
     t.index ["active"], name: "idx_one_active_gateway", unique: true, where: "(active = true)"
     t.index ["provider"], name: "index_jabvox_payment_gateway_configs_on_provider", unique: true
   end

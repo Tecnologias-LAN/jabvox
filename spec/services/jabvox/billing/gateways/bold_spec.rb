@@ -3,9 +3,13 @@
 require 'rails_helper'
 
 RSpec.describe Jabvox::Billing::Gateways::Bold do
-  let(:config) { create(:jabvox_payment_gateway_config, provider: 'bold', active: true) }
-  let(:gateway) { described_class.new(config) }
   let(:secret) { 'events-secret-abc' }
+  # Secretos y modo se administran desde el Super Admin (BD), ya no por ENV.
+  let(:config) do
+    create(:jabvox_payment_gateway_config, provider: 'bold', active: true,
+                                           sandbox: false, secret_key: secret)
+  end
+  let(:gateway) { described_class.new(config) }
   let(:raw_body) { '{"type":"SALE_APPROVED","data":{"metadata":{"reference":"ref-1"}}}' }
 
   # Firma oficial de Bold: base64(cuerpo) -> HMAC-SHA256 con la llave secreta -> HEX.
@@ -18,8 +22,6 @@ RSpec.describe Jabvox::Billing::Gateways::Bold do
   end
 
   describe '#verify_webhook_signature (producción)' do
-    around { |ex| ClimateControl.modify(BOLD_ENV: 'production', BOLD_SECRET_KEY: secret) { ex.run } }
-
     it 'acepta la firma correcta (base64 -> HMAC-SHA256 -> hex)' do
       valid = bold_signature(raw_body, secret)
       expect(gateway.verify_webhook_signature(request_with(valid), raw_body)).to be(true)
@@ -37,10 +39,19 @@ RSpec.describe Jabvox::Billing::Gateways::Bold do
       wrong = Base64.strict_encode64(OpenSSL::HMAC.digest('SHA256', secret, raw_body))
       expect(gateway.verify_webhook_signature(request_with(wrong), raw_body)).to be(false)
     end
+
+    it 'rechaza (levanta) si la secret_key no está configurada en el Super Admin' do
+      config.update!(secret_key: nil)
+      expect do
+        gateway.verify_webhook_signature(request_with('x'), raw_body)
+      end.to raise_error(Jabvox::Billing::Gateways::GatewayError)
+    end
   end
 
   describe '#verify_webhook_signature (sandbox: secreto vacío)' do
-    around { |ex| ClimateControl.modify(BOLD_ENV: 'sandbox') { ex.run } }
+    let(:config) do
+      create(:jabvox_payment_gateway_config, provider: 'bold', active: true, sandbox: true)
+    end
 
     it 'usa cadena vacía como secreto en sandbox' do
       valid = bold_signature(raw_body, '')
