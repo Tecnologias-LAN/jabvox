@@ -46,4 +46,15 @@ RSpec.describe Jabvox::AccountResourceLimit do
       expect { create_list(:automation_rule, 3, account: account) }.not_to raise_error
     end
   end
+
+  describe 'inboxes' do
+    let(:limits) { { 'inboxes' => 1 } }
+
+    it 'bloquea nuevas bandejas cuando se alcanza el límite' do
+      create(:inbox, account: account)
+
+      expect { create(:inbox, account: account) }
+        .to raise_error(described_class::LimitExceeded, /inboxes/)
+    end
+  end
 end

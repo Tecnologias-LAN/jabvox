@@ -93,6 +93,87 @@ export default {
     currentAccount() {
       return this.getAccount(this.accountId) || {};
     },
+    jabvoxBilling() {
+      return this.currentAccount.jabvox_billing || {};
+    },
+    storageUsage() {
+      return this.jabvoxBilling.storage || {};
+    },
+    billableLimits() {
+      return this.jabvoxBilling.limits || {};
+    },
+    visibleLimits() {
+      const labels = {
+        agents: 'Agentes',
+        inboxes: 'Bandejas',
+        forms: 'Formularios',
+        advanced_flows: 'Flujos',
+        automation_rules: 'Automatizaciones',
+        analytics_dashboards: 'Dashboards',
+        ai_documents: 'Docs IA',
+        email_templates: 'Plantillas',
+      };
+
+      return Object.entries(labels).map(([key, label]) => ({
+        key,
+        label,
+        usageLabel: this.limitUsageLabel(this.billableLimits[key] || {}),
+        ...(this.billableLimits[key] || {}),
+      }));
+    },
+    storageRows() {
+      const labels = {
+        images: 'Imágenes',
+        videos: 'Videos',
+        audios: 'Audios',
+        documents: 'Docs',
+      };
+      const byType = this.storageUsage.by_type || {};
+      return Object.entries(labels).map(([key, label]) => ({
+        key,
+        label,
+        gb: byType[key]?.gb || 0,
+        gbLabel: this.formatGb(byType[key]?.gb || 0),
+      }));
+    },
+    storageDescription() {
+      return `${this.formatGb(this.storageUsage.used_gb || 0)} de ${
+        this.storageUsage.quota_gb || 'ilimitado'
+      }`;
+    },
+    storagePercent() {
+      return Math.min(Number(this.storageUsage.percent_used || 0), 100);
+    },
+    storagePercentLabel() {
+      return `${this.storageUsage.percent_used ?? 0}%`;
+    },
+    extraPriceLabel() {
+      const cents = this.jabvoxBilling.extra_price_cents || 0;
+      return this.formatCurrency(cents);
+    },
+    totalPriceLabel() {
+      const cents = this.jabvoxBilling.total_price_cents || 0;
+      return this.formatCurrency(cents);
+    },
+    planPriceLabel() {
+      const cents = this.jabvoxBilling.base_price_cents || 0;
+      return this.formatCurrency(cents);
+    },
+    planPriceDescription() {
+      return `${this.planPriceLabel} plan + ${this.extraPriceLabel} ampliaciones`;
+    },
+    monthlyTotalLabel() {
+      return 'Total mensual';
+    },
+    planUsageTitle() {
+      return 'Uso del plan';
+    },
+    planUsageDescription() {
+      return 'Consumo actual, cuota contratada y ampliaciones activas.';
+    },
+    monthlyAddOnsLabel() {
+      return 'Ampliaciones mensuales';
+    },
   },
   watch: {
     'currentAccount.id'(id) {
@@ -151,6 +232,23 @@ export default {
       } catch (error) {
         useAlert(this.$t('GENERAL_SETTINGS.UPDATE.ERROR'));
       }
+    },
+    formatGb(value) {
+      return `${value} GB`;
+    },
+    limitUsageLabel(limit) {
+      const used = limit.used || 0;
+      const total = limit.limit || '∞';
+      const extra = limit.extra ? ` +${limit.extra}` : '';
+      return `${used} / ${total}${extra}`;
+    },
+    formatCurrency(cents) {
+      const currency = this.jabvoxBilling.currency || 'COP';
+      return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency,
+        maximumFractionDigits: 0,
+      }).format(cents / 100);
     },
   },
 };
@@ -247,6 +345,79 @@ export default {
 
       <woot-loading-state v-if="uiFlags.isFetchingItem" />
     </div>
+    <SectionLayout
+      v-if="!uiFlags.isFetchingItem && jabvoxBilling.storage"
+      :title="planUsageTitle"
+      :description="planUsageDescription"
+    >
+      <div class="grid gap-5">
+        <div class="rounded-lg border border-n-weak bg-n-solid-1 p-4">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="mb-1 text-sm font-medium text-n-slate-12">
+                {{ jabvoxBilling.plan?.name || 'Plan sin asignar' }}
+              </p>
+              <p class="mb-0 text-sm text-n-slate-11">
+                {{ storageDescription }}
+              </p>
+            </div>
+            <span class="text-sm font-medium text-n-slate-12">
+              {{ storagePercentLabel }}
+            </span>
+          </div>
+          <div class="mt-3 h-2 overflow-hidden rounded-full bg-n-slate-4">
+            <div
+              class="h-full rounded-full bg-n-brand"
+              :style="{ width: `${storagePercent}%` }"
+            />
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div
+              v-for="row in storageRows"
+              :key="row.key"
+              class="rounded-md border border-n-weak p-3"
+            >
+              <p class="mb-1 text-xs text-n-slate-11">{{ row.label }}</p>
+              <p class="mb-0 text-sm font-medium text-n-slate-12">
+                {{ row.gbLabel }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid gap-2">
+          <div
+            v-for="limit in visibleLimits"
+            :key="limit.key"
+            class="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-n-weak px-3 py-2 text-sm"
+          >
+            <span class="text-n-slate-11">{{ limit.label }}</span>
+            <span class="font-medium text-n-slate-12">
+              {{ limit.usageLabel }}
+            </span>
+          </div>
+          <div
+            class="mt-2 flex items-center justify-between rounded-md border border-n-weak px-3 py-2 text-sm"
+          >
+            <span class="text-n-slate-11">{{ monthlyAddOnsLabel }}</span>
+            <span class="font-medium text-n-slate-12">
+              {{ extraPriceLabel }}
+            </span>
+          </div>
+          <div
+            class="flex items-center justify-between rounded-md border border-n-weak px-3 py-2 text-sm"
+          >
+            <span class="text-n-slate-11">{{ monthlyTotalLabel }}</span>
+            <span class="text-right font-medium text-n-slate-12">
+              {{ totalPriceLabel }}
+              <span class="block text-xs font-normal text-n-slate-10">
+                {{ planPriceDescription }}
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </SectionLayout>
     <AudioTranscription v-if="showAudioTranscriptionConfig" />
     <AccountId />
     <div v-if="!uiFlags.isFetchingItem && isOnJabvoxCloud">

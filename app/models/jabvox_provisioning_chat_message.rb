@@ -19,6 +19,17 @@
 #  account_id :bigint           not null
 #  user_id    :bigint           not null
 #
+# Indexes
+#
+#  idx_on_account_id_created_at_0050c7615e                (account_id,created_at)
+#  index_jabvox_provisioning_chat_messages_on_account_id  (account_id)
+#  index_jabvox_provisioning_chat_messages_on_user_id     (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (user_id => users.id)
+#
 class JabvoxProvisioningChatMessage < ApplicationRecord
   belongs_to :account
   belongs_to :user

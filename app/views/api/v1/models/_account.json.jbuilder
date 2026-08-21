@@ -32,3 +32,16 @@ json.name @account.name
 json.support_email @account.support_email
 json.status @account.status
 json.cache_keys @account.cache_keys
+json.jabvox_billing do
+  json.plan do
+    json.id @account.jabvox_plan_id
+    json.name @account.jabvox_plan&.name
+    json.expires_at @account.jabvox_plan_expires_at
+  end
+  json.limits @account.billable_limits_summary
+  json.storage Jabvox::StorageUsageService.new(@account).call
+  json.base_price_cents @account.billable_base_cents
+  json.extra_price_cents @account.billable_extra_cents
+  json.total_price_cents @account.billable_total_cents
+  json.currency @account.jabvox_plan&.currency || 'COP'
+end

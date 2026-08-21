@@ -1,0 +1,5 @@
+---
+:concurrency: <%= ENV.fetch('JABVOX_PAYMENTS_CONCURRENCY', 3) %>
+:max_retries: 25
+:queues:
+  - jabvox_payments

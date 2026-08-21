@@ -23,18 +23,11 @@ const isSyncing = ref(false);
 // Fuerza mostrar el formulario aunque esté conectado (reconfigurar).
 const showForm = ref(false);
 
-const form = ref({
-  contextforge_base_url: '',
-  virtual_server_id: '',
-  scoped_token: '',
-  team_id: '',
-  hermes_instance_id: '',
-});
-const formErrors = ref({
-  contextforge_base_url: '',
-  virtual_server_id: '',
-  scoped_token: '',
-});
+// Modo "solo Hermes": basta la URL del Hermes de la cuenta.
+const form = ref({ hermes_url: '' });
+const formErrors = ref({ hermes_url: '' });
+// Prompt de auto-aprovisionamiento devuelto al conectar (para pegar en Hermes).
+const provisionPrompt = ref('');
 
 // ─── derivados ───
 const handoff = computed(() => status.value?.handoff || null);
@@ -57,12 +50,8 @@ const fetchStatus = async () => {
     const { data } = await aiChatHermesAPI.getStatus();
     status.value = data;
     showForm.value = false;
-    // Precarga los campos conocidos para facilitar la reconfiguración.
     if (data?.handoff) {
-      form.value.contextforge_base_url =
-        data.handoff.contextforge_base_url || '';
-      form.value.virtual_server_id = data.handoff.virtual_server_id || '';
-      form.value.hermes_instance_id = data.handoff.hermes_instance_id || '';
+      form.value.hermes_url = data.handoff.hermes_url || '';
     }
   } catch (e) {
     loadError.value =
@@ -76,48 +65,22 @@ const fetchStatus = async () => {
 
 // ─── conectar ───
 const validateForm = () => {
-  formErrors.value = {
-    contextforge_base_url: '',
-    virtual_server_id: '',
-    scoped_token: '',
-  };
-  let ok = true;
-  if (!form.value.contextforge_base_url.trim()) {
-    formErrors.value.contextforge_base_url = t(
-      'JABVOX_AI_CHAT.HERMES.FORM.BASE_URL_REQUIRED'
-    );
-    ok = false;
+  formErrors.value = { hermes_url: '' };
+  if (!form.value.hermes_url.trim()) {
+    formErrors.value.hermes_url = t('JABVOX_AI_CHAT.HERMES.FORM.URL_REQUIRED');
+    return false;
   }
-  if (!form.value.virtual_server_id.trim()) {
-    formErrors.value.virtual_server_id = t(
-      'JABVOX_AI_CHAT.HERMES.FORM.VSID_REQUIRED'
-    );
-    ok = false;
-  }
-  if (!form.value.scoped_token.trim()) {
-    formErrors.value.scoped_token = t(
-      'JABVOX_AI_CHAT.HERMES.FORM.TOKEN_REQUIRED'
-    );
-    ok = false;
-  }
-  return ok;
+  return true;
 };
 
 const connect = async () => {
   if (!validateForm()) return;
   isConnecting.value = true;
   try {
-    // Campos opcionales vacíos se envían como undefined (no cadena vacía).
-    const payload = {
-      contextforge_base_url: form.value.contextforge_base_url.trim(),
-      virtual_server_id: form.value.virtual_server_id.trim(),
-      scoped_token: form.value.scoped_token.trim(),
-      team_id: form.value.team_id.trim() || undefined,
-      hermes_instance_id: form.value.hermes_instance_id.trim() || undefined,
-    };
-    await aiChatHermesAPI.connect(payload);
-    // El token no se conserva en el cliente tras conectar.
-    form.value.scoped_token = '';
+    const { data } = await aiChatHermesAPI.connect({
+      hermes_url: form.value.hermes_url.trim(),
+    });
+    provisionPrompt.value = data?.prompt || '';
     useAlert(t('JABVOX_AI_CHAT.HERMES.CONNECT_OK'));
     await fetchStatus();
   } catch (e) {
@@ -151,6 +114,16 @@ const syncModels = async () => {
     useAlert(msg);
   } finally {
     isSyncing.value = false;
+  }
+};
+
+// Copiar el prompt de aprovisionamiento al portapapeles.
+const copyPrompt = async () => {
+  try {
+    await navigator.clipboard.writeText(provisionPrompt.value);
+    useAlert(t('JABVOX_AI_CHAT.HERMES.PROMPT_COPIED'));
+  } catch (e) {
+    useAlert(t('JABVOX_AI_CHAT.HERMES.PROMPT_COPY_ERROR'));
   }
 };
 
@@ -232,28 +205,12 @@ onMounted(fetchStatus);
         <!-- Detalles + sincronizar (solo conectado) -->
         <div v-if="isConnected" class="mt-5 flex flex-col gap-4">
           <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div class="flex flex-col gap-0.5">
+            <div class="flex flex-col gap-0.5 sm:col-span-2">
               <dt class="text-xs text-n-slate-10">
-                {{ t('JABVOX_AI_CHAT.HERMES.FIELD.BASE_URL') }}
+                {{ t('JABVOX_AI_CHAT.HERMES.FIELD.HERMES_URL') }}
               </dt>
               <dd class="text-sm font-medium text-n-slate-12 break-all">
-                {{ handoff.contextforge_base_url || '—' }}
-              </dd>
-            </div>
-            <div class="flex flex-col gap-0.5">
-              <dt class="text-xs text-n-slate-10">
-                {{ t('JABVOX_AI_CHAT.HERMES.FIELD.VSID') }}
-              </dt>
-              <dd class="text-sm font-medium text-n-slate-12 break-all">
-                {{ handoff.virtual_server_id || '—' }}
-              </dd>
-            </div>
-            <div class="flex flex-col gap-0.5">
-              <dt class="text-xs text-n-slate-10">
-                {{ t('JABVOX_AI_CHAT.HERMES.FIELD.MCP_SERVERS') }}
-              </dt>
-              <dd class="text-sm font-medium text-n-slate-12">
-                {{ mcpServersCount }}
+                {{ handoff.hermes_url || '—' }}
               </dd>
             </div>
             <div class="flex flex-col gap-0.5">
@@ -301,49 +258,15 @@ onMounted(fetchStatus);
       icon="i-lucide-link"
     >
       <form class="flex flex-col gap-4" @submit.prevent="connect">
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input
-            v-model="form.contextforge_base_url"
-            :label="t('JABVOX_AI_CHAT.HERMES.FORM.BASE_URL')"
-            :placeholder="t('JABVOX_AI_CHAT.HERMES.FORM.BASE_URL_PLACEHOLDER')"
-            :message="formErrors.contextforge_base_url"
-            :message-type="formErrors.contextforge_base_url ? 'error' : 'info'"
-          />
-          <Input
-            v-model="form.virtual_server_id"
-            :label="t('JABVOX_AI_CHAT.HERMES.FORM.VSID')"
-            :placeholder="t('JABVOX_AI_CHAT.HERMES.FORM.VSID_PLACEHOLDER')"
-            :message="formErrors.virtual_server_id"
-            :message-type="formErrors.virtual_server_id ? 'error' : 'info'"
-          />
-        </div>
-
         <Input
-          v-model="form.scoped_token"
-          type="password"
-          :label="t('JABVOX_AI_CHAT.HERMES.FORM.TOKEN')"
-          :placeholder="t('JABVOX_AI_CHAT.HERMES.FORM.TOKEN_PLACEHOLDER')"
+          v-model="form.hermes_url"
+          :label="t('JABVOX_AI_CHAT.HERMES.FORM.URL')"
+          :placeholder="t('JABVOX_AI_CHAT.HERMES.FORM.URL_PLACEHOLDER')"
           :message="
-            formErrors.scoped_token ||
-            t('JABVOX_AI_CHAT.HERMES.FORM.TOKEN_HINT')
+            formErrors.hermes_url || t('JABVOX_AI_CHAT.HERMES.FORM.URL_HINT')
           "
-          :message-type="formErrors.scoped_token ? 'error' : 'info'"
+          :message-type="formErrors.hermes_url ? 'error' : 'info'"
         />
-
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input
-            v-model="form.team_id"
-            :label="t('JABVOX_AI_CHAT.HERMES.FORM.TEAM_ID')"
-            :placeholder="t('JABVOX_AI_CHAT.HERMES.FORM.TEAM_ID_PLACEHOLDER')"
-          />
-          <Input
-            v-model="form.hermes_instance_id"
-            :label="t('JABVOX_AI_CHAT.HERMES.FORM.INSTANCE_ID')"
-            :placeholder="
-              t('JABVOX_AI_CHAT.HERMES.FORM.INSTANCE_ID_PLACEHOLDER')
-            "
-          />
-        </div>
 
         <div class="flex flex-wrap items-center justify-end gap-2">
           <Button

@@ -1,7 +1,7 @@
 # Renders a dashboard export (PDF/Excel/CSV) in the background, attaches the file via
 # ActiveStorage and updates the export record's status.
 class Jabvox::Analytics::ExportJob < ApplicationJob
-  queue_as :low
+  queue_as :jabvox_analytics
 
   def perform(export_id)
     export = JabvoxAnalyticsExport.find_by(id: export_id)

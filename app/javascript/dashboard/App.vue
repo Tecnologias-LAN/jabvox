@@ -5,6 +5,7 @@ import NetworkNotification from './components/NetworkNotification.vue';
 import UpdateBanner from './components/app/UpdateBanner.vue';
 import StatusBanner from './components/app/StatusBanner.vue';
 import PaymentPendingBanner from './components/app/PaymentPendingBanner.vue';
+import JabvoxPaymentBlockingModal from './components/app/JabvoxPaymentBlockingModal.vue';
 import PendingEmailVerificationBanner from './components/app/PendingEmailVerificationBanner.vue';
 import vueActionCable from './helper/actionCable';
 import { useRouter } from 'vue-router';
@@ -30,6 +31,7 @@ export default {
     UpdateBanner,
     StatusBanner,
     PaymentPendingBanner,
+    JabvoxPaymentBlockingModal,
     WootSnackbarBox,
     PendingEmailVerificationBanner,
   },
@@ -163,6 +165,7 @@ export default {
     <template v-if="currentAccountId">
       <PendingEmailVerificationBanner v-if="hideOnOnboardingView" />
       <PaymentPendingBanner v-if="hideOnOnboardingView" />
+      <JabvoxPaymentBlockingModal />
     </template>
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">

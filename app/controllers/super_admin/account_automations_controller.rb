@@ -1,6 +1,8 @@
 class SuperAdmin::AccountAutomationsController < SuperAdmin::ApplicationController
   # Credencial ENTRANTE (API key de la cuenta): update_api_key y test_connection.
   include SuperAdmin::AccountAutomationsApiKey
+  # Reintento a prueba de fallos de las operaciones remotas (cola jabvox_automations).
+  include SuperAdmin::AccountAutomationsRetry
 
   before_action :fetch_account
   before_action :fetch_config
@@ -52,6 +54,7 @@ class SuperAdmin::AccountAutomationsController < SuperAdmin::ApplicationControll
     return redirect_with_alert('Esta cuenta no tiene ningún usuario de automatizaciones seleccionado.') if previous_user.nil?
 
     result = Automations::ProvisioningService.new(@account).update_module!(max_flows: @config.max_flows, enabled: false)
+    schedule_disable_retry(result)
 
     @config.update!(automations_user_id: nil, automations_user_set_at: Time.current,
                     automations_user_set_by_id: audit_service.actor_id,
@@ -89,6 +92,9 @@ class SuperAdmin::AccountAutomationsController < SuperAdmin::ApplicationControll
       @config.update!(max_flows: max_flows_param, last_status: 'ok', last_error: nil)
       state_service.recalculate!
       redirect_to super_admin_account_account_automations_path(@account), notice: 'Límite de flujos actualizado'
+    elsif result.retryable?
+      @config.update!(max_flows: max_flows_param)
+      enqueue_background_retry('update_module', max_flows: max_flows_param, enabled: true)
     else
       @config.update!(last_status: 'error', last_error: result.error)
       state_service.recalculate!(remote_result: result)
@@ -184,6 +190,8 @@ class SuperAdmin::AccountAutomationsController < SuperAdmin::ApplicationControll
 
     if result.success?
       redirect_to super_admin_account_account_automations_path(@account), notice: success_message
+    elsif result.retryable?
+      enqueue_background_retry('provision')
     else
       redirect_with_alert("No se pudo aprovisionar: #{result.error} " \
                           'La selección de usuario se conserva: corrige el problema y pulsa "Reaprovisionar".')
@@ -212,6 +220,7 @@ class SuperAdmin::AccountAutomationsController < SuperAdmin::ApplicationControll
   # módulo no es motivo para romperle la app móvil. Corta la desactivación remota.
   def disable!
     result = Automations::ProvisioningService.new(@account).update_module!(max_flows: @config.max_flows, enabled: false)
+    schedule_disable_retry(result)
 
     @config.update!(enabled: false,
                     last_status: result.success? ? 'ok' : 'error',

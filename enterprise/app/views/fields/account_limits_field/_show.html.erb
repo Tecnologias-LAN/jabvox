@@ -1,3 +1,17 @@
-<% JSON.parse(field.to_s).each do |k,v| %>
-<%= k %>: <%= v %> </br>
+<% if field.billable_summary.present? %>
+  <% field.billable_summary.each do |key, data| %>
+    <strong><%= key %></strong>:
+    usado <%= data[:used] %> /
+    límite <%= data[:limit] %>
+    (incluido <%= data[:included] %>, extra <%= data[:extra] %>,
+    precio unitario <%= data[:unit_price_cents] %>,
+    extra total <%= data[:extra_price_cents] %>)
+    </br>
+  <% end %>
+  <strong>Total extra:</strong> <%= field.extra_price_cents %></br>
+  <hr />
+<% end %>
+
+<% JSON.parse(field.to_s).each do |k, v| %>
+  <%= k %>: <%= v %> </br>
 <% end %>

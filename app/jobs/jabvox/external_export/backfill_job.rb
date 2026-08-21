@@ -6,13 +6,15 @@
 # (the 5-minute scheduler could otherwise stack on top of a slow run). Progress
 # and counters are stored on the target so the UI can show sync state.
 class Jabvox::ExternalExport::BackfillJob < ApplicationJob
-  queue_as :scheduled_jobs
+  queue_as :jabvox_export
 
   # Connection errors are transient; retry with backoff instead of hammering.
   retry_on Jabvox::ExternalExport::WriteAdapter::ConnectionError,
            wait: :polynomially_longer, attempts: 3
 
-  LOCK_TTL = 30.minutes
+  # TTL base del lock; el heartbeat lo renueva mientras el backfill corre, así una
+  # cuenta grande (backfill largo por lotes) nunca lo deja expirar a mitad.
+  LOCK_TTL = 60
 
   # incremental: when true, only export records updated since last_full_sync_at.
   def perform(account_id, incremental: false)
@@ -22,13 +24,8 @@ class Jabvox::ExternalExport::BackfillJob < ApplicationJob
     target = account.jabvox_export_targets.active.first
     return unless target
 
-    lock_key = "jabvox_export_backfill_lock/#{target.id}"
-    return unless Rails.cache.write(lock_key, 1, unless_exist: true, expires_in: LOCK_TTL)
-
-    begin
-      run_sync(target, incremental)
-    ensure
-      Rails.cache.delete(lock_key)
+    Jabvox::RedisLock.with_lock("jabvox_export_backfill_lock/#{target.id}", ttl: LOCK_TTL) do |lock|
+      run_sync(target, incremental, lock)
     end
   rescue Jabvox::ExternalExport::WriteAdapter::ConnectionError
     target&.update_columns(sync_status_jabvox: 'error') # rubocop:disable Rails/SkipsModelValidations
@@ -41,7 +38,7 @@ class Jabvox::ExternalExport::BackfillJob < ApplicationJob
   private
 
   # rubocop:disable Rails/SkipsModelValidations
-  def run_sync(target, incremental)
+  def run_sync(target, incremental, lock)
     since = incremental ? target.last_full_sync_at_jabvox : nil
     target.update_columns(sync_status_jabvox: 'syncing')
     started = Time.current
@@ -51,6 +48,10 @@ class Jabvox::ExternalExport::BackfillJob < ApplicationJob
     # scratch and never fails with "relation/column does not exist".
     Jabvox::ExternalExport::SchemaBuilderService.new(target).call unless incremental
     result = Jabvox::ExternalExport::BackfillService.new(target).call(since: since)
+    # Fencing: si perdimos el lock (proceso congelado > TTL, otro backfill lo tomó),
+    # no pisamos el estado con nuestro 'ok'; el dueño actual escribirá el suyo.
+    return unless lock.held?
+
     target.update_columns(
       sync_status_jabvox: 'ok',
       last_full_sync_at_jabvox: started,

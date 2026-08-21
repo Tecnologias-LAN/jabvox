@@ -13,6 +13,7 @@ class Api::V1::Accounts::Conversations::DirectUploadsController < ActiveStorage:
   before_action :current_account
   before_action :validate_token_api_access, if: :authenticate_by_access_token?
   before_action :conversation
+  before_action :ensure_storage_quota
 
   def create
     return if @conversation.nil? || @current_account.nil?
@@ -34,5 +35,14 @@ class Api::V1::Accounts::Conversations::DirectUploadsController < ActiveStorage:
 
   def conversation
     @conversation ||= Current.account.conversations.find_by(display_id: params[:conversation_id])
+  end
+
+  def ensure_storage_quota
+    byte_size = params.dig(:blob, :byte_size).to_i
+    return if byte_size <= 0
+    return unless Current.account.storage_over_quota?(byte_size)
+
+    render json: { error: 'La cuenta no tiene almacenamiento disponible para este archivo' },
+           status: :payment_required
   end
 end

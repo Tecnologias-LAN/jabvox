@@ -25,6 +25,7 @@
 #
 # Indexes
 #
+#  idx_cdr_configs_configured                       (account_id) WHERE ((mysql_host)::text <> ''::text)
 #  index_jabvox_cdr_configs_on_account_id           (account_id) UNIQUE
 #  index_jabvox_cdr_configs_on_default_pipeline_id  (default_pipeline_id)
 #

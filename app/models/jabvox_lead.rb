@@ -18,6 +18,7 @@
 #
 #  index_jabvox_leads_on_account_id                         (account_id)
 #  index_jabvox_leads_on_account_id_and_contact_id          (account_id,contact_id) UNIQUE
+#  index_jabvox_leads_on_account_id_and_created_at          (account_id,created_at)
 #  index_jabvox_leads_on_account_id_and_jabvox_campaign_id  (account_id,jabvox_campaign_id)
 #  index_jabvox_leads_on_account_id_and_lead_number         (account_id,lead_number) UNIQUE
 #  index_jabvox_leads_on_assignee_id                        (assignee_id)

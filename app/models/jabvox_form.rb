@@ -74,7 +74,8 @@ class JabvoxForm < ApplicationRecord
 
   def within_account_limit
     config = account.jabvox_form_config
-    limit = config&.max_forms_jabvox || 10
+    limit = account.effective_limit_for(:forms)
+    limit = config&.max_forms_jabvox || 10 if limit <= 0
     errors.add(:base, 'Form limit reached for this account') if account.jabvox_forms.count >= limit
   end
 end

@@ -14,36 +14,49 @@ class Jabvox::Billing::ProvisioningService
   end
 
   # Devuelve { account:, created_user:, set_password_url: } o levanta ProvisioningError.
+  #
+  # CONCURRENCIA: Bold reintenta los webhooks, así que dos ProvisioningJob pueden correr a
+  # la vez para la misma transacción. Sin serializar, ambos pasarían el guard `provisioned?`
+  # y aplicarían la vigencia DOS veces (doble mes). Tomamos un row-lock (with_lock) y
+  # reevaluamos el estado DENTRO del lock: el segundo job verá `provisioned?` y hará replay.
   def call
-    # Idempotencia dura: si ya se aprovisionó, devolver lo hecho sin repetir nada.
     return replay if @tx.provisioned?
 
-    raise Jabvox::Billing::ProvisioningError, 'La transacción no está en un estado aprovisionable' unless @tx.retriable?
+    @tx.with_lock do
+      # Reevaluación dentro del lock: si otro job ya lo aprovisionó, no repetimos.
+      return replay if @tx.provisioned?
 
-    plan = @tx.jabvox_plan
-    raise Jabvox::Billing::ProvisioningError, 'La transacción no tiene plan asociado' if plan.nil?
+      raise Jabvox::Billing::ProvisioningError, 'La transacción no está en un estado aprovisionable' unless @tx.retriable?
 
-    @tx.update!(attempts: @tx.attempts + 1)
-    @tx.mark_provisioning!
+      plan = @tx.jabvox_plan
+      raise Jabvox::Billing::ProvisioningError, 'La transacción no tiene plan asociado' if plan.nil?
 
-    result = run_account_provisioning(plan)
-    account = result[:account]
-    apply_plan_period!(account, plan)
+      @tx.update!(attempts: @tx.attempts + 1)
+      @tx.mark_provisioning!
 
-    @tx.mark_provisioned!(account)
-    { account: account, created_user: result[:created_user], set_password_url: result[:set_password_url] }
+      result = run_account_provisioning(plan)
+      account = result[:account]
+      apply_plan_period!(account, plan)
+
+      @tx.mark_provisioned!(account)
+      { account: account, created_user: result[:created_user], set_password_url: result[:set_password_url] }
+    end
   end
 
   private
 
   # Llama al servicio de aprovisionamiento base con los recursos del plan. Usa la
   # idempotency_key de la transacción para que un reintento no duplique la cuenta.
+  #
+  # Flujo "registro primero": si la transacción ya trae account_id (la cuenta se creó
+  # en el registro), aprovisionamos SOBRE esa cuenta en vez de crear otra por email.
   def run_account_provisioning(plan)
     params = plan.provisioning_params(
       email: @tx.buyer_email,
       idempotency_key: @tx.idempotency_key,
       base_url: ENV.fetch('FRONTEND_URL', nil)
     )
+    params[:account_id] = @tx.account_id if @tx.account_id.present?
     Jabvox::AccountProvisioningService.new(params).call
   rescue Jabvox::AccountProvisioningService::ProvisioningError => e
     raise Jabvox::Billing::ProvisioningError, e.message
@@ -55,7 +68,8 @@ class Jabvox::Billing::ProvisioningService
     base = [account.jabvox_plan_expires_at, Time.current].compact.max
     account.update!(
       jabvox_plan_id: plan.id,
-      jabvox_plan_expires_at: base + plan.duration_days.days
+      jabvox_plan_expires_at: base + plan.duration_days.days,
+      status: :active
     )
   end
 

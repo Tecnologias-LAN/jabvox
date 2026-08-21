@@ -44,6 +44,7 @@ import jabvoxReports from './jabvoxReports.json';
 import jabvoxResponseBot from './jabvoxResponseBot.json';
 import jabvoxEmail from './jabvoxEmail.json';
 import jabvoxActions from './jabvoxActions.json';
+import jabvoxBilling from './jabvoxBilling.json';
 import jabvoxForms from './jabvoxForms.json';
 import jabvoxClickToCall from './jabvoxClickToCall.json';
 import jabvoxSoftphone from './jabvoxSoftphone.json';
@@ -123,6 +124,7 @@ export default {
   ...jabvoxResponseBot,
   ...jabvoxEmail,
   ...jabvoxActions,
+  ...jabvoxBilling,
   ...jabvoxForms,
   ...jabvoxClickToCall,
   ...jabvoxSoftphone,

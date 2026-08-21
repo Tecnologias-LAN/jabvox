@@ -1,5 +1,5 @@
 class Jabvox::AnalyzeCdrCallJob < ApplicationJob
-  queue_as :low
+  queue_as :jabvox_cdr
 
   def perform(account_id, uniqueid, pipeline_id: nil, force: false)
     account = Account.find_by(id: account_id)

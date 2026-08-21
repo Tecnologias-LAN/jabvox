@@ -1,44 +1,41 @@
 # frozen_string_literal: true
 
-# Sincroniza el CDR del PBX hacia la tabla local jabvox_cdr_records (cron).
-# Recorre cada cuenta con CDR configurado; un fallo en una cuenta NUNCA afecta a
-# las demás (cada una en su propio rescue). Cachea las cuentas cuyo PBX no
-# responde para no gastar el connect-timeout en cada corrida.
+# Dispatcher del CDR sync (cron cada 1 min): encola un CdrSyncAccountJob por
+# cuenta con CDR configurado, en la cola aislada jabvox_cdr.
+#
+# NOTA sobre O(activas): el "CDR nuevo" vive en el MySQL del PBX (remoto), no en
+# Postgres, así que NO se puede saber desde aquí, sin abrir el PBX, qué cuenta
+# tiene llamadas nuevas. Lo que sí evitamos es encolar cuentas SIN PBX
+# configurado (mysql_host vacío): el job por-cuenta las saltaba igual, pero ya
+# después de encolar. Filtrarlas aquí reduce el fan-out real. La caché de "PBX no
+# responde" (en el job por-cuenta) corta las que están apagadas.
 class Jabvox::CdrSyncJob < ApplicationJob
-  queue_as :scheduled_jobs
+  queue_as :jabvox_cdr
 
-  UNREACHABLE_TTL = 5.minutes.to_i
+  # Si la cola aún arrastra trabajo de la corrida anterior, saltamos esta pasada.
+  BACKLOG_CEILING = 1000
 
   def perform
-    Account.joins(:jabvox_cdr_config).find_each do |account|
-      next if pbx_unreachable_cached?(account.id)
-
-      result = Jabvox::CdrSyncService.sync_account(account)
-      mark_unreachable(account.id) if result[:reachable] == false
-      if (result[:inserted].to_i + result[:updated].to_i).positive?
-        Rails.logger.info("[CdrSync] cuenta=#{account.id} +#{result[:inserted]} ~#{result[:updated]}")
-      end
-    rescue StandardError => e
-      # Aislamiento estricto: el error de una cuenta no corta el bucle.
-      Rails.logger.error("[CdrSyncJob] cuenta=#{account.id} #{e.class}: #{e.message}")
+    if queue_backlogged?
+      Rails.logger.warn('[CdrSync] backlog alto en jabvox_cdr; salto esta corrida')
+      return
     end
+
+    enqueued = 0
+    JabvoxCdrConfig.where.not(mysql_host: '').select(:account_id).find_each do |config|
+      Jabvox::CdrSyncAccountJob.perform_later(config.account_id)
+      enqueued += 1
+    rescue StandardError => e
+      Rails.logger.error("[CdrSync] no se pudo encolar cuenta=#{config.account_id} #{e.class}: #{e.message}")
+    end
+    Rails.logger.info("[CdrSync] syncs encolados: #{enqueued}") if enqueued.positive?
   end
 
   private
 
-  def unreachable_key(account_id)
-    "jabvox_cdr_pbx_unreachable_#{account_id}"
-  end
-
-  def pbx_unreachable_cached?(account_id)
-    Redis::Alfred.get(unreachable_key(account_id)).present?
+  def queue_backlogged?
+    Sidekiq::Queue.new('jabvox_cdr').size > BACKLOG_CEILING
   rescue StandardError
     false
-  end
-
-  def mark_unreachable(account_id)
-    Redis::Alfred.set(unreachable_key(account_id), Time.current.to_i, ex: UNREACHABLE_TTL)
-  rescue StandardError => e
-    Rails.logger.warn("[CdrSyncJob] no se pudo cachear PBX caído cuenta=#{account_id} | #{e.message}")
   end
 end

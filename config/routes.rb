@@ -452,9 +452,11 @@ Rails.application.routes.draw do
               # (registrado/en llamada/caído) para el panel de estado del super admin.
               resource :presence, only: [:update], controller: 'presence'
             end
-            # Cobro/aprovisionamiento: inicia el checkout (token firmado + URL de la web).
+            # Cobro/aprovisionamiento: inicia el checkout (token firmado + URL de la web)
+            # y expone el estado de pago para el modal de bloqueo del frontend.
             namespace :billing do
               resource :checkout, only: [:create], controller: 'checkouts'
+              resource :status, only: [:show], controller: 'status'
             end
             # Fecha en que se aplicó una etiqueta (para automatizaciones que la retiran
             # tras cierto tiempo). No lo ofrece la API estándar de Chatwoot.
@@ -1190,6 +1192,12 @@ Rails.application.routes.draw do
   mount Facebook::Messenger::Server, at: 'bot'
   get 'webhooks/twitter', to: 'api/v1/webhooks#twitter_crc'
   post 'webhooks/twitter', to: 'api/v1/webhooks#twitter_events'
+  # Endpoints públicos (sin autenticación): registro y planes antes del login
+  namespace :public do
+    post 'register', to: 'registration#create'
+    resources :plans, only: [:index, :show]
+  end
+
   # Cobro/aprovisionamiento por pasarela de pago (Bold/Wompi/Mono).
   #   process_payload  <- la pasarela (webhook firmado)
   #   resolve/checkout <- la web de cobro (canal interno autenticado)
@@ -1268,6 +1276,7 @@ Rails.application.routes.draw do
       # Cobro/aprovisionamiento por pasarela de pago.
       resources :jabvox_plans
       resources :jabvox_payment_gateway_configs, except: [:destroy]
+      resource :jabvox_billing_config, only: [:edit, :update]
       resources :jabvox_provisioning_transactions, only: [:index, :show] do
         post :retry_provisioning, on: :member
       end

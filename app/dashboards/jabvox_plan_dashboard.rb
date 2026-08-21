@@ -1,7 +1,9 @@
 require 'administrate/base_dashboard'
 
-# Panel Super Admin del catálogo de planes (editable). Precios, duración, módulos,
-# límites, número de WhatsApp y estado (borrador/activo/en desarrollo).
+# Panel Super Admin del catálogo de planes (editable). En `limits` se pueden guardar
+# cuotas y precios extra por recurso:
+#   { "agents": { "included": 5, "unit_price_cents": 1000 },
+#     "storage_gb": { "included": 10, "unit_price_cents": 500 } }
 class JabvoxPlanDashboard < Administrate::BaseDashboard
   ATTRIBUTE_TYPES = {
     id: Field::Number,

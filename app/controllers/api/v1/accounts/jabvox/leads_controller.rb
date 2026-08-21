@@ -80,15 +80,17 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
+  # Crea el JabvoxLead que falte para cada contacto de la cuenta. Inserción masiva
+  # en lotes (no N+1): una query para los contact_id sin lead y insert_all por lote.
   def sync_contacts
-    count = 0
-    Current.account.contacts.find_each do |contact|
-      JabvoxLead.find_or_create_by!(account: Current.account, contact: contact)
-      count += 1
-    rescue StandardError
-      next
-    end
-    render json: { synced: count }
+    account = Current.account
+    existing = JabvoxLead.where(account_id: account.id).select(:contact_id)
+    missing_ids = account.contacts.where.not(id: existing).pluck(:id)
+    render(json: { synced: 0 }) and return if missing_ids.empty?
+
+    next_number = (JabvoxLead.where(account_id: account.id).maximum(:lead_number) || 0) + 1
+    synced = insert_missing_leads(account.id, missing_ids, next_number)
+    render json: { synced: synced }
   end
 
   def bulk_assign
@@ -198,6 +200,21 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
   end
 
   private
+
+  # unique_by (account_id, contact_id) hace la inserción idempotente ante una carrera.
+  def insert_missing_leads(account_id, missing_ids, next_number)
+    now = Time.current
+    synced = 0
+    missing_ids.each_slice(1000) do |slice|
+      rows = slice.map do |contact_id|
+        { account_id: account_id, contact_id: contact_id, lead_number: next_number,
+          custom_fields_jabvox: {}, created_at: now, updated_at: now }.tap { next_number += 1 }
+      end
+      result = JabvoxLead.insert_all(rows, unique_by: %i[account_id contact_id]) # rubocop:disable Rails/SkipsModelValidations
+      synced += result.rows.size
+    end
+    synced
+  end
 
   # Flat, string-keyed field map for the WhatsApp template composer: default
   # contact/lead fields under plain keys, custom fields under "custom:<key>".

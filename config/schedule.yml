@@ -112,7 +112,16 @@ jabvox_expired_access_tokens_sweeper_job:
 jabvox_lead_import_purge_trash_job:
   cron: '0 23 * * *'
   class: 'Jabvox::LeadImport::PurgeTrashJob'
-  queue: scheduled_jobs
+  # Cola aislada: sidekiq-cron sobrescribe el queue_as de la clase con este valor.
+  queue: jabvox_lead_import
+
+
+# cada 10 min — libera fuentes de lead-import colgadas en 'syncing' (worker o
+# servidor reiniciado a mitad de sync), para que se puedan relanzar.
+jabvox_lead_import_stale_sync_reaper_job:
+  cron: '*/10 * * * *'
+  class: 'Jabvox::LeadImport::StaleSyncReaperJob'
+  queue: jabvox_lead_import
 
 # every 5 minutes — reconciles each account's external data-export DB with an
 # incremental backfill (records changed since the last full sync), catching
@@ -121,7 +130,14 @@ jabvox_lead_import_purge_trash_job:
 jabvox_external_export_reconcile_job:
   cron: '*/5 * * * *'
   class: 'Jabvox::ExternalExport::ReconcileSchedulerJob'
-  queue: scheduled_jobs
+  queue: jabvox_export
+
+# cada 10 min — libera targets de data-export colgados en 'syncing' (worker o
+# servidor reiniciado a mitad de backfill); el reconcile los reintenta.
+jabvox_external_export_stale_sync_reaper_job:
+  cron: '*/10 * * * *'
+  class: 'Jabvox::ExternalExport::StaleSyncReaperJob'
+  queue: jabvox_export
 
 # every 1 minute — safety net for the dialer: closes call logs and
 # campaign_contacts stuck in 'calling'/'initiated' beyond 15 min (a lost AMI
@@ -130,7 +146,7 @@ jabvox_external_export_reconcile_job:
 jabvox_dialer_stale_call_reaper_job:
   cron: '*/1 * * * *'
   class: 'Jabvox::DialerStaleCallReaperJob'
-  queue: scheduled_jobs
+  queue: jabvox_ami
 
 # every 1 minute — reconciles Asterisk dialer queues against live Redis sessions:
 # removes any agent that is a queue member but is NOT connected to that campaign
@@ -144,7 +160,7 @@ jabvox_dialer_stale_call_reaper_job:
 jabvox_dialer_queue_reaper_job:
   cron: '*/1 * * * *'
   class: 'Jabvox::DialerQueueReaperJob'
-  queue: scheduled_jobs
+  queue: jabvox_ami
 
 # every 1 minute — sincroniza el CDR del PBX hacia la tabla local
 # jabvox_cdr_records (enriquecido con numero real del dialer, medio, agente,
@@ -153,7 +169,7 @@ jabvox_dialer_queue_reaper_job:
 jabvox_cdr_sync_job:
   cron: '*/1 * * * *'
   class: 'Jabvox::CdrSyncJob'
-  queue: scheduled_jobs
+  queue: jabvox_cdr
 
 # every 1 minute — motor del agente virtual / voice broadcast: por cada broadcast en
 # 'running' origina llamadas segun su pacing (max_concurrent + CPS), respeta la
@@ -161,10 +177,31 @@ jabvox_cdr_sync_job:
 jabvox_voice_broadcast_tick_job:
   cron: '*/1 * * * *'
   class: 'Jabvox::VoiceBroadcast::TickJob'
-  queue: scheduled_jobs
+  queue: jabvox_broadcast
 
 # Jabvox Tickets: escala tickets vencidos (SLA), cada 15 minutos
 jabvox_tickets_sla_escalation_job:
   cron: '*/15 * * * *'
   class: 'Jabvox::Tickets::SlaEscalationJob'
   queue: scheduled_jobs
+
+# Diario a las 3 AM: limpia cuentas pendientes de pago (suspended + sin transacción
+# aprobada) creadas hace más de X días (configurable en super_admin). Evita basura
+# de registros incompletos que nunca pagaron.
+jabvox_billing_pending_account_cleanup_job:
+  cron: '7 3 * * *'
+  class: 'Jabvox::Billing::PendingAccountCleanupJob'
+  queue: jabvox_payments
+
+# Cada hora: suspende cuentas activas cuyo plan expiró (jabvox_plan_expires_at < now).
+# El modal de bloqueo en frontend impide uso hasta que paguen renovación.
+jabvox_billing_expired_plan_enforcement_job:
+  cron: '12 * * * *'
+  class: 'Jabvox::Billing::ExpiredPlanEnforcementJob'
+  queue: jabvox_payments
+
+# Diario a las 9 AM: envía recordatorios de renovación (7, 3, 1 días antes de expirar).
+jabvox_billing_renewal_reminder_job:
+  cron: '0 9 * * *'
+  class: 'Jabvox::Billing::RenewalReminderJob'
+  queue: jabvox_payments

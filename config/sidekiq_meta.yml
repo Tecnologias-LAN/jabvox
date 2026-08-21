@@ -1,0 +1,10 @@
+# WhatsApp masivo + sync de plantillas (API Meta)
+# Worker Sidekiq dedicado y AISLADO: procesa solo su(s) cola(s). Así una carga
+# pesada en este servicio no puede taponar los mensajes ni otros servicios.
+---
+:verbose: false
+:concurrency: <%= ENV.fetch("JABVOX_META_CONCURRENCY", "8").to_i %>
+:timeout: 25
+:max_retries: 3
+:queues:
+  - jabvox_meta

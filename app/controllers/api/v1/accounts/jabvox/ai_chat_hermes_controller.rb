@@ -25,21 +25,17 @@ class Api::V1::Accounts::Jabvox::AiChatHermesController < Api::V1::Accounts::Jab
     }
   end
 
-  # Conecta un Hermes YA existente a esta cuenta (base_url + virtual server + token).
+  # Conecta un Hermes directo a esta cuenta (solo la URL de Hermes). Jabvox guarda el
+  # handoff y devuelve el prompt de auto-aprovisionamiento para pegar en Hermes.
   def connect
     return unless jabvox_authorize!('jabvox_ai_chat_manage')
 
-    result = ContextForge::ConnectExistingService.new(
-      Current.account,
-      base_url: params[:contextforge_base_url],
-      virtual_server_id: params[:virtual_server_id],
-      scoped_token: params[:scoped_token],
-      team_id: params[:team_id],
-      hermes_instance_id: params[:hermes_instance_id]
-    ).call # attrs va como hash de kwargs -> attrs = {...}
+    result = Jabvox::HermesConnectionService.new(
+      account: Current.account, user: Current.user, hermes_url: params[:hermes_url]
+    ).call
 
     if result.success?
-      render json: result.handoff.safe_summary
+      render json: result.handoff.safe_summary.merge(prompt: result.prompt)
     else
       render json: { error: result.error }, status: :unprocessable_entity
     end

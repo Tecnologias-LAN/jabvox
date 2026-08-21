@@ -2,7 +2,7 @@
 # already rejects it once expired; this removes the row so no expired credential lingers. Safe
 # to run late or twice (no-op if already gone).
 class Jabvox::BulkWhatsappTokenCleanupJob < ApplicationJob
-  queue_as :low
+  queue_as :jabvox_meta
 
   def perform(access_token_id)
     AccessToken.where(id: access_token_id).destroy_all

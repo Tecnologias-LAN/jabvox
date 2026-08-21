@@ -5,7 +5,12 @@ require 'rails_helper'
 RSpec.describe 'Webhooks::Jabvox::Billing', type: :request do
   describe 'POST /webhooks/jabvox/billing/:gateway' do
     # Config activa que set_gateway busca por find_by(provider:, active:) antes de build.
-    let!(:gateway_config) { create(:jabvox_payment_gateway_config, provider: 'bold', active: true) } # rubocop:disable RSpec/LetSetup
+    let!(:gateway_config) do # rubocop:disable RSpec/LetSetup
+      JabvoxPaymentGatewayConfig.where.not(provider: 'bold').update_all(active: false)
+      config = JabvoxPaymentGatewayConfig.find_or_initialize_by(provider: 'bold')
+      config.update!(active: true, public_token: 'pub_test_123', checkout_base_url: 'https://checkout.bold.co')
+      config
+    end
     let(:gateway) { instance_double(Jabvox::Billing::Gateways::Bold, provider: 'bold') }
 
     before do
@@ -71,13 +76,40 @@ RSpec.describe 'Webhooks::Jabvox::Billing', type: :request do
                         reference: 'idem-bad', payment_id: 'P2', amount_cents: 100 }) # monto alterado
       end
 
-      it 'rechaza el pago por monto que no coincide con el plan y NO aprovisiona' do
+      it 'rechaza el pago por monto que no coincide con la transacción y NO aprovisiona' do
         expect(Jabvox::Billing::ProvisioningJob).not_to receive(:perform_later)
 
         post '/webhooks/jabvox/billing/bold', params: { any: 'payload' }, as: :json
 
         expect(response).to have_http_status(:ok)
         expect(transaction.reload).to be_payment_rejected_invalid
+      end
+    end
+
+    context 'with a valid signature and account add-ons included in transaction amount' do
+      let(:plan) { create(:jabvox_plan, price_cents: 500_000) }
+      let!(:transaction) do
+        create(:jabvox_provisioning_transaction, gateway: 'bold', gateway_reference: 'ref-extra',
+                                                 jabvox_plan: plan, amount_cents: 520_000,
+                                                 idempotency_key: 'idem-extra', status: :payment_pending)
+      end
+
+      before do
+        allow(gateway).to receive(:verify_webhook_signature).and_return(true)
+        allow(gateway).to receive(:parse_webhook_event)
+          .and_return({ approved: true, rejected: false, status: 'SALE_APPROVED',
+                        reference: 'idem-extra', payment_id: 'P-extra', amount_cents: 520_000 })
+        allow(gateway).to receive(:fetch_payment_status)
+          .and_return({ approved: true, status: 'APPROVED', reference: 'ref-extra', amount_cents: 520_000 })
+      end
+
+      it 'acepta montos superiores al plan base si coinciden con la transacción' do
+        expect(Jabvox::Billing::ProvisioningJob).to receive(:perform_later).with(transaction.id)
+
+        post '/webhooks/jabvox/billing/bold', params: { any: 'payload' }, as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(transaction.reload).to be_payment_approved
       end
     end
 

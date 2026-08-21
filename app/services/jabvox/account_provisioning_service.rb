@@ -32,7 +32,9 @@ class Jabvox::AccountProvisioningService
     agents: 'agents',
     ai_documents: 'ai_documents',
     automation_rules: 'automation_rules',
-    analytics_dashboards: 'analytics_dashboards'
+    analytics_dashboards: 'analytics_dashboards',
+    email_templates: 'email_templates',
+    storage_gb: 'storage_gb'
   }.freeze
 
   # Clave donde se guarda la huella de idempotencia dentro de accounts.custom_attributes.
@@ -46,6 +48,9 @@ class Jabvox::AccountProvisioningService
     @limits = (@params[:limits] || {}).symbolize_keys
     @base_url = @params[:base_url].presence # para armar el link de set-password
     @idempotency_key = @params[:idempotency_key].to_s.strip.presence
+    # Flujo "registro primero": la cuenta+admin YA existen (creados en el registro).
+    # Cuando llega account_id, aprovisionamos SOBRE esa cuenta en vez de crear una nueva.
+    @account_id = @params[:account_id].presence
   end
 
   def call
@@ -58,8 +63,7 @@ class Jabvox::AccountProvisioningService
     return replay_result(existing) if existing
 
     ActiveRecord::Base.transaction do
-      @account = build_account
-      @user, @created_user = find_or_create_admin
+      @account, @user, @created_user = resolve_account_and_admin
       link_admin!
       apply_modules!
       apply_chatwoot_features!
@@ -98,10 +102,40 @@ class Jabvox::AccountProvisioningService
     @available_chatwoot_features ||= Account::FEATURE_LIST.filter_map { |f| f['name'] }
   end
 
+  # Decide sobre qué cuenta+admin aprovisionar:
+  #   - Flujo "registro primero" (account_id presente): usa la cuenta y su admin YA creados
+  #     en el registro; solo actualiza límites y marca la idempotency_key.
+  #   - Flujo clásico (n8n, sin account_id): crea la cuenta y busca/crea el admin por email.
+  # Devuelve [account, user, created_user].
+  def resolve_account_and_admin
+    if @account_id
+      account = use_existing_account
+      user = account.administrators.first || account.users.first
+      [account, user, false]
+    else
+      account = build_account
+      user, created = find_or_create_admin
+      [account, user, created]
+    end
+  end
+
+  # Aprovisiona sobre la cuenta existente (creada en el registro): aplica límites y deja
+  # la huella de idempotencia. NO cambia el status aquí (lo hace apply_plan_period! del
+  # billing tras confirmar el pago).
+  def use_existing_account
+    account = Account.find(@account_id)
+    attrs = { limits: account.limits.to_h.merge(account_limits) }
+    if @idempotency_key
+      attrs[:custom_attributes] = account.custom_attributes.to_h.merge(IDEMPOTENCY_ATTR => @idempotency_key)
+    end
+    account.update!(attrs)
+    account
+  end
+
   # Crea la cuenta con sus límites de accounts.limits ya puestos (enforcement inmediato
   # para inboxes/agents/ai_documents/automation_rules/analytics_dashboards).
   def build_account
-    attrs = { name: account_name, locale: locale, limits: account_limits }
+    attrs = { name: account_name, locale: locale, limits: account_limits, status: :payment_pending }
     attrs[:custom_attributes] = { IDEMPOTENCY_ATTR => @idempotency_key } if @idempotency_key
     Account.create!(attrs)
   end
@@ -136,6 +170,21 @@ class Jabvox::AccountProvisioningService
     ACCOUNT_LIMIT_MAP.each_with_object({}) do |(param_key, limit_key), acc|
       value = @limits[param_key]
       acc[limit_key] = value.to_i if value.present? && value.to_i.positive?
+      copy_billable_metadata(param_key, acc)
+    end.tap do |acc|
+      %i[forms advanced_flows].each do |param_key|
+        value = @limits[param_key]
+        acc[param_key.to_s] = value.to_i if value.present? && value.to_i.positive?
+        copy_billable_metadata(param_key, acc)
+      end
+    end
+  end
+
+  def copy_billable_metadata(param_key, acc)
+    %w[included extra unit_price_cents].each do |suffix|
+      key = "#{param_key}_#{suffix}"
+      value = @limits[key.to_sym] || @limits[key]
+      acc[key] = value.to_i if value.present? && value.to_i.positive?
     end
   end
 
@@ -150,6 +199,8 @@ class Jabvox::AccountProvisioningService
   end
 
   def link_admin!
+    return if @user.nil? # cuenta existente sin usuarios: nada que vincular
+
     au = @account.account_users.find_or_initialize_by(user_id: @user.id)
     au.update!(role: :administrator)
   end

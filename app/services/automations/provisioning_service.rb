@@ -11,9 +11,15 @@ class Automations::ProvisioningService
   # Raised when the global module configuration is missing.
   ConfigurationError = Class.new(StandardError)
 
-  Result = Struct.new(:success, :data, :error, keyword_init: true) do
+  # `retryable` marca los fallos de RED transitorios (timeout/conexión), que los
+  # callers reintentan en background. Un error de negocio no es retryable.
+  Result = Struct.new(:success, :data, :error, :retryable, keyword_init: true) do
     def success?
       success
+    end
+
+    def retryable?
+      retryable
     end
   end
 
@@ -50,7 +56,7 @@ class Automations::ProvisioningService
     end
     build_result(response)
   rescue Faraday::Error, ConfigurationError, URI::Error => e
-    failure(call_error_message(e))
+    failure(call_error_message(e), retryable: network_failure?(e))
   end
 
   # PATCH /provisioning/accounts/:chatwootAccountId/module — actualiza el estado
@@ -62,7 +68,7 @@ class Automations::ProvisioningService
     end
     build_result(response)
   rescue Faraday::Error, ConfigurationError, URI::Error => e
-    failure(call_error_message(e))
+    failure(call_error_message(e), retryable: network_failure?(e))
   end
 
   # DELETE /provisioning/accounts/:chatwootAccountId — deactivates the remote account.
@@ -75,7 +81,7 @@ class Automations::ProvisioningService
     response = master_client.delete("provisioning/accounts/#{@account.id}")
     build_result(response)
   rescue Faraday::Error, ConfigurationError, URI::Error => e
-    failure(call_error_message(e))
+    failure(call_error_message(e), retryable: network_failure?(e))
   end
 
   # GET /provisioning/status/:chatwootAccountId
@@ -237,8 +243,12 @@ class Automations::ProvisioningService
     end
   end
 
-  def failure(message)
-    Result.new(success: false, data: nil, error: message)
+  def failure(message, retryable: false)
+    Result.new(success: false, data: nil, error: message, retryable: retryable)
+  end
+
+  def network_failure?(error)
+    error.is_a?(Faraday::TimeoutError) || error.is_a?(Faraday::ConnectionFailed)
   end
 
   def remote_error_message(response)

@@ -12,19 +12,28 @@
 #
 # Table name: jabvox_context_forge_handoffs
 #
-#  id                     :bigint           not null, primary key
-#  contextforge_base_url  :string
-#  hermes_instance_id     :string
-#  last_error             :string
-#  mcp_servers            :jsonb            not null
-#  provisioned_at         :datetime
-#  scoped_token           :text
-#  status                 :string           default("pending"), not null
-#  team_id                :string
-#  virtual_server_id      :string
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  account_id             :bigint           not null
+#  id                    :bigint           not null, primary key
+#  contextforge_base_url :string
+#  hermes_url            :string
+#  last_error            :string
+#  mcp_servers           :jsonb            not null
+#  provisioned_at        :datetime
+#  scoped_token          :text
+#  status                :string           default("pending"), not null
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  account_id            :bigint           not null
+#  hermes_instance_id    :string
+#  team_id               :string
+#  virtual_server_id     :string
+#
+# Indexes
+#
+#  index_jabvox_context_forge_handoffs_on_account_id  (account_id) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id)
 #
 class JabvoxContextForgeHandoff < ApplicationRecord
   belongs_to :account
@@ -56,11 +65,17 @@ class JabvoxContextForgeHandoff < ApplicationRecord
     update!(status: 'failed', last_error: error.to_s.first(255))
   end
 
+  # ¿Conectada en modo "solo Hermes"? (URL de Hermes + token, sin ContextForge)
+  def hermes_operational?
+    status == 'ready' && hermes_url.present? && scoped_token.present?
+  end
+
   # Vista segura para el frontend/logs: nunca incluye el token.
   def safe_summary
     {
       account_id: account_id,
       status: status,
+      hermes_url: hermes_url,
       contextforge_base_url: contextforge_base_url,
       virtual_server_id: virtual_server_id,
       hermes_instance_id: hermes_instance_id,

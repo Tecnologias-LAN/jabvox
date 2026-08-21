@@ -8,7 +8,11 @@ module EnsureCurrentAccountHelper
 
   def ensure_current_account
     account = Account.find(params[:account_id])
-    render_unauthorized('Account is suspended') and return unless account.active?
+    # Cuentas no activas (payment_pending/suspended) quedan bloqueadas EN TODA la app,
+    # salvo los endpoints de pago: si no los dejáramos pasar, el usuario no podría ni
+    # consultar su estado ni iniciar el checkout para desbloquearse. Cada controlador de
+    # billing declara allow_inactive_account? => true.
+    render_unauthorized('Account is suspended') and return unless account.active? || allow_inactive_account?
 
     if current_user
       account_accessible_for_user?(account)
@@ -18,6 +22,13 @@ module EnsureCurrentAccountHelper
       render_unauthorized(I18n.t('errors.account.not_authorized'))
     end
     account
+  end
+
+  # Por defecto NINGÚN controlador permite operar con la cuenta inactiva. Los
+  # controladores de billing (status/checkout/renewals) lo sobrescriben a true para que
+  # el usuario pueda pagar y desbloquear su cuenta.
+  def allow_inactive_account?
+    false
   end
 
   def account_accessible_for_user?(account)

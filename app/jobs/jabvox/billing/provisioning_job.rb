@@ -8,7 +8,7 @@
 # transacción en provisioning_failed (visible en el panel para acción manual) SIN que el
 # usuario pierda el pago.
 class Jabvox::Billing::ProvisioningJob < ApplicationJob
-  queue_as :low
+  queue_as :jabvox_payments
 
   retry_on Jabvox::Billing::ProvisioningError,
            wait: :polynomially_longer,

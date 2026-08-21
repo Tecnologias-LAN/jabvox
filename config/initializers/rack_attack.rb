@@ -177,6 +177,12 @@ class Rack::Attack
     req.ip if req.path_without_extensions == '/api/v1/accounts' && req.post?
   end
 
+  ## Registro público de Jabvox (/public/register): mismo freno anti-abuso que el signup
+  ## estándar, ya que crea cuenta+usuario sin autenticación y sin captcha.
+  throttle('jabvox_public_register/ip', limit: 5, period: 30.minutes) do |req|
+    req.ip if req.path_without_extensions == '/public/register' && req.post?
+  end
+
   ##-----------------------------------------------##
 
   ###-----------------------------------------------###

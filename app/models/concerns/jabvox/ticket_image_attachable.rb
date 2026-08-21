@@ -11,6 +11,7 @@ module Jabvox::TicketImageAttachable
   included do
     has_many_attached :attachments
     validate :attachments_are_images
+    validate :attachments_within_account_storage_limit
   end
 
   private
@@ -34,5 +35,20 @@ module Jabvox::TicketImageAttachable
     return if ALLOWED_IMAGE_TYPES.include?(attachment.blob.content_type)
 
     errors.add(:attachments, 'solo se permiten imágenes (PNG, JPG, GIF o WebP)')
+  end
+
+  def attachments_within_account_storage_limit
+    account = storage_account
+    return unless account
+
+    pending_bytes = attachments.select(&:new_record?).sum { |attachment| attachment.blob.byte_size.to_i }
+    return if pending_bytes.zero?
+    return unless account.storage_over_quota?(pending_bytes)
+
+    errors.add(:attachments, 'excede el almacenamiento disponible para esta cuenta')
+  end
+
+  def storage_account
+    respond_to?(:account) ? account : ticket&.account
   end
 end

@@ -14,6 +14,10 @@
 # https://github.com/sidekiq/sidekiq/wiki/Advanced-Options
 # Since queues are declared without waits, the jobs in lower ranking queues will only be processed
 # if there are no jobs in higher ranking queues.
+# Worker PRINCIPAL (mensajes / bandejas / todo lo interactivo).
+# NO incluye `jabvox_export`: esa carga (sincronización masiva de leads y exports
+# externos) la atiende un worker aparte (config/sidekiq_import.yml) para que un
+# lead-import descontrolado no pueda tapar la cola de mensajes entrantes de Meta.
 :queues:
   - critical
   - high
@@ -21,7 +25,6 @@
   - default
   - mailers
   - action_mailbox_routing
-  - jabvox_export
   - low
   - scheduled_jobs
   - deferred

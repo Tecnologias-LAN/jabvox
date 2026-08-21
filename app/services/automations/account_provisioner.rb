@@ -1,9 +1,13 @@
 # Aprovisiona una cuenta con el usuario seleccionado: valida, obtiene el token, lo
 # envía a Automations y persiste el resultado. Compartido por guardar y reaprovisionar.
 class Automations::AccountProvisioner
-  Result = Struct.new(:success, :error, :state, keyword_init: true) do
+  Result = Struct.new(:success, :error, :state, :retryable, keyword_init: true) do
     def success?
       success
+    end
+
+    def retryable?
+      retryable
     end
   end
 
@@ -63,7 +67,8 @@ class Automations::AccountProvisioner
   # "Reaprovisionar" permite reintentar sin volver a elegir.
   def persist_remote_failure(result)
     @config.update!(last_status: 'error', last_error: result.error)
-    Result.new(success: false, error: result.error, state: state_service.recalculate!(remote_result: result))
+    Result.new(success: false, error: result.error, retryable: result.retryable?,
+               state: state_service.recalculate!(remote_result: result))
   end
 
   # Fallo local: no se ha llamado a Automations, así que el estado caerá a pendiente_token.

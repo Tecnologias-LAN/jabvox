@@ -117,19 +117,28 @@ class Webhooks::Jabvox::BillingController < ActionController::API
       JabvoxProvisioningTransaction.find_by(gateway_reference: reference)
   end
 
-  # El monto pagado debe igualar el precio del plan de la transacción. Si el evento no
-  # trae monto, no bloqueamos por esto (la firma + tipo + doble-check ya protegen).
+  # El monto pagado debe igualar el monto de la transacción. Puede incluir extras por
+  # cuenta (agentes, bandejas, storage, etc.), así que se valida contra el monto guardado
+  # en la transacción (no contra el plan base).
+  #
+  # SEGURIDAD: si esperamos un monto y el evento NO lo trae, es un MISMATCH (rechazar).
+  # Antes se dejaba pasar el evento sin monto, lo que permitía aprobar un pago sin validar
+  # el importe. Solo se omite la validación cuando la transacción no tiene monto esperado
+  # (caso degenerado que no debería ocurrir con planes reales).
   def amount_mismatch?(txn, event)
-    return false if event[:amount_cents].nil?
+    expected = txn.amount_cents || txn.jabvox_plan&.price_cents
+    return false if expected.blank? # sin monto esperado no hay nada que comparar
 
-    expected = txn.jabvox_plan&.price_cents || txn.amount_cents
-    expected.present? && event[:amount_cents].to_i != expected.to_i
+    event[:amount_cents].nil? || event[:amount_cents].to_i != expected.to_i
   end
 
-  # Doble verificación con el estado real de la pasarela cuando esté disponible. Si la
-  # consulta devuelve UNKNOWN (no disponible), nos apoyamos en la firma+tipo ya validados.
+  # Doble verificación con el estado real de la pasarela cuando esté disponible. Se
+  # consulta preferentemente por el payment_id del evento (identificador real del pago en
+  # la pasarela); si no viene, se cae a la referencia del link. Si la consulta devuelve
+  # UNKNOWN (no disponible), nos apoyamos en la firma+tipo+monto ya validados.
   def double_check_ok?(txn, event)
-    status = @gateway.fetch_payment_status(txn.gateway_reference.presence || event[:reference])
+    lookup = event[:payment_id].presence || txn.gateway_reference.presence || event[:reference]
+    status = @gateway.fetch_payment_status(lookup)
     return true if status[:status] == 'UNKNOWN'
 
     unless status[:approved]
@@ -161,7 +170,7 @@ class Webhooks::Jabvox::BillingController < ActionController::API
       buyer_email: account&.administrators&.first&.email,
       gateway: gateway.provider,
       idempotency_key: SecureRandom.uuid,
-      amount_cents: plan.price_cents,
+      amount_cents: checkout_amount_cents(account, plan),
       currency: plan.currency,
       status: :payment_pending
     )
@@ -169,7 +178,7 @@ class Webhooks::Jabvox::BillingController < ActionController::API
 
   def create_gateway_checkout(gateway, plan, txn, decoded)
     gateway.create_checkout(
-      amount_cents: plan.price_cents,
+      amount_cents: txn.amount_cents,
       currency: plan.currency,
       reference: txn.idempotency_key,
       metadata: {
@@ -183,10 +192,23 @@ class Webhooks::Jabvox::BillingController < ActionController::API
     {
       account_id: decoded[:account_id],
       account_name: account&.name,
-      plan: { id: plan.id, name: plan.name, price_cents: plan.price_cents, currency: plan.currency },
+      plan: {
+        id: plan.id,
+        name: plan.name,
+        price_cents: plan.price_cents,
+        extra_price_cents: account&.billable_extra_cents.to_i,
+        total_price_cents: checkout_amount_cents(account, plan),
+        currency: plan.currency
+      },
       idempotency_key: SecureRandom.uuid,
       gateway: JabvoxPaymentGatewayConfig.active_gateway&.provider
     }
+  end
+
+  def checkout_amount_cents(account, plan)
+    return plan.price_cents if account.nil?
+
+    account.billable_total_cents
   end
 
   # Autenticación del canal app↔web mediante un secreto compartido en cabecera.

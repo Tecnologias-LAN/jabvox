@@ -43,6 +43,7 @@ class Attachment < ApplicationRecord
   has_one_attached :file
   before_save :set_extension
   validate :acceptable_file
+  validate :within_account_storage_limit, on: :create
   validates :external_url, length: { maximum: Limits::URL_LENGTH_LIMIT }
   enum file_type: { :image => 0, :audio => 1, :video => 2, :file => 3, :location => 4, :fallback => 5, :share => 6, :story_mention => 7,
                     :contact => 8, :ig_reel => 9, :ig_post => 10, :ig_story => 11, :embed => 12 }
@@ -196,6 +197,24 @@ class Attachment < ApplicationRecord
 
     validate_file_size(file.byte_size)
     validate_file_content_type(file.content_type)
+  end
+
+  def within_account_storage_limit
+    return unless account && file.attached?
+    return unless with_attached_file?
+
+    errors.add(:file, 'excede el almacenamiento disponible para esta cuenta') if account.storage_over_quota?(pending_attachment_bytes)
+  end
+
+  def pending_attachment_bytes
+    return file.blob.byte_size unless message
+
+    message.attachments.select(&:new_record?).sum do |attachment|
+      next 0 unless attachment.file.attached?
+      next 0 unless attachment.with_attached_file?
+
+      attachment.file.blob.byte_size.to_i
+    end
   end
 
   def validate_file_content_type(file_content_type)

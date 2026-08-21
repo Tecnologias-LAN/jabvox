@@ -97,11 +97,19 @@ class Jabvox::Billing::Gateways::Bold < Jabvox::Billing::Gateways::Base
     ENV.fetch('BOLD_ENV', config.settings&.dig('env')).to_s == 'sandbox'
   end
 
-  # La llave que firma el webhook. En sandbox es cadena vacía (doc oficial).
+  # La llave que firma el webhook. En sandbox es cadena vacía (doc oficial). En
+  # producción DEBE existir: si faltara, un secreto vacío haría la firma trivialmente
+  # falsificable (cualquiera podría firmar un pago). Por eso levantamos en vez de caer
+  # a '' silenciosamente.
   def webhook_secret
     return '' if sandbox?
 
-    ENV.fetch('BOLD_SECRET_KEY', '')
+    secret = ENV.fetch('BOLD_SECRET_KEY', nil).to_s
+    if secret.blank?
+      raise Jabvox::Billing::Gateways::GatewayError,
+            'BOLD_SECRET_KEY no está configurada: no se puede verificar la firma del webhook'
+    end
+    secret
   end
 
   def checkout_description(metadata)

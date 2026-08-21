@@ -37,6 +37,18 @@
 #  index_jabvox_plans_on_status  (status)
 #
 class JabvoxPlan < ApplicationRecord
+  BILLABLE_RESOURCE_KEYS = %w[
+    agents
+    inboxes
+    forms
+    advanced_flows
+    automation_rules
+    analytics_dashboards
+    ai_documents
+    email_templates
+    storage_gb
+  ].freeze
+
   enum status: { draft: 0, active: 1, in_development: 2 }
   # Periodo de cobro. monthly ≈ 30 días, yearly ≈ 365. La vigencia real la fija
   # duration_days (así se pueden hacer planes a medida sin tocar el enum).
@@ -61,7 +73,7 @@ class JabvoxPlan < ApplicationRecord
       name: name,
       modules: Array(modules).map(&:to_s),
       features: Array(chatwoot_features).map(&:to_s),
-      limits: (limits || {}).symbolize_keys,
+      limits: provisioning_limits.symbolize_keys,
       idempotency_key: idempotency_key,
       base_url: base_url
     }.compact
@@ -69,6 +81,34 @@ class JabvoxPlan < ApplicationRecord
 
   def price
     price_cents.to_i / 100.0
+  end
+
+  def included_limit_for(resource)
+    value_for(resource, suffix: nil)
+  end
+
+  def unit_price_cents_for(resource)
+    value_for(resource, suffix: 'unit_price_cents').to_i
+  end
+
+  def provisioning_limits
+    raw_limits = (limits || {}).to_h.stringify_keys
+    entitlements = raw_limits.each_with_object({}) do |(key, value), memo|
+      memo[key] = value if scalar_number?(value)
+    end
+
+    BILLABLE_RESOURCE_KEYS.each do |resource|
+      included = included_limit_for(resource)
+      next if included.nil?
+
+      entitlements[resource] = included
+      entitlements["#{resource}_included"] ||= included
+
+      unit_price = unit_price_cents_for(resource)
+      entitlements["#{resource}_unit_price_cents"] ||= unit_price if unit_price.positive?
+    end
+
+    entitlements
   end
 
   private
@@ -82,5 +122,29 @@ class JabvoxPlan < ApplicationRecord
     return if duration_days.present? && duration_days.positive?
 
     self.duration_days = yearly? ? 365 : 30
+  end
+
+  def value_for(resource, suffix:)
+    raw_limits = (limits || {}).to_h.stringify_keys
+    resource = resource.to_s
+    direct_key = [resource, suffix].compact.join('_')
+
+    return raw_limits[direct_key].to_i if scalar_number?(raw_limits[direct_key])
+
+    nested = raw_limits[resource]
+    return nested.to_i if suffix.nil? && scalar_number?(nested)
+    return if nested.blank?
+
+    nested_hash = nested.respond_to?(:to_h) ? nested.to_h.stringify_keys : {}
+    nested_key = suffix.presence || 'included'
+    nested_value = nested_hash[nested_key]
+    nested_value.to_i if scalar_number?(nested_value)
+  end
+
+  def scalar_number?(value)
+    return true if value.is_a?(Numeric)
+    return false if value.blank?
+
+    value.to_s.match?(/\A\d+\z/)
   end
 end

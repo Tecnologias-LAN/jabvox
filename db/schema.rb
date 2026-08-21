@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_19_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_20_000002) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1653,6 +1653,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_000002) do
     t.index ["account_id"], name: "index_jabvox_audio_storages_on_account_id"
   end
 
+  create_table "jabvox_billing_configs", force: :cascade do |t|
+    t.integer "unpaid_account_cleanup_days", default: 7, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "jabvox_bulk_whatsapp_batches", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "inbox_id"
@@ -1873,6 +1879,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_000002) do
     t.datetime "updated_at", null: false
     t.datetime "last_synced_calldate"
     t.string "last_synced_cursor"
+    t.index ["account_id"], name: "idx_cdr_configs_configured", where: "((mysql_host)::text <> ''::text)"
     t.index ["account_id"], name: "index_jabvox_cdr_configs_on_account_id", unique: true
     t.index ["default_pipeline_id"], name: "index_jabvox_cdr_configs_on_default_pipeline_id"
   end
@@ -1998,6 +2005,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_000002) do
     t.datetime "provisioned_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "hermes_url"
     t.index ["account_id"], name: "index_jabvox_context_forge_handoffs_on_account_id", unique: true
   end
 
@@ -2608,6 +2616,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_000002) do
     t.boolean "is_sold_jabvox", default: false, null: false
     t.jsonb "custom_fields_jabvox", default: {}, null: false
     t.index ["account_id", "contact_id"], name: "index_jabvox_leads_on_account_id_and_contact_id", unique: true
+    t.index ["account_id", "created_at"], name: "index_jabvox_leads_on_account_id_and_created_at"
     t.index ["account_id", "jabvox_campaign_id"], name: "index_jabvox_leads_on_account_id_and_jabvox_campaign_id"
     t.index ["account_id", "lead_number"], name: "index_jabvox_leads_on_account_id_and_lead_number", unique: true
     t.index ["account_id"], name: "index_jabvox_leads_on_account_id"

@@ -69,6 +69,7 @@ class Account < ApplicationRecord
   include CaptainFeaturable
   include AccountEmailRateLimitable
   include AccountSettingsSchema
+  include Jabvox::AccountBillingEntitlements
 
   DEFAULT_QUERY_SETTING = {
     flag_query_mode: :bit_operator,
@@ -266,9 +267,10 @@ class Account < ApplicationRecord
   has_one_attached :contacts_export
 
   enum :locale, LANGUAGES_CONFIG.map { |key, val| [val[:iso_639_1_code], key] }.to_h, prefix: true
-  enum :status, { active: 0, suspended: 1 }
+  enum :status, { active: 0, suspended: 1, payment_pending: 2 }
 
   scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
+  scope :pending_payment_older_than, ->(days) { payment_pending.where('created_at < ?', days.days.ago) }
 
   before_validation :validate_limit_keys
   after_create_commit :notify_creation
@@ -315,8 +317,8 @@ class Account < ApplicationRecord
 
   def usage_limits
     {
-      agents: JabvoxApp.max_limit.to_i,
-      inboxes: JabvoxApp.max_limit.to_i
+      agents: effective_or_unlimited_limit(:agents),
+      inboxes: effective_or_unlimited_limit(:inboxes)
     }
   end
 
@@ -349,6 +351,11 @@ class Account < ApplicationRecord
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)
+  end
+
+  def effective_or_unlimited_limit(resource)
+    configured = effective_limit_for(resource)
+    configured.positive? ? configured : JabvoxApp.max_limit.to_i
   end
 
   def clear_unread_conversation_counts_cache

@@ -82,7 +82,7 @@ module RequestExceptionHandler
   def render_jabvox_limit_exceeded(exception)
     log_handled_error(exception)
     render json: { error: exception.message, resource: exception.resource, limit: exception.limit },
-           status: :unprocessable_entity
+           status: :payment_required
   end
 
   def log_handled_error(exception)

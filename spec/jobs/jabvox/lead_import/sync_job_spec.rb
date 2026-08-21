@@ -37,10 +37,12 @@ RSpec.describe Jabvox::LeadImport::SyncJob do
 
   describe 'lock anti-duplicado (un solo sync por source a la vez)' do
     it 'omite un segundo sync del mismo source mientras el lock está tomado' do
-      job = described_class.new
-      allow(job).to receive(:acquire_lock).and_return(false) # otro sync ya lo tomó
+      # RedisLock devuelve NOT_ACQUIRED: otro sync ya tiene el lock del source.
+      allow(Jabvox::RedisLock).to receive(:with_lock).and_return(Jabvox::RedisLock::NOT_ACQUIRED)
       expect(Jabvox::LeadImport::SyncService).not_to receive(:new)
-      job.perform(source.id)
+      described_class.new.perform(source.id)
+      # El estado no se toca: no arrancó ningún sync.
+      expect(source.reload.status_jabvox).to eq('ok')
     end
   end
 
@@ -50,14 +52,18 @@ RSpec.describe Jabvox::LeadImport::SyncJob do
       other_source = other.jabvox_lead_sources.create!(
         name_jabvox: 'Otra', host_jabvox: 'db2.example', database_jabvox: 'y', engine_jabvox: 'mariadb'
       )
-      job = described_class.new
-      k1 = job.send(:acquire_lock, "jabvox:lead_import:sync:#{source.id}")
-      k2 = job.send(:acquire_lock, "jabvox:lead_import:sync:#{other_source.id}")
-      # Ambos locks se obtienen: son claves distintas, no se bloquean entre cuentas.
-      expect(k1).to be_truthy
-      expect(k2).to be_truthy
-      job.send(:release_lock, "jabvox:lead_import:sync:#{source.id}")
-      job.send(:release_lock, "jabvox:lead_import:sync:#{other_source.id}")
+      keys = []
+      allow(Jabvox::RedisLock).to receive(:with_lock) do |key, **|
+        keys << key
+        nil
+      end
+      described_class.new.perform(source.id)
+      described_class.new.perform(other_source.id)
+      # Claves distintas por source: una cuenta no puede bloquear el sync de otra.
+      expect(keys).to contain_exactly(
+        "jabvox:lead_import:sync:#{source.id}",
+        "jabvox:lead_import:sync:#{other_source.id}"
+      )
     end
   end
 end

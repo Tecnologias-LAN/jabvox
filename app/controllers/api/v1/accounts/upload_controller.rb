@@ -15,11 +15,15 @@ class Api::V1::Accounts::UploadController < Api::V1::Accounts::BaseController
 
   def create_from_file
     attachment = params[:attachment]
+    return render_error('La cuenta no tiene almacenamiento disponible para este archivo', :payment_required) if storage_quota_exceeded?(attachment.size)
+
     create_and_save_blob(attachment.tempfile, attachment.original_filename, attachment.content_type)
   end
 
   def create_from_url
     SafeFetch.fetch(params[:external_url].to_s) do |result|
+      return render_error('La cuenta no tiene almacenamiento disponible para este archivo', :payment_required) if storage_quota_exceeded?(result.tempfile.size)
+
       create_and_save_blob(result.tempfile, result.filename, result.content_type)
     end
   rescue SafeFetch::HttpError => e
@@ -50,5 +54,9 @@ class Api::V1::Accounts::UploadController < Api::V1::Accounts::BaseController
 
   def render_error(message, status)
     render json: { error: message }, status: status
+  end
+
+  def storage_quota_exceeded?(byte_size)
+    Current.account.storage_over_quota?(byte_size.to_i)
   end
 end

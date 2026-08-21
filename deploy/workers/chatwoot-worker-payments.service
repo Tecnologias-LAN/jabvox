@@ -1,0 +1,19 @@
+[Unit]
+Description=Chatwoot Sidekiq Worker - Payments (jabvox_payments queue)
+After=network.target
+
+[Service]
+Type=simple
+User=jabvox
+WorkingDirectory=/home/jabvox/jabvox
+Environment=RAILS_ENV=production
+Environment=PATH=/home/jabvox/.rbenv/shims:/home/jabvox/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/jabvox/.rbenv/shims/bundle exec sidekiq -C config/sidekiq_payments.yml
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chatwoot-worker-payments
+
+[Install]
+WantedBy=multi-user.target
