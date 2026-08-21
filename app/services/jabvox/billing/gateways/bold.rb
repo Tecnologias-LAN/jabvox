@@ -11,8 +11,10 @@ require 'net/http'
 #
 # TODO se administra desde el Super Admin (JabvoxPaymentGatewayConfig); ya NO hay
 # secretos en variables de entorno. Los secretos van CIFRADOS en reposo:
-#   api_key      - llave privada de identidad para la API (header x-api-key). Cifrada.
-#   secret_key   - llave que firma los webhooks (vacía/ignorada en sandbox). Cifrada.
+#   api_key      - LLAVE DE IDENTIDAD: autentica la API de Payment Links (header
+#                  x-api-key). Cifrada.
+#   secret_key   - LLAVE SECRETA: solo verifica la firma de los webhooks (vacía/ignorada
+#                  en sandbox). Cifrada.
 #   public_token - llave PÚBLICA para el botón de checkout en la web.
 #   checkout_base_url - base del checkout de Bold.
 #   sandbox      - modo pruebas (booleano). En sandbox el secreto de firma es cadena vacía.
@@ -123,14 +125,14 @@ class Jabvox::Billing::Gateways::Bold < Jabvox::Billing::Gateways::Base
     currency.to_s.upcase == 'USD' ? (amount_cents / 100.0) : (amount_cents / 100)
   end
 
-  # La API de Payment Links de Bold se autentica con la LLAVE SECRETA en el header
-  # `Authorization: x-api-key {secret_key}` (NO con la llave de identidad, que es solo
-  # para el botón/checkout embebido en el frontend). Usar la de identidad da 403.
+  # La API de Payment Links de Bold se autentica con la LLAVE DE IDENTIDAD en el header
+  # `Authorization: x-api-key {api_key}`. (La llave secreta es SOLO para verificar la
+  # firma de los webhooks; usarla aquí da 403 "not authorized").
   def auth_header
-    key = config.secret_key.to_s
+    key = config.api_key.to_s
     if key.blank?
       raise Jabvox::Billing::Gateways::GatewayError,
-            'La llave secreta (secret_key) de Bold no está configurada en el Super Admin'
+            'La llave de identidad (api_key) de Bold no está configurada en el Super Admin'
     end
     "x-api-key #{key}"
   end
@@ -163,7 +165,12 @@ class Jabvox::Billing::Gateways::Bold < Jabvox::Billing::Gateways::Base
                                               open_timeout: 10, read_timeout: 20) do |http|
       http.request(req)
     end
-    raise Jabvox::Billing::Gateways::GatewayError, "Bold respondió #{res.code}" unless res.is_a?(Net::HTTPSuccess)
+    unless res.is_a?(Net::HTTPSuccess)
+      # Incluimos el cuerpo (mensaje de error de Bold) para poder diagnosticar; se
+      # trunca por si viniera muy largo. NUNCA registra la llave (va solo en el header).
+      raise Jabvox::Billing::Gateways::GatewayError,
+            "Bold respondió #{res.code} en #{uri.path}: #{res.body.to_s.truncate(500)}"
+    end
 
     JSON.parse(res.body.presence || '{}')
   rescue JSON::ParserError => e
