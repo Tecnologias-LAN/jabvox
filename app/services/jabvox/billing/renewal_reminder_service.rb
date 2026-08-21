@@ -7,8 +7,8 @@
 #
 # Pensado para correr a diario (cron). Idempotente por día: no reenvía si ya se avisó hoy.
 class Jabvox::Billing::RenewalReminderService
-  # Días antes del vencimiento en que se avisa.
-  REMINDER_DAYS = [7, 3, 1].freeze
+  # Días antes del vencimiento en que se avisa por correo (el pop-up in-app cubre 2 y 1).
+  REMINDER_DAYS = [7, 3, 2, 1].freeze
 
   def call(now: Time.current)
     accounts_due(now).find_each do |account|
@@ -46,8 +46,12 @@ class Jabvox::Billing::RenewalReminderService
     account.internal_attributes['renewal_reminder_sent_on'] == now.to_date.iso8601
   end
 
+  # Marca el aviso de hoy con un row-lock + reload dentro de la transacción, para no pisar
+  # otros cambios concurrentes sobre internal_attributes (jsonb compartido).
   def mark_reminded!(account, now)
-    attrs = account.internal_attributes.merge('renewal_reminder_sent_on' => now.to_date.iso8601)
-    account.update_column(:internal_attributes, attrs) # rubocop:disable Rails/SkipsModelValidations
+    account.with_lock do
+      attrs = account.internal_attributes.to_h.merge('renewal_reminder_sent_on' => now.to_date.iso8601)
+      account.update_column(:internal_attributes, attrs) # rubocop:disable Rails/SkipsModelValidations
+    end
   end
 end

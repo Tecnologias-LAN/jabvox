@@ -20,13 +20,19 @@ class JabvoxProvisioningTransactionDashboard < Administrate::BaseDashboard
     payment_approved_at: Field::DateTime,
     provisioned_at: Field::DateTime,
     created_at: Field::DateTime,
-    updated_at: Field::DateTime
+    updated_at: Field::DateTime,
+    # Campos derivados (solo lectura) para ver de un vistazo en el panel.
+    plan_name: Field::String.with_options(searchable: false),
+    payment_label: Field::String.with_options(searchable: false),
+    sandbox: Field::Boolean
   }.freeze
 
   COLLECTION_ATTRIBUTES = %i[
     id
     buyer_email
-    gateway
+    plan_name
+    payment_label
+    sandbox
     status
     created_at
   ].freeze
@@ -35,6 +41,9 @@ class JabvoxProvisioningTransactionDashboard < Administrate::BaseDashboard
     id
     account
     jabvox_plan
+    plan_name
+    payment_label
+    sandbox
     buyer_email
     gateway
     gateway_reference

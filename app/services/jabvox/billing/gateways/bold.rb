@@ -59,27 +59,43 @@ class Jabvox::Billing::Gateways::Bold < Jabvox::Billing::Gateways::Base
     secure_compare(expected, received)
   end
 
-  # Consulta el ESTADO REAL del pago a la API de Bold (doble validación, además de la
-  # firma): GET /v1/payment/{reference}. Nunca confía solo en el payload del webhook.
+  # Consulta el ESTADO REAL del pago vía el "servicio de fallback" del webhook de Bold
+  # (doc oficial). Es la red de seguridad ante la ausencia de webhook:
+  #   GET /payments/webhook/notifications/{ref}?is_external_reference=true
+  #   Authorization: x-api-key {llave_de_identidad}
+  # Buscamos por REFERENCIA EXTERNA (nuestra idempotency_key/gateway_reference), así no
+  # necesitamos el payment_id de Bold. La respuesta es { notifications: [ {type, data} ] }
+  # con el mismo formato del webhook. Devuelve UNKNOWN ante cualquier fallo (el caller se
+  # apoya entonces en la firma del webhook). NOTA: Bold pide no usarlo como fuente
+  # principal (solo respaldo) para no bloquear la integración por exceso de consultas.
   def fetch_payment_status(reference)
-    data = get_json("#{API_BASE}/v1/payment/#{reference}")
-    payload = data['payload'] || data
-    status = payload['status'].to_s.upcase
+    return unknown_status(reference) if reference.blank?
+
+    # URL-encode la referencia (aunque siempre es un UUID nuestro) para no permitir
+    # inyección de path/query en la llamada a la pasarela.
+    encoded = CGI.escape(reference.to_s)
+    data = get_json("#{API_BASE}/payments/webhook/notifications/#{encoded}?is_external_reference=true")
+    notification = Array(data['notifications']).first
+    return unknown_status(reference) if notification.nil?
+
+    type = notification['type'].to_s.upcase
     {
-      approved: %w[APPROVED SALE_APPROVED].include?(status),
-      status: status,
+      approved: APPROVED_TYPES.include?(type),
+      status: type.presence || 'UNKNOWN',
       reference: reference,
-      amount_cents: extract_amount_cents(payload)
+      amount_cents: extract_amount_cents(notification['data'] || {})
     }
   rescue Jabvox::Billing::Gateways::GatewayError => e
-    # Si la consulta no está disponible, devolvemos indeterminado; la decisión final la
-    # toma quien llama combinándolo con la firma verificada del webhook.
     Rails.logger.warn("[Bold] no se pudo consultar estado de #{reference}: #{e.message}")
+    unknown_status(reference)
+  end
+
+  def unknown_status(reference)
     { approved: false, status: 'UNKNOWN', reference: reference, amount_cents: nil }
   end
 
   # Interpreta el TIPO del evento del webhook ya verificado por firma.
-  #   { approved:, status:, reference:, amount_cents: }
+  #   { approved:, status:, reference:, amount_cents:, payment_method: }
   def parse_webhook_event(payload)
     data = payload['data'] || {}
     type = payload['type'].to_s.upcase
@@ -89,8 +105,21 @@ class Jabvox::Billing::Gateways::Bold < Jabvox::Billing::Gateways::Base
       status: type,
       reference: data.dig('metadata', 'reference') || data['reference'],
       payment_id: data['payment_id'],
-      amount_cents: extract_amount_cents(data)
+      amount_cents: extract_amount_cents(data),
+      payment_method: describe_payment_method(data)
     }
+  end
+
+  # Descripción legible del medio de pago para mostrar en el panel/recibo, p.ej.
+  # "VISA ****0019" o "CARD". No guarda el PAN completo (solo el enmascarado de Bold).
+  def describe_payment_method(data)
+    card = data['card'] || {}
+    brand = card['brand'].presence
+    masked = card['masked_pan'].to_s[-4..]
+    return "#{brand} ****#{masked}" if brand && masked
+    return brand if brand
+
+    data['payment_method'].presence
   end
 
   private

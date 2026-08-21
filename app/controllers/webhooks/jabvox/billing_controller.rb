@@ -97,7 +97,8 @@ class Webhooks::Jabvox::BillingController < ActionController::API
     txn = find_transaction(event[:reference])
     return if txn.nil? || txn.already_provisioned?
 
-    txn.update!(payload: safe_payload(event))
+    # Merge (no sobrescribir): preserva flags previos del payload como 'sandbox'.
+    txn.update!(payload: txn.payload.to_h.merge(safe_payload(event)))
     approve_or_reject(txn, event)
   end
 
@@ -133,11 +134,11 @@ class Webhooks::Jabvox::BillingController < ActionController::API
   end
 
   # Doble verificación con el estado real de la pasarela cuando esté disponible. Se
-  # consulta preferentemente por el payment_id del evento (identificador real del pago en
-  # la pasarela); si no viene, se cae a la referencia del link. Si la consulta devuelve
-  # UNKNOWN (no disponible), nos apoyamos en la firma+tipo+monto ya validados.
+  # consulta el servicio de fallback de Bold por la REFERENCIA EXTERNA (nuestra
+  # gateway_reference). Si la consulta devuelve UNKNOWN (no disponible), nos apoyamos en la
+  # firma+tipo+monto ya validados.
   def double_check_ok?(txn, event)
-    lookup = event[:payment_id].presence || txn.gateway_reference.presence || event[:reference]
+    lookup = txn.gateway_reference.presence || event[:reference]
     status = @gateway.fetch_payment_status(lookup)
     return true if status[:status] == 'UNKNOWN'
 
@@ -148,9 +149,15 @@ class Webhooks::Jabvox::BillingController < ActionController::API
     true
   end
 
-  # Solo datos NO sensibles en la transacción (nunca tokens/tarjetas/PII cruda).
+  # Solo datos NO sensibles en la transacción (nunca tokens/tarjetas/PII cruda). Incluye
+  # el medio de pago legible (p.ej. "VISA ****0019") para mostrarlo en el panel/recibo.
   def safe_payload(event)
-    { last_status: event[:status], payment_id: event[:payment_id], checked_at: Time.current.iso8601 }.compact
+    {
+      last_status: event[:status],
+      payment_id: event[:payment_id],
+      payment_method: event[:payment_method],
+      checked_at: Time.current.iso8601
+    }.compact
   end
 
   # Crea la transacción pendiente, pide la URL a la pasarela y devuelve el payload JSON.

@@ -18,6 +18,7 @@
 #  jabvox_ai_chat_provisioning_enabled_jabvox :boolean          default(FALSE), not null
 #  jabvox_analytics_enabled_jabvox            :boolean          default(FALSE), not null
 #  jabvox_audio_analysis_enabled_jabvox       :boolean          default(FALSE), not null
+#  jabvox_auto_renew                          :boolean          default(FALSE), not null
 #  jabvox_bulk_whatsapp_enabled_jabvox        :boolean          default(FALSE), not null
 #  jabvox_calendar_enabled_jabvox             :boolean          default(FALSE), not null
 #  jabvox_cdr_enabled_jabvox                  :boolean          default(FALSE), not null

@@ -83,6 +83,17 @@ class JabvoxPlan < ApplicationRecord
     price_cents.to_i / 100.0
   end
 
+  # Precio en la unidad principal (pesos/dólares), para ingresar y mostrar en el panel
+  # sin pensar en centavos. Getter y setter mantienen price_cents en sincronía.
+  #   price_in_pesos = 50000  => price_cents = 5_000_000 => cobra $50.000 COP.
+  def price_in_pesos
+    price_cents.to_i / 100
+  end
+
+  def price_in_pesos=(value)
+    self.price_cents = (value.to_f * 100).round
+  end
+
   def included_limit_for(resource)
     value_for(resource, suffix: nil)
   end

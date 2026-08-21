@@ -9,6 +9,9 @@ class JabvoxPlanDashboard < Administrate::BaseDashboard
     id: Field::Number,
     name: Field::String,
     slug: Field::String,
+    # Precio en pesos/dólares (unidad principal). Evita confundirse con centavos: si
+    # pones 50000 aquí, cobra $50.000. El modelo lo convierte a price_cents.
+    price_in_pesos: Field::Number.with_options(searchable: false),
     price_cents: Field::Number,
     currency: Field::String,
     duration_days: Field::Number,
@@ -26,7 +29,7 @@ class JabvoxPlanDashboard < Administrate::BaseDashboard
   COLLECTION_ATTRIBUTES = %i[
     id
     name
-    price_cents
+    price_in_pesos
     duration_days
     billing_period
     status
@@ -36,6 +39,7 @@ class JabvoxPlanDashboard < Administrate::BaseDashboard
     id
     name
     slug
+    price_in_pesos
     price_cents
     currency
     duration_days
@@ -53,7 +57,7 @@ class JabvoxPlanDashboard < Administrate::BaseDashboard
   FORM_ATTRIBUTES = %i[
     name
     slug
-    price_cents
+    price_in_pesos
     currency
     duration_days
     billing_period

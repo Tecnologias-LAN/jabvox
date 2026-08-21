@@ -457,6 +457,8 @@ Rails.application.routes.draw do
             namespace :billing do
               resource :checkout, only: [:create], controller: 'checkouts'
               resource :status, only: [:show], controller: 'status'
+              # Historial de pagos de la cuenta (medio, monto, fecha, estado).
+              resources :payments, only: [:index], controller: 'payments'
             end
             # Fecha en que se aplicó una etiqueta (para automatizaciones que la retiran
             # tras cierto tiempo). No lo ofrece la API estándar de Chatwoot.
@@ -1279,6 +1281,7 @@ Rails.application.routes.draw do
       resource :jabvox_billing_config, only: [:edit, :update]
       resources :jabvox_provisioning_transactions, only: [:index, :show] do
         post :retry_provisioning, on: :member
+        post :mark_paid_manually, on: :member
       end
       # Softphone WebRTC: configuración por cuenta + extensiones ligadas a usuarios.
       resources :jabvox_softphone_configs

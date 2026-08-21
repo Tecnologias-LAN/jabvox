@@ -26,6 +26,9 @@ export default {
       error: null,
       // Deep-link desde jabvox.com: ?plan=slug preselecciona/resalta ese plan.
       preselectedSlug: new URLSearchParams(window.location.search).get('plan'),
+      // Sondeo del estado de pago: al volver del checkout, el backend verifica el pago
+      // contra la pasarela y activa la cuenta; aquí lo detectamos y quitamos el modal.
+      statusPollTimer: null,
     };
   },
   computed: {
@@ -78,11 +81,17 @@ export default {
     requiresPayment: {
       immediate: true,
       handler(needsPayment) {
-        if (needsPayment && this.isAdmin && this.plans.length === 0) {
-          this.fetchPlans();
+        if (needsPayment) {
+          if (this.isAdmin && this.plans.length === 0) this.fetchPlans();
+          this.startStatusPolling();
+        } else {
+          this.stopStatusPolling();
         }
       },
     },
+  },
+  beforeUnmount() {
+    this.stopStatusPolling();
   },
   methods: {
     async fetchPlans() {
@@ -119,6 +128,29 @@ export default {
       } catch (e) {
         this.error = this.$t('JABVOX_BILLING.MODAL.CHECKOUT_ERROR');
         this.checkoutPlanId = null;
+      }
+    },
+    // Sondea el estado de pago cada 5s. El GET de status hace que el backend verifique
+    // el pago contra la pasarela y active la cuenta; al detectar que ya no requiere pago,
+    // recargamos la cuenta y el modal desaparece.
+    startStatusPolling() {
+      if (this.statusPollTimer) return;
+      this.statusPollTimer = window.setInterval(async () => {
+        try {
+          const { data } = await BillingAPI.getStatus();
+          if (data && data.requires_payment === false) {
+            await this.$store.dispatch('accounts/get');
+            this.stopStatusPolling();
+          }
+        } catch (e) {
+          // silencioso: reintenta en el siguiente tick
+        }
+      }, 5000);
+    },
+    stopStatusPolling() {
+      if (this.statusPollTimer) {
+        window.clearInterval(this.statusPollTimer);
+        this.statusPollTimer = null;
       }
     },
     logout() {

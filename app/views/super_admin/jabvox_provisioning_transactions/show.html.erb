@@ -7,6 +7,18 @@
   </h1>
 
   <div>
+    <%# Aprobar manualmente: SOLO para transacciones de PRUEBA (sandbox) que aún no están
+        pagadas. En producción NO se permite (el pago real lo confirma la pasarela). %>
+    <% if page.resource.sandbox? && !page.resource.paid? %>
+      <%= link_to(
+        "Aprobar pago (PRUEBA) y aprovisionar",
+        mark_paid_manually_super_admin_jabvox_provisioning_transaction_path(page.resource),
+        class: "button",
+        method: :post,
+        data: { confirm: "Esta es una transacción de PRUEBA (sandbox). ¿Aprobarla manualmente y activar la cuenta?" }
+      ) %>
+    <% end %>
+
     <% if page.resource.retriable? %>
       <%= link_to(
         "Reintentar aprovisionamiento",

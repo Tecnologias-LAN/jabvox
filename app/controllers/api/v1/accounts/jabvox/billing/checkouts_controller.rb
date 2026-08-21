@@ -65,7 +65,9 @@ class Api::V1::Accounts::Jabvox::Billing::CheckoutsController < Api::V1::Account
       idempotency_key: SecureRandom.uuid,
       amount_cents: @plan.price_cents,
       currency: @plan.currency,
-      status: :payment_pending
+      status: :payment_pending,
+      # Marca si es una transacción de PRUEBA (pasarela en sandbox), para verlo en el panel.
+      payload: { 'sandbox' => @gateway.config.sandbox? }
     )
 
     checkout = @gateway.create_checkout(
@@ -78,6 +80,8 @@ class Api::V1::Accounts::Jabvox::Billing::CheckoutsController < Api::V1::Account
         callback_url: success_callback_url
       }
     )
+    # gateway_reference = nuestra referencia externa: la usa tanto el webhook como el
+    # servicio de fallback de Bold para localizar el pago (is_external_reference=true).
     txn.update!(gateway_reference: checkout[:reference])
     { checkout_url: checkout[:checkout_url], idempotency_key: txn.idempotency_key }
   end

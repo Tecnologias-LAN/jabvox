@@ -104,4 +104,32 @@ class JabvoxProvisioningTransaction < ApplicationRecord
   def retriable?
     payment_approved? || provisioning_failed?
   end
+
+  # ¿El pago está confirmado? (aprobado o ya aprovisionado). Para el panel Super Admin.
+  def paid?
+    payment_approved? || provisioning? || provisioned?
+  end
+
+  # ¿Es una transacción de PRUEBA (sandbox)? Se marca en el payload al crear el checkout.
+  def sandbox?
+    ActiveModel::Type::Boolean.new.cast(payload.to_h['sandbox'])
+  end
+
+  # Nombre del plan (o "—") para el panel Super Admin.
+  def plan_name
+    jabvox_plan&.name || '—'
+  end
+
+  # Etiqueta legible de pago para el panel: "Pagado", "Rechazado", "Pendiente".
+  def payment_label
+    return 'Pagado' if paid?
+    return 'Rechazado' if payment_rejected_invalid? || payment_rejected_other?
+
+    'Pendiente'
+  end
+
+  # Medio de pago legible (p.ej. "VISA ****0019"), capturado del webhook. "—" si no hay.
+  def payment_method
+    payload.to_h['payment_method'].presence || '—'
+  end
 end

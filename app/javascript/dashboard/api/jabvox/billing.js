@@ -16,6 +16,10 @@ class JabvoxBillingAPI extends ApiClient {
   createCheckout(planId) {
     return axios.post(`${this.url}/checkout`, { plan_id: planId });
   }
+
+  getPayments() {
+    return axios.get(`${this.url}/payments`);
+  }
 }
 
 export default new JabvoxBillingAPI();

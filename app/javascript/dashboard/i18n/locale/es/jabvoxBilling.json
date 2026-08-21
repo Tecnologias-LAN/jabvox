@@ -15,6 +15,15 @@
       "CONTACT_ADMIN": "Tu cuenta requiere un pago para activarse. Contacta al administrador de tu cuenta para completar el proceso.",
       "SWITCH_ACCOUNT": "¿Tienes otra cuenta? Cambia a:",
       "LOGOUT": "Cerrar sesión"
+    },
+    "RENEWAL": {
+      "TITLE": "Tu plan está por vencer",
+      "EXPIRES_TODAY": "Tu plan vence hoy. Renueva para no perder el acceso.",
+      "EXPIRES_TOMORROW": "Tu plan vence mañana. Renueva para no perder el acceso.",
+      "EXPIRES_IN_DAYS": "Tu plan vence en {days} días. Renueva para no perder el acceso.",
+      "CURRENT_PLAN": "Plan actual",
+      "RENEW_NOW": "Renovar ahora",
+      "LATER": "Más tarde"
     }
   }
 }
