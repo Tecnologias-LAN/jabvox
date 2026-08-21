@@ -80,11 +80,11 @@ const jabvoxLogoUrl = '/jabvox/public/logo.png';
   font-size: 2.75rem;
   font-weight: 300;
   line-height: 1.25;
-  color: #24292d;
+  color: #24292d !important;
   font-family: 'Comfortaa', sans-serif;
 }
 .jabvox-left-title span {
-  color: #15605a;
+  color: #15605a !important;
 }
 .jabvox-right {
   flex: 1;
@@ -109,17 +109,19 @@ const jabvoxLogoUrl = '/jabvox/public/logo.png';
   margin: 0 auto 1.5rem;
 }
 .jabvox-form-title {
-  font-size: 1.4rem;
-  font-weight: 300;
-  color: #15605a;
-  margin-bottom: 0.25rem;
+  font-size: 1.5rem !important;
+  font-weight: 300 !important;
+  color: #15605a !important;
+  margin: 0 0 0.35rem !important;
   text-align: center;
+  line-height: 1.2;
 }
 .jabvox-form-subtitle {
-  font-size: 0.8rem;
-  color: #40b5b4;
-  margin-bottom: 1.75rem;
+  font-size: 0.85rem !important;
+  color: #40b5b4 !important;
+  margin: 0 0 1.75rem !important;
   text-align: center;
+  line-height: 1.4;
 }
 .jabvox-forgot {
   text-align: center;
