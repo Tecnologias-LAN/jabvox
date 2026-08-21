@@ -11,12 +11,12 @@
     },
     "COMPANY_NAME": {
       "LABEL": "Nombre de la empresa",
-      "PLACEHOLDER": "Introduce el nombre de tu empresa, por ejemplo: Wayne Enterprises",
-      "ERROR": "El nombre de la cuenta es demasiado corto"
+      "PLACEHOLDER": "Ej: Mi Empresa S.A.S.",
+      "ERROR": "El nombre de la empresa es demasiado corto"
     },
     "FULL_NAME": {
       "LABEL": "Nombre completo",
-      "PLACEHOLDER": "Introduce tu nombre completo, por ejemplo: Bruce Wayne",
+      "PLACEHOLDER": "Ej: Juan Pérez",
       "ERROR": "El nombre completo es demasiado corto"
     },
     "EMAIL": {

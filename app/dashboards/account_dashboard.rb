@@ -30,6 +30,8 @@ class AccountDashboard < Administrate::BaseDashboard
     name: Field::String.with_options(searchable: true),
     created_at: Field::DateTime,
     updated_at: Field::DateTime,
+    # Días transcurridos desde la creación (solo lectura; calculado en el modelo).
+    days_since_creation: Field::Number.with_options(searchable: false),
     users: CountField,
     conversations: CountField,
     locale: Field::Select.with_options(collection: LANGUAGES_CONFIG.map { |_x, y| y[:iso_639_1_code] }),
@@ -57,6 +59,7 @@ class AccountDashboard < Administrate::BaseDashboard
     users
     conversations
     status
+    days_since_creation
   ].freeze
 
   # SHOW_PAGE_ATTRIBUTES
@@ -75,6 +78,7 @@ class AccountDashboard < Administrate::BaseDashboard
     name
     created_at
     updated_at
+    days_since_creation
     locale
     status
     suspension_history

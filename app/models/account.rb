@@ -281,6 +281,15 @@ class Account < ApplicationRecord
     users.where(account_users: { role: :agent })
   end
 
+  # Días transcurridos desde que se creó la cuenta (para el panel Super Admin).
+  # Útil para ver de un vistazo cuánto lleva una cuenta, sobre todo las pendientes
+  # de pago que el cron limpia tras el periodo de gracia.
+  def days_since_creation
+    return nil if created_at.blank?
+
+    ((Time.current - created_at) / 1.day).floor
+  end
+
   def administrators
     users.where(account_users: { role: :administrator })
   end

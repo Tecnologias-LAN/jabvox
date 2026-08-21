@@ -24,7 +24,11 @@ const hCaptcha = ref(null);
 const isPasswordFocused = ref(false);
 const isSignupInProgress = ref(false);
 
+const MIN_NAME_LENGTH = 2;
+
 const credentials = reactive({
+  fullName: '',
+  accountName: '',
   email: '',
   password: '',
   hCaptchaClientResponse: '',
@@ -32,6 +36,14 @@ const credentials = reactive({
 
 const rules = {
   credentials: {
+    fullName: {
+      required,
+      minLength: minLength(MIN_NAME_LENGTH),
+    },
+    accountName: {
+      required,
+      minLength: minLength(MIN_NAME_LENGTH),
+    },
     email: {
       required,
       email,
@@ -116,6 +128,28 @@ const onCaptchaError = () => {
 <template>
   <div class="flex-1">
     <form class="space-y-3" @submit.prevent="submit">
+      <FormInput
+        v-model="credentials.fullName"
+        type="text"
+        name="full_name"
+        :class="{ error: v$.credentials.fullName.$error }"
+        :label="$t('REGISTER.FULL_NAME.LABEL')"
+        :placeholder="$t('REGISTER.FULL_NAME.PLACEHOLDER')"
+        :has-error="v$.credentials.fullName.$error"
+        :error-message="$t('REGISTER.FULL_NAME.ERROR')"
+        @blur="v$.credentials.fullName.$touch"
+      />
+      <FormInput
+        v-model="credentials.accountName"
+        type="text"
+        name="account_name"
+        :class="{ error: v$.credentials.accountName.$error }"
+        :label="$t('REGISTER.COMPANY_NAME.LABEL')"
+        :placeholder="$t('REGISTER.COMPANY_NAME.PLACEHOLDER')"
+        :has-error="v$.credentials.accountName.$error"
+        :error-message="$t('REGISTER.COMPANY_NAME.ERROR')"
+        @blur="v$.credentials.accountName.$touch"
+      />
       <FormInput
         v-model="credentials.email"
         type="email"
