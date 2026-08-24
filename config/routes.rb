@@ -1279,6 +1279,8 @@ Rails.application.routes.draw do
         get :health, on: :collection
       end
       # Administración central de instancias Hermes por cuenta (todo vía el Provisionador).
+      # OJO: es un panel custom, NO un recurso Administrate. Debe estar en `hidden_resources`
+      # del nav (_navigation.html.erb) para que Administrate no le exija un Dashboard.
       resources :hermes_instances, only: [:index], param: :account_id do
         collection do
           post :connect_provisioner   # conectar el Hermes Aprovisionador global
