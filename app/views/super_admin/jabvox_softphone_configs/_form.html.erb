@@ -2,140 +2,130 @@
     1) Cuenta y servidor  2) Codecs y DTMF  3) Comportamiento  4) STUN/TURN %>
 <% config = local_assigns[:config] || (defined?(page) ? page.resource : nil) %>
 
-<style>
-  .sp-wizard { max-width: 720px; }
-  .sp-steps { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
-  .sp-step-pill { flex:1; min-width:120px; text-align:center; padding:8px 6px; border-radius:8px;
-    background:#f1f5f9; color:#64748b; font-size:12px; font-weight:600; cursor:pointer; border:1px solid transparent; }
-  .sp-step-pill.active { background:#0f766e; color:#fff; }
-  .sp-step-pill.done { background:#ccfbf1; color:#0f766e; }
-  .sp-panel { display:none; }
-  .sp-panel.active { display:block; }
-  .sp-field { margin-bottom:16px; }
-  .sp-label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:4px; }
-  .sp-help { font-size:12px; color:#6b7280; margin:0 0 6px; }
-  .sp-input { width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; box-sizing:border-box; }
-  .sp-row { display:flex; flex-wrap:wrap; gap:16px; }
-  .sp-row > .sp-field { flex:1; min-width:200px; }
-  .sp-check { display:flex; align-items:center; gap:8px; font-size:14px; color:#374151; }
-  .sp-nav { display:flex; justify-content:space-between; gap:8px; margin-top:20px; }
-  .sp-btn { padding:9px 18px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; border:1px solid #d1d5db; background:#fff; color:#374151; }
-  .sp-btn-primary { background:#0f766e; color:#fff; border-color:#0f766e; }
-  @media (max-width:640px){ .sp-step-pill{min-width:80px;font-size:11px;} }
-</style>
-
-<%= form_with model: [:super_admin, config], local: true, html: { class: 'sp-wizard', id: 'sp-form' } do |f| %>
+<%= form_with model: [:super_admin, config], local: true, html: { class: 'max-w-3xl mx-auto w-full', id: 'sp-form' } do |f| %>
   <% if config.errors.any? %>
-    <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:12px;margin-bottom:16px;">
-      <ul style="margin:0;padding-left:16px;">
+    <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+      <ul class="m-0 pl-4 list-disc">
         <% config.errors.full_messages.each do |msg| %>
-          <li style="color:#b91c1c;font-size:14px;"><%= msg %></li>
+          <li class="text-red-700 text-sm"><%= msg %></li>
         <% end %>
       </ul>
     </div>
   <% end %>
 
-  <div class="sp-steps">
-    <div class="sp-step-pill active" data-step="0">1 · Servidor</div>
-    <div class="sp-step-pill" data-step="1">2 · Codecs y DTMF</div>
-    <div class="sp-step-pill" data-step="2">3 · Comportamiento</div>
-    <div class="sp-step-pill" data-step="3">4 · STUN / TURN</div>
+  <div class="flex flex-wrap gap-2 mb-6">
+    <div class="sp-step-pill flex-1 min-w-[100px] text-center px-2 py-2 rounded-lg bg-slate-100 text-slate-500 text-xs font-semibold cursor-pointer border border-transparent transition-colors sm:text-sm active-step" data-step="0">1 · Servidor</div>
+    <div class="sp-step-pill flex-1 min-w-[100px] text-center px-2 py-2 rounded-lg bg-slate-100 text-slate-500 text-xs font-semibold cursor-pointer border border-transparent transition-colors sm:text-sm" data-step="1">2 · Codecs y DTMF</div>
+    <div class="sp-step-pill flex-1 min-w-[100px] text-center px-2 py-2 rounded-lg bg-slate-100 text-slate-500 text-xs font-semibold cursor-pointer border border-transparent transition-colors sm:text-sm" data-step="2">3 · Comportamiento</div>
+    <div class="sp-step-pill flex-1 min-w-[100px] text-center px-2 py-2 rounded-lg bg-slate-100 text-slate-500 text-xs font-semibold cursor-pointer border border-transparent transition-colors sm:text-sm" data-step="3">4 · STUN / TURN</div>
   </div>
 
   <!-- Paso 1: Cuenta y servidor -->
-  <div class="sp-panel active" data-panel="0">
-    <div class="sp-field">
-      <%= f.label :account_id, 'Cuenta', class: 'sp-label' %>
-      <p class="sp-help">La cuenta a la que aplica esta configuración de softphone.</p>
+  <div class="sp-panel block" data-panel="0">
+    <div class="mb-4">
+      <%= f.label :account_id, 'Cuenta', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+      <p class="text-xs text-gray-500 mb-2">La cuenta a la que aplica esta configuración de softphone.</p>
       <%= f.collection_select :account_id, Account.order(:name), :id, :name,
-          { prompt: 'Selecciona una cuenta' }, class: 'sp-input' %>
+          { prompt: 'Selecciona una cuenta' }, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500' %>
     </div>
-    <div class="sp-field">
-      <label class="sp-check"><%= f.check_box :enabled %> Softphone habilitado para la cuenta</label>
+    <div class="mb-4">
+      <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+        <%= f.check_box :enabled, class: 'rounded text-blue-600 focus:ring-blue-500' %> Softphone habilitado para la cuenta
+      </label>
     </div>
-    <div class="sp-row">
-      <div class="sp-field">
-        <%= f.label :wss_url, 'URL del servidor (WSS)', class: 'sp-label' %>
-        <p class="sp-help">WebSocket seguro del PBX. Ej: wss://pbx.jabvox.com:8089/ws</p>
-        <%= f.text_field :wss_url, class: 'sp-input', placeholder: 'wss://pbx.jabvox.com:8089/ws' %>
+    <div class="flex flex-col sm:flex-row gap-4 mb-4">
+      <div class="flex-1">
+        <%= f.label :wss_url, 'URL del servidor (WSS)', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+        <p class="text-xs text-gray-500 mb-2">WebSocket seguro del PBX. Ej: wss://pbx.jabvox.com:8089/ws</p>
+        <%= f.text_field :wss_url, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500', placeholder: 'wss://pbx.jabvox.com:8089/ws' %>
       </div>
-      <div class="sp-field">
-        <%= f.label :sip_domain, 'Dominio SIP', class: 'sp-label' %>
-        <p class="sp-help">Dominio del PBX. Ej: pbx.jabvox.com</p>
-        <%= f.text_field :sip_domain, class: 'sp-input', placeholder: 'pbx.jabvox.com' %>
+      <div class="flex-1">
+        <%= f.label :sip_domain, 'Dominio SIP', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+        <p class="text-xs text-gray-500 mb-2">Dominio del PBX. Ej: pbx.jabvox.com</p>
+        <%= f.text_field :sip_domain, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500', placeholder: 'pbx.jabvox.com' %>
       </div>
     </div>
-    <div class="sp-field">
-      <%= f.label :default_context, 'Contexto por defecto (dialplan)', class: 'sp-label' %>
-      <p class="sp-help">Contexto de Asterisk para las llamadas del softphone. Ej: from-webrtc</p>
-      <%= f.text_field :default_context, class: 'sp-input' %>
+    <div class="mb-4">
+      <%= f.label :default_context, 'Contexto por defecto (dialplan)', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+      <p class="text-xs text-gray-500 mb-2">Contexto de Asterisk para las llamadas del softphone. Ej: from-webrtc</p>
+      <%= f.text_field :default_context, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500' %>
     </div>
   </div>
 
   <!-- Paso 2: Codecs y DTMF -->
-  <div class="sp-panel" data-panel="1">
-    <div class="sp-field">
-      <%= f.label :codecs, 'Codecs permitidos', class: 'sp-label' %>
-      <p class="sp-help">Marca los codecs que puede usar el softphone (deben coincidir con el PBX).</p>
+  <div class="sp-panel hidden" data-panel="1">
+    <div class="mb-4">
+      <%= f.label :codecs, 'Codecs permitidos', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+      <p class="text-xs text-gray-500 mb-2">Marca los codecs que puede usar el softphone (deben coincidir con el PBX).</p>
       <% selected = Array(config.codecs).map(&:to_s) %>
       <% %w[opus alaw ulaw g722].each do |codec| %>
-        <label class="sp-check" style="margin-bottom:6px;">
-          <%= check_box_tag 'jabvox_softphone_config[codecs][]', codec, selected.include?(codec) %>
+        <label class="flex items-center gap-2 mb-2 text-sm text-gray-700 cursor-pointer">
+          <%= check_box_tag 'jabvox_softphone_config[codecs][]', codec, selected.include?(codec), class: 'rounded text-blue-600 focus:ring-blue-500' %>
           <%= codec.upcase %>
         </label>
       <% end %>
     </div>
-    <div class="sp-field">
-      <%= f.label :dtmf_mode, 'Modo DTMF', class: 'sp-label' %>
-      <p class="sp-help">Cómo se envían los tonos del teclado durante la llamada.</p>
-      <%= f.select :dtmf_mode, JabvoxSoftphoneConfig::DTMF_MODES, {}, class: 'sp-input' %>
+    <div class="mb-4">
+      <%= f.label :dtmf_mode, 'Modo DTMF', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+      <p class="text-xs text-gray-500 mb-2">Cómo se envían los tonos del teclado durante la llamada.</p>
+      <%= f.select :dtmf_mode, JabvoxSoftphoneConfig::DTMF_MODES, {}, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500' %>
     </div>
   </div>
 
   <!-- Paso 3: Comportamiento -->
-  <div class="sp-panel" data-panel="2">
-    <div class="sp-field">
-      <label class="sp-check"><%= f.check_box :auto_answer %> Respuesta automática (auto-answer)</label>
-      <p class="sp-help">Si se activa, las llamadas entrantes se contestan solas. Si no, el usuario contesta con el botón.</p>
+  <div class="sp-panel hidden" data-panel="2">
+    <div class="mb-4">
+      <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+        <%= f.check_box :auto_answer, class: 'rounded text-blue-600 focus:ring-blue-500' %> Respuesta automática (auto-answer)
+      </label>
+      <p class="text-xs text-gray-500 mt-1 pl-6">Si se activa, las llamadas entrantes se contestan solas. Si no, el usuario contesta con el botón.</p>
     </div>
-    <div class="sp-field">
-      <label class="sp-check"><%= f.check_box :transfer_enabled %> Permitir transferir llamadas (REFER)</label>
+    <div class="mb-4">
+      <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+        <%= f.check_box :transfer_enabled, class: 'rounded text-blue-600 focus:ring-blue-500' %> Permitir transferir llamadas (REFER)
+      </label>
     </div>
-    <div class="sp-field">
-      <%= f.label :credential_ttl, 'Vida de la credencial (segundos)', class: 'sp-label' %>
-      <p class="sp-help">Cada cuánto se renuevan las credenciales efímeras. Recomendado: 3600.</p>
-      <%= f.number_field :credential_ttl, class: 'sp-input', min: 60 %>
+    <div class="mb-4">
+      <%= f.label :credential_ttl, 'Vida de la credencial (segundos)', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+      <p class="text-xs text-gray-500 mb-2">Cada cuánto se renuevan las credenciales efímeras. Recomendado: 3600.</p>
+      <%= f.number_field :credential_ttl, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500', min: 60 %>
     </div>
   </div>
 
   <!-- Paso 4: STUN / TURN -->
-  <div class="sp-panel" data-panel="3">
-    <div class="sp-field">
-      <%= f.label :stun_servers, 'Servidores STUN', class: 'sp-label' %>
-      <p class="sp-help">Uno por línea. Ej: stun:pbx.jabvox.com:3478</p>
+  <div class="sp-panel hidden" data-panel="3">
+    <div class="mb-4">
+      <%= f.label :stun_servers, 'Servidores STUN', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+      <p class="text-xs text-gray-500 mb-2">Uno por línea. Ej: stun:pbx.jabvox.com:3478</p>
       <%= text_area_tag 'jabvox_softphone_config[stun_servers_text]',
-          Array(config.stun_servers).join("\n"), rows: 3, class: 'sp-input' %>
+          Array(config.stun_servers).join("\n"), rows: 3, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500' %>
     </div>
-    <div class="sp-field">
-      <%= f.label :turn_url, 'URL del servidor TURN', class: 'sp-label' %>
-      <p class="sp-help">Necesario para audio tras NAT/firewalls. Ej: turn:pbx.jabvox.com:3478</p>
-      <%= f.text_field :turn_url, class: 'sp-input', placeholder: 'turn:pbx.jabvox.com:3478' %>
+    <div class="mb-4">
+      <%= f.label :turn_url, 'URL del servidor TURN', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+      <p class="text-xs text-gray-500 mb-2">Necesario para audio tras NAT/firewalls. Ej: turn:pbx.jabvox.com:3478</p>
+      <%= f.text_field :turn_url, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500', placeholder: 'turn:pbx.jabvox.com:3478' %>
     </div>
-    <div class="sp-field">
-      <%= f.label :turn_secret, 'Secreto TURN', class: 'sp-label' %>
-      <p class="sp-help">El mismo static-auth-secret de coturn. Se guarda cifrado (déjalo vacío para no cambiarlo).</p>
-      <%= f.password_field :turn_secret, class: 'sp-input', autocomplete: 'new-password' %>
+    <div class="mb-4">
+      <%= f.label :turn_secret, 'Secreto TURN', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+      <p class="text-xs text-gray-500 mb-2">El mismo static-auth-secret de coturn. Se guarda cifrado (déjalo vacío para no cambiarlo).</p>
+      <%= f.password_field :turn_secret, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500', autocomplete: 'new-password' %>
     </div>
   </div>
 
-  <div class="sp-nav">
-    <button type="button" class="sp-btn" id="sp-prev" style="visibility:hidden;">← Anterior</button>
-    <div style="display:flex;gap:8px;">
-      <button type="button" class="sp-btn sp-btn-primary" id="sp-next">Siguiente →</button>
-      <%= f.submit 'Guardar', class: 'sp-btn sp-btn-primary', id: 'sp-save', style: 'display:none;' %>
+  <div class="flex justify-between gap-2 mt-8 pt-4 border-t border-gray-200">
+    <button type="button" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 invisible" id="sp-prev">← Anterior</button>
+    <div class="flex gap-2">
+      <button type="button" class="px-4 py-2 border border-transparent rounded-md text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" id="sp-next">Siguiente →</button>
+      <%= f.submit 'Guardar', class: 'px-4 py-2 border border-transparent rounded-md text-sm font-semibold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 hidden', id: 'sp-save' %>
     </div>
   </div>
 <% end %>
+
+<style>
+  /* Clases lógicas de Tailwind aplicadas via JS */
+  .sp-step-pill.active-step { background-color: #2563eb; color: #fff; } /* bg-blue-600 text-white */
+  .sp-step-pill.done-step { background-color: #dbeafe; color: #1e40af; } /* bg-blue-100 text-blue-800 */
+</style>
 
 <script>
   (function () {
@@ -150,14 +140,32 @@
     var total = panels.length;
 
     function render() {
-      panels.forEach(function (p, i) { p.classList.toggle('active', i === current); });
-      pills.forEach(function (p, i) {
-        p.classList.toggle('active', i === current);
-        p.classList.toggle('done', i < current);
+      panels.forEach(function (p, i) {
+        if (i === current) {
+          p.classList.remove('hidden');
+          p.classList.add('block');
+        } else {
+          p.classList.add('hidden');
+          p.classList.remove('block');
+        }
       });
-      prev.style.visibility = current === 0 ? 'hidden' : 'visible';
-      next.style.display = current === total - 1 ? 'none' : 'inline-block';
-      save.style.display = current === total - 1 ? 'inline-block' : 'none';
+      pills.forEach(function (p, i) {
+        p.classList.toggle('active-step', i === current);
+        p.classList.toggle('done-step', i < current);
+      });
+      if (current === 0) {
+        prev.classList.add('invisible');
+      } else {
+        prev.classList.remove('invisible');
+      }
+
+      if (current === total - 1) {
+        next.classList.add('hidden');
+        save.classList.remove('hidden');
+      } else {
+        next.classList.remove('hidden');
+        save.classList.add('hidden');
+      }
     }
     next.addEventListener('click', function () { if (current < total - 1) { current++; render(); } });
     prev.addEventListener('click', function () { if (current > 0) { current--; render(); } });

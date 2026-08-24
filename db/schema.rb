@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_21_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_21_000011) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -144,6 +144,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000001) do
     t.datetime "jabvox_plan_expires_at"
     t.boolean "jabvox_softphone_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_ai_chat_provisioning_enabled_jabvox", default: false, null: false
+    t.boolean "jabvox_auto_renew", default: false, null: false
     t.index ["jabvox_plan_id"], name: "index_accounts_on_jabvox_plan_id"
     t.index ["status"], name: "index_accounts_on_status"
   end
@@ -1206,7 +1207,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000001) do
     t.datetime "updated_at", null: false
     t.string "source_jabvox", default: "local", null: false
     t.string "hermes_model_id_jabvox"
+    t.bigint "hermes_agent_id"
     t.index ["account_id"], name: "index_jabvox_ai_chat_models_on_account_id"
+    t.index ["hermes_agent_id"], name: "index_jabvox_ai_chat_models_on_hermes_agent_id"
   end
 
   create_table "jabvox_ai_chat_storages", force: :cascade do |t|
@@ -2381,6 +2384,80 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000001) do
     t.index ["account_id"], name: "index_jabvox_forms_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_forms_on_created_by_id"
     t.index ["slug_jabvox"], name: "index_jabvox_forms_on_slug_jabvox", unique: true
+  end
+
+  create_table "jabvox_hermes_action_logs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "user_id"
+    t.string "hermes_identity_jabvox"
+    t.string "tool_jabvox", null: false
+    t.string "permission_jabvox"
+    t.jsonb "params_jabvox", default: {}
+    t.string "status_jabvox", null: false
+    t.text "error_jabvox"
+    t.integer "duration_ms_jabvox"
+    t.datetime "created_at", null: false
+    t.index ["account_id", "created_at"], name: "index_jabvox_hermes_action_logs_on_account_id_and_created_at"
+    t.index ["account_id", "tool_jabvox"], name: "index_jabvox_hermes_action_logs_on_account_id_and_tool_jabvox"
+    t.index ["account_id"], name: "index_jabvox_hermes_action_logs_on_account_id"
+    t.index ["user_id"], name: "index_jabvox_hermes_action_logs_on_user_id"
+  end
+
+  create_table "jabvox_hermes_agents", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "user_id", null: false
+    t.string "name_jabvox", null: false
+    t.text "description_jabvox"
+    t.text "system_prompt_jabvox"
+    t.boolean "is_default_jabvox", default: false, null: false
+    t.string "status_jabvox", default: "active", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "user_id"], name: "idx_hermes_agents_account_user", unique: true
+    t.index ["account_id"], name: "index_jabvox_hermes_agents_on_account_id"
+    t.index ["user_id"], name: "index_jabvox_hermes_agents_on_user_id"
+  end
+
+  create_table "jabvox_hermes_identities", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name_jabvox", null: false
+    t.string "status_jabvox", default: "active", null: false
+    t.datetime "last_seen_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_hermes_identities_on_account_id", unique: true
+  end
+
+  create_table "jabvox_hermes_provisioner_links", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "hermes_provisioner_id", null: false
+    t.string "status_jabvox", default: "linked", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_hermes_provisioner_links_on_account_id", unique: true
+    t.index ["hermes_provisioner_id"], name: "index_jabvox_hermes_provisioner_links_on_hermes_provisioner_id"
+  end
+
+  create_table "jabvox_hermes_provisioners", force: :cascade do |t|
+    t.string "name_jabvox", default: "Hermes Aprovisionador", null: false
+    t.string "base_url_jabvox"
+    t.text "service_token_jabvox"
+    t.string "status_jabvox", default: "disconnected", null: false
+    t.datetime "last_check_at_jabvox"
+    t.text "last_error_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "jabvox_hermes_user_permissions", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "user_id", null: false
+    t.jsonb "permissions_jabvox", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "user_id"], name: "idx_hermes_user_perms_unique", unique: true
+    t.index ["account_id"], name: "index_jabvox_hermes_user_permissions_on_account_id"
+    t.index ["user_id"], name: "index_jabvox_hermes_user_permissions_on_user_id"
   end
 
   create_table "jabvox_integration_configs", force: :cascade do |t|
@@ -4074,6 +4151,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000001) do
   add_foreign_key "jabvox_ai_chat_messages", "accounts"
   add_foreign_key "jabvox_ai_chat_messages", "users"
   add_foreign_key "jabvox_ai_chat_models", "accounts"
+  add_foreign_key "jabvox_ai_chat_models", "jabvox_hermes_agents", column: "hermes_agent_id"
   add_foreign_key "jabvox_ai_chat_user_permissions", "accounts"
   add_foreign_key "jabvox_ai_chat_user_permissions", "users"
   add_foreign_key "jabvox_analytics_audit_logs", "accounts"
@@ -4236,6 +4314,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000001) do
   add_foreign_key "jabvox_form_submissions", "users", column: "created_by_id"
   add_foreign_key "jabvox_forms", "accounts"
   add_foreign_key "jabvox_forms", "users", column: "created_by_id"
+  add_foreign_key "jabvox_hermes_action_logs", "accounts"
+  add_foreign_key "jabvox_hermes_action_logs", "users"
+  add_foreign_key "jabvox_hermes_agents", "accounts"
+  add_foreign_key "jabvox_hermes_agents", "users"
+  add_foreign_key "jabvox_hermes_identities", "accounts"
+  add_foreign_key "jabvox_hermes_provisioner_links", "accounts"
+  add_foreign_key "jabvox_hermes_provisioner_links", "jabvox_hermes_provisioners", column: "hermes_provisioner_id"
+  add_foreign_key "jabvox_hermes_user_permissions", "accounts"
+  add_foreign_key "jabvox_hermes_user_permissions", "users"
   add_foreign_key "jabvox_integration_configs", "accounts"
   add_foreign_key "jabvox_internal_chat_members", "jabvox_internal_chats", column: "chat_id"
   add_foreign_key "jabvox_internal_chat_members", "users"

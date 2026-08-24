@@ -24,6 +24,11 @@ module Jabvox
 
     # @return [Hash] { reply:, metadata: }
     def handle(content)
+      # Arquitectura nueva: la cuenta ligada al Hermes Aprovisionador global le pide cosas a
+      # ESE Hermes (que ya sabe crear/ligar el Hermes de la cuenta). Jabvox no toca ContextForge.
+      return route_to_provisioner(content) if JabvoxHermesProvisionerLink.active_for?(@account.id)
+
+      # Compatibilidad: modo antiguo por ContextForge directo (si la cuenta lo usa).
       handoff = @account.jabvox_context_forge_handoff
       return reply(no_handoff_msg) if handoff.nil? || !handoff.operational?
 
@@ -34,6 +39,17 @@ module Jabvox
     rescue StandardError => e
       Rails.logger.error("[ProvisioningChat] account=#{@account.id} error=#{e.class}")
       reply("Ocurrió un error procesando tu solicitud: #{e.message}")
+    end
+
+    # Envía el mensaje al Hermes Aprovisionador global (el que aprovisiona instancias). El
+    # aprovisionador razona y ejecuta con sus MCPs de infraestructura; Jabvox solo transporta.
+    def route_to_provisioner(content)
+      result = Jabvox::Hermes::ProvisionerChatRelay.new(account: @account, user: @user).send_message(content)
+      if result.success?
+        reply(result.text, metadata: { via: 'provisioner' })
+      else
+        reply("El aprovisionador no pudo responder: #{result.error}", metadata: { via: 'provisioner', ok: false })
+      end
     end
 
     private

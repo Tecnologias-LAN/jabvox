@@ -13,10 +13,12 @@ class SuperAdmin::ContextForgeConfigsController < SuperAdmin::ApplicationControl
     CONTEXTFORGE_ADMIN_KEY
     CONTEXTFORGE_HERMES_URL
     CONTEXTFORGE_JABVOX_CALLBACK_URL
+    HERMES_PROVISIONER_URL
+    HERMES_PROVISIONER_ADMIN_KEY
   ].freeze
 
   # Secretos que nunca se re-renderizan: un envío en blanco = "conservar el valor actual".
-  MASKED_SECRETS = %w[CONTEXTFORGE_ADMIN_KEY].freeze
+  MASKED_SECRETS = %w[CONTEXTFORGE_ADMIN_KEY HERMES_PROVISIONER_ADMIN_KEY].freeze
 
   URL_CONFIGS = {
     'CONTEXTFORGE_SERVICE_URL' => 'ContextForge Service URL',

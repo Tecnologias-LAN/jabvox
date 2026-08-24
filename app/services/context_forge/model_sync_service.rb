@@ -15,8 +15,8 @@ class ContextForge::ModelSyncService
   end
 
   def call
-    return failure('La cuenta no está aprovisionada.') if @handoff.nil? || !@handoff.operational?
-    return failure('Hermes no está configurado (falta URL).') if ContextForge::Service.hermes_url.blank?
+    return failure('La cuenta no está aprovisionada.') if @handoff.nil? || !@handoff.ready_for_chat?
+    return failure('Hermes no está configurado (falta URL).') if hermes_base_url.blank?
 
     remote = fetch_remote_models
     return failure(remote.error) unless remote.success?
@@ -31,10 +31,15 @@ class ContextForge::ModelSyncService
 
   private
 
-  # GET modelos que ofrece el Hermes de la cuenta (OpenAI-compat /models).
+  # URL del Hermes de ESTA cuenta (del handoff); si no, la global de ContextForge.
+  def hermes_base_url
+    @handoff&.hermes_url.presence || ContextForge::Service.hermes_url
+  end
+
+  # GET modelos que ofrece el Hermes de la cuenta (OpenAI-compat: /v1/models).
   def fetch_remote_models
     conn = hermes_client
-    resp = conn.get('models')
+    resp = conn.get('v1/models')
     if resp.success?
       list = resp.body.is_a?(Hash) ? (resp.body['data'] || []) : Array(resp.body)
       ContextForge::Service::Result.new(success: true, data: list)
@@ -58,7 +63,7 @@ class ContextForge::ModelSyncService
         name_jabvox: "Hermes · #{mid}".first(150),
         provider_jabvox: 'custom',
         model_jabvox: mid.first(200),
-        base_url_jabvox: ContextForge::Service.hermes_url.first(500),
+        base_url_jabvox: hermes_base_url.first(500),
         # AISLAMIENTO: el api_key de un modelo Hermes ES el scoped token de ESTA cuenta.
         # El gateway Hermes lo valida contra el virtual server de la cuenta; con él, el
         # ai-chat solo puede tocar las MCPs de su propia cuenta (403 en cualquier otra).
@@ -84,7 +89,7 @@ class ContextForge::ModelSyncService
   end
 
   def hermes_client
-    base = ContextForge::Service.hermes_url
+    base = hermes_base_url
     normalized = base.end_with?('/') ? base : "#{base}/"
     Faraday.new(url: normalized) do |f|
       f.request :json

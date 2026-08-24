@@ -98,3 +98,24 @@ export const aiChatStoragesAPI = {
   destroy: id => axios.delete(`${storagesClient.url}/${id}`),
   test: storage => axios.post(`${storagesClient.url}/test`, { storage }),
 };
+
+// Agentes del Hermes de la cuenta (1:1 con usuario, permisos del usuario). El admin de
+// la cuenta los crea/edita con sus permisos (read/create/write/...).
+const hermesAgentsClient = new ApiClient('jabvox/hermes_agents', {
+  accountScoped: true,
+});
+export const hermesAgentsAPI = {
+  getAll: () => axios.get(hermesAgentsClient.url),
+  create: payload => axios.post(hermesAgentsClient.url, payload),
+  update: (id, payload) =>
+    axios.patch(`${hermesAgentsClient.url}/${id}`, payload),
+  destroy: id => axios.delete(`${hermesAgentsClient.url}/${id}`),
+};
+
+// Auditoría de acciones de Hermes (solo lectura, admin del Chat IA).
+const hermesLogsClient = new ApiClient('jabvox/hermes_action_logs', {
+  accountScoped: true,
+});
+export const hermesActionLogsAPI = {
+  getAll: params => axios.get(hermesLogsClient.url, { params }),
+};

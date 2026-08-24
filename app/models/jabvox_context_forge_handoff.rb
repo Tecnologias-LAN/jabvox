@@ -70,6 +70,13 @@ class JabvoxContextForgeHandoff < ApplicationRecord
     status == 'ready' && hermes_url.present? && scoped_token.present?
   end
 
+  # ¿Lista para el Chat IA por CUALQUIERA de los dos modos? (Hermes por cuenta vía
+  # Provisionador = hermes_url; o ContextForge directo = virtual server). Es el predicado
+  # que deben usar el consumer y el setup, no `operational?` (que es solo el modo ContextForge).
+  def ready_for_chat?
+    operational? || hermes_operational?
+  end
+
   # Vista segura para el frontend/logs: nunca incluye el token.
   def safe_summary
     {

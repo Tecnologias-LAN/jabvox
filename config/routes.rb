@@ -748,6 +748,14 @@ Rails.application.routes.draw do
                                                  controller: 'ai_chat_hermes_cron_jobs' do
               patch :toggle, on: :member
             end
+            # Permisos granulares de Hermes por usuario (READ/CREATE/WRITE/...) — solo admin del Chat IA.
+            resources :hermes_user_permissions, only: [:index, :update], param: :user_id,
+                                                controller: 'hermes_user_permissions'
+            # Agentes del Hermes de la cuenta (1:1 con usuario, permisos del usuario).
+            resources :hermes_agents, only: [:index, :create, :update, :destroy],
+                                      controller: 'hermes_agents'
+            # Auditoría de acciones ejecutadas por Hermes (solo lectura, admin del Chat IA).
+            resources :hermes_action_logs, only: [:index], controller: 'hermes_action_logs'
             resources :response_bot_seats, only: [:index]
             resources :response_bot_roles, only: [:index]
             resources :response_bot_configs, only: [:index, :create, :update, :destroy] do
@@ -1269,6 +1277,20 @@ Rails.application.routes.draw do
       end
       resource :context_forge_config, only: [:show, :create] do
         get :health, on: :collection
+      end
+      # Administración central de instancias Hermes por cuenta (todo vía el Provisionador).
+      resources :hermes_instances, only: [:index], param: :account_id do
+        collection do
+          post :connect_provisioner   # conectar el Hermes Aprovisionador global
+        end
+        member do
+          post :provision
+          post :disable
+          post :restart
+          post :rotate
+          post :link_account          # ligar el aprovisionador a esta cuenta
+          post :unlink_account
+        end
       end
       resource :push_diagnostics, only: [:show, :create] do
         post :destroy_subscriptions, on: :collection

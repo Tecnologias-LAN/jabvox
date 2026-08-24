@@ -21,7 +21,14 @@ class Api::V1::Accounts::Jabvox::AiChatHermesController < Api::V1::Accounts::Jab
     render json: {
       handoff: @handoff&.safe_summary || { status: 'pending', has_token: false, mcp_servers: [] },
       models_count: Current.account.jabvox_ai_chat_models.count,
-      hermes_models_count: Current.account.jabvox_ai_chat_models.where(source_jabvox: 'hermes').count
+      hermes_models_count: Current.account.jabvox_ai_chat_models.where(source_jabvox: 'hermes').count,
+      # Qué chats mostrar en la cuenta (dos entradas separadas):
+      chats: {
+        # Chat Aprovisionador: la cuenta está ligada al Hermes Aprovisionador global.
+        provisioner: JabvoxHermesProvisionerLink.active_for?(Current.account.id),
+        # Chat IA (asistente de la cuenta): la cuenta tiene su propio Hermes operativo.
+        account_assistant: @handoff&.ready_for_chat? || false
+      }
     }
   end
 

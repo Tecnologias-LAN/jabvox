@@ -10,9 +10,30 @@ module Jabvox
       Rails.logger = ActiveSupport::Logger.new($stdout)
       Rails.logger.formatter = proc { |_sev, _time, _prog, msg| "#{msg}\n" }
 
-      Rails.logger.info '🚀 [AmiListenerRunner] Starting supervisor (dynamic account scan)'
+      Rails.logger.info "🚀 [AmiListenerRunner] Starting supervisor (dynamic account scan) " \
+                        "shard #{shard_index}/#{shard_count}"
       @threads = {} # account_id => Thread
       supervise_loop
+    end
+
+    # Escala horizontal por SHARDING: se pueden correr N procesos de listener; cada
+    # uno atiende SOLO las cuentas cuyo (account_id % shard_count == shard_index). Así
+    # cada cuenta la escucha EXACTAMENTE un proceso (sin eventos duplicados) y la carga
+    # de miles de cuentas VoIP se reparte. Config por ENV en cada unidad systemd:
+    #   JABVOX_AMI_LISTENER_SHARD_COUNT (total de procesos, default 1)
+    #   JABVOX_AMI_LISTENER_SHARD_INDEX (índice de ESTE proceso, 0..count-1, default 0)
+    # Con los valores por defecto (1/0) el comportamiento es idéntico al de un solo proceso.
+    def self.shard_count
+      [ENV.fetch('JABVOX_AMI_LISTENER_SHARD_COUNT', 1).to_i, 1].max
+    end
+
+    def self.shard_index
+      idx = ENV.fetch('JABVOX_AMI_LISTENER_SHARD_INDEX', 0).to_i
+      idx.clamp(0, shard_count - 1)
+    end
+
+    def self.owns_account?(account_id)
+      (account_id % shard_count) == shard_index
     end
 
     # Bucle supervisor: cada RESCAN_INTERVAL sincroniza los threads con las
@@ -42,8 +63,9 @@ module Jabvox
     def self.current_account_ids
       # Envuelve la query en una conexión del pool que se devuelve al terminar
       # (no la retiene de por vida como sí hacen los threads de listener).
+      # Filtra por el shard de ESTE proceso: solo las cuentas que le tocan.
       ActiveRecord::Base.connection_pool.with_connection do
-        Account.joins(:jabvox_voip_config).pluck(:id)
+        Account.joins(:jabvox_voip_config).pluck(:id).select { |id| owns_account?(id) }
       end
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListenerRunner] account scan failed | #{e.message}"

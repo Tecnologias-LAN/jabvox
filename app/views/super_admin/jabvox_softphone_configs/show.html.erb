@@ -3,57 +3,94 @@
 <% config = page.resource %>
 <% content_for(:title) { "Softphone · #{config.account&.name}" } %>
 
-<style>
-  .cfg-wrap { max-width: 680px; }
-  .cfg-actions { display:flex; gap:8px; margin-bottom:16px; }
-  .cfg-row { display:flex; padding:10px 0; border-bottom:1px solid #f1f5f9; font-size:14px; }
-  .cfg-key { width:200px; color:#64748b; font-weight:600; flex-shrink:0; }
-  .cfg-val { color:#0f172a; font-family:monospace; word-break:break-all; }
-  .cfg-derived { font-size:11px; color:#0f766e; background:#ccfbf1; padding:1px 6px; border-radius:4px; margin-left:8px; }
-  .cfg-badge { font-size:12px; font-weight:600; padding:2px 10px; border-radius:100px; }
-  .cfg-on { background:#dcfce7; color:#15803d; } .cfg-off { background:#f1f5f9; color:#64748b; }
-</style>
-
 <header class="main-content__header">
   <h1 class="main-content__page-title">Softphone · <%= config.account&.name %></h1>
 </header>
 
-<section class="main-content__body cfg-wrap">
-  <div class="cfg-actions">
-    <%= link_to 'Editar', edit_super_admin_jabvox_softphone_config_path(config), class: 'button' %>
-    <%= link_to 'Estado en vivo', status_super_admin_jabvox_softphone_extensions_path(auto: 1), class: 'button' %>
+<section class="main-content__body max-w-3xl">
+  <div class="flex gap-2 mb-6">
+    <%= link_to 'Editar', edit_super_admin_jabvox_softphone_config_path(config), class: 'inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500' %>
+    <%= link_to 'Estado en vivo', status_super_admin_jabvox_softphone_extensions_path(auto: 1), class: 'inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500' %>
   </div>
 
   <% eff_domain = config.effective_sip_domain %>
   <% eff_wss = config.effective_wss_url %>
 
-  <div class="cfg-row"><span class="cfg-key">Cuenta</span><span class="cfg-val">#<%= config.account_id %> · <%= config.account&.name %></span></div>
-  <div class="cfg-row"><span class="cfg-key">Habilitado</span>
-    <span class="cfg-badge <%= config.enabled? ? 'cfg-on' : 'cfg-off' %>"><%= config.enabled? ? 'Sí' : 'No' %></span></div>
+  <div class="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
+    <div class="flex py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">Cuenta</span>
+      <span class="text-gray-900 font-mono break-all">#<%= config.account_id %> · <%= config.account&.name %></span>
+    </div>
 
-  <div class="cfg-row">
-    <span class="cfg-key">WSS URL</span>
-    <span class="cfg-val">
-      <%= eff_wss.presence || '—' %>
-      <% if config.wss_url.blank? && eff_wss.present? %><span class="cfg-derived">derivado de VoIP</span><% end %>
-    </span>
-  </div>
-  <div class="cfg-row">
-    <span class="cfg-key">Dominio SIP</span>
-    <span class="cfg-val">
-      <%= eff_domain.presence || '—' %>
-      <% if config.sip_domain.blank? && eff_domain.present? %><span class="cfg-derived">derivado de VoIP</span><% end %>
-    </span>
-  </div>
+    <div class="flex py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">Habilitado</span>
+      <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full <%= config.enabled? ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-500' %>">
+        <%= config.enabled? ? 'Sí' : 'No' %>
+      </span>
+    </div>
 
-  <div class="cfg-row"><span class="cfg-key">Contexto</span><span class="cfg-val"><%= config.default_context %></span></div>
-  <div class="cfg-row"><span class="cfg-key">DTMF</span><span class="cfg-val"><%= config.dtmf_mode %></span></div>
-  <div class="cfg-row"><span class="cfg-key">Auto-answer</span>
-    <span class="cfg-badge <%= config.auto_answer? ? 'cfg-on' : 'cfg-off' %>"><%= config.auto_answer? ? 'Sí' : 'No' %></span></div>
-  <div class="cfg-row"><span class="cfg-key">Transferencia</span>
-    <span class="cfg-badge <%= config.transfer_enabled? ? 'cfg-on' : 'cfg-off' %>"><%= config.transfer_enabled? ? 'Sí' : 'No' %></span></div>
-  <div class="cfg-row"><span class="cfg-key">Credential TTL</span><span class="cfg-val"><%= config.credential_ttl %> s</span></div>
-  <div class="cfg-row"><span class="cfg-key">Codecs</span><span class="cfg-val"><%= config.codec_list.join(', ') %></span></div>
-  <div class="cfg-row"><span class="cfg-key">TURN URL</span><span class="cfg-val"><%= config.turn_url.presence || '—' %></span></div>
-  <div class="cfg-row"><span class="cfg-key">STUN</span><span class="cfg-val"><%= Array(config.stun_servers).join(', ').presence || '—' %></span></div>
+    <div class="flex items-center py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">WSS URL</span>
+      <span class="text-gray-900 font-mono break-all flex items-center">
+        <%= eff_wss.presence || '—' %>
+        <% if config.wss_url.blank? && eff_wss.present? %>
+          <span class="text-[11px] text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-md ml-2">derivado de VoIP</span>
+        <% end %>
+      </span>
+    </div>
+
+    <div class="flex items-center py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">Dominio SIP</span>
+      <span class="text-gray-900 font-mono break-all flex items-center">
+        <%= eff_domain.presence || '—' %>
+        <% if config.sip_domain.blank? && eff_domain.present? %>
+          <span class="text-[11px] text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-md ml-2">derivado de VoIP</span>
+        <% end %>
+      </span>
+    </div>
+
+    <div class="flex py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">Contexto</span>
+      <span class="text-gray-900 font-mono break-all"><%= config.default_context %></span>
+    </div>
+
+    <div class="flex py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">DTMF</span>
+      <span class="text-gray-900 font-mono break-all"><%= config.dtmf_mode %></span>
+    </div>
+
+    <div class="flex py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">Auto-answer</span>
+      <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full <%= config.auto_answer? ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-500' %>">
+        <%= config.auto_answer? ? 'Sí' : 'No' %>
+      </span>
+    </div>
+
+    <div class="flex py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">Transferencia</span>
+      <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full <%= config.transfer_enabled? ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-500' %>">
+        <%= config.transfer_enabled? ? 'Sí' : 'No' %>
+      </span>
+    </div>
+
+    <div class="flex py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">Credential TTL</span>
+      <span class="text-gray-900 font-mono break-all"><%= config.credential_ttl %> s</span>
+    </div>
+
+    <div class="flex py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">Codecs</span>
+      <span class="text-gray-900 font-mono break-all"><%= config.codec_list.join(', ') %></span>
+    </div>
+
+    <div class="flex py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">TURN URL</span>
+      <span class="text-gray-900 font-mono break-all"><%= config.turn_url.presence || '—' %></span>
+    </div>
+
+    <div class="flex py-3 px-4 border-b border-gray-100 text-sm">
+      <span class="w-48 text-gray-500 font-semibold flex-shrink-0">STUN</span>
+      <span class="text-gray-900 font-mono break-all"><%= Array(config.stun_servers).join(', ').presence || '—' %></span>
+    </div>
+  </div>
 </section>

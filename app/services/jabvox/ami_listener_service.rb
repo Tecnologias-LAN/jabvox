@@ -21,7 +21,8 @@ module Jabvox
       @active_channels = {}
       @channel_vars    = {} # correlation_id (channel/uniqueid/linkedid) => { 'CTCALL_ID' => '…' }
       @call_keys       = {} # linkedid => [all correlation ids of that call] — for full cleanup
-      @answered_logs   = {} # dialer_call_log_id => true — call_assigned ya emitido (idempotencia)
+      # La idempotencia de call_assigned vive ahora en Redis (claim_answered!), no en
+      # memoria, para ser correcta con varios procesos de listener (sharding).
       @socket          = nil
     end
 
@@ -180,7 +181,7 @@ module Jabvox
     end
 
     # Dispara call_assigned una sola vez por llamada del dialer a partir del canal
-    # que se acaba de contestar/puentear. Idempotente vía @answered_logs.
+    # que se acaba de contestar/puentear. Idempotente vía claim_answered! (Redis).
     def handle_dialer_answered(channel, event)
       return if channel.blank?
 
@@ -194,11 +195,13 @@ module Jabvox
       log ||= recover_open_dialer_log(channel, event)
       return unless log&.jabvox_dialer_campaign_contact_id && log.agent_id_jabvox
 
-      @answered_logs ||= {}
-      return if @answered_logs[log.id] # ya avisado
+      # Idempotencia DISTRIBUIDA (multi-proceso): el primer proceso que reclama este
+      # log emite call_assigned; cualquier repetición (mismo proceso, otro shard en una
+      # ventana de rebalanceo, o un evento duplicado) ve la clave ya puesta y no re-emite.
+      # SET NX EX es atómico en Redis. Reemplaza el antiguo hash @answered_logs en memoria,
+      # que solo deduplicaba dentro de un único proceso (rompía con varios listeners).
+      return unless claim_answered!(log.id)
 
-      @answered_logs[log.id] = true
-      evict_answered_logs_if_needed
       broadcast_call_assigned(log.agent_id_jabvox, log.jabvox_dialer_campaign_contact_id, log.jabvox_dialer_campaign_id)
     rescue StandardError => e
       Rails.logger.error "❌ [AmiListener] handle_dialer_answered failed | #{e.message}"
@@ -267,10 +270,29 @@ module Jabvox
       false
     end
 
-    def evict_answered_logs_if_needed
-      return if @answered_logs.size <= MAX_CACHED_KEYS
+    # Reclama de forma atómica y distribuida el derecho a emitir call_assigned de este
+    # log. SET NX: solo el primer proceso/evento lo consigue (devuelve true); el resto ve
+    # la clave puesta y obtiene false. TTL acotado (no crece en memoria como el hash viejo)
+    # y suficiente para cubrir la vida de la llamada + reintentos. Ante fallo de Redis,
+    # devolvemos true (mejor emitir que perder el aviso; el frontend descarta duplicados
+    # por su propia idempotencia de estado).
+    ANSWERED_CLAIM_TTL = 6 * 60 * 60 # 6 h
 
-      @answered_logs.keys.first(@answered_logs.size - (MAX_CACHED_KEYS / 2)).each { |k| @answered_logs.delete(k) }
+    def claim_answered!(log_id)
+      !!Redis::Alfred.set(answered_claim_key(log_id), '1', nx: true, ex: ANSWERED_CLAIM_TTL)
+    rescue StandardError => e
+      Rails.logger.warn "[AmiListener] claim_answered! Redis error, emitiendo igual | #{e.message}"
+      true
+    end
+
+    def release_answered_claim(log_id)
+      Redis::Alfred.delete(answered_claim_key(log_id))
+    rescue StandardError => e
+      Rails.logger.warn "[AmiListener] release_answered_claim Redis error | #{e.message}"
+    end
+
+    def answered_claim_key(log_id)
+      "jabvox_dialer_answered_#{@account_id}_#{log_id}"
     end
 
     # Cache the click-to-call / dialer markers as soon as Asterisk sets them
@@ -611,9 +633,9 @@ module Jabvox
     # status: fuerza el estado final (p. ej. 'failed' desde OriginateResponse).
     # Si es nil, se deduce de call_was_answered? (answered / no_answer).
     def close_dialer_log(log_id, event, status: nil)
-      # Liberar el marcador de "ya avisé contestada" para que una re-marcación
+      # Liberar el marcador de "ya avisé contestada" (en Redis) para que una re-marcación
       # del mismo lead vuelva a emitir call_assigned.
-      @answered_logs&.delete(log_id)
+      release_answered_claim(log_id)
       log = JabvoxDialerCallLog.find_by(id: log_id, account_id: @account_id)
       return if log.nil?
 

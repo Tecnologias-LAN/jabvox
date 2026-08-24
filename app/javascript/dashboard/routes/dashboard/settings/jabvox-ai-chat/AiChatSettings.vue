@@ -21,6 +21,7 @@ import DocumentPickerDialog from './components/DocumentPickerDialog.vue';
 import SharedStoragesManager from './components/SharedStoragesManager.vue';
 import HermesCronManager from './components/HermesCronManager.vue';
 import HermesConnectManager from './components/HermesConnectManager.vue';
+import HermesAgentsManager from './components/HermesAgentsManager.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -32,6 +33,7 @@ const activeTab = ref(sessionStorage.getItem(ACTIVE_TAB_KEY) || 'models');
 const tabs = [
   { key: 'models', icon: 'i-lucide-cpu' },
   { key: 'documents', icon: 'i-lucide-file-text' },
+  { key: 'agents', icon: 'i-lucide-users' },
   { key: 'hermes', icon: 'i-lucide-plug' },
   { key: 'cron', icon: 'i-lucide-clock' },
   { key: 'config', icon: 'i-lucide-settings-2' },
@@ -574,6 +576,11 @@ onMounted(async () => {
       </div>
 
       <!-- ── CONECTAR HERMES ── -->
+      <!-- ── AGENTES DE HERMES (1:1 con usuario, permisos por agente) ── -->
+      <div v-else-if="activeTab === 'agents'" class="w-full">
+        <HermesAgentsManager />
+      </div>
+
       <div v-else-if="activeTab === 'hermes'" class="w-full">
         <HermesConnectManager />
       </div>

@@ -11,8 +11,7 @@ module Jabvox
 
     def send_message(content:, session_id:, mode:, history: [])
       messages = build_messages(content, mode, history)
-      response_text = call_api(messages)
-      response_text
+      call_api(messages)
     end
 
     private
@@ -65,18 +64,82 @@ module Jabvox
       parts.join("\n\n---\n\n")
     end
 
+    # Máximo de rondas de tool-calling por mensaje (evita bucles infinitos del modelo).
+    MAX_TOOL_ROUNDS = 5
+
     def call_api(messages)
       client = build_client
-      response = client.chat(
-        parameters: {
-          model: @model_record.model_jabvox,
-          messages: messages,
-          temperature: 0.7
-        }
-      )
-      response.dig('choices', 0, 'message', 'content') || ''
+      tools = tool_schemas_for_user
+      # Sin tools permitidas → chat plano de siempre (retrocompatible).
+      return plain_chat(client, messages) if tools.empty?
+
+      chat_with_tools(client, messages, tools)
     rescue StandardError => e
       raise "Error al contactar el modelo de IA: #{e.message}"
+    end
+
+    def plain_chat(client, messages)
+      response = client.chat(parameters: { model: @model_record.model_jabvox, messages: messages, temperature: 0.7 })
+      response.dig('choices', 0, 'message', 'content') || ''
+    end
+
+    # Bucle de function-calling: se exponen SOLO las tools permitidas del usuario; cada
+    # tool_call del modelo se ejecuta por el ToolExecutor (que REAUTORIZA en backend) y su
+    # resultado vuelve al modelo hasta que produce una respuesta final.
+    def chat_with_tools(client, messages, tools)
+      convo = messages.dup
+      MAX_TOOL_ROUNDS.times do
+        response = client.chat(parameters: {
+                                 model: @model_record.model_jabvox, messages: convo,
+                                 temperature: 0.7, tools: tools, tool_choice: 'auto'
+                               })
+        message = response.dig('choices', 0, 'message') || {}
+        calls = message['tool_calls']
+        return message['content'].to_s if calls.blank?
+
+        convo << message
+        calls.each { |call| convo << run_tool_call(call) }
+      end
+      # Si agotó las rondas, una última respuesta sin tools.
+      plain_chat(client, convo)
+    end
+
+    # Ejecuta una tool_call del modelo vía ToolExecutor y arma el mensaje 'tool' de respuesta.
+    def run_tool_call(call)
+      fn = call['function'] || {}
+      name = fn['name']
+      args = safe_json(fn['arguments'])
+      result = Jabvox::Hermes::ToolExecutor.new(account: @account, user: @user).execute(name, args)
+      payload = result.success? ? { ok: true, data: result.data } : { ok: false, error: result.error, status: result.status }
+      { role: 'tool', tool_call_id: call['id'], name: name, content: payload.to_json }
+    end
+
+    def safe_json(str)
+      JSON.parse(str.to_s)
+    rescue JSON::ParserError
+      {}
+    end
+
+    # Esquemas OpenAI-function de las tools que ESTE usuario puede usar (doble autorización
+    # ya aplicada por el Authorizer). El modelo nunca ve tools que el usuario no puede ejecutar.
+    def tool_schemas_for_user
+      return [] unless @user
+
+      Jabvox::Hermes::Authorizer.new(account: @account, user: @user).allowed_tools.map do |name|
+        spec = Jabvox::Hermes::ToolRegistry.find(name)
+        {
+          type: 'function',
+          function: {
+            name: name, description: "#{spec[:permission]} - #{name}",
+            parameters: json_schema_params(spec[:params] || {})
+          }
+        }
+      end
+    end
+
+    def json_schema_params(params)
+      props = params.transform_values { |type| { type: type == :integer ? 'integer' : 'string' } }
+      { type: 'object', properties: props, required: params.keys.map(&:to_s) }
     end
 
     def build_client
@@ -96,7 +159,7 @@ module Jabvox
       return nil unless @model_record.respond_to?(:source_jabvox) && @model_record.source_jabvox == 'hermes'
 
       handoff = @account.jabvox_context_forge_handoff
-      return nil unless handoff&.operational?
+      return nil unless handoff&.ready_for_chat?
 
       handoff.scoped_token
     end

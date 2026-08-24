@@ -7,56 +7,50 @@
                       end
 %>
 
-<style>
-  .sp-form { max-width: 560px; }
-  .sp-field { margin-bottom:16px; }
-  .sp-label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:4px; }
-  .sp-help { font-size:12px; color:#6b7280; margin:0 0 6px; }
-  .sp-input { width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; box-sizing:border-box; }
-  .sp-check { display:flex; align-items:center; gap:8px; font-size:14px; color:#374151; }
-  .sp-btn { padding:9px 18px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; border:1px solid #0f766e; background:#0f766e; color:#fff; }
-</style>
-
-<%= form_with model: [:super_admin, ext], local: true, html: { class: 'sp-form' } do |f| %>
+<%= form_with model: [:super_admin, ext], local: true, html: { class: 'max-w-2xl' } do |f| %>
   <% if ext.errors.any? %>
-    <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:12px;margin-bottom:16px;">
-      <ul style="margin:0;padding-left:16px;">
+    <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+      <ul class="m-0 pl-4 list-disc">
         <% ext.errors.full_messages.each do |msg| %>
-          <li style="color:#b91c1c;font-size:14px;"><%= msg %></li>
+          <li class="text-red-700 text-sm"><%= msg %></li>
         <% end %>
       </ul>
     </div>
   <% end %>
 
-  <div class="sp-field">
-    <%= f.label :account_id, 'Cuenta', class: 'sp-label' %>
+  <div class="mb-5">
+    <%= f.label :account_id, 'Cuenta', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
     <%= f.collection_select :account_id, Account.order(:name), :id, :name,
-        { prompt: 'Selecciona una cuenta' }, class: 'sp-input' %>
+        { prompt: 'Selecciona una cuenta' }, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500' %>
   </div>
 
-  <div class="sp-field">
-    <%= f.label :user_id, 'Usuario (agente)', class: 'sp-label' %>
-    <p class="sp-help">El usuario que usará esta extensión en el softphone.</p>
+  <div class="mb-5">
+    <%= f.label :user_id, 'Usuario (agente)', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+    <p class="text-xs text-gray-500 mb-2">El usuario que usará esta extensión en el softphone.</p>
     <%= f.collection_select :user_id, User.order(:name).limit(500), :id, ->(u) { "#{u.name} (#{u.email})" },
-        { prompt: 'Selecciona un usuario' }, class: 'sp-input' %>
+        { prompt: 'Selecciona un usuario' }, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500' %>
   </div>
 
-  <div class="sp-field">
-    <%= label_tag 'jabvox_softphone_extension[extension]', 'Extensión (VoIP)', class: 'sp-label' %>
-    <p class="sp-help">La extensión SIP del usuario. Es la misma que se configura en VoIP de la cuenta; editarla aquí la actualiza allí.</p>
+  <div class="mb-5">
+    <%= label_tag 'jabvox_softphone_extension[extension]', 'Extensión (VoIP)', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+    <p class="text-xs text-gray-500 mb-2">La extensión SIP del usuario. Es la misma que se configura en VoIP de la cuenta; editarla aquí la actualiza allí.</p>
     <%= text_field_tag 'jabvox_softphone_extension[extension]', current_extension,
-        class: 'sp-input', placeholder: '1001', pattern: '\d{1,10}' %>
+        class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500', placeholder: '1001', pattern: '\d{1,10}' %>
   </div>
 
-  <div class="sp-field">
-    <%= f.label :sip_secret, 'Secreto SIP (contraseña de registro)', class: 'sp-label' %>
-    <p class="sp-help">La contraseña del endpoint PJSIP en Asterisk. Se guarda cifrada (déjala vacía para no cambiarla al editar).</p>
-    <%= f.password_field :sip_secret, class: 'sp-input', autocomplete: 'new-password' %>
+  <div class="mb-5">
+    <%= f.label :sip_secret, 'Secreto SIP (contraseña de registro)', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+    <p class="text-xs text-gray-500 mb-2">La contraseña del endpoint PJSIP en Asterisk. Se guarda cifrada (déjala vacía para no cambiarla al editar).</p>
+    <%= f.password_field :sip_secret, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500', autocomplete: 'new-password' %>
   </div>
 
-  <div class="sp-field">
-    <label class="sp-check"><%= f.check_box :webrtc_enabled %> WebRTC habilitado para esta extensión</label>
+  <div class="mb-6">
+    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+      <%= f.check_box :webrtc_enabled, class: 'rounded text-blue-600 focus:ring-blue-500' %> WebRTC habilitado para esta extensión
+    </label>
   </div>
 
-  <%= f.submit 'Guardar', class: 'sp-btn' %>
+  <div class="pt-4 border-t border-gray-200">
+    <%= f.submit 'Guardar', class: 'inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer' %>
+  </div>
 <% end %>
