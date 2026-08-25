@@ -10,11 +10,58 @@ module Jabvox
     end
 
     def send_message(content:, session_id:, mode:, history: [])
+      # Modo Hermes nativo: el Chat IA de la cuenta habla con SU Hermes por la Sessions API
+      # (como Telegram). Reenvía el texto TAL CUAL (incluidos /model, /new...) y Hermes lo
+      # interpreta. Jabvox no procesa comandos ni arma prompts para este modo.
+      return chat_via_hermes(content) if hermes_native?
+
       messages = build_messages(content, mode, history)
       call_api(messages)
     end
 
     private
+
+    # ¿El modelo seleccionado es el Hermes de la cuenta? (source='hermes' + handoff listo)
+    def hermes_native?
+      @model_record.respond_to?(:source_jabvox) && @model_record.source_jabvox == 'hermes' &&
+        @account.jabvox_context_forge_handoff&.ready_for_chat?
+    end
+
+    # Comando para forzar sesión nueva (igual que /new en Telegram).
+    HERMES_RESET_COMMAND = '/new'.freeze
+
+    # Envía el turno al Hermes de la cuenta por la Sessions API nativa, con sesión persistente
+    # por (cuenta, usuario). Reintenta con sesión nueva si Hermes ya no la reconoce (404/410).
+    def chat_via_hermes(content)
+      handoff = @account.jabvox_context_forge_handoff
+      client = Jabvox::Hermes::SessionsClient.new(
+        base_url: handoff.hermes_url, token: handoff.scoped_token
+      )
+      session = JabvoxHermesSession.for(account_id: @account.id, user_id: @user&.id, kind: 'account')
+      session.reset! if content.to_s.strip == HERMES_RESET_COMMAND
+
+      result = deliver_hermes(client, session, content)
+      raise "Error al contactar Hermes: #{result.error}" unless result.success?
+
+      session.remember!(result.session_id) if result.session_id.present?
+      result.text
+    end
+
+    def deliver_hermes(client, session, content)
+      sid = session.session_id_jabvox.presence || create_hermes_session!(client)
+      result = client.chat(sid, content)
+      return result unless !result.success? && [404, 410].include?(result.status)
+
+      session.reset!
+      client.chat(create_hermes_session!(client), content)
+    end
+
+    def create_hermes_session!(client)
+      created = client.create_session
+      raise created.error.to_s unless created.success?
+
+      created.session_id
+    end
 
     def build_messages(content, mode, history)
       system_msg = build_system_message(mode)

@@ -116,4 +116,43 @@ RSpec.describe 'Webhooks::Jabvox::Hermes callback' do
       expect(response).to have_http_status(:unauthorized)
     end
   end
+
+  describe 'doble validación (token + usuario de servicio + secreto)' do
+    let(:service_user) { create(:user, account: account) }
+
+    before do
+      JabvoxHermesProvisioner.instance.mark_connected!(
+        base_url: 'http://10.147.100.1:9119', service_token: 'svc-tok',
+        service_user: service_user, callback_secret: 'svc-sec'
+      )
+    end
+
+    def triple_headers(token: 'svc-tok', user: service_user.id, secret: 'svc-sec')
+      { 'X-Hermes-Provisioner-Token' => token, 'X-Hermes-Service-User' => user.to_s,
+        'X-Hermes-Service-Secret' => secret }
+    end
+
+    it 'acepta con los tres factores correctos' do
+      post url, params: { account_id: account.id, status: 'ready', hermes_url: 'http://x', scoped_token: 't' },
+                headers: triple_headers
+      expect(response).to have_http_status(:ok)
+    end
+
+    it 'rechaza si falta el secreto (aunque el token sea válido)' do
+      post url, params: { account_id: account.id, status: 'ready' },
+                headers: triple_headers(secret: 'malo')
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'rechaza si el usuario de servicio no coincide' do
+      post url, params: { account_id: account.id, status: 'ready' },
+                headers: triple_headers(user: 999_999)
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'ya NO acepta solo el ENV legacy cuando hay usuario de servicio configurado' do
+      post url, params: { account_id: account.id, status: 'ready' }, headers: auth_headers
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
 end

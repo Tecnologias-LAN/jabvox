@@ -106,14 +106,31 @@ class Webhooks::Jabvox::HermesController < ActionController::API
     end
   end
 
-  # Autenticación por token compartido, comparado en tiempo constante (anti timing-attack).
+  # DOBLE validación del aprovisionador: token de servicio + usuario de servicio + secreto.
+  # Los tres deben coincidir con el aprovisionador único conectado (JabvoxHermesProvisioner).
+  # Fallback: si aún no hay usuario de servicio configurado, acepta el ENV compartido (para
+  # no romper despliegues previos), pero lo advierte en logs.
   def authenticate_provisioner!
-    expected = ENV['HERMES_PROVISIONER_CALLBACK_SECRET'].to_s
-    provided = request.headers['X-Hermes-Provisioner-Token'].to_s
-    return if expected.present? &&
-              ActiveSupport::SecurityUtils.secure_compare(provided, expected)
+    provisioner = JabvoxHermesProvisioner.instance
+    token = request.headers['X-Hermes-Provisioner-Token'].to_s
+    service_user_id = request.headers['X-Hermes-Service-User'].to_s
+    secret = request.headers['X-Hermes-Service-Secret'].to_s
 
-    Rails.logger.warn('[HermesCallback] token de aprovisionador inválido')
+    return if provisioner.valid_callback?(token: token, service_user_id: service_user_id, secret: secret)
+    return if legacy_env_ok?(token)
+
+    Rails.logger.warn('[HermesCallback] doble validación de aprovisionador fallida')
     head :unauthorized
+  end
+
+  # Compatibilidad: si el provisioner aún no tiene service_user/secreto, se acepta el token
+  # contra el ENV HERMES_PROVISIONER_CALLBACK_SECRET (transición). Una vez configurada la
+  # doble validación, este camino deja de aplicar.
+  def legacy_env_ok?(token)
+    provisioner = JabvoxHermesProvisioner.instance
+    return false if provisioner.service_user_id_value.present?
+
+    expected = ENV['HERMES_PROVISIONER_CALLBACK_SECRET'].to_s
+    expected.present? && ActiveSupport::SecurityUtils.secure_compare(token, expected)
   end
 end

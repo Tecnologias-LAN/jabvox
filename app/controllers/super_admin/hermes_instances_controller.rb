@@ -21,14 +21,28 @@ class SuperAdmin::HermesInstancesController < SuperAdmin::ApplicationController
     end
   end
 
-  # Conecta el Hermes Aprovisionador GLOBAL (URL + token de servicio). Idempotente.
-  # Token en blanco = conservar el actual (no lo sobreescribe con vacío).
+  # Conecta el Hermes Aprovisionador GLOBAL ÚNICO. Doble seguridad: URL (host:puerto ZeroTier)
+  # + token de servicio + usuario de servicio (segundo factor) + secreto de callback.
+  # Los secretos en blanco = conservar el actual (no se sobreescriben con vacío).
   def connect_provisioner
-    token = params[:service_token].presence || JabvoxHermesProvisioner.instance.service_token_jabvox
+    current = JabvoxHermesProvisioner.instance
+    token = params[:service_token].presence || current.service_token_jabvox
+    secret = params[:callback_secret].presence || current.callback_secret_jabvox
     result = Jabvox::Hermes::ProvisionerConnectService.new(
-      base_url: params[:base_url], service_token: token
+      base_url: params[:base_url], service_token: token,
+      service_user: resolve_service_user(current), callback_secret: secret,
+      sessions_path: params[:sessions_path]
     ).call
     redirect_back_with(result.success?, result.error, 'Aprovisionador conectado')
+  end
+
+  # Usuario de servicio del aprovisionador (segundo factor). Se toma del param si viene, si no
+  # se conserva el actual. Debe ser un usuario existente de la app.
+  def resolve_service_user(current)
+    id = params[:service_user_id].presence
+    return current.service_user unless id
+
+    User.find_by(id: id)
   end
 
   # Liga el aprovisionador global a una cuenta (esa cuenta verá el Chat Aprovisionador).

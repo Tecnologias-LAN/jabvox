@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_21_000011) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_25_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2447,6 +2447,23 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000011) do
     t.text "last_error_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "service_user_id"
+    t.text "callback_secret_jabvox"
+    t.string "sessions_path_jabvox", default: "/api/sessions", null: false
+    t.index ["service_user_id"], name: "index_jabvox_hermes_provisioners_on_service_user_id"
+  end
+
+  create_table "jabvox_hermes_sessions", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "user_id", null: false
+    t.string "kind_jabvox", default: "account", null: false
+    t.string "session_id_jabvox"
+    t.datetime "last_used_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "user_id", "kind_jabvox"], name: "idx_hermes_sessions_account_user_kind", unique: true
+    t.index ["account_id"], name: "index_jabvox_hermes_sessions_on_account_id"
+    t.index ["user_id"], name: "index_jabvox_hermes_sessions_on_user_id"
   end
 
   create_table "jabvox_hermes_user_permissions", force: :cascade do |t|
@@ -4321,6 +4338,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000011) do
   add_foreign_key "jabvox_hermes_identities", "accounts"
   add_foreign_key "jabvox_hermes_provisioner_links", "accounts"
   add_foreign_key "jabvox_hermes_provisioner_links", "jabvox_hermes_provisioners", column: "hermes_provisioner_id"
+  add_foreign_key "jabvox_hermes_provisioners", "users", column: "service_user_id"
+  add_foreign_key "jabvox_hermes_sessions", "accounts"
+  add_foreign_key "jabvox_hermes_sessions", "users"
   add_foreign_key "jabvox_hermes_user_permissions", "accounts"
   add_foreign_key "jabvox_hermes_user_permissions", "users"
   add_foreign_key "jabvox_integration_configs", "accounts"

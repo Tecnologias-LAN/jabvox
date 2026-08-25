@@ -33,9 +33,17 @@
 
   <%= form_with url: connect_provisioner_super_admin_hermes_instances_path, method: :post, local: true do |form| %>
     <div class="flex mb-4">
-      <div class="field-unit__label"><%= form.label :base_url, 'URL del Aprovisionador' %></div>
+      <div class="field-unit__label"><%= form.label :base_url, 'URL del Aprovisionador (ZeroTier)' %></div>
       <div class="-mt-2 field-unit__field">
-        <%= form.text_field :base_url, value: @provisioner[:base_url], placeholder: 'https://hermes-provisioner...' %>
+        <%= form.text_field :base_url, value: @provisioner[:base_url], placeholder: 'http://10.147.100.1:9119' %>
+        <p class="pt-2 text-xs italic text-slate-400">Host:puerto de la red ZeroTier. Sin path (se añade /api/sessions).</p>
+      </div>
+    </div>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :sessions_path, 'Path de sesiones' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_field :sessions_path, value: @provisioner[:sessions_path], placeholder: '/api/sessions' %>
+        <p class="pt-2 text-xs italic text-slate-400">Solo cámbialo si tu Hermes usa otro prefijo.</p>
       </div>
     </div>
     <div class="flex mb-4">
@@ -43,6 +51,20 @@
       <div class="-mt-2 field-unit__field">
         <%= form.password_field :service_token, placeholder: '(en blanco = conservar)' %>
         <p class="pt-2 text-xs italic text-slate-400">Se guarda cifrado. Nunca se muestra.</p>
+      </div>
+    </div>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :service_user_id, 'Usuario de servicio (2º factor)' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.number_field :service_user_id, value: @provisioner[:service_user_id], placeholder: 'ID de usuario' %>
+        <p class="pt-2 text-xs italic text-slate-400">ID de un usuario de la app dedicado al aprovisionador (doble validación).</p>
+      </div>
+    </div>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :callback_secret, 'Secreto de callback (2º factor)' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.password_field :callback_secret, placeholder: '(en blanco = conservar)' %>
+        <p class="pt-2 text-xs italic text-slate-400">Se guarda cifrado. El aprovisionador lo envía en cada callback.</p>
       </div>
     </div>
     <%= form.submit 'Conectar aprovisionador', class: 'button' %>
