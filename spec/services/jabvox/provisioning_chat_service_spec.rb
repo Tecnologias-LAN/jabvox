@@ -4,58 +4,42 @@ require 'rails_helper'
 
 RSpec.describe Jabvox::ProvisioningChatService do
   let(:account) { create(:account) }
-  let(:user) { create(:user) }
-
-  let(:fake_service) do
-    result = ContextForge::Service::Result
-    Class.new do
-      define_method(:result_class) { result }
-      def ensure_team(account) = result_class.new(success: true, data: { 'id' => "team-#{account.id}" })
-
-      def ensure_mcp_server(account, **opts)
-        result_class.new(success: true, data: { 'id' => "mcp-#{account.id}-#{opts[:kind]}" })
-      end
-
-      def ensure_virtual_server(account, **_opts)
-        result_class.new(success: true, data: { 'id' => "vs-#{account.id}" })
-      end
-
-      def issue_scoped_token(account, **_opts)
-        result_class.new(success: true, data: { 'token' => "tok-#{account.id}" })
-      end
-    end.new
-  end
-
-  before do
-    allow(ContextForge::Service).to receive_messages(configured?: true, base_url: 'https://cf/api',
-                                                     hermes_url: '')
-  end
+  let(:user) { create(:user, account: account) }
 
   describe '#handle' do
-    context 'without provisioned handoff' do
-      it 'guía al usuario a aprovisionar primero' do
-        out = described_class.new(account: account, user: user, service: fake_service)
-                             .handle('crea un mcp de analytics')
-        expect(out[:reply]).to include('Aprovisionar')
+    context 'cuando la cuenta NO está ligada a un Hermes Aprovisionador' do
+      it 'no relaya y avisa que falta ligar la cuenta' do
+        allow(JabvoxHermesProvisionerLink).to receive(:active_for?).with(account.id).and_return(false)
+        out = described_class.new(account: account, user: user).handle('levanta el hermes')
+        expect(out[:reply]).to include('no está ligada')
+        expect(out[:metadata][:ok]).to be(false)
       end
     end
 
-    context 'with operational handoff' do
-      before { create(:jabvox_context_forge_handoff, :ready, account: account) }
+    context 'cuando la cuenta SÍ está ligada' do
+      let(:relay) { instance_double(Jabvox::Hermes::ProvisionerChatRelay) }
 
-      it 'crea un MCP cuando el usuario lo pide por lenguaje natural' do
-        out = described_class.new(account: account, user: user, service: fake_service)
-                             .handle('por favor crea un MCP de analytics')
-        expect(out[:metadata][:action]).to eq('create_mcp')
-        expect(out[:metadata][:ok]).to be(true)
-        expect(out[:metadata][:kind]).to eq('analytics_db')
+      before do
+        allow(JabvoxHermesProvisionerLink).to receive(:active_for?).with(account.id).and_return(true)
+        allow(Jabvox::Hermes::ProvisionerChatRelay).to receive(:new).and_return(relay)
       end
 
-      it 'responde con ayuda si no reconoce una intención de crear MCP' do
-        out = described_class.new(account: account, user: user, service: fake_service)
-                             .handle('hola, qué puedes hacer')
-        expect(out[:reply]).to include('MCP')
-        expect(out[:metadata][:action]).to be_nil
+      it 'relaya el mensaje al aprovisionador y devuelve su respuesta' do
+        allow(relay).to receive(:send_message).with('hola')
+          .and_return(Jabvox::Hermes::ProvisionerChatRelay::Result.new(
+                        success: true, text: 'respuesta del aprovisionador'
+                      ))
+        out = described_class.new(account: account, user: user).handle('hola')
+        expect(out[:reply]).to eq('respuesta del aprovisionador')
+        expect(out[:metadata][:via]).to eq('provisioner')
+      end
+
+      it 'reporta el error si el aprovisionador falla' do
+        allow(relay).to receive(:send_message)
+          .and_return(Jabvox::Hermes::ProvisionerChatRelay::Result.new(success: false, error: 'timeout'))
+        out = described_class.new(account: account, user: user).handle('hola')
+        expect(out[:reply]).to include('no pudo responder')
+        expect(out[:metadata][:ok]).to be(false)
       end
     end
   end

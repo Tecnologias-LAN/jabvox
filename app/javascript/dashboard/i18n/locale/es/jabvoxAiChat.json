@@ -54,7 +54,7 @@
     },
     "HERMES": {
       "TITLE": "Conexión con Hermes",
-      "SECTION_DESC": "Conecta un Hermes ya existente a esta cuenta indicando su ContextForge y un token con alcance.",
+      "SECTION_DESC": "Conecta un Hermes ya existente a esta cuenta indicando su URL y un token con alcance.",
       "LOADING": "Cargando estado de la conexión...",
       "LOAD_ERROR": "No se pudo cargar el estado de la conexión. Inténtalo de nuevo.",
       "RETRY": "Reintentar",
@@ -71,7 +71,7 @@
       "CONNECT_OK": "Hermes conectado correctamente.",
       "CONNECT_ERROR": "No se pudo conectar Hermes.",
       "FIELD": {
-        "BASE_URL": "ContextForge Base URL",
+        "BASE_URL": "URL de Hermes",
         "VSID": "Virtual Server ID",
         "MCP_SERVERS": "Servidores MCP",
         "HERMES_MODELS": "Modelos en Hermes"
@@ -79,9 +79,9 @@
       "FORM": {
         "TITLE": "Conectar Hermes",
         "DESC": "Introduce los datos del Hermes existente que quieres conectar a esta cuenta.",
-        "BASE_URL": "ContextForge Base URL",
-        "BASE_URL_PLACEHOLDER": "https://contextforge.ejemplo.com",
-        "BASE_URL_REQUIRED": "La URL base de ContextForge es obligatoria.",
+        "BASE_URL": "URL de Hermes",
+        "BASE_URL_PLACEHOLDER": "http://10.147.0.5:8642",
+        "BASE_URL_REQUIRED": "La URL de Hermes es obligatoria.",
         "VSID": "Virtual Server ID",
         "VSID_PLACEHOLDER": "vs_123456",
         "VSID_REQUIRED": "El Virtual Server ID es obligatorio.",

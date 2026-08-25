@@ -16,8 +16,14 @@ class Jabvox::Hermes::Authorizer
     def allowed? = allowed
   end
 
-  # MCPs siempre disponibles para toda cuenta con Chat IA (no requieren aprovisionamiento extra).
-  CORE_MCPS = %w[jabvox_core].freeze
+  # MCPs INTERNOS de Jabvox: son las áreas nativas de la cuenta (etiquetas, contactos, dialer,
+  # leads, gestiones, sms, analítica...). No requieren aprovisionamiento externo — su acceso
+  # real lo controla el gate de MÓDULO (NIVEL 1.5, feature_enabled?) + el permiso del agente.
+  # Los MCPs externos (creados por el aprovisionador, p.ej. analytics_db_49) sí se validan
+  # contra el handoff en account_has_mcp?.
+  CORE_MCPS = %w[
+    jabvox_core jabvox_dialer jabvox_leads jabvox_management jabvox_sms analytics
+  ].freeze
 
   def initialize(account:, user:)
     @account = account
@@ -31,6 +37,9 @@ class Jabvox::Hermes::Authorizer
 
     return deny('usuario no pertenece a la cuenta') unless user_in_account?
     return deny("MCP '#{spec[:mcp]}' no habilitado para la cuenta") unless account_has_mcp?(spec[:mcp])
+    # NIVEL 1.5: el módulo de la tool debe estar HABILITADO en la cuenta. Si el módulo está
+    # apagado, la tool no existe para esta cuenta aunque el agente tenga el permiso.
+    return deny("módulo '#{spec[:feature]}' no habilitado para la cuenta") unless account_has_feature?(spec[:feature])
 
     required = spec[:permission]
     return deny("permiso '#{required}' requerido") unless user_has_permission?(required)
@@ -58,6 +67,14 @@ class Jabvox::Hermes::Authorizer
     return false unless handoff
 
     Array(handoff.mcp_servers).map { |m| m.is_a?(Hash) ? m['kind'] : m.to_s }.include?(mcp)
+  end
+
+  # NIVEL 1.5: el módulo (jabvox_feature) de la tool está habilitado en la cuenta. Una tool
+  # sin módulo declarado (feature nil o 'core') no requiere gate — es funcionalidad base.
+  def account_has_feature?(feature)
+    return true if feature.blank? || feature == 'core'
+
+    @account.feature_enabled?(feature)
   end
 
   # NIVEL 2: el usuario tiene el permiso granular (fuente de verdad en BD, no el prompt).

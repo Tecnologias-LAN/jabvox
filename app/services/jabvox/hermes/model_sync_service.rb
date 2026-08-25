@@ -2,15 +2,15 @@
 
 # Sync bidireccional de modelos entre el ai-chat de la cuenta y su Hermes: PUSH de los
 # locales a Hermes, PULL de los de Hermes al ai-chat (source='hermes'). Requiere handoff
-# operativo y Hermes vivo.
-class ContextForge::ModelSyncService
+# operativo y Hermes vivo. Habla con el Hermes de la cuenta vía Jabvox::Hermes::Client.
+class Jabvox::Hermes::ModelSyncService
   Result = Struct.new(:success, :pushed, :pulled, :error, keyword_init: true) do
     def success? = success
   end
 
-  def initialize(account, service: ContextForge::Service.new)
+  def initialize(account, client: Jabvox::Hermes::Client.new)
     @account = account
-    @service = service
+    @client = client
     @handoff = account.jabvox_context_forge_handoff
   end
 
@@ -31,23 +31,23 @@ class ContextForge::ModelSyncService
 
   private
 
-  # URL del Hermes de ESTA cuenta (del handoff); si no, la global de ContextForge.
+  # URL del Hermes de ESTA cuenta (del handoff); si no, la global.
   def hermes_base_url
-    @handoff&.hermes_url.presence || ContextForge::Service.hermes_url
+    @handoff&.hermes_url.presence || Jabvox::Hermes::Client.hermes_url
   end
 
   # GET modelos que ofrece el Hermes de la cuenta (OpenAI-compat: /v1/models).
   def fetch_remote_models
-    conn = hermes_client
+    conn = hermes_conn
     resp = conn.get('v1/models')
     if resp.success?
       list = resp.body.is_a?(Hash) ? (resp.body['data'] || []) : Array(resp.body)
-      ContextForge::Service::Result.new(success: true, data: list)
+      Jabvox::Hermes::Client::Result.new(success: true, data: list)
     else
-      ContextForge::Service::Result.new(success: false, error: "Hermes respondió #{resp.status}")
+      Jabvox::Hermes::Client::Result.new(success: false, error: "Hermes respondió #{resp.status}")
     end
   rescue Faraday::Error => e
-    ContextForge::Service::Result.new(success: false, error: "No se pudo listar modelos de Hermes: #{e.class}")
+    Jabvox::Hermes::Client::Result.new(success: false, error: "No se pudo listar modelos de Hermes: #{e.class}")
   end
 
   # PULL: crea/actualiza en el ai-chat los modelos de Hermes no presentes localmente.
@@ -65,8 +65,8 @@ class ContextForge::ModelSyncService
         model_jabvox: mid.first(200),
         base_url_jabvox: hermes_base_url.first(500),
         # AISLAMIENTO: el api_key de un modelo Hermes ES el scoped token de ESTA cuenta.
-        # El gateway Hermes lo valida contra el virtual server de la cuenta; con él, el
-        # ai-chat solo puede tocar las MCPs de su propia cuenta (403 en cualquier otra).
+        # El gateway Hermes lo valida contra el Hermes de la cuenta; con él, el ai-chat solo
+        # puede tocar las MCPs de su propia cuenta (403 en cualquier otra).
         api_key_jabvox: @handoff.scoped_token,
         source_jabvox: 'hermes',
         hermes_model_id_jabvox: mid,
@@ -82,13 +82,13 @@ class ContextForge::ModelSyncService
   def export_local_models
     locals = @account.jabvox_ai_chat_models.where(source_jabvox: 'local')
     payload = locals.map { |m| { id: m.model_jabvox, name: m.name_jabvox, base_url: m.base_url_jabvox } }
-    resp = hermes_client.post('jabvox/models') { |r| r.body = { models: payload } }
+    resp = hermes_conn.post('jabvox/models') { |r| r.body = { models: payload } }
     resp.success? ? locals.size : 0
   rescue Faraday::Error
     0 # push best-effort; no bloquea el pull
   end
 
-  def hermes_client
+  def hermes_conn
     base = hermes_base_url
     normalized = base.end_with?('/') ? base : "#{base}/"
     Faraday.new(url: normalized) do |f|

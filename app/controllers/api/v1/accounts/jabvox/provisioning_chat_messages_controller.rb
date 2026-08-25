@@ -41,15 +41,23 @@ class Api::V1::Accounts::Jabvox::ProvisioningChatMessagesController < Api::V1::A
     render json: (handoff&.safe_summary || { status: 'pending', mcp_servers: [], has_token: false })
   end
 
-  # Dispara el aprovisionamiento inicial (crea Hermes + MCPs por defecto + virtual server
-  # + scoped token). Idempotente. Corre inline pero acotado por el timeout del service.
+  # Pide al Hermes Aprovisionador que levante el Hermes de esta cuenta. Jabvox NO aprovisiona:
+  # solo transporta la solicitud; el aprovisionador confirma por el webhook /webhooks/jabvox/
+  # hermes/provisioned, que marca el handoff operativo. El estado se consulta con #status.
   def provision
-    result = ContextForge::AccountProvisioner.new(Current.account).call
+    unless JabvoxHermesProvisionerLink.active_for?(Current.account.id)
+      return render(json: { error: 'La cuenta no está ligada a un Hermes Aprovisionador' },
+                    status: :unprocessable_entity)
+    end
+
+    msg = "Levanta y aprovisiona el Hermes de la cuenta #{Current.account.id} con sus MCPs por defecto."
+    result = Jabvox::Hermes::ProvisionerChatRelay.new(account: Current.account, user: Current.user)
+                                                 .send_message(msg)
     handoff = Current.account.jabvox_context_forge_handoff
     if result.success?
-      render json: (handoff&.safe_summary || {}).merge(steps: result.steps)
+      render json: (handoff&.safe_summary || { status: 'provisioning' }).merge(reply: result.text)
     else
-      render json: { error: result.error, status: handoff&.status || 'failed', steps: result.steps },
+      render json: { error: result.error, status: handoff&.status || 'pending' },
              status: :unprocessable_entity
     end
   end

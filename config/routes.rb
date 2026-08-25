@@ -1214,6 +1214,13 @@ Rails.application.routes.draw do
   post 'webhooks/jabvox/billing/resolve', to: 'webhooks/jabvox/billing#resolve_token'
   post 'webhooks/jabvox/billing/checkout', to: 'webhooks/jabvox/billing#create_checkout'
   post 'webhooks/jabvox/billing/:gateway', to: 'webhooks/jabvox/billing#process_payload'
+  # Callback del Hermes Aprovisionador: confirma que el Hermes de una cuenta ya está operativo.
+  post 'webhooks/jabvox/hermes/provisioned', to: 'webhooks/jabvox/hermes#provisioned'
+  # El Aprovisionador consulta las conexiones de DB de una cuenta para crear su MCP de analítica.
+  get 'webhooks/jabvox/hermes/data_sources/:account_id',
+      to: 'webhooks/jabvox/hermes#data_sources'
+  get 'webhooks/jabvox/hermes/data_sources/:account_id/:id/credentials',
+      to: 'webhooks/jabvox/hermes#credentials'
   post 'webhooks/line/:line_channel_id', to: 'webhooks/line#process_payload'
   post 'webhooks/telegram/:bot_token', to: 'webhooks/telegram#process_payload'
   post 'webhooks/sms/:phone_number', to: 'webhooks/sms#process_payload'
@@ -1275,9 +1282,6 @@ Rails.application.routes.draw do
       resource :automations_config, only: [:show, :create] do
         get :health, on: :collection
       end
-      resource :context_forge_config, only: [:show, :create] do
-        get :health, on: :collection
-      end
       # Administración central de instancias Hermes por cuenta (todo vía el Provisionador).
       # OJO: es un panel custom, NO un recurso Administrate. Debe estar en `hidden_resources`
       # del nav (_navigation.html.erb) para que Administrate no le exija un Dashboard.
@@ -1325,9 +1329,6 @@ Rails.application.routes.draw do
         post :reset_cache, on: :member
         post :provision_ssl_form_config, on: :member
         delete :revoke_domain_form_config, on: :member
-        # Aprovisiona Hermes/ContextForge para la cuenta (team → MCPs → virtual server
-        # → scoped token). Idempotente. Requiere ContextForge configurado.
-        post :provision_context_forge, on: :member
         resource :jabvox_saldo_config, only: [:show, :update]
         resources :jabvox_ip_whitelists, only: [:index, :create, :destroy] do
           patch :toggle, on: :member

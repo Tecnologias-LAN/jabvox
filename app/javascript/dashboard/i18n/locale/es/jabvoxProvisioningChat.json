@@ -24,7 +24,7 @@
       "VIRTUAL_SERVER": "Servidor virtual",
       "MCP_SERVERS": "Servidores MCP",
       "NO_MCP_SERVERS": "Sin servidores MCP todavía",
-      "BASE_URL": "URL base de ContextForge",
+      "BASE_URL": "URL de Hermes",
       "HAS_TOKEN": "Token configurado",
       "NO_TOKEN": "Sin token",
       "LAST_ERROR": "Último error"

@@ -54,7 +54,7 @@
     },
     "HERMES": {
       "TITLE": "Hermes connection",
-      "SECTION_DESC": "Connect an existing Hermes to this account using its ContextForge and a scoped token.",
+      "SECTION_DESC": "Connect an existing Hermes to this account using its URL and a scoped token.",
       "LOADING": "Loading connection status...",
       "LOAD_ERROR": "Could not load the connection status. Please try again.",
       "RETRY": "Retry",
@@ -71,7 +71,7 @@
       "CONNECT_OK": "Hermes connected successfully.",
       "CONNECT_ERROR": "Could not connect Hermes.",
       "FIELD": {
-        "BASE_URL": "ContextForge Base URL",
+        "BASE_URL": "Hermes URL",
         "VSID": "Virtual Server ID",
         "MCP_SERVERS": "MCP servers",
         "HERMES_MODELS": "Models in Hermes"
@@ -79,9 +79,9 @@
       "FORM": {
         "TITLE": "Connect Hermes",
         "DESC": "Enter the details of the existing Hermes you want to connect to this account.",
-        "BASE_URL": "ContextForge Base URL",
-        "BASE_URL_PLACEHOLDER": "https://contextforge.example.com",
-        "BASE_URL_REQUIRED": "The ContextForge base URL is required.",
+        "BASE_URL": "Hermes URL",
+        "BASE_URL_PLACEHOLDER": "http://10.147.0.5:8642",
+        "BASE_URL_REQUIRED": "The Hermes URL is required.",
         "VSID": "Virtual Server ID",
         "VSID_PLACEHOLDER": "vs_123456",
         "VSID_REQUIRED": "The Virtual Server ID is required.",

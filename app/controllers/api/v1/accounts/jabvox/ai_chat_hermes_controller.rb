@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-# Consumer del Chat IA de la cuenta: expone al frontend el estado del Hermes/ContextForge
-# de ESTA cuenta, sincroniza modelos (bidireccional) y lista las tools/MCPs visibles con
-# el scoped token de la cuenta.
+# Consumer del Chat IA de la cuenta: expone al frontend el estado del Hermes de ESTA cuenta,
+# sincroniza modelos (bidireccional) y lista las tools/MCPs visibles con el scoped token de
+# la cuenta.
 #
 # AISLAMIENTO: usa SOLO el handoff de Current.account; el scoped token tiene alcance
-# únicamente al virtual server de esta cuenta, así que list_tools nunca puede ver MCPs de
-# otra. El token jamás se envía al frontend.
+# únicamente al Hermes de esta cuenta, así que list_tools nunca puede ver MCPs de otra. El
+# token jamás se envía al frontend.
 #
 #   GET  .../jabvox/ai_chat_hermes             → estado (sin token) + nº de modelos
 #   POST .../jabvox/ai_chat_hermes/sync_models → sync bidireccional de modelos
@@ -52,7 +52,7 @@ class Api::V1::Accounts::Jabvox::AiChatHermesController < Api::V1::Accounts::Jab
   def sync_models
     return unless jabvox_authorize!('jabvox_ai_chat_manage')
 
-    result = ContextForge::ModelSyncService.new(Current.account).call
+    result = Jabvox::Hermes::ModelSyncService.new(Current.account).call
     if result.success?
       render json: { ok: true, pushed: result.pushed, pulled: result.pulled,
                      models_count: Current.account.jabvox_ai_chat_models.count }
@@ -63,10 +63,10 @@ class Api::V1::Accounts::Jabvox::AiChatHermesController < Api::V1::Accounts::Jab
 
   # Lista las tools/MCPs que el Consumer de la cuenta puede usar (con SU scoped token).
   def tools
-    return render(json: { error: 'cuenta no aprovisionada' }, status: :unprocessable_entity) unless @handoff&.operational?
+    return render(json: { error: 'cuenta no aprovisionada' }, status: :unprocessable_entity) unless @handoff&.ready_for_chat?
 
-    result = ContextForge::Service.new.list_tools(@handoff.scoped_token,
-                                                  base_url: @handoff.contextforge_base_url)
+    result = Jabvox::Hermes::Client.new.list_tools(@handoff.scoped_token,
+                                                   base_url: @handoff.hermes_url)
     if result.success?
       render json: { tools: result.data }
     else

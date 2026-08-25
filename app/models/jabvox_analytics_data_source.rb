@@ -78,4 +78,30 @@ class JabvoxAnalyticsDataSource < ApplicationRecord
   def effective_port
     port_jabvox.presence || DEFAULT_PORTS[engine_jabvox]
   end
+
+  # Credenciales COMPLETAS de la conexión, SOLO para el Hermes Aprovisionador (que crea el
+  # MCP de esta DB). El Hermes de la cuenta NUNCA recibe esto: consume la DB por el MCP.
+  # Se entrega únicamente por el webhook autenticado del aprovisionador y se audita.
+  def provisioner_credentials
+    {
+      id: id,
+      name: name_jabvox,
+      engine: engine_jabvox,
+      host: host_jabvox,
+      port: effective_port,
+      database: database_jabvox,
+      username: username_jabvox,
+      password: password_jabvox,
+      ssl_mode: ssl_mode_jabvox,
+      ssl_ca: ssl_ca_jabvox,
+      sqlite_path: sqlite_path_jabvox,
+      status: status_jabvox
+    }.compact
+  end
+
+  # Vista SIN secretos (para listar sin exponer credenciales).
+  def provisioner_summary
+    { id: id, name: name_jabvox, engine: engine_jabvox, database: database_jabvox,
+      host: host_jabvox, status: status_jabvox }
+  end
 end

@@ -15,9 +15,15 @@ class Jabvox::Hermes::ServiceLayer
     @user = user
   end
 
+  Forbidden = Class.new(StandardError)
+
   # Enruta a un handler concreto. `path` ya viene con placeholders resueltos.
   def call(method:, path:, params:)
-    key = "#{method.to_s.upcase} #{normalize(path)}"
+    verb = method.to_s.upcase
+    # POLÍTICA: borrar está prohibido a nivel de motor, no solo por falta de ruta.
+    raise Forbidden, 'borrar registros de Jabvox no está permitido' if verb == 'DELETE'
+
+    key = "#{verb} #{normalize(path)}"
     handler = ROUTES[key]
     raise UnknownAction, "acción no soportada: #{key}" unless handler
 
@@ -31,49 +37,57 @@ class Jabvox::Hermes::ServiceLayer
     path.gsub(%r{/\d+}, '/:id')
   end
 
-  # Whitelist de rutas → handler. Coincide con ToolRegistry.
+  # Límite de filas por lectura (evita respuestas enormes al LLM).
+  MAX_ROWS = 50
+
+  # Whitelist de rutas → handler. Coincide con ToolRegistry. Solo GET/POST/PATCH: no hay
+  # ninguna ruta DELETE — borrar está prohibido por política. TODO scoped a @account.
   ROUTES = {
+    # Etiquetas
     'GET labels' => :list_labels,
     'POST labels' => :create_label,
     'PATCH labels/:id' => :update_label,
-    'DELETE labels/:id' => :delete_label,
+    # Bandejas
+    'GET inboxes' => :list_inboxes,
+    # Contactos
+    'GET contacts/search' => :search_contacts,
+    'GET contacts/:id' => :get_contact,
+    'POST contacts' => :create_contact,
+    'PATCH contacts/:id' => :update_contact,
+    # Conversaciones + mensajes + notas privadas
     'GET conversations/meta' => :conversations_meta,
-    'POST conversations/:id/messages' => :reply_conversation
+    'GET conversations/:id/messages' => :list_conversation_messages,
+    'POST conversations/:id/messages' => :reply_conversation,
+    'POST conversations/:id/notes' => :add_private_note,
+    # Notas de contacto
+    'GET contacts/:id/notes' => :list_contact_notes,
+    'POST contacts/:id/notes' => :create_contact_note,
+    # Automatizaciones
+    'GET automation_rules' => :list_automation_rules,
+    'POST automation_rules' => :create_automation_rule,
+    'PATCH automation_rules/:id' => :update_automation_rule,
+    # Integración por webhook directo al Hermes (así responde bandejas)
+    'GET webhooks' => :list_webhooks,
+    'POST webhooks' => :create_hermes_webhook,
+    'POST webhooks/inbox' => :create_hermes_inbox_webhook,
+    # Leads
+    'GET jabvox/leads' => :search_leads,
+    'GET jabvox/leads/:id' => :get_lead,
+    # Gestiones
+    'GET jabvox/management_states' => :list_management_states,
+    'POST jabvox/management_states' => :create_management_state,
+    'PATCH jabvox/management_states/:id' => :update_management_state,
+    # Dialer
+    'GET jabvox/dialer_campaigns' => :list_dialer_campaigns,
+    'GET jabvox/dialer_campaigns/:id' => :get_dialer_campaign,
+    'POST jabvox/dialer_campaigns' => :create_dialer_campaign,
+    'PATCH jabvox/dialer_campaigns/:id' => :update_dialer_campaign,
+    # Masivos
+    'GET jabvox/sms_campaigns' => :list_sms_campaigns,
+    'POST jabvox/sms_campaigns' => :create_sms_campaign,
+    'PATCH jabvox/sms_campaigns/:id' => :update_sms_campaign
   }.freeze
 
-  # --- Handlers de dominio (account SIEMPRE = @account, nunca del LLM) ---
-
-  def list_labels(_params)
-    @account.labels.map { |l| { id: l.id, title: l.title, color: l.color } }
-  end
-
-  def create_label(params)
-    label = @account.labels.create!(title: params[:title])
-    { id: label.id, title: label.title }
-  end
-
-  def update_label(params)
-    label = @account.labels.find(params[:id]) # scoped a la cuenta → no cross-account
-    label.update!(title: params[:title])
-    { id: label.id, title: label.title }
-  end
-
-  def delete_label(params)
-    label = @account.labels.find(params[:id])
-    label.destroy!
-    { id: params[:id], deleted: true }
-  end
-
-  def conversations_meta(_params)
-    { open: @account.conversations.open.count, total: @account.conversations.count }
-  end
-
-  def reply_conversation(params)
-    conv = @account.conversations.find(params[:id]) # scoped a la cuenta
-    msg = conv.messages.create!(
-      account_id: @account.id, message_type: :outgoing, content: params[:content],
-      sender: @user, inbox_id: conv.inbox_id
-    )
-    { id: msg.id, conversation_id: conv.display_id }
-  end
+  # Los handlers de dominio viven en ServiceHandlers (para mantener el dispatch pequeño).
+  include Jabvox::Hermes::ServiceHandlers
 end

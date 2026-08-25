@@ -53,16 +53,31 @@ class Jabvox::Hermes::ToolExecutor
     path.gsub(/:(\w+)/) { params[Regexp.last_match(1).to_sym].to_s }
   end
 
-  # Coacciona tipos declarados (string/integer) y descarta lo no declarado (whitelist de
-  # params: el LLM no puede colar campos extra).
+  # Coacciona tipos declarados y descarta lo no declarado (whitelist de params: el LLM no
+  # puede colar campos extra). Tipos: :string, :integer, :boolean, :json (hash/array).
   def coerce_params(spec, args)
     schema = spec[:params] || {}
     args = args.transform_keys(&:to_sym)
     schema.each_with_object({}) do |(key, type), out|
       next unless args.key?(key)
 
-      out[key] = type == :integer ? args[key].to_i : args[key].to_s
+      out[key] = coerce_value(type, args[key])
     end
+  end
+
+  def coerce_value(type, value)
+    case type
+    when :integer then value.to_i
+    when :boolean then ActiveModel::Type::Boolean.new.cast(value)
+    when :json then value.is_a?(String) ? safe_json(value) : value
+    else value.to_s
+    end
+  end
+
+  def safe_json(str)
+    JSON.parse(str)
+  rescue JSON::ParserError
+    str
   end
 
   def forbidden(tool_name, decision, started)

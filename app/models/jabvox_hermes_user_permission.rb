@@ -26,8 +26,17 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class JabvoxHermesUserPermission < ApplicationRecord
-  # Permisos soportados por la arquitectura (no todos se usan desde el día 1).
-  PERMISSIONS = %w[read create write delete execute configure admin].freeze
+  # Permisos concedibles a un agente de Hermes. POLÍTICA ESTRICTA: NO existe 'delete'.
+  # El token entregado a Hermes solo puede LEER, CREAR y EDITAR. Borrar registros de
+  # Jabvox está prohibido a nivel de arquitectura (no hay permiso ni ruta para ello).
+  PERMISSIONS = %w[read create write execute configure admin].freeze
+
+  # 'admin' implica todos los permisos EXCEPTO borrar. Nunca se concede la capacidad de
+  # borrar por ninguna vía, ni siquiera admin. Fuente única de "qué implica admin".
+  ADMIN_IMPLIES = %w[read create write execute configure].freeze
+
+  # Permiso que jamás puede otorgarse (defensa en profundidad para la capa de dispatch).
+  FORBIDDEN = %w[delete destroy].freeze
 
   belongs_to :account
   belongs_to :user
@@ -41,8 +50,14 @@ class JabvoxHermesUserPermission < ApplicationRecord
 
   # ¿El usuario tiene el permiso dado en la cuenta? (fuente de verdad de autorización)
   def self.allows?(account_id, user_id, permission)
+    permission = permission.to_s
+    return false if FORBIDDEN.include?(permission) # borrar jamás, por ninguna vía
+
     perms = granted_for(account_id, user_id)
-    perms.include?(permission.to_s) || perms.include?('admin') # admin implica todo
+    return true if perms.include?(permission)
+
+    # 'admin' implica todo lo concedible EXCEPTO borrar.
+    perms.include?('admin') && ADMIN_IMPLIES.include?(permission)
   end
 
   def permissions_list

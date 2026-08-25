@@ -17,7 +17,7 @@ class Api::V1::Accounts::Jabvox::AiChatHermesCronJobsController < Api::V1::Accou
   before_action -> { jabvox_authorize_write!('jabvox_ai_chat_manage') }
 
   def index
-    result = service.list_cron_jobs(token)
+    result = service.list_cron_jobs(token, base_url: base_url)
     respond(result, key: :jobs, default: [])
   end
 
@@ -25,18 +25,18 @@ class Api::V1::Accounts::Jabvox::AiChatHermesCronJobsController < Api::V1::Accou
     attrs = params.permit(:name, :schedule, :prompt, :blueprint, :enabled).to_h
     return render(json: { error: 'name y schedule requeridos' }, status: :unprocessable_entity) if attrs['name'].blank? || attrs['schedule'].blank?
 
-    result = service.create_cron_job(token, attrs)
+    result = service.create_cron_job(token, attrs, base_url: base_url)
     respond(result, key: :job)
   end
 
   def toggle
     enabled = ActiveModel::Type::Boolean.new.cast(params[:enabled])
-    result = service.set_cron_job_enabled(token, params[:id], enabled)
+    result = service.set_cron_job_enabled(token, params[:id], enabled, base_url: base_url)
     respond(result, key: :job)
   end
 
   def destroy
-    result = service.delete_cron_job(token, params[:id])
+    result = service.delete_cron_job(token, params[:id], base_url: base_url)
     if result.success?
       head :no_content
     else
@@ -47,7 +47,7 @@ class Api::V1::Accounts::Jabvox::AiChatHermesCronJobsController < Api::V1::Accou
   private
 
   def service
-    @service ||= ContextForge::Service.new
+    @service ||= Jabvox::Hermes::Client.new
   end
 
   def handoff
@@ -58,10 +58,14 @@ class Api::V1::Accounts::Jabvox::AiChatHermesCronJobsController < Api::V1::Accou
     handoff.scoped_token
   end
 
-  def require_operational_handoff
-    return if handoff&.operational?
+  def base_url
+    handoff.hermes_url
+  end
 
-    render json: { error: 'La cuenta no está aprovisionada (sin Hermes/ContextForge).' },
+  def require_operational_handoff
+    return if handoff&.ready_for_chat?
+
+    render json: { error: 'La cuenta no tiene un Hermes conectado.' },
            status: :unprocessable_entity
   end
 
