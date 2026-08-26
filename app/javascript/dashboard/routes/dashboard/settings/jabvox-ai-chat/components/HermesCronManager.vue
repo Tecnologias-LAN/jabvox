@@ -6,27 +6,37 @@
 // tabla, y nunca silencia los errores.
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { aiChatHermesCronAPI } from 'dashboard/api/jabvox/aiChat';
+import { hermesConnectionsAPI } from 'dashboard/api/jabvox/aiChat';
 import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import Select from 'dashboard/components-next/select/Select.vue';
 import SectionCard from './SectionCard.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
 
 const { t } = useI18n();
 
 // ─── estado ───
+const connections = ref([]); // agentes Hermes de la cuenta
+const selectedConnId = ref(null); // agente elegido (los cron son POR agente)
 const jobs = ref([]);
 const isLoading = ref(false);
-// Error de carga genérico (mensaje visible + botón reintentar).
 const loadError = ref('');
-// Cuenta no aprovisionada: el backend devuelve 422 en el GET.
 const notProvisioned = ref(false);
-// Ids de cron jobs con una operación (toggle/eliminar) en curso.
 const busyIds = ref(new Set());
 const deleteDialog = ref(null);
+
+const connOptions = computed(() =>
+  (connections.value || []).map(c => ({ value: c.id, label: c.name }))
+);
+
+// Normaliza la lista de jobs que devuelve Hermes (puede venir como array o {jobs:[...]}).
+const normalizeJobs = data => {
+  if (Array.isArray(data)) return data;
+  return data?.jobs || data?.data || [];
+};
 
 // Formulario de creación.
 const form = ref({ name: '', schedule: '', prompt: '', enabled: true });
@@ -55,46 +65,74 @@ const setBusy = (id, on) => {
 
 // ─── carga ───
 const fetchJobs = async () => {
+  if (!selectedConnId.value) {
+    jobs.value = [];
+    return;
+  }
   isLoading.value = true;
   loadError.value = '';
   notProvisioned.value = false;
   try {
-    const { data } = await aiChatHermesCronAPI.getCronJobs();
-    jobs.value = data?.jobs || [];
+    const { data } = await hermesConnectionsAPI.jobs(selectedConnId.value);
+    jobs.value = normalizeJobs(data);
   } catch (e) {
-    // 422 => la cuenta no está aprovisionada; se muestra como banner, no error.
-    if (e?.response?.status === 422) {
-      notProvisioned.value = true;
-      jobs.value = [];
-    } else {
-      loadError.value =
-        e?.response?.data?.error ||
-        e?.message ||
-        t('JABVOX_AI_CHAT.CRON.ERROR');
-    }
+    loadError.value =
+      e?.response?.data?.error || e?.message || t('JABVOX_AI_CHAT.CRON.ERROR');
   } finally {
     isLoading.value = false;
   }
 };
+
+// Carga los agentes Hermes y selecciona el primero.
+const fetchConnections = async () => {
+  try {
+    const { data } = await hermesConnectionsAPI.getAll();
+    connections.value = data;
+    if (data.length) {
+      selectedConnId.value = data[0].id;
+      await fetchJobs();
+    } else {
+      notProvisioned.value = true;
+    }
+  } catch {
+    notProvisioned.value = true;
+  }
+};
+
+const onAgentChange = () => fetchJobs();
 
 // ─── alternar enabled ───
 const toggleJob = async job => {
   const nextEnabled = !job.enabled;
   setBusy(job.id, true);
   try {
-    const { data } = await aiChatHermesCronAPI.toggleCronJob(
-      job.id,
-      nextEnabled
+    if (nextEnabled) {
+      await hermesConnectionsAPI.resumeJob(selectedConnId.value, job.id);
+    } else {
+      await hermesConnectionsAPI.pauseJob(selectedConnId.value, job.id);
+    }
+    jobs.value = jobs.value.map(j =>
+      j.id === job.id ? { ...j, enabled: nextEnabled } : j
     );
-    // Reemplaza el job con la versión devuelta por el backend.
-    const updated = data?.job || { ...job, enabled: nextEnabled };
-    jobs.value = jobs.value.map(j => (j.id === job.id ? updated : j));
   } catch (e) {
     const msg =
       e?.response?.data?.error ||
       e?.message ||
       t('JABVOX_AI_CHAT.CRON.TOGGLE_ERROR');
     useAlert(msg);
+  } finally {
+    setBusy(job.id, false);
+  }
+};
+
+// Ejecuta el job manualmente ("Ejecutar ya").
+const runJob = async job => {
+  setBusy(job.id, true);
+  try {
+    await hermesConnectionsAPI.runJob(selectedConnId.value, job.id);
+    useAlert(t('JABVOX_AI_CHAT.CRON.RAN'));
+  } catch (e) {
+    useAlert(e?.response?.data?.error || t('JABVOX_AI_CHAT.CRON.ERROR'));
   } finally {
     setBusy(job.id, false);
   }
@@ -112,7 +150,7 @@ const askDelete = job => {
 const onConfirmDelete = async ({ id }) => {
   setBusy(id, true);
   try {
-    await aiChatHermesCronAPI.deleteCronJob(id);
+    await hermesConnectionsAPI.deleteJob(selectedConnId.value, id);
     jobs.value = jobs.value.filter(j => j.id !== id);
   } catch (e) {
     const msg =
@@ -144,13 +182,12 @@ const createJob = async () => {
   if (!validateForm()) return;
   isCreating.value = true;
   try {
-    const { data } = await aiChatHermesCronAPI.createCronJob({
+    await hermesConnectionsAPI.createJob(selectedConnId.value, {
       name: form.value.name.trim(),
       schedule: form.value.schedule.trim(),
       prompt: form.value.prompt.trim() || undefined,
-      enabled: form.value.enabled,
     });
-    if (data?.job) jobs.value = [...jobs.value, data.job];
+    await fetchJobs();
     // Reinicia el formulario tras crear.
     form.value = { name: '', schedule: '', prompt: '', enabled: true };
     formErrors.value = { name: '', schedule: '' };
@@ -166,7 +203,7 @@ const createJob = async () => {
   }
 };
 
-onMounted(fetchJobs);
+onMounted(fetchConnections);
 </script>
 
 <template>
@@ -177,10 +214,14 @@ onMounted(fetchJobs);
       :description="t('JABVOX_AI_CHAT.CRON.SECTION_DESC')"
       icon="i-lucide-clock"
     >
-      <template v-if="hasJobs && !isLoading && !notProvisioned" #actions>
-        <span class="text-xs text-n-slate-10">
-          {{ t('JABVOX_AI_CHAT.CRON.COUNT', { count: jobs.length }) }}
-        </span>
+      <template v-if="connections.length" #actions>
+        <div class="w-56">
+          <Select
+            v-model="selectedConnId"
+            :options="connOptions"
+            @update:model-value="onAgentChange"
+          />
+        </div>
       </template>
 
       <!-- Cargando -->
@@ -310,6 +351,14 @@ onMounted(fetchJobs);
                 {{ formatDateTime(job.next_run) }}
               </td>
               <td class="px-3 py-3 text-right">
+                <Button
+                  icon="i-lucide-play"
+                  variant="ghost"
+                  size="sm"
+                  :is-loading="isBusy(job.id)"
+                  :title="t('JABVOX_AI_CHAT.CRON.RUN_NOW')"
+                  @click="runJob(job)"
+                />
                 <Button
                   icon="i-lucide-trash-2"
                   variant="ghost"

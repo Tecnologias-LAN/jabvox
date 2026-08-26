@@ -227,6 +227,8 @@ class Account < ApplicationRecord
   has_many :jabvox_custom_table_rows, through: :jabvox_custom_tables
   has_many :jabvox_email_send_logs, dependent: :delete_all
   # Jabvox Analytics & Dashboards (BI) module
+  has_many :jabvox_hermes_connections, dependent: :destroy
+  has_many :jabvox_hermes_agents, dependent: :destroy
   has_many :jabvox_analytics_data_sources, dependent: :destroy
   has_many :jabvox_analytics_roles, dependent: :destroy
   has_many :jabvox_analytics_folders, dependent: :destroy

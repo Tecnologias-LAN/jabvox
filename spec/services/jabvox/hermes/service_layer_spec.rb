@@ -99,9 +99,10 @@ RSpec.describe Jabvox::Hermes::ServiceLayer do
 
     let(:inbox) { create(:inbox, account: account) }
 
-    it 'crea el webhook message_created apuntando SIEMPRE al Hermes de la cuenta' do
+    it 'crea el webhook message_created al endpoint de webhooks del Hermes de la cuenta' do
       hook = service.call(method: :post, path: 'webhooks', params: {})
-      expect(hook[:url]).to eq('http://10.147.0.49:8642') # fijado por Jabvox, no por el LLM
+      # URL fijada por Jabvox (endpoint de webhooks :8644/.../webhooks/jabvox), no el LLM.
+      expect(hook[:url]).to eq('http://10.147.0.49:8644/webhooks/jabvox')
       expect(hook[:subscriptions]).to include('message_created')
       expect(hook[:webhook_type]).to eq('account_type')
     end

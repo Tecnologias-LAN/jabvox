@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-# Agentes del Hermes de la cuenta. El admin de la cuenta (jabvox_ai_chat_manage) crea/edita
-# agentes, cada uno ligado 1:1 a un usuario de la cuenta y con sus permisos granulares. Los
-# permisos del agente SON los del usuario ligado (una sola fuente de verdad).
+# Agentes de la cuenta (uno por usuario). Cada agente Jabvox se liga a uno o varios agentes
+# de Hermes (JabvoxHermesConnection, N:N). El admin (jabvox_ai_chat_manage) crea/edita agentes
+# y elige qué agentes Hermes puede usar cada uno. NO se gestionan permisos aquí.
 #
-#   GET    .../jabvox/hermes_agents        → lista
-#   POST   .../jabvox/hermes_agents        → crear (user_id + nombre + permisos)
-#   PATCH  .../jabvox/hermes_agents/:id     → editar (nombre/prompt/estado + permisos)
+#   GET    .../jabvox/hermes_agents        → lista (con sus agentes Hermes ligados)
+#   POST   .../jabvox/hermes_agents        → crear (user_id + nombre + connection_ids)
+#   PATCH  .../jabvox/hermes_agents/:id     → editar (nombre + connection_ids)
 #   DELETE .../jabvox/hermes_agents/:id     → eliminar (no el por-defecto)
 class Api::V1::Accounts::Jabvox::HermesAgentsController < Api::V1::Accounts::Jabvox::BaseController
   include JabvoxPermissions
@@ -16,7 +16,8 @@ class Api::V1::Accounts::Jabvox::HermesAgentsController < Api::V1::Accounts::Jab
   before_action :set_agent, only: %i[update destroy]
 
   def index
-    agents = JabvoxHermesAgent.where(account_id: Current.account.id).order(:name_jabvox)
+    agents = JabvoxHermesAgent.where(account_id: Current.account.id)
+                              .includes(:hermes_connections, :user).order(:name_jabvox)
     render json: agents.map { |a| serialize(a) }
   end
 
@@ -26,11 +27,10 @@ class Api::V1::Accounts::Jabvox::HermesAgentsController < Api::V1::Accounts::Jab
 
     agent = JabvoxHermesAgent.new(
       account_id: Current.account.id, user_id: user_id,
-      name_jabvox: params[:name], description_jabvox: params[:description],
-      system_prompt_jabvox: params[:system_prompt], status_jabvox: 'active'
+      name_jabvox: params[:name], description_jabvox: params[:description], status_jabvox: 'active'
     )
     if agent.save
-      apply_permissions(user_id, params[:permissions])
+      sync_connections(agent, params[:connection_ids])
       render json: serialize(agent), status: :created
     else
       render json: { errors: agent.errors.full_messages }, status: :unprocessable_entity
@@ -40,7 +40,7 @@ class Api::V1::Accounts::Jabvox::HermesAgentsController < Api::V1::Accounts::Jab
   def update
     @agent.assign_attributes(agent_edit_params)
     if @agent.save
-      apply_permissions(@agent.user_id, params[:permissions]) unless params[:permissions].nil?
+      sync_connections(@agent, params[:connection_ids]) unless params[:connection_ids].nil?
       render json: serialize(@agent)
     else
       render json: { errors: @agent.errors.full_messages }, status: :unprocessable_entity
@@ -61,28 +61,27 @@ class Api::V1::Accounts::Jabvox::HermesAgentsController < Api::V1::Accounts::Jab
   end
 
   def agent_edit_params
-    params.permit(:name_jabvox, :description_jabvox, :system_prompt_jabvox, :status_jabvox)
-          .to_h.compact_blank
+    params.permit(:name_jabvox, :description_jabvox, :status_jabvox).to_h.compact_blank
   end
 
   def user_in_account?(user_id)
     Current.account.account_users.exists?(user_id: user_id)
   end
 
-  # Fija los permisos del usuario ligado (= permisos del agente). Solo del catálogo.
-  def apply_permissions(user_id, raw)
-    permissions = Array(raw).map(&:to_s) & JabvoxHermesUserPermission::PERMISSIONS
-    record = JabvoxHermesUserPermission.find_or_initialize_by(account_id: Current.account.id, user_id: user_id)
-    record.permissions_jabvox = permissions
-    record.save!
+  # Liga el agente Jabvox a las conexiones Hermes indicadas (N:N). Solo conexiones de la cuenta.
+  def sync_connections(agent, ids)
+    conns = Current.account.jabvox_hermes_connections.where(id: Array(ids))
+    agent.hermes_connections = conns
   end
 
   def serialize(agent)
     {
       id: agent.id, user_id: agent.user_id, name: agent.name_jabvox,
-      description: agent.description_jabvox, system_prompt: agent.system_prompt_jabvox,
+      user_name: agent.user&.name, user_email: agent.user&.email,
+      description: agent.description_jabvox,
       is_default: agent.is_default_jabvox, status: agent.status_jabvox,
-      permissions: agent.permissions
+      hermes_connections: agent.hermes_connections.map { |c| { id: c.id, name: c.name_jabvox } },
+      connection_ids: agent.hermes_connections.map(&:id)
     }
   end
 end

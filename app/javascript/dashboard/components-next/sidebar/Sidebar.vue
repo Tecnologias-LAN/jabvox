@@ -618,6 +618,20 @@ const menuItems = computed(() => {
       : []),
     ...(isFeatureEnabledonAccount.value(
       accountId.value,
+      FEATURE_FLAGS.JABVOX_AI_CHAT_PROVISIONING
+    )
+      ? [
+          {
+            name: 'Jabvox Provisioning Chat',
+            label: t('JABVOX_PROVISIONING_CHAT.SIDEBAR_LABEL'),
+            icon: 'i-lucide-server-cog',
+            to: accountScopedRoute('jabvox_provisioning_chat_index'),
+            activeOn: ['jabvox_provisioning_chat_index'],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
       FEATURE_FLAGS.JABVOX_CALENDAR
     )
       ? [

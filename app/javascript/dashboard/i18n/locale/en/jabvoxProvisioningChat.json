@@ -34,6 +34,7 @@
       "LOAD_MESSAGES": "Could not load the message history.",
       "SEND": "Could not send the message.",
       "PROVISION": "Could not start provisioning."
-    }
+    },
+    "SIDEBAR_LABEL": "Provisioning Chat"
   }
 }

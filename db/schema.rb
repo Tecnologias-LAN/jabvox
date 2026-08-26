@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_25_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_26_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2403,6 +2403,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_25_000001) do
     t.index ["user_id"], name: "index_jabvox_hermes_action_logs_on_user_id"
   end
 
+  create_table "jabvox_hermes_agent_connections", force: :cascade do |t|
+    t.bigint "hermes_agent_id", null: false
+    t.bigint "hermes_connection_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["hermes_agent_id", "hermes_connection_id"], name: "idx_hermes_agent_conn_unique", unique: true
+    t.index ["hermes_agent_id"], name: "index_jabvox_hermes_agent_connections_on_hermes_agent_id"
+    t.index ["hermes_connection_id"], name: "index_jabvox_hermes_agent_connections_on_hermes_connection_id"
+  end
+
   create_table "jabvox_hermes_agents", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "user_id", null: false
@@ -2413,9 +2423,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_25_000001) do
     t.string "status_jabvox", default: "active", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "agent_token_jabvox"
     t.index ["account_id", "user_id"], name: "idx_hermes_agents_account_user", unique: true
     t.index ["account_id"], name: "index_jabvox_hermes_agents_on_account_id"
+    t.index ["agent_token_jabvox"], name: "idx_hermes_agents_token", unique: true, where: "(agent_token_jabvox IS NOT NULL)"
     t.index ["user_id"], name: "index_jabvox_hermes_agents_on_user_id"
+  end
+
+  create_table "jabvox_hermes_connections", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name_jabvox", null: false
+    t.string "hermes_agent_name_jabvox", null: false
+    t.string "base_url_jabvox", null: false
+    t.text "token_jabvox"
+    t.string "status_jabvox", default: "unknown", null: false
+    t.string "last_error_jabvox"
+    t.datetime "last_check_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "hermes_agent_name_jabvox"], name: "idx_hermes_conn_account_agent", unique: true
+    t.index ["account_id"], name: "index_jabvox_hermes_connections_on_account_id"
   end
 
   create_table "jabvox_hermes_identities", force: :cascade do |t|
@@ -4333,8 +4360,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_25_000001) do
   add_foreign_key "jabvox_forms", "users", column: "created_by_id"
   add_foreign_key "jabvox_hermes_action_logs", "accounts"
   add_foreign_key "jabvox_hermes_action_logs", "users"
+  add_foreign_key "jabvox_hermes_agent_connections", "jabvox_hermes_agents", column: "hermes_agent_id"
+  add_foreign_key "jabvox_hermes_agent_connections", "jabvox_hermes_connections", column: "hermes_connection_id"
   add_foreign_key "jabvox_hermes_agents", "accounts"
   add_foreign_key "jabvox_hermes_agents", "users"
+  add_foreign_key "jabvox_hermes_connections", "accounts"
   add_foreign_key "jabvox_hermes_identities", "accounts"
   add_foreign_key "jabvox_hermes_provisioner_links", "accounts"
   add_foreign_key "jabvox_hermes_provisioner_links", "jabvox_hermes_provisioners", column: "hermes_provisioner_id"

@@ -131,14 +131,15 @@ module Jabvox::Hermes::ServiceHandlers
     @account.webhooks.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |w| webhook_view(w) }
   end
 
-  # Webhook Hermes para TODAS las bandejas (account_type). La URL la FIJA Jabvox al Hermes de
-  # la cuenta, NUNCA el LLM (evita exfiltración). Idempotente por (account, url).
+  # Webhook Hermes para TODAS las bandejas (account_type). La URL la FIJA Jabvox al endpoint
+  # de webhooks del Hermes de la cuenta. Idempotente por (account, url).
   def create_hermes_webhook(_params)
     hook = upsert_hermes_webhook(webhook_type: :account_type, inbox_id: nil)
     webhook_view(hook)
   end
 
-  # Webhook Hermes para UNA bandeja concreta (inbox_type).
+  # Webhook Hermes para UNA bandeja concreta (inbox_type). Chatwoot solo entregará los
+  # message_created de ESA inbox → Hermes recibe solo esa bandeja.
   def create_hermes_inbox_webhook(params)
     inbox = @account.inboxes.find(params[:inbox_id]) # scoped → no cross-account
     hook = upsert_hermes_webhook(webhook_type: :inbox_type, inbox_id: inbox.id)
@@ -147,12 +148,23 @@ module Jabvox::Hermes::ServiceHandlers
 
   # Crea/actualiza el webhook al Hermes de la cuenta suscrito a message_created.
   def upsert_hermes_webhook(webhook_type:, inbox_id:)
-    hook = @account.webhooks.find_or_initialize_by(url: hermes_outgoing_url!)
+    hook = @account.webhooks.find_or_initialize_by(url: hermes_webhook_url)
     hook.webhook_type = webhook_type
     hook.inbox_id = inbox_id
     hook.subscriptions = %w[message_created]
     hook.save!
     hook
+  end
+
+  # URL del endpoint de WEBHOOKS de Hermes (distinto del chat). Deriva del hermes_url del
+  # handoff: reemplaza el chat (.../v1) por el endpoint de webhooks del agente. Puerto y ruta
+  # configurables por ENV para tu setup (por defecto :8644 y /webhooks/jabvox).
+  def hermes_webhook_url
+    base = hermes_outgoing_url! # http://host:8642/p/<agente>/v1
+    prefix = base.sub(%r{/v1/?\z}, '') # http://host:8642/p/<agente>
+    port = ENV['HERMES_WEBHOOK_PORT'].presence || '8644'
+    path = ENV['HERMES_WEBHOOK_PATH'].presence || 'webhooks/jabvox'
+    prefix.sub(/:\d+/, ":#{port}") + "/#{path}"
   end
 
   # Leads
@@ -220,6 +232,17 @@ module Jabvox::Hermes::ServiceHandlers
     c = @account.jabvox_sms_campaigns.find(params[:id])
     c.update!({ name: params[:name], message: params[:message] }.compact)
     sms_view(c)
+  end
+
+  # Reportes: resumen de la cuenta (solo lectura, conteos vía ActiveRecord, nunca SQL directo).
+  def report_agents_summary(_params)
+    {
+      conversations_open: @account.conversations.open.count,
+      conversations_total: @account.conversations.count,
+      contacts_total: @account.contacts.count,
+      agents_total: @account.account_users.count,
+      labels_total: @account.labels.count
+    }
   end
 
   # --- helpers ---

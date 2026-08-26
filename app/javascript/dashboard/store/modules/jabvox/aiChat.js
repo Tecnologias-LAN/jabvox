@@ -44,6 +44,26 @@ const mutations = {
     const existing = s.messages[sessionId] || [];
     s.messages = { ...s.messages, [sessionId]: [...existing, message] };
   },
+  // Añade texto (delta del stream) al contenido de un mensaje ya presente.
+  APPEND_MESSAGE_CONTENT(s, { sessionId, messageId, text }) {
+    const existing = s.messages[sessionId] || [];
+    s.messages = {
+      ...s.messages,
+      [sessionId]: existing.map(m =>
+        m.id === messageId ? { ...m, content: (m.content || '') + text } : m
+      ),
+    };
+  },
+  // Guarda las herramientas usadas por el agente en el mensaje (para mostrarlas al final).
+  SET_MESSAGE_TOOLS(s, { sessionId, messageId, tools }) {
+    const existing = s.messages[sessionId] || [];
+    s.messages = {
+      ...s.messages,
+      [sessionId]: existing.map(m =>
+        m.id === messageId ? { ...m, tools } : m
+      ),
+    };
+  },
   REMOVE_SESSION(s, sessionId) {
     s.sessions = s.sessions.filter(ses => ses.session_id !== sessionId);
     const msgs = { ...s.messages };

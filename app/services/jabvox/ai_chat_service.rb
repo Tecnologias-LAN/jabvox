@@ -1,7 +1,6 @@
 module Jabvox
   class AiChatService
     MAX_HISTORY = 20
-    MAX_CONTEXT_CHARS = 15_000
 
     def initialize(account:, user:, model_record:)
       @account = account
@@ -9,13 +8,13 @@ module Jabvox
       @model_record = model_record
     end
 
-    def send_message(content:, session_id:, mode:, history: [])
-      # Modo Hermes nativo: el Chat IA de la cuenta habla con SU Hermes por la Sessions API
-      # (como Telegram). Reenvía el texto TAL CUAL (incluidos /model, /new...) y Hermes lo
-      # interpreta. Jabvox no procesa comandos ni arma prompts para este modo.
-      return chat_via_hermes(content) if hermes_native?
+    def send_message(content:, session_id:, history: [], **)
+      # Modo Hermes nativo: el Chat IA de la cuenta habla con SU Hermes por el API Server
+      # OpenAI-compatible (/v1/chat/completions). Reenvía el texto TAL CUAL (incluidos /model,
+      # /new...) y Hermes lo interpreta. Multi-turno: se reenvía el historial de mensajes.
+      return chat_via_hermes(content, history) if hermes_native?
 
-      messages = build_messages(content, mode, history)
+      messages = build_messages(content, history)
       call_api(messages)
     end
 
@@ -27,45 +26,31 @@ module Jabvox
         @account.jabvox_context_forge_handoff&.ready_for_chat?
     end
 
-    # Comando para forzar sesión nueva (igual que /new en Telegram).
-    HERMES_RESET_COMMAND = '/new'.freeze
-
-    # Envía el turno al Hermes de la cuenta por la Sessions API nativa, con sesión persistente
-    # por (cuenta, usuario). Reintenta con sesión nueva si Hermes ya no la reconoce (404/410).
-    def chat_via_hermes(content)
+    # Envía el turno al Hermes de la cuenta (API OpenAI-compatible). Reenvía el historial +
+    # el mensaje actual TAL CUAL (Hermes interpreta /model, /new...). El modelo es el del
+    # registro (p.ej. "agente-miguel"); la credencial es el scoped token de ESTA cuenta.
+    def chat_via_hermes(content, history)
       handoff = @account.jabvox_context_forge_handoff
       client = Jabvox::Hermes::SessionsClient.new(
-        base_url: handoff.hermes_url, token: handoff.scoped_token
+        base_url: handoff.hermes_url, token: handoff.scoped_token,
+        model: @model_record.model_jabvox
       )
-      session = JabvoxHermesSession.for(account_id: @account.id, user_id: @user&.id, kind: 'account')
-      session.reset! if content.to_s.strip == HERMES_RESET_COMMAND
-
-      result = deliver_hermes(client, session, content)
+      result = client.chat(nil, hermes_messages(content, history))
       raise "Error al contactar Hermes: #{result.error}" unless result.success?
 
-      session.remember!(result.session_id) if result.session_id.present?
       result.text
     end
 
-    def deliver_hermes(client, session, content)
-      sid = session.session_id_jabvox.presence || create_hermes_session!(client)
-      result = client.chat(sid, content)
-      return result unless !result.success? && [404, 410].include?(result.status)
-
-      session.reset!
-      client.chat(create_hermes_session!(client), content)
+    # Historial (multi-turno) + mensaje actual, en formato OpenAI. Sin system prompt: el
+    # Hermes de la cuenta ya trae su propio prompt/aislamiento configurado en Hermes.
+    def hermes_messages(content, history)
+      msgs = history.map { |m| { role: m.role_jabvox, content: m.content_jabvox } }
+      msgs << { role: 'user', content: content }
+      msgs
     end
 
-    def create_hermes_session!(client)
-      created = client.create_session
-      raise created.error.to_s unless created.success?
-
-      created.session_id
-    end
-
-    def build_messages(content, mode, history)
-      system_msg = build_system_message(mode)
-      msgs = [{ role: 'system', content: system_msg }]
+    def build_messages(content, history)
+      msgs = [{ role: 'system', content: 'Eres un asistente útil y amigable. Responde de forma clara y concisa.' }]
 
       history.each do |m|
         msgs << { role: m.role_jabvox, content: m.content_jabvox }
@@ -73,42 +58,6 @@ module Jabvox
 
       msgs << { role: 'user', content: content }
       msgs
-    end
-
-    def build_system_message(mode)
-      if mode == 'documents'
-        context = fetch_documents_context
-        "Eres un asistente útil. Responde únicamente basándote en los siguientes documentos:\n\n#{context}"
-      else
-        'Eres un asistente útil y amigable. Responde de forma clara y concisa.'
-      end
-    end
-
-    def fetch_documents_context
-      enabled_docs = @account.jabvox_ai_chat_documents.enabled
-      return '' if enabled_docs.empty?
-
-      config = @account.jabvox_ai_chat_config
-      bucket_service = Jabvox::AiChatBucketService.new(config&.documents_bucket_source)
-      return '' unless bucket_service.configured?
-
-      parts = []
-      total_chars = 0
-
-      enabled_docs.each do |doc|
-        break if total_chars >= MAX_CONTEXT_CHARS
-
-        content = bucket_service.read_document(doc.s3_key_jabvox)
-        next unless content
-
-        truncated = content[0, MAX_CONTEXT_CHARS - total_chars]
-        parts << "## #{doc.name_jabvox}\n#{truncated}"
-        total_chars += truncated.length
-      rescue StandardError
-        next
-      end
-
-      parts.join("\n\n---\n\n")
     end
 
     # Máximo de rondas de tool-calling por mensaje (evita bucles infinitos del modelo).

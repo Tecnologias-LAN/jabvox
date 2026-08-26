@@ -18,7 +18,7 @@ module Jabvox
     def initialize(account:, user:, hermes_url:)
       @account = account
       @user = user
-      @hermes_url = hermes_url.to_s.strip
+      @hermes_url = normalize_base(hermes_url)
     end
 
     def call
@@ -44,6 +44,27 @@ module Jabvox
       uri.is_a?(URI::HTTP) && uri.host.present?
     rescue URI::InvalidURIError
       false
+    end
+
+    # Reduce cualquier URL pegada (dashboard, /login, /sessions, /api/sessions...) a la BASE
+    # Normaliza la URL pegada. CONSERVA el prefijo por agente (http://host:puerto/p/<agente>/v1)
+    # porque ese path es necesario para hablar con ese agente concreto. Solo limpia rutas de
+    # dashboard (/login, / , /app...) reduciéndolas a host:puerto. Quita un /chat/completions
+    # o /models final si el usuario lo pegó de más.
+    def normalize_base(raw)
+      url = raw.to_s.strip.chomp('/')
+      return '' if url.blank?
+
+      uri = URI.parse(url)
+      return url unless uri.is_a?(URI::HTTP) && uri.host.present?
+
+      path = uri.path.to_s.sub(%r{/(chat/completions|models)\z}, '')
+      keep_path = path.start_with?('/p/') || path.end_with?('/v1')
+      host = "#{uri.scheme}://#{uri.host}"
+      host += ":#{uri.port}" if uri.port && uri.port != uri.default_port
+      keep_path ? "#{host}#{path}" : host
+    rescue URI::InvalidURIError
+      url
     end
 
     # Guarda el handoff con el TOKEN DE SERVICIO de la identidad de la cuenta (no el token

@@ -85,7 +85,9 @@ class Jabvox::Hermes::ServiceLayer
     # Masivos
     'GET jabvox/sms_campaigns' => :list_sms_campaigns,
     'POST jabvox/sms_campaigns' => :create_sms_campaign,
-    'PATCH jabvox/sms_campaigns/:id' => :update_sms_campaign
+    'PATCH jabvox/sms_campaigns/:id' => :update_sms_campaign,
+    # Reportes (solo lectura)
+    'GET jabvox/reports/agents' => :report_agents_summary
   }.freeze
 
   # Los handlers de dominio viven en ServiceHandlers (para mantener el dispatch pequeño).

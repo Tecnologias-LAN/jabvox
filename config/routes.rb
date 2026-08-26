@@ -721,9 +721,12 @@ Rails.application.routes.draw do
               collection do
                 get :my_access
                 get :sessions
+                post :stream
               end
             end
-            resources :ai_chat_documents, only: [:index, :update, :destroy]
+            # Storages (buckets) — se conservan porque el Response Bot los comparte vía
+            # ai_chat_config. Documentos del Chat IA eliminados: ahora los docs se envían al
+            # agente Hermes por mensaje, no desde un bucket.
             resources :ai_chat_storages, only: [:index, :create, :update, :destroy] do
               collection do
                 post :test
@@ -754,6 +757,21 @@ Rails.application.routes.draw do
             # Agentes del Hermes de la cuenta (1:1 con usuario, permisos del usuario).
             resources :hermes_agents, only: [:index, :create, :update, :destroy],
                                       controller: 'hermes_agents'
+            # Conexiones a los agentes del Hermes de la cuenta (varios agentes, mismo host).
+            resources :hermes_connections, only: [:index, :create, :update, :destroy],
+                                           controller: 'hermes_connections' do
+              collection { get :mine }
+              member do
+                post :verify
+                get :model_options       # modelos que ofrece ese agente
+                get :jobs                # cron/tareas del agente
+                post :create_job
+                post 'jobs/:job_id/pause', action: :pause_job
+                post 'jobs/:job_id/resume', action: :resume_job
+                post 'jobs/:job_id/run', action: :run_job
+                delete 'jobs/:job_id', action: :delete_job
+              end
+            end
             # Auditoría de acciones ejecutadas por Hermes (solo lectura, admin del Chat IA).
             resources :hermes_action_logs, only: [:index], controller: 'hermes_action_logs'
             resources :response_bot_seats, only: [:index]
@@ -1221,6 +1239,9 @@ Rails.application.routes.draw do
       to: 'webhooks/jabvox/hermes#data_sources'
   get 'webhooks/jabvox/hermes/data_sources/:account_id/:id/credentials',
       to: 'webhooks/jabvox/hermes#credentials'
+  # Un agente de Hermes ejecuta acciones sobre Jabvox con su token exclusivo (permisos del agente).
+  get 'webhooks/jabvox/hermes_agent/tools', to: 'webhooks/jabvox/hermes_agent#tools'
+  post 'webhooks/jabvox/hermes_agent/execute', to: 'webhooks/jabvox/hermes_agent#execute'
   post 'webhooks/line/:line_channel_id', to: 'webhooks/line#process_payload'
   post 'webhooks/telegram/:bot_token', to: 'webhooks/telegram#process_payload'
   post 'webhooks/sms/:phone_number', to: 'webhooks/sms#process_payload'

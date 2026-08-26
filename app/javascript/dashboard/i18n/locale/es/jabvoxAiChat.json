@@ -28,7 +28,7 @@
     },
     "AGENTS": {
       "TITLE": "Agentes de Hermes",
-      "SUBTITLE": "Cada agente se liga a un usuario y solo puede hacer lo que sus permisos permiten.",
+      "SUBTITLE": "Cada agente de la cuenta se liga a uno o varios agentes de Hermes.",
       "NEW": "Nuevo agente",
       "EDIT": "Editar agente",
       "LOADING": "Cargando agentes...",
@@ -50,7 +50,10 @@
       "CONFIRM_DELETE": "¿Eliminar el agente \"{name}\"?",
       "CANT_DELETE_DEFAULT": "No se puede eliminar el agente por defecto.",
       "ERR_USER": "Selecciona un usuario.",
-      "ERR_NAME": "El nombre es obligatorio."
+      "ERR_NAME": "El nombre es obligatorio.",
+      "COL_HERMES": "Agentes Hermes",
+      "HERMES_AGENTS": "Agentes de Hermes",
+      "NO_HERMES": "No hay agentes de Hermes conectados. Conéctalos en la pestaña Hermes."
     },
     "HERMES": {
       "TITLE": "Conexión con Hermes",
@@ -95,8 +98,14 @@
         "INSTANCE_ID_PLACEHOLDER": "hermes_123456",
         "SUBMIT": "Conectar Hermes",
         "CONNECTING": "Conectando...",
-        "CANCEL": "Cancelar"
-      }
+        "CANCEL": "Cancelar",
+        "URL": "URL de Hermes (ZeroTier)",
+        "URL_PLACEHOLDER": "http://10.147.100.1:9119",
+        "URL_HINT": "Host:puerto del Hermes en la red ZeroTier. Sin ruta (se añade /api/sessions).",
+        "URL_REQUIRED": "La URL de Hermes es obligatoria."
+      },
+      "PROMPT_COPIED": "Instrucciones copiadas al portapapeles.",
+      "PROMPT_COPY_ERROR": "No se pudieron copiar las instrucciones."
     },
     "CRON": {
       "TITLE": "Cron Jobs de Hermes",
@@ -143,7 +152,9 @@
         "SCHEDULE_REQUIRED": "La expresión cron es obligatoria.",
         "CREATE_ERROR": "No se pudo crear el cron job.",
         "CREATED": "Cron job creado."
-      }
+      },
+      "RAN": "Tarea ejecutada.",
+      "RUN_NOW": "Ejecutar ahora"
     },
     "MODELS": {
       "TITLE": "Modelos de IA",
@@ -189,7 +200,9 @@
       "EMPTY_TITLE": "Sin modelos de IA",
       "DELETE_TITLE": "Eliminar modelo",
       "DELETE_BODY": "¿Eliminar el modelo \"{name}\"? Esta acción no se puede deshacer.",
-      "TEST_LATENCY": "{ms} ms"
+      "TEST_LATENCY": "{ms} ms",
+      "OTHER_TITLE": "Modelos para audios y otros módulos",
+      "OTHER_DESC": "Estos modelos NO los usa el chat de Hermes. Se usan en Análisis de Audio, CDR y Response Bot."
     },
     "DOCUMENTS": {
       "TITLE": "Documentos",
@@ -289,6 +302,8 @@
     "DELETE_BODY": "¿Seguro que deseas eliminar esta conversación? Esta acción no se puede deshacer.",
     "CANCEL": "Cancelar",
     "DELETE": "Eliminar",
-    "SESSION_ITEM": "Conversación"
+    "SESSION_ITEM": "Conversación",
+    "TOOLS_USED": "Herramientas usadas",
+    "ATTACH": "Adjuntar archivo"
   }
 }

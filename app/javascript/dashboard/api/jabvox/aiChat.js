@@ -25,6 +25,10 @@ const hermesClient = new ApiClient('jabvox/ai_chat_hermes', {
   accountScoped: true,
 });
 
+const hermesConnectionsClient = new ApiClient('jabvox/hermes_connections', {
+  accountScoped: true,
+});
+
 export const aiChatAPI = {
   getMyAccess: () => axios.get(`${chatClient.url}/my_access`),
   getSessions: () => axios.get(`${chatClient.url}/sessions`),
@@ -32,6 +36,35 @@ export const aiChatAPI = {
     axios.get(chatClient.url, { params: { session_id: sessionId, page } }),
   sendMessage: payload => axios.post(chatClient.url, payload),
   deleteSession: sessionId => axios.delete(`${chatClient.url}/${sessionId}`),
+  // URL del endpoint de streaming (SSE) — el componente hace fetch directo para leer el stream.
+  streamUrl: () => `${chatClient.url}/stream`,
+};
+
+// Conexiones a los agentes del Hermes de la cuenta (varios agentes, mismo host:puerto).
+export const hermesConnectionsAPI = {
+  getAll: () => axios.get(hermesConnectionsClient.url),
+  // Agentes Hermes que puede usar el usuario actual en el chat (los ligados a su agente).
+  mine: () => axios.get(`${hermesConnectionsClient.url}/mine`),
+  create: data => axios.post(hermesConnectionsClient.url, data),
+  update: (id, data) =>
+    axios.patch(`${hermesConnectionsClient.url}/${id}`, data),
+  destroy: id => axios.delete(`${hermesConnectionsClient.url}/${id}`),
+  verify: id => axios.post(`${hermesConnectionsClient.url}/${id}/verify`),
+  // Modelos que ofrece un agente Hermes concreto.
+  modelOptions: id =>
+    axios.get(`${hermesConnectionsClient.url}/${id}/model_options`),
+  // Cron / tareas programadas de un agente Hermes concreto.
+  jobs: id => axios.get(`${hermesConnectionsClient.url}/${id}/jobs`),
+  createJob: (id, data) =>
+    axios.post(`${hermesConnectionsClient.url}/${id}/create_job`, data),
+  pauseJob: (id, jobId) =>
+    axios.post(`${hermesConnectionsClient.url}/${id}/jobs/${jobId}/pause`),
+  resumeJob: (id, jobId) =>
+    axios.post(`${hermesConnectionsClient.url}/${id}/jobs/${jobId}/resume`),
+  runJob: (id, jobId) =>
+    axios.post(`${hermesConnectionsClient.url}/${id}/jobs/${jobId}/run`),
+  deleteJob: (id, jobId) =>
+    axios.delete(`${hermesConnectionsClient.url}/${id}/jobs/${jobId}`),
 };
 
 export const aiChatModelsAPI = {

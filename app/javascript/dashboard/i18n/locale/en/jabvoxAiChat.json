@@ -28,7 +28,7 @@
     },
     "AGENTS": {
       "TITLE": "Hermes agents",
-      "SUBTITLE": "Each agent is linked to a user and can only do what its permissions allow.",
+      "SUBTITLE": "Each account agent is linked to one or more Hermes agents.",
       "NEW": "New agent",
       "EDIT": "Edit agent",
       "LOADING": "Loading agents...",
@@ -50,7 +50,10 @@
       "CONFIRM_DELETE": "Delete agent \"{name}\"?",
       "CANT_DELETE_DEFAULT": "The default agent cannot be deleted.",
       "ERR_USER": "Select a user.",
-      "ERR_NAME": "Name is required."
+      "ERR_NAME": "Name is required.",
+      "COL_HERMES": "Hermes agents",
+      "HERMES_AGENTS": "Hermes agents",
+      "NO_HERMES": "No Hermes agents connected. Add them in the Hermes tab."
     },
     "HERMES": {
       "TITLE": "Hermes connection",
@@ -95,8 +98,14 @@
         "INSTANCE_ID_PLACEHOLDER": "hermes_123456",
         "SUBMIT": "Connect Hermes",
         "CONNECTING": "Connecting...",
-        "CANCEL": "Cancel"
-      }
+        "CANCEL": "Cancel",
+        "URL": "Hermes URL (ZeroTier)",
+        "URL_PLACEHOLDER": "http://10.147.100.1:9119",
+        "URL_HINT": "Host:port of Hermes on the ZeroTier network. No path (/api/sessions is appended).",
+        "URL_REQUIRED": "The Hermes URL is required."
+      },
+      "PROMPT_COPIED": "Instructions copied to clipboard.",
+      "PROMPT_COPY_ERROR": "Could not copy the instructions."
     },
     "CRON": {
       "TITLE": "Hermes Cron Jobs",
@@ -143,7 +152,9 @@
         "SCHEDULE_REQUIRED": "Cron expression is required.",
         "CREATE_ERROR": "Could not create the cron job.",
         "CREATED": "Cron job created."
-      }
+      },
+      "RAN": "Job executed.",
+      "RUN_NOW": "Run now"
     },
     "MODELS": {
       "TITLE": "AI Models",
@@ -189,7 +200,9 @@
       "EMPTY_TITLE": "Sin modelos de IA",
       "DELETE_TITLE": "Eliminar modelo",
       "DELETE_BODY": "¿Eliminar el modelo \"{name}\"? Esta acción no se puede deshacer.",
-      "TEST_LATENCY": "{ms} ms"
+      "TEST_LATENCY": "{ms} ms",
+      "OTHER_TITLE": "Models for audio and other modules",
+      "OTHER_DESC": "These models are NOT used by the Hermes chat. They are used by Audio Analysis, CDR and Response Bot."
     },
     "DOCUMENTS": {
       "TITLE": "Documents",
@@ -289,6 +302,8 @@
     "DELETE_BODY": "¿Seguro que deseas eliminar esta conversación? Esta acción no se puede deshacer.",
     "CANCEL": "Cancelar",
     "DELETE": "Eliminar",
-    "SESSION_ITEM": "Conversación"
+    "SESSION_ITEM": "Conversación",
+    "TOOLS_USED": "Tools used",
+    "ATTACH": "Attach file"
   }
 }

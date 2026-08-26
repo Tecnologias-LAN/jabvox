@@ -3,52 +3,42 @@ import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
-import { hermesAgentsAPI } from 'dashboard/api/jabvox/aiChat';
+import {
+  hermesAgentsAPI,
+  hermesConnectionsAPI,
+} from 'dashboard/api/jabvox/aiChat';
 import Button from 'dashboard/components-next/button/Button.vue';
 
 const { t } = useI18n();
 const store = useStore();
-const dash = '—'; // placeholder para "sin permisos" (evita raw-text en template)
-
-// Permisos que el admin puede conceder a un agente (= permisos del usuario ligado).
-const PERMISSIONS = [
-  'read',
-  'create',
-  'write',
-  'delete',
-  'execute',
-  'configure',
-  'admin',
-];
+const dash = '—';
 
 const agents = ref([]);
+const connections = ref([]); // agentes Hermes disponibles en la cuenta
 const loading = ref(false);
-const accountUsers = useMapGetter('agents/getAgents'); // usuarios de la cuenta
+const accountUsers = useMapGetter('agents/getAgents');
 
 const showForm = ref(false);
 const editing = ref(null);
-const form = ref({
-  user_id: null,
-  name: '',
-  description: '',
-  system_prompt: '',
-  permissions: [],
-});
+const form = ref({ user_id: null, name: '', connection_ids: [] });
 
 const usersWithoutAgent = computed(() => {
   const taken = new Set(agents.value.map(a => a.user_id));
-  // al editar, permitir el usuario actual; al crear, solo los libres
   return (accountUsers.value || []).filter(
     u => !taken.has(u.id) || (editing.value && editing.value.user_id === u.id)
   );
 });
 
-const fetchAgents = async () => {
+const fetchAll = async () => {
   loading.value = true;
   try {
-    const { data } = await hermesAgentsAPI.getAll();
-    agents.value = data;
-  } catch (e) {
+    const [a, c] = await Promise.all([
+      hermesAgentsAPI.getAll(),
+      hermesConnectionsAPI.getAll(),
+    ]);
+    agents.value = a.data;
+    connections.value = c.data;
+  } catch {
     useAlert(t('JABVOX_AI_CHAT.AGENTS.LOAD_ERROR'));
   } finally {
     loading.value = false;
@@ -57,18 +47,12 @@ const fetchAgents = async () => {
 
 onMounted(() => {
   store.dispatch('agents/get');
-  fetchAgents();
+  fetchAll();
 });
 
 const openCreate = () => {
   editing.value = null;
-  form.value = {
-    user_id: null,
-    name: '',
-    description: '',
-    system_prompt: '',
-    permissions: ['read'],
-  };
+  form.value = { user_id: null, name: '', connection_ids: [] };
   showForm.value = true;
 };
 
@@ -77,17 +61,15 @@ const openEdit = agent => {
   form.value = {
     user_id: agent.user_id,
     name: agent.name,
-    description: agent.description || '',
-    system_prompt: agent.system_prompt || '',
-    permissions: [...(agent.permissions || [])],
+    connection_ids: [...(agent.connection_ids || [])],
   };
   showForm.value = true;
 };
 
-const togglePermission = perm => {
-  const idx = form.value.permissions.indexOf(perm);
-  if (idx === -1) form.value.permissions.push(perm);
-  else form.value.permissions.splice(idx, 1);
+const toggleConnection = id => {
+  const idx = form.value.connection_ids.indexOf(id);
+  if (idx === -1) form.value.connection_ids.push(id);
+  else form.value.connection_ids.splice(idx, 1);
 };
 
 const save = async () => {
@@ -102,7 +84,7 @@ const save = async () => {
     }
     useAlert(t('JABVOX_AI_CHAT.AGENTS.SAVED'));
     showForm.value = false;
-    fetchAgents();
+    fetchAll();
   } catch (e) {
     useAlert(
       e?.response?.data?.errors?.join(', ') ||
@@ -124,15 +106,18 @@ const removeAgent = async agent => {
   }
   try {
     await hermesAgentsAPI.destroy(agent.id);
-    fetchAgents();
-  } catch (e) {
+    fetchAll();
+  } catch {
     useAlert(t('JABVOX_AI_CHAT.AGENTS.DELETE_ERROR'));
   }
   return undefined;
 };
 
-const userName = id =>
-  (accountUsers.value || []).find(u => u.id === id)?.name || `#${id}`;
+// Nombre del usuario del agente: usa el que trae el backend; si no, el store.
+const userName = agent =>
+  agent.user_name ||
+  (accountUsers.value || []).find(u => u.id === agent.user_id)?.name ||
+  `#${agent.user_id}`;
 </script>
 
 <template>
@@ -153,7 +138,6 @@ const userName = id =>
       />
     </div>
 
-    <!-- Lista -->
     <div v-if="loading" class="py-8 text-center text-sm text-n-slate-10">
       {{ t('JABVOX_AI_CHAT.AGENTS.LOADING') }}
     </div>
@@ -174,7 +158,7 @@ const userName = id =>
               {{ t('JABVOX_AI_CHAT.AGENTS.COL_USER') }}
             </th>
             <th class="px-4 py-2.5 font-medium">
-              {{ t('JABVOX_AI_CHAT.AGENTS.COL_PERMS') }}
+              {{ t('JABVOX_AI_CHAT.AGENTS.COL_HERMES') }}
             </th>
             <th class="px-4 py-2.5" />
           </tr>
@@ -195,18 +179,18 @@ const userName = id =>
               </span>
             </td>
             <td class="px-4 py-3 text-n-slate-11">
-              {{ userName(agent.user_id) }}
+              {{ userName(agent) }}
             </td>
             <td class="px-4 py-3">
               <span
-                v-for="p in agent.permissions"
-                :key="p"
+                v-for="c in agent.hermes_connections"
+                :key="c.id"
                 class="mr-1 inline-block rounded bg-n-alpha-2 px-1.5 py-0.5 text-xs text-n-slate-11"
               >
-                {{ p }}
+                {{ c.name }}
               </span>
               <span
-                v-if="!agent.permissions.length"
+                v-if="!(agent.hermes_connections || []).length"
                 class="text-xs text-n-slate-9"
               >
                 {{ dash }}
@@ -258,7 +242,7 @@ const userName = id =>
               :disabled="!!editing"
               class="block w-full rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2 text-sm text-n-slate-12"
             >
-              <option :value="null">—</option>
+              <option :value="null">{{ dash }}</option>
               <option v-for="u in usersWithoutAgent" :key="u.id" :value="u.id">
                 {{ u.name }}
               </option>
@@ -276,34 +260,27 @@ const userName = id =>
           </div>
           <div>
             <label class="mb-1 block text-sm font-medium text-n-slate-12">
-              {{ t('JABVOX_AI_CHAT.AGENTS.PERMISSIONS') }}
+              {{ t('JABVOX_AI_CHAT.AGENTS.HERMES_AGENTS') }}
             </label>
             <div class="flex flex-wrap gap-1.5">
               <button
-                v-for="perm in PERMISSIONS"
-                :key="perm"
+                v-for="c in connections"
+                :key="c.id"
                 type="button"
                 class="rounded-full px-2.5 py-1 text-xs font-medium"
                 :class="
-                  form.permissions.includes(perm)
+                  form.connection_ids.includes(c.id)
                     ? 'bg-n-brand text-white'
                     : 'bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3'
                 "
-                @click="togglePermission(perm)"
+                @click="toggleConnection(c.id)"
               >
-                {{ perm }}
+                {{ c.name }}
               </button>
+              <span v-if="!connections.length" class="text-xs text-n-slate-10">
+                {{ t('JABVOX_AI_CHAT.AGENTS.NO_HERMES') }}
+              </span>
             </div>
-          </div>
-          <div>
-            <label class="mb-1 block text-sm font-medium text-n-slate-12">
-              {{ t('JABVOX_AI_CHAT.AGENTS.PROMPT') }}
-            </label>
-            <textarea
-              v-model="form.system_prompt"
-              rows="3"
-              class="block w-full rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2 text-sm text-n-slate-12"
-            />
           </div>
         </div>
         <div class="mt-5 flex justify-end gap-2">
