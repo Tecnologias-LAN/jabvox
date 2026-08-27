@@ -7,45 +7,34 @@
 class Jabvox::LeadImport::SyncJob < ApplicationJob
   queue_as :jabvox_lead_import
 
-  LOCK_TTL = 2.hours.to_i # tope de duración de un sync; el lock se libera solo pasado esto
+  # TTL base del lock; el heartbeat lo renueva mientras el sync corre, así una
+  # cuenta con un import enorme nunca lo deja expirar a mitad (anti-duplicado).
+  LOCK_TTL = 5.minutes.to_i
 
   def perform(lead_source_id)
     source = JabvoxLeadSource.find_by(id: lead_source_id)
     return unless source
     return unless source.account.feature_enabled?('jabvox_lead_import')
 
-    lock_key = "jabvox:lead_import:sync:#{lead_source_id}"
-    got_lock = acquire_lock(lock_key)
-    # Si ya hay un sync corriendo para este source, no arrancamos otro (anti-duplicado).
-    return Rails.logger.warn("[LeadImport::Sync] source=#{lead_source_id} ya en curso, omito") unless got_lock
-
-    run_sync(source, lead_source_id)
-  ensure
-    release_lock(lock_key) if got_lock
+    result = Jabvox::RedisLock.with_lock("jabvox:lead_import:sync:#{lead_source_id}", ttl: LOCK_TTL) do |lock|
+      run_sync(source, lead_source_id, lock)
+    end
+    Rails.logger.warn("[LeadImport::Sync] source=#{lead_source_id} ya en curso, omito") if result == Jabvox::RedisLock::NOT_ACQUIRED
   end
 
   private
 
-  def run_sync(source, lead_source_id)
+  def run_sync(source, lead_source_id, lock)
     source.update!(status_jabvox: 'syncing')
     Jabvox::LeadImport::SyncService.new(source).call
+    # Fencing: si perdimos el lock (proceso congelado > TTL y otro lo tomó), NO
+    # marcamos 'ok' — el dueño actual del lock es el que manda.
+    return unless lock.held?
+
     source.update!(status_jabvox: 'ok')
   rescue StandardError => e
     Rails.logger.error("[LeadImport::Sync] source=#{lead_source_id} error=#{e.message}")
     source&.update(status_jabvox: 'error',
                    last_sync_result_jabvox: { error: e.message, at: Time.current.iso8601 })
-  end
-
-  # Lock atómico en Redis (SET NX EX). Devuelve true si lo obtuvo.
-  def acquire_lock(key)
-    Sidekiq.redis { |r| r.set(key, Time.now.to_i, nx: true, ex: LOCK_TTL) }
-  rescue StandardError
-    true # si Redis falla, no bloqueamos el sync (mejor correr que no correr)
-  end
-
-  def release_lock(key)
-    Sidekiq.redis { |r| r.del(key) }
-  rescue StandardError
-    nil
   end
 end
