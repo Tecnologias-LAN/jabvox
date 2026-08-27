@@ -107,6 +107,9 @@ jobs:
             # picks up new code; "|| true" keeps the deploy green if the unit
             # isn't installed on this host yet.
             sudo -n /usr/bin/systemctl restart chatwoot-ami-listener.service || true
+            for s in 0 1 2 3 4 5 6 7; do
+              sudo -n /usr/bin/systemctl restart chatwoot-ami-listener@$s.service || true
+            done
 
             # Workers Sidekiq aislados por servicio (ver deploy/workers/README.md).
             # "|| true" para no romper el deploy en hosts donde aún no se instalaron.

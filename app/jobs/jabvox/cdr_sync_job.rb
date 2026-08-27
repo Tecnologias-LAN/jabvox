@@ -22,11 +22,14 @@ class Jabvox::CdrSyncJob < ApplicationJob
     end
 
     enqueued = 0
-    JabvoxCdrConfig.where.not(mysql_host: '').select(:account_id).find_each do |config|
-      Jabvox::CdrSyncAccountJob.perform_later(config.account_id)
+    # pluck(:account_id) en vez de select(:account_id)+find_each: find_each exige la clave
+    # primaria en el SELECT (si no, ArgumentError "Primary key not included..."). Solo
+    # necesitamos los ids para el fan-out, así que pluck es lo correcto y más barato.
+    JabvoxCdrConfig.where.not(mysql_host: '').pluck(:account_id).each do |account_id|
+      Jabvox::CdrSyncAccountJob.perform_later(account_id)
       enqueued += 1
     rescue StandardError => e
-      Rails.logger.error("[CdrSync] no se pudo encolar cuenta=#{config.account_id} #{e.class}: #{e.message}")
+      Rails.logger.error("[CdrSync] no se pudo encolar cuenta=#{account_id} #{e.class}: #{e.message}")
     end
     Rails.logger.info("[CdrSync] syncs encolados: #{enqueued}") if enqueued.positive?
   end
