@@ -1,0 +1,24 @@
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a">
+  <h2 style="color:#1A5F5A">Tu plan Jabvox está por vencer</h2>
+
+  <p>Hola,</p>
+  <p>El plan <strong><%= @plan_name %></strong> de tu cuenta
+     <strong><%= @account_name %></strong> vence en
+     <strong><%= @days_left %> día<%= 's' if @days_left != 1 %></strong>
+     (<%= @expires_at&.strftime('%d/%m/%Y') %>).</p>
+
+  <p>Para no perder el acceso, renueva tu plan desde la aplicación:</p>
+
+  <p style="text-align:center;margin:28px 0">
+    <a href="<%= @app_url %>"
+       style="background:#4CAF82;color:#ffffff;padding:12px 22px;border-radius:8px;
+              text-decoration:none;display:inline-block;font-weight:bold">
+      Renovar mi plan
+    </a>
+  </p>
+
+  <p style="font-size:12px;color:#666">
+    Si ya renovaste, ignora este mensaje. Tu vigencia se extiende automáticamente al
+    confirmarse el pago.
+  </p>
+</div>

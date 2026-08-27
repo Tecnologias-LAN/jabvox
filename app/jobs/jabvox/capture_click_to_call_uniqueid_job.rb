@@ -3,7 +3,7 @@
 # AMI Status. This makes the CDR↔typification link resilient even if Hangup never fires
 # (e.g. the agent hangs up from MicroSIP and the event is missed).
 class Jabvox::CaptureClickToCallUniqueidJob < ApplicationJob
-  queue_as :high
+  queue_as :jabvox_click_to_call
 
   ATTEMPTS = 5
   INTERVAL = 2.seconds

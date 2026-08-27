@@ -1,0 +1,104 @@
+<% content_for(:title) { 'Hermes — Instancias' } %>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title" id="page-title">Hermes — Aprovisionador e instancias</h1>
+</header>
+
+<section class="main-content__body">
+  <% if notice %><p class="flash flash--notice"><%= notice %></p><% end %>
+  <% if alert %><p class="flash flash--error"><%= alert %></p><% end %>
+
+  <div style="margin-bottom:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+    <p style="font-size:13px; color:#374151; margin:0;">
+      El <strong>Hermes Aprovisionador</strong> es global: se conecta una vez y ya sabe crear
+      y ligar el Hermes de cada cuenta. Aquí lo conectas y lo ligas a cuentas; cada cuenta
+      ligada verá su <strong>Chat Aprovisionador</strong>. Jabvox nunca toca la BD ni OVH
+      directamente: todo pasa por el Aprovisionador.
+    </p>
+  </div>
+
+  <!-- Estado + conexión del Aprovisionador global -->
+  <h2 style="font-size:15px; font-weight:600; margin:0 0 12px;">Hermes Aprovisionador (global)</h2>
+  <div style="margin-bottom:8px; font-size:13px; color:#374151;">
+    Estado:
+    <strong style="color:<%= @provisioner[:connected] ? '#16a34a' : '#b91c1c' %>;">
+      <%= @provisioner[:status] %>
+    </strong>
+    <% if @provisioner[:base_url].present? %>· <code><%= @provisioner[:base_url] %></code><% end %>
+    <% if @provisioner[:linked_accounts].to_i.positive? %>· <%= @provisioner[:linked_accounts] %> cuenta(s) ligada(s)<% end %>
+    <% if @provisioner[:last_error].present? %>
+      <span style="color:#b91c1c;">· <%= @provisioner[:last_error] %></span>
+    <% end %>
+  </div>
+
+  <%= form_with url: connect_provisioner_super_admin_hermes_instances_path, method: :post, local: true do |form| %>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :base_url, 'URL del Aprovisionador (ZeroTier)' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_field :base_url, value: @provisioner[:base_url], placeholder: 'http://10.147.100.1:9119' %>
+        <p class="pt-2 text-xs italic text-slate-400">Host:puerto de la red ZeroTier. Sin path (se añade /api/sessions).</p>
+      </div>
+    </div>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :sessions_path, 'Path de sesiones' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_field :sessions_path, value: @provisioner[:sessions_path], placeholder: '/api/sessions' %>
+        <p class="pt-2 text-xs italic text-slate-400">Solo cámbialo si tu Hermes usa otro prefijo.</p>
+      </div>
+    </div>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :service_token, 'Token de servicio' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.password_field :service_token, placeholder: '(en blanco = conservar)' %>
+        <p class="pt-2 text-xs italic text-slate-400">Se guarda cifrado. Nunca se muestra.</p>
+      </div>
+    </div>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :service_user_id, 'Usuario de servicio (2º factor)' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.number_field :service_user_id, value: @provisioner[:service_user_id], placeholder: 'ID de usuario' %>
+        <p class="pt-2 text-xs italic text-slate-400">ID de un usuario de la app dedicado al aprovisionador (doble validación).</p>
+      </div>
+    </div>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :callback_secret, 'Secreto de callback (2º factor)' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.password_field :callback_secret, placeholder: '(en blanco = conservar)' %>
+        <p class="pt-2 text-xs italic text-slate-400">Se guarda cifrado. El aprovisionador lo envía en cada callback.</p>
+      </div>
+    </div>
+    <%= form.submit 'Conectar aprovisionador', class: 'button' %>
+  <% end %>
+
+  <!-- Instancias por cuenta -->
+  <h2 style="font-size:15px; font-weight:600; margin:28px 0 12px;">Hermes por cuenta</h2>
+  <table class="w-full" style="font-size:13px;">
+    <thead>
+      <tr style="text-align:left; border-bottom:1px solid #e5e7eb;">
+        <th style="padding:8px;">Cuenta</th>
+        <th style="padding:8px;">Estado</th>
+        <th style="padding:8px;">URL Hermes</th>
+        <th style="padding:8px;">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @instances.each do |inst| %>
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:8px;">#<%= inst[:account_id] %> — <%= inst[:account_name] %></td>
+          <td style="padding:8px;"><%= inst[:status] %><% if inst[:last_error].present? %> <span style="color:#b91c1c;">(<%= inst[:last_error] %>)</span><% end %></td>
+          <td style="padding:8px;"><code><%= inst[:hermes_url] %></code></td>
+          <td style="padding:8px; white-space:nowrap;">
+            <%= button_to 'Aprovisionar', provision_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button button--secondary', form_class: 'inline-block' %>
+            <%= button_to 'Ligar', link_account_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button button--secondary', form_class: 'inline-block' %>
+            <%= button_to 'Reiniciar', restart_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button button--secondary', form_class: 'inline-block' %>
+            <%= button_to 'Rotar token', rotate_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button button--secondary', form_class: 'inline-block' %>
+            <%= button_to 'Desactivar', disable_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button', form_class: 'inline-block' %>
+          </td>
+        </tr>
+      <% end %>
+      <% if @instances.empty? %>
+        <tr><td colspan="4" style="padding:16px; color:#9ca3af;">No hay cuentas con Chat IA o Hermes todavía.</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</section>

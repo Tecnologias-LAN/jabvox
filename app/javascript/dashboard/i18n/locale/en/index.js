@@ -54,6 +54,7 @@ import jabvoxSaldo from './jabvoxSaldo.json';
 import jabvoxSms from './jabvoxSms.json';
 import jabvoxIpWhitelist from './jabvoxIpWhitelist.json';
 import jabvoxAiChat from './jabvoxAiChat.json';
+import jabvoxProvisioningChat from './jabvoxProvisioningChat.json';
 import jabvoxManagementStates from './jabvoxManagementStates.json';
 import jabvoxDialer from './jabvoxDialer.json';
 import jabvoxFieldSecurity from './jabvoxFieldSecurity.json';
@@ -66,13 +67,16 @@ import jabvoxReports from './jabvoxReports.json';
 import jabvoxResponseBot from './jabvoxResponseBot.json';
 import jabvoxEmail from './jabvoxEmail.json';
 import jabvoxActions from './jabvoxActions.json';
+import jabvoxBilling from './jabvoxBilling.json';
 import jabvoxForms from './jabvoxForms.json';
 import jabvoxCustomization from './jabvoxCustomization.json';
 import jabvoxClickToCall from './jabvoxClickToCall.json';
+import jabvoxSoftphone from './jabvoxSoftphone.json';
 import jabvoxWhatsappTemplates from './jabvoxWhatsappTemplates.json';
 import jabvoxBulkWhatsapp from './jabvoxBulkWhatsapp.json';
 import jabvoxWhatsappGroups from './jabvoxWhatsappGroups.json';
 import jabvoxVoiceBroadcast from './jabvoxVoiceBroadcast.json';
+import jabvoxTickets from './jabvoxTickets.json';
 import jabvoxLeadImport from './jabvoxLeadImport.json';
 import jabvoxDataExport from './jabvoxDataExport.json';
 import jabvoxAdvancedAutomations from './jabvoxAdvancedAutomations.json';
@@ -134,6 +138,7 @@ export default {
   ...jabvoxSms,
   ...jabvoxIpWhitelist,
   ...jabvoxAiChat,
+  ...jabvoxProvisioningChat,
   ...jabvoxManagementStates,
   ...jabvoxDialer,
   ...jabvoxFieldSecurity,
@@ -146,13 +151,16 @@ export default {
   ...jabvoxResponseBot,
   ...jabvoxEmail,
   ...jabvoxActions,
+  ...jabvoxBilling,
   ...jabvoxForms,
   ...jabvoxCustomization,
   ...jabvoxClickToCall,
+  ...jabvoxSoftphone,
   ...jabvoxWhatsappTemplates,
   ...jabvoxBulkWhatsapp,
   ...jabvoxWhatsappGroups,
   ...jabvoxVoiceBroadcast,
+  ...jabvoxTickets,
   ...jabvoxLeadImport,
   ...jabvoxDataExport,
   ...jabvoxAdvancedAutomations,

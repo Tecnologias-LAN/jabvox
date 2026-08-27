@@ -19,6 +19,10 @@ import ModelFormDialog from './components/ModelFormDialog.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import DocumentPickerDialog from './components/DocumentPickerDialog.vue';
 import SharedStoragesManager from './components/SharedStoragesManager.vue';
+import HermesModelsViewer from './components/HermesModelsViewer.vue';
+import HermesCronManager from './components/HermesCronManager.vue';
+import HermesConnectManager from './components/HermesConnectManager.vue';
+import HermesAgentsManager from './components/HermesAgentsManager.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -29,8 +33,9 @@ const activeTab = ref(sessionStorage.getItem(ACTIVE_TAB_KEY) || 'models');
 
 const tabs = [
   { key: 'models', icon: 'i-lucide-cpu' },
-  { key: 'documents', icon: 'i-lucide-file-text' },
-  { key: 'config', icon: 'i-lucide-settings-2' },
+  { key: 'agents', icon: 'i-lucide-users' },
+  { key: 'hermes', icon: 'i-lucide-plug' },
+  { key: 'cron', icon: 'i-lucide-clock' },
 ];
 
 watch(activeTab, val => sessionStorage.setItem(ACTIVE_TAB_KEY, val), {
@@ -132,12 +137,6 @@ const openDocumentPicker = () => {
 // Refresh config (and therefore available storages) after the manager changes.
 const onStoragesChanged = () => store.dispatch('jabvoxAiChat/fetchConfig');
 
-// Refresh the saved document list whenever the Documents tab is opened so it
-// reflects the current selection.
-watch(activeTab, tab => {
-  if (tab === 'documents') store.dispatch('jabvoxAiChat/fetchDocuments');
-});
-
 const toggleDocument = doc =>
   store.dispatch('jabvoxAiChat/toggleDocument', {
     id: doc.id,
@@ -195,7 +194,6 @@ const formatBytes = bytes => {
 
 onMounted(async () => {
   store.dispatch('jabvoxAiChat/fetchModels');
-  store.dispatch('jabvoxAiChat/fetchDocuments');
   await store.dispatch('jabvoxAiChat/fetchConfig');
   if (!config.value) return;
   selectedStorageId.value = config.value.documents_storage_jabvox_id ?? null;
@@ -203,10 +201,6 @@ onMounted(async () => {
     config.value.web_search_enabled_jabvox;
   await nextTick();
   markClean();
-  // Refresh the saved document list if we land directly on the Documents tab.
-  if (activeTab.value === 'documents') {
-    store.dispatch('jabvoxAiChat/fetchDocuments');
-  }
 });
 </script>
 
@@ -263,6 +257,19 @@ onMounted(async () => {
 
       <!-- ── MODELS ── -->
       <div v-if="activeTab === 'models'" class="flex flex-col gap-5">
+        <!-- Modelos que ofrece cada agente de Hermes (solo lectura). -->
+        <HermesModelsViewer />
+
+        <!-- Separador: los de abajo son para audios/otros módulos, NO para Hermes -->
+        <div class="border-t border-n-weak pt-4">
+          <h3 class="text-base font-medium text-n-slate-12">
+            {{ t('JABVOX_AI_CHAT.MODELS.OTHER_TITLE') }}
+          </h3>
+          <p class="mt-0.5 text-sm text-n-slate-11">
+            {{ t('JABVOX_AI_CHAT.MODELS.OTHER_DESC') }}
+          </p>
+        </div>
+
         <div
           v-if="uiFlags.isFetchingModels"
           class="flex items-center justify-center gap-2 py-12 text-sm text-n-slate-11"
@@ -567,6 +574,21 @@ onMounted(async () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- ── CONECTAR HERMES ── -->
+      <!-- ── AGENTES DE HERMES (1:1 con usuario, permisos por agente) ── -->
+      <div v-else-if="activeTab === 'agents'" class="w-full">
+        <HermesAgentsManager />
+      </div>
+
+      <div v-else-if="activeTab === 'hermes'" class="w-full">
+        <HermesConnectManager />
+      </div>
+
+      <!-- ── CRON JOBS DE HERMES ── -->
+      <div v-else-if="activeTab === 'cron'" class="w-full">
+        <HermesCronManager />
       </div>
 
       <!-- ── CONFIG ── -->

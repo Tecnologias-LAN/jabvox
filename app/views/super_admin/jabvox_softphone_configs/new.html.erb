@@ -1,0 +1,9 @@
+<% content_for(:title) { 'Nueva configuración de Softphone' } %>
+<header class="main-content__header">
+  <h1 class="main-content__page-title">Nueva configuración de Softphone</h1>
+</header>
+<section class="main-content__body">
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <%= render 'form', config: page.resource %>
+  </div>
+</section>

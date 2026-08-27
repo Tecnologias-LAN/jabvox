@@ -15,8 +15,10 @@
 #  jabvox_ai_chat_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_ai_chat_max_documents_jabvox        :integer          default(0), not null
 #  jabvox_ai_chat_max_open_chats_jabvox       :integer          default(0), not null
+#  jabvox_ai_chat_provisioning_enabled_jabvox :boolean          default(FALSE), not null
 #  jabvox_analytics_enabled_jabvox            :boolean          default(FALSE), not null
 #  jabvox_audio_analysis_enabled_jabvox       :boolean          default(FALSE), not null
+#  jabvox_auto_renew                          :boolean          default(FALSE), not null
 #  jabvox_bulk_whatsapp_enabled_jabvox        :boolean          default(FALSE), not null
 #  jabvox_calendar_enabled_jabvox             :boolean          default(FALSE), not null
 #  jabvox_cdr_enabled_jabvox                  :boolean          default(FALSE), not null
@@ -31,11 +33,14 @@
 #  jabvox_lead_delete_enabled_jabvox          :boolean          default(FALSE), not null
 #  jabvox_lead_import_enabled_jabvox          :boolean          default(FALSE), not null
 #  jabvox_leads_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_plan_expires_at                     :datetime
 #  jabvox_products_enabled_jabvox             :boolean          default(FALSE), not null
 #  jabvox_response_bot_enabled_jabvox         :boolean          default(FALSE), not null
 #  jabvox_saldo_enabled_jabvox                :boolean          default(FALSE), not null
 #  jabvox_sms_enabled_jabvox                  :boolean          default(FALSE), not null
+#  jabvox_softphone_enabled_jabvox            :boolean          default(FALSE), not null
 #  jabvox_tasks_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_tickets_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_voice_broadcast_enabled_jabvox      :boolean          default(FALSE), not null
 #  jabvox_voip_enabled_jabvox                 :boolean          default(FALSE), not null
 #  jabvox_whatsapp_groups_enabled_jabvox      :boolean          default(FALSE), not null
@@ -48,10 +53,12 @@
 #  support_email                              :string(100)
 #  created_at                                 :datetime         not null
 #  updated_at                                 :datetime         not null
+#  jabvox_plan_id                             :bigint
 #
 # Indexes
 #
-#  index_accounts_on_status  (status)
+#  index_accounts_on_jabvox_plan_id  (jabvox_plan_id)
+#  index_accounts_on_status          (status)
 #
 
 class Account < ApplicationRecord
@@ -63,6 +70,7 @@ class Account < ApplicationRecord
   include CaptainFeaturable
   include AccountEmailRateLimitable
   include AccountSettingsSchema
+  include Jabvox::AccountBillingEntitlements
 
   DEFAULT_QUERY_SETTING = {
     flag_query_mode: :bit_operator,
@@ -123,6 +131,17 @@ class Account < ApplicationRecord
   has_many :notes, dependent: :destroy_async
   has_many :notification_settings, dependent: :destroy_async
   has_many :notifications, dependent: :destroy_async
+  # Plan de cobro vigente de la cuenta (billing). optional: la mayoría de cuentas no
+  # tienen plan asignado (creadas por otros medios).
+  belongs_to :jabvox_plan, optional: true
+  has_many :jabvox_provisioning_transactions, dependent: :nullify
+  # Softphone WebRTC (módulo nuevo, independiente del dialer AMI).
+  has_one :jabvox_softphone_config, dependent: :destroy
+  has_many :jabvox_softphone_extensions, dependent: :destroy
+  has_many :jabvox_softphone_call_logs, dependent: :destroy
+  has_many :jabvox_softphone_call_events, dependent: :destroy
+  has_many :jabvox_tickets, dependent: :destroy_async
+  has_many :jabvox_ticket_categories, dependent: :destroy_async
   has_many :jabvox_kanban_funnels, dependent: :destroy_async
   has_many :jabvox_kanban_stages, dependent: :destroy_async
   has_many :jabvox_kanban_conversation_stages, dependent: :destroy_async
@@ -169,6 +188,8 @@ class Account < ApplicationRecord
   has_many :jabvox_ai_chat_user_permissions, dependent: :destroy_async
   has_many :jabvox_ai_chat_documents, dependent: :destroy_async
   has_many :jabvox_ai_chat_storages, dependent: :destroy_async
+  has_one :jabvox_context_forge_handoff, dependent: :destroy
+  has_many :jabvox_provisioning_chat_messages, dependent: :destroy_async
   has_many :jabvox_response_bot_configs, dependent: :destroy_async
   has_many :jabvox_response_bot_documents, dependent: :destroy_async
   has_many :jabvox_management_states, dependent: :destroy_async
@@ -206,6 +227,8 @@ class Account < ApplicationRecord
   has_many :jabvox_custom_table_rows, through: :jabvox_custom_tables
   has_many :jabvox_email_send_logs, dependent: :delete_all
   # Jabvox Analytics & Dashboards (BI) module
+  has_many :jabvox_hermes_connections, dependent: :destroy
+  has_many :jabvox_hermes_agents, dependent: :destroy
   has_many :jabvox_analytics_data_sources, dependent: :destroy
   has_many :jabvox_analytics_roles, dependent: :destroy
   has_many :jabvox_analytics_folders, dependent: :destroy
@@ -247,9 +270,10 @@ class Account < ApplicationRecord
   has_one_attached :contacts_export
 
   enum :locale, LANGUAGES_CONFIG.map { |key, val| [val[:iso_639_1_code], key] }.to_h, prefix: true
-  enum :status, { active: 0, suspended: 1 }
+  enum :status, { active: 0, suspended: 1, payment_pending: 2 }
 
   scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
+  scope :pending_payment_older_than, ->(days) { payment_pending.where('created_at < ?', days.days.ago) }
 
   before_validation :validate_limit_keys
   after_create_commit :notify_creation
@@ -258,6 +282,28 @@ class Account < ApplicationRecord
 
   def agents
     users.where(account_users: { role: :agent })
+  end
+
+  # Días transcurridos desde que se creó la cuenta (para el panel Super Admin).
+  # Útil para ver de un vistazo cuánto lleva una cuenta, sobre todo las pendientes
+  # de pago que el cron limpia tras el periodo de gracia.
+  def days_since_creation
+    return nil if created_at.blank?
+
+    ((Time.current - created_at) / 1.day).floor
+  end
+
+  # Nombre del plan actual (o "Sin plan") para el panel Super Admin.
+  def current_plan_name
+    jabvox_plan&.name || 'Sin plan'
+  end
+
+  # Días que faltan para que venza el plan (negativo si ya venció, nil si no hay fecha).
+  # Para el panel Super Admin: ver de un vistazo qué cuentas están por vencer.
+  def days_until_expiration
+    return nil if jabvox_plan_expires_at.blank?
+
+    ((jabvox_plan_expires_at - Time.current) / 1.day).ceil
   end
 
   def administrators
@@ -296,8 +342,8 @@ class Account < ApplicationRecord
 
   def usage_limits
     {
-      agents: JabvoxApp.max_limit.to_i,
-      inboxes: JabvoxApp.max_limit.to_i
+      agents: effective_or_unlimited_limit(:agents),
+      inboxes: effective_or_unlimited_limit(:inboxes)
     }
   end
 
@@ -330,6 +376,11 @@ class Account < ApplicationRecord
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)
+  end
+
+  def effective_or_unlimited_limit(resource)
+    configured = effective_limit_for(resource)
+    configured.positive? ? configured : JabvoxApp.max_limit.to_i
   end
 
   def clear_unread_conversation_counts_cache

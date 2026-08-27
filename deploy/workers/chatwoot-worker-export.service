@@ -1,0 +1,19 @@
+[Unit]
+Description=Jabvox Sidekiq worker — Export BD externa (cola aislada)
+After=network.target postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=jabvox
+WorkingDirectory=/home/jabvox/jabvox
+Environment=RAILS_ENV=production
+# rbenv en el PATH (igual que el worker principal)
+Environment=PATH=/home/jabvox/.rbenv/shims:/home/jabvox/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/jabvox/.rbenv/shims/bundle exec sidekiq -C config/sidekiq_export.yml
+Restart=always
+RestartSec=5
+# Reinicio de memoria: si el worker crece demasiado, systemd lo recicla (evita OOM global)
+MemoryMax=700M
+
+[Install]
+WantedBy=multi-user.target

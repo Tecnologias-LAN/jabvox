@@ -28,18 +28,28 @@ class JabvoxModulesField < Administrate::Field::Base
     [:jabvox_analytics_enabled_jabvox, 'Jabvox Analytics'],
     [:jabvox_whatsapp_templates_enabled_jabvox, 'Jabvox WhatsApp Templates'],
     [:jabvox_tasks_enabled_jabvox, 'Jabvox Tareas'],
+    [:jabvox_tickets_enabled_jabvox, 'Jabvox Tickets'],
     [:jabvox_bulk_whatsapp_enabled_jabvox, 'Jabvox WhatsApp Masivo'],
     [:jabvox_whatsapp_groups_enabled_jabvox, 'Jabvox WhatsApp Grupos'],
     [:jabvox_voice_broadcast_enabled_jabvox, 'Jabvox Voice Broadcast'],
     [:jabvox_lead_import_enabled_jabvox, 'Jabvox Importar Leads'],
     [:jabvox_data_export_enabled_jabvox, 'Jabvox Exportar Datos'],
     [:jabvox_lead_delete_enabled_jabvox, 'Jabvox Eliminar Leads'],
-    [:jabvox_advanced_automations_enabled_jabvox, 'Automatizaciones Avanzadas']
+    [:jabvox_advanced_automations_enabled_jabvox, 'Automatizaciones Avanzadas'],
+    [:jabvox_softphone_enabled_jabvox, 'Jabvox Softphone'],
+    [:jabvox_ai_chat_provisioning_enabled_jabvox, 'Jabvox Chat Aprovisionamiento']
   ].freeze
 
   # [[column, label, enabled_boolean], ...] for the current account.
+  # Skips any module whose column is not present yet (e.g. a code deploy that ran
+  # ahead of its migration) so the Super Admin never 500s over a missing column.
   def modules
-    MODULES.map { |column, label| [column, label, resource.public_send(column)] }
+    available = resource.class.column_names
+    MODULES.filter_map do |column, label|
+      next unless available.include?(column.to_s)
+
+      [column, label, resource.public_send(column)]
+    end
   end
 
   def enabled_count

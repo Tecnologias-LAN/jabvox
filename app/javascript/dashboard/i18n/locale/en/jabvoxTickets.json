@@ -1,0 +1,265 @@
+{
+  "JABVOX_TICKETS": {
+    "TITLE": "Requests & Tickets",
+    "SUBTITLE": "Register and manage incidents, requirements and requests.",
+    "NEW": "New request",
+    "EMPTY": "No tickets match these filters.",
+    "OVERDUE_TAG": "Overdue",
+    "PREV": "Previous",
+    "NEXT": "Next",
+    "COLS": {
+      "TITLE": "Title",
+      "TYPE": "Type",
+      "PRIORITY": "Priority",
+      "STATUS": "Status",
+      "REQUESTER": "Requester",
+      "ASSIGNEE": "Assignee",
+      "ELAPSED": "Elapsed"
+    },
+    "FILTERS": {
+      "SEARCH": "Search by title or description…",
+      "ALL_TYPES": "All types",
+      "ALL_STATUSES": "All statuses",
+      "ALL_PRIORITIES": "All priorities",
+      "OVERDUE": "Overdue only",
+      "TITLE": "Filters",
+      "ALL_TOPICS": "All topics",
+      "ALL_AGENTS": "All agents",
+      "RESET": "Clear",
+      "DATE_FROM": "From",
+      "DATE_TO": "To"
+    },
+    "TYPE": {
+      "INCIDENT": "Incident",
+      "REQUIREMENT": "Requirement",
+      "REQUEST": "Request"
+    },
+    "PRIORITY": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "STATUS": {
+      "NEW_TICKET": "New",
+      "ASSIGNED": "Assigned",
+      "IN_PROGRESS": "In progress",
+      "ON_HOLD": "On hold",
+      "RESOLVED": "Resolved",
+      "CLOSED": "Closed",
+      "REOPENED": "Reopened"
+    },
+    "RESOLUTION_TYPE": {
+      "SOLVED": "Solved",
+      "DUPLICATE": "Duplicate",
+      "REJECTED": "Rejected"
+    },
+    "ACTIVITY": {
+      "ASSIGNED": "assigned the ticket",
+      "STATUS_CHANGED": "changed the status",
+      "RESOLVED": "resolved the ticket",
+      "REOPENED": "reopened the ticket",
+      "RATED": "rated the service",
+      "COMMENTED": "commented",
+      "SLA_ESCALATED": "escalated due to SLA breach"
+    },
+    "FORM": {
+      "TITLE": "Register request",
+      "FIELD_TITLE": "Title",
+      "CATEGORY": "Topic",
+      "NO_CATEGORY": "No topic",
+      "PRIORITY": "Priority",
+      "DESCRIPTION": "Description",
+      "ATTACH": "Attach files",
+      "FILES": "file(s)",
+      "SUBMIT": "Create",
+      "CANCEL": "Cancel",
+      "CREATED": "Ticket created successfully.",
+      "ERROR": "Could not create the ticket."
+    },
+    "DETAIL": {
+      "BACK": "Back",
+      "RESOLVE": "Resolve",
+      "REOPEN": "Reopen",
+      "RESOLUTION_PLACEHOLDER": "Describe how it was resolved…",
+      "COMMENTS": "Comments",
+      "COMMENT_PLACEHOLDER": "Write a comment…",
+      "ADD_COMMENT": "Comment",
+      "PRIVATE_NOTE": "Internal note",
+      "INTERNAL_NOTE": "Internal note",
+      "RATE_TITLE": "How was the service?",
+      "RATE_COMMENT": "Comment (optional)",
+      "SEND_RATING": "Send rating",
+      "TIMELINE": "History",
+      "SYSTEM": "System",
+      "CATEGORY": "Topic",
+      "DUE": "Due",
+      "SATISFACTION": "Satisfaction",
+      "UPDATED": "Ticket updated.",
+      "ERROR": "Could not complete the action.",
+      "PRIVATE_PLACEHOLDER": "Internal note (only visible to the team)…",
+      "ATTACH_IMAGE": "Attach image",
+      "SOURCE_ACCOUNT": "Source account"
+    },
+    "METRICS": {
+      "TITLE": "Metrics",
+      "TOTAL": "Total",
+      "OPEN": "Open",
+      "RESOLVED": "Resolved",
+      "CLOSED": "Closed",
+      "OVERDUE": "Overdue",
+      "SLA": "SLA compliance",
+      "AVG_RESOLUTION": "Avg. resolution time",
+      "SATISFACTION": "Satisfaction",
+      "BY_STATUS": "By status",
+      "BY_TYPE": "By type",
+      "BY_PRIORITY": "By priority",
+      "BY_CATEGORY": "By topic",
+      "BY_AGENT": "By agent",
+      "NO_DATA": "No data",
+      "TREND": "Trend (30 days)",
+      "HINT": {
+        "TOTAL": "Total requests registered.",
+        "OPEN": "Open requests (not resolved or closed).",
+        "RESOLVED": "Requests marked as resolved.",
+        "CLOSED": "Closed requests.",
+        "OVERDUE": "Open requests past their SLA.",
+        "SLA": "Percentage resolved within SLA.",
+        "AVG_RESOLUTION": "Average time from creation to resolution.",
+        "SATISFACTION": "Average satisfaction score (1–5).",
+        "TREND": "Requests created per day over the last 30 days."
+      }
+    },
+    "CATEGORIES": {
+      "TITLE": "Topics",
+      "NEW": "New topic",
+      "NAME": "Name",
+      "TYPE": "Type",
+      "COLOR": "Color",
+      "DESCRIPTION": "Description",
+      "SLA_RESPONSE": "Response SLA (min)",
+      "SLA_RESOLUTION": "Resolution SLA (min)",
+      "SAVE": "Save",
+      "SAVED": "Topic saved.",
+      "ERROR": "Could not save the topic.",
+      "PARENT": "Parent topic (for subtopics)",
+      "NO_PARENT": "None (this is a main topic)",
+      "PARENT_HINT": "If you pick a parent topic, this becomes a subtopic of it.",
+      "SUBTOPIC": "Subtopic",
+      "EMPTY": "No topics yet. Create the first one."
+    },
+    "notifications": {
+      "jabvox_ticket_created": {
+        "title": "New ticket #{id}"
+      },
+      "jabvox_ticket_assigned": {
+        "title": "You were assigned ticket #{id}"
+      },
+      "jabvox_ticket_status_changed": {
+        "title": "Ticket #{id} changed status"
+      },
+      "jabvox_ticket_resolved": {
+        "title": "Ticket #{id} was resolved"
+      },
+      "jabvox_ticket_reopened": {
+        "title": "Ticket #{id} was reopened"
+      },
+      "jabvox_ticket_comment": {
+        "title": "New comment on ticket #{id}"
+      },
+      "jabvox_ticket_sla_escalation": {
+        "title": "Ticket #{id} breached its SLA"
+      }
+    },
+    "SLA": {
+      "NO_DUE": "No due date",
+      "DUE_IN": "Due in {time}",
+      "OVERDUE_BY": "Overdue by {time}",
+      "OVERDUE_CAPTION": "Overdue",
+      "REMAINING_CAPTION": "Remaining for SLA"
+    },
+    "VIEWS": {
+      "TITLE": "Quick views",
+      "ALL": "All",
+      "MY_OPEN": "My open",
+      "UNASSIGNED": "Unassigned",
+      "OVERDUE": "Overdue",
+      "DUE_TODAY": "Due today"
+    },
+    "BULK": {
+      "SELECTED": "{count} selected",
+      "ASSIGN": "Assign",
+      "CHANGE_STATUS": "Change status",
+      "ARCHIVE": "Archive",
+      "CLEAR": "Clear selection",
+      "DONE": "{processed} processed, {failed} failed",
+      "CONFIRM_ARCHIVE": "Archive the selected tickets?",
+      "SELECT_ALL": "Select all"
+    },
+    "MERGE": {
+      "TITLE": "Merge into another ticket",
+      "PLACEHOLDER": "Target ticket ID (#)",
+      "ACTION": "Merge",
+      "HINT": "This ticket will be marked as duplicate and archived.",
+      "SUCCESS": "Ticket merged"
+    },
+    "NOTIF_PREFS": {
+      "TITLE": "Ticket notifications",
+      "IN_APP": "In-app",
+      "EMAIL": "Email",
+      "SAVED": "Preferences saved"
+    },
+    "RESTORE": "Restore",
+    "ARCHIVED_TAG": "Archived",
+    "COMMENTS_COUNT": "{count} comments",
+    "WIZARD": {
+      "STEP_TYPE": "Type",
+      "STEP_TOPIC": "Topic",
+      "STEP_SUBTOPIC": "Subtopic",
+      "STEP_DETAILS": "Details",
+      "STEP_CONFIRM": "Confirm",
+      "TYPE_HINT": "What kind of request do you want to submit?",
+      "TYPE_DESC": {
+        "INCIDENT": "Something that's failing or stopped working.",
+        "REQUIREMENT": "I need something new or a change.",
+        "REQUEST": "A general query or task."
+      },
+      "TOPIC_HINT": "Pick the topic that best describes your request.",
+      "SUBTOPIC_HINT": "Specify the subtopic.",
+      "NO_TOPICS": "No topics configured yet to submit requests.",
+      "TITLE_PLACEHOLDER": "Summarize the subject in one line",
+      "DESC_PLACEHOLDER": "Describe in detail what happens or what you need",
+      "DROP_HINT": "Drag files here or click to attach",
+      "CONFIRM_HINT": "Review the summary before sending.",
+      "BACK": "Back",
+      "NEXT": "Next",
+      "SUBMIT": "Submit request",
+      "ONLY_IMAGES": "Only images are allowed.",
+      "IMAGES_ONLY_HINT": "PNG, JPG, GIF or WebP · max 15 MB"
+    },
+    "SUCCESS": {
+      "LABEL": "Your request was registered with number",
+      "MESSAGE": "Your request was registered and escalated to the expert team.",
+      "VIEW": "View my request",
+      "ANOTHER": "Submit another"
+    },
+    "TIME": {
+      "AGO": "{time} ago",
+      "OPEN_FOR": "open for {time}",
+      "RESOLVED_IN": "resolved in {time}",
+      "TO_DUE": "due in {time}",
+      "OPEN_LABEL": "Open for",
+      "RESOLUTION_LABEL": "Resolution time"
+    },
+    "VIEW": {
+      "LIST": "List",
+      "BOARD": "Board",
+      "DENSITY": "Density"
+    },
+    "UNASSIGNED": "Unassigned",
+    "BADGE": {
+      "TODAY": "Pending today",
+      "OVERDUE_PREVIOUS": "Overdue from previous days"
+    }
+  }
+}

@@ -38,28 +38,18 @@ class Api::V1::Accounts::Jabvox::SmsCampaignsController < Api::V1::Accounts::Jab
     render json: { total_count: total, with_phone_count: with_phone }
   end
 
-  def send_bulk # rubocop:disable Metrics/MethodLength
+  def send_bulk
     provider = @campaign.jabvox_sms_provider
     return render json: { error: 'No active provider configured' }, status: :unprocessable_entity unless provider&.active?
 
-    contacts = resolve_contacts(@campaign)
-    queued = 0
-    sender = Jabvox::SmsSenderService.new(provider)
+    # Resolvemos los contactos aquí (reusa la lógica de filtrado) pero el ENVÍO se hace en
+    # background: encolamos el dispatcher, que hace fan-out de un job por SMS. Así el
+    # request no bloquea Puma ni se pierden SMS si el request muere. Devuelve de inmediato.
+    contact_ids = resolve_contacts(@campaign).map(&:id)
+    @campaign.update!(status: 'queued')
+    Jabvox::Sms::DispatchCampaignJob.perform_later(@campaign.id, contact_ids)
 
-    contacts.each do |contact|
-      personalized = Jabvox::SmsSenderService.interpolate(@campaign.message, contact)
-      sender.send_sms(
-        phone: contact.phone_number,
-        message: personalized,
-        campaign: @campaign,
-        contact: contact,
-        account: Current.account
-      )
-      queued += 1
-    end
-
-    @campaign.update!(status: 'completed')
-    render json: { queued: queued }
+    render json: { queued: contact_ids.size, status: 'queued' }
   end
 
   def contacts

@@ -661,16 +661,21 @@ const closeCustomDropdowns = e => {
   }
 };
 
-onMounted(async () => {
+onMounted(() => {
   emitter.on('jabvox.leads_assigned', onLeadsAssigned);
   document.addEventListener('click', closeCustomDropdowns);
   loadColumnConfig();
-  try {
-    await leadsAPI.syncContacts();
-  } catch {
-    // ignore
-  }
+  // Carga la tabla de inmediato: no esperamos al sync para no bloquear la vista.
   fetchLeads();
+  // Sincroniza los contactos sin lead EN PARALELO; si creó alguno, refresca.
+  leadsAPI
+    .syncContacts()
+    .then(({ data }) => {
+      if (data?.synced > 0) fetchLeads();
+    })
+    .catch(() => {
+      // ignore: la tabla ya cargó con lo existente
+    });
 });
 
 onUnmounted(() => {

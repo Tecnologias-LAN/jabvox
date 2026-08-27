@@ -1,0 +1,9 @@
+# Click-to-call: worker aislado del dialer. Es interactivo (el agente espera la
+# conexión), no debe esperar detrás de los reapers del dialer.
+---
+:verbose: false
+:concurrency: <%= ENV.fetch("JABVOX_CLICK_TO_CALL_CONCURRENCY", "6").to_i %>
+:timeout: 25
+:max_retries: 3
+:queues:
+  - jabvox_click_to_call

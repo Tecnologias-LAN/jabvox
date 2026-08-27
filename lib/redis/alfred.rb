@@ -47,6 +47,11 @@ module Redis::Alfred
       $alfred.with { |conn| conn.incr(key) }
     end
 
+    # decrement a key by 1. sets key to 0 before operation if key doesn't exist.
+    def decr(key)
+      $alfred.with { |conn| conn.decr(key) }
+    end
+
     def exists?(key)
       $alfred.with { |conn| conn.exists?(key) }
     end

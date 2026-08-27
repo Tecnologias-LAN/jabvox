@@ -2,7 +2,7 @@
 
 class AccountBuilder
   include CustomExceptions::Account
-  pattr_initialize [:account_name, :email!, :confirmed, :user, :user_full_name, :user_password, :super_admin, :locale]
+  pattr_initialize [:account_name, :email!, :confirmed, :user, :user_full_name, :user_password, :super_admin, :locale, :status]
 
   def perform
     if @user.nil?
@@ -44,11 +44,17 @@ class AccountBuilder
   end
 
   def create_account
-    @account = Account.create!(
+    attrs = {
       name: account_name,
       locale: I18n.locale,
       custom_attributes: { 'onboarding_step' => 'account_details' }
-    )
+    }
+    # El signup público pasa status: :payment_pending para que TODA cuenta nueva deba
+    # pagar antes de usarse (el modal de bloqueo la atrapa hasta que el webhook la
+    # active). Las creaciones internas (super_admin / platform API) no pasan status y
+    # nacen activas como siempre.
+    attrs[:status] = @status if @status.present?
+    @account = Account.create!(attrs)
     Current.account = @account
   end
 

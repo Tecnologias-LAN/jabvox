@@ -1,0 +1,56 @@
+<%# Form de credencial SIP del softphone + extensión (que se sincroniza con VoIP). %>
+<% ext = local_assigns[:ext] %>
+<%
+  # Extensión actual del usuario en VoIP (si ya existe), para precargar el campo.
+  current_extension = if ext.account_id && ext.user_id
+                        JabvoxUserExtension.find_by(account_id: ext.account_id, user_id: ext.user_id)&.extension_jabvox
+                      end
+%>
+
+<%= form_with model: [:super_admin, ext], local: true, html: { class: 'max-w-2xl' } do |f| %>
+  <% if ext.errors.any? %>
+    <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+      <ul class="m-0 pl-4 list-disc">
+        <% ext.errors.full_messages.each do |msg| %>
+          <li class="text-red-700 text-sm"><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="mb-5">
+    <%= f.label :account_id, 'Cuenta', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+    <%= f.collection_select :account_id, Account.order(:name), :id, :name,
+        { prompt: 'Selecciona una cuenta' }, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500' %>
+  </div>
+
+  <div class="mb-5">
+    <%= f.label :user_id, 'Usuario (agente)', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+    <p class="text-xs text-gray-500 mb-2">El usuario que usará esta extensión en el softphone.</p>
+    <%= f.collection_select :user_id, User.order(:name).limit(500), :id, ->(u) { "#{u.name} (#{u.email})" },
+        { prompt: 'Selecciona un usuario' }, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500' %>
+  </div>
+
+  <div class="mb-5">
+    <%= label_tag 'jabvox_softphone_extension[extension]', 'Extensión (VoIP)', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+    <p class="text-xs text-gray-500 mb-2">La extensión SIP del usuario. Es la misma que se configura en VoIP de la cuenta; editarla aquí la actualiza allí.</p>
+    <%= text_field_tag 'jabvox_softphone_extension[extension]', current_extension,
+        class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500', placeholder: '1001', pattern: '\d{1,10}' %>
+  </div>
+
+  <div class="mb-5">
+    <%= f.label :sip_secret, 'Secreto SIP (contraseña de registro)', class: 'block text-sm font-semibold text-gray-700 mb-1' %>
+    <p class="text-xs text-gray-500 mb-2">La contraseña del endpoint PJSIP en Asterisk. Se guarda cifrada (déjala vacía para no cambiarla al editar).</p>
+    <%= f.password_field :sip_secret, class: 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500', autocomplete: 'new-password' %>
+  </div>
+
+  <div class="mb-6">
+    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+      <%= f.check_box :webrtc_enabled, class: 'rounded text-blue-600 focus:ring-blue-500' %> WebRTC habilitado para esta extensión
+    </label>
+  </div>
+
+  <div class="pt-4 border-t border-gray-200">
+    <%= f.submit 'Guardar', class: 'inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer' %>
+  </div>
+<% end %>

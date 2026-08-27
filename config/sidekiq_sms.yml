@@ -1,0 +1,10 @@
+# Envío de SMS masivo (campañas). Worker Sidekiq dedicado y AISLADO: el HTTP bloqueante
+# al proveedor de SMS no puede taponar los mensajes/bandejas ni otros servicios. Escala
+# horizontalmente lanzando varias instancias del servicio contra la misma cola Redis.
+---
+:verbose: false
+:concurrency: <%= ENV.fetch("JABVOX_SMS_CONCURRENCY", "10").to_i %>
+:timeout: 25
+:max_retries: 3
+:queues:
+  - jabvox_sms

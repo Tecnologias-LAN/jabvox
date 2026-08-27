@@ -25,6 +25,12 @@ const JabvoxCallOverlay = defineAsyncComponent(
 const JabvoxDialerCallBanner = defineAsyncComponent(
   () => import('dashboard/components/widgets/jabvox/DialerCallBanner.vue')
 );
+const JabvoxSoftphoneLauncher = defineAsyncComponent(
+  () =>
+    import(
+      'dashboard/routes/dashboard/jabvox-softphone/components/SoftphoneLauncher.vue'
+    )
+);
 
 import CopilotLauncher from 'dashboard/components-next/copilot/CopilotLauncher.vue';
 import CopilotContainer from 'dashboard/components/copilot/CopilotContainer.vue';
@@ -44,6 +50,7 @@ export default {
     FloatingCallWidget,
     JabvoxCallOverlay,
     JabvoxDialerCallBanner,
+    JabvoxSoftphoneLauncher,
     MobileSidebarLauncher,
   },
   setup() {
@@ -173,6 +180,7 @@ export default {
         <FloatingCallWidget v-if="hasActiveCall || hasIncomingCall" />
         <JabvoxCallOverlay />
         <JabvoxDialerCallBanner />
+        <JabvoxSoftphoneLauncher />
       </template>
       <AddAccountModal
         :show="showCreateAccountModal"

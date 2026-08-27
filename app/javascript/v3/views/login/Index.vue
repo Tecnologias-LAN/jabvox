@@ -436,6 +436,13 @@ export default {
               ¿Olvidaste tu contraseña?
             </router-link>
           </p>
+
+          <p v-if="showSignupLink" class="jabvox-forgot">
+            ¿No tienes cuenta?
+            <router-link :to="{ name: 'auth_signup' }" tabindex="5">
+              Regístrate
+            </router-link>
+          </p>
         </div>
 
         <div v-else class="flex items-center justify-center py-8">

@@ -18,6 +18,9 @@ Metrics/ClassLength:
   Exclude:
     - 'app/models/message.rb'
     - 'app/models/conversation.rb'
+    # Modelo núcleo de la cuenta: ya excedía el límite antes de billing; es un agregador
+    # de asociaciones de todos los módulos, partirlo no aporta.
+    - 'app/models/account.rb'
     # Cliente HTTP de la plataforma Automations: es una clase por endpoint remoto
     # (aprovisionar, actualizar modulo, desaprovisionar, estado, verify) mas los
     # tres clientes Faraday. Partirla por tamano separaria metodos que comparten

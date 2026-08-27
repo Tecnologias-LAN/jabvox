@@ -2,8 +2,29 @@
   <%= f.label field.attribute %>
 </div>
 <div class="field-unit__field">
+  <% limits = JSON.parse(field.to_s) %>
+  <% billable_keys = Jabvox::AccountBillingEntitlements::BILLABLE_RESOURCE_KEYS %>
+  <% billable_keys.each do |key| %>
+    <div style="display:grid;grid-template-columns: 140px repeat(3, minmax(100px, 1fr));gap:8px;align-items:center;margin-bottom:8px;">
+      <strong><%= key %></strong>
+      <label>
+        incluido
+        <%= number_field "account[limits]", "#{key}_included", value: limits["#{key}_included"] || limits[key], min: 0 %>
+      </label>
+      <label>
+        extra
+        <%= number_field "account[limits]", "#{key}_extra", value: limits["#{key}_extra"], min: 0 %>
+      </label>
+      <label>
+        precio extra
+        <%= number_field "account[limits]", "#{key}_unit_price_cents", value: limits["#{key}_unit_price_cents"], min: 0 %>
+      </label>
+    </div>
+  <% end %>
 
-  <% JSON.parse(field.to_s).each do |key,val| %>
-    <%= key %>: <%= number_field "account[limits]", key, value: val %> </br>
+  <hr />
+
+  <% (limits.keys - billable_keys.flat_map { |key| [key, "#{key}_included", "#{key}_extra", "#{key}_unit_price_cents"] }).sort.each do |key| %>
+    <%= key %>: <%= number_field "account[limits]", key, value: limits[key], min: 0 %> </br>
   <% end %>
 </div>

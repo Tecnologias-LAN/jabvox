@@ -1,0 +1,64 @@
+<% content_for(:title) do %>
+  Tickets — Helpdesk central
+<% end %>
+
+<header class="main-content__header" role="banner">
+  <div>
+    <h1 class="main-content__page-title" id="page-title">
+      Tickets — Helpdesk central
+    </h1>
+    <p class="mt-2 text-sm text-gray-500">
+      Designa la cuenta gestora que recibe y gestiona todos los tickets del sistema.
+    </p>
+  </div>
+  <div>
+    <%= link_to 'Nueva config', new_super_admin_jabvox_ticket_helpdesk_config_path, class: "button" %>
+  </div>
+</header>
+
+<section class="main-content__body">
+  <% if @configs.empty? %>
+    <div class="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center text-gray-500 text-sm bg-gray-50">
+      No hay ninguna cuenta gestora configurada. Crea una para habilitar la gestión central de tickets.
+    </div>
+  <% else %>
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <table class="w-full text-left border-collapse text-sm">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 text-xs uppercase tracking-wider">
+            <th class="px-4 py-3 font-medium">Cuenta gestora</th>
+            <th class="px-4 py-3 font-medium">Asignación</th>
+            <th class="px-4 py-3 font-medium">Estado</th>
+            <th class="px-4 py-3 font-medium">Creada</th>
+            <th class="px-4 py-3 font-medium text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <% @configs.each do |config| %>
+            <tr class="hover:bg-gray-50 transition-colors">
+              <td class="px-4 py-3 font-semibold text-gray-900">
+                <%= config.account&.name || "##{config.account_id}" %>
+              </td>
+              <td class="px-4 py-3 text-gray-700"><%= config.auto_assign_mode_jabvox %></td>
+              <td class="px-4 py-3">
+                <% if config.active_jabvox? %>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">Activa</span>
+                <% else %>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Inactiva</span>
+                <% end %>
+              </td>
+              <td class="px-4 py-3 text-gray-500"><%= config.created_at.strftime('%Y-%m-%d %H:%M') %></td>
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <%= link_to 'Editar', edit_super_admin_jabvox_ticket_helpdesk_config_path(config), class: 'text-blue-600 hover:text-blue-900 font-medium mr-4' %>
+                <%= link_to 'Eliminar', super_admin_jabvox_ticket_helpdesk_config_path(config),
+                    data: { turbo_method: :delete, turbo_confirm: '¿Eliminar esta config de helpdesk?' },
+                    method: :delete,
+                    class: 'text-red-600 hover:text-red-900 font-medium' %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

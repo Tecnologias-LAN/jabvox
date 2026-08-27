@@ -1,0 +1,29 @@
+{
+  "JABVOX_BILLING": {
+    "MODAL": {
+      "TITLE_PENDING": "Activa tu cuenta para empezar",
+      "TITLE_SUSPENDED": "Tu plan ha expirado",
+      "DESC_PENDING": "Elige un plan y completa el pago para desbloquear todas las funciones de Jabvox.",
+      "DESC_SUSPENDED": "Renueva tu plan para volver a usar la plataforma. Tus datos están seguros.",
+      "LOADING_PLANS": "Cargando planes...",
+      "PLANS_ERROR": "No se pudieron cargar los planes. Inténtalo de nuevo.",
+      "CHECKOUT_ERROR": "No se pudo iniciar el pago. Inténtalo de nuevo.",
+      "REDIRECTING": "Redirigiendo al pago...",
+      "DAYS": "días",
+      "PER_DAYS": "/ {days} días",
+      "MODULES": "módulos incluidos",
+      "CONTACT_ADMIN": "Tu cuenta requiere un pago para activarse. Contacta al administrador de tu cuenta para completar el proceso.",
+      "SWITCH_ACCOUNT": "¿Tienes otra cuenta? Cambia a:",
+      "LOGOUT": "Cerrar sesión"
+    },
+    "RENEWAL": {
+      "TITLE": "Tu plan está por vencer",
+      "EXPIRES_TODAY": "Tu plan vence hoy. Renueva para no perder el acceso.",
+      "EXPIRES_TOMORROW": "Tu plan vence mañana. Renueva para no perder el acceso.",
+      "EXPIRES_IN_DAYS": "Tu plan vence en {days} días. Renueva para no perder el acceso.",
+      "CURRENT_PLAN": "Plan actual",
+      "RENEW_NOW": "Renovar ahora",
+      "LATER": "Más tarde"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+<% content_for(:title) do %>
+  Nueva config de helpdesk
+<% end %>
+
+<header class="main-content__header" role="banner">
+  <div>
+    <h1 class="main-content__page-title">Nueva config de helpdesk</h1>
+    <p class="mt-2 text-sm text-gray-500">Designa la cuenta gestora central de tickets.</p>
+  </div>
+</header>
+
+<section class="main-content__body">
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <%= render 'form', config: @config %>
+  </div>
+</section>

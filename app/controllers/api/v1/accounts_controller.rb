@@ -29,7 +29,12 @@ class Api::V1::AccountsController < Api::BaseController
       email: account_params[:email],
       user_password: account_params[:password],
       locale: account_params[:locale],
-      user: current_user
+      user: current_user,
+      # Signup público: la cuenta nace pendiente de pago. El modal de bloqueo la
+      # atrapa hasta que el webhook de la pasarela confirme el pago. Un usuario ya
+      # logueado que "añade cuenta" desde el dashboard también cae aquí; es aceptable
+      # (esa cuenta nueva también debe pagar su plan).
+      status: :payment_pending
     ).perform
     enqueue_branding_enrichment
     if @user

@@ -133,6 +133,23 @@ as well as a link to its edit page.
             super_admin_account_account_automations_path(page.resource),
             class: 'button' %>
     </div>
+
+    <div style="flex:1; min-width:220px; padding:16px; background:#ecfeff; border:1px solid #a5f3fc; border-radius:8px;">
+      <h3 style="font-weight:600; font-size:14px; margin-bottom:8px;">Hermes</h3>
+      <% _handoff = page.resource.jabvox_context_forge_handoff %>
+      <p style="font-size:13px; color:#374151; margin-bottom:10px;">
+        <% if _handoff&.hermes_operational? %>
+          Conectado — Hermes de la cuenta operativo (<%= _handoff.mcp_servers.size %> MCP/skill).
+        <% elsif _handoff&.status == 'failed' %>
+          Falló: <%= _handoff.last_error %>
+        <% elsif _handoff&.status == 'provisioning' %>
+          Levantando el Hermes de la cuenta… recarga en unos segundos.
+        <% else %>
+          Sin conectar. Lígalo desde el panel de Hermes; el Aprovisionador lo levanta.
+        <% end %>
+      </p>
+      <%= link_to 'Gestionar en Hermes', super_admin_hermes_instances_path, class: 'button' %>
+    </div>
   </div>
 
   <%

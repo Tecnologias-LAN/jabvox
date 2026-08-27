@@ -1,4 +1,7 @@
 require Rails.root.join('lib/redis/config')
+require Rails.root.join('lib/jabvox/sidekiq_metrics')
+require Rails.root.join('lib/jabvox/sidekiq_metrics_middleware')
+require Rails.root.join('lib/jabvox/redis_lock')
 
 schedule_file = 'config/schedule.yml'
 
@@ -18,9 +21,24 @@ end
 Sidekiq.configure_server do |config|
   config.redis = Redis::Config.app
 
+  # Deja rastro de todo job que agota reintentos y muere (cae al dead set), para
+  # poder diagnosticar rápido un servicio que se quedó atascado. Los estados
+  # colgados los recuperan los reapers (dialer / lead_import / export).
+  config.death_handlers << lambda do |job, ex|
+    Sidekiq.logger.error("[Sidekiq death] #{job['class']} args=#{job['args'].inspect} #{ex.class}: #{ex.message}")
+  end
+
   if ActiveModel::Type::Boolean.new.cast(ENV.fetch('ENABLE_SIDEKIQ_DEQUEUE_LOGGER', false))
     config.server_middleware do |chain|
       chain.add JabvoxDequeuedLogger
+    end
+  end
+
+  # Instrumentación para dimensionar a escala (run + latencia de cola). Ver
+  # lib/jabvox/sidekiq_metrics.rb y `rake jabvox:sidekiq_metrics`.
+  if Jabvox::SidekiqMetrics.enabled?
+    config.server_middleware do |chain|
+      chain.add Jabvox::SidekiqMetricsMiddleware
     end
   end
 

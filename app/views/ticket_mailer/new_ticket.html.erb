@@ -1,0 +1,9 @@
+<p>Hola <%= @recipient.name %>,</p>
+<p>Se ha registrado un nuevo ticket en el sistema de solicitudes:</p>
+<ul>
+  <li><strong>N.º:</strong> #<%= @ticket.display_id_jabvox %></li>
+  <li><strong>Título:</strong> <%= @ticket.title_jabvox %></li>
+  <li><strong>Prioridad:</strong> <%= @ticket.priority_jabvox %></li>
+  <li><strong>Solicitante:</strong> <%= @ticket.requester.name %></li>
+</ul>
+<p><%= @ticket.description_jabvox %></p>

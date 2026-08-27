@@ -1,6 +1,26 @@
 require 'rails_helper'
 
 RSpec.describe Attachment do
+  describe 'storage quota' do
+    let(:account) { create(:account, limits: { 'storage_gb' => 1 }) }
+    let(:conversation) { create(:conversation, account: account) }
+    let(:message) { create(:message, account: account, conversation: conversation) }
+
+    it 'bloquea archivos que superan el almacenamiento contratado' do
+      attachment = message.attachments.new(account: account, file_type: :file)
+      attachment.file.attach(
+        io: Rails.root.join('spec/assets/avatar.png').open,
+        filename: 'avatar.png',
+        content_type: 'image/png'
+      )
+
+      allow_any_instance_of(Jabvox::StorageUsageService).to receive(:total_bytes).and_return(1.gigabyte)
+
+      expect(attachment).not_to be_valid
+      expect(attachment.errors[:file]).to include('excede el almacenamiento disponible para esta cuenta')
+    end
+  end
+
   let!(:message) { create(:message) }
 
   describe 'external url validations' do

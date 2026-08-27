@@ -46,6 +46,9 @@ class Inbox < ApplicationRecord
   include AccountCacheRevalidator
   include InboxAgentAvailability
   include InboxBrandedEmailLayoutable
+  include Jabvox::AccountResourceLimit
+
+  jabvox_resource_limit :inboxes
 
   # Not allowing characters:
   validates :name, presence: true

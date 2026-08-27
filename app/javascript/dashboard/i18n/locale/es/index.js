@@ -27,6 +27,7 @@ import integrations from './integrations.json';
 import jabvoxAffiliatePortal from './jabvoxAffiliatePortal.json';
 import jabvoxAffiliates from './jabvoxAffiliates.json';
 import jabvoxAiChat from './jabvoxAiChat.json';
+import jabvoxProvisioningChat from './jabvoxProvisioningChat.json';
 import jabvoxAudioAnalysis from './jabvoxAudioAnalysis.json';
 import jabvoxAnalytics from './jabvoxAnalytics.json';
 import jabvoxCdr from './jabvoxCdr.json';
@@ -43,14 +44,17 @@ import jabvoxReports from './jabvoxReports.json';
 import jabvoxResponseBot from './jabvoxResponseBot.json';
 import jabvoxEmail from './jabvoxEmail.json';
 import jabvoxActions from './jabvoxActions.json';
+import jabvoxBilling from './jabvoxBilling.json';
 import jabvoxForms from './jabvoxForms.json';
 import jabvoxClickToCall from './jabvoxClickToCall.json';
+import jabvoxSoftphone from './jabvoxSoftphone.json';
 import jabvoxCustomization from './jabvoxCustomization.json';
 import jabvoxWhatsappTemplates from './jabvoxWhatsappTemplates.json';
 import jabvoxTasks from './jabvoxTasks.json';
 import jabvoxBulkWhatsapp from './jabvoxBulkWhatsapp.json';
 import jabvoxWhatsappGroups from './jabvoxWhatsappGroups.json';
 import jabvoxVoiceBroadcast from './jabvoxVoiceBroadcast.json';
+import jabvoxTickets from './jabvoxTickets.json';
 import jabvoxLeadImport from './jabvoxLeadImport.json';
 import jabvoxDataExport from './jabvoxDataExport.json';
 import jabvoxAdvancedAutomations from './jabvoxAdvancedAutomations.json';
@@ -103,6 +107,7 @@ export default {
   ...jabvoxAffiliatePortal,
   ...jabvoxAffiliates,
   ...jabvoxAiChat,
+  ...jabvoxProvisioningChat,
   ...jabvoxAudioAnalysis,
   ...jabvoxAnalytics,
   ...jabvoxCdr,
@@ -119,14 +124,17 @@ export default {
   ...jabvoxResponseBot,
   ...jabvoxEmail,
   ...jabvoxActions,
+  ...jabvoxBilling,
   ...jabvoxForms,
   ...jabvoxClickToCall,
+  ...jabvoxSoftphone,
   ...jabvoxCustomization,
   ...jabvoxWhatsappTemplates,
   ...jabvoxTasks,
   ...jabvoxBulkWhatsapp,
   ...jabvoxWhatsappGroups,
   ...jabvoxVoiceBroadcast,
+  ...jabvoxTickets,
   ...jabvoxLeadImport,
   ...jabvoxDataExport,
   ...jabvoxAdvancedAutomations,

@@ -1,0 +1,18 @@
+<% content_for(:title) do %>
+  Editar helpdesk: <%= @config.account&.name || "##{@config.account_id}" %>
+<% end %>
+
+<header class="main-content__header" role="banner">
+  <div>
+    <h1 class="main-content__page-title">
+      Editar helpdesk: <%= @config.account&.name || "##{@config.account_id}" %>
+    </h1>
+    <p class="mt-2 text-sm text-gray-500">Actualiza la cuenta gestora, el modo de asignación y el estado.</p>
+  </div>
+</header>
+
+<section class="main-content__body">
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <%= render 'form', config: @config %>
+  </div>
+</section>

@@ -2,7 +2,9 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
+import Cookies from 'js-cookie';
 import { useAlert } from 'dashboard/composables';
+import { aiChatAPI, hermesConnectionsAPI } from 'dashboard/api/jabvox/aiChat';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
@@ -20,8 +22,48 @@ const alert = useAlert;
 const currentSessionId = ref(null);
 const messageInput = ref('');
 const messagesContainer = ref(null);
-const selectedMode = ref('model');
-const selectedModelId = ref(null);
+const hermesAgents = ref([]); // agentes Hermes ligados a este usuario (N:N)
+const selectedAgentId = ref(null); // conexión Hermes elegida en el chat
+const isStreaming = ref(false);
+const activeTools = ref([]); // chips de herramientas en vivo (Telegram-like)
+const showCommands = ref(false); // menú de comandos "/"
+const commandIndex = ref(0);
+const expandedTool = ref(null); // clave "msgId:toolId" de la herramienta desplegada
+const fileInput = ref(null);
+const attachments = ref([]); // [{ type:'image'|'file', name, url(base64 o http) }]
+
+// Lee un archivo como data URL (base64) para enviarlo inline (imágenes vision).
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function onFilesSelected(e) {
+  const files = Array.from(e.target.files || []);
+  // Imágenes → base64 inline (formato vision); docs/audios → data URL para que Hermes lo lea.
+  const loaded = await Promise.all(
+    files.map(async file => ({
+      type: file.type.startsWith('image/') ? 'image' : 'file',
+      name: file.name,
+      url: await readAsDataUrl(file),
+    }))
+  );
+  attachments.value.push(...loaded);
+  e.target.value = ''; // permite re-seleccionar el mismo archivo
+}
+
+function removeAttachment(i) {
+  attachments.value.splice(i, 1);
+}
+
+function toggleToolDetail(msgId, toolId) {
+  const key = `${msgId}:${toolId}`;
+  expandedTool.value = expandedTool.value === key ? null : key;
+}
 const showSessions = ref(false); // mobile drawer
 const deleteDialog = ref(null);
 const pendingDeleteId = ref(null);
@@ -36,33 +78,23 @@ const messages = computed(() =>
     ? store.getters['jabvoxAiChat/getMessages'](currentSessionId.value)
     : []
 );
-const models = computed(() => store.getters['jabvoxAiChat/getModels']);
-const documents = computed(() => store.getters['jabvoxAiChat/getDocuments']);
 const myAccess = computed(() => store.getters['jabvoxAiChat/getMyAccess']);
 const uiFlags = computed(() => store.getters['jabvoxAiChat/getUIFlags']);
 
-const isSending = computed(() => uiFlags.value.isSending);
+const isSending = computed(() => uiFlags.value.isSending || isStreaming.value);
 const canUse = computed(() => !myAccess.value || myAccess.value.can_use);
-const canUseModels = computed(
-  () => !myAccess.value || myAccess.value.can_use_models
-);
-const canUseDocuments = computed(
-  () => !myAccess.value || myAccess.value.can_use_documents
-);
-const hasModels = computed(() => (models.value || []).length > 0);
-const hasDocuments = computed(() => (documents.value || []).length > 0);
+// El usuario chatea si tiene al menos un agente Hermes ligado.
+const hasAgents = computed(() => (hermesAgents.value || []).length > 0);
 const canSend = computed(
   () =>
-    messageInput.value.trim().length > 0 &&
+    (messageInput.value.trim().length > 0 || attachments.value.length > 0) &&
     !isSending.value &&
     canUse.value &&
-    hasModels.value
+    hasAgents.value
 );
-const defaultModel = computed(
-  () => models.value.find(m => m.is_default_jabvox) || models.value[0]
-);
-const modelOptions = computed(() =>
-  (models.value || []).map(m => ({ value: m.id, label: m.name_jabvox }))
+// Selector de agente Hermes (cada opción es una conexión ligada al usuario).
+const agentOptions = computed(() =>
+  (hermesAgents.value || []).map(a => ({ value: a.id, label: a.name }))
 );
 
 function selectSession(sessionId) {
@@ -97,31 +129,25 @@ function enablePushNotifications() {
   });
 }
 
+async function loadHermesAgents() {
+  try {
+    const { data } = await hermesConnectionsAPI.mine();
+    hermesAgents.value = data;
+    if (data.length) selectedAgentId.value = data[0].id;
+  } catch {
+    hermesAgents.value = [];
+  }
+}
+
 onMounted(async () => {
   await Promise.all([
     store.dispatch('jabvoxAiChat/fetchMyAccess'),
     store.dispatch('jabvoxAiChat/fetchSessions'),
-    store.dispatch('jabvoxAiChat/fetchModels'),
-    store.dispatch('jabvoxAiChat/fetchDocuments'),
+    loadHermesAgents(),
   ]);
   syncPushStatus();
-  if (defaultModel.value) selectedModelId.value = defaultModel.value.id;
   if (sessions.value.length > 0) selectSession(sessions.value[0].session_id);
 });
-
-watch(
-  [hasModels, hasDocuments],
-  ([modelsAvailable, documentsAvailable]) => {
-    if (!modelsAvailable && documentsAvailable) {
-      selectedMode.value = 'documents';
-      return;
-    }
-    if (modelsAvailable && !documentsAvailable) {
-      selectedMode.value = 'model';
-    }
-  },
-  { immediate: true }
-);
 
 watch(messages, async () => {
   await nextTick();
@@ -148,60 +174,272 @@ async function confirmDeleteSession() {
   pendingDeleteId.value = null;
 }
 
+function appendToMessage(sessionId, messageId, text) {
+  store.commit('jabvoxAiChat/APPEND_MESSAGE_CONTENT', {
+    sessionId,
+    messageId,
+    text,
+  });
+}
+
+// Chips de herramientas: running → spinner; completed (mismo toolCallId) → ✓.
+// El evento 'running' trae el comando/código en `label`; el 'completed' solo trae status.
+// Por eso preservamos el label del primer evento y NO lo pisamos con el segundo.
+function upsertTool(tool) {
+  const id = tool.toolCallId || tool.tool;
+  const idx = activeTools.value.findIndex(x => x.id === id);
+  if (idx === -1) {
+    activeTools.value.push({
+      id,
+      emoji: tool.emoji || '🔧',
+      tool: tool.tool || 'tool',
+      label: tool.tool || 'tool', // nombre corto para el chip (terminal, execute_code…)
+      detail: tool.label || tool.detail || tool.output || '', // comando/código completo
+      status: tool.status,
+    });
+    return;
+  }
+  // Actualiza solo lo que llega (status siempre; detalle si viene más completo).
+  const prev = activeTools.value[idx];
+  activeTools.value[idx] = {
+    ...prev,
+    status: tool.status || prev.status,
+    detail: tool.label || tool.detail || tool.output || prev.detail,
+    emoji: tool.emoji || prev.emoji,
+  };
+}
+
+function handleFrame(eventType, data, sessionId, assistantId) {
+  let json;
+  try {
+    json = JSON.parse(data);
+  } catch {
+    return;
+  }
+  if (eventType === 'hermes.tool.progress') {
+    upsertTool(json);
+    return;
+  }
+  if (json.error) {
+    appendToMessage(sessionId, assistantId, `\n\nError: ${json.error}`);
+    return;
+  }
+  const delta = json.choices?.[0]?.delta?.content;
+  if (delta) appendToMessage(sessionId, assistantId, delta);
+}
+
+// Procesa un bloque de líneas SSE ya separadas por salto de línea.
+function processSseLines(lines, ctx, sessionId, assistantId) {
+  lines.forEach(line => {
+    if (line.startsWith('event:')) {
+      ctx.eventType = line.slice(6).trim();
+    } else if (line.startsWith('data:')) {
+      const data = line.slice(5).trim();
+      if (data === '[DONE]' || data === '') return;
+      handleFrame(ctx.eventType, data, sessionId, assistantId);
+      ctx.eventType = null;
+    }
+  });
+}
+
+// Lee el stream SSE: frames de texto (delta.content) y eventos hermes.tool.progress.
+async function consumeStream(res, sessionId, assistantId) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const ctx = { eventType: null };
+  let buffer = '';
+  let chunk = await reader.read();
+  while (!chunk.done) {
+    buffer += decoder.decode(chunk.value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    processSseLines(lines, ctx, sessionId, assistantId);
+    // eslint-disable-next-line no-await-in-loop
+    chunk = await reader.read();
+  }
+}
+
+// devise-token-auth exige access-token/client/uid en cada request. fetch() no los añade
+// solo (a diferencia de axios), así que los leemos de la cookie cw_d_session_info que el
+// dashboard fija al iniciar sesión. Sin esto el /stream responde 401.
+function deviseAuthHeaders() {
+  try {
+    const raw = Cookies.get('cw_d_session_info');
+    if (!raw) return {};
+    const s = JSON.parse(raw);
+    return {
+      'access-token': s['access-token'] || '',
+      client: s.client || '',
+      uid: s.uid || '',
+      expiry: s.expiry || '',
+      'token-type': s['token-type'] || 'Bearer',
+    };
+  } catch {
+    return {};
+  }
+}
+
+// Envía el mensaje al agente Hermes en STREAMING (SSE): pinta el texto que fluye y los chips
+// de herramientas en vivo (como Telegram). Al terminar, refresca la sesión.
+async function streamAssistant(
+  content,
+  apiSessionId,
+  displaySessionId,
+  isNewChat,
+  sentAttachments
+) {
+  const assistantId = Date.now() + 1;
+  isStreaming.value = true;
+  activeTools.value = [];
+  store.commit('jabvoxAiChat/ADD_MESSAGE', {
+    sessionId: displaySessionId,
+    message: {
+      id: assistantId,
+      role: 'assistant',
+      content: '',
+      created_at: new Date(),
+    },
+  });
+
+  try {
+    const res = await fetch(aiChatAPI.streamUrl(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...deviseAuthHeaders(),
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        content,
+        session_id: apiSessionId,
+        connection_id: selectedAgentId.value,
+        attachments: sentAttachments,
+      }),
+    });
+    if (!res.ok || !res.body) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || t('JABVOX_AI_CHAT.ERROR'));
+    }
+    await consumeStream(res, displaySessionId, assistantId);
+    if (isNewChat) await store.dispatch('jabvoxAiChat/fetchSessions');
+  } catch (e) {
+    appendToMessage(displaySessionId, assistantId, `\n\nError: ${e.message}`);
+  } finally {
+    // Guarda las herramientas usadas al final del mensaje (quedan expandibles).
+    if (activeTools.value.length) {
+      store.commit('jabvoxAiChat/SET_MESSAGE_TOOLS', {
+        sessionId: displaySessionId,
+        messageId: assistantId,
+        tools: [...activeTools.value],
+      });
+    }
+    isStreaming.value = false;
+    activeTools.value = [];
+  }
+}
+
 async function sendMessage() {
   const content = messageInput.value.trim();
-  if (!content) return;
-  if (!hasModels.value) {
+  const hasAttachments = attachments.value.length > 0;
+  if (!content && !hasAttachments) return;
+  if (!hasAgents.value) {
     alert(t('JABVOX_AI_CHAT.NO_MODEL'));
+    return;
+  }
+
+  // "/new" inicia una conversación nueva en Jabvox (aparece en la lista izquierda) en vez
+  // de enviarse a Hermes. Las demás barras (/model, /status...) sí van a Hermes.
+  if (content === '/new') {
+    newChat();
+    showCommands.value = false;
     return;
   }
 
   const isNewChat = !currentSessionId.value;
   const apiSessionId = currentSessionId.value || null;
   const displaySessionId = apiSessionId || `pending_${Date.now()}`;
-
   if (isNewChat) currentSessionId.value = displaySessionId;
 
+  const sentAttachments = [...attachments.value];
+  const shownContent =
+    content || `📎 ${sentAttachments.map(a => a.name).join(', ')}`;
   store.commit('jabvoxAiChat/ADD_MESSAGE', {
     sessionId: displaySessionId,
-    message: { id: Date.now(), role: 'user', content, created_at: new Date() },
+    message: {
+      id: Date.now(),
+      role: 'user',
+      content: shownContent,
+      created_at: new Date(),
+    },
   });
-
   messageInput.value = '';
+  attachments.value = [];
+  showCommands.value = false;
 
-  try {
-    const result = await store.dispatch('jabvoxAiChat/sendMessage', {
-      content,
-      session_id: apiSessionId,
-      mode: selectedMode.value,
-      model_id: selectedModelId.value,
-    });
-    if (isNewChat && result?.session_id) {
-      await store.dispatch('jabvoxAiChat/fetchMessages', result.session_id);
-      currentSessionId.value = result.session_id;
-      await store.dispatch('jabvoxAiChat/fetchSessions');
-    }
-  } catch (e) {
-    const errorMessage =
-      e?.response?.data?.error || e?.message || t('JABVOX_AI_CHAT.ERROR');
-    alert(errorMessage);
-    if (isNewChat) {
-      currentSessionId.value = null;
-    } else {
-      store.commit('jabvoxAiChat/ADD_MESSAGE', {
-        sessionId: currentSessionId.value,
-        message: {
-          id: Date.now(),
-          role: 'assistant',
-          content: `Error: ${errorMessage}`,
-          created_at: new Date(),
-        },
-      });
-    }
-  }
+  await streamAssistant(
+    content,
+    apiSessionId,
+    displaySessionId,
+    isNewChat,
+    sentAttachments
+  );
+}
+
+// ─── Comandos de Hermes (se escriben con "/"; Hermes los interpreta) ───
+const HERMES_COMMANDS = [
+  { cmd: '/model', desc: 'Muestra o cambia el modelo de IA del agente' },
+  { cmd: '/new', desc: 'Inicia una conversación nueva (reinicia el contexto)' },
+  { cmd: '/status', desc: 'Muestra el estado de la sesión actual' },
+  { cmd: '/help', desc: 'Lista los comandos disponibles' },
+  { cmd: '/stop', desc: 'Detiene la tarea en curso' },
+];
+
+// Comandos que coinciden con lo escrito (solo cuando el texto empieza por "/").
+const filteredCommands = computed(() => {
+  const text = messageInput.value.trim();
+  if (!text.startsWith('/')) return [];
+  const q = text.toLowerCase();
+  return HERMES_COMMANDS.filter(c => c.cmd.startsWith(q) || q === '/');
+});
+
+// Muestra/oculta el menú al escribir. Se llama en @input del textarea.
+function onInput() {
+  const show = filteredCommands.value.length > 0;
+  showCommands.value = show;
+  if (show) commandIndex.value = 0;
+}
+
+function applyCommand(cmd) {
+  messageInput.value = `${cmd} `;
+  showCommands.value = false;
 }
 
 function handleKeydown(e) {
+  // Navegación del menú de comandos
+  if (showCommands.value && filteredCommands.value.length) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      commandIndex.value =
+        (commandIndex.value + 1) % filteredCommands.value.length;
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      commandIndex.value =
+        (commandIndex.value - 1 + filteredCommands.value.length) %
+        filteredCommands.value.length;
+      return;
+    }
+    if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+      e.preventDefault();
+      applyCommand(filteredCommands.value[commandIndex.value].cmd);
+      return;
+    }
+    if (e.key === 'Escape') {
+      showCommands.value = false;
+      return;
+    }
+  }
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     if (canSend.value) sendMessage();
@@ -393,41 +631,9 @@ const numberedSessions = computed(() =>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-            <!-- Mode selector -->
-            <div
-              v-if="
-                (canUseModels && hasModels) || (canUseDocuments && hasDocuments)
-              "
-              class="flex items-center gap-1 bg-n-alpha-1 rounded-lg p-1"
-            >
-              <button
-                v-if="canUseModels && hasModels"
-                class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
-                :class="
-                  selectedMode === 'model'
-                    ? 'bg-n-solid-1 text-n-brand shadow-sm'
-                    : 'text-n-slate-10 hover:text-n-slate-12'
-                "
-                @click="selectedMode = 'model'"
-              >
-                {{ t('JABVOX_AI_CHAT.MODE_MODEL') }}
-              </button>
-              <button
-                v-if="canUseDocuments && hasDocuments"
-                class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
-                :class="
-                  selectedMode === 'documents'
-                    ? 'bg-n-solid-1 text-n-brand shadow-sm'
-                    : 'text-n-slate-10 hover:text-n-slate-12'
-                "
-                @click="selectedMode = 'documents'"
-              >
-                {{ t('JABVOX_AI_CHAT.MODE_DOCUMENTS') }}
-              </button>
-            </div>
-            <!-- Model selector -->
-            <div v-if="hasModels && canUseModels" class="w-40">
-              <Select v-model="selectedModelId" :options="modelOptions" />
+            <!-- Selector de agente Hermes (los ligados a este usuario) -->
+            <div v-if="hasAgents" class="w-48">
+              <Select v-model="selectedAgentId" :options="agentOptions" />
             </div>
           </div>
         </div>
@@ -442,9 +648,9 @@ const numberedSessions = computed(() =>
           </p>
         </div>
 
-        <!-- No model warning -->
+        <!-- Sin agente Hermes asignado -->
         <div
-          v-else-if="!hasModels && !hasDocuments"
+          v-else-if="!hasAgents"
           class="flex-1 flex items-center justify-center text-center px-6"
         >
           <p class="text-n-slate-11 text-sm">
@@ -472,7 +678,7 @@ const numberedSessions = computed(() =>
               :class="msg.role === 'user' ? 'flex-row-reverse' : ''"
             >
               <div
-                class="max-w-[min(720px,85%)] sm:max-w-[min(720px,100%)] rounded-2xl px-4 py-2.5 text-sm leading-relaxed"
+                class="max-w-[min(720px,85%)] sm:max-w-[min(720px,100%)] min-w-0 rounded-2xl px-4 py-2.5 text-sm leading-relaxed"
                 :class="
                   msg.role === 'user'
                     ? 'bg-n-brand text-white rounded-tr-sm'
@@ -482,6 +688,52 @@ const numberedSessions = computed(() =>
                 <p class="whitespace-pre-wrap break-words">
                   {{ msg.content || msg.content_jabvox }}
                 </p>
+
+                <!-- Herramientas usadas por el agente (al final, expandibles) -->
+                <div
+                  v-if="msg.tools && msg.tools.length"
+                  class="mt-2 flex flex-col gap-1 border-t border-n-weak pt-2"
+                >
+                  <p class="text-xs font-medium text-n-slate-10">
+                    {{ t('JABVOX_AI_CHAT.TOOLS_USED') }}
+                  </p>
+                  <div v-for="tool in msg.tools" :key="tool.id">
+                    <button
+                      type="button"
+                      class="w-full flex items-center gap-2 text-left text-xs rounded-lg px-2 py-1 hover:bg-n-alpha-1"
+                      @click="toggleToolDetail(msg.id, tool.id)"
+                    >
+                      <span
+                        v-if="tool.status === 'running'"
+                        class="i-lucide-loader-2 animate-spin size-3 text-n-slate-10"
+                      />
+                      <span
+                        v-else
+                        class="i-lucide-check size-3 text-green-500"
+                      />
+                      <span class="truncate min-w-0">
+                        {{ tool.emoji }} {{ tool.label }}
+                      </span>
+                      <span
+                        v-if="tool.detail"
+                        class="i-lucide-chevron-down size-3 text-n-slate-9 ml-auto shrink-0"
+                        :class="
+                          expandedTool === `${msg.id}:${tool.id}`
+                            ? 'rotate-180'
+                            : ''
+                        "
+                      />
+                    </button>
+                    <pre
+                      v-if="
+                        tool.detail && expandedTool === `${msg.id}:${tool.id}`
+                      "
+                      class="mt-1 ml-5 max-w-full rounded-lg bg-n-alpha-1 p-2 text-xs text-n-slate-11 whitespace-pre-wrap break-all overflow-x-auto"
+                      >{{ tool.detail }}</pre
+                    >
+                  </div>
+                </div>
+
                 <span
                   class="text-xs opacity-60 mt-1 block"
                   :class="msg.role === 'user' ? 'text-right' : ''"
@@ -510,18 +762,101 @@ const numberedSessions = computed(() =>
             </div>
           </div>
 
+          <!-- Herramientas del agente en vivo (como Telegram) -->
+          <div
+            v-if="activeTools.length"
+            class="border-t border-n-weak bg-n-alpha-1 px-4 py-2 flex flex-wrap gap-2 max-w-5xl mx-auto w-full"
+          >
+            <span
+              v-for="tool in activeTools"
+              :key="tool.id"
+              class="inline-flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 bg-n-solid-1 border border-n-weak"
+            >
+              <span
+                v-if="tool.status === 'running'"
+                class="i-lucide-loader-2 animate-spin size-3 text-n-slate-10"
+              />
+              <span v-else class="i-lucide-check size-3 text-green-500" />
+              {{ tool.label }}
+            </span>
+          </div>
+
+          <!-- Adjuntos seleccionados (preview) -->
+          <div
+            v-if="attachments.length"
+            class="border-t border-n-weak bg-n-alpha-1 px-4 py-2 flex flex-wrap gap-2 max-w-5xl mx-auto w-full"
+          >
+            <span
+              v-for="(att, i) in attachments"
+              :key="i"
+              class="inline-flex items-center gap-1.5 text-xs rounded-lg px-2 py-1 bg-n-solid-1 border border-n-weak max-w-full"
+            >
+              <span
+                :class="
+                  att.type === 'image' ? 'i-lucide-image' : 'i-lucide-file'
+                "
+                class="size-3 shrink-0"
+              />
+              <span class="truncate">{{ att.name }}</span>
+              <button
+                type="button"
+                class="i-lucide-x size-3 shrink-0 text-n-slate-10 hover:text-n-slate-12"
+                @click="removeAttachment(i)"
+              />
+            </span>
+          </div>
+
           <!-- Input area -->
           <div class="border-t border-n-weak bg-n-solid-1 p-4 flex-shrink-0">
             <div
               class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end max-w-5xl mx-auto w-full"
             >
-              <textarea
-                v-model="messageInput"
-                rows="1"
-                class="reset-base flex-1 resize-none border border-n-weak rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-n-slate-7 text-n-slate-12 placeholder:text-n-slate-9 bg-n-background transition-colors"
-                :placeholder="t('JABVOX_AI_CHAT.PLACEHOLDER')"
-                @keydown="handleKeydown"
+              <input
+                ref="fileInput"
+                type="file"
+                class="hidden"
+                accept="image/*,.pdf,.txt,.doc,.docx,audio/*"
+                multiple
+                @change="onFilesSelected"
               />
+              <Button
+                icon="i-lucide-paperclip"
+                variant="ghost"
+                color="slate"
+                class="shrink-0"
+                :title="t('JABVOX_AI_CHAT.ATTACH')"
+                @click="fileInput?.click()"
+              />
+              <div class="relative flex-1">
+                <!-- Menú de comandos "/" (Hermes los interpreta) -->
+                <div
+                  v-if="showCommands"
+                  class="absolute bottom-full mb-2 left-0 right-0 z-20 rounded-xl border border-n-weak bg-n-solid-1 shadow-lg overflow-hidden"
+                >
+                  <button
+                    v-for="(c, i) in filteredCommands"
+                    :key="c.cmd"
+                    type="button"
+                    class="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-n-alpha-1"
+                    :class="i === commandIndex ? 'bg-n-alpha-2' : ''"
+                    @mousedown.prevent="applyCommand(c.cmd)"
+                    @mouseenter="commandIndex = i"
+                  >
+                    <span class="font-mono text-sm text-n-slate-12">{{
+                      c.cmd
+                    }}</span>
+                    <span class="text-xs text-n-slate-10">{{ c.desc }}</span>
+                  </button>
+                </div>
+                <textarea
+                  v-model="messageInput"
+                  rows="1"
+                  class="reset-base w-full resize-none border border-n-weak rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-n-slate-7 text-n-slate-12 placeholder:text-n-slate-9 bg-n-background transition-colors"
+                  :placeholder="t('JABVOX_AI_CHAT.PLACEHOLDER')"
+                  @keydown="handleKeydown"
+                  @input="onInput"
+                />
+              </div>
               <Button
                 icon="i-lucide-send"
                 :label="t('JABVOX_AI_CHAT.SEND')"

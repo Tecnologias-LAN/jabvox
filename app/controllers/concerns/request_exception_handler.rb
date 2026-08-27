@@ -14,6 +14,8 @@ module RequestExceptionHandler
     rescue_from CustomExceptions::Inbox::LimitExceeded,
                 CustomExceptions::Account::EmailLimitExceeded,
                 with: :render_error_response
+    # Cuota de recurso Jabvox por cuenta (reglas, dashboards, docs de IA) alcanzada.
+    rescue_from Jabvox::AccountResourceLimit::LimitExceeded, with: :render_jabvox_limit_exceeded
   end
 
   private
@@ -75,6 +77,12 @@ module RequestExceptionHandler
   def render_error_response(exception)
     log_handled_error(exception)
     render json: exception.to_hash, status: exception.http_status
+  end
+
+  def render_jabvox_limit_exceeded(exception)
+    log_handled_error(exception)
+    render json: { error: exception.message, resource: exception.resource, limit: exception.limit },
+           status: :payment_required
   end
 
   def log_handled_error(exception)

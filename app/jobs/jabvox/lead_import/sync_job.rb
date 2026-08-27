@@ -5,9 +5,9 @@
 # vez (evita duplicados que se pisan y disparan miles de export jobs). El estado nunca
 # queda colgado: si el service falla, se marca 'error'; el lock expira solo.
 class Jabvox::LeadImport::SyncJob < ApplicationJob
-  queue_as :default
+  queue_as :jabvox_lead_import
 
-  LOCK_TTL = 2.hours # tope de duración de un sync; el lock se libera solo pasado esto
+  LOCK_TTL = 2.hours.to_i # tope de duración de un sync; el lock se libera solo pasado esto
 
   def perform(lead_source_id)
     source = JabvoxLeadSource.find_by(id: lead_source_id)
@@ -38,7 +38,7 @@ class Jabvox::LeadImport::SyncJob < ApplicationJob
 
   # Lock atómico en Redis (SET NX EX). Devuelve true si lo obtuvo.
   def acquire_lock(key)
-    Sidekiq.redis { |r| r.set(key, Time.now.to_i, nx: true, ex: LOCK_TTL.to_i) }
+    Sidekiq.redis { |r| r.set(key, Time.now.to_i, nx: true, ex: LOCK_TTL) }
   rescue StandardError
     true # si Redis falla, no bloqueamos el sync (mejor correr que no correr)
   end

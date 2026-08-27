@@ -58,7 +58,10 @@ class Api::V1::Accounts::Jabvox::AiChatModelsController < Api::V1::Accounts::Bas
   end
 
   def model_params
-    params.require(:jabvox_ai_chat_model).permit(:name_jabvox, :provider_jabvox, :model_jabvox, :api_key_jabvox, :base_url_jabvox, :is_default_jabvox)
+    params.require(:jabvox_ai_chat_model).permit(
+      :name_jabvox, :provider_jabvox, :model_jabvox, :api_key_jabvox,
+      :base_url_jabvox, :is_default_jabvox, :hermes_agent_id
+    )
   end
 
   def model_json(m)
@@ -70,6 +73,9 @@ class Api::V1::Accounts::Jabvox::AiChatModelsController < Api::V1::Accounts::Bas
       api_key_masked: m.api_key_jabvox.present? ? "***#{m.api_key_jabvox.last(4)}" : nil,
       base_url_jabvox: m.base_url_jabvox,
       is_default_jabvox: m.is_default_jabvox,
+      source_jabvox: m.source_jabvox,
+      hermes_agent_id: m.hermes_agent_id,
+      hermes_agent_name: m.hermes_agent&.name_jabvox,
       created_at: m.created_at
     }
   end

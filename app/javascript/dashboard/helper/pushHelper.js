@@ -79,13 +79,25 @@ export const registerSubscription = (onSuccess = () => {}, messages = {}) => {
     useAlert(msg.vapidMissing);
     return;
   }
+  const subscribe = registration =>
+    registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: window.jabvoxConfig.vapidPublicKey,
+    });
+
+  // Si ya existe una suscripción con OTRA applicationServerKey (VAPID cambió), el navegador
+  // lanza InvalidStateError. La solución es desuscribir la existente y volver a suscribir.
+  const subscribeWithRetry = registration =>
+    subscribe(registration).catch(error => {
+      if (error?.name !== 'InvalidStateError') throw error;
+      return registration.pushManager
+        .getSubscription()
+        .then(existing => (existing ? existing.unsubscribe() : null))
+        .then(() => subscribe(registration));
+    });
+
   navigator.serviceWorker.ready
-    .then(serviceWorkerRegistration =>
-      serviceWorkerRegistration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: window.jabvoxConfig.vapidPublicKey,
-      })
-    )
+    .then(subscribeWithRetry)
     .then(sendRegistrationToServer)
     .then(() => {
       onSuccess();

@@ -11,7 +11,7 @@
 # lleve demasiado abierto (ninguna llamada real dura tanto), para que el marcador
 # nunca se quede pegado pase lo que pase con la telefonía.
 class Jabvox::DialerStaleCallReaperJob < ApplicationJob
-  queue_as :scheduled_jobs
+  queue_as :jabvox_ami
 
   # Ventana de gracia. Una llamada real (timbrado + conversación) no supera unos
   # minutos; 15 min es holgado y jamás toca una llamada viva.

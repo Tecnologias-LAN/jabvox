@@ -1,0 +1,12 @@
+<%#
+# BelongsToSearch — Show
+#
+# Muestra el recurso asociado por su nombre. NO usa link_to [namespace, data] porque para
+# STI (p.ej. User -> SuperAdmin) el helper de ruta genera un path inválido
+# (super_admin_super_admin_path). Mostrar solo el texto es seguro y suficiente.
+%>
+<% if field.data %>
+  <%= field.data.try(:name).presence || field.data.try(:email).presence || field.data.to_s %>
+<% else %>
+  &mdash;
+<% end %>

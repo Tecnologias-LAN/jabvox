@@ -20,6 +20,7 @@ import SidebarProfileMenu from './SidebarProfileMenu.vue';
 import SidebarChangelogCard from './SidebarChangelogCard.vue';
 import SidebarChangelogButton from './SidebarChangelogButton.vue';
 import ChannelLeaf from './ChannelLeaf.vue';
+import TicketsSidebarLeaf from './TicketsSidebarLeaf.vue';
 import ChannelIcon from 'next/icon/ChannelIcon.vue';
 import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
@@ -617,6 +618,20 @@ const menuItems = computed(() => {
       : []),
     ...(isFeatureEnabledonAccount.value(
       accountId.value,
+      FEATURE_FLAGS.JABVOX_AI_CHAT_PROVISIONING
+    )
+      ? [
+          {
+            name: 'Jabvox Provisioning Chat',
+            label: t('JABVOX_PROVISIONING_CHAT.SIDEBAR_LABEL'),
+            icon: 'i-lucide-server-cog',
+            to: accountScopedRoute('jabvox_provisioning_chat_index'),
+            activeOn: ['jabvox_provisioning_chat_index'],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
       FEATURE_FLAGS.JABVOX_CALENDAR
     )
       ? [
@@ -640,6 +655,30 @@ const menuItems = computed(() => {
             icon: 'i-lucide-square-kanban',
             to: accountScopedRoute('jabvox_tasks_index'),
             activeOn: ['jabvox_tasks_index', 'jabvox_tasks_board'],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_TICKETS
+    )
+      ? [
+          {
+            name: 'Jabvox Tickets',
+            label: t('SIDEBAR.JABVOX_TICKETS'),
+            icon: 'i-lucide-ticket',
+            to: accountScopedRoute('jabvox_tickets_index'),
+            activeOn: [
+              'jabvox_tickets_index',
+              'jabvox_tickets_detail',
+              'jabvox_tickets_metrics',
+              'jabvox_tickets_categories',
+            ],
+            component: leafProps =>
+              h(TicketsSidebarLeaf, {
+                label: leafProps.label,
+                icon: leafProps.icon,
+              }),
           },
         ]
       : []),

@@ -9,8 +9,11 @@
 #   - DNC verificada ANTES de marcar (cumplimiento legal).
 # NO usa la Queue del dialer; origina hacia el contexto dialer-voicebot.
 class Jabvox::VoiceBroadcast::DialEngine
-  TICK_LOCK_TTL = 20 # segundos: un tick por broadcast a la vez
-  CPS_SLEEP = 0.05   # pausa mínima entre Originates dentro de un tick
+  # TTL base del lock por broadcast; el heartbeat lo renueva mientras el tick
+  # origina llamadas, así un tick lento (AMI) nunca deja expirar el lock a mitad
+  # y no hay doble-marcación.
+  TICK_LOCK_TTL = 20
+  CPS_SLEEP = 0.05 # pausa mínima entre Originates dentro de un tick
 
   def self.tick(broadcast)
     new(broadcast).tick
@@ -25,19 +28,19 @@ class Jabvox::VoiceBroadcast::DialEngine
   def tick
     return 0 unless @broadcast.running?
     return 0 unless within_operating_window?
-    return 0 unless acquire_tick_lock
 
-    originated = dial_batch
-    finish_if_done
-    originated
-  ensure
-    release_tick_lock
+    result = Jabvox::RedisLock.with_lock(tick_lock_key, ttl: TICK_LOCK_TTL) do |lock|
+      originated = dial_batch(lock)
+      finish_if_done
+      originated
+    end
+    result == Jabvox::RedisLock::NOT_ACQUIRED ? 0 : result
   end
 
   private
 
   # Cuántas llamadas nuevas caben AHORA = min(cupo de concurrencia, tope de CPS).
-  def dial_batch
+  def dial_batch(lock)
     slots = @broadcast.max_concurrent_jabvox - @broadcast.in_flight_count
     return 0 if slots <= 0
 
@@ -49,6 +52,10 @@ class Jabvox::VoiceBroadcast::DialEngine
     playback = Jabvox::VoiceBroadcast::DeployService.playback_ref(@broadcast.audio_filename_jabvox)
     count = 0
     budget.times do
+      # Fencing: si perdimos el lock (proceso congelado > TTL y otro tick lo tomó),
+      # dejamos de originar para no doble-marcar con el nuevo dueño.
+      break unless lock.held?
+
       recipient = reserve_next_recipient
       break if recipient.nil? # no quedan pendientes
 
@@ -132,17 +139,5 @@ class Jabvox::VoiceBroadcast::DialEngine
 
   def tick_lock_key
     "jabvox_vb_tick_#{@broadcast.id}"
-  end
-
-  def acquire_tick_lock
-    Redis::Alfred.set(tick_lock_key, Time.current.to_i, nx: true, ex: TICK_LOCK_TTL)
-  rescue StandardError
-    true # si Redis falla, la reserva FOR UPDATE SKIP LOCKED sigue evitando dobles
-  end
-
-  def release_tick_lock
-    Redis::Alfred.delete(tick_lock_key)
-  rescue StandardError
-    nil
   end
 end

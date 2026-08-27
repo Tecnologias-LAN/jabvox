@@ -15,12 +15,17 @@ module Jabvox::ExportableToExternalDb
 
   private
 
+  # En vez de encolar un WriteJob por registro (avalancha + vecino ruidoso), se
+  # añade el (modelo,id) al Redis Set de la cuenta (dedup = coalescing) y se
+  # asegura UN drenador por cuenta. El DrainJob procesa el Set en lotes: sin
+  # avalancha de jobs, sin busy-loop, y con fairness real entre cuentas.
   def enqueue_external_export
     export_account_ids.each do |account_id|
       next if account_id.blank?
       next unless Jabvox::ExternalExport.export_enabled?(account_id)
 
-      Jabvox::ExternalExport::WriteJob.perform_later(account_id, self.class.name, id)
+      Redis::Alfred.sadd(Jabvox::ExternalExport::DrainJob.pending_set_key(account_id), "#{self.class.name}:#{id}")
+      Jabvox::ExternalExport::DrainJob.ensure_enqueued(account_id)
     end
   rescue StandardError => e
     # Never let export bookkeeping break the primary write.

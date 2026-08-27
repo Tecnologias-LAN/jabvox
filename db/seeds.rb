@@ -94,4 +94,10 @@ unless Rails.env.production?
   Seeders::MessageSeeder.create_sample_csat_collect_message conversation
 
   CannedResponse.create!(account: account, short_code: 'start', content: 'Hello welcome to Jabvox.')
+
+  # Jabvox Tickets: habilita el módulo en la cuenta demo y siembra categorías por defecto.
+  if account.respond_to?(:jabvox_tickets_enabled_jabvox)
+    account.update!(jabvox_tickets_enabled_jabvox: true)
+    Jabvox::Tickets::DefaultCategoriesService.new(account).call
+  end
 end

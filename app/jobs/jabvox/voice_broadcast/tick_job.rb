@@ -1,21 +1,35 @@
 # frozen_string_literal: true
 
-# Motor del voice broadcast por tick (cron cada minuto). Recorre los broadcasts en
-# 'running' de TODAS las cuentas y avanza la marcación de cada uno según su pacing.
-# Aislado por broadcast: un fallo en uno no corta los demás. Idempotente: el propio
-# DialEngine toma un lock por broadcast, así dos ticks solapados no doble-marcan.
-#
-# Nota de cadencia: el mínimo de sidekiq-cron es 1 minuto. El pacing fino (CPS y
-# concurrencia) lo controla el DialEngine DENTRO de cada tick; para ritmos más altos
-# se sube max_concurrent/cps del broadcast, no la frecuencia del cron.
+# Dispatcher del voice broadcast (cron cada minuto): encola un TickAccountJob por
+# cada broadcast en 'running' en la cola aislada jabvox_broadcast, para que un
+# broadcast lento no retrase a los demás ni al tick del minuto siguiente.
+# El pacing fino (CPS y concurrencia) lo controla el DialEngine dentro de cada tick.
 class Jabvox::VoiceBroadcast::TickJob < ApplicationJob
-  queue_as :scheduled_jobs
+  queue_as :jabvox_broadcast
+
+  BACKLOG_CEILING = 500
 
   def perform
-    JabvoxVoiceBroadcast.running.find_each do |broadcast|
-      Jabvox::VoiceBroadcast::DialEngine.tick(broadcast)
-    rescue StandardError => e
-      Rails.logger.error "[VoiceBroadcast::TickJob] broadcast=#{broadcast.id} #{e.class}: #{e.message}"
+    if queue_backlogged?
+      Rails.logger.warn('[VoiceBroadcast::TickJob] backlog alto en jabvox_broadcast; salto esta corrida')
+      return
     end
+
+    enqueued = 0
+    JabvoxVoiceBroadcast.running.select(:id).find_each do |broadcast|
+      Jabvox::VoiceBroadcast::TickAccountJob.perform_later(broadcast.id)
+      enqueued += 1
+    rescue StandardError => e
+      Rails.logger.error "[VoiceBroadcast::TickJob] no se pudo encolar broadcast=#{broadcast.id} #{e.class}: #{e.message}"
+    end
+    Rails.logger.info("[VoiceBroadcast::TickJob] ticks encolados: #{enqueued}") if enqueued.positive?
+  end
+
+  private
+
+  def queue_backlogged?
+    Sidekiq::Queue.new('jabvox_broadcast').size > BACKLOG_CEILING
+  rescue StandardError
+    false
   end
 end

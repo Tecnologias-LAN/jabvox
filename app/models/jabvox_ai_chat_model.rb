@@ -2,29 +2,37 @@
 #
 # Table name: jabvox_ai_chat_models
 #
-#  id                :bigint           not null, primary key
-#  api_key_jabvox    :text
-#  base_url_jabvox   :string(500)
-#  is_default_jabvox :boolean          default(FALSE), not null
-#  model_jabvox      :string(200)      not null
-#  name_jabvox       :string(150)      not null
-#  provider_jabvox   :string(50)       not null
-#  created_at        :datetime         not null
-#  updated_at        :datetime         not null
-#  account_id        :bigint           not null
+#  id                     :bigint           not null, primary key
+#  api_key_jabvox         :text
+#  base_url_jabvox        :string(500)
+#  hermes_model_id_jabvox :string
+#  is_default_jabvox      :boolean          default(FALSE), not null
+#  model_jabvox           :string(200)      not null
+#  name_jabvox            :string(150)      not null
+#  provider_jabvox        :string(50)       not null
+#  source_jabvox          :string           default("local"), not null
+#  created_at             :datetime         not null
+#  updated_at             :datetime         not null
+#  account_id             :bigint           not null
+#  hermes_agent_id        :bigint
 #
 # Indexes
 #
-#  index_jabvox_ai_chat_models_on_account_id  (account_id)
+#  index_jabvox_ai_chat_models_on_account_id       (account_id)
+#  index_jabvox_ai_chat_models_on_hermes_agent_id  (hermes_agent_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (hermes_agent_id => jabvox_hermes_agents.id)
 #
 class JabvoxAiChatModel < ApplicationRecord
   PROVIDERS = %w[openai groq anthropic ollama lmstudio custom].freeze
 
   belongs_to :account
+  # Agente de Hermes dueño de este modelo (cada agente tiene su modelo). Opcional:
+  # los modelos "de cuenta" sin agente siguen funcionando como hasta ahora.
+  belongs_to :hermes_agent, class_name: 'JabvoxHermesAgent', optional: true
 
   # Pipelines, stages and bot configs referencing this model fall back to
   # "no model selected" instead of blocking the deletion.

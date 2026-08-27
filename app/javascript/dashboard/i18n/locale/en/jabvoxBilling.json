@@ -1,0 +1,29 @@
+{
+  "JABVOX_BILLING": {
+    "MODAL": {
+      "TITLE_PENDING": "Activate your account to get started",
+      "TITLE_SUSPENDED": "Your plan has expired",
+      "DESC_PENDING": "Choose a plan and complete the payment to unlock all Jabvox features.",
+      "DESC_SUSPENDED": "Renew your plan to use the platform again. Your data is safe.",
+      "LOADING_PLANS": "Loading plans...",
+      "PLANS_ERROR": "Could not load plans. Please try again.",
+      "CHECKOUT_ERROR": "Could not start the payment. Please try again.",
+      "REDIRECTING": "Redirecting to payment...",
+      "DAYS": "days",
+      "PER_DAYS": "/ {days} days",
+      "MODULES": "included modules",
+      "CONTACT_ADMIN": "Your account requires payment to activate. Please contact your account administrator to complete the process.",
+      "SWITCH_ACCOUNT": "Have another account? Switch to:",
+      "LOGOUT": "Log out"
+    },
+    "RENEWAL": {
+      "TITLE": "Your plan is about to expire",
+      "EXPIRES_TODAY": "Your plan expires today. Renew to keep your access.",
+      "EXPIRES_TOMORROW": "Your plan expires tomorrow. Renew to keep your access.",
+      "EXPIRES_IN_DAYS": "Your plan expires in {days} days. Renew to keep your access.",
+      "CURRENT_PLAN": "Current plan",
+      "RENEW_NOW": "Renew now",
+      "LATER": "Later"
+    }
+  }
+}

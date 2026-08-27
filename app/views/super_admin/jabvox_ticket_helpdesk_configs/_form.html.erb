@@ -1,0 +1,104 @@
+<%= form_with model: [:super_admin, config], local: true, class: "space-y-6 max-w-3xl" do |f| %>
+  <% if config.errors.any? %>
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+      <ul class="list-disc list-inside m-0 text-red-700 text-sm">
+        <% config.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= f.label :account_id, 'Cuenta gestora (helpdesk)', class: "block text-sm font-medium text-gray-700 mb-1" %>
+    <p class="text-xs text-gray-500 mb-2">
+      Sus administradores ven y gestionan TODOS los tickets; sus agentes ven solo los asignados a ellos.
+    </p>
+    <%= f.collection_select :account_id, Account.order(:name), :id, :name,
+        { prompt: 'Selecciona una cuenta' },
+        class: "block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border" %>
+  </div>
+
+  <div>
+    <%= f.label :auto_assign_mode_jabvox, 'Modo de asignación automática', class: "block text-sm font-medium text-gray-700 mb-1" %>
+    <p class="text-xs text-gray-500 mb-2">
+      <span class="font-semibold">manual:</span> sin asignación · <span class="font-semibold">round_robin:</span> reparte entre resolutores · <span class="font-semibold">by_category:</span> al responsable de la categoría.
+    </p>
+    <%= f.select :auto_assign_mode_jabvox,
+        JabvoxTicketHelpdeskConfig.auto_assign_mode_jabvoxes.keys,
+        {},
+        class: "block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border" %>
+  </div>
+
+  <div>
+    <%= f.label :resolver_visibility_jabvox, 'Visibilidad de los resolutores (agentes)', class: "block text-sm font-medium text-gray-700 mb-1" %>
+    <p class="text-xs text-gray-500 mb-2">
+      <span class="font-semibold">assigned_only:</span> cada agente ve solo lo asignado a él · <span class="font-semibold">full_inbox:</span> los agentes ven la bandeja completa.
+    </p>
+    <%= f.select :resolver_visibility_jabvox,
+        JabvoxTicketHelpdeskConfig.resolver_visibility_jabvoxes.keys,
+        {},
+        class: "block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border" %>
+  </div>
+
+  <fieldset class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+    <legend class="text-sm font-medium text-gray-700 px-2 bg-gray-50 rounded">Horario laboral (SLA)</legend>
+    <p class="text-xs text-gray-500 mb-4 px-2">
+      Si se activa, el vencimiento de los SLA se calcula sobre el calendario laboral (no cuenta noches ni días no hábiles).
+    </p>
+
+    <div class="px-2 space-y-4">
+      <% bh = config.business_hours_jabvox || {} %>
+      <div class="flex items-center">
+        <%= check_box_tag 'business_hours[enabled]', '1', bh['enabled'], id: 'bh_enabled', class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" %>
+        <label for="bh_enabled" class="ml-2 block text-sm text-gray-900 font-medium">Calcular SLA por horario laboral</label>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs text-gray-700 mb-1">Inicio (minutos desde medianoche, 540 = 09:00)</label>
+          <%= number_field_tag 'business_hours[start_minute]', bh['start_minute'] || 540, min: 0, max: 1439,
+              class: "block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border" %>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-700 mb-1">Fin (minutos desde medianoche, 1080 = 18:00)</label>
+          <%= number_field_tag 'business_hours[end_minute]', bh['end_minute'] || 1080, min: 1, max: 1440,
+              class: "block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border" %>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-gray-700 mb-2">Días laborales</label>
+        <% day_labels = { 1 => 'Lun', 2 => 'Mar', 3 => 'Mié', 4 => 'Jue', 5 => 'Vie', 6 => 'Sáb', 0 => 'Dom' } %>
+        <% selected_days = Array(bh['days']).map(&:to_i) %>
+        <% selected_days = [1, 2, 3, 4, 5] if selected_days.empty? %>
+        <div class="flex flex-wrap gap-4">
+          <% day_labels.each do |num, label| %>
+            <label class="inline-flex items-center">
+              <%= check_box_tag 'business_hours[days][]', num, selected_days.include?(num), class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" %>
+              <span class="ml-2 text-sm text-gray-700"><%= label %></span>
+            </label>
+          <% end %>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-gray-700 mb-1">Zona horaria (ej. America/Bogota)</label>
+        <%= text_field_tag 'business_hours[time_zone]', bh['time_zone'] || 'America/Bogota',
+            class: "block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border" %>
+      </div>
+    </div>
+  </fieldset>
+
+  <div class="flex items-center">
+    <%= f.check_box :active_jabvox, class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" %>
+    <%= f.label :active_jabvox, 'Activa (al activar se desactiva cualquier otra config)', class: "ml-2 block text-sm font-medium text-gray-900" %>
+  </div>
+
+  <div class="flex gap-3 pt-4 border-t border-gray-200">
+    <%= f.submit config.persisted? ? 'Actualizar config' : 'Crear config',
+        class: "inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer" %>
+    <%= link_to 'Cancelar', super_admin_jabvox_ticket_helpdesk_configs_path,
+        class: "inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" %>
+  </div>
+<% end %>

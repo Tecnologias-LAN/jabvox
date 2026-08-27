@@ -4,15 +4,25 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
   CAPTAIN_RESPONSES_USAGE = 'captain_responses_usage'.freeze
   CAPTAIN_DOCUMENTS_USAGE = 'captain_documents_usage'.freeze
 
+  # Recursos Jabvox con cuota por cuenta (además de agents/inboxes/captain de Chatwoot).
+  # nil / ausente en limits = ilimitado (JabvoxApp.max_limit).
+  JABVOX_LIMIT_KEYS = %w[automation_rules analytics_dashboards ai_documents email_templates storage_gb].freeze
+
   def usage_limits
     {
-      agents: agent_limits.to_i,
-      inboxes: get_limits(:inboxes).to_i,
+      agents: effective_or_config_limit(:agents, agent_limits).to_i,
+      inboxes: effective_or_config_limit(:inboxes, get_limits(:inboxes)).to_i,
       captain: {
         documents: get_captain_limits(:documents),
         responses: get_captain_limits(:responses)
       }
-    }
+    }.merge(jabvox_usage_limits)
+  end
+
+  # Límites de recursos Jabvox contables. Cada uno resuelve: limits['<key>'] →
+  # GlobalConfig ACCOUNT_<KEY>_LIMIT → ilimitado.
+  def jabvox_usage_limits
+    JABVOX_LIMIT_KEYS.index_with { |key| effective_or_config_limit(key, get_limits(key.to_sym)).to_i }.symbolize_keys
   end
 
   def increment_response_usage
@@ -131,6 +141,9 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
 
   def get_limits(limit_name)
     config_name = "ACCOUNT_#{limit_name.to_s.upcase}_LIMIT"
+    effective = effective_limit_for(limit_name)
+    return effective if effective.positive?
+
     return self[:limits][limit_name.to_s] if self[:limits][limit_name.to_s].present?
 
     return GlobalConfig.get(config_name)[config_name] if GlobalConfig.get(config_name)[config_name].present?
@@ -163,19 +176,32 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
     errors.add(:limits, ': Invalid data') unless self[:limits].is_a? Hash
     self[:limits] = {} if self[:limits].blank?
 
+    base_properties = {
+      'inboxes' => { 'type': 'number' },
+      'agents' => { 'type': 'number' },
+      'captain_responses' => { 'type': 'number' },
+      'captain_documents' => { 'type': 'number' },
+      'emails' => { 'type': 'number' }
+    }
+    billable_properties = Jabvox::AccountBillingEntitlements::BILLABLE_RESOURCE_KEYS.each_with_object({}) do |key, memo|
+      memo[key.to_s] = { 'type': 'number' }
+      memo["#{key}_included"] = { 'type': 'number' }
+      memo["#{key}_extra"] = { 'type': 'number' }
+      memo["#{key}_unit_price_cents"] = { 'type': 'number' }
+    end
+
     limit_schema = {
       'type' => 'object',
-      'properties' => {
-        'inboxes' => { 'type': 'number' },
-        'agents' => { 'type': 'number' },
-        'captain_responses' => { 'type': 'number' },
-        'captain_documents' => { 'type': 'number' },
-        'emails' => { 'type': 'number' }
-      },
+      'properties' => base_properties.merge(billable_properties),
       'required' => [],
       'additionalProperties' => false
     }
 
     errors.add(:limits, ': Invalid data') unless JSONSchemer.schema(limit_schema).valid?(self[:limits])
+  end
+
+  def effective_or_config_limit(limit_name, fallback)
+    effective = effective_limit_for(limit_name)
+    effective.positive? ? effective : fallback
   end
 end

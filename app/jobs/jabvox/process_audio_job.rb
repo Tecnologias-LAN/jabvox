@@ -1,5 +1,5 @@
 class Jabvox::ProcessAudioJob < ApplicationJob
-  queue_as :low
+  queue_as :jabvox_media
 
   # Fans out one AnalyzeAudioFileJob per pending result, so files are processed
   # in parallel and each one is independently retryable.

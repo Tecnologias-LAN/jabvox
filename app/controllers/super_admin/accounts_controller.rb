@@ -38,7 +38,7 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
   def resource_params
     permitted_params = super
     permitted_params.extract!(:suspension_category, :suspension_reason)
-    permitted_params[:limits] = permitted_params[:limits].to_h.compact if permitted_params.key?(:limits)
+    permitted_params[:limits] = normalize_limits(permitted_params[:limits]) if permitted_params.key?(:limits)
     permitted_params[:captain_models] = permitted_params[:captain_models].to_h.compact_blank.presence if permitted_params.key?(:captain_models)
     permitted_params[:selected_feature_flags] = params[:enabled_features].keys.map(&:to_sym) if params[:enabled_features].present?
     permitted_params
@@ -79,7 +79,8 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
       return
     end
     Jabvox::SslProvisionJob.perform_later(config.id)
-    redirect_back(fallback_location: [namespace, requested_resource], notice: 'Generación de certificado SSL iniciada. Recarga la página en unos minutos.')
+    redirect_back(fallback_location: [namespace, requested_resource],
+                  notice: 'Generación de certificado SSL iniciada. Recarga la página en unos minutos.')
     # rubocop:enable Rails/I18nLocaleTexts
   end
 
@@ -94,7 +95,7 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
     redirect_back(fallback_location: [namespace, requested_resource], notice: 'Dominio y certificado eliminados correctamente.')
     # rubocop:enable Rails/I18nLocaleTexts
   rescue StandardError => e
-    redirect_back(fallback_location: [namespace, requested_resource], alert: "Error: #{e.message}") # rubocop:disable Rails/I18nLocaleTexts
+    redirect_back(fallback_location: [namespace, requested_resource], alert: "Error: #{e.message}")
   end
 
   def destroy
@@ -106,9 +107,7 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
     redirect_to [:super_admin, Account], notice: 'Account deleted successfully.'
     # rubocop:enable Rails/I18nLocaleTexts
   rescue StandardError => e
-    # rubocop:disable Rails/I18nLocaleTexts
     redirect_to [:super_admin, Account], alert: "Error deleting account: #{e.message}"
-    # rubocop:enable Rails/I18nLocaleTexts
   end
 
   private
@@ -124,6 +123,14 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
     render :edit,
            locals: { page: Administrate::Page::Form.new(dashboard, requested_resource) },
            status: :unprocessable_entity
+  end
+
+  def normalize_limits(raw_limits)
+    raw_limits.to_h.each_with_object({}) do |(key, value), memo|
+      next if value.blank?
+
+      memo[key] = value.to_i
+    end
   end
 
   def validate_suspension_category

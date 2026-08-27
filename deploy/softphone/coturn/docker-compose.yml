@@ -1,0 +1,35 @@
+# ============================================================================
+# Jabvox Softphone — Servidor TURN (coturn)
+# ----------------------------------------------------------------------------
+# Necesario para que el audio WebRTC funcione tras NAT/firewalls (sin TURN, el audio
+# falla en muchas redes de producción).
+#
+# Usa credenciales TEMPORALES (REST/HMAC): coturn valida username="<exp>:<user>" y
+# password=base64(HMAC-SHA1(STATIC_AUTH_SECRET, username)). Ese STATIC_AUTH_SECRET es el
+# MISMO valor que se guarda (cifrado) en turn_secret de JabvoxSoftphoneConfig, para que el
+# backend genere credenciales que coturn acepte.
+#
+# Arranque:  docker compose up -d
+# Puertos:   3478/udp+tcp (STUN/TURN), 5349/tcp (TURN sobre TLS), 49152-65535/udp (relay)
+# ============================================================================
+services:
+  coturn:
+    image: coturn/coturn:4.6
+    network_mode: host # el relay UDP necesita el rango completo de puertos
+    restart: unless-stopped
+    command:
+      - -n
+      - --log-file=stdout
+      - --min-port=49152
+      - --max-port=65535
+      - --realm=pbx.jabvox.com # ajusta a tu dominio
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET} # == turn_secret del panel (mismo valor)
+      - --no-cli
+      - --no-tlsv1
+      - --no-tlsv1_1
+      # TLS (recomendado en prod): descomenta y apunta a tus certificados.
+      # - --cert=/etc/coturn/certs/fullchain.pem
+      # - --pkey=/etc/coturn/certs/privkey.pem
+    # volumes:
+    #   - /etc/letsencrypt/live/pbx.jabvox.com:/etc/coturn/certs:ro

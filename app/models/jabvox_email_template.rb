@@ -45,7 +45,8 @@ class JabvoxEmailTemplate < ApplicationRecord
   scope :active, -> { where(active: true) }
 
   def self.limit_for(account)
-    account.limits['email_templates']&.to_i || 20
+    limit = account.effective_limit_for(:email_templates)
+    limit.positive? ? limit : 20
   end
 
   def self.within_limit?(account)

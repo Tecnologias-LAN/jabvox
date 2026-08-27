@@ -1,0 +1,6 @@
+<p>Hola <%= @recipient.name %>,</p>
+<p>Tu ticket <strong>#<%= @ticket.display_id_jabvox %></strong> (<%= @ticket.title_jabvox %>) ha sido resuelto.</p>
+<% if @ticket.resolution_jabvox.present? %>
+  <p><strong>Resolución:</strong> <%= @ticket.resolution_jabvox %></p>
+<% end %>
+<p>Si el problema persiste, puedes reabrir el ticket desde la plataforma.</p>

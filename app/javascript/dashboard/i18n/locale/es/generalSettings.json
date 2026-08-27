@@ -167,7 +167,14 @@
       "conversation_mention": "Mención",
       "sla_missed_first_response": "SLA perdido",
       "sla_missed_next_response": "SLA perdido",
-      "sla_missed_resolution": "SLA perdido"
+      "sla_missed_resolution": "SLA perdido",
+      "jabvox_ticket_created": "Nueva solicitud",
+      "jabvox_ticket_assigned": "Solicitud asignada",
+      "jabvox_ticket_status_changed": "Cambio de estado",
+      "jabvox_ticket_resolved": "Solicitud resuelta",
+      "jabvox_ticket_reopened": "Solicitud reabierta",
+      "jabvox_ticket_comment": "Nuevo comentario",
+      "jabvox_ticket_sla_escalation": "SLA vencido"
     }
   },
   "NETWORK": {

@@ -43,7 +43,15 @@ class Notification < ApplicationRecord
     participating_conversation_new_message: 5,
     sla_missed_first_response: 6,
     sla_missed_next_response: 7,
-    sla_missed_resolution: 8
+    sla_missed_resolution: 8,
+    # Jabvox Tickets (100+ para no colisionar con tipos futuros de Chatwoot)
+    jabvox_ticket_created: 100,
+    jabvox_ticket_assigned: 101,
+    jabvox_ticket_status_changed: 102,
+    jabvox_ticket_resolved: 103,
+    jabvox_ticket_reopened: 104,
+    jabvox_ticket_comment: 105,
+    jabvox_ticket_sla_escalation: 106
   }.freeze
 
   enum notification_type: NOTIFICATION_TYPES
@@ -53,7 +61,7 @@ class Notification < ApplicationRecord
   after_destroy_commit :dispatch_destroy_event
   after_update_commit :dispatch_update_event
 
-  PRIMARY_ACTORS = ['Conversation'].freeze
+  PRIMARY_ACTORS = %w[Conversation JabvoxTicket].freeze
 
   def push_event_data
     # Secondary actor could be nil for cases like system assigning conversation

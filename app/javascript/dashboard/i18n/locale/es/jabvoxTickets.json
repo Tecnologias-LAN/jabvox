@@ -1,0 +1,265 @@
+{
+  "JABVOX_TICKETS": {
+    "TITLE": "Solicitudes y Tickets",
+    "SUBTITLE": "Registra y gestiona incidentes, requerimientos y solicitudes.",
+    "NEW": "Nueva solicitud",
+    "EMPTY": "No hay tickets con estos filtros.",
+    "OVERDUE_TAG": "Vencido",
+    "PREV": "Anterior",
+    "NEXT": "Siguiente",
+    "COLS": {
+      "TITLE": "Título",
+      "TYPE": "Tipo",
+      "PRIORITY": "Prioridad",
+      "STATUS": "Estado",
+      "REQUESTER": "Solicitante",
+      "ASSIGNEE": "Responsable",
+      "ELAPSED": "Transcurrido"
+    },
+    "FILTERS": {
+      "SEARCH": "Buscar por título o descripción…",
+      "ALL_TYPES": "Todos los tipos",
+      "ALL_STATUSES": "Todos los estados",
+      "ALL_PRIORITIES": "Todas las prioridades",
+      "OVERDUE": "Solo vencidos",
+      "TITLE": "Filtros",
+      "ALL_TOPICS": "Todos los temas",
+      "ALL_AGENTS": "Todos los agentes",
+      "RESET": "Limpiar",
+      "DATE_FROM": "Desde",
+      "DATE_TO": "Hasta"
+    },
+    "TYPE": {
+      "INCIDENT": "Incidente",
+      "REQUIREMENT": "Requerimiento",
+      "REQUEST": "Solicitud"
+    },
+    "PRIORITY": {
+      "LOW": "Baja",
+      "MEDIUM": "Media",
+      "HIGH": "Alta",
+      "URGENT": "Urgente"
+    },
+    "STATUS": {
+      "NEW_TICKET": "Nuevo",
+      "ASSIGNED": "Asignado",
+      "IN_PROGRESS": "En progreso",
+      "ON_HOLD": "En espera",
+      "RESOLVED": "Resuelto",
+      "CLOSED": "Cerrado",
+      "REOPENED": "Reabierto"
+    },
+    "RESOLUTION_TYPE": {
+      "SOLVED": "Solucionado",
+      "DUPLICATE": "Duplicado",
+      "REJECTED": "No procede"
+    },
+    "ACTIVITY": {
+      "ASSIGNED": "asignó el ticket",
+      "STATUS_CHANGED": "cambió el estado",
+      "RESOLVED": "resolvió el ticket",
+      "REOPENED": "reabrió el ticket",
+      "RATED": "calificó la atención",
+      "COMMENTED": "comentó",
+      "SLA_ESCALATED": "escaló por SLA vencido"
+    },
+    "FORM": {
+      "TITLE": "Registrar solicitud",
+      "FIELD_TITLE": "Título",
+      "CATEGORY": "Tema",
+      "NO_CATEGORY": "Sin tema",
+      "PRIORITY": "Prioridad",
+      "DESCRIPTION": "Descripción",
+      "ATTACH": "Adjuntar archivos",
+      "FILES": "archivo(s)",
+      "SUBMIT": "Crear",
+      "CANCEL": "Cancelar",
+      "CREATED": "Ticket creado correctamente.",
+      "ERROR": "No se pudo crear el ticket."
+    },
+    "DETAIL": {
+      "BACK": "Volver",
+      "RESOLVE": "Resolver",
+      "REOPEN": "Reabrir",
+      "RESOLUTION_PLACEHOLDER": "Describe cómo se resolvió…",
+      "COMMENTS": "Comentarios",
+      "COMMENT_PLACEHOLDER": "Escribe un comentario…",
+      "ADD_COMMENT": "Comentar",
+      "PRIVATE_NOTE": "Nota interna",
+      "INTERNAL_NOTE": "Nota interna",
+      "RATE_TITLE": "¿Cómo fue la atención?",
+      "RATE_COMMENT": "Comentario (opcional)",
+      "SEND_RATING": "Enviar calificación",
+      "TIMELINE": "Historial",
+      "SYSTEM": "Sistema",
+      "CATEGORY": "Tema",
+      "DUE": "Vence",
+      "SATISFACTION": "Satisfacción",
+      "UPDATED": "Ticket actualizado.",
+      "ERROR": "No se pudo completar la acción.",
+      "PRIVATE_PLACEHOLDER": "Nota interna (solo visible para el equipo)…",
+      "ATTACH_IMAGE": "Adjuntar imagen",
+      "SOURCE_ACCOUNT": "Cuenta de origen"
+    },
+    "METRICS": {
+      "TITLE": "Métricas",
+      "TOTAL": "Total",
+      "OPEN": "Abiertos",
+      "RESOLVED": "Resueltos",
+      "CLOSED": "Cerrados",
+      "OVERDUE": "Vencidos",
+      "SLA": "Cumplimiento SLA",
+      "AVG_RESOLUTION": "Tiempo medio resolución",
+      "SATISFACTION": "Satisfacción",
+      "BY_STATUS": "Por estado",
+      "BY_TYPE": "Por tipo",
+      "BY_PRIORITY": "Por prioridad",
+      "BY_CATEGORY": "Por tema",
+      "BY_AGENT": "Por agente",
+      "NO_DATA": "Sin datos",
+      "TREND": "Tendencia (30 días)",
+      "HINT": {
+        "TOTAL": "Total de solicitudes registradas.",
+        "OPEN": "Solicitudes abiertas (sin resolver ni cerrar).",
+        "RESOLVED": "Solicitudes marcadas como resueltas.",
+        "CLOSED": "Solicitudes cerradas.",
+        "OVERDUE": "Solicitudes abiertas que superaron su SLA.",
+        "SLA": "Porcentaje resuelto dentro del SLA.",
+        "AVG_RESOLUTION": "Tiempo promedio entre creación y resolución.",
+        "SATISFACTION": "Calificación media de satisfacción (1–5).",
+        "TREND": "Solicitudes creadas por día en los últimos 30 días."
+      }
+    },
+    "CATEGORIES": {
+      "TITLE": "Temas",
+      "NEW": "Nuevo tema",
+      "NAME": "Nombre",
+      "TYPE": "Tipo",
+      "COLOR": "Color",
+      "DESCRIPTION": "Descripción",
+      "SLA_RESPONSE": "SLA respuesta (min)",
+      "SLA_RESOLUTION": "SLA resolución (min)",
+      "SAVE": "Guardar",
+      "SAVED": "Tema guardado.",
+      "ERROR": "No se pudo guardar el tema.",
+      "PARENT": "Tema padre (para subtemas)",
+      "NO_PARENT": "Ninguno (es un tema principal)",
+      "PARENT_HINT": "Si eliges un tema padre, este será un subtema suyo.",
+      "SUBTOPIC": "Subtema",
+      "EMPTY": "Aún no hay temas. Crea el primero."
+    },
+    "notifications": {
+      "jabvox_ticket_created": {
+        "title": "Nuevo ticket #{id}"
+      },
+      "jabvox_ticket_assigned": {
+        "title": "Se te asignó el ticket #{id}"
+      },
+      "jabvox_ticket_status_changed": {
+        "title": "El ticket #{id} cambió de estado"
+      },
+      "jabvox_ticket_resolved": {
+        "title": "El ticket #{id} fue resuelto"
+      },
+      "jabvox_ticket_reopened": {
+        "title": "El ticket #{id} fue reabierto"
+      },
+      "jabvox_ticket_comment": {
+        "title": "Nuevo comentario en el ticket #{id}"
+      },
+      "jabvox_ticket_sla_escalation": {
+        "title": "El ticket #{id} venció su SLA"
+      }
+    },
+    "SLA": {
+      "NO_DUE": "Sin vencimiento",
+      "DUE_IN": "Vence en {time}",
+      "OVERDUE_BY": "Vencido hace {time}",
+      "OVERDUE_CAPTION": "Vencido",
+      "REMAINING_CAPTION": "Restante para el SLA"
+    },
+    "VIEWS": {
+      "TITLE": "Vistas rápidas",
+      "ALL": "Todos",
+      "MY_OPEN": "Mis abiertos",
+      "UNASSIGNED": "Sin asignar",
+      "OVERDUE": "Vencidos",
+      "DUE_TODAY": "Por vencer hoy"
+    },
+    "BULK": {
+      "SELECTED": "{count} seleccionados",
+      "ASSIGN": "Asignar",
+      "CHANGE_STATUS": "Cambiar estado",
+      "ARCHIVE": "Archivar",
+      "CLEAR": "Limpiar selección",
+      "DONE": "{processed} procesados, {failed} con error",
+      "CONFIRM_ARCHIVE": "¿Archivar los tickets seleccionados?",
+      "SELECT_ALL": "Seleccionar todo"
+    },
+    "MERGE": {
+      "TITLE": "Fusionar en otro ticket",
+      "PLACEHOLDER": "ID del ticket destino (#)",
+      "ACTION": "Fusionar",
+      "HINT": "Este ticket se marcará como duplicado y se archivará.",
+      "SUCCESS": "Ticket fusionado"
+    },
+    "NOTIF_PREFS": {
+      "TITLE": "Notificaciones de tickets",
+      "IN_APP": "En la aplicación",
+      "EMAIL": "Por correo",
+      "SAVED": "Preferencias guardadas"
+    },
+    "RESTORE": "Restaurar",
+    "ARCHIVED_TAG": "Archivado",
+    "COMMENTS_COUNT": "{count} comentarios",
+    "WIZARD": {
+      "STEP_TYPE": "Tipo",
+      "STEP_TOPIC": "Tema",
+      "STEP_SUBTOPIC": "Subtema",
+      "STEP_DETAILS": "Detalles",
+      "STEP_CONFIRM": "Confirmar",
+      "TYPE_HINT": "¿Qué tipo de solicitud quieres registrar?",
+      "TYPE_DESC": {
+        "INCIDENT": "Algo que falla o dejó de funcionar.",
+        "REQUIREMENT": "Necesito algo nuevo o un cambio.",
+        "REQUEST": "Una consulta o gestión general."
+      },
+      "TOPIC_HINT": "Elige el tema que mejor describe tu solicitud.",
+      "SUBTOPIC_HINT": "Especifica el subtema.",
+      "NO_TOPICS": "Aún no hay temas configurados para registrar solicitudes.",
+      "TITLE_PLACEHOLDER": "Resume el asunto en una frase",
+      "DESC_PLACEHOLDER": "Describe con detalle lo que ocurre o lo que necesitas",
+      "DROP_HINT": "Arrastra archivos aquí o haz clic para adjuntar",
+      "CONFIRM_HINT": "Revisa el resumen antes de enviar.",
+      "BACK": "Atrás",
+      "NEXT": "Siguiente",
+      "SUBMIT": "Enviar solicitud",
+      "ONLY_IMAGES": "Solo se permiten imágenes.",
+      "IMAGES_ONLY_HINT": "PNG, JPG, GIF o WebP · máx. 15 MB"
+    },
+    "SUCCESS": {
+      "LABEL": "Tu solicitud fue registrada con el número",
+      "MESSAGE": "Tu solicitud fue registrada y escalada al área experta.",
+      "VIEW": "Ver mi solicitud",
+      "ANOTHER": "Registrar otra"
+    },
+    "TIME": {
+      "AGO": "hace {time}",
+      "OPEN_FOR": "abierto {time}",
+      "RESOLVED_IN": "resuelto en {time}",
+      "TO_DUE": "vence en {time}",
+      "OPEN_LABEL": "Abierto hace",
+      "RESOLUTION_LABEL": "Tiempo de resolución"
+    },
+    "VIEW": {
+      "LIST": "Lista",
+      "BOARD": "Tablero",
+      "DENSITY": "Densidad"
+    },
+    "UNASSIGNED": "Sin asignar",
+    "BADGE": {
+      "TODAY": "Pendientes de hoy",
+      "OVERDUE_PREVIOUS": "Vencidas de días anteriores"
+    }
+  }
+}

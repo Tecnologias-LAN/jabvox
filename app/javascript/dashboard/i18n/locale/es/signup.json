@@ -1,7 +1,7 @@
 {
   "REGISTER": {
     "TRY_WOOT": "Crear una cuenta",
-    "GET_STARTED": "Get started with Jabvox",
+    "GET_STARTED": "Crea tu cuenta en Jabvox",
     "TITLE": "Registrarse",
     "TESTIMONIAL_HEADER": "Todo lo que se necesita es un paso adelante",
     "TESTIMONIAL_CONTENT": "Usted está a un paso de involucrar a sus clientes, conservarlos y encontrar nuevos.",
@@ -11,18 +11,18 @@
     },
     "COMPANY_NAME": {
       "LABEL": "Nombre de la empresa",
-      "PLACEHOLDER": "Introduce el nombre de tu empresa, por ejemplo: Wayne Enterprises",
-      "ERROR": "El nombre de la cuenta es demasiado corto"
+      "PLACEHOLDER": "Ej: Mi Empresa S.A.S.",
+      "ERROR": "El nombre de la empresa es demasiado corto"
     },
     "FULL_NAME": {
       "LABEL": "Nombre completo",
-      "PLACEHOLDER": "Introduce tu nombre completo, por ejemplo: Bruce Wayne",
+      "PLACEHOLDER": "Ej: Juan Pérez",
       "ERROR": "El nombre completo es demasiado corto"
     },
     "EMAIL": {
-      "LABEL": "E-mail",
-      "PLACEHOLDER": "Introduzca su dirección de correo electrónico de trabajo. Por ejemplo, bruce{'@'}wayne{'.'}empresas",
-      "ERROR": "Por favor, introduzca una dirección de correo válida"
+      "LABEL": "Correo electrónico",
+      "PLACEHOLDER": "tucorreo{'@'}ejemplo.com",
+      "ERROR": "Por favor, introduce una dirección de correo válida"
     },
     "PASSWORD": {
       "LABEL": "Contraseña",

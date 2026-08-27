@@ -1,0 +1,9 @@
+# Advanced Automations: reintentos de las operaciones HTTP salientes hacia la app
+# externa. Baja concurrencia: son operaciones de plataforma, poco frecuentes.
+---
+:verbose: false
+:concurrency: <%= ENV.fetch("JABVOX_AUTOMATIONS_CONCURRENCY", "2").to_i %>
+:timeout: 25
+:max_retries: 3
+:queues:
+  - jabvox_automations

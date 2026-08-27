@@ -115,6 +115,12 @@ class Rack::Attack
     req.ip if req.post? && req.path.match?(%r{/jabvox/bulk_whatsapp/batches/[^/]+/results\z})
   end
 
+  ## Alta de tickets: limita la creación por IP (anti-spam / doble submit). La
+  ## idempotencia por Idempotency-Key la maneja el controller.
+  throttle('jabvox_tickets_create/ip', limit: 20, period: 1.minute) do |req|
+    req.ip if req.post? && req.path.match?(%r{/api/v1/accounts/\d+/jabvox/tickets\z})
+  end
+
   ## Reset password throttling
   throttle('reset_password/ip', limit: 5, period: 30.minutes) do |req|
     req.ip if req.path_without_extensions == '/auth/password' && req.post?
@@ -169,6 +175,12 @@ class Rack::Attack
   ## Prevent Brute-Force Signup Attacks ###
   throttle('accounts/ip', limit: 5, period: 30.minutes) do |req|
     req.ip if req.path_without_extensions == '/api/v1/accounts' && req.post?
+  end
+
+  ## Registro público de Jabvox (/public/register): mismo freno anti-abuso que el signup
+  ## estándar, ya que crea cuenta+usuario sin autenticación y sin captcha.
+  throttle('jabvox_public_register/ip', limit: 5, period: 30.minutes) do |req|
+    req.ip if req.path_without_extensions == '/public/register' && req.post?
   end
 
   ##-----------------------------------------------##

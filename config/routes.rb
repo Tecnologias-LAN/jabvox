@@ -442,6 +442,24 @@ Rails.application.routes.draw do
           resources :upload, only: [:create]
 
           namespace :jabvox do
+            # Softphone WebRTC: credenciales efímeras + historial de llamadas.
+            namespace :softphone do
+              resource :credentials, only: [:show], controller: 'credentials'
+              resources :call_logs, only: [:index, :create, :update], controller: 'call_logs' do
+                post :event, on: :member
+              end
+              # Heartbeat de presencia: el navegador reporta su estado en vivo
+              # (registrado/en llamada/caído) para el panel de estado del super admin.
+              resource :presence, only: [:update], controller: 'presence'
+            end
+            # Cobro/aprovisionamiento: inicia el checkout (token firmado + URL de la web)
+            # y expone el estado de pago para el modal de bloqueo del frontend.
+            namespace :billing do
+              resource :checkout, only: [:create], controller: 'checkouts'
+              resource :status, only: [:show], controller: 'status'
+              # Historial de pagos de la cuenta (medio, monto, fecha, estado).
+              resources :payments, only: [:index], controller: 'payments'
+            end
             # Fecha en que se aplicó una etiqueta (para automatizaciones que la retiran
             # tras cierto tiempo). No lo ofrece la API estándar de Chatwoot.
             resources :label_logs, only: [:index]
@@ -703,14 +721,59 @@ Rails.application.routes.draw do
               collection do
                 get :my_access
                 get :sessions
+                post :stream
               end
             end
-            resources :ai_chat_documents, only: [:index, :update, :destroy]
+            # Storages (buckets) — se conservan porque el Response Bot los comparte vía
+            # ai_chat_config. Documentos del Chat IA eliminados: ahora los docs se envían al
+            # agente Hermes por mensaje, no desde un bucket.
             resources :ai_chat_storages, only: [:index, :create, :update, :destroy] do
               collection do
                 post :test
               end
             end
+            # Chat Aprovisionamiento: el usuario (con permiso) le pide al Hermes
+            # Provisioner de SU cuenta crear/aprovisionar MCPs. Aislado por cuenta.
+            resources :provisioning_chat_messages, only: [:index, :create], controller: 'provisioning_chat_messages' do
+              collection do
+                get :status
+                post :provision
+              end
+            end
+            # Estado del Consumer (Chat IA) + sync de modelos con el Hermes de la cuenta.
+            resource :ai_chat_hermes, only: [:show], controller: 'ai_chat_hermes' do
+              post :sync_models
+              post :connect
+              get :tools
+            end
+            # Cron jobs de Hermes de la cuenta (aislados por el scoped token). Ver + gestionar.
+            resources :ai_chat_hermes_cron_jobs, only: [:index, :create, :destroy],
+                                                 controller: 'ai_chat_hermes_cron_jobs' do
+              patch :toggle, on: :member
+            end
+            # Permisos granulares de Hermes por usuario (READ/CREATE/WRITE/...) — solo admin del Chat IA.
+            resources :hermes_user_permissions, only: [:index, :update], param: :user_id,
+                                                controller: 'hermes_user_permissions'
+            # Agentes del Hermes de la cuenta (1:1 con usuario, permisos del usuario).
+            resources :hermes_agents, only: [:index, :create, :update, :destroy],
+                                      controller: 'hermes_agents'
+            # Conexiones a los agentes del Hermes de la cuenta (varios agentes, mismo host).
+            resources :hermes_connections, only: [:index, :create, :update, :destroy],
+                                           controller: 'hermes_connections' do
+              collection { get :mine }
+              member do
+                post :verify
+                get :model_options       # modelos que ofrece ese agente
+                get :jobs                # cron/tareas del agente
+                post :create_job
+                post 'jobs/:job_id/pause', action: :pause_job
+                post 'jobs/:job_id/resume', action: :resume_job
+                post 'jobs/:job_id/run', action: :run_job
+                delete 'jobs/:job_id', action: :delete_job
+              end
+            end
+            # Auditoría de acciones ejecutadas por Hermes (solo lectura, admin del Chat IA).
+            resources :hermes_action_logs, only: [:index], controller: 'hermes_action_logs'
             resources :response_bot_seats, only: [:index]
             resources :response_bot_roles, only: [:index]
             resources :response_bot_configs, only: [:index, :create, :update, :destroy] do
@@ -803,6 +866,29 @@ Rails.application.routes.draw do
                   patch 'members/:member_id', action: :update_member
                   post :messages, action: :send_message
                 end
+              end
+            end
+
+            namespace :tickets do
+              resource :permissions, only: [:show]
+              resource :metrics, only: [:show]
+              resource :counts, only: [:show]
+              resource :notification_preferences, only: [:show, :update]
+              resources :categories, only: [:index, :create, :update, :destroy]
+              resources :tickets, only: [:index, :show, :create, :update, :destroy] do
+                collection do
+                  post :bulk_action # asignar/cerrar/archivar varios de una
+                end
+                member do
+                  post :assign
+                  post :change_status
+                  post :resolve
+                  post :reopen
+                  post :rate
+                  post :restore
+                  post :merge # fusionar en otro ticket (duplicados)
+                end
+                resources :comments, only: [:index, :create]
               end
             end
 
@@ -1068,6 +1154,8 @@ Rails.application.routes.draw do
         resources :agent_bots, only: [:index, :create, :show, :update, :destroy] do
           delete :avatar, on: :member
         end
+        # Aprovisionamiento en un paso (cuenta + admin + módulos + límites) para n8n.
+        resource :provisioning, only: [:create], controller: 'provisioning'
         resources :accounts, only: [:index, :create, :show, :update, :destroy] do
           resources :account_users, only: [:index, :create] do
             collection do
@@ -1132,6 +1220,28 @@ Rails.application.routes.draw do
   mount Facebook::Messenger::Server, at: 'bot'
   get 'webhooks/twitter', to: 'api/v1/webhooks#twitter_crc'
   post 'webhooks/twitter', to: 'api/v1/webhooks#twitter_events'
+  # Endpoints públicos (sin autenticación): registro y planes antes del login
+  namespace :public do
+    post 'register', to: 'registration#create'
+    resources :plans, only: [:index, :show]
+  end
+
+  # Cobro/aprovisionamiento por pasarela de pago (Bold/Wompi/Mono).
+  #   process_payload  <- la pasarela (webhook firmado)
+  #   resolve/checkout <- la web de cobro (canal interno autenticado)
+  post 'webhooks/jabvox/billing/resolve', to: 'webhooks/jabvox/billing#resolve_token'
+  post 'webhooks/jabvox/billing/checkout', to: 'webhooks/jabvox/billing#create_checkout'
+  post 'webhooks/jabvox/billing/:gateway', to: 'webhooks/jabvox/billing#process_payload'
+  # Callback del Hermes Aprovisionador: confirma que el Hermes de una cuenta ya está operativo.
+  post 'webhooks/jabvox/hermes/provisioned', to: 'webhooks/jabvox/hermes#provisioned'
+  # El Aprovisionador consulta las conexiones de DB de una cuenta para crear su MCP de analítica.
+  get 'webhooks/jabvox/hermes/data_sources/:account_id',
+      to: 'webhooks/jabvox/hermes#data_sources'
+  get 'webhooks/jabvox/hermes/data_sources/:account_id/:id/credentials',
+      to: 'webhooks/jabvox/hermes#credentials'
+  # Un agente de Hermes ejecuta acciones sobre Jabvox con su token exclusivo (permisos del agente).
+  get 'webhooks/jabvox/hermes_agent/tools', to: 'webhooks/jabvox/hermes_agent#tools'
+  post 'webhooks/jabvox/hermes_agent/execute', to: 'webhooks/jabvox/hermes_agent#execute'
   post 'webhooks/line/:line_channel_id', to: 'webhooks/line#process_payload'
   post 'webhooks/telegram/:bot_token', to: 'webhooks/telegram#process_payload'
   post 'webhooks/sms/:phone_number', to: 'webhooks/sms#process_payload'
@@ -1193,12 +1303,42 @@ Rails.application.routes.draw do
       resource :automations_config, only: [:show, :create] do
         get :health, on: :collection
       end
+      # Administración central de instancias Hermes por cuenta (todo vía el Provisionador).
+      # OJO: es un panel custom, NO un recurso Administrate. Debe estar en `hidden_resources`
+      # del nav (_navigation.html.erb) para que Administrate no le exija un Dashboard.
+      resources :hermes_instances, only: [:index], param: :account_id do
+        collection do
+          post :connect_provisioner   # conectar el Hermes Aprovisionador global
+        end
+        member do
+          post :provision
+          post :disable
+          post :restart
+          post :rotate
+          post :link_account          # ligar el aprovisionador a esta cuenta
+          post :unlink_account
+        end
+      end
       resource :push_diagnostics, only: [:show, :create] do
         post :destroy_subscriptions, on: :collection
       end
 
       # order of resources affect the order of sidebar navigation in super admin
+      # Cobro/aprovisionamiento por pasarela de pago.
+      resources :jabvox_plans
+      resources :jabvox_payment_gateway_configs, except: [:destroy]
+      resource :jabvox_billing_config, only: [:edit, :update]
+      resources :jabvox_provisioning_transactions, only: [:index, :show] do
+        post :retry_provisioning, on: :member
+        post :mark_paid_manually, on: :member
+      end
+      # Softphone WebRTC: configuración por cuenta + extensiones ligadas a usuarios.
+      resources :jabvox_softphone_configs
+      resources :jabvox_softphone_extensions do
+        get :status, on: :collection
+      end
       resources :jabvox_saldo_configs, only: [:index, :new, :create, :destroy]
+      resources :jabvox_ticket_helpdesk_configs
       resources :jabvox_response_bot_seats
       resources :jabvox_response_bot_roles
       resources :jabvox_deleted_leads, only: [:index, :show] do

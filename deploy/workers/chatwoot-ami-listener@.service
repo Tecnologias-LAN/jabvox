@@ -1,0 +1,35 @@
+[Unit]
+# Listener de eventos AMI del dialer, ESCALABLE POR SHARDING. Cada instancia atiende
+# solo las cuentas cuyo (account_id % SHARD_COUNT == %i). El %i (índice de instancia
+# systemd) es el shard de ESTE proceso: chatwoot-ami-listener@0, @1, @2, ...
+#
+# Uso (ejemplo con 3 shards):
+#   1) Ajusta JABVOX_AMI_LISTENER_SHARD_COUNT=3 en /etc/systemd/system/chatwoot-ami-listener@.service.d/count.conf
+#      o en el .env (mismo valor para las 3 instancias).
+#   2) sudo systemctl enable --now chatwoot-ami-listener@0 chatwoot-ami-listener@1 chatwoot-ami-listener@2
+#
+# Con 1 sola instancia (chatwoot-ami-listener@0 y SHARD_COUNT=1) el comportamiento es el
+# de siempre (un único listener para todas las cuentas). La dedup de call_assigned vive en
+# Redis (claim_answered!), así que una ventana de solapamiento en un rebalanceo NO duplica
+# eventos.
+Description=Jabvox AMI Listener (dialer + click-to-call events) — shard %i
+After=network.target postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=jabvox
+WorkingDirectory=/home/jabvox/jabvox
+Environment=RAILS_ENV=production
+Environment=PATH=/home/jabvox/.rbenv/shims:/home/jabvox/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+# Índice de shard = número de instancia systemd (%i). El total (SHARD_COUNT) se fija por
+# ENV/.env y debe ser el mismo en todas las instancias.
+Environment=JABVOX_AMI_LISTENER_SHARD_INDEX=%i
+ExecStart=/home/jabvox/.rbenv/shims/bundle exec rails runner "Jabvox::AmiListenerRunner.start"
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chatwoot-ami-listener-%i
+
+[Install]
+WantedBy=multi-user.target

@@ -108,4 +108,10 @@ jobs:
             # isn't installed on this host yet.
             sudo -n /usr/bin/systemctl restart chatwoot-ami-listener.service || true
 
+            # Workers Sidekiq aislados por servicio (ver deploy/workers/README.md).
+            # "|| true" para no romper el deploy en hosts donde aún no se instalaron.
+            for w in export lead-import meta ami cdr media analytics broadcast click-to-call automations payments sms; do
+              sudo -n /usr/bin/systemctl restart chatwoot-worker-$w.service || true
+            done
+
             echo "Deployment Complete!"

@@ -1,0 +1,30 @@
+{
+  "JABVOX_SOFTPHONE": {
+    "TITLE": "Jabvox Softphone",
+    "EXT": "Ext.",
+    "CALL": "Call",
+    "HANGUP": "Hang up",
+    "MUTE": "Mute",
+    "HIDE": "Hide phone",
+    "SHOW": "Show phone",
+    "CLOSE": "Close",
+    "TRANSFER": "Transfer",
+    "COPY": "Copy number",
+    "PASTE": "Paste number",
+    "CLEAR": "Clear number",
+    "TAB_DIAL": "Phone",
+    "TAB_HISTORY": "History",
+    "STATUS": {
+      "DISCONNECTED": "Disconnected",
+      "REGISTERING": "Connecting…",
+      "REGISTERED": "Connected",
+      "CALLING": "Calling…",
+      "IN_CALL": "In call",
+      "FAILED": "Connection error"
+    },
+    "HISTORY": {
+      "EMPTY": "No calls yet",
+      "NOW": "now"
+    }
+  }
+}

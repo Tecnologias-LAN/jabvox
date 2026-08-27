@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import { hermesAgentsAPI } from 'dashboard/api/jabvox/aiChat';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
@@ -25,9 +26,21 @@ const emptyForm = () => ({
   api_key_jabvox: '',
   base_url_jabvox: '',
   is_default_jabvox: false,
+  hermes_agent_id: null,
 });
 const form = ref(emptyForm());
 const showApiKey = ref(false);
+
+// Agentes de Hermes de la cuenta: cada modelo puede ligarse a uno (su agente).
+const hermesAgents = ref([]);
+onMounted(async () => {
+  try {
+    const { data } = await hermesAgentsAPI.getAll();
+    hermesAgents.value = data;
+  } catch {
+    hermesAgents.value = [];
+  }
+});
 
 const title = computed(() =>
   editing.value
@@ -56,6 +69,7 @@ const openEdit = model => {
     api_key_jabvox: '',
     base_url_jabvox: model.base_url_jabvox || '',
     is_default_jabvox: model.is_default_jabvox,
+    hermes_agent_id: model.hermes_agent_id || null,
   };
   showApiKey.value = false;
   nextTick(() => dialogRef.value?.open());
@@ -154,6 +168,24 @@ defineExpose({ openCreate, openEdit, close });
         :message="t('JABVOX_AI_CHAT.MODELS.BASE_URL_HINT')"
         custom-input-class="font-mono"
       />
+
+      <!-- Agente de Hermes dueño de este modelo (opcional). -->
+      <div v-if="hermesAgents.length" class="flex flex-col gap-1">
+        <label class="text-sm font-medium text-n-slate-12">
+          {{ t('JABVOX_AI_CHAT.MODELS.HERMES_AGENT') }}
+        </label>
+        <select
+          v-model="form.hermes_agent_id"
+          class="block w-full rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2 text-sm text-n-slate-12"
+        >
+          <option :value="null">
+            {{ t('JABVOX_AI_CHAT.MODELS.HERMES_AGENT_NONE') }}
+          </option>
+          <option v-for="a in hermesAgents" :key="a.id" :value="a.id">
+            {{ a.name }}
+          </option>
+        </select>
+      </div>
 
       <div
         class="flex items-center justify-between rounded-xl border border-n-weak bg-n-alpha-1 px-4 py-3"

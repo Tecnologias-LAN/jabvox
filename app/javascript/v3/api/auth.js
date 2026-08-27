@@ -60,10 +60,12 @@ export const login = async ({
 
 export const register = async creds => {
   try {
-    const { fullName, accountName } = getCredentialsFromEmail(creds.email);
+    // Si el formulario envía nombre de empresa / nombre completo, se usan tal cual;
+    // si no, se derivan del email (compatibilidad hacia atrás).
+    const derived = getCredentialsFromEmail(creds.email);
     const response = await wootAPI.post('api/v1/accounts.json', {
-      account_name: accountName,
-      user_full_name: fullName,
+      account_name: creds.accountName || derived.accountName,
+      user_full_name: creds.fullName || derived.fullName,
       email: creds.email,
       password: creds.password,
       h_captcha_client_response: creds.hCaptchaClientResponse,

@@ -30,6 +30,14 @@ class AccountDashboard < Administrate::BaseDashboard
     name: Field::String.with_options(searchable: true),
     created_at: Field::DateTime,
     updated_at: Field::DateTime,
+    # Días transcurridos desde la creación (solo lectura; calculado en el modelo).
+    days_since_creation: Field::Number.with_options(searchable: false),
+    # Plan y vencimiento (para el panel Super Admin).
+    current_plan_name: Field::String.with_options(searchable: false),
+    days_until_expiration: Field::Number.with_options(searchable: false),
+    # Editables: cambiar de plan y regalar/ajustar días (fecha de vencimiento).
+    jabvox_plan: Field::BelongsTo.with_options(class_name: 'JabvoxPlan'),
+    jabvox_plan_expires_at: Field::DateTime,
     users: CountField,
     conversations: CountField,
     locale: Field::Select.with_options(collection: LANGUAGES_CONFIG.map { |_x, y| y[:iso_639_1_code] }),
@@ -53,10 +61,10 @@ class AccountDashboard < Administrate::BaseDashboard
   COLLECTION_ATTRIBUTES = %i[
     id
     name
-    locale
-    users
-    conversations
     status
+    current_plan_name
+    days_until_expiration
+    days_since_creation
   ].freeze
 
   # SHOW_PAGE_ATTRIBUTES
@@ -75,6 +83,10 @@ class AccountDashboard < Administrate::BaseDashboard
     name
     created_at
     updated_at
+    days_since_creation
+    current_plan_name
+    days_until_expiration
+    jabvox_plan_expires_at
     locale
     status
     suspension_history
@@ -102,6 +114,8 @@ class AccountDashboard < Administrate::BaseDashboard
     name
     locale
     status
+    jabvox_plan
+    jabvox_plan_expires_at
     jabvox_modules
     jabvox_ai_chat_max_documents_jabvox
     jabvox_ai_chat_max_open_chats_jabvox

@@ -82,10 +82,7 @@ class Jabvox::BulkWhatsappDispatchService
   end
 
   def deliver!(batch)
-    @account = batch.account
-    @inbox = batch.inbox
-    @sender_user = batch.sender_user
-    @batch = batch
+    load_batch_context!(batch)
     messages = expand_messages(batch.payload_jabvox)
     return deliver_nothing(batch) if messages.empty?
 
@@ -111,6 +108,14 @@ class Jabvox::BulkWhatsappDispatchService
 
   private
 
+  def load_batch_context!(batch)
+    @account = batch.account
+    @inbox = batch.inbox
+    @sender_user = batch.sender_user
+    @batch = batch
+    ensure_batch_belongs_to_account! # defensa en profundidad multi-tenant
+  end
+
   def deliver_nothing(batch)
     finalize(batch, status: 'failed',
                     error: 'Sin destinatarios válidos: ninguno de los leads seleccionados tiene número de teléfono.')
@@ -127,6 +132,18 @@ class Jabvox::BulkWhatsappDispatchService
     return if @sender_user && @account.users.exists?(id: @sender_user.id)
 
     raise Error, 'El usuario emisor no es válido para esta cuenta.'
+  end
+
+  def ensure_inbox!
+    return if @inbox && @account.inboxes.exists?(id: @inbox.id)
+
+    raise Error, 'La bandeja no es válida para esta cuenta.'
+  end
+
+  # El inbox y el sender del batch deben pertenecer a la cuenta del batch.
+  def ensure_batch_belongs_to_account!
+    ensure_inbox!
+    ensure_sender!
   end
 
   # El correo de reporte ya NO es obligatorio: los resultados vuelven a la app por

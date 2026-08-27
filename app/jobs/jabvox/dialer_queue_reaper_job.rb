@@ -2,55 +2,70 @@
 
 # Reaper de miembros fantasma en las colas del dialer (cron cada 1 min).
 #
-# Un agente entra a la cola de Asterisk al conectarse al dialer y solo debería
-# salir al desconectarse. Pero si cierra el navegador, se le cae la red o su
-# sesión Redis expira, el `disconnect` nunca se ejecuta y queda como miembro
-# fantasma: Asterisk le sigue enviando llamadas aunque ya NO esté conectado.
+# Un agente entra a la cola de Asterisk al conectarse y solo debería salir al
+# desconectarse; si cierra el navegador o se le cae la red, el `disconnect` no
+# corre y queda como fantasma recibiendo llamadas. Encola una reconciliación por
+# cuenta (DialerQueueReconcileAccountJob) en la cola aislada.
 #
-# Este job aplica la regla estricta "si no está conectado a la campaña, no puede
-# estar en su cola": por cada cuenta con VoIP, reconcilia las colas reales de
-# Asterisk contra las sesiones activas en Redis y quita a los fantasma. Solo
-# ejecuta QueueRemove de miembros; nunca toca ni elimina colas.
+# O(activas), no O(cuentas): solo reconcilia cuentas con actividad viva de dialer
+# — con una llamada abierta (índice parcial idx_dialer_logs_open_by_account) o
+# con agentes conectados (SET Redis jabvox_dialer_connected_*). Sin esto, a 1000
+# cuentas encolaría 1000 jobs AMI por minuto aunque casi ninguna esté marcando.
 class Jabvox::DialerQueueReaperJob < ApplicationJob
-  queue_as :scheduled_jobs
+  queue_as :jabvox_ami
 
-  # Cuánto tiempo saltar una cuenta cuyo PBX no respondió, para no gastar el
-  # connect-timeout en cada corrida contra servidores apagados. Al expirar se
-  # reintenta sola (si encendieron el PBX, vuelve a reconciliarse).
-  # P3: bajado de 5 min a 90s — con 5 min, un PBX que parpadea dejaba agentes
-  # fantasma en cola hasta 5 min recibiendo llamadas tras desconectarse. 90s
-  # equilibra no martillar un PBX apagado y no dejar fantasmas demasiado tiempo.
-  UNREACHABLE_TTL = 90
+  # Si la cola aún arrastra trabajo de la corrida anterior, saltamos esta pasada
+  # para no apilar minuto a minuto. El debounce por cuenta evita duplicar.
+  BACKLOG_CEILING = 500
 
   def perform
-    total = 0
-    Account.joins(:jabvox_voip_config).find_each do |account|
-      next if pbx_unreachable_cached?(account.id)
-
-      result = Jabvox::DialerQueueReconcilerService.reconcile_account(account)
-      mark_unreachable(account.id) unless result[:reachable]
-      total += result[:removed].to_i
-    rescue StandardError => e
-      Rails.logger.error("[DialerQueueReaper] cuenta=#{account.id} #{e.class}: #{e.message}")
+    if queue_backlogged?
+      Rails.logger.warn('[DialerQueueReaper] backlog alto en jabvox_ami; salto esta corrida')
+      return
     end
-    Rails.logger.info("[DialerQueueReaper] miembros fantasma removidos: #{total}") if total.positive?
+
+    enqueued = 0
+    active_account_ids.each do |account_id|
+      Jabvox::DialerQueueReconcileAccountJob.perform_later(account_id, source: 'reaper')
+      enqueued += 1
+    rescue StandardError => e
+      Rails.logger.error("[DialerQueueReaper] no se pudo encolar cuenta=#{account_id} #{e.class}: #{e.message}")
+    end
+    Rails.logger.info("[DialerQueueReaper] reconciliaciones encoladas: #{enqueued}") if enqueued.positive?
   end
 
   private
 
-  def unreachable_key(account_id)
-    "jabvox_dialer_pbx_unreachable_#{account_id}"
+  # Cuentas con dialer VIVO: llamada abierta (SQL, índice parcial) ∪ agentes
+  # conectados (Redis). Interseca con las que tienen VoIP configurado.
+  def active_account_ids
+    ids = accounts_with_open_calls | accounts_with_connected_agents
+    return ids if ids.empty?
+
+    Account.joins(:jabvox_voip_config).where(id: ids).pluck(:id)
   end
 
-  def pbx_unreachable_cached?(account_id)
-    Redis::Alfred.get(unreachable_key(account_id)).present?
+  def accounts_with_open_calls
+    JabvoxDialerCallLog.where(status_jabvox: %w[initiated calling]).distinct.pluck(:account_id)
+  rescue StandardError
+    []
+  end
+
+  # SCAN de los SET jabvox_dialer_connected_<id> no vacíos.
+  def accounts_with_connected_agents
+    ids = []
+    Redis::Alfred.scan_each(match: 'jabvox_dialer_connected_*') do |key|
+      account_id = key.split('_').last.to_i
+      ids << account_id if account_id.positive?
+    end
+    ids.uniq
+  rescue StandardError
+    []
+  end
+
+  def queue_backlogged?
+    Sidekiq::Queue.new('jabvox_ami').size > BACKLOG_CEILING
   rescue StandardError
     false
-  end
-
-  def mark_unreachable(account_id)
-    Redis::Alfred.set(unreachable_key(account_id), Time.current.to_i, ex: UNREACHABLE_TTL)
-  rescue StandardError => e
-    Rails.logger.warn("[DialerQueueReaper] no se pudo cachear PBX caído cuenta=#{account_id} | #{e.message}")
   end
 end
