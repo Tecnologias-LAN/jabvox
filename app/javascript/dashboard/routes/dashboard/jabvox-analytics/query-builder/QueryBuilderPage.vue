@@ -1,11 +1,14 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import { useAnalyticsDataSourcesStore } from 'dashboard/stores/jabvox/analytics/dataSources';
 import { useAnalyticsQueryStore } from 'dashboard/stores/jabvox/analytics/query';
+import { useAnalyticsWidgetsStore } from 'dashboard/stores/jabvox/analytics/widgets';
 import { useAnalyticsError } from 'dashboard/composables/useAnalyticsError';
 import AnalyticsPageHeader from '../components/AnalyticsPageHeader.vue';
 import AnalyticsDataTable from '../data-sources/AnalyticsDataTable.vue';
+import SaveWidgetModal from '../components/SaveWidgetModal.vue';
 import QbTablePicker from './QbTablePicker.vue';
 import QbColumnPicker from './QbColumnPicker.vue';
 import QbFilterRow from './QbFilterRow.vue';
@@ -15,6 +18,7 @@ import QbGroupBy from './QbGroupBy.vue';
 const { t } = useI18n();
 const dsStore = useAnalyticsDataSourcesStore();
 const queryStore = useAnalyticsQueryStore();
+const widgetsStore = useAnalyticsWidgetsStore();
 const { showError } = useAnalyticsError();
 
 const selectedDsId = ref(null);
@@ -104,6 +108,41 @@ const runQuery = async () => {
     await queryStore.runVisualQuery(selectedDsId.value);
   } catch (error) {
     showError(error);
+  }
+};
+
+// ─── Guardar la consulta VISUAL como widget (guarda query_spec, no SQL) ───
+const showSaveModal = ref(false);
+const savingWidget = ref(false);
+const hasResult = computed(() => resultColumns.value.length > 0);
+
+const currentSpec = () => ({
+  table: selectedTable.value,
+  columns: selectedColumns.value,
+  filters: filters.value.filter(f => f.field),
+  aggregations: aggregations.value.filter(a => a.column || a.fn === 'COUNT'),
+  group_by: groupBy.value,
+  date_bucket: dateBucket.value,
+});
+
+const saveAsWidget = async ({ title, dashboardId, widgetType }) => {
+  savingWidget.value = true;
+  try {
+    await widgetsStore.addWidget(dashboardId, {
+      widget_type_jabvox: widgetType,
+      title_jabvox: title,
+      data_source_id: selectedDsId.value,
+      // Guarda el spec VISUAL → al editar el widget aparece la configuración, no SQL.
+      query_spec_jabvox: currentSpec(),
+      custom_sql_jabvox: null,
+      config_jabvox: {},
+    });
+    useAlert(t('JABVOX_ANALYTICS.SQL.SAVED_WIDGET'));
+    showSaveModal.value = false;
+  } catch (error) {
+    showError(error);
+  } finally {
+    savingWidget.value = false;
   }
 };
 
@@ -213,7 +252,16 @@ const sectionClass = 'rounded-lg border border-n-weak bg-n-solid-1 p-4';
           />
         </div>
 
-        <div class="mt-4 flex justify-end">
+        <div class="mt-4 flex justify-end gap-3">
+          <button
+            v-if="hasResult"
+            type="button"
+            class="inline-flex items-center gap-2 rounded-lg border border-n-weak px-3 py-2 text-sm font-medium text-n-slate-12 hover:bg-n-alpha-1"
+            @click="showSaveModal = true"
+          >
+            <span class="i-lucide-layout-dashboard size-4" />
+            {{ t('JABVOX_ANALYTICS.SQL.SAVE_TO_DASHBOARD') }}
+          </button>
           <button
             type="button"
             class="inline-flex items-center gap-2 rounded-lg bg-n-brand px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -238,5 +286,12 @@ const sectionClass = 'rounded-lg border border-n-weak bg-n-solid-1 p-4';
         </div>
       </template>
     </template>
+
+    <SaveWidgetModal
+      :open="showSaveModal"
+      :saving="savingWidget"
+      @close="showSaveModal = false"
+      @save="saveAsWidget"
+    />
   </div>
 </template>

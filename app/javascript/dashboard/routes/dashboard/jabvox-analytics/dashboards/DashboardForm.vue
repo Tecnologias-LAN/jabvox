@@ -13,16 +13,20 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['fieldChange']);
 
 const { t } = useI18n();
 const dashboardsStore = useAnalyticsDashboardsStore();
 const { folderTree } = storeToRefs(dashboardsStore);
 
+// Para mostrar los valores en el template (solo lectura).
 const form = computed(() => props.modelValue);
 
+// Emite {campo, valor}; el padre aplica el cambio a su objeto reactive (Object.assign).
+// No reemplazamos el objeto entero: v-model sobre un reactive no lo reasigna y el cambio
+// se perdería (el nombre llegaba vacío → "This field is required").
 const update = (key, value) => {
-  emit('update:modelValue', { ...props.modelValue, [key]: value });
+  emit('fieldChange', { key, value });
 };
 
 // Flatten the folder tree into indented options for a plain <select>.
@@ -41,8 +45,11 @@ const flatFolders = computed(() => {
   return out;
 });
 
+// Vuelidate valida sobre el objeto reactivo escribible (props.modelValue viene de un
+// reactive() en el diálogo). NO se le pasa el computed `form` porque es de solo lectura
+// y vuelidate escribe en él → "Assignment to constant variable".
 const rules = { nameJabvox: { required } };
-const v$ = useVuelidate(rules, form);
+const v$ = useVuelidate(rules, props.modelValue);
 
 defineExpose({ v$ });
 

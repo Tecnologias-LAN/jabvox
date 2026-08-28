@@ -934,7 +934,9 @@ Rails.application.routes.draw do
                   post :test_connection
                   get :schema
                   get :preview
+                  get :column_values
                   post :query
+                  post :compile_sql
                   post :custom_sql
                   post :validate_sql
                   post :sync

@@ -21,11 +21,35 @@ class Jabvox::Analytics::Adapters::SqliteAdapter < Jabvox::Analytics::Adapters::
     order_sql = options.order.present? ? "ORDER BY #{quote_identifier(options.order)}" : ''
 
     with_client do |db|
-      total = db.get_first_value("SELECT COUNT(*) FROM #{qtable}").to_i
-      rows = db.execute2("SELECT * FROM #{qtable} #{order_sql} LIMIT ? OFFSET ?", per_page, offset)
+      cols = db.execute2("SELECT * FROM #{qtable} LIMIT 0").first
+      where, binds = preview_where(options, cols)
+      total = db.get_first_value("SELECT COUNT(*) FROM #{qtable}#{where}", *binds).to_i
+      rows = db.execute2("SELECT * FROM #{qtable}#{where} #{order_sql} LIMIT ? OFFSET ?", *binds, per_page, offset)
       columns = rows.shift
       Result.new(rows: rows, columns: columns, row_count: total, elapsed_ms: nil)
     end
+  end
+
+  # WHERE del preview: filtros exactos por columna + búsqueda de texto (LIKE) en todas las
+  # columnas. Valores por bind (?). Identificadores citados. Sólo columnas existentes.
+  def preview_where(options, cols)
+    binds = []
+    clauses = preview_filter_pairs(options, cols).map do |col, values|
+      placeholders = values.map do |v|
+        binds << v
+        '?'
+      end
+      "#{quote_identifier(col)} IN (#{placeholders.join(', ')})"
+    end
+    if options.search.present?
+      like = "%#{options.search}%"
+      ors = cols.map do |c|
+        binds << like
+        "CAST(#{quote_identifier(c)} AS TEXT) LIKE ?"
+      end
+      clauses << "(#{ors.join(' OR ')})"
+    end
+    [clauses.any? ? " WHERE #{clauses.join(' AND ')}" : '', binds]
   end
 
   def execute(sql, binds: [], row_limit: nil)

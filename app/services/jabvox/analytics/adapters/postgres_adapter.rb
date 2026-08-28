@@ -24,10 +24,39 @@ class Jabvox::Analytics::Adapters::PostgresAdapter < Jabvox::Analytics::Adapters
 
     with_client do |conn|
       cols = conn.exec("SELECT * FROM #{qtable} LIMIT 0").fields
-      result = conn.exec_params("SELECT * FROM #{qtable} #{order_sql} LIMIT $1 OFFSET $2", [per_page, offset])
-      total = conn.exec("SELECT COUNT(*) AS c FROM #{qtable}").first['c'].to_i
-      Result.new(rows: result.values, columns: cols, row_count: total, elapsed_ms: nil)
+      where, binds = preview_where(options, cols)
+      ctx = { qtable: qtable, cols: cols, where: where, binds: binds,
+              order_sql: order_sql, per_page: per_page, offset: offset }
+      run_preview(conn, ctx)
     end
+  end
+
+  def run_preview(conn, ctx)
+    qtable, where, binds = ctx.values_at(:qtable, :where, :binds)
+    sql = "SELECT * FROM #{qtable}#{where} #{ctx[:order_sql]} " \
+          "LIMIT $#{binds.size + 1} OFFSET $#{binds.size + 2}"
+    result = conn.exec_params(sql, binds + [ctx[:per_page], ctx[:offset]])
+    total = conn.exec_params("SELECT COUNT(*) AS c FROM #{qtable}#{where}", binds).first['c'].to_i
+    Result.new(rows: result.values, columns: ctx[:cols], row_count: total, elapsed_ms: nil)
+  end
+
+  # WHERE para el preview: filtros por columna (uno o varios valores → IN) + búsqueda de texto
+  # (search) sobre todas las columnas con ILIKE. Identificadores citados, valores por bind ($n).
+  def preview_where(options, cols)
+    binds = []
+    clauses = preview_filter_pairs(options, cols).map do |col, values|
+      placeholders = values.map do |v|
+        binds << v
+        "$#{binds.size}"
+      end
+      "#{quote_identifier(col)} IN (#{placeholders.join(', ')})"
+    end
+    if options.search.present?
+      binds << "%#{options.search}%"
+      ors = cols.map { |c| "CAST(#{quote_identifier(c)} AS TEXT) ILIKE $#{binds.size}" }
+      clauses << "(#{ors.join(' OR ')})"
+    end
+    [clauses.any? ? " WHERE #{clauses.join(' AND ')}" : '', binds]
   end
 
   def execute(sql, binds: [], row_limit: nil)

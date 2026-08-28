@@ -34,6 +34,12 @@ const emptyForm = () => ({
 
 const form = reactive(emptyForm());
 
+// Aplica el cambio de un campo al objeto reactive (mutación in-place, así vuelidate
+// —que valida sobre este mismo objeto— ve el valor y no marca "campo requerido").
+const onFieldChange = ({ key, value }) => {
+  form[key] = value;
+};
+
 watch(
   () => props.open,
   isOpen => {
@@ -86,7 +92,11 @@ const handleSave = async () => {
           </button>
         </div>
 
-        <DashboardForm ref="formRef" v-model="form" />
+        <DashboardForm
+          ref="formRef"
+          :model-value="form"
+          @field-change="onFieldChange"
+        />
 
         <div class="mt-6 flex items-center justify-end gap-3">
           <button

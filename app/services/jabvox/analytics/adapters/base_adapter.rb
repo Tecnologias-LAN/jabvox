@@ -73,6 +73,34 @@ class Jabvox::Analytics::Adapters::BaseAdapter
     '"'
   end
 
+  # Filtros de preview normalizados como pares [columna, valores], donde `valores` es SIEMPRE
+  # un array (uno o varios). Permite multi-selección por columna (IN (...)). Descarta vacíos y
+  # columnas que no existen en la tabla (defensa: la columna nunca se interpola sin estar en
+  # `cols`).
+  #
+  # Acepta las tres formas en que el valor puede llegar según cómo se serialice el array en la
+  # query string:
+  #   { col => 20 }                 (valor único)
+  #   { col => [20, 30] }           (filters[col][]=20&filters[col][]=30)
+  #   { col => { '0'=>20,'1'=>30 } } (filters[col][0]=20&filters[col][1]=30 → Rails lo hace Hash)
+  def preview_filter_pairs(options, cols)
+    filters = options.filters
+    filters = filters.to_unsafe_h if filters.respond_to?(:to_unsafe_h)
+    Array(filters).filter_map do |col, raw|
+      next if cols.exclude?(col.to_s)
+
+      values = normalize_filter_values(raw)
+      next if values.empty?
+
+      [col, values]
+    end
+  end
+
+  def normalize_filter_values(raw)
+    list = raw.is_a?(Hash) ? raw.values : Array(raw)
+    list.reject { |v| v.nil? || v.to_s.empty? }
+  end
+
   def row_cap(requested = nil)
     cap = data_source.max_rows_jabvox.to_i
     cap = 1000 if cap <= 0

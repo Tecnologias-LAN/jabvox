@@ -38,21 +38,39 @@ class Jabvox::Analytics::Adapters::SqlserverAdapter < Jabvox::Analytics::Adapter
     qtable = quote_identifier(options.table)
     with_client do |client|
       cols = column_names(client, options.table)
-      sql = preview_sql(qtable, options.order.presence || cols.first, offset, per_page)
-      run_preview(client, sql, qtable, cols)
+      where = preview_where(options, cols) # ya viene con los valores inline (escapados)
+      sql = preview_sql(qtable, options.order.presence || cols.first, offset, per_page, where)
+      run_preview(client, sql, qtable, cols, where)
     end
   end
 
-  def run_preview(client, sql, qtable, cols)
+  def run_preview(client, sql, qtable, cols, where)
     rows = client.execute(sql).each.map(&:values)
-    total = client.execute("SELECT COUNT(*) AS c FROM #{qtable}").each.first['c'].to_i
+    total = client.execute("SELECT COUNT(*) AS c FROM #{qtable}#{where}").each.first['c'].to_i
     Result.new(rows: rows, columns: cols, row_count: total, elapsed_ms: nil)
+  end
+
+  # WHERE para el preview: filtros exactos por columna + búsqueda de texto (LIKE) sobre todas
+  # las columnas. tiny_tds no tiene binds server-side aquí, así que los valores se inline con
+  # quote_value (mismo escapado que apply_binds usa para el query builder). Identificadores
+  # citados. Sólo se filtra por columnas existentes.
+  def preview_where(options, cols)
+    clauses = preview_filter_pairs(options, cols).map do |col, values|
+      list = values.map { |v| quote_value(v) }.join(', ')
+      "#{quote_identifier(col)} IN (#{list})"
+    end
+    if options.search.present?
+      like = quote_value("%#{options.search}%")
+      ors = cols.map { |c| "CAST(#{quote_identifier(c)} AS NVARCHAR(MAX)) LIKE #{like}" }
+      clauses << "(#{ors.join(' OR ')})"
+    end
+    clauses.any? ? " WHERE #{clauses.join(' AND ')}" : ''
   end
 
   # OFFSET/FETCH pagination needs an ORDER BY, so we always order (by the requested
   # column or the first one).
-  def preview_sql(qtable, order_col, offset, per_page)
-    "SELECT * FROM #{qtable} ORDER BY #{quote_identifier(order_col)} " \
+  def preview_sql(qtable, order_col, offset, per_page, where = '')
+    "SELECT * FROM #{qtable}#{where} ORDER BY #{quote_identifier(order_col)} " \
       "OFFSET #{offset} ROWS FETCH NEXT #{per_page} ROWS ONLY"
   end
 

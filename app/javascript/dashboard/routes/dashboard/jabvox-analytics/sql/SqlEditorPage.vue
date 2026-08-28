@@ -1,8 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import { useAnalyticsDataSourcesStore } from 'dashboard/stores/jabvox/analytics/dataSources';
 import { useAnalyticsQueryStore } from 'dashboard/stores/jabvox/analytics/query';
+import { useAnalyticsDashboardsStore } from 'dashboard/stores/jabvox/analytics/dashboards';
+import { useAnalyticsWidgetsStore } from 'dashboard/stores/jabvox/analytics/widgets';
 import { useAnalyticsCapabilitiesStore } from 'dashboard/stores/jabvox/analytics/capabilities';
 import { useAnalyticsError } from 'dashboard/composables/useAnalyticsError';
 import AnalyticsPageHeader from '../components/AnalyticsPageHeader.vue';
@@ -13,6 +16,8 @@ import SqlValidationFeedback from './SqlValidationFeedback.vue';
 const { t } = useI18n();
 const dsStore = useAnalyticsDataSourcesStore();
 const queryStore = useAnalyticsQueryStore();
+const dashboardsStore = useAnalyticsDashboardsStore();
+const widgetsStore = useAnalyticsWidgetsStore();
 const capabilities = useAnalyticsCapabilitiesStore();
 const { showError } = useAnalyticsError();
 
@@ -27,6 +32,51 @@ const sql = computed({
     queryStore.sql = value;
   },
 });
+
+// ─── Guardar la query como widget en un dashboard ───
+const showSaveModal = ref(false);
+const saving = ref(false);
+const saveForm = ref({ title: '', dashboardId: null, widgetType: 'number' });
+const dashboards = computed(() => dashboardsStore.list);
+// Tipos de visualización más comunes para una query (el número grande = "number").
+const WIDGET_TYPES = [
+  { value: 'number', label: 'Número' },
+  { value: 'table', label: 'Tabla' },
+  { value: 'bar', label: 'Barras' },
+  { value: 'line', label: 'Líneas' },
+  { value: 'pie', label: 'Pastel' },
+];
+
+const openSaveModal = () => {
+  saveForm.value = {
+    title: '',
+    dashboardId: dashboards.value[0]?.id || null,
+    widgetType: 'number',
+  };
+  dashboardsStore.fetchDashboards().catch(() => {});
+  showSaveModal.value = true;
+};
+
+const saveAsWidget = async () => {
+  if (!saveForm.value.title.trim() || !saveForm.value.dashboardId) return;
+  saving.value = true;
+  try {
+    await widgetsStore.addWidget(saveForm.value.dashboardId, {
+      widget_type_jabvox: saveForm.value.widgetType,
+      title_jabvox: saveForm.value.title.trim(),
+      data_source_id: selectedDsId.value,
+      custom_sql_jabvox: sql.value,
+      query_spec_jabvox: {},
+      config_jabvox: {},
+    });
+    useAlert(t('JABVOX_ANALYTICS.SQL.SAVED_WIDGET'));
+    showSaveModal.value = false;
+  } catch (error) {
+    showError(error);
+  } finally {
+    saving.value = false;
+  }
+};
 
 const validation = computed(() => queryStore.validation);
 const rows = computed(() => queryStore.result.rows);
@@ -55,6 +105,8 @@ const run = async () => {
     showError(error);
   }
 };
+
+const hasResult = computed(() => resultColumns.value.length > 0);
 
 onMounted(() => {
   if (canUseSql.value) dsStore.fetch().catch(error => showError(error));
@@ -132,6 +184,15 @@ const controlClass =
           <span v-else class="i-lucide-play size-4" />
           {{ t('JABVOX_ANALYTICS.SQL.RUN') }}
         </button>
+        <button
+          v-if="hasResult"
+          type="button"
+          class="inline-flex items-center gap-2 rounded-lg border border-n-weak px-3 py-2 text-sm font-medium text-n-slate-12 hover:bg-n-alpha-1"
+          @click="openSaveModal"
+        >
+          <span class="i-lucide-layout-dashboard size-4" />
+          {{ t('JABVOX_ANALYTICS.SQL.SAVE_TO_DASHBOARD') }}
+        </button>
       </div>
 
       <div v-if="validation" class="mt-3">
@@ -146,5 +207,87 @@ const controlClass =
         />
       </div>
     </template>
+
+    <!-- Modal: guardar la query como widget en un dashboard -->
+    <div
+      v-if="showSaveModal"
+      class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-n-alpha-3 p-4 pt-16"
+    >
+      <div
+        class="w-full max-w-lg rounded-xl border border-n-weak bg-n-solid-1 p-6 shadow-xl"
+      >
+        <div class="mb-4 flex items-center justify-between">
+          <h3 class="text-base font-medium text-n-slate-12">
+            {{ t('JABVOX_ANALYTICS.SQL.SAVE_TO_DASHBOARD') }}
+          </h3>
+          <button
+            type="button"
+            class="rounded-lg p-1.5 text-n-slate-11 hover:bg-n-alpha-2"
+            @click="showSaveModal = false"
+          >
+            <span class="i-lucide-x size-5" />
+          </button>
+        </div>
+
+        <div class="flex flex-col gap-3">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_ANALYTICS.SQL.WIDGET_TITLE') }}
+            </label>
+            <input
+              v-model="saveForm.title"
+              type="text"
+              :class="controlClass"
+              :placeholder="t('JABVOX_ANALYTICS.SQL.WIDGET_TITLE')"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_ANALYTICS.SQL.TARGET_DASHBOARD') }}
+            </label>
+            <select v-model="saveForm.dashboardId" :class="controlClass">
+              <option :value="null" disabled>—</option>
+              <option v-for="d in dashboards" :key="d.id" :value="d.id">
+                {{ d.nameJabvox }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_ANALYTICS.SQL.WIDGET_TYPE') }}
+            </label>
+            <select v-model="saveForm.widgetType" :class="controlClass">
+              <option v-for="w in WIDGET_TYPES" :key="w.value" :value="w.value">
+                {{ w.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-6 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            class="rounded-lg bg-n-alpha-2 px-3 py-2 text-sm font-medium text-n-slate-12"
+            @click="showSaveModal = false"
+          >
+            {{ t('JABVOX_ANALYTICS.COMMON.CANCEL') }}
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-lg bg-n-brand px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="
+              saving || !saveForm.title.trim() || !saveForm.dashboardId
+            "
+            @click="saveAsWidget"
+          >
+            <span
+              v-if="saving"
+              class="i-lucide-loader-circle size-4 animate-spin"
+            />
+            {{ t('JABVOX_ANALYTICS.COMMON.SAVE') }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

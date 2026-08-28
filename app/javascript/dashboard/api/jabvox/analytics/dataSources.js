@@ -44,11 +44,25 @@ class JabvoxAnalyticsDataSourcesAPI extends ApiClient {
   preview(id, { table, page = 1, perPage = 100, sort, search, filters } = {}) {
     return axios.get(`${this.url}/${id}/preview`, {
       params: { table, page, per_page: perPage, sort, search, filters },
+      // Serializa filtros multi-valor como filters[Columna][]=a&filters[Columna][]=b, que Rails
+      // parsea a { filters: { Columna: [a, b] } } (IN en el backend). El serializer por defecto
+      // de axios no garantiza este formato para arrays anidados en objetos.
+      paramsSerializer: { indexes: null },
+    });
+  }
+
+  columnValues(id, { table, column, search, limit = 200 } = {}) {
+    return axios.get(`${this.url}/${id}/column_values`, {
+      params: { table, column, search, limit },
     });
   }
 
   runQuery(id, spec) {
     return axios.post(`${this.url}/${id}/query`, { query_spec: spec });
+  }
+
+  compileSql(id, spec) {
+    return axios.post(`${this.url}/${id}/compile_sql`, { query_spec: spec });
   }
 
   runCustomSql(id, sql, params = {}) {

@@ -23,11 +23,41 @@ class Jabvox::Analytics::Adapters::MysqlAdapter < Jabvox::Analytics::Adapters::B
     order_sql = options.order.present? ? "ORDER BY #{quote_identifier(options.order)}" : ''
 
     with_client do |client|
-      total = client.query("SELECT COUNT(*) AS c FROM #{qtable}", as: :hash).first['c'].to_i
-      stmt = client.prepare("SELECT * FROM #{qtable} #{order_sql} LIMIT ? OFFSET ?")
-      result = stmt.execute(per_page, offset, as: :array)
+      cols = client.query("SELECT * FROM #{qtable} LIMIT 0", as: :array).fields
+      where, binds = preview_where(options, cols)
+      total = count_rows(client, qtable, where, binds)
+      stmt = client.prepare("SELECT * FROM #{qtable}#{where} #{order_sql} LIMIT ? OFFSET ?")
+      result = stmt.execute(*binds, per_page, offset, as: :array)
       Result.new(rows: result.to_a, columns: result.fields, row_count: total, elapsed_ms: nil)
     end
+  end
+
+  def count_rows(client, qtable, where, binds)
+    sql = "SELECT COUNT(*) AS c FROM #{qtable}#{where}"
+    row = binds.any? ? client.prepare(sql).execute(*binds, as: :hash).first : client.query(sql, as: :hash).first
+    row['c'].to_i
+  end
+
+  # WHERE del preview: filtros exactos por columna + búsqueda de texto (LIKE) en todas las
+  # columnas. Valores por bind (?). Identificadores citados. Sólo columnas existentes.
+  def preview_where(options, cols)
+    binds = []
+    clauses = preview_filter_pairs(options, cols).map do |col, values|
+      placeholders = values.map do |v|
+        binds << v
+        '?'
+      end
+      "#{quote_identifier(col)} IN (#{placeholders.join(', ')})"
+    end
+    if options.search.present?
+      like = "%#{options.search}%"
+      ors = cols.map do |c|
+        binds << like
+        "CAST(#{quote_identifier(c)} AS CHAR) LIKE ?"
+      end
+      clauses << "(#{ors.join(' OR ')})"
+    end
+    [clauses.any? ? " WHERE #{clauses.join(' AND ')}" : '', binds]
   end
 
   def execute(sql, binds: [], row_limit: nil)

@@ -1,7 +1,8 @@
 class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Accounts::Jabvox::Analytics::BaseController
-  before_action :set_data_source, only: %i[show update destroy test_connection schema preview query custom_sql validate_sql sync]
+  before_action :set_data_source,
+                only: %i[show update destroy test_connection schema preview column_values query compile_sql custom_sql validate_sql sync]
   before_action :authorize_manage!, only: %i[create update destroy]
-  before_action :authorize_data_source_access!, only: %i[schema preview query]
+  before_action :authorize_data_source_access!, only: %i[schema preview column_values query compile_sql]
   before_action :authorize_custom_sql!, only: %i[custom_sql]
 
   def index
@@ -62,7 +63,7 @@ class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Acc
     schema = Jabvox::Analytics::IntrospectionService.new(@data_source).call
     render json: { schema: schema }
   rescue StandardError => e
-    render json: { error: sanitized(e) }, status: :unprocessable_entity
+    ds_error(e)
   end
 
   def preview
@@ -73,7 +74,26 @@ class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Acc
     audit!(action: 'data.preview', auditable: @data_source, metadata: { table: params[:table] })
     render json: outcome.to_h
   rescue StandardError => e
-    render json: { error: sanitized(e) }, status: :unprocessable_entity
+    ds_error(e)
+  end
+
+  # Valores distintos de una columna para los filtros seleccionables del visor de datos.
+  def column_values
+    result = execution_service.distinct_values(
+      table: params.require(:table), column: params.require(:column),
+      search: params[:search], limit: params[:limit] || 200
+    )
+    render json: result
+  rescue StandardError => e
+    ds_error(e)
+  end
+
+  # Compila el spec visual a SQL (sin ejecutar), para la conversión visual→SQL del editor.
+  def compile_sql
+    spec = params.require(:query_spec).permit!.to_h
+    render json: { sql: execution_service.compile_sql(spec) }
+  rescue Jabvox::Analytics::QueryBuilderService::InvalidSpec => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def query
@@ -84,7 +104,7 @@ class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Acc
   rescue Jabvox::Analytics::QueryBuilderService::InvalidSpec => e
     render json: { error: e.message }, status: :unprocessable_entity
   rescue StandardError => e
-    render json: { error: sanitized(e) }, status: :unprocessable_entity
+    ds_error(e)
   end
 
   def validate_sql
@@ -102,7 +122,7 @@ class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Acc
            metadata: { sql: params[:sql], reason: e.message })
     render json: { error: e.message }, status: :unprocessable_entity
   rescue StandardError => e
-    render json: { error: sanitized(e) }, status: :unprocessable_entity
+    ds_error(e)
   end
 
   def sync
@@ -110,7 +130,7 @@ class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Acc
     Jabvox::Analytics::ConnectionTestService.new(@data_source).call
     render json: { schema: schema }
   rescue StandardError => e
-    render json: { error: sanitized(e) }, status: :unprocessable_entity
+    ds_error(e)
   end
 
   private
@@ -165,29 +185,25 @@ class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Acc
   end
 
   # Public, secret-free representation. NEVER includes password/ssl_ca.
+  # Representación pública, sin secretos. NUNCA incluye password/ssl_ca.
+  SERIALIZED_ATTRS = %i[
+    id name_jabvox engine_jabvox host_jabvox port_jabvox database_jabvox username_jabvox
+    sqlite_path_jabvox ssl_mode_jabvox allow_private_network_jabvox max_rows_jabvox
+    query_timeout_ms_jabvox status_jabvox last_tested_at_jabvox created_at
+  ].freeze
+
   def serialize(source)
-    {
-      id: source.id,
-      name_jabvox: source.name_jabvox,
-      engine_jabvox: source.engine_jabvox,
-      host_jabvox: source.host_jabvox,
-      port_jabvox: source.port_jabvox,
-      database_jabvox: source.database_jabvox,
-      username_jabvox: source.username_jabvox,
-      sqlite_path_jabvox: source.sqlite_path_jabvox,
-      ssl_mode_jabvox: source.ssl_mode_jabvox,
-      allow_private_network_jabvox: source.allow_private_network_jabvox,
-      max_rows_jabvox: source.max_rows_jabvox,
-      query_timeout_ms_jabvox: source.query_timeout_ms_jabvox,
-      status_jabvox: source.status_jabvox,
-      last_tested_at_jabvox: source.last_tested_at_jabvox,
-      has_password: source.password_jabvox.present?,
-      created_at: source.created_at
-    }
+    source.slice(*SERIALIZED_ATTRS).symbolize_keys.merge(
+      has_password: source.password_jabvox.present?
+    )
   end
 
   def sanitized(error)
     Rails.logger.error "[Analytics::DataSources] #{error.class}: #{error.message}"
     'No se pudo completar la operación contra la fuente de datos'
+  end
+
+  def ds_error(error)
+    render json: { error: sanitized(error) }, status: :unprocessable_entity
   end
 end

@@ -48,22 +48,55 @@ export const useAnalyticsQueryStore = defineStore('analyticsQuery', {
     async previewTable(dsId, opts = {}) {
       this.uiFlags.previewing = true;
       try {
+        const page = opts.page ?? this.result.page;
+        const perPage = opts.perPage ?? this.result.perPage;
         const { data } = await analyticsDataSourcesAPI.preview(dsId, {
           table: opts.table ?? this.spec.table,
-          page: opts.page ?? this.result.page,
-          perPage: opts.perPage ?? this.result.perPage,
+          page,
+          perPage,
           sort: opts.sort ?? this.result.sort,
           search: opts.search ?? this.result.search,
           filters: opts.filters,
         });
+        const camel = camelcaseKeys(data, { deep: true });
+        // El backend devuelve `row_count` (→ rowCount). La UI usa `total` para paginar; hay
+        // que mapearlo explícitamente o el contador queda en 0 ("25 of 0 rows"). Guardamos
+        // también page/perPage usados para que la paginación conozca su estado.
         this.result = {
           ...this.result,
-          ...camelcaseKeys(data, { deep: true }),
+          rows: camel.rows,
+          columns: camel.columns,
+          total: camel.rowCount ?? camel.total ?? 0,
+          page,
+          perPage,
         };
         return this.result;
+      } catch (error) {
+        // Si el preview falla (p.ej. la BD externa está caída), NO dejar en pantalla los
+        // datos de una consulta anterior: se limpia el resultado y se relanza el error para
+        // que la vista muestre el aviso de conexión.
+        this.result = { ...this.result, rows: [], columns: [], total: 0 };
+        throw error;
       } finally {
         this.uiFlags.previewing = false;
       }
+    },
+
+    // Compila un spec visual a SQL (sin ejecutar), para la conversión visual→SQL del editor.
+    async compileSql(dsId, spec) {
+      const { data } = await analyticsDataSourcesAPI.compileSql(dsId, spec);
+      return data.sql;
+    },
+
+    // Valores distintos de una columna para los filtros seleccionables del visor de datos.
+    async fetchColumnValues(dsId, { table, column, search, limit } = {}) {
+      const { data } = await analyticsDataSourcesAPI.columnValues(dsId, {
+        table,
+        column,
+        search,
+        limit,
+      });
+      return camelcaseKeys(data, { deep: true });
     },
 
     async runVisualQuery(dsId) {
@@ -81,6 +114,9 @@ export const useAnalyticsQueryStore = defineStore('analyticsQuery', {
           total: camel.rowCount,
         };
         return camel;
+      } catch (error) {
+        this.result = { ...this.result, rows: [], columns: [], total: 0 };
+        throw error;
       } finally {
         this.uiFlags.running = false;
       }
@@ -115,6 +151,9 @@ export const useAnalyticsQueryStore = defineStore('analyticsQuery', {
           total: camel.rowCount,
         };
         return camel;
+      } catch (error) {
+        this.result = { ...this.result, rows: [], columns: [], total: 0 };
+        throw error;
       } finally {
         this.uiFlags.running = false;
       }

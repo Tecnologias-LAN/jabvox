@@ -10,14 +10,20 @@ class Jabvox::Analytics::CacheService
   def initialize(account:, data_source: nil, user: nil)
     @account = account
     @data_source = data_source
+    # user se conserva por compatibilidad de firma, pero NO entra en la clave: ver key_for.
     @user = user
   end
 
+  # La clave es por cuenta + fuente + consulta, NO por usuario. El resultado de una consulta
+  # (SQL o spec) es idéntico para cualquier usuario con acceso —el control de acceso se aplica
+  # aguas arriba, antes de ejecutar—, así que cachear por usuario multiplicaría ejecuciones
+  # idénticas contra la BD externa por el número de usuarios (mata la escalabilidad cuando
+  # muchos usuarios abren el mismo dashboard). Compartir por cuenta mantiene el aislamiento
+  # entre cuentas (account.id está en la clave) y da reuso máximo dentro de la cuenta.
   def key_for(parts)
     digest = Digest::SHA256.hexdigest(parts.to_json)
     ds = @data_source&.id || 'none'
-    uid = @user&.id || 'none'
-    "analytics:acct:#{@account.id}:ds:#{ds}:u:#{uid}:q:#{digest}"
+    "analytics:acct:#{@account.id}:ds:#{ds}:q:#{digest}"
   end
 
   def fetch(parts, ttl_seconds:)

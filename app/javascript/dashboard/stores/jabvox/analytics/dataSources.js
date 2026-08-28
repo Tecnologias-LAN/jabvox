@@ -92,7 +92,11 @@ export const useAnalyticsDataSourcesStore = defineStore(
         this.uiFlags.fetchingSchema = true;
         try {
           const { data } = await analyticsDataSourcesAPI.schema(id);
-          this.schemaByDsId[id] = camelcaseKeys(data, { deep: true });
+          // El backend responde { schema: [{ name, type, columns }] }. Guardamos el array
+          // de tablas, no el sobre completo (si no, schemaFor devolvía {schema:[...]} y la
+          // vista buscaba raw.tables → 0 tablas).
+          const schema = data?.schema ?? data;
+          this.schemaByDsId[id] = camelcaseKeys(schema, { deep: true });
           return this.schemaByDsId[id];
         } finally {
           this.uiFlags.fetchingSchema = false;
