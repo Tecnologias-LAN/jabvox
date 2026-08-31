@@ -205,3 +205,17 @@ jabvox_billing_renewal_reminder_job:
   cron: '0 9 * * *'
   class: 'Jabvox::Billing::RenewalReminderJob'
   queue: jabvox_payments
+
+# Cada minuto: dispara los flujos programados a los que les toca ahora. La hora
+# se evalúa en la zona horaria de cada nodo, no en la del servidor (UTC).
+jabvox_flows_trigger_scheduled_job:
+  cron: '* * * * *'
+  class: 'Jabvox::Flows::TriggerScheduledFlowsJob'
+  queue: jabvox_flows_scheduled
+
+# Cada minuto: red de seguridad de las esperas: reanuda los runs suspendidos
+# cuyo instante de reanudación ya pasó y cuyo despertador puntual se perdió.
+jabvox_flows_sweep_due_runs_job:
+  cron: '* * * * *'
+  class: 'Jabvox::Flows::SweepDueRunsJob'
+  queue: jabvox_flows_scheduled

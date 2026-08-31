@@ -235,6 +235,11 @@ class Account < ApplicationRecord
   has_many :jabvox_analytics_dashboards, dependent: :destroy
   has_many :jabvox_analytics_exports, dependent: :destroy
   has_many :jabvox_analytics_audit_logs, dependent: :delete_all
+  # Jabvox Flows (automatizaciones avanzadas)
+  has_many :jabvox_flows, dependent: :destroy
+  has_many :jabvox_flow_folders, dependent: :destroy
+  has_many :jabvox_flow_runs, dependent: :destroy
+  has_many :jabvox_flow_account_variables, dependent: :destroy
   # Jabvox Tasks (kanban) module
   has_many :jabvox_task_boards, dependent: :destroy
   has_many :jabvox_task_stages, dependent: :destroy

@@ -36,8 +36,13 @@ RSpec.describe 'Aislamiento de colas Sidekiq de Jabvox' do
       # Click-to-call: cola PROPIA, separada del dialer (interactivo, no debe
       # esperar detrás de los reapers).
       'Jabvox::CaptureClickToCallUniqueidJob' => 'jabvox_click_to_call',
-      # Advanced Automations: HTTP saliente a la app externa, reintentos aislados.
-      'Jabvox::Automations::ProvisionJob' => 'jabvox_automations'
+      # Flujos: ejecuciones en su cola, y lo programado/barrido en OTRA cola con
+      # prioridad, para que un bucle largo no retrase el disparo de las 9:00.
+      'Jabvox::Flows::RunJob' => 'jabvox_flows',
+      'Jabvox::Flows::RunFromJob' => 'jabvox_flows',
+      'Jabvox::Flows::ResumeRunJob' => 'jabvox_flows',
+      'Jabvox::Flows::TriggerScheduledFlowsJob' => 'jabvox_flows_scheduled',
+      'Jabvox::Flows::SweepDueRunsJob' => 'jabvox_flows_scheduled'
     }
   end
 
@@ -75,6 +80,27 @@ RSpec.describe 'Aislamiento de colas Sidekiq de Jabvox' do
     main = YAML.safe_load(ERB.new(File.read('config/sidekiq.yml')).result,
                           permitted_classes: [Symbol], aliases: true)[:queues]
     expect(main.grep(/\Ajabvox_/)).to be_empty
+  end
+
+  # Una cola que nadie drena deja de ejecutarse EN SILENCIO: los jobs se encolan
+  # y nunca corren. Ningún `queue_as :jabvox_*` puede quedarse sin worker.
+  it 'ninguna cola jabvox_* declarada por un job queda huérfana' do
+    declared = Dir['app/jobs/**/*.rb'].flat_map { |f| File.read(f).scan(/queue_as :(jabvox_\w+)/) }.flatten.uniq
+    drained = workers.values.flatten.uniq
+    expect(declared - drained).to be_empty
+  end
+
+  # sidekiq-cron MANDA sobre el `queue_as` de la clase: si el cron dice
+  # `scheduled_jobs`, el job corre en el worker PRINCIPAL pese al queue_as.
+  it 'los crons de jobs jabvox usan la misma cola aislada que su clase' do
+    schedule = YAML.safe_load_file('config/schedule.yml')
+    schedule.each_value do |entry|
+      klass = entry['class']
+      next unless klass.to_s.start_with?('Jabvox::')
+
+      expected = klass.constantize.new.queue_name
+      expect(entry['queue']).to eq(expected), "cron de #{klass}: #{entry['queue']}, esperaba #{expected}"
+    end
   end
 end
 # rubocop:enable RSpec/DescribeClass

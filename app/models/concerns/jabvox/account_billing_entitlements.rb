@@ -23,9 +23,7 @@ module Jabvox::AccountBillingEntitlements
 
   def effective_limit_for(resource)
     resource = resource.to_s
-    if billable_breakdown_configured?(resource)
-      return base_limit_for(resource).to_i + extra_limit_for(resource).to_i
-    end
+    return base_limit_for(resource).to_i + extra_limit_for(resource).to_i if billable_breakdown_configured?(resource)
 
     configured = numeric_limit(billable_limits[resource])
     return configured if configured.positive?
@@ -91,7 +89,7 @@ module Jabvox::AccountBillingEntitlements
     when 'forms'
       jabvox_forms.count
     when 'advanced_flows'
-      account_automation_config&.max_flows.to_i
+      jabvox_flows.count
     when 'automation_rules'
       automation_rules.count
     when 'analytics_dashboards'

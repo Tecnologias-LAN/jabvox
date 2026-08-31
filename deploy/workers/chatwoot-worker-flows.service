@@ -1,0 +1,23 @@
+[Unit]
+Description=Jabvox Sidekiq worker — Flujos (motor de automatizaciones, colas aisladas)
+After=network.target postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=jabvox
+WorkingDirectory=/home/jabvox/jabvox
+Environment=RAILS_ENV=production
+# rbenv en el PATH (igual que el worker principal)
+Environment=PATH=/home/jabvox/.rbenv/shims:/home/jabvox/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+# Pool de Postgres ACOTADO: database.yml deriva el pool de SIDEKIQ_CONCURRENCY,
+# así que sin fijarla aquí este worker abriría ~10-28 conexiones en vez de 4.
+Environment=JABVOX_FLOWS_CONCURRENCY=4
+Environment=SIDEKIQ_CONCURRENCY=4
+ExecStart=/home/jabvox/.rbenv/shims/bundle exec sidekiq -C config/sidekiq_flows.yml
+Restart=always
+RestartSec=5
+# Reinicio de memoria: si el worker crece demasiado, systemd lo recicla (evita OOM global)
+MemoryMax=700M
+
+[Install]
+WantedBy=multi-user.target

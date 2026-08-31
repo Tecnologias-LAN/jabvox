@@ -60,8 +60,14 @@ class Api::V1::Accounts::Jabvox::HermesAgentsController < Api::V1::Accounts::Jab
     @agent = JabvoxHermesAgent.where(account_id: Current.account.id).find(params[:id])
   end
 
+  # Solo actualiza las claves que el request INCLUYÓ (no descarta por blank con
+  # compact_blank, que impedía vaciar la descripción). name_jabvox no puede quedar en
+  # blanco: si viene incluido pero vacío, se ignora para no romper la validación de
+  # presencia; el resto (description, status) sí admite valores vacíos.
   def agent_edit_params
-    params.permit(:name_jabvox, :description_jabvox, :status_jabvox).to_h.compact_blank
+    permitted = params.permit(:name_jabvox, :description_jabvox, :status_jabvox).to_h
+    permitted.delete('name_jabvox') if permitted.key?('name_jabvox') && permitted['name_jabvox'].blank?
+    permitted
   end
 
   def user_in_account?(user_id)
