@@ -196,6 +196,34 @@
       "PARSE_MISSING_FIELDS": "The pasted flow is missing required fields or they have the wrong type.",
       "PARSE_NO_NODES": "What you pasted contains no steps.",
       "PARSE_N8N_FORMAT": "This is an n8n flow and its format is not compatible: step types and expression syntax differ. You will need to rebuild it with this catalog."
+    },
+    "AUTOSAVE": {
+      "PENDING": "Unsaved changes",
+      "SAVING": "Saving…",
+      "SAVED_AT": "Saved at {time}",
+      "ERROR": "Could not save automatically",
+      "CONFLICT": "The flow changed elsewhere",
+      "CONFLICT_HELP": "Another tab or user saved a newer version. Autosave stopped so it would not overwrite it.",
+      "CONFLICT_RELOAD": "Reload saved version",
+      "CONFLICT_OVERWRITE": "Save mine anyway"
+    },
+    "VERSIONS": {
+      "TITLE": "Version history",
+      "REFRESH": "Refresh history",
+      "EMPTY": "This flow has no saved versions yet.",
+      "UNKNOWN_AUTHOR": "Unknown author",
+      "CURRENT": "Current",
+      "COUNTS": "{nodes} steps · {edges} connections",
+      "PREVIEW": "Preview this version",
+      "PREVIEW_TITLE": "Steps in this version",
+      "PREVIEW_EMPTY": "This version has no steps.",
+      "LOADING_PREVIEW": "Loading version…",
+      "RESTORE": "Restore",
+      "RESTORE_TITLE": "Restore an earlier version",
+      "RESTORE_CONFIRM": "You are about to restore version {version}. The canvas will show its contents instead of version {current}.",
+      "RESTORE_KEEPS": "Nothing is deleted: restoring creates a new version with the old contents, and the current version stays in the history.",
+      "RESTORE_LOSES": "Unsaved changes on your canvas will be lost.",
+      "RESTORED": "Version restored."
     }
   }
 }

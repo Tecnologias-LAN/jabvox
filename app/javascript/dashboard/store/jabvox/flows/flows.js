@@ -17,6 +17,7 @@ export const useFlowsStore = defineStore('jabvoxFlows', () => {
   const flows = ref([]);
   const current = ref(null);
   const runs = ref([]);
+  const versions = ref([]);
   const loading = ref(false);
   const saving = ref(false);
   const error = ref(null);
@@ -91,6 +92,30 @@ export const useFlowsStore = defineStore('jabvoxFlows', () => {
     return data;
   }
 
+  // ---- Historial de versiones ----
+
+  async function fetchVersions(id) {
+    const { data } = await flowsAPI.listVersions(id);
+    versions.value = data;
+    return data;
+  }
+
+  // Una versión CONCRETA con su grafo, para previsualizarla sin restaurarla.
+  async function fetchVersion(id, version) {
+    const { data } = await flowsAPI.getVersion(id, version);
+    return data;
+  }
+
+  // Restaurar AVANZA el historial: el backend copia el grafo antiguo en una
+  // versión nueva, así que nada de lo actual se pierde.
+  async function restoreVersion(id, version) {
+    const { data } = await flowsAPI.restoreVersion(id, version);
+    if (current.value?.id === id) {
+      current.value = { ...current.value, currentVersion: data };
+    }
+    return data;
+  }
+
   async function setStatus(id, status) {
     return update(id, { status });
   }
@@ -120,6 +145,7 @@ export const useFlowsStore = defineStore('jabvoxFlows', () => {
     flows,
     current,
     runs,
+    versions,
     loading,
     saving,
     error,
@@ -131,6 +157,9 @@ export const useFlowsStore = defineStore('jabvoxFlows', () => {
     duplicate,
     saveVersion,
     validate,
+    fetchVersions,
+    fetchVersion,
+    restoreVersion,
     setStatus,
     fetchRuns,
     run,

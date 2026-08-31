@@ -196,6 +196,34 @@
       "PARSE_MISSING_FIELDS": "Al flujo pegado le faltan campos obligatorios o tienen el tipo equivocado.",
       "PARSE_NO_NODES": "Lo pegado no trae ningún paso.",
       "PARSE_N8N_FORMAT": "Esto es un flujo de n8n y su formato no es compatible: los tipos de paso y la sintaxis de expresiones son distintos. Tendrás que reconstruirlo con los pasos de este catálogo."
+    },
+    "AUTOSAVE": {
+      "PENDING": "Cambios sin guardar",
+      "SAVING": "Guardando…",
+      "SAVED_AT": "Guardado a las {time}",
+      "ERROR": "No se pudo guardar automáticamente",
+      "CONFLICT": "El flujo cambió en otro sitio",
+      "CONFLICT_HELP": "Otra pestaña u otro usuario guardó una versión más reciente. El autoguardado se detuvo para no pisarla.",
+      "CONFLICT_RELOAD": "Recargar lo guardado",
+      "CONFLICT_OVERWRITE": "Guardar lo mío igualmente"
+    },
+    "VERSIONS": {
+      "TITLE": "Historial de versiones",
+      "REFRESH": "Actualizar el historial",
+      "EMPTY": "Este flujo todavía no tiene versiones guardadas.",
+      "UNKNOWN_AUTHOR": "Autor desconocido",
+      "CURRENT": "Actual",
+      "COUNTS": "{nodes} pasos · {edges} conexiones",
+      "PREVIEW": "Previsualizar esta versión",
+      "PREVIEW_TITLE": "Pasos de esta versión",
+      "PREVIEW_EMPTY": "Esta versión no tiene ningún paso.",
+      "LOADING_PREVIEW": "Cargando la versión…",
+      "RESTORE": "Restaurar",
+      "RESTORE_TITLE": "Restaurar una versión anterior",
+      "RESTORE_CONFIRM": "Vas a restaurar la versión {version}. El lienzo pasará a mostrar su contenido en lugar de la versión {current}.",
+      "RESTORE_KEEPS": "No se borra nada: restaurar crea una versión nueva con el contenido antiguo, y la versión actual sigue en el historial.",
+      "RESTORE_LOSES": "Los cambios que tengas en el lienzo sin guardar sí se perderán.",
+      "RESTORED": "Versión restaurada."
     }
   }
 }

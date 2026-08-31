@@ -12,13 +12,19 @@ import '@vue-flow/core/dist/style.css';
 import '@vue-flow/controls/dist/style.css';
 import { useAlert } from 'dashboard/composables';
 import { useFlowsStore, graphIssues } from 'dashboard/store/jabvox/flows/flows';
+import { flowsAPI } from 'dashboard/api/jabvox/flows';
 import { useNodesStore } from 'dashboard/store/jabvox/flows/nodes';
 import FlowNode from './components/FlowNode.vue';
 import NodePalette from './components/NodePalette.vue';
 import NodeDetailView from './components/NodeDetailView.vue';
 import RunHistory from './components/RunHistory.vue';
 import StickyNote from './components/StickyNote.vue';
-import { flowStatusStyle } from './composables/useFlowDesign';
+import VersionHistory from './components/VersionHistory.vue';
+import { flowStatusStyle, formatDateTime } from './composables/useFlowDesign';
+import {
+  createAutosaveScheduler,
+  graphFingerprint,
+} from './composables/useFlowAutosave';
 import {
   NOTE_DEFAULTS,
   freeNotePosition,
@@ -72,6 +78,8 @@ const validating = ref(false);
 const showIssues = ref(true);
 const menuOpen = ref(false);
 const historyRef = ref(null);
+const versionsRef = ref(null);
+const versionsOpen = ref(false);
 const flow = computed(() => flowsStore.current);
 
 const selectedNode = computed(
@@ -692,6 +700,124 @@ function currentGraph() {
   };
 }
 
+// ---- §4 AUTOGUARDADO -----------------------------------------------------
+//
+// El backend crea una versión en CADA `PUT /versions`, así que el autoguardado
+// se agrupa por ventana de tiempo (ver `useFlowAutosave`): como mucho una
+// versión por minuto de edición continua. El guardado manual no espera.
+
+const scheduler = createAutosaveScheduler();
+// 'idle' | 'pending' | 'saving' | 'saved' | 'error'
+const autosaveState = ref('idle');
+const lastSavedAt = ref(null);
+const autosaveConflict = ref(false);
+let autosaveTimer = null;
+
+// Versión que el editor cree tener cargada. El backend NO ofrece control de
+// concurrencia (no hay `expectedVersion` ni 409), así que el conflicto se
+// DETECTA aquí comparando antes de pisar, en vez de sobrescribir en silencio.
+const knownVersion = ref(null);
+
+// En la barra basta la HORA: la fecha completa no cabe y el guardado siempre es
+// de hoy. La fecha entera queda en el título, para el guardado de otro día.
+const lastSavedLabel = computed(() => {
+  if (!lastSavedAt.value) return null;
+  const date = new Date(lastSavedAt.value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+});
+
+const lastSavedTitle = computed(() =>
+  lastSavedAt.value ? formatDateTime(lastSavedAt.value) : ''
+);
+
+function clearAutosaveTimer() {
+  if (autosaveTimer) {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+  }
+}
+
+// Escribiendo en una nota o en un campo NO se autoguarda: se guardaría a medias
+// y el repintado podría robar el foco.
+function editingText() {
+  return isTextField(document.activeElement);
+}
+
+/**
+ * ¿Cambió el flujo por fuera desde que lo cargamos? Sin control de concurrencia
+ * en el backend, se comprueba pidiendo la versión actual antes de guardar.
+ */
+async function remoteChanged() {
+  if (knownVersion.value === null) return false;
+  try {
+    // API directa, no el store: esta comprobación no debe pisar la lista que
+    // está mostrando el panel de versiones.
+    const { data } = await flowsAPI.listVersions(flowId.value);
+    const top = data?.[0]?.version ?? null;
+    return top !== null && top > knownVersion.value;
+  } catch {
+    // No se pudo comprobar: no se bloquea el guardado por ello.
+    return false;
+  }
+}
+
+/**
+ * Guarda el lienzo como versión nueva y deja el autoguardado al día. Lo usan
+ * el botón Guardar, el autoguardado y la activación: si alguno no actualizara
+ * el planificador, el autoguardado reenviaría lo mismo al vencer la ventana.
+ */
+async function persistGraph() {
+  const graph = currentGraph();
+  const saved = await flowsStore.saveVersion(flowId.value, graph);
+  knownVersion.value = saved?.currentVersion?.version ?? knownVersion.value;
+  scheduler.markSaved(graphFingerprint(graph), Date.now());
+  lastSavedAt.value = new Date().toISOString();
+  autosaveState.value = 'saved';
+  autosaveConflict.value = false;
+  versionsRef.value?.load();
+  return saved;
+}
+
+// Se reprograma en cada cambio: el planificador decide si ya toca guardar o
+// cuánto falta.
+// Referencia adelantada: `scheduleAutosave` y `autosaveNow` se llaman entre sí.
+let autosaveNowRef;
+
+function scheduleAutosave() {
+  clearAutosaveTimer();
+  const delay = scheduler.nextCheckDelay(Date.now());
+  if (delay === null) return;
+  autosaveState.value = 'pending';
+  autosaveTimer = setTimeout(() => {
+    autosaveTimer = null;
+    if (scheduler.shouldSave(Date.now())) autosaveNowRef();
+    else scheduleAutosave();
+  }, delay);
+}
+
+async function autosaveNow() {
+  // Escribiendo en un campo se reprograma: guardar ahora robaría el foco.
+  if (editingText()) {
+    scheduleAutosave();
+    return;
+  }
+  autosaveState.value = 'saving';
+  try {
+    if (await remoteChanged()) {
+      // Otra pestaña o usuario avanzó el flujo: NO se pisa en silencio.
+      autosaveConflict.value = true;
+      autosaveState.value = 'error';
+      return;
+    }
+    await persistGraph();
+  } catch (e) {
+    issues.value = graphIssues(e) || [];
+    autosaveState.value = 'error';
+  }
+}
+autosaveNowRef = autosaveNow;
+
 async function load() {
   loading.value = true;
   await nodesStore.load();
@@ -712,16 +838,35 @@ async function load() {
     notes.value = (graph.notes || []).map(normalizeNote);
   }
   loading.value = false;
+  // Referencia del autoguardado: lo recién cargado ES lo guardado.
+  knownVersion.value = data?.currentVersion?.version ?? null;
+  lastSavedAt.value = data?.currentVersion?.createdAt ?? null;
+  autosaveConflict.value = false;
+  autosaveState.value = 'idle';
+  // SIN sello de tiempo: la ventana de 60 s cuenta desde el primer guardado
+  // real, no desde que se abre el editor. Si no, el primer cambio esperaría un
+  // minuto entero para persistirse.
+  scheduler.markSaved(graphFingerprint(currentGraph()));
+}
+
+// Recarga el lienzo tras restaurar una versión: el backend ya creó la versión
+// nueva, aquí solo se refleja.
+async function reloadAfterRestore() {
+  clearAutosaveTimer();
+  await load();
+  useAlert(t('JABVOX_ADVANCED_AUTOMATIONS.VERSIONS.RESTORED'));
 }
 
 async function save() {
+  clearAutosaveTimer();
   try {
-    await flowsStore.saveVersion(flowId.value, currentGraph());
+    await persistGraph();
     issues.value = [];
     useAlert(t('JABVOX_ADVANCED_AUTOMATIONS.EDITOR.SAVED'));
   } catch (e) {
     issues.value = graphIssues(e) || [];
     showIssues.value = true;
+    autosaveState.value = 'error';
     useAlert(t('JABVOX_ADVANCED_AUTOMATIONS.ERRORS.SAVE'));
   }
 }
@@ -744,9 +889,9 @@ async function validate() {
 // antes para que valide justo lo que se ve en el lienzo.
 async function toggleActive() {
   const next = flow.value?.status === 'active' ? 'paused' : 'active';
+  clearAutosaveTimer();
   try {
-    if (next === 'active')
-      await flowsStore.saveVersion(flowId.value, currentGraph());
+    if (next === 'active') await persistGraph();
     await flowsStore.setStatus(flowId.value, next);
     issues.value = [];
   } catch (e) {
@@ -791,6 +936,22 @@ watch(selectedId, () => {
   testResult.value = null;
 });
 
+// Vigilancia del autoguardado. `deep` es obligatorio (Vue Flow muta los objetos
+// en sitio), pero la HUELLA es lo que decide: sin ella cada render arrastraría
+// un guardado. Mientras carga o hay conflicto no se programa nada.
+watch(
+  [nodes, edges, notes],
+  () => {
+    if (loading.value || autosaveConflict.value) return;
+    const changed = scheduler.noteChange(
+      graphFingerprint(currentGraph()),
+      Date.now()
+    );
+    if (changed) scheduleAutosave();
+  },
+  { deep: true }
+);
+
 // Los atajos van en `window`: el lienzo no siempre tiene el foco cuando el
 // usuario pulsa Ctrl+C tras hacer clic en un paso.
 onMounted(() => {
@@ -802,6 +963,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown);
   window.removeEventListener('paste', onPaste);
+  clearAutosaveTimer();
 });
 </script>
 
@@ -841,6 +1003,51 @@ onBeforeUnmount(() => {
           {{ t(`JABVOX_ADVANCED_AUTOMATIONS.STATUS.${flow.status}`) }}
         </span>
       </div>
+
+      <!-- Estado del autoguardado, junto al nombre: es información, no un botón. -->
+      <p
+        class="ml-3 hidden min-w-0 items-center gap-1.5 text-xs text-n-slate-11 lg:flex"
+        :class="{ 'text-n-ruby-11': autosaveState === 'error' }"
+        :title="lastSavedTitle"
+      >
+        <span
+          v-if="autosaveState === 'saving'"
+          class="i-lucide-loader-circle size-3.5 shrink-0 animate-spin"
+        />
+        <span
+          v-else-if="autosaveState === 'pending'"
+          class="i-lucide-clock size-3.5 shrink-0"
+        />
+        <span
+          v-else-if="autosaveState === 'error'"
+          class="i-lucide-circle-alert size-3.5 shrink-0"
+        />
+        <span
+          v-else-if="autosaveState === 'saved'"
+          class="i-lucide-cloud-check size-3.5 shrink-0"
+        />
+        <span class="truncate">
+          <template v-if="autosaveState === 'saving'">
+            {{ t('JABVOX_ADVANCED_AUTOMATIONS.AUTOSAVE.SAVING') }}
+          </template>
+          <template v-else-if="autosaveState === 'pending'">
+            {{ t('JABVOX_ADVANCED_AUTOMATIONS.AUTOSAVE.PENDING') }}
+          </template>
+          <template v-else-if="autosaveConflict">
+            {{ t('JABVOX_ADVANCED_AUTOMATIONS.AUTOSAVE.CONFLICT') }}
+          </template>
+          <template v-else-if="autosaveState === 'error'">
+            {{ t('JABVOX_ADVANCED_AUTOMATIONS.AUTOSAVE.ERROR') }}
+          </template>
+          <template v-else-if="lastSavedLabel">
+            {{
+              t('JABVOX_ADVANCED_AUTOMATIONS.AUTOSAVE.SAVED_AT', {
+                time: lastSavedLabel,
+              })
+            }}
+          </template>
+        </span>
+      </p>
 
       <div class="ml-auto flex shrink-0 items-center gap-2">
         <button
@@ -940,10 +1147,59 @@ onBeforeUnmount(() => {
               <span class="i-lucide-shield-check size-4 shrink-0" />
               {{ t('JABVOX_ADVANCED_AUTOMATIONS.EDITOR.VALIDATE') }}
             </button>
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-n-slate-12 transition-colors hover:bg-n-alpha-2"
+              @click="
+                menuOpen = false;
+                versionsOpen = !versionsOpen;
+              "
+            >
+              <span class="i-lucide-git-commit-vertical size-4 shrink-0" />
+              {{ t('JABVOX_ADVANCED_AUTOMATIONS.VERSIONS.TITLE') }}
+            </button>
           </div>
         </div>
       </div>
     </header>
+
+    <!-- CONFLICTO: el flujo avanzó por fuera. El autoguardado se detiene para no
+    pisar lo que hizo otra pestaña u otro usuario. -->
+    <div
+      v-if="autosaveConflict"
+      class="shrink-0 border-b border-n-amber-8 bg-n-amber-3"
+    >
+      <div class="flex items-start gap-2 px-4 py-2.5">
+        <span
+          class="i-lucide-triangle-alert mt-0.5 size-4 shrink-0 text-n-amber-11"
+        />
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-semibold text-n-amber-11">
+            {{ t('JABVOX_ADVANCED_AUTOMATIONS.AUTOSAVE.CONFLICT') }}
+          </p>
+          <p class="mt-0.5 text-xs leading-relaxed text-n-amber-11">
+            {{ t('JABVOX_ADVANCED_AUTOMATIONS.AUTOSAVE.CONFLICT_HELP') }}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-n-amber-11 transition-colors hover:bg-n-amber-4"
+          @click="load()"
+        >
+          {{ t('JABVOX_ADVANCED_AUTOMATIONS.AUTOSAVE.CONFLICT_RELOAD') }}
+        </button>
+        <button
+          type="button"
+          class="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-n-amber-11 transition-colors hover:bg-n-amber-4"
+          @click="
+            autosaveConflict = false;
+            save();
+          "
+        >
+          {{ t('JABVOX_ADVANCED_AUTOMATIONS.AUTOSAVE.CONFLICT_OVERWRITE') }}
+        </button>
+      </div>
+    </div>
 
     <!-- Los problemas del backend son la razón por la que no se puede activar. -->
     <div
@@ -1112,6 +1368,15 @@ onBeforeUnmount(() => {
           </p>
         </div>
       </div>
+
+      <!-- Historial de versiones: panel lateral, se abre desde el menú ⋮. -->
+      <VersionHistory
+        v-if="versionsOpen"
+        ref="versionsRef"
+        :flow-id="flowId"
+        @close="versionsOpen = false"
+        @restored="reloadAfterRestore"
+      />
     </div>
 
     <RunHistory ref="historyRef" :flow-id="flowId" />
