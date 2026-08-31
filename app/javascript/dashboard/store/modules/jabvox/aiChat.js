@@ -38,7 +38,14 @@ const mutations = {
     s.sessions = sessions;
   },
   SET_MESSAGES(s, { sessionId, messages }) {
-    s.messages = { ...s.messages, [sessionId]: messages };
+    // Rehidrata las herramientas ejecutadas por el agente desde metadata.tools (el backend
+    // las persiste ahí), para que al reabrir el chat reaparezcan los chips de tools que
+    // antes solo vivían en memoria y se perdían al salir.
+    const withTools = (messages || []).map(m => {
+      const tools = m?.metadata?.tools;
+      return tools && tools.length ? { ...m, tools } : m;
+    });
+    s.messages = { ...s.messages, [sessionId]: withTools };
   },
   ADD_MESSAGE(s, { sessionId, message }) {
     const existing = s.messages[sessionId] || [];

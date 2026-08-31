@@ -103,8 +103,12 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     # La respuesta se acumula y se PERSISTE al final SIEMPRE, aunque el cliente cierre la
     # conexión (sale del módulo): el turno de Hermes se completa igual y queda guardado, así
     # al volver el usuario ve el avance/resultado.
+    # @stream_tools acumula las herramientas (MCP) que ejecutó el agente durante el turno,
+    # para persistirlas y que reaparezcan al reabrir el chat (antes solo vivían en el
+    # navegador y se perdían al salir).
+    @stream_tools = []
     full = stream_via_connection(conn, session_id)
-    persist_assistant_message(session_id, conn.hermes_agent_name_jabvox, full)
+    persist_assistant_message(session_id, conn.hermes_agent_name_jabvox, full, @stream_tools)
   rescue StandardError => e
     Rails.logger.warn("[AiChatStream] #{e.class}: #{e.message}")
     write_sse("data: #{{ error: e.message }.to_json}\n\n")
@@ -165,7 +169,40 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
       base_url: conn.base_url_jabvox, token: conn.token_jabvox,
       model: conn.hermes_agent_name_jabvox
     )
-    client.chat_stream(messages, on_chunk: ->(chunk) { write_sse(chunk) })
+    # Reenvía cada frame al navegador Y, si es un evento de herramienta, lo acumula para
+    # persistirlo con el mensaje (así reaparece al reabrir el chat).
+    client.chat_stream(messages, on_chunk: lambda { |chunk|
+      capture_tool_frame(chunk)
+      write_sse(chunk)
+    })
+  end
+
+  # Detecta frames SSE "event: hermes.tool.progress\ndata: {json}" y acumula la tool en
+  # @stream_tools (dedup por id, quedándose con el último estado de cada tool). Recorre las
+  # líneas: cuando ve el event de tool, parsea la siguiente línea data: como la herramienta.
+  def capture_tool_frame(chunk)
+    return unless chunk.to_s.include?('hermes.tool.progress')
+
+    in_tool_event = false
+    chunk.to_s.each_line do |line|
+      stripped = line.strip
+      if stripped.start_with?('event:')
+        in_tool_event = stripped.include?('hermes.tool.progress')
+      elsif in_tool_event && stripped.start_with?('data:')
+        record_tool(stripped.sub(/\Adata:\s*/, ''))
+        in_tool_event = false
+      end
+    end
+  end
+
+  def record_tool(json_str)
+    return if json_str.blank?
+
+    tool = JSON.parse(json_str)
+    idx = @stream_tools.index { |t| t['id'] == tool['id'] }
+    idx ? @stream_tools[idx] = tool : @stream_tools << tool
+  rescue JSON::ParserError => e
+    Rails.logger.debug { "[AiChatStream] tool frame parse skipped: #{e.message}" }
   end
 
   # Construye el content del mensaje: texto + imágenes (vision) + URLs de docs/audios.
@@ -213,14 +250,18 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     )
   end
 
-  # Guarda la respuesta del asistente al terminar (o al cortarse) el stream.
-  def persist_assistant_message(session_id, agent_name, full_text)
-    return if full_text.to_s.strip.empty?
+  # Guarda la respuesta del asistente al terminar (o al cortarse) el stream, incluyendo las
+  # herramientas ejecutadas (para que reaparezcan al reabrir el chat). No guarda si no hubo
+  # ni texto ni tools (turno vacío).
+  def persist_assistant_message(session_id, agent_name, full_text, tools = [])
+    return if full_text.to_s.strip.empty? && tools.blank?
 
+    metadata = { agent: agent_name }
+    metadata[:tools] = tools if tools.present?
     JabvoxAiChatMessage.create!(
       account: Current.account, user: current_user, session_id_jabvox: session_id,
-      role_jabvox: 'assistant', content_jabvox: full_text,
-      metadata_jabvox: { agent: agent_name }
+      role_jabvox: 'assistant', content_jabvox: full_text.to_s,
+      metadata_jabvox: metadata
     )
   end
 
