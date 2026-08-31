@@ -124,12 +124,12 @@ as well as a link to its edit page.
     </div>
 
     <div style="flex:1; min-width:220px; padding:16px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px;">
-      <h3 style="font-weight:600; font-size:14px; margin-bottom:8px;">Automations</h3>
+      <h3 style="font-weight:600; font-size:14px; margin-bottom:8px;">Automatizaciones Avanzadas</h3>
       <% _autom = page.resource.account_automation_config %>
       <p style="font-size:13px; color:#374151; margin-bottom:10px;">
-        <%= _autom&.enabled? ? 'Activo — conexión aprovisionada con Jabvox Automations.' : 'Inactivo. Actívalo para aprovisionar la cuenta en Automations.' %>
+        <%= _autom&.enabled? ? "Activo — #{page.resource.jabvox_flows.count} flujo(s)." : 'Inactivo. Actívalo para que la cuenta pueda crear flujos.' %>
       </p>
-      <%= link_to 'Gestionar Automations',
+      <%= link_to 'Gestionar flujos',
             super_admin_account_account_automations_path(page.resource),
             class: 'button' %>
     </div>

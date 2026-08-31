@@ -125,9 +125,7 @@ class Jabvox::AccountProvisioningService
   def use_existing_account
     account = Account.find(@account_id)
     attrs = { limits: account.limits.to_h.merge(account_limits) }
-    if @idempotency_key
-      attrs[:custom_attributes] = account.custom_attributes.to_h.merge(IDEMPOTENCY_ATTR => @idempotency_key)
-    end
+    attrs[:custom_attributes] = account.custom_attributes.to_h.merge(IDEMPOTENCY_ATTR => @idempotency_key) if @idempotency_key
     account.update!(attrs)
     account
   end
@@ -229,8 +227,7 @@ class Jabvox::AccountProvisioningService
   end
 
   # Automatización avanzada: el tope de flujos vive en account_automation_config.max_flows.
-  # Solo se guarda el número; el aprovisionamiento remoto de la plataforma Automations
-  # (que además valida el flag) lo maneja Automations::AccountProvisioner aparte.
+  # El motor de flujos lo aplica al crear (Jabvox::Flows::QuotaService).
   def apply_advanced_flows_limit!
     flows = @limits[:advanced_flows]
     return if flows.blank? || flows.to_i <= 0

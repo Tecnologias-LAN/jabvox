@@ -24,7 +24,6 @@ const {
   WIDGET_BRAND_URL: widgetBrandURL,
   DISABLE_USER_PROFILE_UPDATE: disableUserProfileUpdate,
   DEPLOYMENT_ENV: deploymentEnv,
-  AUTOMATIONS_FRONTEND_URL: automationsFrontendUrl,
   ACTIVE_PLATFORM_BANNERS: activePlatformBanners,
 } = window.globalConfig || {};
 
@@ -50,7 +49,6 @@ const state = {
   privacyURL,
   termsURL,
   widgetBrandURL,
-  automationsFrontendUrl,
   isEnterprise: parseBoolean(isEnterprise),
   activePlatformBanners: activePlatformBanners || [],
 };

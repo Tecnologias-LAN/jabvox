@@ -1,0 +1,26 @@
+# frozen_string_literal: true
+
+# Códigos de problema del grafo. Estables: la interfaz y la API dependen de ellos.
+module Jabvox::Flows::Validation::Codes
+  # --- Estructurales: bloquean incluso el autoguardado permisivo ---
+  GRAPH_MALFORMED = :GRAPH_MALFORMED
+  NODE_MISSING_ID_OR_TYPE = :NODE_MISSING_ID_OR_TYPE
+  NODE_DUPLICATE_ID = :NODE_DUPLICATE_ID
+  NODE_UNKNOWN_TYPE = :NODE_UNKNOWN_TYPE
+  EDGE_DANGLING = :EDGE_DANGLING
+
+  # --- De completitud: solo en modo estricto ---
+  PARAM_REQUIRED_EMPTY = :PARAM_REQUIRED_EMPTY
+  TEMPLATE_UNKNOWN_NODE = :TEMPLATE_UNKNOWN_NODE
+  EDGE_INVALID_SOURCE_HANDLE = :EDGE_INVALID_SOURCE_HANDLE
+  FLOW_NO_TRIGGER = :FLOW_NO_TRIGGER
+  FLOW_DUPLICATE_TRIGGER = :FLOW_DUPLICATE_TRIGGER
+  GRAPH_CYCLE = :GRAPH_CYCLE
+
+  # --- Avisos: nunca bloquean ---
+  NODE_ORPHAN = :NODE_ORPHAN
+  LOOP_REDUNDANT_BACK_EDGE = :LOOP_REDUNDANT_BACK_EDGE
+
+  STRUCTURAL = [GRAPH_MALFORMED, NODE_MISSING_ID_OR_TYPE, NODE_DUPLICATE_ID,
+                NODE_UNKNOWN_TYPE, EDGE_DANGLING].freeze
+end

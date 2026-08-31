@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_26_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_27_000003) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2338,6 +2338,83 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_000001) do
     t.index ["user_id"], name: "index_jabvox_field_visibilities_on_user_id"
   end
 
+  create_table "jabvox_flow_account_variables", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "key", null: false
+    t.text "value", default: "", null: false
+    t.boolean "secret", default: false, null: false
+    t.string "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "key"], name: "idx_jabvox_flow_vars_account_key", unique: true
+  end
+
+  create_table "jabvox_flow_folders", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "name"], name: "idx_jabvox_flow_folders_account_name", unique: true
+  end
+
+  create_table "jabvox_flow_run_steps", force: :cascade do |t|
+    t.bigint "flow_run_id", null: false
+    t.string "node_id", null: false
+    t.string "node_type", null: false
+    t.integer "status", default: 0, null: false
+    t.jsonb "input"
+    t.jsonb "output"
+    t.text "error"
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["flow_run_id", "id"], name: "idx_jabvox_flow_run_steps_run"
+  end
+
+  create_table "jabvox_flow_runs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "flow_id", null: false
+    t.bigint "version_id", null: false
+    t.integer "status", default: 0, null: false
+    t.jsonb "trigger", default: {}, null: false
+    t.text "error"
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.string "waiting_node_id"
+    t.string "wait_reason"
+    t.datetime "resume_at"
+    t.jsonb "wait_state"
+    t.bigint "triggered_by"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "status"], name: "idx_jabvox_flow_runs_account_status"
+    t.index ["flow_id", "created_at"], name: "idx_jabvox_flow_runs_flow_created"
+    t.index ["status", "resume_at"], name: "idx_jabvox_flow_runs_status_resume"
+  end
+
+  create_table "jabvox_flow_versions", force: :cascade do |t|
+    t.bigint "flow_id", null: false
+    t.integer "version", null: false
+    t.jsonb "graph", default: {}, null: false
+    t.bigint "created_by"
+    t.datetime "created_at", null: false
+    t.index ["flow_id", "version"], name: "idx_jabvox_flow_versions_flow_version", unique: true
+  end
+
+  create_table "jabvox_flows", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.integer "status", default: 0, null: false
+    t.bigint "current_version_id"
+    t.bigint "folder_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "folder_id"], name: "idx_jabvox_flows_account_folder"
+    t.index ["account_id", "status"], name: "idx_jabvox_flows_account_status"
+  end
+
   create_table "jabvox_form_configs", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "base_url_jabvox", default: ""
@@ -4352,6 +4429,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_000001) do
   add_foreign_key "jabvox_export_targets", "users", column: "created_by_id"
   add_foreign_key "jabvox_field_visibilities", "accounts"
   add_foreign_key "jabvox_field_visibilities", "users"
+  add_foreign_key "jabvox_flow_account_variables", "accounts"
+  add_foreign_key "jabvox_flow_folders", "accounts"
+  add_foreign_key "jabvox_flow_run_steps", "jabvox_flow_runs", column: "flow_run_id"
+  add_foreign_key "jabvox_flow_runs", "accounts"
+  add_foreign_key "jabvox_flow_runs", "jabvox_flow_versions", column: "version_id"
+  add_foreign_key "jabvox_flow_runs", "jabvox_flows", column: "flow_id"
+  add_foreign_key "jabvox_flow_runs", "users", column: "triggered_by", on_delete: :nullify
+  add_foreign_key "jabvox_flow_versions", "jabvox_flows", column: "flow_id"
+  add_foreign_key "jabvox_flow_versions", "users", column: "created_by", on_delete: :nullify
+  add_foreign_key "jabvox_flows", "accounts"
+  add_foreign_key "jabvox_flows", "jabvox_flow_folders", column: "folder_id", on_delete: :nullify
+  add_foreign_key "jabvox_flows", "jabvox_flow_versions", column: "current_version_id", on_delete: :nullify
   add_foreign_key "jabvox_form_configs", "accounts"
   add_foreign_key "jabvox_form_submissions", "accounts"
   add_foreign_key "jabvox_form_submissions", "jabvox_forms"

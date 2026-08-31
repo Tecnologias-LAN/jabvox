@@ -105,6 +105,32 @@ Metrics/ModuleLength:
   Exclude:
     - lib/seeders/message_seeder.rb
     - spec/support/slack_stubs.rb
+    # Catálogo de operadores de condición del motor de flujos: es una tabla de
+    # despacho (un `when` por operador) mas sus ayudas de coerción. Partirla
+    # dispersaría la semántica de un mismo operador entre ficheros.
+    - lib/jabvox/flows/engine/condition.rb
+
+# Tablas de despacho del motor de flujos: la complejidad es el NÚMERO DE
+# OPERADORES soportados, no lógica enredada. Cada rama es una línea y el
+# contrato se audita de un vistazo; extraerlas a métodos sueltos lo escondería.
+Metrics/CyclomaticComplexity:
+  Exclude:
+    - lib/jabvox/flows/engine/condition.rb
+    - lib/jabvox/flows/engine/expression.rb
+
+Metrics/PerceivedComplexity:
+  Exclude:
+    - lib/jabvox/flows/engine/expression.rb
+
+# Argumentos con NOMBRE del contexto de ejecución y del resultado de un nodo: no
+# son una lista posicional que confundir, y `ok:` es el nombre del contrato.
+Metrics/ParameterLists:
+  Exclude:
+    - lib/jabvox/flows/engine/context.rb
+
+Naming/MethodParameterName:
+  Exclude:
+    - lib/jabvox/flows/engine/node_result.rb
 
 Rails/HelperInstanceVariable:
   Exclude:
@@ -191,6 +217,8 @@ Metrics/AbcSize:
   Max: 26
   Exclude:
     - 'app/controllers/concerns/auth_helper.rb'
+    # Tabla de despacho de operadores del intérprete de expresiones del motor.
+    - 'lib/jabvox/flows/engine/expression.rb'
 
     - 'app/models/integrations/hook.rb'
     - 'app/models/canned_response.rb'

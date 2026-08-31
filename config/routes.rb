@@ -463,9 +463,35 @@ Rails.application.routes.draw do
             # Fecha en que se aplicó una etiqueta (para automatizaciones que la retiran
             # tras cierto tiempo). No lo ofrece la API estándar de Chatwoot.
             resources :label_logs, only: [:index]
-            # Emisor de SSO + comprobacion de permisos para el iframe embebido.
-            post 'advanced_automations/sso_token', to: 'advanced_automations#sso_token'
-            get 'advanced_automations/permissions_check', to: 'advanced_automations#permissions_check'
+            # Automatizaciones avanzadas (flujos): editor nativo del dashboard.
+            namespace :flows do
+              # Los recursos hermanos van ANTES: `resources :flows` cuelga de la
+              # raíz del espacio y si no capturaría /nodes, /folders… como ids.
+              resources :folders, only: [:index, :create, :update, :destroy]
+              resources :variables, only: [:index, :create, :update, :destroy]
+              resources :runs, only: [:index, :show] do
+                collection { get :stats }
+                member { post :resume }
+              end
+              resources :nodes, only: [:index]
+              get 'options/:kind', to: 'options#show'
+              # Cuota de flujos de la cuenta (usado/tope), para avisar antes de crear.
+              get 'quota', to: 'flows#quota'
+              resources :flows, only: [:index, :show, :create, :update, :destroy], path: '/' do
+                member do
+                  post :duplicate
+                  put 'versions', action: :save_version
+                  get 'versions', action: :versions
+                  get 'versions/:v', action: :version
+                  post 'versions/:v/restore', action: :restore_version
+                  post :validate
+                  post :run
+                  post :run_from
+                  post :run_node
+                  get :runs
+                end
+              end
+            end
             resources :kanban_funnels do
               resources :kanban_stages, only: [:index, :create, :update, :destroy] do
                 resources :kanban_stage_automations, only: [:index, :create, :show, :update, :destroy]
@@ -1302,9 +1328,6 @@ Rails.application.routes.draw do
       root to: 'dashboard#index'
 
       resource :app_config, only: [:show, :create]
-      resource :automations_config, only: [:show, :create] do
-        get :health, on: :collection
-      end
       # Administración central de instancias Hermes por cuenta (todo vía el Provisionador).
       # OJO: es un panel custom, NO un recurso Administrate. Debe estar en `hidden_resources`
       # del nav (_navigation.html.erb) para que Administrate no le exija un Dashboard.
@@ -1356,17 +1379,10 @@ Rails.application.routes.draw do
         resources :jabvox_ip_whitelists, only: [:index, :create, :destroy] do
           patch :toggle, on: :member
         end
+        # Módulo de flujos por cuenta: activar/desactivar y tope de flujos.
         resources :account_automations, only: [:index] do
           patch :toggle, on: :collection
           patch :update_limit, on: :collection
-          # Credencial propia de la cuenta: guardar/quitar y probar su conexión.
-          patch :update_api_key, on: :collection
-          post :test_connection, on: :collection
-          # Credencial SALIENTE: qué usuario presta su access token. `reprovision`
-          # reenvía el token existente; no hay "regenerar" a propósito (es personal).
-          patch :update_user, on: :collection
-          delete :remove_user, on: :collection
-          post :reprovision, on: :collection
         end
         resources :jabvox_user_extensions, only: [:index, :create, :destroy]
       end

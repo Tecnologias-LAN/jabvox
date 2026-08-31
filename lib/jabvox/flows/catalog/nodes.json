@@ -1,0 +1,4910 @@
+[
+  {
+    "type": "trigger.manual",
+    "category": "triggers",
+    "label": "Manual",
+    "description": "Arranca el flujo solo cuando lo lanzas tú, con el botón \"Ejecutar\". Útil para probar y para tareas puntuales.",
+    "icon": "play",
+    "color": "#db2777",
+    "isTrigger": true,
+    "inputs": [],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [],
+    "sampleOutput": {
+      "triggeredBy": "manual",
+      "at": "2026-07-28T10:00:00Z"
+    }
+  },
+  {
+    "type": "trigger.webhook",
+    "category": "triggers",
+    "label": "Webhook entrante",
+    "description": "Dispara el flujo al recibir un POST en la URL única del flujo.",
+    "icon": "webhook",
+    "color": "#db2777",
+    "isTrigger": true,
+    "inputs": [],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "secret",
+        "label": "Secreto adicional (opcional)",
+        "type": "string",
+        "description": "Si se define, quien llame debe enviar la cabecera X-Webhook-Secret con este mismo valor.",
+        "placeholder": "mi-secreto-compartido",
+        "details": "Se compara de forma timing-safe. Sin secreto, basta el token de la URL. Útil para rotar la credencial sin cambiar la URL."
+      },
+      {
+        "key": "allowedMethods",
+        "label": "Métodos HTTP permitidos",
+        "type": "multiselect",
+        "default": [
+          "POST"
+        ],
+        "description": "Métodos aceptados en la URL del webhook. Por defecto solo POST. Con GET, los datos llegan en {{trigger.query.*}} en vez de {{trigger.body.*}}.",
+        "options": [
+          {
+            "label": "POST",
+            "value": "POST"
+          },
+          {
+            "label": "PUT",
+            "value": "PUT"
+          },
+          {
+            "label": "PATCH",
+            "value": "PATCH"
+          },
+          {
+            "label": "GET",
+            "value": "GET"
+          }
+        ]
+      }
+    ],
+    "sampleOutput": {
+      "body": {
+        "email": "zzpr@test.local",
+        "nested": {
+          "id": 5
+        }
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "query": {
+        "source": "web"
+      }
+    },
+    "details": "La URL se obtiene con GET /flows/:id/webhook-url (/api/v1/hooks/{flowId}/{token}). El body JSON queda disponible como {{trigger.body.*}}, y también {{trigger.query.*}} y {{trigger.headers.*}}."
+  },
+  {
+    "type": "trigger.jabvox_event",
+    "category": "triggers",
+    "label": "Evento de Jabvox",
+    "description": "Dispara el flujo cuando Jabvox emite un evento.",
+    "icon": "zap",
+    "color": "#db2777",
+    "isTrigger": true,
+    "inputs": [],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "event",
+        "label": "Evento",
+        "type": "select",
+        "required": true,
+        "default": "conversation_created",
+        "options": [
+          {
+            "label": "Conversación creada",
+            "value": "conversation_created"
+          },
+          {
+            "label": "Conversación actualizada",
+            "value": "conversation_updated"
+          },
+          {
+            "label": "Estado de conversación cambiado",
+            "value": "conversation_status_changed"
+          },
+          {
+            "label": "Mensaje creado",
+            "value": "message_created"
+          },
+          {
+            "label": "Mensaje actualizado",
+            "value": "message_updated"
+          },
+          {
+            "label": "Contacto creado",
+            "value": "contact_created"
+          },
+          {
+            "label": "Contacto actualizado",
+            "value": "contact_updated"
+          },
+          {
+            "label": "Widget web abierto",
+            "value": "webwidget_triggered"
+          },
+          {
+            "label": "Cualquiera",
+            "value": "*"
+          }
+        ]
+      },
+      {
+        "key": "inboxId",
+        "label": "Bandeja (opcional)",
+        "type": "select",
+        "optionsSource": "inboxes",
+        "description": "Si se indica, el flujo solo se dispara con eventos de esa bandeja. Los eventos que no llevan bandeja (contacto creado/actualizado) se IGNORAN cuando se filtra por bandeja."
+      },
+      {
+        "key": "filterJson",
+        "label": "Condiciones adicionales (opcional)",
+        "type": "json",
+        "description": "Igualdades sobre el payload: se dispara solo si TODAS se cumplen.",
+        "details": "Admite rutas con punto y valores en lista. Ej.: { \"status\": \"open\" } o { \"status\": [\"open\",\"pending\"], \"meta.sender.email\": \"a@b.com\" }."
+      }
+    ],
+    "sampleOutput": {
+      "event": "lead.created",
+      "lead": {
+        "id": 1,
+        "lead_number": 1,
+        "contact": {
+          "id": 10,
+          "name": "Estrada",
+          "email": null,
+          "phone_number": "+573233653776"
+        },
+        "custom_fields_jabvox": {
+          "ciudad": "Bogotá"
+        }
+      },
+      "account_id": 2
+    },
+    "details": "Requiere registrar en Jabvox (Ajustes → Integraciones → Webhooks) la URL que devuelve GET /jabvox/webhook-url, suscrita a los eventos que se quieran usar. El payload queda disponible como {{trigger.*}} (p.ej. {{trigger.event}}, {{trigger.id}})."
+  },
+  {
+    "type": "trigger.schedule",
+    "category": "triggers",
+    "label": "Programado",
+    "description": "Dispara el flujo de forma recurrente: cada X minutos/horas, o a una hora concreta cada día, ciertos días de la semana o un día del mes.",
+    "icon": "clock",
+    "color": "#db2777",
+    "isTrigger": true,
+    "inputs": [],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "mode",
+        "label": "Frecuencia",
+        "type": "select",
+        "required": true,
+        "default": "daily",
+        "options": [
+          {
+            "label": "Cada X minutos",
+            "value": "minutes"
+          },
+          {
+            "label": "Cada X horas",
+            "value": "hours"
+          },
+          {
+            "label": "Diario",
+            "value": "daily"
+          },
+          {
+            "label": "Semanal",
+            "value": "weekly"
+          },
+          {
+            "label": "Mensual",
+            "value": "monthly"
+          }
+        ]
+      },
+      {
+        "key": "every",
+        "label": "Cada (X)",
+        "type": "number",
+        "default": 1,
+        "description": "El X de \"Cada X minutos/horas\". Con frecuencia Diario, \"cada N días\"."
+      },
+      {
+        "key": "time",
+        "label": "Hora de disparo",
+        "type": "time",
+        "default": "08:00",
+        "description": "Hora (HH:mm) para Diario, Semanal y Mensual, en la zona horaria elegida abajo."
+      },
+      {
+        "key": "timezone",
+        "label": "Zona horaria",
+        "type": "select",
+        "description": "Zona en la que se interpreta la hora de disparo. Elige la tuya para que sea la hora de tu reloj.",
+        "options": [
+          {
+            "label": "Hora del servidor",
+            "value": ""
+          },
+          {
+            "label": "Colombia (America/Bogota)",
+            "value": "America/Bogota"
+          },
+          {
+            "label": "México (America/Mexico_City)",
+            "value": "America/Mexico_City"
+          },
+          {
+            "label": "Perú (America/Lima)",
+            "value": "America/Lima"
+          },
+          {
+            "label": "Chile (America/Santiago)",
+            "value": "America/Santiago"
+          },
+          {
+            "label": "Argentina (America/Argentina/Buenos_Aires)",
+            "value": "America/Argentina/Buenos_Aires"
+          },
+          {
+            "label": "España (Europe/Madrid)",
+            "value": "Europe/Madrid"
+          },
+          {
+            "label": "UTC",
+            "value": "UTC"
+          }
+        ],
+        "details": "Si se deja vacío se usa la del servidor (habitualmente UTC), que puede NO ser tu hora local: un \"09:00\" con el servidor en UTC dispara a las 4:00 en Colombia."
+      },
+      {
+        "key": "weekdays",
+        "label": "Días de la semana",
+        "type": "multiselect",
+        "default": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "description": "Solo para frecuencia Semanal.",
+        "options": [
+          {
+            "label": "Lunes",
+            "value": 1
+          },
+          {
+            "label": "Martes",
+            "value": 2
+          },
+          {
+            "label": "Miércoles",
+            "value": 3
+          },
+          {
+            "label": "Jueves",
+            "value": 4
+          },
+          {
+            "label": "Viernes",
+            "value": 5
+          },
+          {
+            "label": "Sábado",
+            "value": 6
+          },
+          {
+            "label": "Domingo",
+            "value": 7
+          }
+        ]
+      },
+      {
+        "key": "dayOfMonth",
+        "label": "Día del mes (1-31)",
+        "type": "number",
+        "default": 1,
+        "description": "Solo para frecuencia Mensual. Si el mes no tiene ese día, se dispara el último día del mes."
+      }
+    ],
+    "sampleOutput": {
+      "firedAt": "2026-07-28T10:00:00Z",
+      "cron": "0 * * * *"
+    }
+  },
+  {
+    "type": "logic.if",
+    "category": "logic",
+    "label": "Condición (Si)",
+    "description": "Evalúa una condición y bifurca por las salidas true/false.",
+    "icon": "git-branch",
+    "color": "#8b5cf6",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "true",
+        "label": "Verdadero"
+      },
+      {
+        "id": "false",
+        "label": "Falso"
+      }
+    ],
+    "params": [
+      {
+        "key": "left",
+        "label": "Valor izquierdo",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.status}}"
+      },
+      {
+        "key": "operator",
+        "label": "Operador",
+        "type": "select",
+        "required": true,
+        "default": "equals",
+        "options": [
+          {
+            "label": "es igual a",
+            "value": "equals"
+          },
+          {
+            "label": "no es igual a",
+            "value": "not_equals"
+          },
+          {
+            "label": "contiene",
+            "value": "contains"
+          },
+          {
+            "label": "no contiene",
+            "value": "not_contains"
+          },
+          {
+            "label": "empieza por",
+            "value": "starts_with"
+          },
+          {
+            "label": "termina en",
+            "value": "ends_with"
+          },
+          {
+            "label": "es mayor que",
+            "value": "greater_than"
+          },
+          {
+            "label": "es mayor o igual que",
+            "value": "greater_or_equal"
+          },
+          {
+            "label": "es menor que",
+            "value": "less_than"
+          },
+          {
+            "label": "es menor o igual que",
+            "value": "less_or_equal"
+          },
+          {
+            "label": "está vacío",
+            "value": "is_empty"
+          },
+          {
+            "label": "no está vacío",
+            "value": "is_not_empty"
+          },
+          {
+            "label": "coincide con expresión regular",
+            "value": "regex"
+          },
+          {
+            "label": "está en la lista (separada por comas)",
+            "value": "in_list"
+          },
+          {
+            "label": "no está en la lista (separada por comas)",
+            "value": "not_in_list"
+          },
+          {
+            "label": "es verdadero",
+            "value": "is_true"
+          },
+          {
+            "label": "es falso",
+            "value": "is_false"
+          },
+          {
+            "label": "fecha igual a",
+            "value": "date_equals"
+          },
+          {
+            "label": "fecha anterior a",
+            "value": "date_before"
+          },
+          {
+            "label": "fecha posterior a",
+            "value": "date_after"
+          }
+        ],
+        "description": "Compara números si ambos lados lo son, fechas con los operadores «fecha …», y el resto como texto sin distinguir mayúsculas.",
+        "details": "Los operadores «está vacío», «no está vacío», «es verdadero» y «es falso» ignoran el valor derecho."
+      },
+      {
+        "key": "right",
+        "label": "Valor derecho",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "open",
+        "description": "Para \"está en la lista\" separe los valores por comas. Para \"coincide con expresión regular\" escriba el patrón sin barras."
+      }
+    ],
+    "sampleOutput": {
+      "result": true,
+      "left": "a",
+      "operator": "equals",
+      "right": "a"
+    }
+  },
+  {
+    "type": "logic.switch",
+    "category": "logic",
+    "label": "Selector (Switch)",
+    "description": "Evalúa un valor y enruta por el primer caso que coincida; si ninguno coincide sale por «Por defecto».",
+    "icon": "list-tree",
+    "color": "#8b5cf6",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "default",
+        "label": "Por defecto"
+      }
+    ],
+    "params": [
+      {
+        "key": "value",
+        "label": "Valor a evaluar",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.channel}}"
+      },
+      {
+        "key": "cases",
+        "label": "Casos (valor → puerto)",
+        "type": "json",
+        "description": "Array JSON de casos: { \"value\", \"output\", \"operator\" (opcional), \"label\" (opcional) }.",
+        "default": [
+          {
+            "value": "valor-1",
+            "output": "case1"
+          },
+          {
+            "value": "valor-2",
+            "output": "case2"
+          }
+        ],
+        "details": "Cada \"output\" aparece como un puerto de salida propio en el nodo. Si omites \"output\" se usa case1, case2… por posición. El \"operator\" acepta los mismos de Condición (por defecto \"equals\"). Ejemplo: [{\"value\":\"whatsapp\",\"output\":\"wa\"},{\"value\":\"100\",\"operator\":\"greater_than\",\"output\":\"vip\"}]"
+      }
+    ],
+    "sampleOutput": {
+      "value": "premium",
+      "matched": "case_0",
+      "matchedCase": "premium",
+      "ports": [
+        "case_0",
+        "default"
+      ]
+    },
+    "details": "Los puertos de salida son DINÁMICOS: se crea uno por cada caso configurado, así que puedes conectar cada caso a una rama distinta en el lienzo."
+  },
+  {
+    "type": "logic.datetime",
+    "category": "logic",
+    "label": "Fecha y hora actual",
+    "description": "Devuelve la fecha/hora actual en una zona horaria, con desplazamiento opcional.",
+    "icon": "clock",
+    "color": "#8b5cf6",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "timezone",
+        "label": "Zona horaria",
+        "type": "string",
+        "default": "America/Bogota",
+        "templatable": true,
+        "placeholder": "America/Bogota",
+        "description": "Zona IANA (America/Bogota, America/Mexico_City, Europe/Madrid...). Si no es válida se usa UTC y se avisa en la salida."
+      },
+      {
+        "key": "format",
+        "label": "Formato del valor",
+        "type": "select",
+        "default": "iso",
+        "options": [
+          {
+            "label": "ISO completo (2026-07-26T14:30:00-05:00)",
+            "value": "iso"
+          },
+          {
+            "label": "Fecha (2026-07-26)",
+            "value": "date"
+          },
+          {
+            "label": "Hora (14:30)",
+            "value": "time"
+          },
+          {
+            "label": "Fecha y hora (2026-07-26 14:30)",
+            "value": "datetime"
+          },
+          {
+            "label": "Día-mes (26-07)",
+            "value": "day_month"
+          },
+          {
+            "label": "Personalizado",
+            "value": "custom"
+          }
+        ],
+        "description": "Define el campo `value`. Los demás campos (date, time, year...) salen siempre."
+      },
+      {
+        "key": "customFormat",
+        "label": "Formato personalizado",
+        "type": "string",
+        "default": "YYYY-MM-DD HH:mm",
+        "placeholder": "DD/MM/YYYY HH:mm",
+        "description": "Tokens: YYYY, YY, MM, DD, HH, mm, ss.",
+        "visibleWhen": {
+          "param": "format",
+          "values": [
+            "custom"
+          ]
+        }
+      },
+      {
+        "key": "offsetDays",
+        "label": "Desplazamiento en días",
+        "type": "number",
+        "default": 0,
+        "description": "Positivo hacia el futuro, negativo hacia el pasado."
+      },
+      {
+        "key": "offsetHours",
+        "label": "Desplazamiento en horas",
+        "type": "number",
+        "default": 0
+      },
+      {
+        "key": "offsetMinutes",
+        "label": "Desplazamiento en minutos",
+        "type": "number",
+        "default": 0
+      }
+    ],
+    "sampleOutput": {
+      "value": "2026-07-28T10:00:00-05:00",
+      "iso": "2026-07-28T10:00:00-05:00",
+      "date": "2026-07-28",
+      "time": "10:00",
+      "datetime": "2026-07-28 10:00",
+      "year": 2026,
+      "month": 7,
+      "day": 28,
+      "hour": 10,
+      "minute": 0,
+      "second": 0,
+      "weekday": 2,
+      "weekdayName": "martes",
+      "timestamp": 1785250800000,
+      "monthDay": "07-28",
+      "timezone": "America/Bogota",
+      "offset": "-05:00"
+    },
+    "details": "Útil para comparar cumpleaños, vencimientos o saludar según la hora. Se usa como {{node.<id>.output.date}}."
+  },
+  {
+    "type": "logic.loop",
+    "category": "logic",
+    "label": "Repetir por cada elemento",
+    "description": "Recorre una colección y ejecuta la rama «bucle» una vez por lote.",
+    "icon": "repeat",
+    "color": "#8b5cf6",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "loop",
+        "label": "bucle (cada lote)"
+      },
+      {
+        "id": "done",
+        "label": "hecho (al terminar)"
+      }
+    ],
+    "params": [
+      {
+        "key": "items",
+        "label": "Colección de elementos",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "dropSemantics": "value",
+        "placeholder": "{{node.buscar_leads.items}}",
+        "description": "La lista COMPLETA a recorrer: escribe {{node.<id_del_paso>.items}}.",
+        "details": "P.ej. {{node.buscar_leads.items}} para recorrer los leads que encontró ese paso. OJO: {{node.<id>.output}} es UN solo elemento y {{node.<id>.output.campo}} un campo suelto: ninguno sirve aquí. Una colección vacía sale por «hecho» sin iteraciones."
+      },
+      {
+        "key": "batchSize",
+        "label": "Tamaño de lote",
+        "type": "number",
+        "default": 1,
+        "description": "Cuántos elementos entran en cada iteración.",
+        "details": "Con 1 (lo habitual) se procesa uno a uno y {{item}} es ese elemento. Con más de 1, {{item}} sigue siendo el elemento en curso y {{bucle.lote}} es el lote entero."
+      },
+      {
+        "key": "itemVar",
+        "label": "Nombre del elemento en curso",
+        "type": "string",
+        "default": "item",
+        "description": "Nombre con el que se lee el elemento dentro de la rama. Por defecto «item», es decir {{item.<campo>}}. Cámbialo solo si anidas bucles."
+      },
+      {
+        "key": "maxIterations",
+        "label": "Límite de iteraciones",
+        "type": "number",
+        "default": 1000,
+        "description": "Red de seguridad: si la colección exigiera más iteraciones, el flujo se DETIENE con un error.",
+        "details": "No recorta la colección en silencio: el error explica los números. Tope duro: 10000."
+      },
+      {
+        "key": "onItemError",
+        "label": "Si falla un elemento",
+        "type": "select",
+        "default": "stop",
+        "options": [
+          {
+            "label": "Detener todo el flujo",
+            "value": "stop"
+          },
+          {
+            "label": "Continuar con el siguiente y acumular los fallos",
+            "value": "continue"
+          }
+        ],
+        "description": "Con «continuar», el bucle termina siempre por «hecho» e informa de cuántos elementos fallaron y por qué en el resumen (campo «errores»)."
+      }
+    ],
+    "itemsPath": "items",
+    "sampleOutput": {
+      "items": [
+        {
+          "id": 1,
+          "nombre": "uno"
+        },
+        {
+          "id": 2,
+          "nombre": "dos"
+        }
+      ],
+      "count": 2,
+      "itemVar": "item",
+      "total": 2,
+      "batchSize": 1,
+      "plannedIterations": 2,
+      "maxIterations": 1000,
+      "onItemError": "stop",
+      "truncated": false,
+      "resumen": {
+        "iteraciones": 2,
+        "elementosProcesados": 2,
+        "elementosConError": 0,
+        "totalElementos": 2,
+        "totalIteraciones": 2,
+        "tamanoLote": 1,
+        "errores": [],
+        "detenidoPor": null,
+        "correctos": [
+          "Ana Pérez (conv. #7)",
+          "Luis Gómez (conv. #8)"
+        ],
+        "fallidos": [],
+        "informe": "Procesados con éxito: 2 de 2.\nCon error: 0.\n\nCorrectos: Ana Pérez (conv. #7), Luis Gómez (conv. #8)"
+      }
+    },
+    "details": "Dentro de la rama, el elemento en curso se lee como {{item.<campo>}} y los contadores como {{bucle.iteracion}}. Al acabar sigue por «hecho» con el resumen de lo procesado."
+  },
+  {
+    "type": "logic.merge",
+    "category": "logic",
+    "label": "Confluencia (Merge)",
+    "description": "Une varias ramas en una sola: concatenar, unir por una clave común o dejar pasar la rama con datos.",
+    "icon": "git-merge",
+    "color": "#8b5cf6",
+    "itemsPath": "items",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "mode",
+        "label": "Modo de combinación",
+        "type": "select",
+        "required": true,
+        "default": "append",
+        "options": [
+          {
+            "label": "Concatenar los elementos de todas las ramas",
+            "value": "append"
+          },
+          {
+            "label": "Unir por una clave común (combinar campos)",
+            "value": "by_key"
+          },
+          {
+            "label": "Dejar pasar la rama que traiga datos",
+            "value": "choose"
+          }
+        ],
+        "description": "«Concatenar» junta todo en una lista; «Unir por clave» casa los elementos por un campo común; «Dejar pasar» sigue con la rama que sí corrió.",
+        "details": "«Dejar pasar» es para después de un Si/Switch. «Unir por clave» fusiona los campos de los elementos que casan (p.ej. por id)."
+      },
+      {
+        "key": "key",
+        "label": "Clave común",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "id",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_key"
+          ]
+        },
+        "description": "Campo común por el que se casan los elementos de todas las ramas (p.ej. \"id\" o \"phone_number\").",
+        "details": "Los elementos sin la clave se conservan al final de la lista (campo «sinClave» del resultado)."
+      }
+    ],
+    "sampleOutput": {
+      "modo": "append",
+      "ramas": 2,
+      "ramasConDatos": 2,
+      "count": 3,
+      "items": [
+        {
+          "id": 1,
+          "nombre": "uno"
+        },
+        {
+          "id": 2,
+          "nombre": "dos"
+        },
+        {
+          "id": 3,
+          "nombre": "tres"
+        }
+      ]
+    },
+    "details": "El motor espera a que TODAS las ramas entrantes terminen; las no tomadas de un Si/Switch cuentan como vacías y no bloquean."
+  },
+  {
+    "type": "logic.delay",
+    "category": "logic",
+    "label": "Esperar un tiempo",
+    "description": "Pausa el flujo el tiempo indicado y sigue. Las esperas cortas son inmediatas; las largas dejan el flujo EN ESPERA y se reanuda solo.",
+    "icon": "timer",
+    "color": "#8b5cf6",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "ms",
+        "label": "Tiempo de espera (milisegundos)",
+        "type": "number",
+        "required": true,
+        "default": 1000,
+        "description": "En milisegundos: 1000 = 1 segundo, 60000 = 1 minuto, 3600000 = 1 hora. Por encima de 5 segundos el flujo queda en espera y se reanuda solo (no consume recursos mientras espera)."
+      }
+    ],
+    "sampleOutput": {
+      "waited": true,
+      "ms": 1000,
+      "mode": "sync"
+    }
+  },
+  {
+    "type": "logic.wait_until",
+    "category": "logic",
+    "label": "Esperar hasta",
+    "description": "Suspende el flujo hasta una fecha y hora concretas. Queda EN ESPERA y se reanuda solo cuando llega el momento.",
+    "icon": "calendar-clock",
+    "color": "#8b5cf6",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "until",
+        "label": "Fecha/hora ISO",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "2026-01-01T09:00:00Z"
+      }
+    ],
+    "sampleOutput": {
+      "resumeAt": "2026-07-28T12:00:00Z",
+      "waited": true,
+      "delayMs": 7200000
+    }
+  },
+  {
+    "hidden": true,
+    "type": "logic.wait_response",
+    "category": "logic",
+    "label": "Esperar respuesta",
+    "description": "Suspende el flujo hasta recibir una respuesta del contacto (reanudable).",
+    "icon": "message-circle-reply",
+    "color": "#8b5cf6",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "timeoutMs",
+        "label": "Timeout (ms)",
+        "type": "number",
+        "default": 86400000
+      }
+    ],
+    "sampleOutput": {
+      "awaiting": true,
+      "timeoutMs": 86400000,
+      "resumeWith": "POST /api/v1/runs/abc/resume"
+    }
+  },
+  {
+    "type": "logic.set_variable",
+    "category": "logic",
+    "label": "Asignar variable",
+    "description": "Define o actualiza una variable del contexto de ejecución.",
+    "icon": "variable",
+    "color": "#8b5cf6",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "name",
+        "label": "Nombre",
+        "type": "string",
+        "required": true,
+        "placeholder": "nombreCliente"
+      },
+      {
+        "key": "value",
+        "label": "Valor",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.contact.name}}"
+      }
+    ],
+    "sampleOutput": {
+      "miVariable": "valor"
+    }
+  },
+  {
+    "type": "logic.expression",
+    "category": "logic",
+    "label": "Expresión",
+    "description": "Evalúa una expresión segura sobre el contexto y guarda el resultado en una variable.",
+    "icon": "function-square",
+    "color": "#8b5cf6",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "expression",
+        "label": "Expresión",
+        "type": "code",
+        "required": true,
+        "templatable": true,
+        "placeholder": "vars.total > 100",
+        "description": "Intérprete acotado y SEGURO: no ejecuta JavaScript, solo aritmética, comparaciones, lógica y \"contains\".",
+        "details": "Acepta rutas (vars.x, trigger.y, node.<id>.output.z) y plantillas {{…}}. Una expresión mal formada hace fallar el nodo con un mensaje claro, sin afectar al resto del motor."
+      },
+      {
+        "key": "assignTo",
+        "label": "Guardar en variable",
+        "type": "string",
+        "default": "result"
+      }
+    ],
+    "sampleOutput": {
+      "result": 42,
+      "expression": "2 * 21"
+    },
+    "details": "Admite aritmética (+ - * / %), comparaciones (== != > >= < <=), lógica (&& ||), \"contains\" y paréntesis. Referencia el contexto con rutas (vars.total, trigger.monto) o con plantillas. Ejemplos: \"vars.total * 1.19\", \"{{trigger.estado}} == 'abierto'\"."
+  },
+  {
+    "type": "jabvox.lead.search",
+    "category": "jabvox",
+    "module": "leads",
+    "label": "Buscar / Obtener Leads",
+    "description": "Obtiene leads de Jabvox en 6 modalidades, según el campo «Modo». Siempre devuelve { mode, count, leads: [...] }.",
+    "icon": "user-search",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "mode",
+        "label": "Modo",
+        "type": "select",
+        "required": true,
+        "default": "by_field",
+        "options": [
+          {
+            "label": "Por campo del lead",
+            "value": "by_field"
+          },
+          {
+            "label": "Un lead concreto (por número o ID)",
+            "value": "by_id"
+          },
+          {
+            "label": "Por etiqueta",
+            "value": "by_label"
+          },
+          {
+            "label": "Por campo de fecha (cumpleaños)",
+            "value": "by_date"
+          },
+          {
+            "label": "Listar todos",
+            "value": "list"
+          },
+          {
+            "label": "Condiciones múltiples (filtros avanzados)",
+            "value": "advanced"
+          }
+        ],
+        "description": "Qué quieres hacer. Cambia los campos de abajo."
+      },
+      {
+        "key": "conditions",
+        "label": "Condiciones",
+        "type": "conditions",
+        "required": true,
+        "optionsSource": "lead_filter_fields",
+        "dropSemantics": "path",
+        "default": {
+          "match": "all",
+          "rules": []
+        },
+        "description": "Combina varios filtros. \"Cumplir TODAS\" es más rápido (Jabvox resuelve en el servidor los filtros que puede); \"CUALQUIERA\" obliga a recorrer los leads y filtrarlos aquí.",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "advanced"
+          ]
+        }
+      },
+      {
+        "key": "idKind",
+        "label": "Buscar el lead por",
+        "type": "select",
+        "required": true,
+        "default": "lead_number",
+        "options": [
+          {
+            "label": "Número de lead (el que ves en Jabvox, p. ej. #5)",
+            "value": "lead_number"
+          },
+          {
+            "label": "ID interno (el que devuelve este nodo en `id`)",
+            "value": "internal"
+          }
+        ],
+        "description": "En la pantalla de leads de Jabvox se muestra el NÚMERO (#5). El ID interno solo aparece en la salida de los nodos (campo `id`).",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_id"
+          ]
+        }
+      },
+      {
+        "key": "leadNumber",
+        "label": "Número de lead (#)",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "5",
+        "description": "El número que aparece junto al lead en Jabvox (sin la almohadilla).",
+        "visibleWhenAll": [
+          {
+            "param": "mode",
+            "values": [
+              "by_id"
+            ]
+          },
+          {
+            "param": "idKind",
+            "values": [
+              "lead_number"
+            ]
+          }
+        ]
+      },
+      {
+        "key": "leadId",
+        "label": "ID interno del lead",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.buscar.output.leads[0].id}}",
+        "description": "ID interno (campo `id` de la salida de este nodo). NO es el número #N que se ve en la pantalla de leads.",
+        "visibleWhenAll": [
+          {
+            "param": "mode",
+            "values": [
+              "by_id"
+            ]
+          },
+          {
+            "param": "idKind",
+            "values": [
+              "internal"
+            ]
+          }
+        ]
+      },
+      {
+        "key": "field",
+        "label": "Campo",
+        "type": "select",
+        "required": true,
+        "optionsSource": "lead_field_keys",
+        "dropSemantics": "path",
+        "description": "Campo del lead sobre el que filtrar: fijo (nombre, email, teléfono, país, campaña, agente…) o personalizado.",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_field"
+          ]
+        }
+      },
+      {
+        "key": "operator",
+        "label": "Operador",
+        "type": "select",
+        "required": true,
+        "default": "contains",
+        "options": [
+          {
+            "label": "Contiene",
+            "value": "contains"
+          },
+          {
+            "label": "Es igual a",
+            "value": "equals"
+          },
+          {
+            "label": "No está vacío",
+            "value": "not_empty"
+          },
+          {
+            "label": "Está vacío",
+            "value": "empty"
+          }
+        ],
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_field"
+          ]
+        }
+      },
+      {
+        "key": "value",
+        "label": "Valor",
+        "type": "string",
+        "templatable": true,
+        "description": "Valor a comparar. Requerido con \"Contiene\" y \"Es igual a\"; se ignora con \"Está vacío\" / \"No está vacío\".",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_field"
+          ]
+        }
+      },
+      {
+        "key": "limit",
+        "label": "Máximo de resultados (opcional)",
+        "type": "number",
+        "required": false,
+        "description": "Vacío = sin límite (hasta el tope de seguridad).",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_field",
+            "by_label",
+            "advanced"
+          ]
+        }
+      },
+      {
+        "key": "label",
+        "label": "Etiqueta",
+        "type": "select",
+        "required": true,
+        "optionsSource": "labels",
+        "description": "Devuelve los leads cuyo CONTACTO tiene esta etiqueta en Jabvox.",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_label"
+          ]
+        }
+      },
+      {
+        "key": "entity",
+        "label": "Entidad",
+        "type": "select",
+        "required": true,
+        "default": "lead",
+        "options": [
+          {
+            "label": "Lead",
+            "value": "lead"
+          },
+          {
+            "label": "Contacto",
+            "value": "contact"
+          }
+        ],
+        "description": "Dónde vive el campo de fecha a comparar.",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_date"
+          ]
+        }
+      },
+      {
+        "key": "dateField",
+        "label": "Campo de fecha",
+        "type": "select",
+        "required": true,
+        "optionsSource": "lead_custom_fields",
+        "dropSemantics": "path",
+        "dependsOn": "entity",
+        "description": "Campo personalizado de tipo fecha a comparar (p.ej. fecha_cumpleanos).",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_date"
+          ]
+        }
+      },
+      {
+        "key": "compareMode",
+        "label": "Modo de comparación",
+        "type": "select",
+        "required": true,
+        "default": "month_day",
+        "options": [
+          {
+            "label": "Mes y día (anual, cumpleaños)",
+            "value": "month_day"
+          },
+          {
+            "label": "Fecha completa",
+            "value": "full_date"
+          }
+        ],
+        "description": "\"Mes y día\" ignora el año (ideal para cumpleaños); \"Fecha completa\" compara el año también.",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_date"
+          ]
+        }
+      },
+      {
+        "key": "match",
+        "label": "Coincidencia",
+        "type": "select",
+        "required": true,
+        "default": "today",
+        "options": [
+          {
+            "label": "Hoy",
+            "value": "today"
+          },
+          {
+            "label": "Dentro de N días",
+            "value": "in_days"
+          },
+          {
+            "label": "Hace N días",
+            "value": "days_ago"
+          }
+        ],
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_date"
+          ]
+        }
+      },
+      {
+        "key": "offsetDays",
+        "label": "N días (offset)",
+        "type": "number",
+        "default": 0,
+        "description": "Solo aplica con \"Dentro de N días\" / \"Hace N días\".",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "by_date"
+          ]
+        }
+      },
+      {
+        "key": "q",
+        "label": "Búsqueda (nombre del contacto)",
+        "type": "string",
+        "templatable": true,
+        "description": "Coincidencia parcial sobre el nombre del contacto.",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "email",
+        "label": "Email (contiene)",
+        "type": "string",
+        "templatable": true,
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "phone",
+        "label": "Teléfono (contiene)",
+        "type": "string",
+        "templatable": true,
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "document",
+        "label": "Documento / identificación (contiene)",
+        "type": "string",
+        "templatable": true,
+        "description": "Busca en el número de identificación, el identificador del contacto y los campos personalizados de tipo documento/cédula.",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "country",
+        "label": "País (contiene)",
+        "type": "string",
+        "templatable": true,
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "campaignId",
+        "label": "Campaña",
+        "type": "select",
+        "optionsSource": "campaigns",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "assigneeId",
+        "label": "Agente asignado",
+        "type": "select",
+        "optionsSource": "agents",
+        "description": "Filtra por el agente asignado a la CONVERSACIÓN del lead (así lo resuelve la API de Jabvox).",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "inboxId",
+        "label": "Bandeja",
+        "type": "select",
+        "optionsSource": "inboxes",
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "sortColumn",
+        "label": "Ordenar por",
+        "type": "select",
+        "default": "created_at",
+        "options": [
+          {
+            "label": "Fecha de creación",
+            "value": "created_at"
+          },
+          {
+            "label": "Nombre",
+            "value": "name"
+          },
+          {
+            "label": "Número de lead",
+            "value": "lead_number"
+          }
+        ],
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "sortDirection",
+        "label": "Dirección",
+        "type": "select",
+        "default": "desc",
+        "options": [
+          {
+            "label": "Descendente (más nuevo primero)",
+            "value": "desc"
+          },
+          {
+            "label": "Ascendente",
+            "value": "asc"
+          }
+        ],
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "perPage",
+        "label": "Resultados por página",
+        "type": "select",
+        "default": 25,
+        "description": "La API solo admite estos tamaños; cualquier otro valor cae a 25.",
+        "options": [
+          {
+            "label": "10",
+            "value": 10
+          },
+          {
+            "label": "25",
+            "value": 25
+          },
+          {
+            "label": "50",
+            "value": 50
+          },
+          {
+            "label": "100",
+            "value": 100
+          },
+          {
+            "label": "200",
+            "value": 200
+          },
+          {
+            "label": "250",
+            "value": 250
+          }
+        ],
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "page",
+        "label": "Página",
+        "type": "number",
+        "default": 1,
+        "visibleWhen": {
+          "param": "mode",
+          "values": [
+            "list"
+          ]
+        }
+      }
+    ],
+    "itemsPath": "leads",
+    "sampleOutput": {
+      "mode": "list",
+      "count": 2,
+      "leads": [
+        {
+          "id": 1,
+          "lead_number": 1,
+          "contact": {
+            "id": 10,
+            "name": "Estrada",
+            "email": null,
+            "phone_number": "+573233653776"
+          },
+          "custom_fields_jabvox": {
+            "ciudad": "Bogotá"
+          }
+        },
+        {
+          "id": 2,
+          "lead_number": 2,
+          "contact": {
+            "id": 10,
+            "name": "Estrada",
+            "email": null,
+            "phone_number": "+573233653776"
+          },
+          "custom_fields_jabvox": {
+            "ciudad": "Bogotá"
+          }
+        }
+      ],
+      "meta": {
+        "total": 2,
+        "current_page": 1,
+        "total_pages": 1
+      }
+    },
+    "details": "Cada lead trae DOS identificadores: `lead_number` es el número #N VISIBLE en la pantalla de leads de Jabvox, e `id` es el ID INTERNO (el que esperan los nodos de actualizar/asignar). Puedes encadenar «Repetir por cada elemento» sobre {{node.<id>.items}} en cualquiera de los 6 modos."
+  },
+  {
+    "type": "jabvox.lead.list",
+    "category": "jabvox",
+    "module": "leads",
+    "label": "Listar Leads",
+    "description": "Lista los leads de la cuenta con filtros opcionales.",
+    "icon": "users",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "q",
+        "label": "Búsqueda (nombre)",
+        "type": "string",
+        "templatable": true
+      },
+      {
+        "key": "campaignId",
+        "label": "Campaña",
+        "type": "select",
+        "optionsSource": "campaigns"
+      },
+      {
+        "key": "assigneeId",
+        "label": "Agente asignado",
+        "type": "select",
+        "optionsSource": "agents"
+      },
+      {
+        "key": "page",
+        "label": "Página",
+        "type": "number",
+        "default": 1
+      }
+    ],
+    "hidden": true,
+    "itemsPath": "leads",
+    "sampleOutput": {
+      "leads": [
+        {
+          "id": 1,
+          "lead_number": 1,
+          "contact": {
+            "id": 10,
+            "name": "Estrada",
+            "email": null,
+            "phone_number": "+573233653776"
+          },
+          "custom_fields_jabvox": {
+            "ciudad": "Bogotá"
+          }
+        },
+        {
+          "id": 2,
+          "lead_number": 1,
+          "contact": {
+            "id": 10,
+            "name": "Estrada",
+            "email": null,
+            "phone_number": "+573233653776"
+          },
+          "custom_fields_jabvox": {
+            "ciudad": "Bogotá"
+          }
+        }
+      ],
+      "count": 2,
+      "page": 1,
+      "truncated": false
+    }
+  },
+  {
+    "type": "jabvox.lead.get",
+    "category": "jabvox",
+    "module": "leads",
+    "label": "Obtener Lead",
+    "description": "Obtiene el detalle de un lead (incluye contacto y campos personalizados).",
+    "icon": "user-search",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "leadId",
+        "label": "ID del lead",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.lead.id}}"
+      }
+    ],
+    "hidden": true,
+    "sampleOutput": {
+      "id": 1,
+      "lead_number": 1,
+      "contact": {
+        "id": 10,
+        "name": "Estrada",
+        "email": null,
+        "phone_number": "+573233653776"
+      },
+      "custom_fields_jabvox": {
+        "ciudad": "Bogotá"
+      }
+    }
+  },
+  {
+    "type": "jabvox.lead.update_details",
+    "category": "jabvox",
+    "module": "leads",
+    "label": "Actualizar Lead",
+    "description": "Actualiza datos del contacto, campaña, agente asignado y campos personalizados del lead.",
+    "icon": "user-cog",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "leadId",
+        "label": "ID interno del lead",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.buscar.output.leads[0].id}}",
+        "description": "ID INTERNO del lead (campo `id` de la salida del nodo \"Buscar / Obtener Leads\"). NO es el número #N que se ve en la pantalla de leads de Jabvox."
+      },
+      {
+        "key": "phone_number",
+        "label": "Teléfono",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "+573001234567",
+        "description": "Formato internacional E.164 (con + y código de país)."
+      },
+      {
+        "key": "email",
+        "label": "Email",
+        "type": "string",
+        "templatable": true
+      },
+      {
+        "key": "country",
+        "label": "País",
+        "type": "string",
+        "templatable": true
+      },
+      {
+        "key": "identification",
+        "label": "Número de identificación / documento",
+        "type": "string",
+        "templatable": true,
+        "description": "Documento del contacto (se guarda en el lead como identificación)."
+      },
+      {
+        "key": "campaign_name",
+        "label": "Nombre de campaña",
+        "type": "string",
+        "templatable": true,
+        "description": "Si no existe, se crea."
+      },
+      {
+        "key": "assigneeId",
+        "label": "Agente asignado",
+        "type": "select",
+        "optionsSource": "agents"
+      },
+      {
+        "key": "custom_fields",
+        "label": "Campos personalizados",
+        "type": "fieldmap",
+        "optionsSource": "lead_custom_fields",
+        "dropSemantics": "path",
+        "description": "Elige el campo y escribe su valor. Solo se actualizan los campos que añadas aquí; el resto se conserva."
+      }
+    ],
+    "sampleOutput": {
+      "id": 1,
+      "lead_number": 1,
+      "contact": {
+        "id": 10,
+        "name": "Estrada",
+        "email": null,
+        "phone_number": "+573233653776"
+      },
+      "custom_fields_jabvox": {
+        "ciudad": "Bogotá"
+      }
+    },
+    "details": "Solo se envían los campos que rellenes: los que dejes vacíos NO se tocan."
+  },
+  {
+    "type": "jabvox.lead.set_custom_fields",
+    "category": "jabvox",
+    "module": "leads",
+    "label": "Fijar campo personalizado de Lead",
+    "description": "Fija el valor de UN campo personalizado del lead (los demás campos se conservan). Para varios campos a la vez usa \"Actualizar Lead\".",
+    "icon": "pencil",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "leadId",
+        "label": "ID interno del lead",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.buscar.output.leads[0].id}}",
+        "description": "ID INTERNO del lead (campo `id` de la salida del nodo de búsqueda). NO es el número #N visible en Jabvox."
+      },
+      {
+        "key": "field",
+        "label": "Campo",
+        "type": "select",
+        "required": true,
+        "optionsSource": "lead_custom_fields",
+        "dropSemantics": "path"
+      },
+      {
+        "key": "value",
+        "label": "Valor",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      }
+    ],
+    "sampleOutput": {
+      "id": 1,
+      "lead_number": 1,
+      "contact": {
+        "id": 10,
+        "name": "Estrada",
+        "email": null,
+        "phone_number": "+573233653776"
+      },
+      "custom_fields_jabvox": {
+        "ciudad": "Bogotá"
+      }
+    }
+  },
+  {
+    "type": "jabvox.lead.assign",
+    "category": "jabvox",
+    "module": "leads",
+    "label": "Asignar Leads",
+    "description": "Asigna uno o varios leads a un agente. Devuelve cuántos se asignaron de verdad y avisa si algún id no existe en la cuenta.",
+    "icon": "user-check",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "leadIds",
+        "label": "IDs internos de leads (uno, o varios separados por coma)",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.buscar.output.leads[0].id}}",
+        "description": "IDs INTERNOS (campo `id` de la salida del nodo de búsqueda), NO los números #N visibles en Jabvox. Acepta \"12,15,16\" o un array."
+      },
+      {
+        "key": "assigneeId",
+        "label": "Agente",
+        "type": "select",
+        "required": true,
+        "optionsSource": "agents"
+      }
+    ],
+    "sampleOutput": {
+      "id": 1,
+      "lead_number": 1,
+      "contact": {
+        "id": 10,
+        "name": "Estrada",
+        "email": null,
+        "phone_number": "+573233653776"
+      },
+      "custom_fields_jabvox": {
+        "ciudad": "Bogotá"
+      },
+      "assignee_id": 4
+    }
+  },
+  {
+    "type": "jabvox.lead.unassign",
+    "category": "jabvox",
+    "module": "leads",
+    "label": "Desasignar Leads",
+    "description": "Quita el agente asignado de uno o varios leads. Devuelve cuántos se desasignaron y avisa si algún id no existe en la cuenta.",
+    "icon": "user-x",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "leadIds",
+        "label": "IDs internos de leads (uno, o varios separados por coma)",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.buscar.output.leads[0].id}}",
+        "description": "IDs INTERNOS (campo `id` de la salida del nodo de búsqueda), NO los números #N visibles en Jabvox."
+      }
+    ],
+    "sampleOutput": {
+      "id": 1,
+      "lead_number": 1,
+      "contact": {
+        "id": 10,
+        "name": "Estrada",
+        "email": null,
+        "phone_number": "+573233653776"
+      },
+      "custom_fields_jabvox": {
+        "ciudad": "Bogotá"
+      },
+      "assignee_id": null
+    }
+  },
+  {
+    "type": "jabvox.lead.sync_contacts",
+    "category": "jabvox",
+    "module": "leads",
+    "label": "Sincronizar contactos → leads",
+    "description": "Crea un lead por cada contacto de la cuenta que aún no lo tenga.",
+    "icon": "refresh-cw",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [],
+    "hidden": true,
+    "sampleOutput": {
+      "synced": 3,
+      "created": 1,
+      "updated": 2
+    }
+  },
+  {
+    "type": "jabvox.lead.find_by_date",
+    "category": "jabvox",
+    "module": "leads",
+    "label": "Buscar leads por campo de fecha",
+    "description": "Busca leads (o contactos) cuyo campo de fecha coincida con hoy, dentro de N días o hace N días.",
+    "icon": "cake",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "entity",
+        "label": "Entidad",
+        "type": "select",
+        "required": true,
+        "default": "lead",
+        "options": [
+          {
+            "label": "Lead",
+            "value": "lead"
+          },
+          {
+            "label": "Contacto",
+            "value": "contact"
+          }
+        ]
+      },
+      {
+        "key": "field",
+        "label": "Campo de fecha",
+        "type": "select",
+        "required": true,
+        "optionsSource": "lead_custom_fields",
+        "dropSemantics": "path",
+        "dependsOn": "entity",
+        "description": "Campo personalizado de tipo fecha a comparar (p.ej. fecha_cumpleanos)."
+      },
+      {
+        "key": "compareMode",
+        "label": "Modo de comparación",
+        "type": "select",
+        "required": true,
+        "default": "month_day",
+        "options": [
+          {
+            "label": "Mes y día (anual, cumpleaños)",
+            "value": "month_day"
+          },
+          {
+            "label": "Fecha completa",
+            "value": "full_date"
+          }
+        ]
+      },
+      {
+        "key": "match",
+        "label": "Coincidencia",
+        "type": "select",
+        "required": true,
+        "default": "today",
+        "options": [
+          {
+            "label": "Hoy",
+            "value": "today"
+          },
+          {
+            "label": "Dentro de N días",
+            "value": "in_days"
+          },
+          {
+            "label": "Hace N días",
+            "value": "days_ago"
+          }
+        ]
+      },
+      {
+        "key": "offsetDays",
+        "label": "N días (offset)",
+        "type": "number",
+        "default": 0,
+        "description": "Solo aplica con \"Dentro de N días\" / \"Hace N días\"."
+      }
+    ],
+    "hidden": true,
+    "itemsPath": "leads",
+    "sampleOutput": {
+      "mode": "list",
+      "count": 2,
+      "leads": [
+        {
+          "id": 1,
+          "lead_number": 1,
+          "contact": {
+            "id": 10,
+            "name": "Estrada",
+            "email": null,
+            "phone_number": "+573233653776"
+          },
+          "custom_fields_jabvox": {
+            "ciudad": "Bogotá"
+          }
+        },
+        {
+          "id": 2,
+          "lead_number": 2,
+          "contact": {
+            "id": 10,
+            "name": "Estrada",
+            "email": null,
+            "phone_number": "+573233653776"
+          },
+          "custom_fields_jabvox": {
+            "ciudad": "Bogotá"
+          }
+        }
+      ],
+      "meta": {
+        "total": 2,
+        "current_page": 1,
+        "total_pages": 1
+      }
+    },
+    "details": "Modo anual para cumpleaños. Devuelve { leads: [...], count } — encadena «Repetir por cada elemento» sobre {{node.<id>.items}} para enviar plantillas, crear tareas, etc."
+  },
+  {
+    "type": "jabvox.lead.find_by_field",
+    "category": "jabvox",
+    "module": "leads",
+    "label": "Buscar leads por campo",
+    "description": "Busca leads cuyo campo personalizado cumpla el filtro: contiene, es igual a, vacío o no vacío.",
+    "icon": "search",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "field",
+        "label": "Campo",
+        "type": "select",
+        "required": true,
+        "optionsSource": "lead_custom_fields",
+        "dropSemantics": "path",
+        "description": "Campo personalizado del lead sobre el que filtrar."
+      },
+      {
+        "key": "operator",
+        "label": "Operador",
+        "type": "select",
+        "required": true,
+        "default": "contains",
+        "options": [
+          {
+            "label": "Contiene",
+            "value": "contains"
+          },
+          {
+            "label": "Es igual a",
+            "value": "equals"
+          },
+          {
+            "label": "No está vacío",
+            "value": "not_empty"
+          },
+          {
+            "label": "Está vacío",
+            "value": "empty"
+          }
+        ]
+      },
+      {
+        "key": "value",
+        "label": "Valor",
+        "type": "string",
+        "templatable": true,
+        "description": "Valor a comparar. Requerido con \"Contiene\" y \"Es igual a\"; se ignora con \"Está vacío\" / \"No está vacío\"."
+      },
+      {
+        "key": "limit",
+        "label": "Máximo de resultados",
+        "type": "number",
+        "default": 50,
+        "description": "Máximo de leads a devolver (tope 200)."
+      }
+    ],
+    "hidden": true,
+    "itemsPath": "leads",
+    "sampleOutput": {
+      "mode": "list",
+      "count": 2,
+      "leads": [
+        {
+          "id": 1,
+          "lead_number": 1,
+          "contact": {
+            "id": 10,
+            "name": "Estrada",
+            "email": null,
+            "phone_number": "+573233653776"
+          },
+          "custom_fields_jabvox": {
+            "ciudad": "Bogotá"
+          }
+        },
+        {
+          "id": 2,
+          "lead_number": 2,
+          "contact": {
+            "id": 10,
+            "name": "Estrada",
+            "email": null,
+            "phone_number": "+573233653776"
+          },
+          "custom_fields_jabvox": {
+            "ciudad": "Bogotá"
+          }
+        }
+      ],
+      "meta": {
+        "total": 2,
+        "current_page": 1,
+        "total_pages": 1
+      }
+    },
+    "details": "Devuelve { leads: [...], count } — encadena «Repetir por cada elemento» sobre {{node.<id>.items}} para recorrer los resultados."
+  },
+  {
+    "type": "jabvox.contact.create",
+    "category": "jabvox",
+    "module": "contactos",
+    "label": "Crear Contacto",
+    "description": "Crea un contacto en Jabvox.",
+    "icon": "user-plus",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "name",
+        "label": "Nombre",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "email",
+        "label": "Email",
+        "type": "string",
+        "templatable": true
+      },
+      {
+        "key": "phone_number",
+        "label": "Teléfono",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "+573001234567",
+        "description": "Formato internacional E.164: empieza por + y el código de país, sin espacios ni guiones. Si no, Jabvox rechaza el contacto."
+      },
+      {
+        "key": "identifier",
+        "label": "Identificador externo",
+        "type": "string",
+        "templatable": true,
+        "description": "Id del contacto en tu sistema externo. Debe ser único en la cuenta; si ya existe, se actualiza ese contacto en vez de crear otro."
+      },
+      {
+        "key": "custom_attributes",
+        "label": "Atributos personalizados",
+        "type": "fieldmap",
+        "optionsSource": "contact_custom_attrs",
+        "dropSemantics": "path",
+        "default": {},
+        "description": "Elige el atributo y escribe su valor. Al CREAR se guarda tal cual lo definas aquí."
+      }
+    ],
+    "sampleOutput": {
+      "id": 10,
+      "name": "Estrada",
+      "email": null,
+      "phone_number": "+573233653776",
+      "contactId": 10
+    },
+    "details": "OJO: si ya existe un contacto con el mismo teléfono o identificador, Jabvox NO crea uno nuevo: ACTUALIZA el existente y REEMPLAZA por completo sus atributos personalizados. Para modificar un contacto que ya existe usa «Actualizar Contacto»."
+  },
+  {
+    "type": "jabvox.contact.update",
+    "category": "jabvox",
+    "module": "contactos",
+    "label": "Actualizar Contacto",
+    "description": "Actualiza los datos de un contacto existente.",
+    "icon": "user-cog",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "contactId",
+        "label": "ID del contacto",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.buscar.output.leads[0].contact.id}}",
+        "description": "ID del contacto en Jabvox (campo `contact.id` de la salida de los nodos de búsqueda de leads o contactos)."
+      },
+      {
+        "key": "name",
+        "label": "Nombre",
+        "type": "string",
+        "templatable": true
+      },
+      {
+        "key": "email",
+        "label": "Email",
+        "type": "string",
+        "templatable": true
+      },
+      {
+        "key": "phone_number",
+        "label": "Teléfono",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "+573001234567",
+        "description": "Formato internacional E.164 (con + y código de país, sin espacios)."
+      },
+      {
+        "key": "identifier",
+        "label": "Identificador externo",
+        "type": "string",
+        "templatable": true,
+        "description": "Id del contacto en tu sistema externo (único por cuenta)."
+      },
+      {
+        "key": "custom_attributes",
+        "label": "Atributos personalizados",
+        "type": "fieldmap",
+        "optionsSource": "contact_custom_attrs",
+        "dropSemantics": "path",
+        "description": "Elige el atributo y escribe su valor. Se fusionan con los existentes: los que no incluyas aquí NO se borran."
+      }
+    ],
+    "sampleOutput": {
+      "id": 10,
+      "name": "Estrada",
+      "email": null,
+      "phone_number": "+573233653776",
+      "contactId": 10
+    },
+    "details": "Solo se envían los campos que rellenes; los atributos personalizados se FUSIONAN con los que ya tenía (los que no toques se conservan)."
+  },
+  {
+    "type": "jabvox.contact.find",
+    "category": "jabvox",
+    "module": "contactos",
+    "label": "Buscar Contacto",
+    "description": "Busca contactos por texto: nombre, email, teléfono o identificador.",
+    "icon": "user-search",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "q",
+        "label": "Texto a buscar",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "description": "Coincidencia parcial sobre nombre, email, teléfono o identificador."
+      },
+      {
+        "key": "page",
+        "label": "Página",
+        "type": "number",
+        "default": 1,
+        "description": "15 resultados por página (lo fija Jabvox). Usa `hasMore` de la salida para saber si hay más."
+      }
+    ],
+    "itemsPath": "contacts",
+    "sampleOutput": {
+      "count": 1,
+      "contacts": [
+        {
+          "id": 10,
+          "name": "Estrada",
+          "email": null,
+          "phone_number": "+573233653776"
+        }
+      ],
+      "page": 1,
+      "hasMore": false
+    },
+    "details": "Devuelve { count, contacts: [...], hasMore, page } — encadena «Repetir por cada elemento» sobre {{node.<id>.items}}. La API devuelve como mucho 15 contactos por página."
+  },
+  {
+    "type": "jabvox.contact.set_custom_attrs",
+    "category": "jabvox",
+    "module": "contactos",
+    "label": "Fijar atributo personalizado de Contacto",
+    "description": "Fija el valor de UN atributo personalizado del contacto; el resto de atributos se conservan. Para varios a la vez usa \"Actualizar Contacto\".",
+    "icon": "pencil",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "contactId",
+        "label": "ID del contacto",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.buscar.output.leads[0].contact.id}}"
+      },
+      {
+        "key": "attribute",
+        "label": "Atributo",
+        "type": "select",
+        "required": true,
+        "optionsSource": "contact_custom_attrs",
+        "dropSemantics": "path"
+      },
+      {
+        "key": "value",
+        "label": "Valor",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      }
+    ],
+    "sampleOutput": {
+      "id": 10,
+      "name": "Estrada",
+      "email": null,
+      "phone_number": "+573233653776",
+      "contactId": 10,
+      "custom_attributes": {
+        "plan": "premium"
+      }
+    }
+  },
+  {
+    "type": "jabvox.note.create",
+    "category": "jabvox",
+    "module": "contactos",
+    "label": "Crear Nota",
+    "description": "Añade una nota interna a la ficha de un contacto.",
+    "icon": "sticky-note",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "contactId",
+        "label": "ID del contacto",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{item.contact.id}}",
+        "description": "ID INTERNO del contacto. Dentro de \"Repetir por cada elemento\" sobre leads es {{item.contact.id}}."
+      },
+      {
+        "key": "content",
+        "label": "Contenido",
+        "type": "text",
+        "required": true,
+        "templatable": true
+      }
+    ],
+    "sampleOutput": {
+      "id": 400,
+      "content": "Nota",
+      "user_id": 4
+    }
+  },
+  {
+    "type": "jabvox.conversation.create",
+    "category": "jabvox",
+    "module": "conversaciones",
+    "label": "Crear Conversación",
+    "description": "Abre una conversación para un contacto en una bandeja.",
+    "icon": "message-square-plus",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "inboxId",
+        "label": "Bandeja",
+        "type": "select",
+        "required": true,
+        "optionsSource": "inboxes"
+      },
+      {
+        "key": "contactId",
+        "label": "ID del contacto",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.buscar_contacto.output.contacts[0].id}}"
+      },
+      {
+        "key": "sourceId",
+        "label": "Source ID (opcional)",
+        "type": "string",
+        "templatable": true,
+        "description": "Identificador del contacto en el canal. Déjalo vacío y Jabvox lo genera solo (para WhatsApp/SMS usa el teléfono; para email, el email)."
+      },
+      {
+        "key": "message",
+        "label": "Mensaje inicial (opcional)",
+        "type": "text",
+        "templatable": true
+      },
+      {
+        "key": "status",
+        "label": "Estado inicial",
+        "type": "select",
+        "default": "open",
+        "options": [
+          {
+            "label": "Abierta",
+            "value": "open"
+          },
+          {
+            "label": "Pendiente",
+            "value": "pending"
+          },
+          {
+            "label": "Resuelta",
+            "value": "resolved"
+          }
+        ],
+        "description": "Estado con el que nace la conversación."
+      },
+      {
+        "key": "assigneeId",
+        "label": "Agente asignado (opcional)",
+        "type": "select",
+        "optionsSource": "agents"
+      },
+      {
+        "key": "teamId",
+        "label": "Equipo (opcional)",
+        "type": "select",
+        "optionsSource": "teams"
+      }
+    ],
+    "sampleOutput": {
+      "id": 55,
+      "display_id": 7,
+      "status": "open",
+      "inbox_id": 3,
+      "meta": {
+        "sender": {
+          "id": 10,
+          "name": "Estrada",
+          "email": null,
+          "phone_number": "+573233653776"
+        }
+      },
+      "conversationId": 7
+    },
+    "details": "Opcionalmente con un mensaje inicial, estado, agente y equipo. Devuelve el `conversationId` que necesitan los demás nodos de conversación."
+  },
+  {
+    "type": "jabvox.conversation.send_message",
+    "category": "jabvox",
+    "module": "conversaciones",
+    "label": "Enviar Mensaje",
+    "description": "Envía un mensaje al contacto (o una nota privada visible solo para los agentes) en una conversación existente.",
+    "icon": "message-square-reply",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "conversationId",
+        "label": "ID de conversación",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.crear_conversacion.output.conversationId}}",
+        "description": "Número de conversación de Jabvox (el que devuelve \"Crear Conversación\" en `conversationId`)."
+      },
+      {
+        "key": "content",
+        "label": "Contenido",
+        "type": "text",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "private",
+        "label": "Nota privada",
+        "type": "boolean",
+        "default": false,
+        "description": "Activado: solo lo ven los agentes, NO se envía al contacto."
+      }
+    ],
+    "sampleOutput": {
+      "id": 900,
+      "content": "Hola",
+      "message_type": "outgoing",
+      "conversation_id": 55,
+      "private": false
+    }
+  },
+  {
+    "type": "jabvox.conversation.assign",
+    "category": "jabvox",
+    "module": "conversaciones",
+    "label": "Asignar Conversación",
+    "description": "Asigna la conversación a un agente, a un equipo, o a ambos. Debes elegir al menos uno de los dos.",
+    "icon": "user-check",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "conversationId",
+        "label": "ID de conversación",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.crear_conversacion.output.conversationId}}"
+      },
+      {
+        "key": "assigneeId",
+        "label": "Agente",
+        "type": "select",
+        "optionsSource": "agents",
+        "description": "Déjalo vacío si solo quieres asignar el equipo."
+      },
+      {
+        "key": "teamId",
+        "label": "Equipo",
+        "type": "select",
+        "optionsSource": "teams",
+        "description": "Déjalo vacío si solo quieres asignar el agente."
+      }
+    ],
+    "sampleOutput": {
+      "conversationId": 7,
+      "assignee": {
+        "id": 4,
+        "name": "Agente Uno",
+        "email": "zzpr@test.local"
+      }
+    }
+  },
+  {
+    "type": "jabvox.conversation.toggle_status",
+    "category": "jabvox",
+    "module": "conversaciones",
+    "label": "Cambiar estado de Conversación",
+    "description": "Cambia el estado de la conversación (abierta, resuelta, pendiente, pospuesta).",
+    "icon": "check-circle",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "conversationId",
+        "label": "ID de conversación",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.crear_conversacion.output.conversationId}}"
+      },
+      {
+        "key": "status",
+        "label": "Estado",
+        "type": "select",
+        "required": true,
+        "default": "resolved",
+        "options": [
+          {
+            "label": "Abierta",
+            "value": "open"
+          },
+          {
+            "label": "Resuelta",
+            "value": "resolved"
+          },
+          {
+            "label": "Pendiente",
+            "value": "pending"
+          },
+          {
+            "label": "Pospuesta",
+            "value": "snoozed"
+          }
+        ]
+      },
+      {
+        "key": "snoozedUntil",
+        "label": "Posponer hasta",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-01 09:00",
+        "description": "Fecha/hora en la que la conversación vuelve a abrirse. Si lo dejas vacío, queda pospuesta indefinidamente.",
+        "visibleWhen": {
+          "param": "status",
+          "values": [
+            "snoozed"
+          ]
+        }
+      }
+    ],
+    "sampleOutput": {
+      "id": 55,
+      "display_id": 7,
+      "status": "resolved",
+      "inbox_id": 3,
+      "meta": {
+        "sender": {
+          "id": 10,
+          "name": "Estrada",
+          "email": null,
+          "phone_number": "+573233653776"
+        }
+      }
+    }
+  },
+  {
+    "type": "jabvox.conversation.add_labels",
+    "category": "jabvox",
+    "module": "conversaciones",
+    "label": "Añadir etiquetas a Conversación",
+    "description": "Añade etiquetas a la conversación CONSERVANDO las que ya tuviera (el nodo lee las actuales y envía la unión). Si una etiqueta no existe en la cuenta, Jabvox la crea al vuelo.",
+    "icon": "tags",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "conversationId",
+        "label": "ID de conversación",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.enviar_plantilla.output.conversationId}}",
+        "description": "Un lead NO trae conversación: hay que obtenerla de un paso previo.",
+        "details": "Si acabas de enviar una plantilla de WhatsApp, reutiliza la suya con {{node.<id_del_envio>.output.conversationId}} (la crea o la reutiliza). Si no, usa «Crear Conversación» y su {{node.<id>.output.conversationId}}."
+      },
+      {
+        "key": "labels",
+        "label": "Etiquetas",
+        "type": "multiselect",
+        "required": true,
+        "templatable": true,
+        "optionsSource": "labels",
+        "description": "Elige una o varias etiquetas de la cuenta. También acepta texto con nombres separados por coma (útil con plantillas {{...}})."
+      }
+    ],
+    "sampleOutput": {
+      "payload": [
+        "urgente",
+        "vip"
+      ]
+    }
+  },
+  {
+    "type": "jabvox.team.assign",
+    "category": "jabvox",
+    "module": "conversaciones",
+    "label": "Asignar a Equipo",
+    "description": "Asigna la conversación a un equipo (sin tocar el agente asignado).",
+    "icon": "users",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "conversationId",
+        "label": "ID de conversación",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.crear_conversacion.output.conversationId}}"
+      },
+      {
+        "key": "teamId",
+        "label": "Equipo",
+        "type": "select",
+        "required": true,
+        "optionsSource": "teams"
+      }
+    ],
+    "sampleOutput": {
+      "conversationId": 7,
+      "team": {
+        "id": 2,
+        "name": "Ventas",
+        "description": "Equipo comercial"
+      }
+    }
+  },
+  {
+    "type": "jabvox.task.create",
+    "category": "jabvox",
+    "module": "tareas",
+    "label": "Crear Tarea",
+    "description": "Crea una tarea en un tablero de tareas.",
+    "icon": "square-check",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "title",
+        "label": "Título",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "description",
+        "label": "Descripción",
+        "type": "text",
+        "templatable": true
+      },
+      {
+        "key": "boardId",
+        "label": "Tablero",
+        "type": "select",
+        "required": true,
+        "optionsSource": "task_boards"
+      },
+      {
+        "key": "stageId",
+        "label": "Columna (etapa)",
+        "type": "select",
+        "optionsSource": "task_stages",
+        "dependsOn": "boardId",
+        "description": "Si se deja vacío, la tarea entra en la primera columna del tablero."
+      },
+      {
+        "key": "priority",
+        "label": "Prioridad",
+        "type": "select",
+        "default": "normal",
+        "options": [
+          {
+            "label": "Baja",
+            "value": "low"
+          },
+          {
+            "label": "Normal",
+            "value": "normal"
+          },
+          {
+            "label": "Alta",
+            "value": "high"
+          },
+          {
+            "label": "Urgente",
+            "value": "urgent"
+          }
+        ]
+      },
+      {
+        "key": "status",
+        "label": "Estado",
+        "type": "select",
+        "description": "Abierta o completada.",
+        "options": [
+          {
+            "label": "Abierta",
+            "value": "open"
+          },
+          {
+            "label": "Completada",
+            "value": "done"
+          }
+        ]
+      },
+      {
+        "key": "assigneeId",
+        "label": "Responsable principal",
+        "type": "select",
+        "optionsSource": "agents"
+      },
+      {
+        "key": "assigneeIds",
+        "label": "Responsables adicionales",
+        "type": "multiselect",
+        "optionsSource": "agents",
+        "description": "Una tarea admite varios responsables. Si eliges aquí, esta lista sustituye a la del responsable principal."
+      },
+      {
+        "key": "due_date",
+        "label": "Vencimiento (fecha y hora)",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-15 09:00",
+        "description": "Admite solo fecha (2026-08-15) o fecha y hora (2026-08-15 09:00)."
+      },
+      {
+        "key": "position",
+        "label": "Posición en la columna",
+        "type": "number",
+        "description": "Orden dentro de la columna. 0 = arriba del todo."
+      },
+      {
+        "key": "leadId",
+        "label": "Lead vinculado (ID interno)",
+        "type": "string",
+        "templatable": true,
+        "description": "ID INTERNO del lead, no el número \"#5\" que se ve en pantalla. Encadena el resultado de \"Buscar Lead\" ({{nodes.buscar.output.id}})."
+      }
+    ],
+    "sampleOutput": {
+      "id": 31,
+      "title": "Llamar al cliente",
+      "status": "open",
+      "priority": "normal",
+      "assignee_id": 4
+    }
+  },
+  {
+    "type": "jabvox.task.update",
+    "category": "jabvox",
+    "module": "tareas",
+    "label": "Actualizar Tarea",
+    "description": "Actualiza título, descripción, prioridad, responsable o vencimiento de una tarea.",
+    "icon": "square-pen",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "taskId",
+        "label": "ID de la tarea",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "title",
+        "label": "Título",
+        "type": "string",
+        "templatable": true
+      },
+      {
+        "key": "description",
+        "label": "Descripción",
+        "type": "text",
+        "templatable": true
+      },
+      {
+        "key": "priority",
+        "label": "Prioridad",
+        "type": "select",
+        "default": "normal",
+        "options": [
+          {
+            "label": "Baja",
+            "value": "low"
+          },
+          {
+            "label": "Normal",
+            "value": "normal"
+          },
+          {
+            "label": "Alta",
+            "value": "high"
+          },
+          {
+            "label": "Urgente",
+            "value": "urgent"
+          }
+        ]
+      },
+      {
+        "key": "status",
+        "label": "Estado",
+        "type": "select",
+        "description": "Abierta o completada.",
+        "options": [
+          {
+            "label": "Abierta",
+            "value": "open"
+          },
+          {
+            "label": "Completada",
+            "value": "done"
+          }
+        ]
+      },
+      {
+        "key": "assigneeId",
+        "label": "Responsable principal",
+        "type": "select",
+        "optionsSource": "agents"
+      },
+      {
+        "key": "assigneeIds",
+        "label": "Responsables adicionales",
+        "type": "multiselect",
+        "optionsSource": "agents",
+        "description": "Si eliges aquí, esta lista SUSTITUYE por completo a los responsables actuales de la tarea."
+      },
+      {
+        "key": "due_date",
+        "label": "Vencimiento (fecha y hora)",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-15 09:00",
+        "description": "Admite solo fecha (2026-08-15) o fecha y hora (2026-08-15 09:00)."
+      },
+      {
+        "key": "boardId",
+        "label": "Tablero",
+        "type": "select",
+        "optionsSource": "task_boards",
+        "description": "Solo sirve para filtrar la lista de columnas de abajo."
+      },
+      {
+        "key": "stageId",
+        "label": "Cambiar de columna",
+        "type": "select",
+        "optionsSource": "task_stages",
+        "dependsOn": "boardId",
+        "description": "Opcional. Para mover la tarea registrando el cambio en su historial, usa mejor el nodo \"Mover Tarea\"."
+      },
+      {
+        "key": "leadId",
+        "label": "Lead vinculado (ID interno)",
+        "type": "string",
+        "templatable": true,
+        "description": "ID INTERNO del lead, no el número \"#5\" de pantalla."
+      }
+    ],
+    "sampleOutput": {
+      "id": 31,
+      "title": "Llamar al cliente",
+      "status": "done",
+      "priority": "normal",
+      "assignee_id": 4
+    }
+  },
+  {
+    "type": "jabvox.task.move",
+    "category": "jabvox",
+    "module": "tareas",
+    "label": "Mover Tarea",
+    "description": "Mueve una tarea a otra columna (etapa) del tablero y registra el cambio en su historial.",
+    "icon": "move-right",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "taskId",
+        "label": "ID de la tarea",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "boardId",
+        "label": "Tablero",
+        "type": "select",
+        "optionsSource": "task_boards",
+        "description": "Solo para filtrar las etapas en el selector."
+      },
+      {
+        "key": "stageId",
+        "label": "Columna destino",
+        "type": "select",
+        "required": true,
+        "optionsSource": "task_stages",
+        "dependsOn": "boardId"
+      },
+      {
+        "key": "position",
+        "label": "Posición en la columna",
+        "type": "number",
+        "description": "Orden dentro de la columna destino. 0 = arriba del todo (valor por defecto si se deja vacío)."
+      }
+    ],
+    "sampleOutput": {
+      "id": 31,
+      "title": "Llamar al cliente",
+      "status": "open",
+      "priority": "normal",
+      "assignee_id": 4,
+      "stage_id": 3
+    }
+  },
+  {
+    "type": "jabvox.task.delete",
+    "category": "jabvox",
+    "module": "tareas",
+    "label": "Eliminar Tarea",
+    "description": "Elimina una tarea.",
+    "icon": "trash-2",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "taskId",
+        "label": "ID de la tarea",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      }
+    ],
+    "sampleOutput": {
+      "deleted": true,
+      "taskId": 31
+    }
+  },
+  {
+    "type": "jabvox.kanban.move_conversation",
+    "category": "jabvox",
+    "module": "kanban",
+    "label": "Mover Conversación en Kanban",
+    "description": "Mueve una conversación a una etapa de un embudo Kanban.",
+    "icon": "columns-3",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "funnelId",
+        "label": "Embudo",
+        "type": "select",
+        "required": true,
+        "optionsSource": "kanban_funnels"
+      },
+      {
+        "key": "stageId",
+        "label": "Etapa destino",
+        "type": "select",
+        "required": true,
+        "optionsSource": "kanban_stages",
+        "dependsOn": "funnelId"
+      },
+      {
+        "key": "conversationId",
+        "label": "Número de conversación",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.conversation.display_id}}",
+        "description": "El número que muestra Jabvox en la URL del chat. Si la conversación no está todavía en el embudo, se coloca en la etapa indicada."
+      }
+    ],
+    "sampleOutput": {
+      "id": 55,
+      "stage_id": 3,
+      "stage_name": "En curso"
+    }
+  },
+  {
+    "type": "jabvox.kanban.move_lead",
+    "category": "jabvox",
+    "module": "kanban",
+    "label": "Mover Lead en Kanban",
+    "description": "Mueve un lead a una etapa de un embudo Kanban.",
+    "icon": "columns-3",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "funnelId",
+        "label": "Embudo",
+        "type": "select",
+        "required": true,
+        "optionsSource": "kanban_funnels"
+      },
+      {
+        "key": "stageId",
+        "label": "Etapa destino",
+        "type": "select",
+        "required": true,
+        "optionsSource": "kanban_stages",
+        "dependsOn": "funnelId"
+      },
+      {
+        "key": "leadId",
+        "label": "Lead (ID interno)",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.lead.id}}",
+        "description": "ID INTERNO del lead, no el número \"#5\" que se ve en la pantalla de leads. Encadena {{nodes.buscar.output.id}} de \"Buscar Lead\"."
+      }
+    ],
+    "sampleOutput": {
+      "id": 1,
+      "stage_id": 3,
+      "stage_name": "En curso"
+    }
+  },
+  {
+    "type": "jabvox.calendar.create_event",
+    "category": "jabvox",
+    "module": "calendario",
+    "label": "Crear Evento",
+    "description": "Crea un evento en el calendario de Jabvox.",
+    "icon": "calendar-plus",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "title",
+        "label": "Título",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "start",
+        "label": "Inicio (fecha y hora)",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "2026-08-20 09:00",
+        "description": "Ej.: 2026-08-20 09:00 (o solo 2026-08-20)."
+      },
+      {
+        "key": "end",
+        "label": "Fin (fecha y hora)",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-20 10:00",
+        "description": "Si se deja vacío se asume 1 hora después del inicio (o el día completo si marcas \"Todo el día\")."
+      },
+      {
+        "key": "allDay",
+        "label": "Todo el día",
+        "type": "boolean",
+        "default": false
+      },
+      {
+        "key": "eventType",
+        "label": "Tipo de evento",
+        "type": "select",
+        "default": "reminder",
+        "options": [
+          {
+            "label": "Recordatorio",
+            "value": "reminder"
+          },
+          {
+            "label": "Cita",
+            "value": "appointment"
+          },
+          {
+            "label": "Tarea",
+            "value": "task"
+          }
+        ]
+      },
+      {
+        "key": "status",
+        "label": "Estado",
+        "type": "select",
+        "default": "pending",
+        "options": [
+          {
+            "label": "Pendiente",
+            "value": "pending"
+          },
+          {
+            "label": "Realizado",
+            "value": "done"
+          },
+          {
+            "label": "Cancelado",
+            "value": "cancelled"
+          }
+        ]
+      },
+      {
+        "key": "description",
+        "label": "Descripción",
+        "type": "text",
+        "templatable": true
+      },
+      {
+        "key": "note",
+        "label": "Nota para los participantes",
+        "type": "text",
+        "templatable": true,
+        "description": "Se envía por correo a los participantes externos al crear el evento."
+      },
+      {
+        "key": "contactId",
+        "label": "Contacto (ID interno)",
+        "type": "string",
+        "templatable": true,
+        "description": "Contacto al que se asocia el evento. Encadena por ejemplo {{nodes.buscar.output.id}}."
+      },
+      {
+        "key": "attendeeUserIds",
+        "label": "Participantes: agentes",
+        "type": "multiselect",
+        "optionsSource": "agents",
+        "description": "Miembros del equipo que verán el evento en su calendario."
+      },
+      {
+        "key": "attendeeExternalIds",
+        "label": "Participantes: personas externas",
+        "type": "multiselect",
+        "optionsSource": "calendar_external_people",
+        "description": "Personas externas del calendario de Jabvox. Recibirán la nota por correo al crear el evento."
+      },
+      {
+        "key": "color",
+        "label": "Color",
+        "type": "select",
+        "description": "Color de la tarjeta en el calendario.",
+        "options": [
+          {
+            "label": "Azul",
+            "value": "#3B82F6"
+          },
+          {
+            "label": "Verde",
+            "value": "#10B981"
+          },
+          {
+            "label": "Ámbar",
+            "value": "#F59E0B"
+          },
+          {
+            "label": "Rojo",
+            "value": "#EF4444"
+          },
+          {
+            "label": "Morado",
+            "value": "#8B5CF6"
+          },
+          {
+            "label": "Gris",
+            "value": "#6B7280"
+          }
+        ]
+      },
+      {
+        "key": "remindBeforeDay",
+        "label": "Recordar un día antes",
+        "type": "boolean",
+        "default": false
+      },
+      {
+        "key": "remindBeforeHour",
+        "label": "Recordar una hora antes",
+        "type": "boolean",
+        "default": false
+      }
+    ],
+    "sampleOutput": {
+      "id": 12,
+      "title": "Reunión",
+      "event_type": "meeting",
+      "status": "scheduled",
+      "starts_at": "2026-07-28T10:00:00Z"
+    }
+  },
+  {
+    "type": "jabvox.calendar.update_event",
+    "category": "jabvox",
+    "module": "calendario",
+    "label": "Actualizar Evento",
+    "description": "Actualiza un evento de calendario.",
+    "icon": "calendar-cog",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "eventId",
+        "label": "ID del evento",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "title",
+        "label": "Título",
+        "type": "string",
+        "templatable": true
+      },
+      {
+        "key": "start",
+        "label": "Inicio (fecha y hora)",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-20 09:00"
+      },
+      {
+        "key": "end",
+        "label": "Fin (fecha y hora)",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-20 10:00"
+      },
+      {
+        "key": "allDay",
+        "label": "Todo el día",
+        "type": "boolean"
+      },
+      {
+        "key": "eventType",
+        "label": "Tipo de evento",
+        "type": "select",
+        "default": "reminder",
+        "options": [
+          {
+            "label": "Recordatorio",
+            "value": "reminder"
+          },
+          {
+            "label": "Cita",
+            "value": "appointment"
+          },
+          {
+            "label": "Tarea",
+            "value": "task"
+          }
+        ]
+      },
+      {
+        "key": "status",
+        "label": "Estado",
+        "type": "select",
+        "default": "pending",
+        "options": [
+          {
+            "label": "Pendiente",
+            "value": "pending"
+          },
+          {
+            "label": "Realizado",
+            "value": "done"
+          },
+          {
+            "label": "Cancelado",
+            "value": "cancelled"
+          }
+        ]
+      },
+      {
+        "key": "description",
+        "label": "Descripción",
+        "type": "text",
+        "templatable": true
+      },
+      {
+        "key": "note",
+        "label": "Nota para los participantes",
+        "type": "text",
+        "templatable": true
+      },
+      {
+        "key": "contactId",
+        "label": "Contacto (ID interno)",
+        "type": "string",
+        "templatable": true
+      },
+      {
+        "key": "attendeeUserIds",
+        "label": "Participantes: agentes",
+        "type": "multiselect",
+        "optionsSource": "agents",
+        "description": "OJO: si eliges participantes aquí, SUSTITUYEN por completo a los que tuviera el evento. Déjalo vacío para no tocarlos."
+      },
+      {
+        "key": "attendeeExternalIds",
+        "label": "Participantes: personas externas",
+        "type": "multiselect",
+        "optionsSource": "calendar_external_people",
+        "description": "Se combinan con los agentes de arriba y sustituyen a los participantes actuales del evento."
+      },
+      {
+        "key": "color",
+        "label": "Color",
+        "type": "select",
+        "description": "Color de la tarjeta en el calendario.",
+        "options": [
+          {
+            "label": "Azul",
+            "value": "#3B82F6"
+          },
+          {
+            "label": "Verde",
+            "value": "#10B981"
+          },
+          {
+            "label": "Ámbar",
+            "value": "#F59E0B"
+          },
+          {
+            "label": "Rojo",
+            "value": "#EF4444"
+          },
+          {
+            "label": "Morado",
+            "value": "#8B5CF6"
+          },
+          {
+            "label": "Gris",
+            "value": "#6B7280"
+          }
+        ]
+      },
+      {
+        "key": "remindBeforeDay",
+        "label": "Recordar un día antes",
+        "type": "boolean"
+      },
+      {
+        "key": "remindBeforeHour",
+        "label": "Recordar una hora antes",
+        "type": "boolean"
+      }
+    ],
+    "sampleOutput": {
+      "id": 12,
+      "title": "Reunión",
+      "event_type": "meeting",
+      "status": "done",
+      "starts_at": "2026-07-28T10:00:00Z"
+    }
+  },
+  {
+    "type": "jabvox.calendar.delete_event",
+    "category": "jabvox",
+    "module": "calendario",
+    "label": "Eliminar Evento",
+    "description": "Elimina un evento de calendario.",
+    "icon": "calendar-x",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "eventId",
+        "label": "ID del evento",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      }
+    ],
+    "sampleOutput": {
+      "deleted": true,
+      "eventId": 12
+    }
+  },
+  {
+    "type": "jabvox.email.send_template",
+    "category": "jabvox",
+    "module": "email",
+    "label": "Enviar plantilla de Email",
+    "description": "Envía una plantilla de correo al email del contacto (vía el SMTP configurado en Jabvox). Este es el \"dispare este correo\".",
+    "icon": "mail",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "templateId",
+        "label": "Plantilla",
+        "type": "select",
+        "required": true,
+        "optionsSource": "email_templates",
+        "description": "Plantillas de correo de la cuenta. El asunto y el cuerpo se interpolan con los datos del contacto ({{contact_name}}, {{contact_email}}, {{contact_phone}})."
+      },
+      {
+        "key": "contactId",
+        "label": "ID interno del contacto",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.lead.contact.id}}",
+        "description": "ID INTERNO del contacto en Jabvox (no el número de lead). El correo se envía a la dirección de ese contacto: si no tiene email, el nodo falla. Requiere SMTP configurado en Jabvox."
+      }
+    ],
+    "sampleOutput": {
+      "sent": true,
+      "template": "bienvenida",
+      "to": "zzpr@test.local"
+    }
+  },
+  {
+    "type": "jabvox.email.send_test",
+    "category": "jabvox",
+    "module": "email",
+    "label": "Enviar Email de prueba",
+    "description": "Envía la plantilla tal cual a una dirección de prueba, sin interpolar datos de ningún contacto.",
+    "icon": "mail-check",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "templateId",
+        "label": "Plantilla",
+        "type": "select",
+        "required": true,
+        "optionsSource": "email_templates"
+      },
+      {
+        "key": "to",
+        "label": "Email destino",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "pruebas@ejemplo.com",
+        "description": "Dirección a la que se envía la prueba. Requiere SMTP configurado en Jabvox."
+      }
+    ],
+    "sampleOutput": {
+      "sent": true,
+      "to": "zzpr@test.local"
+    },
+    "details": "Las variables {{contact_name}}… se envían literales. Úsalo para revisar el diseño de la plantilla."
+  },
+  {
+    "type": "jabvox.email.send_message",
+    "category": "jabvox",
+    "module": "email",
+    "label": "Enviar correo",
+    "description": "Envía un correo escrito a mano (asunto y mensaje propios, SIN plantilla) a la dirección que indiques. Úsalo para recibir el informe final de un flujo en tu propio correo.",
+    "icon": "send",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "to",
+        "label": "Correo destino",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "tucorreo@ejemplo.com",
+        "description": "UNA sola dirección, la que tú quieras (no tiene que ser la de un contacto). Requiere SMTP configurado en Jabvox."
+      },
+      {
+        "key": "subject",
+        "label": "Asunto",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "Informe del seguimiento"
+      },
+      {
+        "key": "body",
+        "label": "Mensaje",
+        "type": "text",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.por_cada_lead.meta.resumen.informe}}",
+        "description": "Texto del correo. Admite variables: arrastra aquí el informe del bucle para recibir el resultado del flujo."
+      },
+      {
+        "key": "isHtml",
+        "label": "El mensaje ya es HTML",
+        "type": "boolean",
+        "required": false,
+        "description": "Desactivado (lo normal): se envía como texto y los saltos de línea se respetan. Actívalo solo si escribes etiquetas HTML a mano."
+      }
+    ],
+    "sampleOutput": {
+      "success": true,
+      "to": "zzpr@test.local"
+    }
+  },
+  {
+    "type": "jabvox.whatsapp.send_template",
+    "category": "jabvox",
+    "module": "whatsapp",
+    "label": "Enviar plantilla de WhatsApp",
+    "description": "Envía una plantilla aprobada de Meta al contacto, mapeando cada variable a un campo del lead o a un texto fijo.",
+    "icon": "message-circle",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "inbox",
+        "label": "Bandeja WhatsApp",
+        "type": "select",
+        "required": true,
+        "optionsSource": "whatsapp_inboxes",
+        "description": "Bandeja de WhatsApp API oficial por la que se envía."
+      },
+      {
+        "key": "template",
+        "label": "Plantilla",
+        "type": "select",
+        "required": true,
+        "optionsSource": "whatsapp_templates",
+        "dependsOn": "inbox",
+        "description": "Solo plantillas APROBADAS por Meta de esa bandeja. El valor es el NOMBRE de la plantilla.",
+        "details": "Su meta trae la estructura completa: cuerpo con los huecos, cabecera, botones e idiomas disponibles."
+      },
+      {
+        "key": "language",
+        "label": "Idioma de la plantilla",
+        "type": "string",
+        "templatable": false,
+        "placeholder": "es",
+        "description": "Solo hace falta si la misma plantilla está aprobada en varios idiomas. Vacío = el idioma de la plantilla elegida. Código de Meta, p.ej. es, es_MX, en_US."
+      },
+      {
+        "key": "contactId",
+        "label": "ID interno del contacto",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{item.contact.id}}",
+        "description": "ID INTERNO del contacto (no el número de lead). Debe tener número de teléfono: es el destinatario del WhatsApp. Dentro de un bucle sobre leads suele ser {{item.contact.id}}."
+      },
+      {
+        "key": "leadId",
+        "label": "ID interno del lead (opcional)",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "{{item.id}}",
+        "description": "Si se indica, se releen los datos del lead para resolver las variables (campaña, afiliado, asignado y campos personalizados)."
+      },
+      {
+        "key": "variableMap",
+        "label": "Variables de la plantilla",
+        "type": "variablemap",
+        "optionsSource": "lead_field_keys",
+        "dropSemantics": "path",
+        "dependsOn": "template",
+        "default": {},
+        "description": "Una fila por HUECO de la plantilla: los {{1}}, {{2}}… y, si los tiene, cabecera y botones dinámicos.",
+        "details": "Cada hueco se rellena con un campo del lead/contacto o un texto fijo (\"text:<valor>\"). Si falta alguno, el envío se detiene diciendo cuántos y cuáles."
+      }
+    ],
+    "sampleOutput": {
+      "conversationId": 7,
+      "messageId": 120,
+      "templateName": "recordatorio",
+      "language": "es",
+      "category": "UTILITY",
+      "processedParams": {
+        "1": "Ana"
+      },
+      "content": "Hola {{1}}, te recordamos tu cita.",
+      "delivery": "unconfirmed",
+      "deliveryConfirmed": false,
+      "slots": [
+        "1"
+      ],
+      "resolvedSlots": {
+        "1": "Ana"
+      }
+    },
+    "details": "Crea (o reutiliza) una conversación del contacto en la bandeja de WhatsApp indicada."
+  },
+  {
+    "type": "jabvox.sms.send",
+    "category": "jabvox",
+    "module": "sms",
+    "label": "Enviar SMS",
+    "description": "Envía un SMS al contacto usando un proveedor SMS configurado en Jabvox.",
+    "icon": "smartphone",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "providerId",
+        "label": "Proveedor SMS",
+        "type": "select",
+        "required": true,
+        "optionsSource": "sms_providers",
+        "description": "Proveedores SMS dados de alta en Jabvox. Debe estar ACTIVO: si no, el envío se rechaza."
+      },
+      {
+        "key": "contactId",
+        "label": "ID interno del contacto",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.lead.contact.id}}",
+        "description": "ID INTERNO del contacto (no el número de lead). El SMS se envía a su número de teléfono: si no tiene, el nodo falla."
+      },
+      {
+        "key": "message",
+        "label": "Mensaje",
+        "type": "text",
+        "required": true,
+        "templatable": true,
+        "placeholder": "Hola {{trigger.lead.contact.name}}, …",
+        "description": "Texto del SMS. Admite plantillas {{...}} del flujo. Recuerda que cada 160 caracteres cuentan como un SMS en tu proveedor."
+      }
+    ],
+    "sampleOutput": {
+      "sent": true,
+      "to": "+573233653776",
+      "segments": 1
+    }
+  },
+  {
+    "type": "jabvox.typification.create",
+    "category": "jabvox",
+    "module": "tipificaciones",
+    "label": "Crear Tipificación",
+    "description": "Crea una tipificación en el catálogo de la cuenta.",
+    "icon": "list-checks",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "name",
+        "label": "Nombre",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "description",
+        "label": "Descripción",
+        "type": "text",
+        "templatable": true
+      },
+      {
+        "key": "is_active",
+        "label": "Activa",
+        "type": "boolean",
+        "default": true
+      }
+    ],
+    "sampleOutput": {
+      "id": 88,
+      "name": "Interesado",
+      "conversation_id": 55
+    }
+  },
+  {
+    "type": "jabvox.label.find_by_age",
+    "category": "jabvox",
+    "module": "etiquetas",
+    "label": "Conversaciones por antigüedad de etiqueta",
+    "description": "Busca conversaciones que llevan al menos N horas con una etiqueta puesta (y que la siguen teniendo).",
+    "icon": "clock",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "label",
+        "label": "Etiqueta",
+        "type": "select",
+        "required": true,
+        "optionsSource": "labels",
+        "description": "Etiqueta de CONVERSACIÓN (la que ponen «Añadir Etiqueta» y «Quitar Etiqueta»), no la del contacto: son listas separadas."
+      },
+      {
+        "key": "minHours",
+        "label": "Horas mínimas con la etiqueta",
+        "type": "number",
+        "default": 24,
+        "templatable": true,
+        "description": "Solo salen las conversaciones cuya etiqueta se aplicó hace AL MENOS estas horas. Se mide desde la fecha real de aplicación."
+      },
+      {
+        "key": "onlyWithoutReply",
+        "label": "Solo si el cliente NO ha respondido",
+        "type": "boolean",
+        "default": true,
+        "description": "Descarta a quien haya escrito DESPUÉS de ponerse la etiqueta. Es lo que rompe la cadena de seguimiento cuando el cliente contesta."
+      },
+      {
+        "key": "onlyWithPhone",
+        "label": "Solo si el contacto tiene teléfono",
+        "type": "boolean",
+        "default": false,
+        "description": "Descarta las conversaciones cuyo contacto NO tiene número.",
+        "details": "Actívalo si el bucle envía WhatsApp: sin número el envío falla siempre. En Jabvox el número de WhatsApp ES el teléfono del contacto."
+      },
+      {
+        "key": "statuses",
+        "label": "Estado de la conversación",
+        "type": "multiselect",
+        "default": [
+          "open",
+          "pending",
+          "snoozed"
+        ],
+        "options": [
+          {
+            "label": "Abierta",
+            "value": "open"
+          },
+          {
+            "label": "Pendiente",
+            "value": "pending"
+          },
+          {
+            "label": "Pospuesta",
+            "value": "snoozed"
+          },
+          {
+            "label": "Resuelta",
+            "value": "resolved"
+          }
+        ],
+        "description": "Vacío = cualquier estado. Por defecto se excluyen las resueltas."
+      },
+      {
+        "key": "limit",
+        "label": "Máximo de conversaciones",
+        "type": "number",
+        "default": 200,
+        "description": "Tope de resultados. Máximo admitido por Jabvox: 500."
+      }
+    ],
+    "itemsPath": "conversations",
+    "sampleOutput": {
+      "label": "cliente_no_responde",
+      "minHours": 24,
+      "onlyWithoutReply": true,
+      "onlyWithPhone": false,
+      "count": 2,
+      "checked": 3,
+      "without_phone": 1,
+      "now": "2026-08-06T09:00:00Z",
+      "conversations": [
+        {
+          "conversation_id": 55,
+          "display_id": 7,
+          "label": "cliente_no_responde",
+          "applied_at": "2026-08-05T08:00:00Z",
+          "applied_at_epoch": 1785916800,
+          "hours_applied": 25,
+          "status": "open",
+          "labels": [
+            "cliente_no_responde"
+          ],
+          "contact": {
+            "id": 10,
+            "name": "Estrada",
+            "email": null,
+            "phone_number": "+573233653776"
+          },
+          "has_phone": true,
+          "last_inbound_at_epoch": 1785830400,
+          "replied_since_label": false
+        },
+        {
+          "conversation_id": 56,
+          "display_id": 8,
+          "label": "cliente_no_responde",
+          "applied_at": "2026-08-05T07:00:00Z",
+          "applied_at_epoch": 1785913200,
+          "hours_applied": 26,
+          "status": "pending",
+          "labels": [
+            "cliente_no_responde",
+            "vip"
+          ],
+          "contact": {
+            "id": 11,
+            "name": "Rojas",
+            "email": null,
+            "phone_number": null
+          },
+          "has_phone": false,
+          "last_inbound_at_epoch": 1785826800,
+          "replied_since_label": false
+        }
+      ]
+    },
+    "details": "Puede exigir además que el cliente NO haya respondido desde que se etiquetó, para cadenas de seguimiento."
+  },
+  {
+    "type": "jabvox.label.add",
+    "category": "jabvox",
+    "module": "etiquetas",
+    "label": "Añadir Etiqueta",
+    "description": "Añade etiquetas a una conversación (conserva las existentes).",
+    "icon": "tag",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "conversationId",
+        "label": "Número de conversación",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.conversation.display_id}}",
+        "description": "El número que muestra Jabvox en la URL del chat."
+      },
+      {
+        "key": "labels",
+        "label": "Etiquetas a añadir",
+        "type": "multiselect",
+        "required": true,
+        "optionsSource": "labels",
+        "description": "Se añaden a las que ya tenga la conversación (no se pierde ninguna)."
+      }
+    ],
+    "sampleOutput": {
+      "payload": [
+        "vip",
+        "urgente"
+      ]
+    }
+  },
+  {
+    "type": "jabvox.label.remove",
+    "category": "jabvox",
+    "module": "etiquetas",
+    "label": "Quitar Etiqueta",
+    "description": "Quita etiquetas de una conversación (conserva el resto).",
+    "icon": "tag",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "conversationId",
+        "label": "Número de conversación",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.conversation.display_id}}",
+        "description": "El número que muestra Jabvox en la URL del chat."
+      },
+      {
+        "key": "labels",
+        "label": "Etiquetas a quitar",
+        "type": "multiselect",
+        "required": true,
+        "optionsSource": "labels",
+        "description": "El resto de etiquetas de la conversación se conservan."
+      }
+    ],
+    "sampleOutput": {
+      "payload": [
+        "vip"
+      ]
+    }
+  },
+  {
+    "type": "jabvox.contact.add_labels",
+    "category": "jabvox",
+    "module": "etiquetas",
+    "label": "Añadir Etiqueta al Contacto",
+    "description": "Añade etiquetas al CONTACTO (conserva las existentes). Distinto de \"Añadir Etiqueta\", que etiqueta la conversación: son listas separadas.",
+    "icon": "tag",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "contactId",
+        "label": "ID del contacto",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{item.contact.id}}",
+        "description": "ID INTERNO del contacto. Dentro de un bucle sobre leads es {{item.contact.id}}."
+      },
+      {
+        "key": "labels",
+        "label": "Etiquetas a añadir",
+        "type": "multiselect",
+        "required": true,
+        "optionsSource": "labels",
+        "description": "Es el set que lee la condición \"Etiquetas del contacto\", así que sirve para marcar a quien ya fue procesado y no repetirlo."
+      }
+    ],
+    "sampleOutput": {
+      "payload": [
+        "seguimiento_enviado",
+        "vip"
+      ]
+    }
+  },
+  {
+    "type": "jabvox.contact.remove_labels",
+    "category": "jabvox",
+    "module": "etiquetas",
+    "label": "Quitar Etiqueta del Contacto",
+    "description": "Quita etiquetas del CONTACTO (conserva el resto).",
+    "icon": "tag",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "contactId",
+        "label": "ID del contacto",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{item.contact.id}}",
+        "description": "ID INTERNO del contacto. Dentro de un bucle sobre leads es {{item.contact.id}}."
+      },
+      {
+        "key": "labels",
+        "label": "Etiquetas a quitar",
+        "type": "multiselect",
+        "required": true,
+        "optionsSource": "labels",
+        "description": "El resto de etiquetas del contacto se conservan."
+      }
+    ],
+    "sampleOutput": {
+      "payload": [
+        "vip"
+      ]
+    }
+  },
+  {
+    "type": "jabvox.campaign.add_lead",
+    "category": "jabvox",
+    "module": "campañas",
+    "label": "Asociar Lead a Campaña",
+    "description": "Asocia un lead a una campaña de leads (por id de campaña o por nombre; si el nombre no existe, se crea).",
+    "icon": "megaphone",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "leadId",
+        "label": "ID interno del lead",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{item.id}}",
+        "description": "ID INTERNO del lead, NO el número de lead visible (\"#5\"). Si solo tienes el número, resuélvelo antes con el nodo \"Buscar Lead\"."
+      },
+      {
+        "key": "campaign",
+        "label": "Campaña",
+        "type": "select",
+        "required": true,
+        "optionsSource": "campaigns",
+        "templatable": true,
+        "description": "Campaña de leads de la cuenta; también admite un NOMBRE escrito a mano o una plantilla {{…}}.",
+        "details": "Si ese nombre no existe todavía, Jabvox crea la campaña. El lead queda asociado a UNA sola campaña: esta sustituye a la que tuviera antes."
+      }
+    ],
+    "sampleOutput": {
+      "campaign_id": 9,
+      "lead_id": 1,
+      "added": true
+    }
+  },
+  {
+    "type": "jabvox.order.create",
+    "category": "jabvox",
+    "module": "ordenes",
+    "label": "Crear Orden",
+    "description": "Crea una orden/cotización con sus ítems.",
+    "icon": "shopping-cart",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "contactId",
+        "label": "ID interno del contacto",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "{{trigger.lead.contact.id}}",
+        "description": "ID INTERNO del contacto al que pertenece la orden (no el número de lead). Opcional, pero sin él la orden queda sin dueño."
+      },
+      {
+        "key": "conversationId",
+        "label": "ID de conversación (opcional)",
+        "type": "string",
+        "templatable": true,
+        "description": "Vincula la orden a una conversación para verla desde el chat. Es el ID INTERNO de la conversación, no el número visible."
+      },
+      {
+        "key": "doc_type",
+        "label": "Tipo de documento",
+        "type": "select",
+        "default": "QUOTE",
+        "options": [
+          {
+            "label": "Cotización",
+            "value": "QUOTE"
+          },
+          {
+            "label": "Venta",
+            "value": "SALE"
+          }
+        ],
+        "description": "Cotización (QUOTE) o Venta (SALE)."
+      },
+      {
+        "key": "status",
+        "label": "Estado",
+        "type": "select",
+        "optionsSource": "order_statuses",
+        "templatable": true,
+        "description": "Estados de orden configurados en Jabvox. Si se deja vacío, la orden se crea como \"draft\" (borrador)."
+      },
+      {
+        "key": "notes",
+        "label": "Notas",
+        "type": "text",
+        "templatable": true,
+        "description": "Observaciones de la orden. Admite plantillas {{...}}."
+      },
+      {
+        "key": "items",
+        "label": "Líneas de la orden",
+        "type": "orderitems",
+        "optionsSource": "products",
+        "default": [],
+        "description": "Una fila por producto. Al elegir el producto se autorrellenan precio unitario e impuesto.",
+        "details": "Puedes cambiarlos. Jabvox calcula el total de cada línea y los totales de la orden (subtotal − descuento + impuesto)."
+      }
+    ],
+    "sampleOutput": {
+      "id": 77,
+      "order_number": "ZZPR-77",
+      "total": 150000,
+      "status": "pending"
+    }
+  },
+  {
+    "type": "jabvox.order.update",
+    "category": "jabvox",
+    "module": "ordenes",
+    "label": "Actualizar Orden",
+    "description": "Actualiza el estado, las notas y/o las líneas de una orden existente. Jabvox recalcula los totales.",
+    "icon": "shopping-bag",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "orderId",
+        "label": "ID de la orden",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{nodes.crear_orden.output.id}}",
+        "description": "ID de la orden a actualizar (el que devuelve el nodo \"Crear Orden\")."
+      },
+      {
+        "key": "status",
+        "label": "Estado",
+        "type": "select",
+        "optionsSource": "order_statuses",
+        "templatable": true,
+        "description": "Nuevo estado de la orden. Si se deja vacío, no se cambia."
+      },
+      {
+        "key": "notes",
+        "label": "Notas",
+        "type": "text",
+        "templatable": true,
+        "description": "Si se deja vacío, no se cambian las notas."
+      },
+      {
+        "key": "items",
+        "label": "Líneas de la orden",
+        "type": "orderitems",
+        "optionsSource": "products",
+        "description": "OJO: las líneas que añadas aquí se SUMAN a las que ya tiene la orden.",
+        "details": "Para editar una línea existente indica su ID de línea; para borrarla, márcala como «Eliminar». Deja el editor vacío para no tocar las líneas actuales."
+      }
+    ],
+    "sampleOutput": {
+      "id": 77,
+      "order_number": "ZZPR-77",
+      "total": 150000,
+      "status": "paid"
+    }
+  },
+  {
+    "type": "jabvox.state.set_management_state",
+    "category": "jabvox",
+    "module": "estados",
+    "label": "Registrar Estado de Gestión",
+    "description": "Registra un estado de gestión sobre la conversación (nota privada con el estado, como hace la UI de Jabvox).",
+    "icon": "flag",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "conversationId",
+        "label": "Número de conversación",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.conversation.display_id}}",
+        "description": "El número que muestra Jabvox en la URL del chat."
+      },
+      {
+        "key": "state",
+        "label": "Estado de gestión",
+        "type": "select",
+        "required": true,
+        "optionsSource": "management_states"
+      },
+      {
+        "key": "note",
+        "label": "Nota (opcional)",
+        "type": "text",
+        "templatable": true,
+        "description": "Texto de la nota privada. Si se deja vacío se escribe \"Estado de gestión: <estado>\"."
+      }
+    ],
+    "sampleOutput": {
+      "id": 900,
+      "content": "Hola",
+      "message_type": "outgoing",
+      "conversation_id": 55,
+      "private": true,
+      "content_attributes": {
+        "jabvox_management_state_name": "Contactado"
+      }
+    }
+  },
+  {
+    "type": "integration.http_request",
+    "category": "integration",
+    "label": "Petición HTTP",
+    "description": "Realiza una petición HTTP arbitraria (con protección SSRF).",
+    "icon": "globe",
+    "color": "#f59e0b",
+    "hidden": true,
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "method",
+        "label": "Método",
+        "type": "select",
+        "default": "GET",
+        "options": [
+          {
+            "label": "GET",
+            "value": "GET"
+          },
+          {
+            "label": "POST",
+            "value": "POST"
+          },
+          {
+            "label": "PUT",
+            "value": "PUT"
+          },
+          {
+            "label": "PATCH",
+            "value": "PATCH"
+          },
+          {
+            "label": "DELETE",
+            "value": "DELETE"
+          }
+        ]
+      },
+      {
+        "key": "url",
+        "label": "URL",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "headers",
+        "label": "Cabeceras",
+        "type": "key-value",
+        "default": {}
+      },
+      {
+        "key": "body",
+        "label": "Cuerpo",
+        "type": "json"
+      },
+      {
+        "key": "timeoutMs",
+        "label": "Timeout (ms)",
+        "type": "number",
+        "default": 15000
+      }
+    ],
+    "sampleOutput": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "data": {
+        "id": 5,
+        "nombre": "ejemplo"
+      }
+    }
+  },
+  {
+    "type": "integration.graphql",
+    "category": "integration",
+    "label": "GraphQL",
+    "description": "Ejecuta una consulta/mutación GraphQL.",
+    "icon": "braces",
+    "color": "#f59e0b",
+    "hidden": true,
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "url",
+        "label": "Endpoint",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "query",
+        "label": "Query/Mutation",
+        "type": "code",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "variables",
+        "label": "Variables",
+        "type": "json",
+        "default": {}
+      },
+      {
+        "key": "headers",
+        "label": "Cabeceras",
+        "type": "key-value",
+        "default": {}
+      }
+    ],
+    "sampleOutput": {
+      "status": 200,
+      "data": {
+        "usuario": {
+          "id": 5,
+          "nombre": "ejemplo"
+        }
+      }
+    }
+  },
+  {
+    "type": "integration.webhook_out",
+    "category": "integration",
+    "label": "Webhook saliente",
+    "description": "Envía un POST a una URL externa (notificación saliente).",
+    "icon": "send",
+    "color": "#f59e0b",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "url",
+        "label": "URL",
+        "type": "string",
+        "required": true,
+        "templatable": true
+      },
+      {
+        "key": "payload",
+        "label": "Payload",
+        "type": "json",
+        "default": {}
+      },
+      {
+        "key": "headers",
+        "label": "Cabeceras",
+        "type": "key-value",
+        "default": {}
+      }
+    ],
+    "sampleOutput": {
+      "status": 204,
+      "data": null
+    }
+  }
+]

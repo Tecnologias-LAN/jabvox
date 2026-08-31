@@ -1,10 +1,10 @@
-<% content_for(:title) { "Automations – #{@account.name}" } %>
+<% content_for(:title) { "Automatizaciones Avanzadas – #{@account.name}" } %>
 
 <header class="main-content__header" role="banner">
   <h1 class="main-content__page-title">
-    Automations — <%= @account.name %>
+    Automatizaciones Avanzadas — <%= @account.name %>
   </h1>
-  <%= link_to 'Back to Account', super_admin_account_path(@account), class: 'button' %>
+  <%= link_to 'Volver a la cuenta', super_admin_account_path(@account), class: 'button' %>
 </header>
 
 <section class="main-content__body">
@@ -15,382 +15,66 @@
     <p class="flash flash--error"><%= alert %></p>
   <% end %>
 
-  <% unless Automations::ProvisioningService.configured? %>
-    <div style="margin-bottom:24px; padding:16px; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px;">
-      <p style="font-size:13px; color:#9a3412; margin:0;">
-        Automations no está configurado a nivel global.
-        <%= link_to 'Configúralo aquí', super_admin_automations_config_path %> antes de activarlo por cuenta.
-      </p>
-    </div>
-  <% end %>
-
-  <%# Estado derivado en Automations::StateService. Se pinta siempre, no como
-      flash: un flash desaparece al recargar y este estado no debe. %>
-  <% presentation = @config.state_presentation %>
+  <%# Estado del módulo. Se pinta siempre, no como flash: un flash desaparece al
+      recargar y este estado no debe. %>
   <div style="margin-bottom:24px; padding:16px; border-radius:8px;
-              background:<%= presentation[:background] %>;
-              border:1px solid <%= presentation[:color] %>33;">
+              background:<%= @config.enabled? ? '#dcfce7' : '#f3f4f6' %>;
+              border:1px solid <%= @config.enabled? ? '#86efac' : '#d1d5db' %>;">
     <p style="margin:0 0 4px; font-size:13px; color:#374151;">
-      Estado de la integración:
+      Estado del módulo:
       <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600;
-                   background:#ffffff99; color:<%= presentation[:color] %>;">
-        <%= presentation[:label] %>
+                   background:#ffffffcc; color:<%= @config.enabled? ? '#166534' : '#4b5563' %>;">
+        <%= @config.enabled? ? 'Activo' : 'Inactivo' %>
       </span>
-      <span style="font-family:monospace; font-size:11px; color:#6b7280;">(<%= @config.automations_state %>)</span>
     </p>
-    <% if presentation[:detail].present? %>
-      <p style="margin:0; font-size:12px; color:<%= presentation[:color] %>;"><%= presentation[:detail] %></p>
-    <% end %>
+    <p style="margin:0; font-size:12px; color:#4b5563;">
+      El motor de flujos corre dentro de Jabvox: no hay servicio externo que configurar.
+      Con el módulo inactivo, toda la API de flujos responde 403.
+    </p>
   </div>
 
-  <%# Aviso persistente, no un flash: módulo activo y automatizaciones paradas es
-      justo lo que no debe poder olvidarse. %>
-  <% if @config.pending_user_warning? %>
-    <div style="margin-bottom:24px; padding:16px; background:#fffbeb; border-left:4px solid #f59e0b;
-                border-top:1px solid #fde68a; border-right:1px solid #fde68a; border-bottom:1px solid #fde68a;
-                border-radius:6px;">
-      <p style="margin:0 0 4px; font-size:13px; font-weight:600; color:#92400e;">
-        Aprovisionamiento pendiente: falta elegir el usuario
-      </p>
-      <p style="margin:0; font-size:12px; color:#92400e;">
-        El módulo está activo pero ninguna automatización de esta cuenta puede ejecutarse todavía,
-        porque no hay un usuario válido que preste su access token.
-        Elige uno en «Usuario para automatizaciones» y pulsa «Guardar y aprovisionar».
-        <% if @user_status.present? && @user_status[:selected] && !@user_status[:valid] %>
-          <br>
-          <strong>Había un usuario elegido y ha dejado de servir:</strong> <%= @user_status[:message] %>
-        <% end %>
-      </p>
-    </div>
-  <% end %>
-
-  <div style="padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-      <div>
-        <h3 style="font-weight:600; font-size:14px; margin-bottom:6px;">Conexión con Jabvox Automations</h3>
-        <p style="font-size:13px; color:#374151; margin:0;">
-          Estado:
-          <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500;
-                       background:<%= @config.enabled? ? '#dcfce7' : '#fee2e2' %>;
-                       color:<%= @config.enabled? ? '#166534' : '#991b1b' %>;">
-            <%= @config.enabled? ? 'Activo' : 'Inactivo' %>
-          </span>
-        </p>
-      </div>
-      <%= form_tag toggle_super_admin_account_account_automations_path(@account), method: :patch,
-            style: 'display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;',
-            data: { turbo: false } do %>
-        <% unless @config.enabled? %>
-          <label style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:4px;">
-            Límite de flujos (vacío = ilimitado)
-            <%= number_field_tag :max_flows, @config.max_flows, min: 1, step: 1,
-                  style: 'width:180px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;' %>
-          </label>
-        <% end %>
-        <%= submit_tag @config.enabled? ? 'Desactivar' : 'Activar', class: 'button',
-              data: { confirm: @config.enabled? ? '¿Desactivar Automations para esta cuenta?' : '¿Activar el módulo? Todavía no se aprovisionará: después habrá que elegir el usuario que preste su token.' } %>
-      <% end %>
-    </div>
-
-    <% if @config.enabled? %>
-      <%= form_tag update_limit_super_admin_account_account_automations_path(@account), method: :patch,
-            style: 'display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-top:12px;',
-            data: { turbo: false } do %>
-        <label style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:4px;">
-          Límite de flujos (vacío = ilimitado)
-          <%= number_field_tag :max_flows, @config.max_flows, min: 1, step: 1,
-                style: 'width:180px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;' %>
-        </label>
-        <%= submit_tag 'Actualizar límite', class: 'button' %>
-      <% end %>
-
-      <% if @module_status&.success? && @module_status.data.is_a?(Hash) %>
-        <% used = @module_status.data['flowCount'] %>
-        <% cap  = @module_status.data['maxFlows'] %>
-        <p style="margin-top:12px; font-size:13px; color:#374151;">
-          Uso actual de flujos:
-          <strong><%= used.nil? ? '—' : used %></strong>
-          / <strong><%= cap.nil? ? 'Ilimitado' : cap %></strong>
-        </p>
-      <% elsif @module_status && !@module_status.success? %>
-        <p style="margin-top:12px; font-size:12px; color:#991b1b;">
-          No se pudo consultar el uso del módulo: <%= @module_status.error %>
-        </p>
-      <% end %>
-    <% end %>
-
-    <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:16px;">
-      <tbody>
-        <tr style="border-bottom:1px solid #f3f4f6;">
-          <td style="padding:8px 4px; color:#6b7280;">Remote account ID</td>
-          <td style="padding:8px 4px; font-family:monospace;"><%= @config.remote_account_id || '—' %></td>
-        </tr>
-        <tr style="border-bottom:1px solid #f3f4f6;">
-          <td style="padding:8px 4px; color:#6b7280;">Último estado</td>
-          <td style="padding:8px 4px;"><%= @config.last_status.presence || '—' %></td>
-        </tr>
-        <tr style="border-bottom:1px solid #f3f4f6;">
-          <td style="padding:8px 4px; color:#6b7280;">Último aprovisionamiento</td>
-          <td style="padding:8px 4px;"><%= @config.last_provisioned_at&.strftime('%Y-%m-%d %H:%M') || '—' %></td>
-        </tr>
-        <% if @config.last_error.present? %>
-          <tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:8px 4px; color:#6b7280;">Último error</td>
-            <td style="padding:8px 4px; color:#991b1b;"><%= @config.last_error %></td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-
-    <% if @remote_status&.success? && @remote_status.data.is_a?(Hash) %>
-      <p style="margin-top:12px; font-size:12px; color:#6b7280;">
-        Estado remoto — exists: <strong><%= @remote_status.data['exists'] %></strong>,
-        active: <strong><%= @remote_status.data['active'] %></strong>
-      </p>
-    <% elsif @remote_status && !@remote_status.success? %>
-      <p style="margin-top:12px; font-size:12px; color:#991b1b;">
-        No se pudo consultar el estado remoto: <%= @remote_status.error %>
-      </p>
-    <% end %>
+  <div style="margin-bottom:24px; padding:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
+    <h3 style="font-weight:600; font-size:14px; margin:0 0 8px;">Uso actual</h3>
+    <p style="margin:0; font-size:13px; color:#374151;">
+      Flujos creados: <strong><%= @flows_count %></strong>
+      &nbsp;·&nbsp;
+      Tope de esta cuenta:
+      <strong><%= @config.max_flows.presence || 'sin tope propio' %></strong>
+      &nbsp;·&nbsp;
+      Incluido en el plan: <strong><%= @plan_limit.positive? ? @plan_limit : 'no definido' %></strong>
+    </p>
+    <p style="margin:8px 0 0; font-size:12px; color:#6b7280;">
+      El tope efectivo es el MENOR de los dos valores definidos. Si ninguno lo está, la cuenta es ilimitada.
+      El límite se aplica en el servidor al crear un flujo, no solo en la interfaz.
+    </p>
   </div>
 
-  <%# Credencial SALIENTE: el access token de un usuario real de la cuenta, con el
-      que Automations llama de vuelta a Jabvox. Nunca se renderiza completo. %>
-  <div style="margin-top:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
-    <h3 style="font-weight:600; font-size:14px; margin-bottom:6px;">Usuario para automatizaciones</h3>
-    <p style="font-size:13px; color:#374151; margin:0 0 12px;">
-      Usuario de esta cuenta cuyo access token se envía a Automations para que pueda leer y escribir
-      datos de la cuenta. Debe ser <strong>administrador</strong>: un agente solo ve las bandejas de
-      las que es miembro, así que los flujos fallarían según en qué bandeja cayera la conversación.
-    </p>
-
-    <%# Va siempre, esté o no elegido el usuario: es una propiedad del diseño
-        (un token por persona, sin caducidad), no el aviso de un fallo puntual. %>
-    <div style="margin-bottom:16px; padding:12px 14px; background:#fef3c7; border:1px solid #f59e0b; border-radius:6px;">
-      <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:#92400e;">
-        Atención: esta credencial está atada a una persona
-      </p>
-      <p style="margin:0; font-size:12px; color:#92400e; line-height:1.5;">
-        Los access token de Jabvox son <strong>uno por usuario</strong> y <strong>no caducan</strong>.
-        Si la persona seleccionada sale de la empresa, se degrada a agente o le rotan el token,
-        <strong>las automatizaciones de esta cuenta se detienen</strong>.
-        Elige a alguien estable en la organización y revisa esta pantalla cuando haya cambios de personal.
-      </p>
-    </div>
-
-    <% if @user_status.present? && @user_status[:selected] %>
-      <table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:12px;">
-        <tbody>
-          <tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:8px 4px; color:#6b7280; width:220px;">Usuario seleccionado</td>
-            <td style="padding:8px 4px;">
-              <strong><%= @user_status[:name] %></strong>
-              <span style="font-family:monospace; color:#6b7280;">(<%= @user_status[:email] %>)</span>
-              <span style="color:#6b7280;">— id <%= @user_status[:user_id] %></span>
-            </td>
-          </tr>
-          <tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:8px 4px; color:#6b7280;">Sigue siendo válido</td>
-            <td style="padding:8px 4px;">
-              <% if @user_status[:valid] %>
-                <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#dcfce7; color:#166534;">
-                  Sí — rol <%= @user_status[:role] %>
-                </span>
-              <% else %>
-                <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#fee2e2; color:#991b1b;">
-                  No
-                </span>
-                <p style="margin:6px 0 0; font-size:12px; color:#991b1b;"><%= @user_status[:message] %></p>
-              <% end %>
-            </td>
-          </tr>
-          <tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:8px 4px; color:#6b7280;">Token de acceso</td>
-            <td style="padding:8px 4px;">
-              <% if @user_status[:has_token] %>
-                <span style="color:#166534;">Existe</span>
-                <span style="font-family:monospace; color:#6b7280;"><%= @user_status[:masked_token] %></span>
-                <span style="color:#6b7280;">
-                  — creado el <%= @user_status[:token_created_at]&.strftime('%Y-%m-%d %H:%M') || '—' %>
-                </span>
-              <% else %>
-                <span style="color:#854d0e;">Sin token todavía: se emitirá al aprovisionar.</span>
-              <% end %>
-              <%# El valor completo del token NUNCA se renderiza: solo los 4 últimos caracteres. %>
-            </td>
-          </tr>
-          <tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:8px 4px; color:#6b7280;">Cuenta confirmada</td>
-            <td style="padding:8px 4px;">
-              <%= @user_status[:confirmed] ? 'Sí (necesario para que la API acepte el token)' : 'No' %>
-            </td>
-          </tr>
-          <tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:8px 4px; color:#6b7280;">Elegido el</td>
-            <td style="padding:8px 4px;">
-              <%= @config.automations_user_set_at&.strftime('%Y-%m-%d %H:%M') || '—' %>
-              <% if @config.automations_user_set_by_id.present? %>
-                <span style="color:#6b7280;">
-                  por super-admin id <%= @config.automations_user_set_by_id %>
-                  <% if @config.automations_user_set_ip.present? %>
-                    desde <span style="font-family:monospace;"><%= @config.automations_user_set_ip %></span>
-                  <% end %>
-                </span>
-              <% end %>
-            </td>
-          </tr>
-          <tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:8px 4px; color:#6b7280;">Último aprovisionamiento</td>
-            <td style="padding:8px 4px;"><%= @config.last_provisioned_at&.strftime('%Y-%m-%d %H:%M') || '—' %></td>
-          </tr>
-          <% if @config.last_error.present? %>
-            <tr style="border-bottom:1px solid #f3f4f6;">
-              <td style="padding:8px 4px; color:#6b7280;">Último error</td>
-              <td style="padding:8px 4px; color:#991b1b;"><%= @config.last_error %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    <% end %>
-
-    <% if @config.enabled? %>
-      <% administrators = @selectable_users ? @selectable_users[:administrators] : [] %>
-      <% if administrators.blank? %>
-        <p style="font-size:13px; color:#991b1b; margin:0;">
-          Esta cuenta no tiene ningún administrador al que asignar las automatizaciones.
-          Asciende a administrador a un usuario de la cuenta y vuelve aquí.
-        </p>
-      <% else %>
-        <%= form_tag update_user_super_admin_account_account_automations_path(@account), method: :patch,
-              style: 'display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;',
-              data: { turbo: false } do %>
-          <label style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:4px;">
-            Administradores de esta cuenta
-            <%# Opciones a mano para mostrar nombre, email y rol: es lo que permite
-                distinguir a dos personas con el mismo nombre. %>
-            <%= select_tag :automations_user_id,
-                  options_for_select(
-                    administrators.map { |u| ["#{u.name} — #{u.email} (administrador)", u.id] },
-                    @config.automations_user_id
-                  ),
-                  include_blank: '— Elige un usuario —',
-                  style: 'width:420px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;' %>
-          </label>
-          <%= submit_tag 'Guardar y aprovisionar', class: 'button',
-                data: { confirm: '¿Enviar el access token de este usuario a Automations? ' \
-                                 'Si esa persona pierde el acceso o le rotan el token, las automatizaciones se detendrán.' } %>
-        <% end %>
-
-        <div style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-          <% if @config.automations_user_id.present? %>
-            <%= form_tag reprovision_super_admin_account_account_automations_path(@account), method: :post,
-                  style: 'margin:0;', data: { turbo: false } do %>
-              <%= submit_tag 'Reaprovisionar', class: 'button' %>
-            <% end %>
-            <%= form_tag remove_user_super_admin_account_account_automations_path(@account), method: :delete,
-                  style: 'margin:0;', data: { turbo: false } do %>
-              <%= submit_tag 'Quitar usuario', class: 'button',
-                    data: { confirm: '¿Quitar el usuario? Las automatizaciones de esta cuenta se DETENDRÁN ' \
-                                     'hasta que elijas otro. No se toca el token personal de esa persona.' } %>
-            <% end %>
-          <% end %>
+  <div style="margin-bottom:24px; padding:16px; background:#ffffff; border:1px solid #e5e7eb; border-radius:8px;">
+    <h3 style="font-weight:600; font-size:14px; margin:0 0 12px;">Límite de flujos de la cuenta</h3>
+    <%= form_with url: update_limit_super_admin_account_account_automations_path(@account), method: :patch, local: true do |f| %>
+      <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+        <div>
+          <%= f.label :max_flows, 'Máximo de flujos', style: 'display:block; font-size:12px; color:#374151; margin-bottom:4px;' %>
+          <%= f.number_field :max_flows, value: @config.max_flows, min: 1, placeholder: 'vacío = sin tope propio',
+                             style: 'padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; width:220px;' %>
         </div>
-
-        <p style="margin-top:12px; font-size:12px; color:#6b7280; line-height:1.5;">
-          <strong>Reaprovisionar</strong> reenvía a Automations el token que ya tiene el usuario y la API key
-          de la cuenta en una sola operación. Úsalo si Automations devuelve 401/403 o si se restauró un
-          backup del lado remoto.
-          <br>
-          <strong>No existe un botón para regenerar el token</strong>, y es a propósito: los token de Jabvox
-          son uno por usuario, así que regenerarlo revocaría el token <em>personal</em> de esa persona y le
-          rompería la aplicación móvil y sus propias integraciones. Si el token está comprometido, esa persona
-          debe rotarlo desde su perfil y luego se pulsa aquí «Reaprovisionar».
-        </p>
-      <% end %>
-    <% else %>
-      <p style="font-size:12px; color:#6b7280;">
-        Activa el módulo para poder elegir el usuario de automatizaciones.
+        <%= f.submit 'Guardar límite', class: 'button' %>
+      </div>
+      <p style="margin:8px 0 0; font-size:12px; color:#6b7280;">
+        Déjalo vacío para no imponer un tope propio; en ese caso manda lo que diga el plan.
       </p>
     <% end %>
   </div>
 
-  <%# ------------------------------------------------------------------ %>
-  <%# Credencial PROPIA de esta cuenta. Se regenera en el panel /admin de %>
-  <%# Automations y se pega aquí; así un fallo de esta cuenta no afecta a %>
-  <%# las demás ni a la conexión global.                                  %>
-  <%# ------------------------------------------------------------------ %>
-  <div style="margin-top:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
-    <h3 style="font-weight:600; font-size:14px; margin-bottom:6px;">Credencial de esta cuenta</h3>
-    <p style="font-size:13px; color:#374151; margin:0 0 12px;">
-      API key propia con la que Jabvox opera ESTA cuenta contra Automations.
-      Regenérala en el panel de Automations (Cuentas → Credenciales) y pégala aquí.
-      Si esta credencial falla, solo se ve afectada esta cuenta.
+  <div style="padding:16px; background:#ffffff; border:1px solid #e5e7eb; border-radius:8px;">
+    <h3 style="font-weight:600; font-size:14px; margin:0 0 12px;">Activación del módulo</h3>
+    <%= form_with url: toggle_super_admin_account_account_automations_path(@account), method: :patch, local: true do |f| %>
+      <%= f.hidden_field :max_flows, value: @config.max_flows %>
+      <%= f.submit @config.enabled? ? 'Desactivar módulo' : 'Activar módulo', class: 'button' %>
+    <% end %>
+    <p style="margin:8px 0 0; font-size:12px; color:#6b7280;">
+      Activar enciende también el acceso al módulo en el panel de la cuenta.
+      Desactivar no borra ningún flujo: solo cierra la API y el menú.
     </p>
-
-    <table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:12px;">
-      <tbody>
-        <tr style="border-bottom:1px solid #f3f4f6;">
-          <td style="padding:8px 4px; color:#6b7280; width:220px;">Credencial en uso</td>
-          <td style="padding:8px 4px;">
-            <% if @config.own_api_key? %>
-              <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#dcfce7; color:#166534;">
-                Propia de la cuenta
-              </span>
-            <% else %>
-              <span style="display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; background:#fef9c3; color:#854d0e;">
-                Provision Key maestra (global)
-              </span>
-            <% end %>
-          </td>
-        </tr>
-        <tr style="border-bottom:1px solid #f3f4f6;">
-          <td style="padding:8px 4px; color:#6b7280;">API key guardada</td>
-          <td style="padding:8px 4px; font-family:monospace;"><%= @config.masked_api_key || '—' %></td>
-        </tr>
-        <tr style="border-bottom:1px solid #f3f4f6;">
-          <td style="padding:8px 4px; color:#6b7280;">Guardada el</td>
-          <td style="padding:8px 4px;"><%= @config.api_key_set_at_jabvox&.strftime('%Y-%m-%d %H:%M') || '—' %></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <%= form_tag update_api_key_super_admin_account_account_automations_path(@account), method: :patch,
-          style: 'display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;',
-          data: { turbo: false } do %>
-      <label style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:4px;">
-        API key de la cuenta (vacío = conservar la actual)
-        <%= password_field_tag :api_key, nil, autocomplete: 'off', placeholder: 'jbx_…',
-              style: 'width:360px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px; font-family:monospace;' %>
-      </label>
-      <%= submit_tag 'Guardar credencial', class: 'button' %>
-      <% if @config.own_api_key? %>
-        <%= submit_tag 'Quitar', name: 'remove_api_key', class: 'button',
-              data: { confirm: '¿Quitar la credencial propia? Esta cuenta volverá a usar la Provision Key maestra.' } %>
-      <% end %>
-    <% end %>
-
-    <%= form_tag test_connection_super_admin_account_account_automations_path(@account), method: :post,
-          style: 'margin-top:12px;', data: { turbo: false } do %>
-      <%= submit_tag 'Probar conexión de esta cuenta', class: 'button' %>
-    <% end %>
-
-    <% if @account_health %>
-      <% if @account_health.success? %>
-        <p style="margin-top:12px; font-size:13px; color:#166534;">
-          Conexión correcta con la credencial
-          <strong><%= @credential_kind == :account ? 'propia de la cuenta' : 'maestra (global)' %></strong>.
-        </p>
-      <% else %>
-        <p style="margin-top:12px; font-size:13px; color:#991b1b;">
-          Falló la conexión de esta cuenta (credencial
-          <strong><%= @credential_kind == :account ? 'propia de la cuenta' : 'maestra (global)' %></strong>):
-          <%= @account_health.error %>
-        </p>
-        <p style="margin-top:6px; font-size:12px; color:#6b7280;">
-          Si el error es 401, regenera la API key de esta cuenta en el panel de Automations y pégala arriba.
-          Las demás cuentas y la conexión global no se ven afectadas.
-        </p>
-      <% end %>
-    <% end %>
   </div>
 </section>

@@ -1,0 +1,13 @@
+# Flujos (motor de automatizaciones visuales)
+# Worker Sidekiq dedicado y AISLADO: procesa SOLO sus dos colas. Un flujo con un
+# bucle de 200 elementos no puede taponar mensajes ni ningún otro servicio.
+---
+:verbose: false
+:concurrency: <%= ENV.fetch("JABVOX_FLOWS_CONCURRENCY", "4").to_i %>
+:timeout: 25
+:max_retries: 3
+# Orden = prioridad estricta (sin pesos): lo programado/barrido va PRIMERO para
+# que el disparo de las 9:00 no espere detrás de una ejecución larga en curso.
+:queues:
+  - jabvox_flows_scheduled
+  - jabvox_flows
