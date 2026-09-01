@@ -555,6 +555,7 @@ Rails.application.routes.draw do
                 get :matching_lead_ids
                 get 'for_contact/:contact_id', action: :for_contact, as: :for_contact
                 patch 'for_contact/:contact_id', action: :update_contact_lead, as: :update_contact_lead
+                get 'detail_for_contact/:contact_id', action: :lead_detail, as: :lead_detail_for_contact
               end
               # Multi-row custom tables for a lead. The path id is the TABLE id
               # (a lead can have many rows per table); the specific row is passed

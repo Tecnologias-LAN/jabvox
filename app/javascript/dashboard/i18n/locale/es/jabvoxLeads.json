@@ -190,5 +190,25 @@
     },
     "SUBTITLE": "Gestiona y da seguimiento a tus prospectos",
     "EMPTY_TITLE": "Sin leads"
+  },
+  "JABVOX_LEAD_INFO": {
+    "LOADING": "Cargando…",
+    "ERROR": "No se pudo cargar la información del lead.",
+    "NO_LEAD": "Este contacto no tiene un lead asociado.",
+    "SEARCH_FIELD": "Buscar campo...",
+    "PHONE": "Teléfono",
+    "EMAIL": "Email",
+    "DOCUMENT": "Documento",
+    "CONTACT_TYPE": "Tipo de persona",
+    "TYPE_PERSON": "Persona",
+    "TYPE_COMPANY": "Empresa",
+    "COUNTRY": "País",
+    "CAMPAIGN": "Campaña",
+    "AFFILIATE": "Afiliado",
+    "AFFILIATE_OWN": "Propio",
+    "INBOX": "Bandeja",
+    "ASSIGNEE": "Asignado a",
+    "REGISTERED_AT": "Fecha de registro",
+    "BIO": "Biografía"
   }
 }

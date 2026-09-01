@@ -21,6 +21,10 @@ export default {
   bulkDestroy: leadIds =>
     axios.delete(`${client.url}/bulk_destroy`, { data: { lead_ids: leadIds } }),
   forContact: contactId => axios.get(`${client.url}/for_contact/${contactId}`),
+  // Full lead detail (contact + lead + inbox + custom fields) for one contact,
+  // shown in the conversation sidebar's lead info panel.
+  detailForContact: contactId =>
+    axios.get(`${client.url}/detail_for_contact/${contactId}`),
   updateContactLead: (contactId, campaignName) =>
     axios.patch(`${client.url}/for_contact/${contactId}`, {
       campaign_name: campaignName,

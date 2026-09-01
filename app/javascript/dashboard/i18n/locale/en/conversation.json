@@ -415,6 +415,7 @@
       "PLACEHOLDER": "None"
     },
     "ACCORDION": {
+      "LEAD_INFO": "Lead information",
       "CONTACT_DETAILS": "Contact Details",
       "CONVERSATION_ACTIONS": "Conversation Actions",
       "CONVERSATION_LABELS": "Conversation Labels",
