@@ -125,6 +125,12 @@ module Jabvox
       end
 
       def managements
+        # A "gestión" is ONE management event = one note/message that carries a
+        # management state, NOT one answer row. In production a single gestión
+        # has many answers (one per form question), all sharing the same
+        # state_id, so counting answer rows overcounts massively. We collapse to
+        # one row per message_id via DISTINCT ON, matching the agents-report cell
+        # (which counts messages that have a management state).
         {
           key: 'managements',
           label: 'Gestiones',
@@ -132,15 +138,22 @@ module Jabvox
           user_column: 'jabvox_management_answers.created_by_id',
           inbox_column: nil,
           sum_column: nil,
-          # Filter + breakdown by management state (tipo de gestión).
           management_state_column: 'jabvox_management_answers.jabvox_management_state_id',
           filters_config: [
             { key: 'management_state_id', type: 'select', label: 'Tipo de gestión',
               options_source: 'management_states' }
           ],
           breakdown: { key: 'management_state', label: 'Por gestión' },
+          # Keep ONE representative answer per message_id (the lowest id), so
+          # every downstream query (keyset list, count, breakdown) sees exactly
+          # one row per gestión. Works with the standard keyset/count/group code.
           scope: lambda do |account|
-            JabvoxManagementAnswer.where(account_id: account.id)
+            earlier = JabvoxManagementAnswer
+                      .where('a2.message_id = jabvox_management_answers.message_id')
+                      .where('a2.id < jabvox_management_answers.id')
+                      .from('jabvox_management_answers a2').select(1)
+            JabvoxManagementAnswer.where(account_id: account.id).where.not(message_id: nil)
+                                  .where('NOT EXISTS (?)', earlier)
                                   .includes(:management_state, message: { conversation: :contact })
           end,
           serializer: ->(ans, ctx) { serialize_management(ans, ctx) }

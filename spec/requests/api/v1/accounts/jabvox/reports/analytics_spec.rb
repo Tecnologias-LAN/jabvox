@@ -74,5 +74,26 @@ RSpec.describe 'Jabvox reports analytics drill-down', type: :request do
       keys = response.parsed_body['filters_config'].map { |f| f['key'] }
       expect(keys).to include('status')
     end
+
+    # Regression: a gestión with several answer rows (one per form question)
+    # must count as ONE management, not one per answer.
+    it 'counts one management per note even with multiple answer rows' do
+      state = account.jabvox_management_states.create!(name_jabvox: 'Interesado', created_by_id: agent.id)
+      note = create(:message, account: account, inbox: inbox, conversation: conversation,
+                              message_type: :outgoing, private: true, sender: agent, created_at: 2.days.ago)
+      3.times do |i|
+        JabvoxManagementAnswer.create!(account_id: account.id, message_id: note.id,
+                                       jabvox_management_state_id: state.id,
+                                       created_by_id: agent.id, label: "P#{i}", value: "R#{i}",
+                                       created_at: 2.days.ago)
+      end
+      get "#{base}/managements/records", params: { agent_ids: [agent.id] },
+                                         headers: admin.create_new_auth_token, as: :json
+      expect(response.parsed_body['meta']['total_count']).to eq(1)
+
+      get "#{base}/managements/breakdown", params: { agent_ids: [agent.id] },
+                                           headers: admin.create_new_auth_token, as: :json
+      expect(response.parsed_body['total']).to eq(1)
+    end
   end
 end
