@@ -21,6 +21,36 @@
       "DESCRIPTION": "Métricas de productos, agentes y telefonía en tiempo real.",
       "FILTERS": "Filtros"
     },
+    "ANALYTICS": {
+      "BACK": "Volver al reporte",
+      "TOTAL": "Total",
+      "QUANTITY": "Cantidad",
+      "AMOUNT": "Monto",
+      "SUMMARY_ERROR": "No se pudo cargar el resumen.",
+      "RECORDS_ERROR": "No se pudieron cargar los registros.",
+      "RETRY": "Reintentar",
+      "EMPTY": "No hay registros para estos filtros.",
+      "UNKNOWN_METRIC": "Métrica desconocida.",
+      "LOAD_MORE": "Cargar más",
+      "PER_PAGE": "Por página",
+      "OF": "de",
+      "SEARCH": "Buscar…",
+      "CLEAR": "Limpiar",
+      "INBOXES": "Bandejas",
+      "AGENTS": "Agentes",
+      "NO_LEAD": "Sin nombre",
+      "DASH": "—",
+      "DIRECTION": {
+        "INBOUND": "Entrante",
+        "OUTBOUND": "Saliente"
+      },
+      "STATUS": {
+        "SENT": "Enviado",
+        "DELIVERED": "Entregado",
+        "READ": "Leído",
+        "FAILED": "Fallido"
+      }
+    },
     "PRODUCTS": {
       "FILTER_TYPE": "Tipo",
       "FILTER_STATUS": "Estado",
@@ -54,6 +84,8 @@
     "AGENTS": {
       "COLS": {
         "AGENT": "Agente",
+        "RESOLVED": "Resueltos",
+        "CONVERSATIONS": "Conversaciones",
         "MESSAGES": "Mensajes",
         "NOTES": "Notas",
         "MANAGEMENTS": "Gestiones",
@@ -62,7 +94,8 @@
       },
       "STATE_TIMES_TITLE": "Tiempo por estado de app",
       "STATE_TIMES_EMPTY": "Sin registros de estado en el período seleccionado.",
-      "ACTIVE_STATE": "Activo"
+      "ACTIVE_STATE": "Activo",
+      "DRILLDOWN_HINT": "Ver el detalle de este agente"
     },
     "DIALER": {
       "STATS": {

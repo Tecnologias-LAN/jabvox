@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_27_000003) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_31_000002) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1941,6 +1941,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_000003) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id", "agent_extension"], name: "idx_cdr_records_account_agent_ext"
+    t.index ["account_id", "calldate", "id"], name: "idx_cdr_records_account_calldate_keyset", order: { calldate: :desc, id: :desc }
     t.index ["account_id", "calldate"], name: "idx_cdr_records_account_calldate"
     t.index ["account_id", "disposition"], name: "idx_cdr_records_account_disposition"
     t.index ["account_id", "medium"], name: "idx_cdr_records_account_medium"
@@ -2020,7 +2021,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_000003) do
     t.datetime "removed_at_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["account_id", "applied_at_jabvox", "id"], name: "idx_conv_label_logs_account_applied_keyset", order: { applied_at_jabvox: :desc, id: :desc }
     t.index ["account_id", "label_jabvox"], name: "idx_conv_label_logs_account_label"
+    t.index ["account_id", "removed_at_jabvox", "id"], name: "idx_conv_label_logs_account_removed_keyset", order: { removed_at_jabvox: :desc, id: :desc }
     t.index ["conversation_id", "label_jabvox"], name: "idx_conv_label_logs_open_unique", unique: true, where: "(removed_at_jabvox IS NULL)"
     t.index ["conversation_id"], name: "idx_conv_label_logs_conversation"
   end
@@ -2838,6 +2841,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_000003) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "created_by_id"
+    t.index ["account_id", "created_at", "id"], name: "idx_jabvox_mgmt_answers_account_created_keyset", order: { created_at: :desc, id: :desc }
     t.index ["account_id"], name: "index_jabvox_management_answers_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_management_answers_on_created_by_id"
     t.index ["jabvox_management_question_id"], name: "idx_on_jabvox_management_question_id_65239e4ba3"
@@ -2936,6 +2940,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_000003) do
     t.integer "alegra_id"
     t.string "alegra_number"
     t.bigint "created_by_id"
+    t.index ["account_id", "created_at", "id"], name: "idx_jabvox_orders_account_created_keyset", order: { created_at: :desc, id: :desc }
     t.index ["account_id"], name: "index_jabvox_orders_on_account_id"
     t.index ["contact_id"], name: "index_jabvox_orders_on_contact_id"
     t.index ["conversation_id"], name: "index_jabvox_orders_on_conversation_id"
@@ -3050,6 +3055,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_000003) do
     t.bigint "created_by_id"
     t.index ["account_id"], name: "index_jabvox_quick_buttons_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_quick_buttons_on_created_by_id"
+  end
+
+  create_table "jabvox_report_daily_rollups", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "metric_key", null: false
+    t.date "day", null: false
+    t.bigint "inbox_id"
+    t.bigint "user_id"
+    t.bigint "count", default: 0, null: false
+    t.decimal "sum_value", precision: 18, scale: 2, default: "0.0", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "metric_key", "day", "inbox_id", "user_id"], name: "idx_jabvox_report_rollups_bucket", unique: true
+    t.index ["account_id", "metric_key", "day"], name: "idx_jabvox_report_rollups_read"
   end
 
   create_table "jabvox_response_bot_configs", force: :cascade do |t|

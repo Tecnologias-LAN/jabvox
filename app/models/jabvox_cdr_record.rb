@@ -32,13 +32,14 @@
 #
 # Indexes
 #
-#  idx_cdr_records_account_agent_ext       (account_id,agent_extension)
-#  idx_cdr_records_account_calldate        (account_id,calldate)
-#  idx_cdr_records_account_disposition     (account_id,disposition)
-#  idx_cdr_records_account_medium          (account_id,medium)
-#  idx_cdr_records_account_typ             (account_id,typification_id)
-#  idx_cdr_records_account_uniqueid        (account_id,uniqueid) UNIQUE
-#  index_jabvox_cdr_records_on_account_id  (account_id)
+#  idx_cdr_records_account_agent_ext        (account_id,agent_extension)
+#  idx_cdr_records_account_calldate         (account_id,calldate)
+#  idx_cdr_records_account_calldate_keyset  (account_id,calldate DESC,id DESC)
+#  idx_cdr_records_account_disposition      (account_id,disposition)
+#  idx_cdr_records_account_medium           (account_id,medium)
+#  idx_cdr_records_account_typ              (account_id,typification_id)
+#  idx_cdr_records_account_uniqueid         (account_id,uniqueid) UNIQUE
+#  index_jabvox_cdr_records_on_account_id   (account_id)
 #
 # Foreign Keys
 #

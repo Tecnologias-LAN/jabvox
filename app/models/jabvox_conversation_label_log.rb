@@ -19,9 +19,11 @@
 #
 # Indexes
 #
-#  idx_conv_label_logs_account_label  (account_id,label_jabvox)
-#  idx_conv_label_logs_conversation   (conversation_id)
-#  idx_conv_label_logs_open_unique    (conversation_id,label_jabvox) UNIQUE WHERE (removed_at_jabvox IS NULL)
+#  idx_conv_label_logs_account_applied_keyset  (account_id,applied_at_jabvox DESC,id DESC)
+#  idx_conv_label_logs_account_label           (account_id,label_jabvox)
+#  idx_conv_label_logs_account_removed_keyset  (account_id,removed_at_jabvox DESC,id DESC)
+#  idx_conv_label_logs_conversation            (conversation_id)
+#  idx_conv_label_logs_open_unique             (conversation_id,label_jabvox) UNIQUE WHERE (removed_at_jabvox IS NULL)
 #
 class JabvoxConversationLabelLog < ApplicationRecord
   self.table_name = 'jabvox_conversation_label_logs'

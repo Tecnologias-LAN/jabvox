@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
@@ -50,7 +51,10 @@ const tabs = computed(() => [
   },
 ]);
 
-const activeTab = ref(null);
+const route = useRoute();
+// Initial tab can come from the URL (?tab=agents), e.g. when returning from a
+// drill-down opened inside the agents report.
+const activeTab = ref(route.query.tab || null);
 // First visible tab is the default; also covers products being disabled.
 const currentTab = computed(() => {
   const keys = tabs.value.map(tab => tab.key);
