@@ -401,6 +401,7 @@
       "PLACEHOLDER": "Ninguna"
     },
     "ACCORDION": {
+      "LEAD_INFO": "Información del lead",
       "CONTACT_DETAILS": "Detalles de contacto",
       "CONVERSATION_ACTIONS": "Acciones de conversación",
       "CONVERSATION_LABELS": "Etiquetas de conversación",

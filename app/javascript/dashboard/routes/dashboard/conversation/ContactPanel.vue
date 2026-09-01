@@ -22,6 +22,7 @@ import Draggable from 'vuedraggable';
 import MacrosList from './Macros/List.vue';
 import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
 import JabvoxLeadRecordsByContact from 'dashboard/components/widgets/conversation/jabvox/JabvoxLeadRecordsByContact.vue';
+import JabvoxLeadInfoByContact from 'dashboard/components/widgets/conversation/jabvox/JabvoxLeadInfoByContact.vue';
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
@@ -57,6 +58,11 @@ const isShopifyFeatureEnabled = computed(
 );
 
 const { isCloudFeatureEnabled } = useAccount();
+// Show the Jabvox lead info panel only when the leads module is enabled for the
+// account (its endpoint 403s otherwise).
+const isJabvoxLeadsEnabled = computed(() =>
+  isCloudFeatureEnabled(FEATURE_FLAGS.JABVOX_LEADS)
+);
 
 const isLinearFeatureEnabled = computed(() =>
   isCloudFeatureEnabled(FEATURE_FLAGS.LINEAR)
@@ -147,6 +153,18 @@ onMounted(() => {
     />
     <ContactInfo :contact="contact" :channel-type="channelType" />
     <div class="px-2 pb-8 list-group">
+      <!-- Jabvox: ficha completa del lead SIEMPRE como primer acordeón (fuera del
+           Draggable, igual que el panel de registros Jabvox del final). -->
+      <div v-if="contactId && isJabvoxLeadsEnabled" class="mb-3">
+        <AccordionItem
+          :title="$t('CONVERSATION_SIDEBAR.ACCORDION.LEAD_INFO')"
+          :is-open="isContactSidebarItemOpen('is_lead_info_open')"
+          compact
+          @toggle="value => toggleSidebarUIState('is_lead_info_open', value)"
+        >
+          <JabvoxLeadInfoByContact :contact-id="contactId" />
+        </AccordionItem>
+      </div>
       <Draggable
         :list="conversationSidebarItems"
         animation="200"

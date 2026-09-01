@@ -96,4 +96,5 @@ RSpec.describe 'Jabvox reports analytics drill-down', type: :request do
       expect(response.parsed_body['total']).to eq(1)
     end
   end
+
 end

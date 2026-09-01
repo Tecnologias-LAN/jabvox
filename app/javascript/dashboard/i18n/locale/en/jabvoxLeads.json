@@ -190,5 +190,25 @@
     },
     "SUBTITLE": "Manage and follow up on your prospects",
     "EMPTY_TITLE": "No leads"
+  },
+  "JABVOX_LEAD_INFO": {
+    "LOADING": "Loading…",
+    "ERROR": "Could not load the lead information.",
+    "NO_LEAD": "This contact has no associated lead.",
+    "SEARCH_FIELD": "Search field...",
+    "PHONE": "Phone",
+    "EMAIL": "Email",
+    "DOCUMENT": "Document",
+    "CONTACT_TYPE": "Person type",
+    "TYPE_PERSON": "Person",
+    "TYPE_COMPANY": "Company",
+    "COUNTRY": "Country",
+    "CAMPAIGN": "Campaign",
+    "AFFILIATE": "Affiliate",
+    "AFFILIATE_OWN": "Own",
+    "INBOX": "Inbox",
+    "ASSIGNEE": "Assigned to",
+    "REGISTERED_AT": "Registered at",
+    "BIO": "Bio"
   }
 }

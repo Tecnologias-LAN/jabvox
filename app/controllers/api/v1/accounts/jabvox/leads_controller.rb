@@ -71,6 +71,19 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     }
   end
 
+  # Full lead detail for one contact (contact fields + lead fields + inbox +
+  # custom lead fields), mirroring the lead detail page. Used by the conversation
+  # sidebar's "Información del lead" panel. Available to any agent who can see
+  # leads — NOT gated by the reports permission.
+  def lead_detail
+    result = Jabvox::LeadDetailPresenter.new(
+      account: Current.account, contact_id: params[:contact_id]
+    ).call
+    return render(json: { error: 'Lead no encontrado' }, status: :not_found) unless result
+
+    render json: result
+  end
+
   def update_contact_lead
     lead = JabvoxLead.find_or_initialize_by(account: Current.account, contact_id: params[:contact_id].to_i)
     lead.jabvox_campaign = find_or_create_campaign(params[:campaign_name])
