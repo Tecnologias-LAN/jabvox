@@ -10,15 +10,26 @@
 #
 # Table name: jabvox_hermes_connections
 #
-#  id                        :bigint           not null, primary key
-#  base_url_jabvox           :string           not null
-#  hermes_agent_name_jabvox  :string           not null
-#  last_check_at_jabvox      :datetime
-#  last_error_jabvox         :string
-#  name_jabvox               :string           not null
-#  status_jabvox             :string           default("unknown"), not null
-#  token_jabvox              :text
-#  account_id                :bigint           not null
+#  id                       :bigint           not null, primary key
+#  base_url_jabvox          :string           not null
+#  hermes_agent_name_jabvox :string           not null
+#  last_check_at_jabvox     :datetime
+#  last_error_jabvox        :string
+#  name_jabvox              :string           not null
+#  status_jabvox            :string           default("unknown"), not null
+#  token_jabvox             :text
+#  created_at               :datetime         not null
+#  updated_at               :datetime         not null
+#  account_id               :bigint           not null
+#
+# Indexes
+#
+#  idx_hermes_conn_account_agent                  (account_id,hermes_agent_name_jabvox) UNIQUE
+#  index_jabvox_hermes_connections_on_account_id  (account_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id)
 #
 class JabvoxHermesConnection < ApplicationRecord
   STATUSES = %w[unknown ok error].freeze

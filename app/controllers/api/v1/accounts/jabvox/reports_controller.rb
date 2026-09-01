@@ -65,10 +65,23 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
                                     .where(created_at: date_range)
                                     .group(:agent_id_jabvox).count
 
+    # Conversaciones resueltas por agente (número de resoluciones), de
+    # reporting_events name='conversation_resolved' (user_id = assignee).
+    resolved_count = ReportingEvent.where(account_id: account_id, name: 'conversation_resolved')
+                                   .where(created_at: date_range)
+                                   .reorder(nil).group(:user_id).count
+
+    # Conversaciones distintas en las que el agente habló (personas, contadas por
+    # conversación, no por mensaje): conversaciones donde envió >=1 mensaje saliente.
+    conversations_count = Message.where(account_id: account_id, message_type: 1,
+                                        private: false, sender_type: 'User')
+                                 .where(created_at: date_range)
+                                 .reorder(nil).group(:sender_id)
+                                 .distinct.count(:conversation_id)
+
     state_times = build_state_times(account_id, date_range)
     current_states = build_current_states(account_id)
-    app_states = [{ key: 'active', name: 'Activo', color: '#22c55e' }] +
-                 Current.account.jabvox_app_states.ordered.map { |s| { key: s.id.to_s, name: s.name, color: s.color } }
+    app_states = build_state_columns(state_times)
 
     open_range = params[:date_to].blank?
 
@@ -82,6 +95,8 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
           name: u.name,
           email: u.email,
           avatar_url: u.avatar_url,
+          resolved_count: resolved_count[u.id] || 0,
+          conversations_count: conversations_count[u.id] || 0,
           messages_sent: messages_sent[u.id] || 0,
           notes_added: notes_added[u.id] || 0,
           managements_added: managements_added[u.id] || 0,
@@ -371,6 +386,26 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
     end
 
     result
+  end
+
+  # Columns for the "time per app state" table. Starts from the configured
+  # states (active ones first) and then appends any state key that shows up in
+  # the computed times but is no longer configured (a deleted state with
+  # historical logs) so its time is never silently hidden — the root cause of
+  # "some agents show time and others don't".
+  def build_state_columns(state_times)
+    columns = [{ key: 'active', name: 'Activo', color: '#22c55e' }]
+    configured = Current.account.jabvox_app_states.ordered
+    configured.each { |s| columns << { key: s.id.to_s, name: s.name, color: s.color } }
+
+    known_keys = columns.map { |c| c[:key] }.to_set
+    used_keys = state_times.values.flat_map(&:keys).uniq
+    used_keys.each do |key|
+      next if known_keys.include?(key)
+
+      columns << { key: key, name: "Estado eliminado (##{key})", color: '#94a3b8' }
+    end
+    columns
   end
 
   def serialize_order(order, leads_by_contact = {})

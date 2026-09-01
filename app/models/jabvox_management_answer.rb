@@ -17,6 +17,7 @@
 #
 # Indexes
 #
+#  idx_jabvox_mgmt_answers_account_created_keyset                 (account_id,created_at DESC,id DESC)
 #  idx_on_jabvox_management_question_id_65239e4ba3                (jabvox_management_question_id)
 #  index_jabvox_management_answers_on_account_id                  (account_id)
 #  index_jabvox_management_answers_on_created_by_id               (created_by_id)

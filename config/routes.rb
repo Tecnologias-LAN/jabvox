@@ -829,6 +829,11 @@ Rails.application.routes.draw do
                 patch :set_dialer_state
               end
             end
+            # Per-agent drill-down for the agents report.
+            namespace :reports do
+              get 'analytics/:metric_key/records', to: 'analytics#records'
+              get 'analytics/:metric_key/breakdown', to: 'analytics#breakdown'
+            end
             resources :custom_tables, only: [:index, :show, :create, :update, :destroy] do
               collection do
                 post :import # import a table definition + columns from exported JSON

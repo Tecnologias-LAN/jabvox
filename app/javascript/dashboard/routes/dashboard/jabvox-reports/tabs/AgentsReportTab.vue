@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import reportsAPI from 'dashboard/api/jabvox/reports';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -9,6 +10,7 @@ import FilterBar from '../components/FilterBar.vue';
 import AgentCell from '../components/AgentCell.vue';
 
 const { t } = useI18n();
+const router = useRouter();
 
 const loading = ref(false);
 const agents = ref([]);
@@ -18,6 +20,25 @@ const now = ref(Date.now());
 let ticker = null;
 
 const filters = ref({ date_from: '', date_to: '' });
+
+// Clicking an agent's metric cell opens that metric's drill-down filtered to
+// THAT agent, carrying the same date range this report uses. The drill-down
+// route reads from/to as a custom range (preset=custom).
+const openDrilldown = (agent, metricKey) => {
+  const query = {
+    preset: 'custom',
+    agent_ids: String(agent.id),
+    agent_name: agent.name,
+    back: 'agents',
+  };
+  if (filters.value.date_from) query.from = filters.value.date_from;
+  if (filters.value.date_to) query.to = filters.value.date_to;
+  router.push({
+    name: 'jabvox_reports_drilldown',
+    params: { metricKey },
+    query,
+  });
+};
 
 const fetch = async () => {
   loading.value = true;
@@ -129,6 +150,12 @@ onUnmounted(() => clearInterval(ticker));
                   {{ t('JABVOX_REPORTS.AGENTS.COLS.AGENT') }}
                 </th>
                 <th class="py-3 px-4 text-right">
+                  {{ t('JABVOX_REPORTS.AGENTS.COLS.RESOLVED') }}
+                </th>
+                <th class="py-3 px-4 text-right">
+                  {{ t('JABVOX_REPORTS.AGENTS.COLS.CONVERSATIONS') }}
+                </th>
+                <th class="py-3 px-4 text-right">
                   {{ t('JABVOX_REPORTS.AGENTS.COLS.MESSAGES') }}
                 </th>
                 <th class="py-3 px-4 text-right">
@@ -155,50 +182,126 @@ onUnmounted(() => clearInterval(ticker));
                   <AgentCell :agent="agent" />
                 </td>
                 <td class="py-3 px-4 text-right">
-                  <span
-                    class="inline-flex items-center gap-1 text-n-slate-12 font-semibold"
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 font-semibold rounded-md px-1.5 py-0.5 transition-colors hover:bg-n-brand/10 hover:text-n-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand"
+                    :class="
+                      agent.resolved_count
+                        ? 'text-n-slate-12'
+                        : 'text-n-slate-9 pointer-events-none'
+                    "
+                    :title="t('JABVOX_REPORTS.AGENTS.DRILLDOWN_HINT')"
+                    @click="openDrilldown(agent, 'resolved')"
+                  >
+                    <span
+                      class="i-lucide-circle-check-big size-3.5 text-n-slate-10"
+                    />
+                    {{ agent.resolved_count }}
+                  </button>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 font-semibold rounded-md px-1.5 py-0.5 transition-colors hover:bg-n-brand/10 hover:text-n-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand"
+                    :class="
+                      agent.conversations_count
+                        ? 'text-n-slate-12'
+                        : 'text-n-slate-9 pointer-events-none'
+                    "
+                    :title="t('JABVOX_REPORTS.AGENTS.DRILLDOWN_HINT')"
+                    @click="openDrilldown(agent, 'conversations')"
+                  >
+                    <span
+                      class="i-lucide-messages-square size-3.5 text-n-slate-10"
+                    />
+                    {{ agent.conversations_count }}
+                  </button>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 font-semibold rounded-md px-1.5 py-0.5 transition-colors hover:bg-n-brand/10 hover:text-n-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand"
+                    :class="
+                      agent.messages_sent
+                        ? 'text-n-slate-12'
+                        : 'text-n-slate-9 pointer-events-none'
+                    "
+                    :title="t('JABVOX_REPORTS.AGENTS.DRILLDOWN_HINT')"
+                    @click="openDrilldown(agent, 'messages_sent')"
                   >
                     <span
                       class="i-lucide-message-square size-3.5 text-n-slate-10"
                     />
                     {{ agent.messages_sent }}
-                  </span>
+                  </button>
                 </td>
                 <td class="py-3 px-4 text-right">
-                  <span
-                    class="inline-flex items-center gap-1 text-n-slate-12 font-semibold"
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 font-semibold rounded-md px-1.5 py-0.5 transition-colors hover:bg-n-brand/10 hover:text-n-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand"
+                    :class="
+                      agent.notes_added
+                        ? 'text-n-slate-12'
+                        : 'text-n-slate-9 pointer-events-none'
+                    "
+                    :title="t('JABVOX_REPORTS.AGENTS.DRILLDOWN_HINT')"
+                    @click="openDrilldown(agent, 'private_notes')"
                   >
                     <span
                       class="i-lucide-sticky-note size-3.5 text-n-slate-10"
                     />
                     {{ agent.notes_added }}
-                  </span>
+                  </button>
                 </td>
                 <td class="py-3 px-4 text-right">
-                  <span
-                    class="inline-flex items-center gap-1 text-n-slate-12 font-semibold"
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 font-semibold rounded-md px-1.5 py-0.5 transition-colors hover:bg-n-brand/10 hover:text-n-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand"
+                    :class="
+                      agent.managements_added
+                        ? 'text-n-slate-12'
+                        : 'text-n-slate-9 pointer-events-none'
+                    "
+                    :title="t('JABVOX_REPORTS.AGENTS.DRILLDOWN_HINT')"
+                    @click="openDrilldown(agent, 'managements')"
                   >
                     <span
                       class="i-lucide-clipboard-list size-3.5 text-n-slate-10"
                     />
                     {{ agent.managements_added }}
-                  </span>
+                  </button>
                 </td>
                 <td class="py-3 px-4 text-right">
-                  <span
-                    class="inline-flex items-center gap-1 text-n-slate-12 font-semibold"
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 font-semibold rounded-md px-1.5 py-0.5 transition-colors hover:bg-n-brand/10 hover:text-n-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand"
+                    :class="
+                      agent.orders_placed
+                        ? 'text-n-slate-12'
+                        : 'text-n-slate-9 pointer-events-none'
+                    "
+                    :title="t('JABVOX_REPORTS.AGENTS.DRILLDOWN_HINT')"
+                    @click="openDrilldown(agent, 'orders')"
                   >
                     <span class="i-lucide-package size-3.5 text-n-slate-10" />
                     {{ agent.orders_placed }}
-                  </span>
+                  </button>
                 </td>
                 <td class="py-3 px-4 text-right">
-                  <span
-                    class="inline-flex items-center gap-1 text-n-slate-12 font-semibold"
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 font-semibold rounded-md px-1.5 py-0.5 transition-colors hover:bg-n-brand/10 hover:text-n-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand"
+                    :class="
+                      agent.calls_made
+                        ? 'text-n-slate-12'
+                        : 'text-n-slate-9 pointer-events-none'
+                    "
+                    :title="t('JABVOX_REPORTS.AGENTS.DRILLDOWN_HINT')"
+                    @click="openDrilldown(agent, 'calls')"
                   >
                     <span class="i-lucide-phone size-3.5 text-n-slate-10" />
                     {{ agent.calls_made }}
-                  </span>
+                  </button>
                 </td>
               </tr>
             </tbody>
