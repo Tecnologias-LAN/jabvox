@@ -4,7 +4,8 @@ require 'rails_helper'
 
 RSpec.describe 'Webhooks::Jabvox::HermesAgent (agente ejecuta tools)' do
   let(:account) { create(:account) }
-  let(:user) { create(:user, account: account) }
+  # Admin: su rol concede capacidad de gestión, requisito del cruce de permisos de rol.
+  let(:user) { create(:user, account: account, role: :administrator) }
   let(:agent) do
     JabvoxHermesAgent.create!(account: account, user: user, name_jabvox: 'Agente', status_jabvox: 'active')
   end

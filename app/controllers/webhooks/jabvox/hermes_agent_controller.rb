@@ -51,14 +51,27 @@ class Webhooks::Jabvox::HermesAgentController < ActionController::API
 
   private
 
-  # Autentica por el token del agente (header). Resuelve agente activo → cuenta + usuario.
+  # Autentica por el token del HERMES (por conexión). Cada Hermes tiene su token de acción
+  # único; resuelve la conexión → cuenta + el agente de la app ligado, y Hermes hereda los
+  # permisos de ESE agente/usuario (si el usuario no puede algo, este token tampoco).
+  #
+  # Compatibilidad: si el token no corresponde a una conexión, se intenta como token de
+  # agente (esquema anterior) para no romper integraciones ya repartidas.
   def authenticate_agent!
     token = bearer_token.presence || request.headers['X-Hermes-Agent-Token'].to_s
-    @agent = JabvoxHermesAgent.authenticate(token)
-    return head :unauthorized if @agent.nil?
+    return head :unauthorized if token.blank?
 
-    @account = @agent.account
-    @user = @agent.user
+    if (conn = JabvoxHermesConnection.authenticate_action(token))
+      @connection = conn
+      @agent = conn.action_agent
+      @account = conn.account
+      @user = conn.action_user
+    elsif (agent = JabvoxHermesAgent.authenticate(token))
+      @agent = agent
+      @account = agent.account
+      @user = agent.user
+    end
+
     head :unauthorized if @account.nil? || @user.nil?
   end
 

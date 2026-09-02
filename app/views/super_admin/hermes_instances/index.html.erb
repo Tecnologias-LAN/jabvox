@@ -98,21 +98,37 @@
         <% if inst[:agents].present? %>
           <tr style="border-bottom:1px solid #f3f4f6; background:#fafafa;">
             <td colspan="4" style="padding:8px 16px;">
-              <strong style="font-size:12px; color:#6b7280;">Agentes Hermes y su token de acción (solo super admin):</strong>
+              <strong style="font-size:12px; color:#6b7280;">Agentes de la cuenta y el token de acción de cada Hermes (solo super admin):</strong>
               <table style="width:100%; margin-top:6px; font-size:13px;">
                 <% inst[:agents].each do |ag| %>
-                  <tr>
-                    <td style="padding:4px 8px; white-space:nowrap;">
-                      <%= ag[:name] %> <span style="color:#9ca3af;">(<%= ag[:user] %> · <%= ag[:status] %>)</span>
-                    </td>
-                    <td style="padding:4px 8px;">
-                      <code class="hermes-token" data-token="<%= ag[:agent_token] %>" style="letter-spacing:1px;">••••••••••••••••••••</code>
-                    </td>
-                    <td style="padding:4px 8px; white-space:nowrap;">
-                      <button type="button" class="button button--secondary hermes-token-toggle" style="padding:2px 8px; font-size:12px;">Mostrar</button>
-                      <button type="button" class="button button--secondary hermes-token-copy" style="padding:2px 8px; font-size:12px;">Copiar</button>
+                  <tr style="background:#f3f4f6;">
+                    <td colspan="3" style="padding:6px 8px; font-weight:600;">
+                      <%= ag[:name] %> <span style="color:#9ca3af; font-weight:400;">(<%= ag[:user] %> · <%= ag[:status] %>)</span>
                     </td>
                   </tr>
+                  <% if ag[:hermes].present? %>
+                    <% ag[:hermes].each do |h| %>
+                      <tr>
+                        <td style="padding:4px 8px 4px 24px; white-space:nowrap;">
+                          <%= h[:name] %>
+                          <span style="color:#9ca3af;">(<%= h[:hermes_agent] %> · <%= h[:status] %>)</span>
+                        </td>
+                        <td style="padding:4px 8px;">
+                          <code class="hermes-token" data-token="<%= h[:action_token] %>" style="letter-spacing:1px;">••••••••••••••••••••</code>
+                        </td>
+                        <td style="padding:4px 8px; white-space:nowrap;">
+                          <button type="button" class="button button--secondary hermes-token-toggle" style="padding:2px 8px; font-size:12px;">Mostrar</button>
+                          <button type="button" class="button button--secondary hermes-token-copy" style="padding:2px 8px; font-size:12px;">Copiar</button>
+                        </td>
+                      </tr>
+                    <% end %>
+                  <% else %>
+                    <tr>
+                      <td colspan="3" style="padding:4px 8px 4px 24px; color:#9ca3af;">
+                        Sin Hermes ligados. Conéctalos desde el Chat IA de la cuenta.
+                      </td>
+                    </tr>
+                  <% end %>
                 <% end %>
               </table>
             </td>

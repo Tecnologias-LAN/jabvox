@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_02_000003) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_02_000004) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2490,6 +2490,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_02_000003) do
     t.datetime "updated_at", null: false
     t.index ["hermes_agent_id", "hermes_connection_id"], name: "idx_hermes_agent_conn_unique", unique: true
     t.index ["hermes_agent_id"], name: "index_jabvox_hermes_agent_connections_on_hermes_agent_id"
+    t.index ["hermes_connection_id"], name: "idx_hermes_conn_single_agent", unique: true
     t.index ["hermes_connection_id"], name: "index_jabvox_hermes_agent_connections_on_hermes_connection_id"
   end
 
@@ -2521,8 +2522,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_02_000003) do
     t.datetime "last_check_at_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "action_token_jabvox"
     t.index ["account_id", "hermes_agent_name_jabvox"], name: "idx_hermes_conn_account_agent", unique: true
     t.index ["account_id"], name: "index_jabvox_hermes_connections_on_account_id"
+    t.index ["action_token_jabvox"], name: "idx_hermes_conn_action_token", unique: true, where: "(action_token_jabvox IS NOT NULL)"
   end
 
   create_table "jabvox_hermes_identities", force: :cascade do |t|

@@ -17,6 +17,7 @@
 # Indexes
 #
 #  idx_hermes_agent_conn_unique                                   (hermes_agent_id,hermes_connection_id) UNIQUE
+#  idx_hermes_conn_single_agent                                   (hermes_connection_id) UNIQUE
 #  index_jabvox_hermes_agent_connections_on_hermes_agent_id       (hermes_agent_id)
 #  index_jabvox_hermes_agent_connections_on_hermes_connection_id  (hermes_connection_id)
 #
@@ -30,6 +31,10 @@ class JabvoxHermesAgentConnection < ApplicationRecord
   belongs_to :hermes_connection, class_name: 'JabvoxHermesConnection'
 
   validates :hermes_agent_id, uniqueness: { scope: :hermes_connection_id }
+  # Un Hermes (conexión) pertenece a UN solo agente de la cuenta: no puede ligarse a dos.
+  validates :hermes_connection_id, uniqueness: {
+    message: 'este Hermes ya está ligado a otro agente de la cuenta'
+  }
   validate :same_account
 
   private

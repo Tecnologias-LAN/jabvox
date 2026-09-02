@@ -11,6 +11,7 @@
 # Table name: jabvox_hermes_connections
 #
 #  id                       :bigint           not null, primary key
+#  action_token_jabvox      :text
 #  base_url_jabvox          :string           not null
 #  hermes_agent_name_jabvox :string           not null
 #  last_check_at_jabvox     :datetime
@@ -25,6 +26,7 @@
 # Indexes
 #
 #  idx_hermes_conn_account_agent                  (account_id,hermes_agent_name_jabvox) UNIQUE
+#  idx_hermes_conn_action_token                   (action_token_jabvox) UNIQUE WHERE (action_token_jabvox IS NOT NULL)
 #  index_jabvox_hermes_connections_on_account_id  (account_id)
 #
 # Foreign Keys
@@ -34,7 +36,11 @@
 class JabvoxHermesConnection < ApplicationRecord
   STATUSES = %w[unknown ok error].freeze
 
+  # token_jabvox: credencial App → Hermes (el Bearer que emite Hermes; lo pega el usuario).
   encrypts :token_jabvox if Jabvox.encryption_configured?
+  # action_token_jabvox: credencial Hermes → Jabvox (única por conexión/Hermes). Deterministic
+  # para poder resolver la conexión por su token en authenticate. Cada Hermes tiene el suyo.
+  encrypts :action_token_jabvox, deterministic: true if Jabvox.encryption_configured?
 
   belongs_to :account
 
@@ -49,7 +55,57 @@ class JabvoxHermesConnection < ApplicationRecord
   validates :status_jabvox, inclusion: { in: STATUSES }
   validate :same_host_as_account_connections
 
+  # Cada Hermes nace con su token de acción exclusivo (Hermes → Jabvox). Necesita el
+  # account_id, así que se genera después de asignar la cuenta.
+  before_validation :ensure_action_token, on: :create
+
   scope :ok, -> { where(status_jabvox: 'ok') }
+
+  # Genera un token de acción opaco con el id de cuenta como SUFIJO: "<secreto>-<account_id>".
+  # El secreto aleatorio garantiza unicidad; el sufijo permite verificar a qué cuenta
+  # pertenece el token (doble candado anti cross-account en authenticate_action).
+  def self.generate_action_token(account_id)
+    "#{SecureRandom.urlsafe_base64(24)}-#{account_id}"
+  end
+
+  # Extrae el account_id del sufijo del token (o nil si no tiene el formato esperado).
+  def self.account_id_from_token(token)
+    m = token.to_s.match(/-(\d+)\z/)
+    m && m[1].to_i
+  end
+
+  # Resuelve la conexión Hermes por su token de acción, para autenticar los requests entrantes
+  # de ese Hermes. VALIDA que el sufijo -<account_id> del token coincida con la cuenta de la
+  # conexión: un token solo entra a la cuenta que le corresponde (aislamiento estricto).
+  def self.authenticate_action(token)
+    return nil if token.blank?
+
+    conn = find_by(action_token_jabvox: token.to_s)
+    return nil if conn.nil?
+
+    # El id embebido en el token debe coincidir con la cuenta real de la conexión.
+    suffix_id = account_id_from_token(token)
+    return nil if suffix_id.present? && suffix_id != conn.account_id
+
+    conn
+  end
+
+  # Rota el token de acción de este Hermes (revoca el anterior).
+  def rotate_action_token!
+    update!(action_token_jabvox: self.class.generate_action_token(account_id))
+  end
+
+  # Agente de la app (JabvoxHermesAgent) del que este Hermes hereda los PERMISOS al actuar
+  # sobre la cuenta. Si hay varios ligados, se usa el primero de forma estable (por id).
+  # Los permisos efectivos son EXACTAMENTE los del usuario de ese agente: si el usuario no
+  # puede crear etiquetas, este token tampoco podrá.
+  def action_agent
+    hermes_agents.order(:id).first
+  end
+
+  def action_user
+    action_agent&.user
+  end
 
   # host:puerto (sin el prefijo /p/<agente>/v1). Identifica el Hermes físico de la cuenta.
   def host_port
@@ -65,17 +121,21 @@ class JabvoxHermesConnection < ApplicationRecord
             last_check_at_jabvox: Time.current)
   end
 
-  # Vista segura para el frontend (nunca el token).
+  # Vista segura para el frontend (nunca los tokens).
   def safe_summary
     {
       id: id, name: name_jabvox, hermes_agent: hermes_agent_name_jabvox,
       base_url: base_url_jabvox, host_port: host_port, status: status_jabvox,
-      has_token: token_jabvox.present?, last_error: last_error_jabvox,
-      last_check_at: last_check_at_jabvox
+      has_token: token_jabvox.present?, has_action_token: action_token_jabvox.present?,
+      last_error: last_error_jabvox, last_check_at: last_check_at_jabvox
     }
   end
 
   private
+
+  def ensure_action_token
+    self.action_token_jabvox ||= self.class.generate_action_token(account_id)
+  end
 
   # Todas las conexiones de una cuenta deben apuntar al MISMO host:puerto (mismo Hermes).
   def same_host_as_account_connections

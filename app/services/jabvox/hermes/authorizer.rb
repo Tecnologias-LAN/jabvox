@@ -49,6 +49,16 @@ class Jabvox::Hermes::Authorizer
                   code: 'module_disabled', feature: spec[:feature])
     end
 
+    # NIVEL 2 (rol del agente, PRIORITARIO): el usuario del agente de la cuenta debe tener,
+    # por su ROL o CUSTOM ROLE, el permiso real que la acción exige. Si el rol no lo permite,
+    # Hermes tampoco (aunque la tabla de permisos de Hermes lo habilite).
+    unless role_grants_tool?(spec)
+      return deny("el rol del agente no permite esta acción (#{spec[:feature] || 'core'})",
+                  code: 'permission_denied', feature: spec[:feature])
+    end
+
+    # NIVEL 2.5 (tabla Hermes): además, el permiso de Hermes del usuario debe habilitar la
+    # capacidad (read/create/write). Doble candado: lo más restrictivo gana.
     required = spec[:permission]
     return deny("permiso '#{required}' requerido", code: 'permission_denied') unless user_has_permission?(required)
 
@@ -85,9 +95,47 @@ class Jabvox::Hermes::Authorizer
     @account.feature_enabled?(feature)
   end
 
-  # NIVEL 2: el usuario tiene el permiso granular (fuente de verdad en BD, no el prompt).
+  # NIVEL 2 (tabla Hermes): el usuario tiene el permiso granular (fuente de verdad en BD).
   def user_has_permission?(permission)
     JabvoxHermesUserPermission.allows?(@account.id, @user.id, permission)
+  end
+
+  # Mapa MÓDULO (feature) → { view:, manage: } con las claves de permiso de rol/custom_role
+  # de Jabvox. read exige view; create/write exige manage. Un módulo sin entrada usa CORE.
+  MODULE_ROLE_PERMISSIONS = {
+    'jabvox_leads'              => { view: 'jabvox_leads_view_all', manage: 'jabvox_leads_edit' },
+    'jabvox_kanban'             => { view: 'jabvox_kanban_view_all', manage: 'jabvox_kanban_manage' },
+    'jabvox_tasks'              => { view: 'jabvox_tasks_view_all', manage: 'jabvox_tasks_manage' },
+    'jabvox_cdr'                => { view: 'jabvox_cdr_view_reports', manage: 'jabvox_cdr_manage' },
+    'jabvox_audio_analysis'     => { view: 'jabvox_audio_view_reports', manage: 'jabvox_audio_manage' },
+    'jabvox_analytics'          => { view: 'jabvox_analytics_access', manage: 'jabvox_analytics_manage' },
+    'jabvox_lead_import'        => { view: 'jabvox_lead_import_manage', manage: 'jabvox_lead_import_manage' },
+    'jabvox_data_export'        => { view: 'jabvox_data_export_manage', manage: 'jabvox_data_export_manage' },
+    'jabvox_products'           => { view: 'jabvox_products_manage', manage: 'jabvox_products_manage' },
+    'jabvox_dialer'             => { view: 'jabvox_dialer_use', manage: 'jabvox_dialer_manage' },
+    'jabvox_sms'                => { view: 'jabvox_sms_view', manage: 'jabvox_sms_manage' },
+    'jabvox_whatsapp_templates' => { view: 'jabvox_whatsapp_templates_manage', manage: 'jabvox_whatsapp_templates_manage' },
+    'jabvox_affiliates'         => { view: 'jabvox_affiliates_manage', manage: 'jabvox_affiliates_manage' },
+    'jabvox_customization'      => { view: 'jabvox_custom_data_manage', manage: 'jabvox_custom_data_manage' },
+    'jabvox_advanced_automations' => { view: 'jabvox_reports_view', manage: 'jabvox_reports_view' }
+  }.freeze
+
+  # Permisos base de Chatwoot para las tools CORE (etiquetas, contactos, conversaciones).
+  # Leer es propio de cualquier miembro de la cuenta (view: nil ⇒ no restringe por rol);
+  # crear/editar exige poder gestionar conversaciones/contactos.
+  CORE_ROLE_PERMISSIONS = { view: nil, manage: 'conversation_manage' }.freeze
+
+  # NIVEL 2 (rol del agente, prioritario). ¿El rol/custom_role del usuario del agente concede
+  # el permiso real que la tool exige? Admin concede todo (user_grants_permission? lo resuelve).
+  def role_grants_tool?(spec)
+    account_user = AccountUser.find_by(account_id: @account.id, user_id: @user.id)
+    return false if account_user.nil?
+
+    map = MODULE_ROLE_PERMISSIONS[spec[:feature]] || CORE_ROLE_PERMISSIONS
+    key = spec[:permission].to_s == 'read' ? map[:view] : map[:manage]
+    return true if key.blank? # sin permiso mapeado ⇒ no restringido por rol
+
+    JabvoxPermissions.user_grants_permission?(account_user, key)
   end
 
   def deny(reason, code: 'denied', feature: nil)
