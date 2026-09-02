@@ -59,10 +59,10 @@ class Jabvox::Hermes::AccountSetupService
       description_jabvox: 'Agente por defecto del Hermes de la cuenta.',
       is_default_jabvox: true, status_jabvox: 'active'
     )
-    # El agente por defecto arranca con permiso de lectura (el admin amplía después).
-    perm = JabvoxHermesUserPermission.find_or_initialize_by(account_id: @account.id, user_id: admin_user_id)
-    perm.permissions_jabvox = (perm.permissions_list | %w[read]) if perm.permissions_list.empty?
-    perm.save! if perm.changed?
+    # Los permisos de Hermes se DERIVAN DEL ROL del usuario ligado (un admin obtiene
+    # read/create/write/execute/configure; un agente según su custom role). La tabla se
+    # escribe desde el rol, que es la fuente de verdad.
+    JabvoxHermesUserPermission.sync_from_role!(@account.id, admin_user_id)
   end
 
   def fail_handoff(handoff, error)

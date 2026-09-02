@@ -6,6 +6,7 @@
     "SIDEBAR_LABEL": "Chat IA",
     "CONFIG_SIDEBAR_LABEL": "Chat IA Config",
     "SEND": "Send",
+    "STOP": "Stop",
     "NEW_CHAT": "New Chat",
     "DELETE_SESSION": "Delete conversation",
     "DELETE_SESSION_CONFIRM": "Are you sure you want to delete this conversation?",

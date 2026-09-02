@@ -31,6 +31,8 @@ class Api::V1::Accounts::Jabvox::HermesAgentsController < Api::V1::Accounts::Jab
     )
     if agent.save
       sync_connections(agent, params[:connection_ids])
+      # Los permisos de Hermes del usuario se derivan de su rol en la cuenta.
+      JabvoxHermesUserPermission.sync_from_role!(Current.account.id, user_id)
       render json: serialize(agent), status: :created
     else
       render json: { errors: agent.errors.full_messages }, status: :unprocessable_entity

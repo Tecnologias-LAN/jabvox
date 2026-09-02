@@ -25,6 +25,8 @@ const messagesContainer = ref(null);
 const hermesAgents = ref([]); // agentes Hermes ligados a este usuario (N:N)
 const selectedAgentId = ref(null); // conexión Hermes elegida en el chat
 const isStreaming = ref(false);
+// Permite ABORTAR el streaming en curso (botón Detener) para no bloquear al usuario.
+const streamController = ref(null);
 const activeTools = ref([]); // chips de herramientas en vivo (Telegram-like)
 const showCommands = ref(false); // menú de comandos "/"
 const commandIndex = ref(0);
@@ -85,10 +87,12 @@ const isSending = computed(() => uiFlags.value.isSending || isStreaming.value);
 const canUse = computed(() => !myAccess.value || myAccess.value.can_use);
 // El usuario chatea si tiene al menos un agente Hermes ligado.
 const hasAgents = computed(() => (hermesAgents.value || []).length > 0);
+// Hay contenido listo para enviar (texto o adjuntos), con acceso y agente disponibles.
+// NO depende de isSending: el usuario puede escribir su siguiente mensaje mientras el
+// bot responde. El envío efectivo (ver sendMessage) espera/aborta la respuesta anterior.
 const canSend = computed(
   () =>
     (messageInput.value.trim().length > 0 || attachments.value.length > 0) &&
-    !isSending.value &&
     canUse.value &&
     hasAgents.value
 );
@@ -100,6 +104,10 @@ const agentOptions = computed(() =>
 function selectSession(sessionId) {
   currentSessionId.value = sessionId;
   showSessions.value = false;
+  // Cada sesión pertenece a UN agente: al abrirla, se selecciona ese agente para que la
+  // conversación continúe SIEMPRE con el mismo (no se puede responder con otro).
+  const session = sessions.value.find(s => s.session_id === sessionId);
+  if (session?.connection_id) selectedAgentId.value = session.connection_id;
   store.dispatch('jabvoxAiChat/fetchMessages', sessionId);
 }
 
@@ -290,6 +298,7 @@ async function streamAssistant(
 ) {
   const assistantId = Date.now() + 1;
   isStreaming.value = true;
+  streamController.value = new AbortController();
   activeTools.value = [];
   store.commit('jabvoxAiChat/ADD_MESSAGE', {
     sessionId: displaySessionId,
@@ -309,6 +318,7 @@ async function streamAssistant(
         ...deviseAuthHeaders(),
       },
       credentials: 'same-origin',
+      signal: streamController.value?.signal,
       body: JSON.stringify({
         content,
         session_id: apiSessionId,
@@ -323,7 +333,12 @@ async function streamAssistant(
     await consumeStream(res, displaySessionId, assistantId);
     if (isNewChat) await store.dispatch('jabvoxAiChat/fetchSessions');
   } catch (e) {
-    appendToMessage(displaySessionId, assistantId, `\n\nError: ${e.message}`);
+    // Si el usuario detuvo el stream (AbortController), no es un error: marca el corte.
+    if (e.name === 'AbortError') {
+      appendToMessage(displaySessionId, assistantId, '\n\n_(detenido)_');
+    } else {
+      appendToMessage(displaySessionId, assistantId, `\n\nError: ${e.message}`);
+    }
   } finally {
     // Guarda las herramientas usadas al final del mensaje (quedan expandibles).
     if (activeTools.value.length) {
@@ -334,9 +349,29 @@ async function streamAssistant(
       });
     }
     isStreaming.value = false;
+    streamController.value = null;
     activeTools.value = [];
   }
 }
+
+// Detiene la respuesta en curso (aborta el stream). El input queda libre de inmediato.
+function stopStreaming() {
+  streamController.value?.abort();
+}
+
+// Si el usuario cambia de agente mientras está en una sesión que pertenece a OTRO agente,
+// se abre una conversación nueva: una sesión existente solo se ejecuta con su propio agente.
+watch(selectedAgentId, (newId, oldId) => {
+  if (!oldId || newId === oldId || !currentSessionId.value) return;
+  const session = sessions.value.find(
+    s => s.session_id === currentSessionId.value
+  );
+  // Solo forzamos sesión nueva si la actual ya tiene dueño y es distinto al elegido.
+  if (session?.connection_id && session.connection_id !== newId) {
+    if (isStreaming.value) stopStreaming();
+    newChat();
+  }
+});
 
 async function sendMessage() {
   const content = messageInput.value.trim();
@@ -347,11 +382,29 @@ async function sendMessage() {
     return;
   }
 
-  // "/new" inicia una conversación nueva en Jabvox (aparece en la lista izquierda) en vez
-  // de enviarse a Hermes. Las demás barras (/model, /status...) sí van a Hermes.
-  if (content === '/new') {
+  // Si el bot aún responde, detén esa respuesta antes de enviar el nuevo mensaje: así el
+  // usuario nunca queda bloqueado y no se solapan dos streams.
+  if (isStreaming.value) {
+    stopStreaming();
+    await nextTick();
+  }
+
+  // "/new", "/reset" y "/clear" inician una conversación nueva en Jabvox (aparece en la
+  // lista izquierda) en vez de enviarse a Hermes. Las demás (/model, /status, /retry...)
+  // sí van a Hermes para que él las interprete.
+  if (['/new', '/reset', '/clear'].includes(content)) {
+    if (isStreaming.value) stopStreaming();
     newChat();
     showCommands.value = false;
+    messageInput.value = '';
+    return;
+  }
+
+  // "/stop" a secas: detiene la respuesta en curso sin enviar nada a Hermes.
+  if (content === '/stop' && isStreaming.value) {
+    stopStreaming();
+    showCommands.value = false;
+    messageInput.value = '';
     return;
   }
 
@@ -386,12 +439,26 @@ async function sendMessage() {
 }
 
 // ─── Comandos de Hermes (se escriben con "/"; Hermes los interpreta) ───
+// Estos son los comandos que soporta el Hermes de la cuenta. Jabvox solo maneja "/new",
+// "/reset" y "/clear" en local (crean sesión nueva); el resto se envían a Hermes tal cual.
 const HERMES_COMMANDS = [
-  { cmd: '/model', desc: 'Muestra o cambia el modelo de IA del agente' },
-  { cmd: '/new', desc: 'Inicia una conversación nueva (reinicia el contexto)' },
-  { cmd: '/status', desc: 'Muestra el estado de la sesión actual' },
-  { cmd: '/help', desc: 'Lista los comandos disponibles' },
-  { cmd: '/stop', desc: 'Detiene la tarea en curso' },
+  {
+    cmd: '/model',
+    desc: 'Cambiar modelo: /model [nombre] [--global] (--global lo hace permanente)',
+  },
+  { cmd: '/new', desc: 'Sesión nueva (nombre opcional)' },
+  { cmd: '/reset', desc: 'Sesión nueva (reinicia el contexto)' },
+  { cmd: '/clear', desc: 'Limpiar pantalla e iniciar sesión nueva' },
+  { cmd: '/retry', desc: 'Reenviar el último mensaje' },
+  {
+    cmd: '/steer',
+    desc: 'Inyectar un mensaje tras la próxima llamada a herramienta',
+  },
+  { cmd: '/status', desc: 'Info de la sesión: modelo, tokens y contexto' },
+  {
+    cmd: '/stop',
+    desc: 'Detener la respuesta / matar procesos en segundo plano',
+  },
 ];
 
 // Comandos que coinciden con lo escrito (solo cuando el texto empieza por "/").
@@ -572,6 +639,15 @@ const numberedSessions = computed(() =>
               >
                 <span class="i-lucide-clock size-3 shrink-0" />
                 {{ formatSessionLabel(session) }}
+              </span>
+              <!-- Agente al que pertenece la sesión (solo se ejecuta con este). -->
+              <span
+                v-if="session.agent"
+                class="flex items-center gap-1 text-xs text-n-slate-10 mt-0.5 truncate"
+                :title="session.agent"
+              >
+                <span class="i-lucide-bot size-3 shrink-0" />
+                {{ session.agent }}
               </span>
             </div>
             <!-- Delete -->
@@ -857,7 +933,18 @@ const numberedSessions = computed(() =>
                   @input="onInput"
                 />
               </div>
+              <!-- Mientras el bot responde, el botón "Detener" aborta el stream. Si no,
+                   envía. El textarea nunca se bloquea: puedes escribir en cualquier momento. -->
               <Button
+                v-if="isStreaming"
+                icon="i-lucide-square"
+                :label="t('JABVOX_AI_CHAT.STOP')"
+                color="ruby"
+                class="shrink-0 sm:w-auto justify-center"
+                @click="stopStreaming"
+              />
+              <Button
+                v-else
                 icon="i-lucide-send"
                 :label="t('JABVOX_AI_CHAT.SEND')"
                 :disabled="!canSend"
