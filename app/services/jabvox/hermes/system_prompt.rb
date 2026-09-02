@@ -14,7 +14,30 @@ module Jabvox::Hermes::SystemPrompt
 
   def for_account(account:, agent_name:, mcps: [])
     tools = mcps.presence || ['jabvox_core']
-    "#{header(agent_name, account)}\n\n#{skills_block(tools)}\n\n#{rules(account)}"
+    [header(agent_name, account), skills_block(tools), tools_api_block, rules(account)]
+      .join("\n\n")
+  end
+
+  # Explica a Hermes CÓMO actuar sobre la cuenta: el endpoint de acciones, la
+  # autenticación por su token, y que primero descubra las tools disponibles
+  # (la lista real la filtra el backend por permisos + módulos habilitados).
+  def tools_api_block
+    <<~TXT.strip
+      CÓMO ACTUAR SOBRE LA CUENTA (API de acciones de Jabvox):
+      Para leer o modificar datos de la cuenta usas SIEMPRE la API de acciones de Jabvox,
+      autenticándote con TU token de agente (te lo proporciona tu configuración; va en el
+      header "Authorization: Bearer <token>" o "X-Hermes-Agent-Token: <token>").
+        1. Descubre lo que puedes hacer: GET  {JABVOX_URL}/webhooks/jabvox/hermes_agent/tools
+           → devuelve la lista EXACTA de acciones permitidas para ti en esta cuenta.
+        2. Ejecuta una acción:       POST {JABVOX_URL}/webhooks/jabvox/hermes_agent/execute
+           con cuerpo JSON { "tool": "<nombre>", "args": { ... } }.
+      Ejemplos de acciones típicas: get_labels, create_label, list_conversations,
+      summarize_conversation, add_private_note, reply_conversation, search_contacts,
+      get_orders, get_audio_jobs, get_analytics_data_sources.
+      Si una acción devuelve status "module_disabled", el módulo no está contratado en la
+      cuenta: díselo al usuario y sugiérele contactar al administrador para adquirirlo.
+      Nunca inventes el resultado de una acción: siempre llámala y usa su respuesta real.
+    TXT
   end
 
   def header(agent_name, account)

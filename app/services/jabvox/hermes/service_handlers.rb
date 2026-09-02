@@ -70,6 +70,44 @@ module Jabvox::Hermes::ServiceHandlers
     end
   end
 
+  # Lista conversaciones con filtros opcionales y paginación por cursor (before_id).
+  def list_conversations(params)
+    scope = @account.conversations.includes(:contact, :assignee)
+    scope = scope.where(status: params[:status]) if params[:status].present? &&
+                                                     Conversation.statuses.key?(params[:status])
+    scope = scope.where(inbox_id: params[:inbox_id]) if params[:inbox_id].to_i.positive?
+    scope = scope.where(contact_id: params[:contact_id]) if params[:contact_id].to_i.positive?
+    scope = scope.where('conversations.id < ?', params[:before_id]) if params[:before_id].to_i.positive?
+    limit = params[:limit].to_i
+    limit = 25 unless limit.positive?
+    limit = [limit, Jabvox::Hermes::ServiceLayer::MAX_ROWS].min
+
+    rows = scope.order(id: :desc).limit(limit).map do |c|
+      { id: c.id, display_id: c.display_id, status: c.status, inbox_id: c.inbox_id,
+        contact: c.contact && { id: c.contact.id, name: c.contact.name },
+        assignee: c.assignee && { id: c.assignee.id, name: c.assignee.name },
+        last_activity_at: c.last_activity_at, created_at: c.created_at }
+    end
+    { conversations: rows, next_before_id: rows.last&.dig(:id) }
+  end
+
+  # Material listo para que Hermes resuma: metadatos + últimos mensajes (sin notas
+  # privadas). No llama al LLM — Hermes hace el resumen con este contexto.
+  def summarize_conversation(params)
+    conv = @account.conversations.includes(:contact, :assignee).find(params[:id])
+    messages = conv.messages.where(private: false).order(created_at: :asc)
+                   .last(Jabvox::Hermes::ServiceLayer::MAX_ROWS)
+                   .map { |m| { role: m.message_type, content: m.content, at: m.created_at } }
+    {
+      conversation_id: conv.id, display_id: conv.display_id, status: conv.status,
+      contact: conv.contact && { id: conv.contact.id, name: conv.contact.name },
+      assignee: conv.assignee&.name,
+      labels: conv.cached_label_list,
+      message_count: conv.messages.count,
+      messages: messages
+    }
+  end
+
   def reply_conversation(params)
     conv = @account.conversations.find(params[:id])
     msg = conv.messages.create!(
@@ -272,6 +310,242 @@ module Jabvox::Hermes::ServiceHandlers
   def lead_view(lead)
     { id: lead.id, label: lead.try(:label), lead_number: lead.try(:lead_number),
       is_sold: lead.try(:is_sold_jabvox) }
+  end
+
+  # --- Análisis de Audio (solo lectura) ---
+  def list_audio_jobs(_params)
+    @account.jabvox_audio_jobs.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |j|
+      { id: j.id, status: j.status, total: j.total_count, processed: j.processed_count,
+        passed: j.passed_count, failed: j.failed_count, created_at: j.created_at }
+    end
+  end
+
+  def get_audio_job(params)
+    j = @account.jabvox_audio_jobs.find(params[:id])
+    { id: j.id, status: j.status, total: j.total_count, processed: j.processed_count,
+      passed: j.passed_count, failed: j.failed_count, error_count: j.error_count,
+      pipeline_id: j.pipeline_id, created_at: j.created_at }
+  end
+
+  def list_audio_pipelines(_params)
+    @account.jabvox_audio_pipelines.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |p|
+      { id: p.id, name: p.try(:name_jabvox) || p.try(:name) }
+    end
+  end
+
+  # --- Analytics / BD externas (solo lectura; sin credenciales) ---
+  def list_analytics_data_sources(_params)
+    @account.jabvox_analytics_data_sources.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |d|
+      { id: d.id, name: d.name_jabvox, engine: d.engine_jabvox, database: d.database_jabvox }
+    end
+  end
+
+  def list_analytics_dashboards(_params)
+    @account.jabvox_analytics_dashboards.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |d|
+      { id: d.id, name: d.try(:name_jabvox) || d.try(:name) }
+    end
+  end
+
+  # --- Pedidos (solo lectura) ---
+  def list_orders(params)
+    scope = @account.jabvox_orders.order(created_at: :desc)
+    scope = scope.where(status: params[:status]) if params[:status].present?
+    scope = scope.where(doc_type: params[:doc_type]) if params[:doc_type].present?
+    scope.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |o|
+      { id: o.id, doc_type: o.doc_type, status: o.status, total: o.total.to_s,
+        contact_id: o.contact_id, created_at: o.created_at }
+    end
+  end
+
+  # --- Tareas (solo lectura) ---
+  def list_tasks(_params)
+    @account.jabvox_tasks.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |t|
+      { id: t.id, title: t.try(:title_jabvox) || t.try(:title), stage_id: t.try(:stage_id),
+        assignee_id: t.try(:assignee_id), created_at: t.created_at }
+    end
+  end
+
+  # --- Calendario (solo lectura) ---
+  def list_calendar_events(_params)
+    @account.jabvox_calendar_events.order(start_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |e|
+      { id: e.id, title: e.title, start_at: e.start_at, end_at: e.end_at }
+    end
+  end
+
+  # === Analytics / BD externas ===
+  def get_analytics_data_source(params)
+    d = @account.jabvox_analytics_data_sources.find(params[:id])
+    { id: d.id, name: d.name_jabvox, engine: d.engine_jabvox, database: d.database_jabvox,
+      host: d.host_jabvox, has_password: d.respond_to?(:password_jabvox) }
+  end
+
+  def analytics_data_source_schema(params)
+    d = @account.jabvox_analytics_data_sources.find(params[:id])
+    svc = Jabvox::Analytics::IntrospectionService.new(data_source: d, user: @user)
+    svc.tables
+  rescue StandardError => e
+    { error: e.message }
+  end
+
+  # Ejecuta SQL read-only contra la BD externa usando las credenciales GUARDADAS
+  # en la data_source (Hermes nunca las recibe). Validado read-only por el servicio.
+  def run_analytics_query(params)
+    d = @account.jabvox_analytics_data_sources.find(params[:id])
+    outcome = Jabvox::Analytics::QueryExecutionService.new(data_source: d, user: @user)
+                                                      .run_custom_sql(params[:sql].to_s)
+    outcome.to_h
+  rescue Jabvox::Analytics::QueryExecutionService::RejectedError => e
+    # SQL rechazado por no ser de solo lectura.
+    { rejected: true, error: e.message }
+  rescue Jabvox::Analytics::Adapters::BaseAdapter::ConnectionError => e
+    # No se pudo conectar a la BD externa (credenciales/host); el mensaje es
+    # accionable para que Hermes lo traslade al usuario. Nunca expone credenciales.
+    { connection_error: true, error: "No se pudo conectar a la base de datos externa: #{e.message}" }
+  end
+
+  def preview_analytics_table(params)
+    d = @account.jabvox_analytics_data_sources.find(params[:id])
+    Jabvox::Analytics::QueryExecutionService.new(data_source: d, user: @user)
+                                            .preview(table: params[:table], page: params[:page] || 1,
+                                                     per_page: [params[:per_page].to_i, 100].reject(&:zero?).min || 25)
+                                            .to_h
+  end
+
+  # === Importar leads (pull desde BD externa) ===
+  def list_lead_import_sources(_params)
+    @account.jabvox_lead_sources.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |s|
+      { id: s.id, name: s.try(:name_jabvox), engine: s.try(:engine_jabvox), table: s.try(:table_jabvox) }
+    end
+  end
+
+  def get_lead_import_source(params)
+    s = @account.jabvox_lead_sources.find(params[:id])
+    { id: s.id, name: s.try(:name_jabvox), engine: s.try(:engine_jabvox), table: s.try(:table_jabvox),
+      last_sync: s.try(:last_sync_at_jabvox) }
+  end
+
+  def trigger_lead_import_sync(params)
+    s = @account.jabvox_lead_sources.find(params[:id])
+    Jabvox::LeadImport::SyncJob.perform_later(s.id)
+    { queued: true, source_id: s.id }
+  end
+
+  def lead_import_sync_status(params)
+    s = @account.jabvox_lead_sources.find(params[:id])
+    { id: s.id, status: s.try(:sync_status_jabvox), last_sync: s.try(:last_sync_at_jabvox) }
+  end
+
+  # === Exportar datos ===
+  def list_data_export_targets(_params)
+    @account.jabvox_export_targets.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |t|
+      { id: t.id, name: t.try(:name_jabvox), engine: t.try(:engine_jabvox), enabled: t.try(:enabled_jabvox) }
+    end
+  end
+
+  def get_data_export_target(params)
+    t = @account.jabvox_export_targets.find(params[:id])
+    { id: t.id, name: t.try(:name_jabvox), engine: t.try(:engine_jabvox), enabled: t.try(:enabled_jabvox),
+      modules: t.try(:selected_modules_jabvox) }
+  end
+
+  def trigger_data_export_sync(params)
+    t = @account.jabvox_export_targets.find(params[:id])
+    Jabvox::ExternalExport::BackfillJob.perform_later(t.id)
+    { queued: true, target_id: t.id }
+  end
+
+  # === Pedidos / productos ===
+  def get_order(params)
+    o = @account.jabvox_orders.includes(:jabvox_order_items).find(params[:id])
+    { id: o.id, doc_type: o.doc_type, status: o.status, total: o.total.to_s,
+      items: o.jabvox_order_items.map { |i| { name: i.name_snapshot, qty: i.quantity, total: i.line_total.to_s } } }
+  end
+
+  def list_products(_params)
+    @account.jabvox_products.order(:name_jabvox).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |p|
+      { id: p.id, name: p.name_jabvox, price: p.try(:price_jabvox)&.to_s, type: p.try(:product_type_jabvox) }
+    end
+  end
+
+  def get_product(params)
+    p = @account.jabvox_products.find(params[:id])
+    { id: p.id, name: p.name_jabvox, price: p.try(:price_jabvox)&.to_s }
+  end
+
+  # === Módulos varios (solo lectura) ===
+  def list_task_boards(_params)
+    @account.jabvox_task_boards.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |b|
+      { id: b.id, name: b.try(:name_jabvox) || b.try(:name) }
+    end
+  end
+
+  def list_tickets(_params)
+    @account.jabvox_tickets.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |t|
+      { id: t.id, subject: t.try(:subject_jabvox) || t.try(:title), status: t.try(:status_jabvox),
+        created_at: t.created_at }
+    end
+  end
+
+  def get_ticket(params)
+    t = @account.jabvox_tickets.find(params[:id])
+    { id: t.id, subject: t.try(:subject_jabvox) || t.try(:title), status: t.try(:status_jabvox),
+      description: t.try(:description_jabvox) }
+  end
+
+  def list_kanban_funnels(_params)
+    @account.jabvox_kanban_funnels.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |f|
+      { id: f.id, name: f.try(:name_jabvox) || f.try(:name) }
+    end
+  end
+
+  def list_flows(_params)
+    @account.jabvox_flows.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |f|
+      { id: f.id, name: f.try(:name_jabvox) || f.try(:name), status: f.try(:status_jabvox) }
+    end
+  end
+
+  def run_flow(params)
+    f = @account.jabvox_flows.find(params[:id])
+    Jabvox::Flows::RunJob.perform_later(f.id) if defined?(Jabvox::Flows::RunJob)
+    { queued: true, flow_id: f.id }
+  end
+
+  def list_bulk_whatsapp_batches(_params)
+    @account.jabvox_bulk_whatsapp_batches.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |b|
+      { id: b.id, status: b.try(:status_jabvox), total: b.try(:total_rows_jabvox),
+        sent: b.try(:sent_count_jabvox), created_at: b.created_at }
+    end
+  end
+
+  def list_whatsapp_templates(_params)
+    @account.jabvox_whatsapp_templates.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |t|
+      { id: t.id, name: t.try(:name_jabvox) || t.try(:name), status: t.try(:status_jabvox) }
+    end
+  end
+
+  def list_affiliates(_params)
+    @account.jabvox_affiliates.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |a|
+      { id: a.id, name: a.try(:name_jabvox) || a.try(:name) }
+    end
+  end
+
+  def list_campaigns(_params)
+    @account.jabvox_campaigns.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |c|
+      { id: c.id, name: c.try(:name_jabvox) || c.try(:name) }
+    end
+  end
+
+  def list_cdr_records(_params)
+    JabvoxCdrRecord.where(account_id: @account.id).order(calldate: :desc)
+                   .limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |r|
+      { id: r.id, src: r.src, dst: r.dst, disposition: r.disposition, duration: r.duration, calldate: r.calldate }
+    end
+  end
+
+  def list_custom_tables(_params)
+    @account.jabvox_custom_tables.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |t|
+      { id: t.id, name: t.try(:name_jabvox), kind: t.try(:kind_jabvox), linked_to: t.try(:linked_to_jabvox) }
+    end
   end
 end
 # rubocop:enable Metrics/ModuleLength

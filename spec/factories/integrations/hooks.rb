@@ -23,7 +23,7 @@ FactoryBot.define do
     end
 
     trait :openai do
-      app_id { 'openai' }
+      app_id { 'jabvox_ia' }
       settings { { api_key: 'api_key' } }
     end
 

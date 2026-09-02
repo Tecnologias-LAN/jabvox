@@ -827,6 +827,7 @@ Rails.application.routes.draw do
                 get :agents
                 get :dialer
                 get :agent_status
+                get :hermes_activity
                 patch :set_dialer_state
               end
             end

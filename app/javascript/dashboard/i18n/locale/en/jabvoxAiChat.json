@@ -24,7 +24,8 @@
       "CONFIG": "Configuration",
       "PERMISSIONS": "Permissions",
       "HERMES": "Connect Hermes",
-      "CRON": "Hermes Cron Jobs"
+      "CRON": "Hermes Cron Jobs",
+      "HISTORY": "History"
     },
     "AGENTS": {
       "TITLE": "Hermes agents",

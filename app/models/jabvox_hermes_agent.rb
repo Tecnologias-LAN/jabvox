@@ -37,6 +37,11 @@
 class JabvoxHermesAgent < ApplicationRecord
   STATUSES = %w[active disabled].freeze
 
+  # El token de agente es una credencial entrante (Hermes → Jabvox). Se cifra en
+  # reposo. Deterministic para que authenticate pueda seguir haciendo find_by por
+  # el token cifrado. Guardado condicional como el resto de secretos Jabvox.
+  encrypts :agent_token_jabvox, deterministic: true if Jabvox.encryption_configured?
+
   belongs_to :account
   belongs_to :user
   # El modelo de IA de este agente (cada agente tiene el suyo). nullify al borrar el agente.

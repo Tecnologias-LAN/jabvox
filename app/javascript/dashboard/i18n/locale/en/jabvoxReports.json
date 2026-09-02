@@ -6,7 +6,8 @@
       "PRODUCTS": "Reporte de Productos",
       "AGENTS": "Reporte de Agentes",
       "DIALER": "Reportes Dialer",
-      "AGENT_STATUS": "Estado del Agente"
+      "AGENT_STATUS": "Estado del Agente",
+      "HERMES_ACTIVITY": "Hermes Activity"
     },
     "COMMON": {
       "LOADING": "Cargando...",

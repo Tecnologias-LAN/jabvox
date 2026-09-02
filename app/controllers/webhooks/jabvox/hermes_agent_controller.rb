@@ -14,10 +14,20 @@
 class Webhooks::Jabvox::HermesAgentController < ActionController::API
   before_action :authenticate_agent!
 
-  # Tools que ESTE agente puede ejecutar (whitelist ya filtrada por permisos + módulos).
+  # Tools que ESTE agente puede ejecutar (whitelist ya filtrada por permisos +
+  # módulos). Devuelve tanto los nombres como las definiciones function-calling
+  # (name/description/parameters) para que Hermes las registre como herramientas.
   def tools
     authorizer = Jabvox::Hermes::Authorizer.new(account: @account, user: @user)
-    render json: { agent: @agent.name_jabvox, tools: authorizer.allowed_tools }
+    names = authorizer.allowed_tools
+    definitions = names.filter_map { |n| Jabvox::Hermes::ToolRegistry.describe(n) }
+    render json: {
+      agent: @agent.name_jabvox,
+      account_id: @account.id,
+      execute_url: '/webhooks/jabvox/hermes_agent/execute',
+      tools: names,
+      definitions: definitions
+    }
   end
 
   # Ejecuta una tool. La autorización (permiso del agente + módulo habilitado) y la política
@@ -29,6 +39,10 @@ class Webhooks::Jabvox::HermesAgentController < ActionController::API
 
     if result.success?
       render json: { ok: true, data: result.data }
+    elsif result.status == 'module_disabled'
+      # Módulo no contratado/activo: respuesta clara y accionable para Hermes.
+      render json: { ok: false, status: 'module_disabled', module: result.code, error: result.error },
+             status: :forbidden
     else
       render json: { ok: false, status: result.status, error: result.error },
              status: result.status == 'forbidden' ? :forbidden : :unprocessable_entity

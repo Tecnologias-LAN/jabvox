@@ -56,7 +56,9 @@ class Jabvox::Hermes::ServiceLayer
     'PATCH contacts/:id' => :update_contact,
     # Conversaciones + mensajes + notas privadas
     'GET conversations/meta' => :conversations_meta,
+    'GET conversations' => :list_conversations,
     'GET conversations/:id/messages' => :list_conversation_messages,
+    'GET conversations/:id/summary' => :summarize_conversation,
     'POST conversations/:id/messages' => :reply_conversation,
     'POST conversations/:id/notes' => :add_private_note,
     # Notas de contacto
@@ -87,7 +89,53 @@ class Jabvox::Hermes::ServiceLayer
     'POST jabvox/sms_campaigns' => :create_sms_campaign,
     'PATCH jabvox/sms_campaigns/:id' => :update_sms_campaign,
     # Reportes (solo lectura)
-    'GET jabvox/reports/agents' => :report_agents_summary
+    'GET jabvox/reports/agents' => :report_agents_summary,
+
+    # Análisis de Audio
+    'GET jabvox/audio/jobs' => :list_audio_jobs,
+    'GET jabvox/audio/jobs/:id' => :get_audio_job,
+    'GET jabvox/audio/pipelines' => :list_audio_pipelines,
+
+    # Analytics / BD externas
+    'GET jabvox/analytics/data_sources' => :list_analytics_data_sources,
+    'GET jabvox/analytics/data_sources/:id' => :get_analytics_data_source,
+    'GET jabvox/analytics/data_sources/:id/schema' => :analytics_data_source_schema,
+    'POST jabvox/analytics/data_sources/:id/custom_sql' => :run_analytics_query,
+    'GET jabvox/analytics/data_sources/:id/preview' => :preview_analytics_table,
+    'GET jabvox/analytics/dashboards' => :list_analytics_dashboards,
+
+    # Importar leads
+    'GET jabvox/lead_import/sources' => :list_lead_import_sources,
+    'GET jabvox/lead_import/sources/:id' => :get_lead_import_source,
+    'POST jabvox/lead_import/sources/:id/sync' => :trigger_lead_import_sync,
+    'GET jabvox/lead_import/sources/:id/sync_status' => :lead_import_sync_status,
+
+    # Exportar datos
+    'GET jabvox/data_export/targets' => :list_data_export_targets,
+    'GET jabvox/data_export/targets/:id' => :get_data_export_target,
+    'POST jabvox/data_export/targets/:id/sync_now' => :trigger_data_export_sync,
+
+    # Pedidos / productos
+    'GET jabvox/orders' => :list_orders,
+    'GET jabvox/orders/:id' => :get_order,
+    'GET jabvox/products' => :list_products,
+    'GET jabvox/products/:id' => :get_product,
+
+    # Tareas / calendario / tickets / kanban / flows / otros
+    'GET jabvox/tasks' => :list_tasks,
+    'GET jabvox/tasks/boards' => :list_task_boards,
+    'GET jabvox/calendar/events' => :list_calendar_events,
+    'GET jabvox/tickets' => :list_tickets,
+    'GET jabvox/tickets/:id' => :get_ticket,
+    'GET jabvox/kanban_funnels' => :list_kanban_funnels,
+    'GET jabvox/flows' => :list_flows,
+    'POST jabvox/flows/:id/run' => :run_flow,
+    'GET jabvox/bulk_whatsapp/batches' => :list_bulk_whatsapp_batches,
+    'GET jabvox/whatsapp_templates/templates' => :list_whatsapp_templates,
+    'GET jabvox/affiliates' => :list_affiliates,
+    'GET jabvox/campaigns' => :list_campaigns,
+    'GET jabvox/cdr/records' => :list_cdr_records,
+    'GET jabvox/custom_tables' => :list_custom_tables
   }.freeze
 
   # Los handlers de dominio viven en ServiceHandlers (para mantener el dispatch pequeño).

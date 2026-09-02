@@ -11,8 +11,8 @@ class AdministratorNotifications::IntegrationsNotificationMailer < Administrator
   end
 
   def openai_disconnect
-    subject = 'Your OpenAI integration was disconnected'
-    action_url = settings_url('integrations/openai')
+    subject = 'Tu integración de Jabvox IA fue desconectada'
+    action_url = settings_url('integrations/jabvox_ia')
     send_notification(subject, action_url: action_url)
   end
 end

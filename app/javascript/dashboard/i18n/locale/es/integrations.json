@@ -202,16 +202,16 @@
         }
       },
       "CTA_MODAL": {
-        "TITLE": "Integrar con OpenAI",
-        "DESC": "Trae las características avanzadas de IA a tu panel de control con los modelos GPT de OpenAI. Para empezar, introduce la clave API desde tu cuenta OpenAI.",
-        "KEY_PLACEHOLDER": "Introduzca su clave API OpenAI",
+        "TITLE": "Integrar con Jabvox IA",
+        "DESC": "Trae las características avanzadas de IA a tu panel de control conectando cualquier proveedor compatible (URL base, API key y modelo). Para empezar, introduce tus credenciales.",
+        "KEY_PLACEHOLDER": "Introduzca su clave API",
         "BUTTONS": {
           "NEED_HELP": "¿Necesitas ayuda?",
           "DISMISS": "Descartar",
           "FINISH": "Finalizar configuración"
         },
-        "DISMISS_MESSAGE": "Puedes configurar la integración OpenAI más tarde cuando quieras.",
-        "SUCCESS_MESSAGE": "Configuración de integración OpenAI exitosa"
+        "DISMISS_MESSAGE": "Puedes configurar la integración de Jabvox IA más tarde cuando quieras.",
+        "SUCCESS_MESSAGE": "Configuración de Jabvox IA exitosa"
       },
       "TITLE": "Mejorar con IA",
       "SUMMARY_TITLE": "Resumen con IA",
@@ -229,7 +229,7 @@
         "GENERATING": "Generando...",
         "CANCEL": "Cancelar"
       },
-      "GENERATE_ERROR": "Hubo un error al procesar el contenido, por favor verifique su clave API OpenAI e inténtelo de nuevo"
+      "GENERATE_ERROR": "Hubo un error al procesar el contenido, por favor verifique su clave API e inténtelo de nuevo"
     },
     "DELETE": {
       "BUTTON_TEXT": "Eliminar",

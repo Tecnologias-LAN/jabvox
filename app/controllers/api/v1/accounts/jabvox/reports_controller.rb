@@ -86,28 +86,73 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
     open_range = params[:date_to].blank?
 
     users = Current.account.users.order(:name)
+    human_rows = users.map do |u|
+      {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        avatar_url: u.avatar_url,
+        is_hermes: false,
+        resolved_count: resolved_count[u.id] || 0,
+        conversations_count: conversations_count[u.id] || 0,
+        messages_sent: messages_sent[u.id] || 0,
+        notes_added: notes_added[u.id] || 0,
+        managements_added: managements_added[u.id] || 0,
+        orders_placed: orders_placed[u.id] || 0,
+        calls_made: calls_made[u.id] || 0,
+        state_times: state_times[u.id] || {},
+        current_state_key: open_range ? current_states[u.id] : nil
+      }
+    end
+
     render json: {
       fetched_at: Time.current.iso8601,
       open_range: open_range,
-      agents: users.map do |u|
-        {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          avatar_url: u.avatar_url,
-          resolved_count: resolved_count[u.id] || 0,
-          conversations_count: conversations_count[u.id] || 0,
-          messages_sent: messages_sent[u.id] || 0,
-          notes_added: notes_added[u.id] || 0,
-          managements_added: managements_added[u.id] || 0,
-          orders_placed: orders_placed[u.id] || 0,
-          calls_made: calls_made[u.id] || 0,
-          state_times: state_times[u.id] || {},
-          current_state_key: open_range ? current_states[u.id] : nil
-        }
-      end,
+      # Filas humanas + una fila por cada agente de Hermes (bot), para que la actividad
+      # automatizada figure junto a la de las personas.
+      agents: human_rows + hermes_agent_rows(account_id, date_range),
       app_states: app_states
     }
+  end
+
+  # Construye una fila "tipo agente" por cada agente de Hermes activo, con métricas
+  # derivadas de la auditoría (JabvoxHermesActionLog). Solo acciones exitosas cuentan
+  # como trabajo realizado; el mapeo tool→columna es explícito para no adivinar.
+  def hermes_agent_rows(account_id, date_range)
+    success = JabvoxHermesActionLog.where(account_id: account_id, status_jabvox: 'success',
+                                          created_at: date_range)
+    return [] unless success.exists?
+
+    by_identity_tool = success.reorder(nil).group(:hermes_identity_jabvox, :tool_jabvox).count
+    # tool → columna del reporte que representa
+    msg_tools   = %w[reply_conversation]
+    note_tools  = %w[add_private_note create_contact_note]
+    mgmt_tools  = %w[create_management_state update_management_state]
+    # create_order/update_order se añadirán con el lote de tools de escritura de pedidos.
+    order_tools = %w[create_order update_order]
+
+    identities = by_identity_tool.keys.map(&:first).uniq
+    identities.map do |identity|
+      tally = ->(tools) { tools.sum { |t| by_identity_tool[[identity, t]].to_i } }
+      total = by_identity_tool.select { |(ident, _t), _n| ident == identity }.values.sum
+      {
+        id: "hermes:#{identity}",
+        name: "🤖 #{identity.presence || 'Hermes'}",
+        email: 'Hermes (IA)',
+        avatar_url: nil,
+        is_hermes: true,
+        resolved_count: 0,
+        conversations_count: 0,
+        messages_sent: tally.call(msg_tools),
+        notes_added: tally.call(note_tools),
+        managements_added: tally.call(mgmt_tools),
+        orders_placed: tally.call(order_tools),
+        calls_made: 0,
+        hermes_total_actions: total,
+        state_times: {},
+        current_state_key: nil
+      }
+    end
   end
 
   DIALER_STATES = [
@@ -207,7 +252,60 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
     render json: { ok: true }
   end
 
+  # Reporte de ACTIVIDAD de Hermes: qué han hecho los agentes de Hermes sobre la cuenta,
+  # a partir de la auditoría (JabvoxHermesActionLog). Solo lectura, scoped a la cuenta.
+  # No requiere el módulo de IA activo para verse: es un reporte de operaciones.
+  def hermes_activity
+    date_range = build_date_range
+    account_id = Current.account.id
+    logs = JabvoxHermesActionLog.where(account_id: account_id, created_at: date_range)
+
+    by_status = logs.reorder(nil).group(:status_jabvox).count
+    total = by_status.values.sum
+    by_tool = logs.reorder(nil).group(:tool_jabvox).count
+                  .sort_by { |_tool, n| -n }
+                  .map { |tool, n| { tool: tool, count: n } }
+    by_identity = logs.reorder(nil).group(:hermes_identity_jabvox).count
+                      .map { |identity, n| { identity: identity.presence || 'Hermes', count: n } }
+
+    # Serie diaria (para gráfica): fecha local → total de acciones ese día.
+    per_day = logs.reorder(nil)
+                  .group("DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE '#{report_time_zone}')")
+                  .count
+                  .sort_by { |day, _| day.to_s }
+                  .map { |day, n| { date: day.to_s, count: n } }
+
+    recent = logs.order(created_at: :desc).limit(20).map do |l|
+      { id: l.id, created_at: l.created_at, tool: l.tool_jabvox, status: l.status_jabvox,
+        identity: l.hermes_identity_jabvox, permission: l.permission_jabvox,
+        duration_ms: l.duration_ms_jabvox, params: l.params_jabvox, error: l.error_jabvox }
+    end
+
+    render json: {
+      fetched_at: Time.current.iso8601,
+      totals: {
+        total: total,
+        success: by_status['success'] || 0,
+        forbidden: by_status['forbidden'] || 0,
+        module_disabled: by_status['module_disabled'] || 0,
+        error: by_status['error'] || 0
+      },
+      by_tool: by_tool,
+      by_identity: by_identity,
+      per_day: per_day,
+      recent: recent
+    }
+  end
+
   private
+
+  # Zona horaria para agrupar por día. Usa la de la cuenta si está configurada.
+  def report_time_zone
+    tz = Current.account.timezone.presence || 'UTC'
+    ActiveSupport::TimeZone[tz]&.tzinfo&.identifier || 'UTC'
+  rescue StandardError
+    'UTC'
+  end
 
   # Estado del dialer EN VIVO desde Redis (la misma fuente que usa el propio
   # dialer: clave con TTL renovada por el heartbeat del agente). Antes se leía

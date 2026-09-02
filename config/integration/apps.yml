@@ -23,11 +23,11 @@ dashboard_apps:
   i18n_key: dashboard_apps
   hook_type: account
   allow_multiple_hooks: true
-openai:
-  id: openai
-  logo: openai.png
-  i18n_key: openai
-  action: /openai
+jabvox_ia:
+  id: jabvox_ia
+  logo: jabvox_ia.png
+  i18n_key: jabvox_ia
+  action: /jabvox_ia
   hook_type: account
   allow_multiple_hooks: false
   settings_json_schema:
@@ -35,7 +35,9 @@ openai:
       'type': 'object',
       'properties':
         {
+          'base_url': { 'type': 'string' },
           'api_key': { 'type': 'string' },
+          'model': { 'type': 'string' },
           'label_suggestion': { 'type': 'boolean' },
         },
       'required': ['api_key'],
@@ -44,10 +46,24 @@ openai:
   settings_form_schema:
     [
       {
+        'label': 'URL base',
+        'type': 'text',
+        'name': 'base_url',
+        'placeholder': 'https://api.openai.com/v1',
+        'validation': '',
+      },
+      {
         'label': 'API Key',
         'type': 'text',
         'name': 'api_key',
         'validation': 'required',
+      },
+      {
+        'label': 'Modelo',
+        'type': 'text',
+        'name': 'model',
+        'placeholder': 'gpt-4.1-mini',
+        'validation': '',
       },
       {
         'label': 'Show label suggestions',
@@ -56,7 +72,7 @@ openai:
         'validation': '',
       },
     ]
-  visible_properties: ['label_suggestion']
+  visible_properties: ['base_url', 'model', 'label_suggestion']
 linear:
   id: linear
   logo: linear.png

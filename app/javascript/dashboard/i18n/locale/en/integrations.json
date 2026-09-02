@@ -202,16 +202,16 @@
         }
       },
       "CTA_MODAL": {
-        "TITLE": "Integrate with OpenAI",
-        "DESC": "Bring advanced AI features to your dashboard with OpenAI's GPT models. To begin, enter the API key from your OpenAI account.",
-        "KEY_PLACEHOLDER": "Enter your OpenAI API key",
+        "TITLE": "Integrate with Jabvox IA",
+        "DESC": "Bring advanced AI features to your dashboard by connecting any compatible provider (base URL, API key and model). To begin, enter your credentials.",
+        "KEY_PLACEHOLDER": "Enter your API key",
         "BUTTONS": {
           "NEED_HELP": "Need help?",
           "DISMISS": "Dismiss",
           "FINISH": "Finish Setup"
         },
-        "DISMISS_MESSAGE": "You can setup OpenAI integration later Whenever you want.",
-        "SUCCESS_MESSAGE": "OpenAI integration setup successfully"
+        "DISMISS_MESSAGE": "You can set up the Jabvox IA integration later whenever you want.",
+        "SUCCESS_MESSAGE": "Jabvox IA integration set up successfully"
       },
       "TITLE": "Improve With AI",
       "SUMMARY_TITLE": "Summary with AI",
@@ -229,7 +229,7 @@
         "GENERATING": "Generating...",
         "CANCEL": "Cancel"
       },
-      "GENERATE_ERROR": "There was an error processing the content, please verify your OpenAI API key and try again"
+      "GENERATE_ERROR": "There was an error processing the content, please verify your API key and try again"
     },
     "DELETE": {
       "BUTTON_TEXT": "Delete",

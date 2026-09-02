@@ -153,7 +153,7 @@ RSpec.describe Integrations::Hook do
       hook = create(:integrations_hook, :openai, account: account, settings: { 'api_key' => 'sk-bad' })
       hook.update!(status: :disabled)
 
-      allow(Integrations::Openai::KeyValidator).to receive(:valid?).with('sk-bad').and_return(false)
+      allow(Integrations::Openai::KeyValidator).to receive(:valid?).with('sk-bad', nil).and_return(false)
 
       expect(hook.update(status: :enabled)).to be false
       expect(hook.errors[:base]).to include(I18n.t('errors.openai.invalid_api_key'))

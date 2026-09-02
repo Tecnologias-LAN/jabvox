@@ -8,7 +8,9 @@
     "NO_RESULTS": "No results found matching your search",
     "STATUS": {
       "ENABLED": "Enabled",
-      "DISABLED": "Disabled"
+      "DISABLED": "Disabled",
+      "CONNECTED": "Connected",
+      "DISCONNECTED": "Not connected"
     },
     "CONFIGURE": "Configure",
     "ADD_BUTTON": "Add a new hook",
@@ -46,7 +48,7 @@
           "PLACEHOLDER": "Select Inbox"
         },
         "SUBMIT": "Create",
-        "VALIDATING_OPENAI": "Validating with OpenAI...",
+        "VALIDATING_OPENAI": "Validating with Jabvox IA...",
         "CANCEL": "Cancel"
       },
       "API": {

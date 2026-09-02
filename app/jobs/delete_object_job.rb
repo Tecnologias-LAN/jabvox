@@ -42,6 +42,10 @@ class DeleteObjectJob < ApplicationJob
   # external API and is what aborted the normal destroy).
   def force_destroy_inbox(inbox)
     channel = inbox.channel
+    # Re-run the FK cleanup: the normal destroy! may have rolled back before
+    # purge_inbox_associations' effects mattered, and these rows (RESTRICT FKs)
+    # would otherwise block the callback-free delete below too.
+    clear_inbox_fk_rows(inbox)
     inbox.campaigns.delete_all
     inbox.webhooks.delete_all
     inbox.hooks.delete_all
@@ -53,13 +57,41 @@ class DeleteObjectJob < ApplicationJob
     channel&.delete
   end
 
-  def purge_inbox_associations(inbox, delete_mode, target_inbox_id = nil)
-    # Remove records with real FK constraints before inbox deletion
+  # Deletes every Jabvox row that holds a FK to this inbox WITHOUT ON DELETE
+  # CASCADE (RESTRICT/NO ACTION). Missing any of these makes the inbox DELETE
+  # raise ActiveRecord::InvalidForeignKey. jabvox_whatsapp_templates is CASCADE
+  # but cleared too (belt-and-suspenders); the two batch/automation tables were
+  # the ones missing and caused inboxes to reappear after "deleted".
+  def clear_inbox_fk_rows(inbox)
     JabvoxKanbanFunnelInbox.where(inbox_id: inbox.id).delete_all
     JabvoxKanbanStageAutomation.where(inbox_id: inbox.id).delete_all
     JabvoxTaskStageAutomation.where(inbox_id: inbox.id).delete_all
     JabvoxResponseBotConfig.where(inbox_id: inbox.id).delete_all
     JabvoxWhatsappTemplate.where(inbox_id: inbox.id).delete_all
+
+    # Bulk WhatsApp batches and task automations have RESTRICT FKs to inboxes,
+    # AND their own children (recipients / runs) have RESTRICT FKs back to them.
+    # delete_all does not fire dependent: :destroy, so clear the children first,
+    # then the parents — otherwise either delete raises InvalidForeignKey.
+    batch_ids = JabvoxBulkWhatsappBatch.where(inbox_id: inbox.id).ids
+    if batch_ids.any?
+      JabvoxBulkWhatsappRecipient.where(bulk_whatsapp_batch_id: batch_ids).delete_all
+      JabvoxBulkWhatsappBatch.where(id: batch_ids).delete_all
+    end
+
+    automation_ids = JabvoxTaskAutomation.where(inbox_id: inbox.id).ids
+    if automation_ids.any?
+      JabvoxTaskAutomationRun.where(automation_id: automation_ids).delete_all
+      JabvoxTaskAutomation.where(id: automation_ids).delete_all
+    end
+  end
+
+  def purge_inbox_associations(inbox, delete_mode, target_inbox_id = nil)
+    # Remove records with real FK constraints before inbox deletion. Every table
+    # with a FK to inboxes that is NOT ON DELETE CASCADE must be listed here (and
+    # in clear_inbox_fk_rows below), or the inbox DELETE raises
+    # ActiveRecord::InvalidForeignKey and the inbox reappears on reload.
+    clear_inbox_fk_rows(inbox)
 
     mode = DELETE_MODES.include?(delete_mode) ? delete_mode : 'inbox_conversations'
 

@@ -12,7 +12,10 @@
 # Además valida que la tool exista en el registro (whitelist estricta: anti tool-injection)
 # y que el usuario pertenezca a la cuenta (anti IDOR / cross-account).
 class Jabvox::Hermes::Authorizer
-  Decision = Struct.new(:allowed, :reason, :permission, keyword_init: true) do
+  # code distingue el MOTIVO de una denegación para que la API le dé a Hermes un
+  # mensaje accionable (p.ej. 'module_disabled' → "contacta al administrador"):
+  #   unknown_tool | not_in_account | mcp_disabled | module_disabled | permission_denied
+  Decision = Struct.new(:allowed, :reason, :permission, :code, :feature, keyword_init: true) do
     def allowed? = allowed
   end
 
@@ -33,16 +36,21 @@ class Jabvox::Hermes::Authorizer
   # ¿Puede este usuario ejecutar esta tool en esta cuenta? Devuelve una Decision.
   def authorize(tool_name)
     spec = Jabvox::Hermes::ToolRegistry.find(tool_name)
-    return deny('tool desconocida') if spec.nil? # whitelist estricta
+    return deny('tool desconocida', code: 'unknown_tool') if spec.nil? # whitelist estricta
 
-    return deny('usuario no pertenece a la cuenta') unless user_in_account?
-    return deny("MCP '#{spec[:mcp]}' no habilitado para la cuenta") unless account_has_mcp?(spec[:mcp])
+    return deny('usuario no pertenece a la cuenta', code: 'not_in_account') unless user_in_account?
+    unless account_has_mcp?(spec[:mcp])
+      return deny("MCP '#{spec[:mcp]}' no habilitado para la cuenta", code: 'mcp_disabled', feature: spec[:mcp])
+    end
     # NIVEL 1.5: el módulo de la tool debe estar HABILITADO en la cuenta. Si el módulo está
     # apagado, la tool no existe para esta cuenta aunque el agente tenga el permiso.
-    return deny("módulo '#{spec[:feature]}' no habilitado para la cuenta") unless account_has_feature?(spec[:feature])
+    unless account_has_feature?(spec[:feature])
+      return deny("módulo '#{spec[:feature]}' no habilitado para la cuenta",
+                  code: 'module_disabled', feature: spec[:feature])
+    end
 
     required = spec[:permission]
-    return deny("permiso '#{required}' requerido") unless user_has_permission?(required)
+    return deny("permiso '#{required}' requerido", code: 'permission_denied') unless user_has_permission?(required)
 
     Decision.new(allowed: true, reason: 'ok', permission: required)
   end
@@ -82,7 +90,7 @@ class Jabvox::Hermes::Authorizer
     JabvoxHermesUserPermission.allows?(@account.id, @user.id, permission)
   end
 
-  def deny(reason)
-    Decision.new(allowed: false, reason: reason)
+  def deny(reason, code: 'denied', feature: nil)
+    Decision.new(allowed: false, reason: reason, code: code, feature: feature)
   end
 end

@@ -8,6 +8,7 @@ import ProductsReportTab from './tabs/ProductsReportTab.vue';
 import AgentsReportTab from './tabs/AgentsReportTab.vue';
 import DialerReportTab from './tabs/DialerReportTab.vue';
 import AgentStatusTab from './tabs/AgentStatusTab.vue';
+import HermesActivityTab from './tabs/HermesActivityTab.vue';
 
 const { t } = useI18n();
 
@@ -22,6 +23,10 @@ const productsEnabled = computed(() =>
     accountId.value,
     FEATURE_FLAGS.JABVOX_PRODUCTS
   )
+);
+// La actividad de Hermes solo se muestra si el módulo de Chat IA está activo.
+const aiChatEnabled = computed(() =>
+  isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.JABVOX_AI_CHAT)
 );
 
 const tabs = computed(() => [
@@ -49,6 +54,15 @@ const tabs = computed(() => [
     label: () => t('JABVOX_REPORTS.TABS.AGENT_STATUS'),
     icon: 'i-lucide-activity',
   },
+  ...(aiChatEnabled.value
+    ? [
+        {
+          key: 'hermes_activity',
+          label: () => t('JABVOX_REPORTS.TABS.HERMES_ACTIVITY'),
+          icon: 'i-lucide-bot',
+        },
+      ]
+    : []),
 ]);
 
 const route = useRoute();
@@ -109,6 +123,7 @@ const currentTab = computed(() => {
         <AgentsReportTab v-else-if="currentTab === 'agents'" />
         <DialerReportTab v-else-if="currentTab === 'dialer'" />
         <AgentStatusTab v-else-if="currentTab === 'agent_status'" />
+        <HermesActivityTab v-else-if="currentTab === 'hermes_activity'" />
       </div>
     </div>
   </div>

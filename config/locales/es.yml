@@ -150,7 +150,7 @@ es:
         contact_phone_required: 'Se requiere un número de teléfono de contacto'
         permission_request_failed: 'Error al enviar la solicitud de permiso de llamada'
     openai:
-      invalid_api_key: 'La clave API OpenAI no es válida o revocada. Por favor, compruebe su clave en su panel de control OpenAI.'
+      invalid_api_key: 'La clave API no es válida o fue revocada. Por favor, compruebe su clave y la URL base del proveedor.'
     inboxes:
       imap:
         socket_error: Verifique la conexión de red, la dirección IMAP y vuelva a intentarlo.
@@ -391,10 +391,10 @@ es:
       name: 'Traductor de Google'
       short_description: 'Automatically translate customer messages for agents.'
       description: "Integra Google Translate para ayudar a los agentes a traducir fácilmente los mensajes de los clientes. Esta integración detecta automáticamente el idioma y lo convierte al idioma preferido del agente o del administrador."
-    openai:
-      name: 'OpenAI'
-      short_description: 'AI-powered reply suggestions, summarization, and message enhancement.'
-      description: 'Aprovecha el poder de los grandes modelos de lenguaje de OpenAI con funciones como sugerencias de respuestas, resúmenes, reformulación de mensajes, corrección ortográfica y clasificación de etiquetas.'
+    jabvox_ia:
+      name: 'Jabvox IA'
+      short_description: 'Sugerencias de respuesta, resúmenes y mejora de mensajes con IA.'
+      description: 'Conecta cualquier proveedor de IA (URL base, API key y modelo) para sugerencias de respuestas, resúmenes, reformulación de mensajes, corrección ortográfica y clasificación por etiquetas.'
     linear:
       name: 'Lineal'
       short_description: 'Create and link Linear issues directly from conversations.'

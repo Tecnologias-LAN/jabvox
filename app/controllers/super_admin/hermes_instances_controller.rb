@@ -108,7 +108,13 @@ class SuperAdmin::HermesInstancesController < SuperAdmin::ApplicationController
       hermes_url: handoff&.hermes_url,
       provisioned_at: handoff&.provisioned_at,
       last_error: handoff&.last_error,
-      mcp_servers: Array(handoff&.mcp_servers)
+      mcp_servers: Array(handoff&.mcp_servers),
+      # Agentes Hermes de la cuenta con su token de acción (solo visible aquí,
+      # para el super admin de la app — nunca en la UI de la cuenta).
+      agents: acc.jabvox_hermes_agents.includes(:user).map do |ag|
+        { id: ag.id, name: ag.name_jabvox, user: ag.user&.name, status: ag.status_jabvox,
+          agent_token: ag.agent_token_jabvox }
+      end
     }
   end
 end

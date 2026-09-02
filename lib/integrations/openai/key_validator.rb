@@ -1,7 +1,10 @@
 module Integrations::Openai::KeyValidator
   TIMEOUT_SECONDS = 5
 
-  def self.valid?(api_key)
+  # Validates the key against the provider's /models endpoint. `base_url` is the
+  # per-hook base URL entered when connecting Jabvox IA; when blank it falls
+  # back to the installation endpoint / OpenAI.
+  def self.valid?(api_key, base_url = nil)
     return false if api_key.blank?
 
     connection = Faraday.new do |f|
@@ -9,7 +12,7 @@ module Integrations::Openai::KeyValidator
       f.options.open_timeout = TIMEOUT_SECONDS
     end
 
-    response = connection.get("#{api_base}/models") do |req|
+    response = connection.get("#{api_base(base_url)}/models") do |req|
       req.headers['Authorization'] = "Bearer #{api_key}"
     end
 
@@ -19,8 +22,11 @@ module Integrations::Openai::KeyValidator
     true
   end
 
-  def self.api_base
-    endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value.presence || 'https://api.openai.com/'
-    "#{endpoint.chomp('/')}/v1"
+  def self.api_base(base_url = nil)
+    endpoint = base_url.presence ||
+               InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value.presence ||
+               'https://api.openai.com/'
+    endpoint = endpoint.strip.chomp('/')
+    endpoint.end_with?('/v1') ? endpoint : "#{endpoint}/v1"
   end
 end

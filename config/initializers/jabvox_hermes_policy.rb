@@ -9,6 +9,8 @@
 # Se ejecuta tras la inicialización para que las constantes autoload ya estén disponibles.
 Rails.application.config.after_initialize do
   Jabvox::Hermes::ToolRegistry.assert_no_destructive_tools!
+  # Un `feature:` mal escrito deja la tool inaccesible en silencio (feature_enabled? explota).
+  Jabvox::Hermes::ToolRegistry.assert_valid_features!
 rescue StandardError => e
   # En producción, un catálogo destructivo es un fallo de seguridad: abortar el arranque.
   # En entornos de asset-precompile (sin app cargada) no rompemos el build.

@@ -2,14 +2,14 @@ class Migration::ValidateOpenaiHooksJob < ApplicationJob
   queue_as :async_database_migration
 
   def perform(account: nil)
-    scope = Integrations::Hook.where(app_id: 'openai', status: 'enabled')
+    scope = Integrations::Hook.where(app_id: 'jabvox_ia', status: 'enabled')
     scope = scope.where(account_id: account.id) if account
 
     stats = { checked: 0, destroyed: 0 }
 
     scope.find_each do |hook|
       stats[:checked] += 1
-      next if Integrations::Openai::KeyValidator.valid?(hook.settings&.dig('api_key'))
+      next if Integrations::Openai::KeyValidator.valid?(hook.settings&.dig('api_key'), hook.settings&.dig('base_url'))
 
       AdministratorNotifications::IntegrationsNotificationMailer.with(account: hook.account).openai_disconnect.deliver_later
       hook.destroy!

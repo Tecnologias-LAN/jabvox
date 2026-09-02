@@ -9,9 +9,25 @@
 # Este es el punto donde "el backend rechaza aunque el LLM quiera ejecutar": la decisión de
 # autorización ocurre aquí, en Ruby, no en el prompt.
 class Jabvox::Hermes::ToolExecutor
-  Result = Struct.new(:status, :data, :error, keyword_init: true) do
+  Result = Struct.new(:status, :data, :error, :code, keyword_init: true) do
     def success? = status == 'success'
   end
+
+  # Nombre legible por módulo (feature flag) para los mensajes que Hermes le
+  # traslada al usuario cuando un módulo no está habilitado.
+  MODULE_LABELS = {
+    'jabvox_dialer' => 'Marcador (Dialer)',
+    'jabvox_sms' => 'Campañas SMS',
+    'jabvox_audio_analysis' => 'Análisis de Audio',
+    'jabvox_analytics' => 'Analytics y Dashboards',
+    'jabvox_cdr' => 'Reportes CDR',
+    'jabvox_products' => 'Productos y Pedidos',
+    'jabvox_calendar' => 'Calendario',
+    'jabvox_tasks' => 'Tareas',
+    'jabvox_bulk_whatsapp' => 'Envíos masivos de WhatsApp',
+    'jabvox_leads' => 'Leads',
+    'jabvox_kanban' => 'Kanban'
+  }.freeze
 
   def initialize(account:, user:)
     @account = account
@@ -83,7 +99,17 @@ class Jabvox::Hermes::ToolExecutor
   def forbidden(tool_name, decision, started)
     audit(tool: tool_name, permission: decision.permission, status: 'forbidden',
           error: decision.reason, started: started)
-    Result.new(status: 'forbidden', error: decision.reason)
+    # Cuando la denegación es por MÓDULO no habilitado, damos un status y mensaje
+    # accionable para que Hermes se lo diga al usuario ("contacta al administrador
+    # para adquirirlo"), en vez de un genérico "prohibido".
+    if decision.code == 'module_disabled'
+      label = MODULE_LABELS[decision.feature] || decision.feature
+      msg = "El módulo \"#{label}\" no está habilitado en esta cuenta. " \
+            'Contacta al administrador de la cuenta para adquirirlo/activarlo.'
+      return Result.new(status: 'module_disabled', code: decision.feature, error: msg)
+    end
+
+    Result.new(status: 'forbidden', code: decision.code, error: decision.reason)
   end
 
   # entry: { tool:, permission:, status:, params: {}, error: nil, started: }

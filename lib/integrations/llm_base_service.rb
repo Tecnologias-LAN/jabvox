@@ -83,10 +83,22 @@ class Integrations::LlmBaseService
     self.class::CACHEABLE_EVENTS.include?(event_name)
   end
 
+  # Base URL of the LLM provider. Per-hook base_url (set when connecting the
+  # "Jabvox IA" integration) wins, so each account can point at any
+  # OpenAI-compatible provider; falls back to the installation endpoint and
+  # finally to OpenAI. A base_url that already ends in /v1 is left as-is.
   def api_base
-    endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value.presence || 'https://api.openai.com/'
-    endpoint = endpoint.chomp('/')
-    "#{endpoint}/v1"
+    endpoint = hook.settings['base_url'].presence ||
+               InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value.presence ||
+               'https://api.openai.com/'
+    endpoint = endpoint.strip.chomp('/')
+    endpoint.end_with?('/v1') ? endpoint : "#{endpoint}/v1"
+  end
+
+  # Model configured on the hook, if any (used when the request body doesn't
+  # pin a specific model).
+  def hook_model
+    hook.settings['model'].presence
   end
 
   def make_api_call(body)
@@ -100,7 +112,9 @@ class Integrations::LlmBaseService
 
   def execute_ruby_llm_request(parsed_body)
     messages = parsed_body['messages']
-    model = parsed_body['model']
+    # The hook's model wins when set (the provider chosen when connecting Jabvox
+    # IA); otherwise use whatever the caller pinned in the body.
+    model = hook_model || parsed_body['model']
     credential = llm_credential
 
     Llm::Config.with_api_key(credential[:api_key], api_base: api_base) do |context|
