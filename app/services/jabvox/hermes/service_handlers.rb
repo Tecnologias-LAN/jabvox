@@ -63,8 +63,17 @@ module Jabvox::Hermes::ServiceHandlers
     { open: @account.conversations.open.count, total: @account.conversations.count }
   end
 
+  # Resuelve una conversación por el DISPLAY_ID (el número visible por cuenta, que es el que
+  # Hermes ve en el webhook y en las respuestas). Cae al id interno por compatibilidad. Así
+  # get_conversation_messages/reply/etc. funcionan con el mismo número que Hermes conoce.
+  def find_conversation(id)
+    @account.conversations.find_by(display_id: id) ||
+      @account.conversations.find_by(id: id) ||
+      (raise ActiveRecord::RecordNotFound, "conversación #{id} no encontrada")
+  end
+
   def list_conversation_messages(params)
-    conv = @account.conversations.find(params[:id])
+    conv = find_conversation(params[:id])
     conv.messages.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |m|
       { id: m.id, content: m.content, message_type: m.message_type, private: m.private, created_at: m.created_at }
     end
@@ -94,7 +103,7 @@ module Jabvox::Hermes::ServiceHandlers
   # Material listo para que Hermes resuma: metadatos + últimos mensajes (sin notas
   # privadas). No llama al LLM — Hermes hace el resumen con este contexto.
   def summarize_conversation(params)
-    conv = @account.conversations.includes(:contact, :assignee).find(params[:id])
+    conv = find_conversation(params[:id])
     messages = conv.messages.where(private: false).order(created_at: :asc)
                    .last(Jabvox::Hermes::ServiceLayer::MAX_ROWS)
                    .map { |m| { role: m.message_type, content: m.content, at: m.created_at } }
@@ -109,7 +118,7 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   def reply_conversation(params)
-    conv = @account.conversations.find(params[:id])
+    conv = find_conversation(params[:id])
     msg = conv.messages.create!(
       account_id: @account.id, message_type: :outgoing, content: params[:content],
       sender: @user, inbox_id: conv.inbox_id,
@@ -127,7 +136,7 @@ module Jabvox::Hermes::ServiceHandlers
 
   # Nota privada en una conversación (mensaje interno, no visible al cliente).
   def add_private_note(params)
-    conv = @account.conversations.find(params[:id])
+    conv = find_conversation(params[:id])
     msg = conv.messages.create!(
       account_id: @account.id, message_type: :outgoing, content: params[:content],
       private: true, sender: @user, inbox_id: conv.inbox_id,
@@ -809,7 +818,7 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   def update_conversation_status(params)
-    conv = @account.conversations.find(params[:id])
+    conv = find_conversation(params[:id])
     status = params[:status].to_s
     raise Jabvox::Hermes::ServiceLayer::UnknownAction, "estado no válido: #{status}" unless Conversation.statuses.key?(status)
 
@@ -820,7 +829,7 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   def assign_conversation(params)
-    conv = @account.conversations.find(params[:id])
+    conv = find_conversation(params[:id])
     if params[:assignee_id].to_i.positive?
       agent = @account.users.find(params[:assignee_id])
       Conversations::AssignmentService.new(conversation: conv, assignee_id: agent.id).perform
