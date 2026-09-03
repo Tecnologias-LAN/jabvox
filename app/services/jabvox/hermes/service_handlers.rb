@@ -197,18 +197,41 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # Webhook Hermes para TODAS las bandejas (account_type). La URL la FIJA Jabvox al endpoint
-  # de webhooks del Hermes de la cuenta. Idempotente por (account, url).
+  # de webhooks del Hermes de la cuenta. Idempotente por (account, url). Devuelve el SECRET y
+  # las instrucciones de firma HMAC para que Hermes se AUTOCONFIGURE (solo el propio Hermes,
+  # autenticado por su token, recibe este secret).
   def create_hermes_webhook(_params)
     hook = upsert_hermes_webhook(webhook_type: :account_type, inbox_id: nil)
-    webhook_view(hook)
+    hermes_webhook_setup(hook)
   end
 
   # Webhook Hermes para UNA bandeja concreta (inbox_type). Chatwoot solo entregará los
-  # message_created de ESA inbox → Hermes recibe solo esa bandeja.
+  # message_created de ESA inbox → Hermes recibe solo esa bandeja. Devuelve secret + firma.
   def create_hermes_inbox_webhook(params)
     inbox = @account.inboxes.find(params[:inbox_id]) # scoped → no cross-account
     hook = upsert_hermes_webhook(webhook_type: :inbox_type, inbox_id: inbox.id)
-    webhook_view(hook).merge(inbox_id: inbox.id)
+    hermes_webhook_setup(hook).merge(inbox_id: inbox.id)
+  end
+
+  # Devuelve la configuración COMPLETA para que Hermes valide los webhooks entrantes de
+  # Jabvox: URL, secret y el esquema de firma HMAC exacto. Con esto Hermes se aprovisiona
+  # solo. El secret solo viaja a este Hermes (autenticado por su token) — nunca se registra
+  # en la auditoría (JabvoxHermesActionLog sanea claves 'secret').
+  def hermes_webhook_setup(hook)
+    {
+      id: hook.id, url: hook.url, webhook_type: hook.webhook_type, subscriptions: hook.subscriptions,
+      secret: hook.secret,
+      signature: {
+        algorithm: 'HMAC-SHA256',
+        signed_payload: '{timestamp}.{raw_body}',
+        signature_header: 'X-Jabvox-Signature',
+        signature_format: 'sha256=<hex_hmac>',
+        timestamp_header: 'X-Jabvox-Timestamp',
+        delivery_header: 'X-Jabvox-Delivery',
+        instructions: 'Valida cada webhook: sig = "sha256=" + HMAC_SHA256(secret, X-Jabvox-Timestamp + "." + cuerpo_crudo); ' \
+                      'compara con X-Jabvox-Signature. Configura tu plataforma webhook con este secret (no uses INSECURE_NO_AUTH).'
+      }
+    }
   end
 
   # Crea/actualiza el webhook al Hermes de la cuenta suscrito a message_created.
