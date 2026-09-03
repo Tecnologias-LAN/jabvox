@@ -56,8 +56,15 @@ class Webhooks::Trigger
     headers['X-Jabvox-Delivery'] = @delivery_id if @delivery_id.present?
     if @secret.present?
       ts = Time.now.to_i.to_s
+      hmac = OpenSSL::HMAC.hexdigest('SHA256', @secret, "#{ts}.#{body}")
+      # Headers propios de Jabvox.
       headers['X-Jabvox-Timestamp'] = ts
-      headers['X-Jabvox-Signature'] = "sha256=#{OpenSSL::HMAC.hexdigest('SHA256', @secret, "#{ts}.#{body}")}"
+      headers['X-Jabvox-Signature'] = "sha256=#{hmac}"
+      # Headers en el formato V2 genérico que reconocen los gateways tipo Hermes:
+      # misma firma HMAC-SHA256 de "{timestamp}.{body}", solo cambian los nombres. El
+      # valor es el hex crudo (sin prefijo 'sha256='), como espera el esquema V2.
+      headers['X-Webhook-Timestamp'] = ts
+      headers['X-Webhook-Signature-V2'] = hmac
     end
     headers
   end

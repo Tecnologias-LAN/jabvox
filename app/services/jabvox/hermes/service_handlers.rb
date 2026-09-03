@@ -224,12 +224,16 @@ module Jabvox::Hermes::ServiceHandlers
       signature: {
         algorithm: 'HMAC-SHA256',
         signed_payload: '{timestamp}.{raw_body}',
-        signature_header: 'X-Jabvox-Signature',
-        signature_format: 'sha256=<hex_hmac>',
-        timestamp_header: 'X-Jabvox-Timestamp',
-        delivery_header: 'X-Jabvox-Delivery',
-        instructions: 'Valida cada webhook: sig = "sha256=" + HMAC_SHA256(secret, X-Jabvox-Timestamp + "." + cuerpo_crudo); ' \
-                      'compara con X-Jabvox-Signature. Configura tu plataforma webhook con este secret (no uses INSECURE_NO_AUTH).'
+        # Jabvox envía la MISMA firma en dos juegos de headers para máxima compatibilidad:
+        jabvox_headers: { signature: 'X-Jabvox-Signature (formato "sha256=<hex>")',
+                          timestamp: 'X-Jabvox-Timestamp', delivery: 'X-Jabvox-Delivery' },
+        # Formato V2 genérico (el que reconocen los gateways tipo Hermes): hex crudo.
+        webhook_v2_headers: { signature: 'X-Webhook-Signature-V2 (hex crudo, sin prefijo)',
+                              timestamp: 'X-Webhook-Timestamp' },
+        timestamp_window_seconds: 300,
+        instructions: 'Valida: hmac = HMAC_SHA256(secret, "{X-Webhook-Timestamp}.{cuerpo_crudo}"). ' \
+                      'Compara ese hex con X-Webhook-Signature-V2 (o "sha256="+hex con X-Jabvox-Signature). ' \
+                      'Configura tu plataforma webhook con este secret y el esquema V2 (no uses INSECURE_NO_AUTH).'
       }
     }
   end
