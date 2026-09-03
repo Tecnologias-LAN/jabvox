@@ -10,9 +10,12 @@
 class Jabvox::Hermes::ServiceLayer
   UnknownAction = Class.new(StandardError)
 
-  def initialize(account:, user:)
+  def initialize(account:, user:, hermes_name: nil)
     @account = account
     @user = user
+    # Nombre visible del agente Hermes (para atribuir mensajes/notas a "Hermes", no al
+    # usuario técnico ligado). Puede venir nil si no se propaga.
+    @hermes_name = hermes_name.presence || 'Hermes'
   end
 
   Forbidden = Class.new(StandardError)

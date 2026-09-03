@@ -112,9 +112,17 @@ module Jabvox::Hermes::ServiceHandlers
     conv = @account.conversations.find(params[:id])
     msg = conv.messages.create!(
       account_id: @account.id, message_type: :outgoing, content: params[:content],
-      sender: @user, inbox_id: conv.inbox_id
+      sender: @user, inbox_id: conv.inbox_id,
+      # Marca el mensaje como enviado por Hermes (bot), no por el usuario técnico ligado.
+      # El front muestra este nombre en vez del del usuario.
+      additional_attributes: hermes_message_attrs
     )
     { id: msg.id, conversation_id: conv.display_id }
+  end
+
+  # Atributos que identifican un mensaje/nota como enviado por el agente Hermes.
+  def hermes_message_attrs
+    { 'sent_by_hermes' => true, 'hermes_agent_name' => @hermes_name }
   end
 
   # Nota privada en una conversación (mensaje interno, no visible al cliente).
@@ -122,7 +130,8 @@ module Jabvox::Hermes::ServiceHandlers
     conv = @account.conversations.find(params[:id])
     msg = conv.messages.create!(
       account_id: @account.id, message_type: :outgoing, content: params[:content],
-      private: true, sender: @user, inbox_id: conv.inbox_id
+      private: true, sender: @user, inbox_id: conv.inbox_id,
+      additional_attributes: hermes_message_attrs
     )
     { id: msg.id, conversation_id: conv.display_id, private: true }
   end

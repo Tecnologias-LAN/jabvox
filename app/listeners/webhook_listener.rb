@@ -127,8 +127,24 @@ class WebhookListener < BaseListener
                              secret: inbox.channel.secret, delivery_id: SecureRandom.uuid)
   end
 
+  # Webhooks registrados para UNA bandeja concreta (webhook_type: inbox_type), sin importar
+  # el canal de la bandeja. Es la vía por la que el Hermes de la cuenta recibe los mensajes
+  # de la bandeja que atiende (create_hermes_inbox_webhook). Sin esto, un webhook inbox_type
+  # sobre una bandeja normal (WhatsApp/WebWidget/etc.) nunca se dispararía.
+  def deliver_inbox_webhooks(payload, inbox)
+    return unless inbox.account.api_and_webhooks_enabled?
+
+    inbox.account.webhooks.inbox_type.where(inbox_id: inbox.id).each do |webhook|
+      next unless webhook.subscriptions.include?(payload[:event])
+
+      WebhookJob.perform_later(webhook.url, payload, :inbox_webhook,
+                               secret: webhook.secret, delivery_id: SecureRandom.uuid)
+    end
+  end
+
   def deliver_webhook_payloads(payload, inbox)
     deliver_account_webhooks(payload, inbox.account)
     deliver_api_inbox_webhooks(payload, inbox)
+    deliver_inbox_webhooks(payload, inbox)
   end
 end

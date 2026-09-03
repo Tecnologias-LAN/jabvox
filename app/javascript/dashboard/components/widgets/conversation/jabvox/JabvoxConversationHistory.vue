@@ -71,7 +71,13 @@ const formatQty = val => {
   return n % 1 === 0 ? String(Math.round(n)) : n.toString();
 };
 
-const senderName = msg => msg?.meta?.sender?.name || msg?.sender?.name || '';
+// Un mensaje enviado por Hermes (bot) se muestra con el nombre del agente Hermes, no con
+// el del usuario técnico ligado (additional_attributes.sent_by_hermes lo marca el backend).
+const senderName = msg => {
+  const attrs = msg?.additional_attributes || msg?.content_attributes || {};
+  if (attrs.sent_by_hermes) return attrs.hermes_agent_name || 'Hermes';
+  return msg?.meta?.sender?.name || msg?.sender?.name || '';
+};
 
 const messageContent = msg => {
   if (msg.content) return msg.content;

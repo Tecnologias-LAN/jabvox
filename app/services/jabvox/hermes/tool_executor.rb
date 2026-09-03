@@ -78,7 +78,7 @@ class Jabvox::Hermes::ToolExecutor
   # cada tool a su servicio/endpoint controlado. NUNCA hay SQL ni acceso directo a BD:
   # se delega en los servicios de dominio existentes, que aplican sus propias reglas.
   def dispatch(spec, params)
-    Jabvox::Hermes::ServiceLayer.new(account: @account, user: @user).call(
+    Jabvox::Hermes::ServiceLayer.new(account: @account, user: @user, hermes_name: @identity&.name_jabvox).call(
       method: spec[:method], path: resolve_path(spec[:path], params), params: params
     )
   end
