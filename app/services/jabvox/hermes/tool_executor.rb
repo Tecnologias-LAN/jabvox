@@ -48,12 +48,31 @@ class Jabvox::Hermes::ToolExecutor
     audit(tool: tool_name, permission: decision.permission, status: 'success', params: params, started: started)
     Result.new(status: 'success', data: data)
   rescue StandardError => e
+    # El detalle real (mensaje/clase) SOLO se audita en el backend; a Hermes se le devuelve
+    # un mensaje genérico y accionable — nunca nombres de tablas, SQL ni trazas internas.
     audit(tool: tool_name, permission: Jabvox::Hermes::ToolRegistry.permission_for(tool_name), status: 'error',
           params: args, error: e, started: started)
-    Result.new(status: 'error', error: e.message)
+    Result.new(status: 'error', error: client_error_message(e))
   end
 
   private
+
+  # Traduce una excepción interna a un mensaje seguro para el cliente (Hermes). No revela
+  # detalles de implementación; solo lo justo para que el usuario sepa qué pasó.
+  def client_error_message(error)
+    case error
+    when ActiveRecord::RecordNotFound
+      'No se encontró el registro solicitado.'
+    when ActiveRecord::RecordInvalid
+      # Los mensajes de validación son de negocio (ej. "el nombre no puede estar en blanco")
+      # y sí son útiles y seguros de mostrar.
+      error.record.errors.full_messages.first || 'Datos inválidos.'
+    when ActiveRecord::RecordNotSaved, ArgumentError
+      'No se pudo completar la acción con los datos proporcionados.'
+    else
+      'No se pudo completar la acción. Intenta de nuevo o contacta al administrador.'
+    end
+  end
 
   # Ejecuta la acción llamando a la capa de servicio interna de Jabvox. Aquí se enruta
   # cada tool a su servicio/endpoint controlado. NUNCA hay SQL ni acceso directo a BD:

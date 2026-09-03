@@ -57,9 +57,13 @@ class Webhooks::Jabvox::HermesAgentController < ActionController::API
   #
   # Compatibilidad: si el token no corresponde a una conexión, se intenta como token de
   # agente (esquema anterior) para no romper integraciones ya repartidas.
+  # Longitud máxima razonable de un token (secreto 24-byte b64 + sufijo). Rechaza payloads
+  # absurdos antes de tocar la BD (defensa en profundidad contra sondas/DoS).
+  MAX_TOKEN_LENGTH = 128
+
   def authenticate_agent!
     token = bearer_token.presence || request.headers['X-Hermes-Agent-Token'].to_s
-    return head :unauthorized if token.blank?
+    return head :unauthorized if token.blank? || token.length > MAX_TOKEN_LENGTH
 
     if (conn = JabvoxHermesConnection.authenticate_action(token))
       @connection = conn
@@ -72,6 +76,8 @@ class Webhooks::Jabvox::HermesAgentController < ActionController::API
       @user = agent.user
     end
 
+    # Requiere cuenta + usuario resueltos. authenticate() del modelo ya exige agente ACTIVO;
+    # la conexión debe tener un agente/usuario ligado (sin ligar ⇒ no autentica).
     head :unauthorized if @account.nil? || @user.nil?
   end
 

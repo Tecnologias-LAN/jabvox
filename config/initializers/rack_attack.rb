@@ -71,6 +71,22 @@ class Rack::Attack
   throttle('req/ip', limit: ENV.fetch('RACK_ATTACK_LIMIT', '3000').to_i, period: 1.minute, &:ip)
 
   ###-----------------------------------------------###
+  ###-----API de acciones de Hermes (balanceo)------###
+  ###-----------------------------------------------###
+  # La API de Hermes es independiente de la API de usuario y se limita POR TOKEN de agente
+  # (no por IP): cada Hermes tiene su propio cupo, de modo que un agente desbocado no satura
+  # la app ni afecta a los demás. Clave = el token (o la IP si no viene token). Ajustable por
+  # env HERMES_API_LIMIT (por minuto).
+  throttle('hermes_api/token', limit: ENV.fetch('HERMES_API_LIMIT', '300').to_i, period: 1.minute) do |req|
+    next unless req.path.start_with?('/webhooks/jabvox/hermes_agent')
+
+    auth = req.get_header('HTTP_AUTHORIZATION').to_s
+    token = auth.start_with?('Bearer ') ? auth.split(' ', 2).last : req.get_header('HTTP_X_HERMES_AGENT_TOKEN')
+    # Rastrea por token (hasheado, para no guardar el token en las claves de Redis) o por IP.
+    token.present? ? "hermes:#{Digest::SHA256.hexdigest(token)}" : "hermes-ip:#{req.ip}"
+  end
+
+  ###-----------------------------------------------###
   ###-----Authentication Related Throttling---------###
   ###-----------------------------------------------###
 
