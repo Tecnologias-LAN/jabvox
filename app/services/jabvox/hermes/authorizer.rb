@@ -117,7 +117,15 @@ class Jabvox::Hermes::Authorizer
     'jabvox_whatsapp_templates' => { view: 'jabvox_whatsapp_templates_manage', manage: 'jabvox_whatsapp_templates_manage' },
     'jabvox_affiliates'         => { view: 'jabvox_affiliates_manage', manage: 'jabvox_affiliates_manage' },
     'jabvox_customization'      => { view: 'jabvox_custom_data_manage', manage: 'jabvox_custom_data_manage' },
-    'jabvox_advanced_automations' => { view: 'jabvox_reports_view', manage: 'jabvox_reports_view' }
+    'jabvox_advanced_automations' => { view: 'jabvox_reports_view', manage: 'jabvox_reports_view' },
+    # Módulos sin permiso de custom role propio: se gestionan con la capacidad base de
+    # gestión (conversation_manage). Leer es libre para cualquier miembro (view: nil).
+    'jabvox_tickets'            => { view: nil, manage: 'conversation_manage' },
+    'jabvox_calendar'           => { view: nil, manage: 'conversation_manage' },
+    'jabvox_email'              => { view: nil, manage: 'conversation_manage' },
+    'jabvox_internal_chat'      => { view: nil, manage: 'jabvox_internal_chat_use' },
+    'jabvox_forms'              => { view: nil, manage: 'jabvox_forms_manage' },
+    'jabvox_click_to_call'      => { view: nil, manage: 'jabvox_click_to_call_use' }
   }.freeze
 
   # Permisos base de Chatwoot para las tools CORE (etiquetas, contactos, conversaciones).

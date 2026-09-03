@@ -281,8 +281,18 @@ module Jabvox::Hermes::ServiceHandlers
   def search_leads(params)
     scope = @account.jabvox_leads
     q = params[:q].to_s.strip
-    scope = scope.where('label ILIKE :q', q: "%#{q}%") if q.present?
+    if q.present?
+      # Busca por los datos del CONTACTO del lead (nombre/email/teléfono), no por un campo
+      # inexistente. También por lead_number si es numérico.
+      scope = scope.joins(:contact)
+                   .where('contacts.name ILIKE :q OR contacts.email ILIKE :q OR contacts.phone_number ILIKE :q',
+                          q: "%#{q}%")
+      scope = scope.or(@account.jabvox_leads.where(lead_number: q.to_i)) if q.match?(/\A\d+\z/)
+    end
     scope.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |l| lead_view(l) }
+  rescue StandardError
+    # Si el join/or falla por alguna razón, cae a búsqueda simple sin romper.
+    @account.jabvox_leads.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |l| lead_view(l) }
   end
 
   def get_lead(params)
@@ -772,6 +782,43 @@ module Jabvox::Hermes::ServiceHandlers
     { id: new_batch.id, status: new_batch.try(:status_jabvox), reused_from: batch.id }
   end
 
+  # Envía una plantilla de WhatsApp APROBADA a un contacto. Crea/reusa su conversación en la
+  # bandeja WhatsApp y despacha la plantilla (el canal la manda a Meta). Requiere que la
+  # plantilla esté aprobada por Meta y que el contacto tenga teléfono.
+  def send_whatsapp_template_to_contact(params)
+    template = @account.jabvox_whatsapp_templates.find(params[:template_id])
+    contact = @account.contacts.find(params[:contact_id])
+    raise Jabvox::Hermes::ServiceLayer::UnknownAction, 'el contacto no tiene teléfono' if contact.phone_number.blank?
+
+    status = template.try(:status_jabvox) || template.try(:status)
+    unless status.to_s.upcase == 'APPROVED'
+      return { sent: false, status: status, error: "la plantilla no está aprobada por Meta (estado: #{status}). No se puede enviar hasta que Meta la apruebe." }
+    end
+
+    inbox = template.try(:inbox) || @account.inboxes.find_by(id: template.try(:inbox_id))
+    raise Jabvox::Hermes::ServiceLayer::UnknownAction, 'la plantilla no tiene bandeja de WhatsApp asociada' if inbox.nil?
+
+    conversation = whatsapp_conversation_for(contact, inbox)
+    tmpl_params = { 'name' => (template.try(:name_jabvox) || template.try(:name)),
+                    'category' => template.try(:category), 'language' => template.try(:language) }
+    msg = conversation.messages.create!(
+      account_id: @account.id, inbox_id: inbox.id, message_type: :outgoing,
+      content: template.try(:body) || template.try(:name_jabvox).to_s, sender: @user,
+      additional_attributes: { 'template_params' => tmpl_params.compact, 'sent_by_hermes' => true, 'hermes_agent_name' => @hermes_name }
+    )
+    SendReplyJob.perform_later(msg.id)
+    { sent: true, message_id: msg.id, conversation_id: conversation.display_id, contact_id: contact.id }
+  end
+
+  # Conversación abierta del contacto en esa bandeja WhatsApp, o una nueva.
+  def whatsapp_conversation_for(contact, inbox)
+    ci = ContactInbox.find_or_create_by!(contact: contact, inbox: inbox) do |c|
+      c.source_id = contact.phone_number.to_s.delete('+')
+    end
+    ci.conversations.where(status: %i[open pending]).order(created_at: :desc).first ||
+      @account.conversations.create!(contact: contact, inbox: inbox, contact_inbox: ci)
+  end
+
   def whatsapp_templates_manager
     @whatsapp_templates_manager ||= Jabvox::WhatsappTemplatesManager.new(@account, user: @user)
   end
@@ -937,11 +984,27 @@ module Jabvox::Hermes::ServiceHandlers
 
   # --- Tareas ---
   def create_task(params)
-    t = @account.jabvox_tasks.new(params.slice(:title_jabvox, :board_id, :stage_id, :jabvox_lead_id, :assignee_id,
-                                               :description_jabvox, :priority_jabvox, :status_jabvox, :due_at_jabvox).compact_blank)
+    attrs = params.slice(:title_jabvox, :board_id, :stage_id, :jabvox_lead_id, :assignee_id,
+                         :description_jabvox, :priority_jabvox, :status_jabvox, :due_at_jabvox).compact_blank
+    # Normaliza enums a valores válidos (evita fallos por 'medium'/'media' u otros):
+    # priority ∈ low/normal/high/urgent (default normal); status ∈ open/done (default open).
+    attrs[:priority_jabvox] = normalize_task_priority(attrs[:priority_jabvox])
+    attrs[:status_jabvox] = %w[open done].include?(attrs[:status_jabvox].to_s) ? attrs[:status_jabvox] : 'open'
+    # board/stage son obligatorios: si no vienen, usa el primer board/etapa de la cuenta.
+    attrs[:board_id] ||= @account.jabvox_task_boards.order(:id).first&.id
+    attrs[:stage_id] ||= @account.jabvox_task_stages.where(board_id: attrs[:board_id]).order(:position_jabvox).first&.id
+    t = @account.jabvox_tasks.new(attrs)
     t.created_by = @user
     t.save!
     task_view(t)
+  end
+
+  def normalize_task_priority(value)
+    v = value.to_s.downcase
+    return v if %w[low normal high urgent].include?(v)
+
+    { 'media' => 'normal', 'medium' => 'normal', 'baja' => 'low', 'alta' => 'high',
+      'urgente' => 'urgent' }.fetch(v, 'normal')
   end
 
   def update_task(params)
@@ -1016,6 +1079,13 @@ module Jabvox::Hermes::ServiceHandlers
       slots: [{ start_at: params[:start_at], end_at: params[:end_at], all_day: params[:all_day] }], participants: []
     ).perform!
     Array(events).map { |e| calendar_event_view(e) }
+  rescue StandardError => e
+    # El builder puede fallar DESPUÉS de crear el evento (p.ej. al notificar/enviar
+    # recordatorio). Si el evento quedó creado, lo devolvemos igual en vez de reportar error.
+    created = @account.jabvox_calendar_events.where(title: attrs[:title]).order(created_at: :desc).first
+    raise e if created.nil? || (Time.current - created.created_at) > 30
+
+    [calendar_event_view(created)]
   end
 
   def update_calendar_event(params)

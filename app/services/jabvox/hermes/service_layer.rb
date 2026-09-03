@@ -152,6 +152,7 @@ class Jabvox::Hermes::ServiceLayer
     'PATCH jabvox/whatsapp_templates/templates/:id' => :update_whatsapp_template,
     'POST jabvox/whatsapp_templates/templates/:id/duplicate' => :duplicate_whatsapp_template,
     'POST jabvox/whatsapp_templates/templates/:id/sync' => :sync_whatsapp_template,
+    'POST jabvox/whatsapp_templates/templates/:id/send_to_contact' => :send_whatsapp_template_to_contact,
     'GET jabvox/affiliates' => :list_affiliates,
     'GET jabvox/campaigns' => :list_campaigns,
     'GET jabvox/cdr/records' => :list_cdr_records,

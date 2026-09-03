@@ -269,6 +269,9 @@ module Jabvox::Hermes::ToolRegistry
                                        params: { id: :integer }, mcp: 'jabvox_core', feature: 'jabvox_whatsapp_templates' },
     'sync_whatsapp_template' => { permission: 'write', method: :post, path: 'jabvox/whatsapp_templates/templates/:id/sync',
                                   params: { id: :integer }, mcp: 'jabvox_core', feature: 'jabvox_whatsapp_templates' },
+    'send_whatsapp_template_to_contact' => { permission: 'write', method: :post, path: 'jabvox/whatsapp_templates/templates/:id/send_to_contact',
+                                             params: { template_id: :integer, contact_id: :integer },
+                                             mcp: 'jabvox_core', feature: 'jabvox_whatsapp_templates' },
     # Envío masivo de WhatsApp: reutilizar un lote previo (reenvío controlado).
     'reuse_bulk_whatsapp_batch' => { permission: 'create', method: :post, path: 'jabvox/bulk_whatsapp/batches/:id/reuse',
                                      params: { id: :integer }, mcp: 'jabvox_core', feature: 'jabvox_bulk_whatsapp' },
@@ -689,6 +692,9 @@ module Jabvox::Hermes::ToolRegistry
     'update_whatsapp_template' => 'Edita una plantilla de WhatsApp.',
     'duplicate_whatsapp_template' => 'Duplica una plantilla de WhatsApp existente.',
     'sync_whatsapp_template' => 'Sincroniza el estado de una plantilla de WhatsApp con Meta/proveedor.',
+    'send_whatsapp_template_to_contact' => 'Envía una plantilla de WhatsApp APROBADA a un contacto (template_id + contact_id). La plantilla debe estar aprobada por Meta y el contacto tener teléfono.',
+    'create_task' => 'Crea una tarea. title_jabvox obligatorio. priority_jabvox: low/normal/high/urgent (no "medium"). status_jabvox: open/done. Si no indicas board_id/stage_id se usan los primeros de la cuenta.',
+    'create_calendar_event' => 'Crea un evento de calendario (title, start_at, end_at). El módulo no tiene campo responsable; usa la nota para indicarlo.',
     'get_bulk_whatsapp_batches' => 'Lista los lotes de envío masivo de WhatsApp.',
     'reuse_bulk_whatsapp_batch' => 'Reutiliza (reenvía) un lote de envío masivo de WhatsApp previo.'
   }.freeze
