@@ -5,6 +5,42 @@ import {
   aiChatDocumentsAPI,
 } from 'dashboard/api/jabvox/aiChat';
 
+// Los tools persistidos en metadata.tools se guardan con el JSON CRUDO del frame SSE de
+// Hermes (toolCallId/tool/label/output/…), distinto a la forma que arma el chat en vivo.
+// Esta función los normaliza a la MISMA estructura que espera el template
+// ({ id, emoji, tool, label, detail, status }), para que al recargar los chips se vean
+// igual que durante el streaming. Debe reflejar la lógica de upsertTool() de AiChat.vue.
+const normalizeTool = tool => {
+  if (!tool || typeof tool !== 'object') return tool;
+  const id = tool.id || tool.toolCallId || tool.tool;
+  // Si ya está normalizado (tiene `detail` propio y su `label` es el nombre corto, distinto
+  // del frame crudo donde `label` es el comando), lo conservamos: solo garantizamos campos.
+  const alreadyNormalized = 'detail' in tool && tool.label === tool.tool;
+  if (alreadyNormalized) {
+    return {
+      id,
+      emoji: tool.emoji || '🔧',
+      tool: tool.tool || 'tool',
+      label: tool.tool || 'tool',
+      detail: tool.detail || '',
+      status: tool.status || 'completed',
+    };
+  }
+  // Frame CRUDO de Hermes (mismo mapeo que upsertTool): `tool` es el nombre corto (label del
+  // chip); el detalle (comando/código/salida) viene en `label`/`detail`/`output`.
+  return {
+    id,
+    emoji: tool.emoji || '🔧',
+    tool: tool.tool || 'tool',
+    label: tool.tool || 'tool',
+    detail: tool.label || tool.detail || tool.output || '',
+    status: tool.status || 'completed',
+  };
+};
+
+const normalizeTools = tools =>
+  Array.isArray(tools) ? tools.map(normalizeTool).filter(t => t && t.id) : [];
+
 const state = {
   sessions: [],
   messages: {},
@@ -42,8 +78,12 @@ const mutations = {
     // las persiste ahí), para que al reabrir el chat reaparezcan los chips de tools que
     // antes solo vivían en memoria y se perdían al salir.
     const withTools = (messages || []).map(m => {
-      const tools = m?.metadata?.tools;
-      return tools && tools.length ? { ...m, tools } : m;
+      const raw = m?.metadata?.tools;
+      if (!raw || !raw.length) return m;
+
+      // Normaliza a la forma que espera el template (los persistidos vienen crudos).
+      const tools = normalizeTools(raw);
+      return tools.length ? { ...m, tools } : m;
     });
     s.messages = { ...s.messages, [sessionId]: withTools };
   },
