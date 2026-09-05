@@ -39,6 +39,14 @@
       "NEW_TITLE": "New voice campaign",
       "EDIT_TITLE": "Edit voice campaign",
       "NAME": "Name",
+      "SOURCE": "Contacts source",
+      "SOURCE_LEADS": "Filter leads (by state, country, affiliate)",
+      "SOURCE_CAMPAIGN": "Reuse a dialer campaign",
+      "FILTERS_TITLE": "Lead filters",
+      "FILTER_STATES": "Management states",
+      "FILTER_AFFILIATES": "Affiliates",
+      "FILTER_HINT": "No filters = all leads with a phone number.",
+      "LEADS_WITH_PHONE": "lead(s) with phone",
       "CAMPAIGN": "Dialer campaign (contacts)",
       "CAMPAIGN_PLACEHOLDER": "Select a campaign",
       "CALLER_ID": "Caller ID",
@@ -70,13 +78,36 @@
       "STOP": "Stop",
       "NEED_AUDIO": "Upload and deploy the audio to be able to start.",
       "REPORT_TITLE": "Report",
-      "EXPORT_CSV": "Export CSV"
+      "EXPORT_CSV": "Export CSV",
+      "PROGRESS": "Dialing progress",
+      "REMAINING": "Remaining",
+      "LIVE": "Live",
+      "IN_FLIGHT": "In call",
+      "RECIPIENTS_TITLE": "Recipients",
+      "NO_RECIPIENTS": "No recipients for this filter.",
+      "PREV": "Previous",
+      "NEXT": "Next"
     },
     "REPORT": {
       "ANSWER_RATE": "Answer rate",
       "PLAYED_RATE": "Played fully (%)",
       "ANSWERED_HUMAN": "Answered (human)",
       "ANSWERED_MACHINE": "Answered (machine)"
+    },
+    "RECIPIENT": {
+      "NAME": "Name",
+      "PHONE": "Phone",
+      "STATUS": "Status",
+      "OUTCOME": "Outcome",
+      "DURATION": "Duration",
+      "ATTEMPTS": "Attempts"
+    },
+    "RECIPIENT_FILTER": {
+      "ALL": "All",
+      "PENDING": "Pending",
+      "CALLING": "Calling",
+      "DONE": "Done",
+      "FAILED": "Failed"
     }
   }
 }

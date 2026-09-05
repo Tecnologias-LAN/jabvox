@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_02_000005) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_05_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -3694,7 +3694,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_02_000005) do
 
   create_table "jabvox_voice_broadcasts", force: :cascade do |t|
     t.bigint "account_id", null: false
-    t.bigint "jabvox_dialer_campaign_id", null: false
+    t.bigint "jabvox_dialer_campaign_id"
     t.bigint "created_by_id"
     t.string "name_jabvox", default: "", null: false
     t.string "status_jabvox", default: "draft", null: false
@@ -3722,6 +3722,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_02_000005) do
     t.datetime "finished_at_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "countries_jabvox"
+    t.jsonb "management_state_ids_jabvox"
+    t.jsonb "affiliate_ids_jabvox"
+    t.jsonb "inbox_ids_jabvox"
+    t.jsonb "excluded_lead_ids_jabvox", default: [], null: false
+    t.jsonb "lead_filters_jabvox", default: {}, null: false
+    t.bigint "jabvox_campaign_id"
+    t.string "source_jabvox", default: "campaign", null: false
     t.index ["account_id", "status_jabvox"], name: "idx_vb_account_status"
     t.index ["account_id"], name: "idx_vb_account"
     t.index ["jabvox_dialer_campaign_id"], name: "idx_vb_campaign"

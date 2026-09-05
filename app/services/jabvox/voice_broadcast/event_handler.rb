@@ -110,17 +110,22 @@ class Jabvox::VoiceBroadcast::EventHandler
   def handle_hangup(recipient, event)
     return unless recipient.status_jabvox == 'calling'
 
-    answered = event['billableseconds'].to_i.positive? || recipient.amd_status_jabvox == 'HUMAN'
+    billsec = event['billableseconds'].to_i
+    answered = billsec.positive? || recipient.amd_status_jabvox == 'HUMAN'
     outcome = answered ? 'answered_human' : hangup_no_answer_outcome(event)
     stamp_uniqueid(recipient, event)
-    finalize(recipient, outcome: outcome, status: retry_or_fail(recipient, outcome))
+    # Rellena duración (billsec en ms) y archivo de grabación si el PBX lo reportó.
+    extra = { duration_ms_jabvox: billsec.positive? ? billsec * 1000 : recipient.duration_ms_jabvox }
+    rec_file = event['recording_file'].presence || event['recordingfile'].presence
+    extra[:recording_file_jabvox] = rec_file if rec_file.present?
+    finalize(recipient, outcome: outcome, status: retry_or_fail(recipient, outcome), extra: extra)
     increment_broadcast(recipient, :answered_human_count_jabvox) if outcome == 'answered_human'
   end
 
   # ── helpers ──────────────────────────────────────────────────────────────
 
-  def finalize(recipient, outcome:, status:)
-    attrs = { outcome_jabvox: outcome, status_jabvox: status }
+  def finalize(recipient, outcome:, status:, extra: {})
+    attrs = { outcome_jabvox: outcome, status_jabvox: status }.merge(extra.compact)
     recipient.update_columns(attrs) # rubocop:disable Rails/SkipsModelValidations
     # Contador de marcados: sube una sola vez cuando el destinatario deja 'calling'.
     increment_broadcast(recipient, :dialed_count_jabvox)

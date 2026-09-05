@@ -709,6 +709,9 @@ Rails.application.routes.draw do
                 post :resume
                 post :stop
                 get :live_monitor
+                get :lead_count
+                get :preview_leads
+                get :recipients
                 get :report
                 get :report_csv
               end

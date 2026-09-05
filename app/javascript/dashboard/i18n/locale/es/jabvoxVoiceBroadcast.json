@@ -39,6 +39,14 @@
       "NEW_TITLE": "Nueva campaña de voz",
       "EDIT_TITLE": "Editar campaña de voz",
       "NAME": "Nombre",
+      "SOURCE": "Fuente de contactos",
+      "SOURCE_LEADS": "Filtrar leads (por estado, país, afiliado)",
+      "SOURCE_CAMPAIGN": "Reusar una campaña del marcador",
+      "FILTERS_TITLE": "Filtros de leads",
+      "FILTER_STATES": "Estados de gestión",
+      "FILTER_AFFILIATES": "Afiliados",
+      "FILTER_HINT": "Sin filtros = todos los leads con teléfono de la cuenta.",
+      "LEADS_WITH_PHONE": "lead(s) con teléfono",
       "CAMPAIGN": "Campaña del marcador (contactos)",
       "CAMPAIGN_PLACEHOLDER": "Selecciona una campaña",
       "CALLER_ID": "Caller ID",
@@ -70,13 +78,36 @@
       "STOP": "Detener",
       "NEED_AUDIO": "Sube y despliega el audio para poder iniciar.",
       "REPORT_TITLE": "Reporte",
-      "EXPORT_CSV": "Exportar CSV"
+      "EXPORT_CSV": "Exportar CSV",
+      "PROGRESS": "Progreso de la marcación",
+      "REMAINING": "Faltan",
+      "LIVE": "En vivo",
+      "IN_FLIGHT": "En llamada",
+      "RECIPIENTS_TITLE": "Destinatarios",
+      "NO_RECIPIENTS": "Sin destinatarios para este filtro.",
+      "PREV": "Anterior",
+      "NEXT": "Siguiente"
     },
     "REPORT": {
       "ANSWER_RATE": "Tasa de contestación",
       "PLAYED_RATE": "Escuchó completo (%)",
       "ANSWERED_HUMAN": "Contestó persona",
       "ANSWERED_MACHINE": "Contestó máquina"
+    },
+    "RECIPIENT": {
+      "NAME": "Nombre",
+      "PHONE": "Teléfono",
+      "STATUS": "Estado",
+      "OUTCOME": "Desenlace",
+      "DURATION": "Duración",
+      "ATTEMPTS": "Intentos"
+    },
+    "RECIPIENT_FILTER": {
+      "ALL": "Todos",
+      "PENDING": "Pendientes",
+      "CALLING": "Llamando",
+      "DONE": "Completadas",
+      "FAILED": "Fallidas"
     }
   }
 }

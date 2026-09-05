@@ -24,17 +24,41 @@ class Api::V1::Accounts::Jabvox::VoiceBroadcastsController < Api::V1::Accounts::
   end
 
   def create
-    campaign = Current.account.jabvox_dialer_campaigns.find_by(id: params[:jabvox_dialer_campaign_id])
-    return render(json: { error: 'Campaña no encontrada' }, status: :not_found) unless campaign
-
     broadcast = JabvoxVoiceBroadcast.new(broadcast_params)
     broadcast.account = Current.account
-    broadcast.jabvox_dialer_campaign = campaign
     broadcast.created_by = current_user
+    # Dos fuentes de destinatarios: 'leads' (filtros propios, como el dialer) o 'campaign'
+    # (reusa los contactos de una campaña del dialer, comportamiento anterior).
+    if broadcast.source_jabvox == 'campaign'
+      campaign = Current.account.jabvox_dialer_campaigns.find_by(id: params[:jabvox_dialer_campaign_id])
+      return render(json: { error: 'Campaña no encontrada' }, status: :not_found) unless campaign
+
+      broadcast.jabvox_dialer_campaign = campaign
+    end
     return render(json: { errors: broadcast.errors.full_messages }, status: :unprocessable_entity) unless broadcast.save
 
-    JabvoxVoiceBroadcastAudit.record(broadcast, current_user.id, 'created', { campaign_id: campaign.id })
+    JabvoxVoiceBroadcastAudit.record(broadcast, current_user.id, 'created',
+                                     { source: broadcast.source_jabvox, campaign_id: broadcast.jabvox_dialer_campaign_id })
     render json: detail_json(broadcast), status: :created
+  end
+
+  # GET /lead_count — cuántos leads matchean los filtros (para el formulario).
+  def lead_count
+    render json: { count: @broadcast.target_leads_scope.count }
+  end
+
+  # GET /preview_leads — lista paginada de leads que matchean (para revisar antes de arrancar).
+  def preview_leads
+    page = [params[:page].to_i, 1].max
+    per = 25
+    leads = @broadcast.target_leads_scope.includes(:contact).limit(per).offset((page - 1) * per)
+    render json: {
+      page: page,
+      leads: leads.map do |l|
+        c = l.contact
+        { lead_id: l.id, contact_id: c&.id, name: c&.name, phone: c&.phone_number, email: c&.email }
+      end
+    }
   end
 
   def update
@@ -131,6 +155,23 @@ class Api::V1::Accounts::Jabvox::VoiceBroadcastsController < Api::V1::Accounts::
     render json: report_json(@broadcast)
   end
 
+  # GET /recipients — detalle por destinatario, paginado y filtrable por estado/desenlace.
+  # Sirve para ver "en qué lead va, cuántos llamó, cuáles faltan" en tiempo real.
+  def recipients
+    page = [params[:page].to_i, 1].max
+    per = 50
+    scope = @broadcast.recipients.order(updated_at: :desc)
+    scope = scope.where(status_jabvox: params[:status]) if params[:status].present?
+    scope = scope.where(outcome_jabvox: params[:outcome]) if params[:outcome].present?
+    total = scope.count
+    rows = scope.limit(per).offset((page - 1) * per)
+    render json: {
+      page: page, per: per, total: total, total_pages: (total.to_f / per).ceil,
+      counts_by_status: @broadcast.recipients.group(:status_jabvox).count,
+      recipients: rows.map { |r| recipient_json(r) }
+    }
+  end
+
   # GET /report.csv — exporta el detalle por destinatario.
   def report_csv
     send_data recipients_csv(@broadcast), type: 'text/csv',
@@ -155,21 +196,52 @@ class Api::V1::Accounts::Jabvox::VoiceBroadcastsController < Api::V1::Accounts::
     params.permit(:name_jabvox, :caller_id_jabvox, :max_concurrent_jabvox, :cps_jabvox,
                   :max_retries_jabvox, :retry_interval_jabvox, :amd_enabled_jabvox,
                   :dtmf_enabled_jabvox, :dtmf_optout_digit_jabvox,
-                  :calling_hours_start_jabvox, :calling_hours_end_jabvox)
+                  :calling_hours_start_jabvox, :calling_hours_end_jabvox,
+                  # Filtros de leads (source 'leads'), como el dialer.
+                  :source_jabvox, :jabvox_campaign_id,
+                  countries_jabvox: [], management_state_ids_jabvox: [], affiliate_ids_jabvox: [],
+                  inbox_ids_jabvox: [], excluded_lead_ids_jabvox: [],
+                  lead_filters_jabvox: [:q, :email, :phone, :document, { custom: {} }])
   end
 
-  # Materializa los destinatarios a partir de los contactos de la campaña (idempotente:
-  # no duplica por el índice único phone). Solo destinatarios nuevos entran 'pending'.
+  # Materializa los destinatarios. Según el source: 'leads' usa los leads filtrados aquí
+  # (DialerLeadsFilterService, la misma fuente que el conteo del formulario); 'campaign'
+  # reusa los contactos de la campaña del dialer. Idempotente por el índice único de teléfono.
   def build_recipients_from_campaign(broadcast)
-    contacts = broadcast.jabvox_dialer_campaign.jabvox_dialer_campaign_contacts
-                        .where.not(phone_jabvox: [nil, '']).select(:contact_id, :phone_jabvox, :name_jabvox)
-    rows = contacts.map do |c|
-      { jabvox_voice_broadcast_id: broadcast.id, account_id: broadcast.account_id,
-        contact_id: c.contact_id, phone_jabvox: c.phone_jabvox, name_jabvox: c.name_jabvox,
-        status_jabvox: 'pending', attempts_jabvox: 0, created_at: Time.current, updated_at: Time.current }
-    end
+    rows = if broadcast.source_jabvox == 'leads'
+             recipient_rows_from_leads(broadcast)
+           else
+             recipient_rows_from_campaign(broadcast)
+           end
     JabvoxVoiceBroadcastRecipient.insert_all(rows) if rows.any? # rubocop:disable Rails/SkipsModelValidations
     broadcast.update_columns(total_recipients_jabvox: broadcast.recipients.count) # rubocop:disable Rails/SkipsModelValidations
+  end
+
+  def recipient_rows_from_leads(broadcast)
+    now = Time.current
+    seen = {}
+    broadcast.target_leads_scope.includes(:contact).find_each.filter_map do |lead|
+      c = lead.contact
+      phone = c&.phone_number.to_s.strip
+      next if phone.blank? || seen[phone]
+
+      seen[phone] = true
+      { jabvox_voice_broadcast_id: broadcast.id, account_id: broadcast.account_id,
+        contact_id: c.id, phone_jabvox: phone, name_jabvox: c.name,
+        status_jabvox: 'pending', attempts_jabvox: 0, created_at: now, updated_at: now }
+    end
+  end
+
+  def recipient_rows_from_campaign(broadcast)
+    return [] if broadcast.jabvox_dialer_campaign.nil?
+
+    now = Time.current
+    broadcast.jabvox_dialer_campaign.jabvox_dialer_campaign_contacts
+             .where.not(phone_jabvox: [nil, '']).select(:contact_id, :phone_jabvox, :name_jabvox).map do |c|
+      { jabvox_voice_broadcast_id: broadcast.id, account_id: broadcast.account_id,
+        contact_id: c.contact_id, phone_jabvox: c.phone_jabvox, name_jabvox: c.name_jabvox,
+        status_jabvox: 'pending', attempts_jabvox: 0, created_at: now, updated_at: now }
+    end
   end
 
   # Cuelga los canales del broadcast que siguen en vuelo (recipients 'calling') y los
@@ -216,6 +288,15 @@ class Api::V1::Accounts::Jabvox::VoiceBroadcastsController < Api::V1::Accounts::
       answered_machine: bcast.answered_machine_count_jabvox,
       played_complete: bcast.played_complete_count_jabvox, failed: bcast.failed_count_jabvox,
       total: bcast.total_recipients_jabvox }
+  end
+
+  # Vista por destinatario para la tabla de detalle/monitor.
+  def recipient_json(r)
+    { id: r.id, phone: r.phone_jabvox, name: r.name_jabvox, status: r.status_jabvox,
+      outcome: r.outcome_jabvox, amd: r.amd_status_jabvox, dtmf: r.dtmf_pressed_jabvox,
+      played_full: r.played_full_jabvox, attempts: r.attempts_jabvox,
+      duration_ms: r.duration_ms_jabvox, recording: r.recording_file_jabvox,
+      last_attempt_at: r.last_attempt_at_jabvox&.iso8601 }
   end
 
   def report_json(bcast) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength

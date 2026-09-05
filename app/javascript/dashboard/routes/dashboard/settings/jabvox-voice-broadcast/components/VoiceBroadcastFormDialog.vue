@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import voiceBroadcastAPI from 'dashboard/api/jabvox/voiceBroadcast';
 import { dialerCampaignsAPI } from 'dashboard/api/jabvox/dialer';
+import { managementStatesAPI } from 'dashboard/api/jabvox/managementStates';
+import affiliatesAPI from 'dashboard/api/jabvox/affiliates';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 
@@ -23,6 +25,8 @@ const HOUR_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const form = ref({
   name_jabvox: '',
+  // 'leads' = filtra sus propios leads (como el marcador); 'campaign' = reusa una campaña.
+  source_jabvox: 'leads',
   jabvox_dialer_campaign_id: null,
   caller_id_jabvox: '',
   max_concurrent_jabvox: 5,
@@ -34,7 +38,15 @@ const form = ref({
   dtmf_optout_digit_jabvox: '9',
   calling_hours_start_jabvox: '',
   calling_hours_end_jabvox: '',
+  // Filtros de leads (source 'leads').
+  management_state_ids_jabvox: [],
+  countries_jabvox: [],
+  affiliate_ids_jabvox: [],
 });
+
+// Catálogos para los filtros de leads.
+const managementStates = ref([]);
+const affiliates = ref([]);
 
 const isEditing = computed(() => editingId.value != null);
 
@@ -44,15 +56,23 @@ const hoursValid = computed(() => {
   return (!s || HOUR_RE.test(s)) && (!e || HOUR_RE.test(e));
 });
 
-const canSubmit = computed(
-  () =>
-    form.value.name_jabvox.trim() &&
-    (isEditing.value || form.value.jabvox_dialer_campaign_id) &&
-    Number(form.value.max_concurrent_jabvox) > 0 &&
-    Number(form.value.cps_jabvox) > 0 &&
+const canSubmit = computed(() => {
+  const f = form.value;
+  // Con source 'campaign' se exige la campaña; con 'leads' basta con los filtros (pueden
+  // estar vacíos = todos los leads con teléfono).
+  const sourceOk =
+    isEditing.value ||
+    f.source_jabvox === 'leads' ||
+    (f.source_jabvox === 'campaign' && f.jabvox_dialer_campaign_id);
+  return (
+    f.name_jabvox.trim() &&
+    sourceOk &&
+    Number(f.max_concurrent_jabvox) > 0 &&
+    Number(f.cps_jabvox) > 0 &&
     hoursValid.value &&
     !saving.value
-);
+  );
+});
 
 const loadCampaigns = async () => {
   try {
@@ -63,10 +83,49 @@ const loadCampaigns = async () => {
   }
 };
 
+// Catálogos para los filtros de leads (reusa los mismos endpoints que el marcador).
+const loadFilterCatalogs = async () => {
+  try {
+    const [ms, aff] = await Promise.all([
+      managementStatesAPI.getAll(),
+      affiliatesAPI.getAll(),
+    ]);
+    managementStates.value = ms.data || [];
+    affiliates.value = aff.data || [];
+  } catch (e) {
+    managementStates.value = [];
+    affiliates.value = [];
+  }
+};
+
+// Conteo de leads en vivo (para source 'leads'). Debounced simple.
+const leadCount = ref(null);
+let leadCountTimer = null;
+const refreshLeadCount = async id => {
+  if (form.value.source_jabvox !== 'leads') {
+    leadCount.value = null;
+    return;
+  }
+  clearTimeout(leadCountTimer);
+  leadCountTimer = setTimeout(async () => {
+    try {
+      if (!id && !editingId.value) {
+        leadCount.value = null;
+        return;
+      }
+      const { data } = await voiceBroadcastAPI.leadCount(id || editingId.value);
+      leadCount.value = data.count;
+    } catch (e) {
+      leadCount.value = null;
+    }
+  }, 300);
+};
+
 const open = row => {
   editingId.value = row?.id ?? null;
   form.value = {
     name_jabvox: row?.name || '',
+    source_jabvox: row?.source || 'leads',
     jabvox_dialer_campaign_id: row?.campaign_id || null,
     caller_id_jabvox: row?.caller_id || '',
     max_concurrent_jabvox: row?.max_concurrent ?? 5,
@@ -78,9 +137,14 @@ const open = row => {
     dtmf_optout_digit_jabvox: row?.dtmf_optout_digit || '9',
     calling_hours_start_jabvox: row?.calling_hours_start || '',
     calling_hours_end_jabvox: row?.calling_hours_end || '',
+    management_state_ids_jabvox: row?.management_state_ids || [],
+    countries_jabvox: row?.countries || [],
+    affiliate_ids_jabvox: row?.affiliate_ids || [],
   };
   show.value = true;
+  loadFilterCatalogs();
   if (!isEditing.value) loadCampaigns();
+  refreshLeadCount(row?.id);
 };
 
 const close = () => {
@@ -150,7 +214,29 @@ defineExpose({ open });
             <Input v-model="form.name_jabvox" />
           </label>
 
+          <!-- Fuente de destinatarios: filtrar leads (como el marcador) o reusar campaña -->
           <label v-if="!isEditing" class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-n-slate-11">
+              {{ t('JABVOX_VOICE_BROADCAST.FORM.SOURCE') }}
+            </span>
+            <select
+              v-model="form.source_jabvox"
+              class="px-3 py-2 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12"
+            >
+              <option value="leads">
+                {{ t('JABVOX_VOICE_BROADCAST.FORM.SOURCE_LEADS') }}
+              </option>
+              <option value="campaign">
+                {{ t('JABVOX_VOICE_BROADCAST.FORM.SOURCE_CAMPAIGN') }}
+              </option>
+            </select>
+          </label>
+
+          <!-- Campaña del marcador (source campaign) -->
+          <label
+            v-if="!isEditing && form.source_jabvox === 'campaign'"
+            class="flex flex-col gap-1"
+          >
             <span class="text-xs font-medium text-n-slate-11">
               {{ t('JABVOX_VOICE_BROADCAST.FORM.CAMPAIGN') }}
             </span>
@@ -166,6 +252,55 @@ defineExpose({ open });
               </option>
             </select>
           </label>
+
+          <!-- Filtros de leads (source leads) -->
+          <div
+            v-if="form.source_jabvox === 'leads'"
+            class="flex flex-col gap-3 rounded-lg border border-n-weak p-3 bg-n-alpha-1"
+          >
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-n-slate-11">
+                {{ t('JABVOX_VOICE_BROADCAST.FORM.FILTERS_TITLE') }}
+              </span>
+              <span v-if="leadCount != null" class="text-xs text-n-slate-10">
+                {{ leadCount }}
+                {{ t('JABVOX_VOICE_BROADCAST.FORM.LEADS_WITH_PHONE') }}
+              </span>
+            </div>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs text-n-slate-10">
+                {{ t('JABVOX_VOICE_BROADCAST.FORM.FILTER_STATES') }}
+              </span>
+              <select
+                v-model="form.management_state_ids_jabvox"
+                multiple
+                class="px-2 py-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 min-h-[70px]"
+                @change="refreshLeadCount(editingId)"
+              >
+                <option v-for="s in managementStates" :key="s.id" :value="s.id">
+                  {{ s.name_jabvox || s.name }}
+                </option>
+              </select>
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs text-n-slate-10">
+                {{ t('JABVOX_VOICE_BROADCAST.FORM.FILTER_AFFILIATES') }}
+              </span>
+              <select
+                v-model="form.affiliate_ids_jabvox"
+                multiple
+                class="px-2 py-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 min-h-[60px]"
+                @change="refreshLeadCount(editingId)"
+              >
+                <option v-for="a in affiliates" :key="a.id" :value="a.id">
+                  {{ a.name }}
+                </option>
+              </select>
+            </label>
+            <p class="text-xs text-n-slate-9">
+              {{ t('JABVOX_VOICE_BROADCAST.FORM.FILTER_HINT') }}
+            </p>
+          </div>
 
           <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">

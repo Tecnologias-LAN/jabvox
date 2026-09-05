@@ -46,8 +46,26 @@ class JabvoxVoiceBroadcastAPI extends ApiClient {
     return axios.get(`${this.url}/${id}/live_monitor`);
   }
 
+  // Conteo de leads que matchean los filtros de la campaña de voz (source 'leads').
+  leadCount(id) {
+    return axios.get(`${this.url}/${id}/lead_count`);
+  }
+
+  // Lista paginada de leads que matchean, para revisar antes de arrancar.
+  previewLeads(id, page = 1) {
+    return axios.get(`${this.url}/${id}/preview_leads`, { params: { page } });
+  }
+
   report(id) {
     return axios.get(`${this.url}/${id}/report`);
+  }
+
+  // Detalle por destinatario, paginado y filtrable (status/outcome). Para el monitor
+  // en tiempo real: en qué va, cuántos llamó, cuáles faltan.
+  recipients(id, { page = 1, status = '', outcome = '' } = {}) {
+    return axios.get(`${this.url}/${id}/recipients`, {
+      params: { page, status, outcome },
+    });
   }
 
   reportCsvUrl(id) {

@@ -1,0 +1,11 @@
+# Voice Broadcast (campañas de audio pregrabado)
+# Worker Sidekiq dedicado y AISLADO: procesa SOLO la cola del broadcast. Así el marcado
+# masivo con audio no compite con los mensajes entrantes ni con otros jobs, y el pacing
+# (max_concurrent/cps por campaña) fluye sin interferencias. Escala con su propia env.
+---
+:verbose: false
+:concurrency: <%= ENV.fetch("JABVOX_VOICE_BROADCAST_CONCURRENCY", "4").to_i %>
+:timeout: 25
+:max_retries: 3
+:queues:
+  - jabvox_broadcast
