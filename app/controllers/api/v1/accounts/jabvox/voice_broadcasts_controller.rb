@@ -136,6 +136,10 @@ class Api::V1::Accounts::Jabvox::VoiceBroadcastsController < Api::V1::Accounts::
     build_recipients_from_campaign(@broadcast)
     @broadcast.update!(status_jabvox: 'running', started_at_jabvox: @broadcast.started_at_jabvox || Time.current)
     JabvoxVoiceBroadcastAudit.record(@broadcast, current_user.id, 'started', { total: @broadcast.total_recipients_jabvox })
+    # Dispara la marcación INMEDIATAMENTE (no espera al cron del próximo minuto). El job
+    # es idempotente (lock por broadcast), así no colisiona con el tick del cron; el cron
+    # sigue encargándose de reintentos y de continuar llenando slots.
+    Jabvox::VoiceBroadcast::TickAccountJob.perform_later(@broadcast.id)
     render json: detail_json(@broadcast)
   end
 
@@ -145,6 +149,7 @@ class Api::V1::Accounts::Jabvox::VoiceBroadcastsController < Api::V1::Accounts::
     render json: detail_json(@broadcast)
   end
 
+  # POST /resume — reanuda una campaña pausada y dispara la marcación al instante.
   def resume
     unless @broadcast.status_jabvox == 'paused'
       return render(json: { error: 'Solo se puede reanudar un broadcast pausado' },
@@ -153,6 +158,7 @@ class Api::V1::Accounts::Jabvox::VoiceBroadcastsController < Api::V1::Accounts::
 
     @broadcast.update!(status_jabvox: 'running')
     JabvoxVoiceBroadcastAudit.record(@broadcast, current_user.id, 'resumed')
+    Jabvox::VoiceBroadcast::TickAccountJob.perform_later(@broadcast.id) # marca ya, sin esperar al cron
     render json: detail_json(@broadcast)
   end
 
