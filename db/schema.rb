@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_05_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_05_000003) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -3666,6 +3666,36 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_05_000001) do
     t.index ["jabvox_voice_broadcast_id"], name: "idx_vba_broadcast"
   end
 
+  create_table "jabvox_voice_broadcast_call_logs", force: :cascade do |t|
+    t.bigint "jabvox_voice_broadcast_id", null: false
+    t.bigint "jabvox_voice_broadcast_recipient_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "contact_id"
+    t.string "phone_jabvox", null: false
+    t.string "name_jabvox"
+    t.integer "attempt_number_jabvox", default: 1, null: false
+    t.string "outcome_jabvox"
+    t.string "amd_status_jabvox"
+    t.string "dtmf_pressed_jabvox"
+    t.boolean "played_full_jabvox", default: false, null: false
+    t.integer "duration_ms_jabvox"
+    t.string "recording_file_jabvox"
+    t.string "uniqueid_jabvox"
+    t.string "linkedid_jabvox"
+    t.string "hangup_cause_jabvox"
+    t.datetime "started_at_jabvox"
+    t.datetime "ended_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "answered_at_jabvox"
+    t.integer "ring_ms_jabvox"
+    t.integer "total_duration_ms_jabvox"
+    t.index ["account_id", "created_at"], name: "idx_vb_call_logs_account_created"
+    t.index ["jabvox_voice_broadcast_id"], name: "idx_vb_call_logs_broadcast"
+    t.index ["jabvox_voice_broadcast_recipient_id"], name: "idx_vb_call_logs_recipient"
+    t.index ["uniqueid_jabvox"], name: "idx_vb_call_logs_uniqueid"
+  end
+
   create_table "jabvox_voice_broadcast_recipients", force: :cascade do |t|
     t.bigint "jabvox_voice_broadcast_id", null: false
     t.bigint "account_id", null: false
@@ -3685,6 +3715,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_05_000001) do
     t.string "linkedid_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "answered_at_jabvox"
+    t.integer "ring_ms_jabvox"
     t.index ["account_id", "uniqueid_jabvox"], name: "idx_vbr_account_uniqueid", where: "(uniqueid_jabvox IS NOT NULL)"
     t.index ["account_id"], name: "idx_vbr_account"
     t.index ["jabvox_voice_broadcast_id", "phone_jabvox"], name: "idx_vbr_unique_phone", unique: true

@@ -24,12 +24,20 @@ class Jabvox::VoiceBroadcast::DialEngine
     @account = broadcast.account
   end
 
+  # Un destinatario no puede quedar en 'calling' más que esto: si el evento de cierre
+  # (Hangup/OriginateResponse) se pierde, el reaper lo rescata para que no bloquee el
+  # slot de concurrencia ni deje la campaña colgada sin completarse nunca. Debe ser
+  # mayor que el timeout del Originate (30s) + el tiempo del audio, con margen.
+  STUCK_CALL_TIMEOUT = 180 # segundos
+
   # Devuelve el nº de llamadas originadas en este tick.
   def tick
     return 0 unless @broadcast.running?
+    return 0 if auto_stop_if_expired # kill-switch por vida máxima de campaña
     return 0 unless within_operating_window?
 
     result = Jabvox::RedisLock.with_lock(tick_lock_key, ttl: TICK_LOCK_TTL) do |lock|
+      reap_stuck_recipients
       originated = dial_batch(lock)
       finish_if_done
       originated
@@ -38,6 +46,41 @@ class Jabvox::VoiceBroadcast::DialEngine
   end
 
   private
+
+  # Kill-switch: si la campaña lleva 'running' más que MAX_RUNTIME_HOURS, se auto-detiene
+  # aunque queden pendientes. Blindaje final contra marcación indefinida si algo falla.
+  def auto_stop_if_expired
+    started = @broadcast.started_at_jabvox
+    return false if started.blank?
+    return false if started > JabvoxVoiceBroadcast::MAX_RUNTIME_HOURS.hours.ago
+
+    @broadcast.update_columns(status_jabvox: 'stopped', finished_at_jabvox: Time.current) # rubocop:disable Rails/SkipsModelValidations
+    Rails.logger.warn "[VoiceBroadcast] auto-stopped by max runtime | broadcast=#{@broadcast.id}"
+    true
+  end
+
+  # Rescata destinatarios pegados en 'calling' cuyo evento de cierre nunca llegó
+  # (llamada perdida a nivel AMI). Los trata como 'no_answer' para que apliquen la
+  # política de reintentos normal (o se cierren si agotaron intentos). Sin esto, un
+  # solo evento perdido bloquea un slot de concurrencia para siempre.
+  def reap_stuck_recipients
+    cutoff = STUCK_CALL_TIMEOUT.seconds.ago
+    stuck = @broadcast.recipients
+                      .where(status_jabvox: 'calling')
+                      .where('last_attempt_at_jabvox IS NULL OR last_attempt_at_jabvox < ?', cutoff)
+    stuck.find_each do |rec|
+      handler = Jabvox::VoiceBroadcast::EventHandler.new(@account.id)
+      # Sintetiza un Hangup 'no answer' (billsec 0) anclado por el uniqueid del recipient.
+      handler.handle('hangup', {
+                       'uniqueid' => rec.uniqueid_jabvox.to_s,
+                       'jabvox_vb_recipient_id' => rec.id.to_s,
+                       'billableseconds' => '0',
+                       'cause' => '18' # no user responding
+                     })
+    rescue StandardError => e
+      Rails.logger.warn "[VoiceBroadcast] reap stuck recipient #{rec.id} failed | #{e.message}"
+    end
+  end
 
   # Cuántas llamadas nuevas caben AHORA = min(cupo de concurrencia, tope de CPS).
   def dial_batch(lock)
@@ -48,7 +91,7 @@ class Jabvox::VoiceBroadcast::DialEngine
     config = @account.jabvox_voip_config
     return 0 if config&.host.blank?
 
-    service = Jabvox::DialerService.new(config)
+    service = Jabvox::VoiceBroadcast::OriginateService.new(config)
     playback = Jabvox::VoiceBroadcast::DeployService.playback_ref(@broadcast.audio_filename_jabvox)
     count = 0
     budget.times do
@@ -71,8 +114,14 @@ class Jabvox::VoiceBroadcast::DialEngine
   # cuenta ANTES de marcar (cumplimiento). Devuelve el recipient o nil.
   def reserve_next_recipient
     JabvoxVoiceBroadcastRecipient.transaction do
+      # Solo destinatarios elegibles AHORA: nunca intentados, o cuyo último intento fue
+      # hace más del retry_interval (respeta el tiempo de espera entre reintentos, así un
+      # no_answer que volvió a 'pending' no se re-marca en el tick inmediato).
+      interval = @broadcast.retry_interval_jabvox.to_i
+      cutoff = interval.positive? ? interval.seconds.ago : Time.current
       rec = @broadcast.recipients
                       .where(status_jabvox: 'pending')
+                      .where('last_attempt_at_jabvox IS NULL OR last_attempt_at_jabvox <= ?', cutoff)
                       .order(:id).lock('FOR UPDATE SKIP LOCKED').first
       next nil if rec.nil?
 
@@ -81,10 +130,16 @@ class Jabvox::VoiceBroadcast::DialEngine
         rec.update_columns(status_jabvox: 'done', outcome_jabvox: 'opted_out') # rubocop:disable Rails/SkipsModelValidations
         next :skip
       end
+      # Limpia los identificadores del canal del intento ANTERIOR: si no, el
+      # OriginateResponse del nuevo intento no los reescribe (stamp es idempotente
+      # sobre blanco) y el Hangup nuevo, con otro uniqueid, no ancla → se queda pegado.
       rec.update_columns( # rubocop:disable Rails/SkipsModelValidations
         status_jabvox: 'calling',
         attempts_jabvox: rec.attempts_jabvox.to_i + 1,
-        last_attempt_at_jabvox: Time.current
+        last_attempt_at_jabvox: Time.current,
+        uniqueid_jabvox: nil,
+        linkedid_jabvox: nil,
+        outcome_jabvox: nil
       )
       rec
     end
@@ -97,7 +152,7 @@ class Jabvox::VoiceBroadcast::DialEngine
     # reserve_next_recipient devuelve :skip cuando salta un DNC; no marca.
     return if recipient == :skip
 
-    result = service.originate_voicebot(
+    result = service.originate(
       phone: recipient.phone_jabvox, broadcast: @broadcast,
       recipient: recipient, playback_ref: playback
     )
@@ -123,7 +178,8 @@ class Jabvox::VoiceBroadcast::DialEngine
   end
 
   def within_operating_window?
-    @broadcast.in_schedule? && Jabvox::DialerService.new(@account.jabvox_voip_config).ami_reachable?
+    @broadcast.in_schedule? &&
+      Jabvox::VoiceBroadcast::OriginateService.new(@account.jabvox_voip_config).ami_reachable?
   rescue StandardError
     false
   end

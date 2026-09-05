@@ -9,10 +9,12 @@
 # PBX): AmdResult (Status=HUMAN/MACHINE/NOTSURE), BroadcastPlayed (audio completo),
 # DtmfCaptured (Digit=...). Además reacciona a OriginateResponse y Hangup.
 #
-# Se le pasa el AMI listener para reutilizar su channel_var (lee la variable del
-# canal con cache/Getvar, misma vía que el dialer).
+# INDEPENDIENTE del marcador: las variables __JABVOX_VB_* viajan heredables y llegan
+# como claves del propio evento AMI (minúsculas). El listener AMI es OPCIONAL: si se
+# pasa, se usa como fallback para leer la variable del canal (cache/Getvar); si no,
+# el handler funciona igual leyendo del evento y anclando por el ActionID.
 class Jabvox::VoiceBroadcast::EventHandler
-  def initialize(account_id, listener)
+  def initialize(account_id, listener = nil)
     @account_id = account_id
     @listener = listener
   end
@@ -25,19 +27,55 @@ class Jabvox::VoiceBroadcast::EventHandler
     when 'userevent'        then handle_user_event(recipient, event)
     when 'dtmfend'          then handle_dtmf(recipient, event['digit'].to_s)
     when 'originateresponse' then handle_originate_response(recipient, event)
+    when 'newstate'         then handle_newstate(recipient, event)
     when 'hangup'           then handle_hangup(recipient, event)
     end
   end
 
+  # Newstate "Up" (channelstate 6) = la persona contestó. Registra el instante y el
+  # tiempo de timbrado (ring) desde el último intento hasta ahora. Idempotente.
+  def handle_newstate(recipient, event)
+    state = (event['channelstate'] || event['channelstatedesc']).to_s
+    return unless state == '6' || state.casecmp?('Up')
+    return if recipient.answered_at_jabvox.present? # ya registrado
+
+    now = Time.current
+    ring = recipient.last_attempt_at_jabvox ? ((now - recipient.last_attempt_at_jabvox) * 1000).to_i : nil
+    recipient.update_columns( # rubocop:disable Rails/SkipsModelValidations
+      answered_at_jabvox: now,
+      ring_ms_jabvox: ring&.clamp(0, 600_000)
+    )
+  end
+
   private
 
-  # Ancla al destinatario por el marcador del canal o el ActionID. account-scoped.
+  # Ancla al destinatario por varias vías, en orden de fiabilidad (account-scoped):
+  #   1) Variable del canal JABVOX_VB_RECIPIENT_ID (UserEvent/DtmfEnd la llevan).
+  #   2) ActionID "jabvoxvb-<id>" (OriginateResponse lo devuelve tal cual).
+  #   3) uniqueid / linkedid ya guardados en un destinatario (para el Hangup, que NO
+  #      trae ni la variable ni el actionid, pero sí el uniqueid que anclamos antes).
+  # Esto hace robusto el cierre de la llamada incluso cuando el evento reporta la
+  # pierna del trunk (Local/SIP@trunk) sin las variables heredables.
   def resolve_recipient(event)
-    rid = channel_var(event, 'JABVOX_VB_RECIPIENT_ID')
+    # El dialplan (v2) incluye el recipient id en cada UserEvent como 'JabvoxVbRecipientId'
+    # (llega en minúscula sin separadores); también lo buscamos como variable de canal.
+    rid = event['jabvoxvbrecipientid'].presence ||
+          channel_var(event, 'JABVOX_VB_RECIPIENT_ID')
     rid = rid.presence || recipient_id_from_action_id(event['actionid'])
-    return nil if rid.blank?
+    return JabvoxVoiceBroadcastRecipient.find_by(id: rid.to_i, account_id: @account_id) if rid.present?
 
-    JabvoxVoiceBroadcastRecipient.find_by(id: rid.to_i, account_id: @account_id)
+    resolve_by_uniqueid(event)
+  end
+
+  # Resuelve por uniqueid/linkedid guardado (Hangup y otros eventos sin marcador).
+  def resolve_by_uniqueid(event)
+    ids = [event['uniqueid'], event['linkedid']].compact.reject(&:blank?)
+    return nil if ids.empty?
+
+    JabvoxVoiceBroadcastRecipient
+      .where(account_id: @account_id)
+      .where('uniqueid_jabvox IN (:ids) OR linkedid_jabvox IN (:ids)', ids: ids)
+      .order(id: :desc).first
   end
 
   def recipient_id_from_action_id(action_id)
@@ -45,7 +83,15 @@ class Jabvox::VoiceBroadcast::EventHandler
     m && m[1]
   end
 
+  # Lee una variable del canal SIN depender del listener: primero la busca como clave
+  # del propio evento (las __JABVOX_VB_* heredables llegan así, en minúscula, p.ej.
+  # 'jabvox_vb_recipient_id'); si no está y hay listener, usa su cache/Getvar.
   def channel_var(event, var)
+    from_event = event[var.downcase] || event[var]
+    return from_event if from_event.present?
+
+    return nil unless @listener
+
     @listener.send(:channel_var, event['channel'].to_s, var, event)
   rescue StandardError
     nil
@@ -76,10 +122,24 @@ class Jabvox::VoiceBroadcast::EventHandler
   end
 
   def mark_played_complete(recipient)
+    # Si reprodujo el audio, obviamente CONTESTÓ: captura el answer si el Newstate no
+    # llegó (con canales Local a veces no ancla), para tener answered_at/ring correctos.
+    ensure_answered(recipient)
     return if recipient.played_full_jabvox # idempotente
 
     recipient.update_columns(played_full_jabvox: true) # rubocop:disable Rails/SkipsModelValidations
     increment_broadcast(recipient, :played_complete_count_jabvox)
+  end
+
+  # Marca el instante de contestación (y el ring) si aún no se registró.
+  def ensure_answered(recipient)
+    return if recipient.answered_at_jabvox.present?
+
+    now = Time.current
+    ring = recipient.last_attempt_at_jabvox ? ((now - recipient.last_attempt_at_jabvox) * 1000).to_i : nil
+    recipient.update_columns( # rubocop:disable Rails/SkipsModelValidations
+      answered_at_jabvox: now, ring_ms_jabvox: ring&.clamp(0, 600_000)
+    )
   end
 
   # DTMF: guarda la tecla. Si coincide con el dígito de opt-out del broadcast,
@@ -95,8 +155,12 @@ class Jabvox::VoiceBroadcast::EventHandler
     add_to_dnc(recipient.phone_jabvox)
   end
 
-  # OriginateResponse Failure: la llamada nunca se estableció → outcome según causa.
+  # OriginateResponse: SIEMPRE estampa el uniqueid/linkedid del canal (ancla por el
+  # ActionID "jabvoxvb-<id>", que este evento sí devuelve), para que el Hangup posterior
+  # —que no trae ni la variable ni el actionid— pueda resolverse por ese uniqueid.
+  # Si el Originate FALLÓ, además cierra el destinatario con el outcome según la causa.
   def handle_originate_response(recipient, event)
+    stamp_uniqueid(recipient, event)
     return if event['response'].to_s.casecmp?('Success')
     return unless recipient.status_jabvox == 'calling'
 
@@ -105,30 +169,111 @@ class Jabvox::VoiceBroadcast::EventHandler
     increment_broadcast(recipient, :failed_count_jabvox) if outcome == 'failed'
   end
 
-  # Hangup: cierra el destinatario si aún estaba 'calling'. answered_human si hubo
-  # conversación (billsec>0 o AMD=HUMAN); si no, no_answer.
-  def handle_hangup(recipient, event)
+  # Hangup: cierra el destinatario si aún estaba 'calling'. Se considera CONTESTADA si:
+  #   - billsec > 0 (algunos PBX lo reportan), o
+  #   - el canal estaba "Up" (channelstate 6) al colgar (Issabel/Asterisk lo reporta así
+  #     aunque no traiga billableseconds), o
+  #   - AMD detectó HUMAN, o ya teníamos answered_at (Newstate Up previo).
+  # Así no se marca no_answer una llamada que sí contestó.
+  def handle_hangup(recipient, event) # rubocop:disable Metrics/AbcSize
     return unless recipient.status_jabvox == 'calling'
 
     billsec = event['billableseconds'].to_i
-    answered = billsec.positive? || recipient.amd_status_jabvox == 'HUMAN'
+    channel_up = event['channelstate'].to_s == '6' || event['channelstatedesc'].to_s.casecmp?('Up')
+    answered = billsec.positive? || channel_up || recipient.amd_status_jabvox == 'HUMAN' ||
+               recipient.answered_at_jabvox.present?
     outcome = answered ? 'answered_human' : hangup_no_answer_outcome(event)
     stamp_uniqueid(recipient, event)
-    # Rellena duración (billsec en ms) y archivo de grabación si el PBX lo reportó.
-    extra = { duration_ms_jabvox: billsec.positive? ? billsec * 1000 : recipient.duration_ms_jabvox }
+    # Duración: billsec si vino; si no y contestó, calcula desde answered_at; si no, lo previo.
+    dur = if billsec.positive?
+            billsec * 1000
+          elsif answered && recipient.answered_at_jabvox
+            ((Time.current - recipient.answered_at_jabvox) * 1000).to_i
+          else
+            recipient.duration_ms_jabvox
+          end
+    extra = { duration_ms_jabvox: dur }
     rec_file = event['recording_file'].presence || event['recordingfile'].presence
     extra[:recording_file_jabvox] = rec_file if rec_file.present?
+    extra[:hangup_cause_jabvox] = event['cause'].presence
     finalize(recipient, outcome: outcome, status: retry_or_fail(recipient, outcome), extra: extra)
     increment_broadcast(recipient, :answered_human_count_jabvox) if outcome == 'answered_human'
   end
 
   # ── helpers ──────────────────────────────────────────────────────────────
 
+  # Campos del `extra` que existen en recipients (los demás, como hangup_cause, solo
+  # viven en el call_log histórico, no en la fila del destinatario).
+  RECIPIENT_EXTRA_KEYS = %i[duration_ms_jabvox recording_file_jabvox].freeze
+
   def finalize(recipient, outcome:, status:, extra: {})
-    attrs = { outcome_jabvox: outcome, status_jabvox: status }.merge(extra.compact)
+    recipient_extra = extra.slice(*RECIPIENT_EXTRA_KEYS).compact
+    attrs = { outcome_jabvox: outcome, status_jabvox: status }.merge(recipient_extra)
     recipient.update_columns(attrs) # rubocop:disable Rails/SkipsModelValidations
+    # Registra ESTA llamada individual en el histórico (una fila por intento), para el
+    # reporte completo aunque el destinatario se reintente y sobrescriba su fila.
+    record_call_log(recipient.reload, outcome, extra)
     # Contador de marcados: sube una sola vez cuando el destinatario deja 'calling'.
     increment_broadcast(recipient, :dialed_count_jabvox)
+    # Auto-completa la campaña si este cierre fue el último (sin esperar al próximo tick),
+    # para que el estado se refleje al instante en la UI.
+    complete_broadcast_if_done(recipient.jabvox_voice_broadcast_id)
+  end
+
+  # Marca la campaña 'completed' si ya no quedan pendientes ni llamadas en vuelo.
+  def complete_broadcast_if_done(broadcast_id)
+    bcast = JabvoxVoiceBroadcast.find_by(id: broadcast_id)
+    return unless bcast&.status_jabvox == 'running'
+    return unless bcast.remaining_recipients_count.zero? && bcast.in_flight_count.zero?
+
+    bcast.update_columns(status_jabvox: 'completed', finished_at_jabvox: Time.current) # rubocop:disable Rails/SkipsModelValidations
+  rescue StandardError => e
+    Rails.logger.warn "[VoiceBroadcast] complete_if_done failed | #{e.message}"
+  end
+
+  # Persiste una fila por llamada en jabvox_voice_broadcast_call_logs. Idempotente por
+  # uniqueid: si ya existe un log con ese uniqueid, lo actualiza en vez de duplicar.
+  def record_call_log(recipient, outcome, extra) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    attrs = {
+      jabvox_voice_broadcast_id: recipient.jabvox_voice_broadcast_id,
+      account_id: recipient.account_id,
+      contact_id: recipient.contact_id,
+      phone_jabvox: recipient.phone_jabvox,
+      name_jabvox: recipient.name_jabvox,
+      attempt_number_jabvox: recipient.attempts_jabvox.to_i,
+      outcome_jabvox: outcome,
+      amd_status_jabvox: recipient.amd_status_jabvox,
+      dtmf_pressed_jabvox: recipient.dtmf_pressed_jabvox,
+      played_full_jabvox: recipient.played_full_jabvox,
+      duration_ms_jabvox: extra[:duration_ms_jabvox] || recipient.duration_ms_jabvox,
+      recording_file_jabvox: extra[:recording_file_jabvox] || recipient.recording_file_jabvox,
+      uniqueid_jabvox: recipient.uniqueid_jabvox,
+      linkedid_jabvox: recipient.linkedid_jabvox,
+      hangup_cause_jabvox: extra[:hangup_cause_jabvox],
+      answered_at_jabvox: recipient.answered_at_jabvox,
+      ring_ms_jabvox: recipient.ring_ms_jabvox,
+      started_at_jabvox: recipient.last_attempt_at_jabvox,
+      ended_at_jabvox: Time.current,
+      # Duración TOTAL de la llamada (ring + conversación), desde el originate al hangup.
+      total_duration_ms_jabvox: recipient.last_attempt_at_jabvox ? ((Time.current - recipient.last_attempt_at_jabvox) * 1000).to_i : nil
+    }
+    # Idempotencia: busca un log existente por uniqueid; si no hay uniqueid (originate
+    # perdido o cierre por reaper), deduplica por (recipient, nº de intento) para NO
+    # crear filas repetidas del mismo intento que inflarían el reporte.
+    uid = recipient.uniqueid_jabvox
+    log = if uid.present?
+            JabvoxVoiceBroadcastCallLog.find_by(uniqueid_jabvox: uid, jabvox_voice_broadcast_recipient_id: recipient.id)
+          else
+            JabvoxVoiceBroadcastCallLog.find_by(jabvox_voice_broadcast_recipient_id: recipient.id,
+                                                attempt_number_jabvox: recipient.attempts_jabvox.to_i, uniqueid_jabvox: nil)
+          end
+    if log
+      log.update_columns(attrs.except(:started_at_jabvox)) # rubocop:disable Rails/SkipsModelValidations
+    else
+      JabvoxVoiceBroadcastCallLog.create!(attrs.merge(jabvox_voice_broadcast_recipient_id: recipient.id))
+    end
+  rescue StandardError => e
+    Rails.logger.warn "[VoiceBroadcast] record_call_log failed | #{e.message}"
   end
 
   # Reintento: si el outcome es reintentable y no agotó max_retries, vuelve a

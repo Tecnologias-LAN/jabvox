@@ -8,6 +8,7 @@
 #
 #  id                        :bigint           not null, primary key
 #  amd_status_jabvox         :string
+#  answered_at_jabvox        :datetime
 #  attempts_jabvox           :integer          default(0), not null
 #  dtmf_pressed_jabvox       :string
 #  duration_ms_jabvox        :integer
@@ -18,6 +19,7 @@
 #  phone_jabvox              :string           not null
 #  played_full_jabvox        :boolean          default(FALSE), not null
 #  recording_file_jabvox     :string
+#  ring_ms_jabvox            :integer
 #  status_jabvox             :string           default("pending"), not null
 #  uniqueid_jabvox           :string
 #  created_at                :datetime         not null
@@ -50,6 +52,10 @@ class JabvoxVoiceBroadcastRecipient < ApplicationRecord
 
   belongs_to :jabvox_voice_broadcast
   belongs_to :account
+  # Histórico de cada llamada individual (una fila por intento; recipients solo guarda
+  # el estado actual). Ver JabvoxVoiceBroadcastCallLog.
+  has_many :call_logs, class_name: 'JabvoxVoiceBroadcastCallLog',
+                       inverse_of: :jabvox_voice_broadcast_recipient, dependent: :destroy
 
   validates :phone_jabvox, presence: true
   validates :status_jabvox, inclusion: { in: STATUSES }
@@ -61,13 +67,19 @@ class JabvoxVoiceBroadcastRecipient < ApplicationRecord
 
   # ¿Se puede reintentar este destinatario dado el desenlace ACTUAL del evento?
   # Recibe el outcome explícito (no lee outcome_jabvox, que puede aún no estar
-  # persistido cuando el event handler decide el estado). max_retries = nº de
-  # reintentos permitidos ADEMÁS del primer intento: con attempts=1 (primer intento
-  # hecho) y max_retries=1 se permite un reintento más; 0 = reintentos ilimitados.
+  # persistido cuando el event handler decide el estado).
+  # Semántica de max_retries (nº de reintentos ADEMÁS del primer intento):
+  #   0 = SIN reintentos → 1 sola llamada (valor por defecto, el más seguro).
+  #   n = hasta n reintentos → n+1 llamadas totales.
+  # NUNCA es ilimitado: se aplica un TOPE DURO absoluto (MAX_RETRIES_HARD_CAP) por si
+  # se colara un valor mayor por cualquier vía, para no marcar infinitamente.
   def retryable?(max_retries, outcome = outcome_jabvox)
     return false unless RETRYABLE_OUTCOMES.include?(outcome)
-    return true if max_retries.to_i.zero? # 0 = sin tope
 
-    attempts_jabvox.to_i <= max_retries.to_i
+    # Tope efectivo: nunca por encima del cap duro, nunca negativo (ilimitado).
+    m = max_retries.to_i.clamp(0, JabvoxVoiceBroadcast::MAX_RETRIES_HARD_CAP)
+    # attempts ya incluye el intento en curso (se incrementó al reservar). Con m=0,
+    # tras el 1er intento attempts=1 > 0 → no reintenta (1 sola llamada).
+    attempts_jabvox.to_i <= m
   end
 end
