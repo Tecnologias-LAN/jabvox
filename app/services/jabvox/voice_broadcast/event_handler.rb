@@ -123,28 +123,15 @@ class Jabvox::VoiceBroadcast::EventHandler
   end
 
   def mark_played_complete(recipient)
-    # Si reprodujo el audio, obviamente CONTESTÓ: captura el answer si el Newstate no
-    # llegó (con canales Local a veces no ancla), para tener answered_at/ring correctos.
+    # Reprodujo el audio → contestó: captura el answer (answered_at/ring) si el Newstate
+    # no ancló. NO cierra aquí: el cierre lo hace VbHangup (exten => h del dialplan), que
+    # trae los tiempos REALES del CDR (billsec/duration). Así la duración escuchada queda
+    # correcta y no en 0. Si el VbHangup nunca llegara, el reaper cierra como respaldo.
     ensure_answered(recipient)
-    already_played = recipient.played_full_jabvox
-    unless already_played
-      recipient.update_columns(played_full_jabvox: true) # rubocop:disable Rails/SkipsModelValidations
-      increment_broadcast(recipient, :played_complete_count_jabvox)
-    end
-    # CIERRE por BroadcastPlayed: reproducir el audio completo ES el objetivo cumplido.
-    # Con canales Local/@context el Hangup a veces no ancla (varias piernas, uniqueid
-    # distinto), así que cerramos aquí como answered_human para no dejar el destinatario
-    # pegado en 'calling'. Idempotente: solo actúa si aún está llamando.
-    return unless recipient.reload.status_jabvox == 'calling'
+    return if recipient.played_full_jabvox # idempotente
 
-    dur = if recipient.answered_at_jabvox
-            ((Time.current - recipient.answered_at_jabvox) * 1000).to_i
-          else
-            recipient.duration_ms_jabvox
-          end
-    finalize(recipient, outcome: 'answered_human', status: 'done',
-                        extra: { duration_ms_jabvox: dur })
-    increment_broadcast(recipient, :answered_human_count_jabvox)
+    recipient.update_columns(played_full_jabvox: true) # rubocop:disable Rails/SkipsModelValidations
+    increment_broadcast(recipient, :played_complete_count_jabvox)
   end
 
   # Marca el instante de contestación (y el ring) si aún no se registró.
@@ -220,24 +207,32 @@ class Jabvox::VoiceBroadcast::EventHandler
   # JabvoxVbRecipientId, para cerrar el destinatario de forma fiable aunque el Hangup
   # crudo no ancle (con canales Local hay varias piernas y uniqueid distinto). Contesta
   # si billsec>0, si reprodujo el audio (Played=1), o si ya se marcó answered.
-  def handle_vb_hangup(recipient, event) # rubocop:disable Metrics/AbcSize
+  def handle_vb_hangup(recipient, event)
     return unless recipient.reload.status_jabvox == 'calling'
 
     billsec = event['billsec'].to_i
+    duration = event['duration'].to_i
     played = event['played'].to_s == '1' || recipient.played_full_jabvox
     answered = billsec.positive? || played || recipient.amd_status_jabvox == 'HUMAN' ||
                recipient.answered_at_jabvox.present?
     outcome = answered ? 'answered_human' : 'no_answer'
-    dur = if billsec.positive?
-            billsec * 1000
-          elsif recipient.answered_at_jabvox
-            ((Time.current - recipient.answered_at_jabvox) * 1000).to_i
-          else
-            recipient.duration_ms_jabvox
-          end
     finalize(recipient, outcome: outcome, status: retry_or_fail(recipient, outcome),
-                        extra: { duration_ms_jabvox: dur })
+                        extra: { duration_ms_jabvox: answered_duration_ms(recipient, billsec, duration) })
     increment_broadcast(recipient, :answered_human_count_jabvox) if outcome == 'answered_human'
+  end
+
+  # Duración escuchada, en ms, con el mejor dato disponible: billsec del CDR (segundos
+  # hablando = tiempo de audio) → duración total del CDR → desde answered_at → lo previo.
+  def answered_duration_ms(recipient, billsec, duration = 0)
+    if billsec.positive?
+      billsec * 1000
+    elsif duration.positive?
+      duration * 1000
+    elsif recipient.answered_at_jabvox
+      [((Time.current - recipient.answered_at_jabvox) * 1000).to_i, 0].max
+    else
+      recipient.duration_ms_jabvox
+    end
   end
 
   # ── helpers ──────────────────────────────────────────────────────────────
