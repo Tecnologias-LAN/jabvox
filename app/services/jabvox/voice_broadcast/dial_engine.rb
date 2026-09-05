@@ -9,11 +9,14 @@
 #   - DNC verificada ANTES de marcar (cumplimiento legal).
 # NO usa la Queue del dialer; origina hacia el contexto dialer-voicebot.
 class Jabvox::VoiceBroadcast::DialEngine
-  # TTL base del lock por broadcast; el heartbeat lo renueva mientras el tick
-  # origina llamadas, así un tick lento (AMI) nunca deja expirar el lock a mitad
-  # y no hay doble-marcación.
-  TICK_LOCK_TTL = 20
-  CPS_SLEEP = 0.05 # pausa mínima entre Originates dentro de un tick
+  # TTL base del lock por broadcast; el heartbeat (RedisLock) lo renueva mientras el
+  # tick origina llamadas, así un tick largo (llenando muchos slots) nunca deja expirar
+  # el lock a mitad y no hay doble-marcación.
+  TICK_LOCK_TTL = 90
+  # Un tick no origina por más de esto (aunque queden slots libres): así no acapara el
+  # worker de la cola. El siguiente tick (cron, cada minuto) continúa llenando. Con
+  # campañas grandes + varios slots, un tick llena buena parte y el resto sigue enseguida.
+  MAX_TICK_SECONDS = 45
 
   def self.tick(broadcast)
     new(broadcast).tick
@@ -82,29 +85,36 @@ class Jabvox::VoiceBroadcast::DialEngine
     end
   end
 
-  # Cuántas llamadas nuevas caben AHORA = min(cupo de concurrencia, tope de CPS).
+  # Llena los cupos de concurrencia libres, originando al ritmo del CPS (llamadas por
+  # segundo REAL: una pausa de 1/cps entre cada originate). Así una campaña grande alcanza
+  # rápido su max_concurrent sin esperar varios ticks, pero sin saturar el troncal.
+  # El tick no dura más de MAX_TICK_SECONDS para no acaparar el worker; el siguiente
+  # tick (cron) continúa llenando lo que falte.
   def dial_batch(lock)
     slots = @broadcast.max_concurrent_jabvox - @broadcast.in_flight_count
     return 0 if slots <= 0
 
-    budget = [slots, @broadcast.cps_jabvox].min
     config = @account.jabvox_voip_config
     return 0 if config&.host.blank?
 
+    cps = [@broadcast.cps_jabvox.to_i, 1].max
+    pause = 1.0 / cps                        # segundos entre originates (CPS real)
+    deadline = Time.current + MAX_TICK_SECONDS
     service = Jabvox::VoiceBroadcast::OriginateService.new(config)
     playback = Jabvox::VoiceBroadcast::DeployService.playback_ref(@broadcast.audio_filename_jabvox)
     count = 0
-    budget.times do
+    slots.times do
       # Fencing: si perdimos el lock (proceso congelado > TTL y otro tick lo tomó),
       # dejamos de originar para no doble-marcar con el nuevo dueño.
       break unless lock.held?
+      break if Time.current >= deadline # no acaparar el worker; el próximo tick sigue
 
       recipient = reserve_next_recipient
-      break if recipient.nil? # no quedan pendientes
+      break if recipient.nil? # no quedan pendientes elegibles
 
       originate(service, recipient, playback)
       count += 1
-      sleep CPS_SLEEP
+      sleep pause
     end
     count
   end

@@ -84,8 +84,11 @@ class JabvoxVoiceBroadcast < ApplicationRecord
 
   validates :name_jabvox, presence: true
   validates :status_jabvox, inclusion: { in: STATUSES }
-  validates :max_concurrent_jabvox, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 100 }
-  validates :cps_jabvox, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 30 }
+  # Llamadas SIMULTÁNEAS máximas por campaña. Tope alto para campañas masivas; el límite
+  # REAL lo impone el troncal del proveedor (canales concurrentes contratados) y la
+  # capacidad del PBX — pon un valor acorde a eso, no más.
+  validates :max_concurrent_jabvox, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 500 }
+  validates :cps_jabvox, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 50 }
   # max_retries: 0 = una sola llamada; tope duro para no marcar infinito.
   validates :max_retries_jabvox,
             numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_RETRIES_HARD_CAP }
