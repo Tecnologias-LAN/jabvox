@@ -72,7 +72,7 @@ export default {
       return this.integration.id === 'dialogflow';
     },
     submitButtonLabel() {
-      if (this.integration.id === 'openai' && this.uiFlags.isCreatingHook) {
+      if (this.integration.id === 'jabvox_ia' && this.uiFlags.isCreatingHook) {
         return this.$t('INTEGRATION_APPS.ADD.FORM.VALIDATING_OPENAI');
       }
 

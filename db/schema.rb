@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_31_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_05_000003) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2490,6 +2490,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_000002) do
     t.datetime "updated_at", null: false
     t.index ["hermes_agent_id", "hermes_connection_id"], name: "idx_hermes_agent_conn_unique", unique: true
     t.index ["hermes_agent_id"], name: "index_jabvox_hermes_agent_connections_on_hermes_agent_id"
+    t.index ["hermes_connection_id"], name: "idx_hermes_conn_single_agent", unique: true
     t.index ["hermes_connection_id"], name: "index_jabvox_hermes_agent_connections_on_hermes_connection_id"
   end
 
@@ -2521,8 +2522,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_000002) do
     t.datetime "last_check_at_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "action_token_jabvox"
     t.index ["account_id", "hermes_agent_name_jabvox"], name: "idx_hermes_conn_account_agent", unique: true
     t.index ["account_id"], name: "index_jabvox_hermes_connections_on_account_id"
+    t.index ["action_token_jabvox"], name: "idx_hermes_conn_action_token", unique: true, where: "(action_token_jabvox IS NOT NULL)"
   end
 
   create_table "jabvox_hermes_identities", force: :cascade do |t|
@@ -3663,6 +3666,36 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_000002) do
     t.index ["jabvox_voice_broadcast_id"], name: "idx_vba_broadcast"
   end
 
+  create_table "jabvox_voice_broadcast_call_logs", force: :cascade do |t|
+    t.bigint "jabvox_voice_broadcast_id", null: false
+    t.bigint "jabvox_voice_broadcast_recipient_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "contact_id"
+    t.string "phone_jabvox", null: false
+    t.string "name_jabvox"
+    t.integer "attempt_number_jabvox", default: 1, null: false
+    t.string "outcome_jabvox"
+    t.string "amd_status_jabvox"
+    t.string "dtmf_pressed_jabvox"
+    t.boolean "played_full_jabvox", default: false, null: false
+    t.integer "duration_ms_jabvox"
+    t.string "recording_file_jabvox"
+    t.string "uniqueid_jabvox"
+    t.string "linkedid_jabvox"
+    t.string "hangup_cause_jabvox"
+    t.datetime "started_at_jabvox"
+    t.datetime "ended_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "answered_at_jabvox"
+    t.integer "ring_ms_jabvox"
+    t.integer "total_duration_ms_jabvox"
+    t.index ["account_id", "created_at"], name: "idx_vb_call_logs_account_created"
+    t.index ["jabvox_voice_broadcast_id"], name: "idx_vb_call_logs_broadcast"
+    t.index ["jabvox_voice_broadcast_recipient_id"], name: "idx_vb_call_logs_recipient"
+    t.index ["uniqueid_jabvox"], name: "idx_vb_call_logs_uniqueid"
+  end
+
   create_table "jabvox_voice_broadcast_recipients", force: :cascade do |t|
     t.bigint "jabvox_voice_broadcast_id", null: false
     t.bigint "account_id", null: false
@@ -3682,6 +3715,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_000002) do
     t.string "linkedid_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "answered_at_jabvox"
+    t.integer "ring_ms_jabvox"
     t.index ["account_id", "uniqueid_jabvox"], name: "idx_vbr_account_uniqueid", where: "(uniqueid_jabvox IS NOT NULL)"
     t.index ["account_id"], name: "idx_vbr_account"
     t.index ["jabvox_voice_broadcast_id", "phone_jabvox"], name: "idx_vbr_unique_phone", unique: true
@@ -3691,7 +3726,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_000002) do
 
   create_table "jabvox_voice_broadcasts", force: :cascade do |t|
     t.bigint "account_id", null: false
-    t.bigint "jabvox_dialer_campaign_id", null: false
+    t.bigint "jabvox_dialer_campaign_id"
     t.bigint "created_by_id"
     t.string "name_jabvox", default: "", null: false
     t.string "status_jabvox", default: "draft", null: false
@@ -3719,6 +3754,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_000002) do
     t.datetime "finished_at_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "countries_jabvox"
+    t.jsonb "management_state_ids_jabvox"
+    t.jsonb "affiliate_ids_jabvox"
+    t.jsonb "inbox_ids_jabvox"
+    t.jsonb "excluded_lead_ids_jabvox", default: [], null: false
+    t.jsonb "lead_filters_jabvox", default: {}, null: false
+    t.bigint "jabvox_campaign_id"
+    t.string "source_jabvox", default: "campaign", null: false
     t.index ["account_id", "status_jabvox"], name: "idx_vb_account_status"
     t.index ["account_id"], name: "idx_vb_account"
     t.index ["jabvox_dialer_campaign_id"], name: "idx_vb_campaign"

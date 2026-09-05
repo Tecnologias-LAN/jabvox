@@ -4,7 +4,8 @@ require 'rails_helper'
 
 RSpec.describe Jabvox::Hermes::Authorizer do
   let(:account) { create(:account) }
-  let(:user) { create(:user, account: account) }
+  # Admin: su ROL concede todas las capacidades (el cruce de permisos de rol pasa).
+  let(:user) { create(:user, account: account, role: :administrator) }
   let(:other_account) { create(:account) }
   let(:outsider) { create(:user, account: other_account) }
 
@@ -60,14 +61,32 @@ RSpec.describe Jabvox::Hermes::Authorizer do
       decision = described_class.new(account: account, user: user).authorize('get_report_summary')
       expect(decision).to be_allowed
     end
+
+    it 'NIVEL 2 (rol prioritario): un agente sin permiso de rol NO puede crear, aunque su ' \
+       'permiso Hermes lo habilite' do
+      agent = create(:user, account: account, role: :agent)
+      grant!(agent, account, 'read', 'create', 'write') # la tabla Hermes lo permitiría...
+      decision = described_class.new(account: account, user: agent).authorize('create_label')
+      # ...pero su ROL de agente no gestiona conversaciones, así que se deniega.
+      expect(decision).not_to be_allowed
+      expect(decision.reason).to match(/rol del agente/)
+    end
+
+    it 'NIVEL 2 (rol): un agente SÍ puede leer aunque no gestione' do
+      agent = create(:user, account: account, role: :agent)
+      grant!(agent, account, 'read')
+      decision = described_class.new(account: account, user: agent).authorize('get_labels')
+      expect(decision).to be_allowed
+    end
   end
 
   describe '#allowed_tools' do
-    it 'expone solo las tools permitidas' do
-      grant!(user, account, 'read')
-      tools = described_class.new(account: account, user: user).allowed_tools
+    it 'expone solo las tools permitidas (agente de solo lectura)' do
+      agent = create(:user, account: account, role: :agent)
+      grant!(agent, account, 'read')
+      tools = described_class.new(account: account, user: agent).allowed_tools
       expect(tools).to include('get_labels')
-      expect(tools).not_to include('create_label')
+      expect(tools).not_to include('create_label') # su rol de agente no gestiona
       expect(tools).not_to include('delete_label') # ya no existe en el registro
     end
   end

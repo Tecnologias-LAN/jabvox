@@ -23,6 +23,11 @@ class Integrations::Hook < ApplicationRecord
 
   # TODO: Remove guard once encryption keys become mandatory (target 3-4 releases out).
   encrypts :access_token, deterministic: true if Jabvox.encryption_configured?
+  # settings holds provider credentials (e.g. the Jabvox IA api_key) — encrypt at
+  # rest. AR decrypts transparently on read, so reads/validations/serialization
+  # keep working on the plain hash; only the on-disk value is ciphertext. No code
+  # runs SQL against integrations_hooks.settings, so JSON queries aren't affected.
+  encrypts :settings if Jabvox.encryption_configured?
 
   validates :account_id, presence: true
   validates :app_id, presence: true
@@ -59,7 +64,7 @@ class Integrations::Hook < ApplicationRecord
   end
 
   def openai?
-    app_id == 'openai'
+    app_id == 'jabvox_ia'
   end
 
   def dyte?
@@ -137,7 +142,8 @@ class Integrations::Hook < ApplicationRecord
   end
 
   def validate_openai_api_key
-    return if Integrations::Openai::KeyValidator.valid?(settings_api_key(settings))
+    base_url = settings_value(settings, 'base_url')
+    return if Integrations::Openai::KeyValidator.valid?(settings_api_key(settings), base_url)
 
     errors.add(:base, I18n.t('errors.openai.invalid_api_key'))
   end

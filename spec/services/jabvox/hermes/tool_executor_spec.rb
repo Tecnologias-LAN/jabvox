@@ -4,7 +4,8 @@ require 'rails_helper'
 
 RSpec.describe Jabvox::Hermes::ToolExecutor do
   let(:account) { create(:account) }
-  let(:user) { create(:user, account: account) }
+  # Admin: su rol concede las capacidades; el cruce de permisos de rol de Hermes pasa.
+  let(:user) { create(:user, account: account, role: :administrator) }
   let(:executor) { described_class.new(account: account, user: user) }
 
   def grant!(*perms)

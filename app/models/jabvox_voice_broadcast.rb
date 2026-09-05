@@ -9,6 +9,7 @@
 # Table name: jabvox_voice_broadcasts
 #
 #  id                            :bigint           not null, primary key
+#  affiliate_ids_jabvox          :jsonb
 #  amd_enabled_jabvox            :boolean          default(TRUE), not null
 #  answered_human_count_jabvox   :integer          default(0), not null
 #  answered_machine_count_jabvox :integer          default(0), not null
@@ -19,17 +20,23 @@
 #  caller_id_jabvox              :string           default(""), not null
 #  calling_hours_end_jabvox      :string
 #  calling_hours_start_jabvox    :string
+#  countries_jabvox              :jsonb
 #  cps_jabvox                    :integer          default(1), not null
 #  dialed_count_jabvox           :integer          default(0), not null
 #  dtmf_enabled_jabvox           :boolean          default(FALSE), not null
 #  dtmf_optout_digit_jabvox      :string           default("9")
+#  excluded_lead_ids_jabvox      :jsonb            not null
 #  failed_count_jabvox           :integer          default(0), not null
 #  finished_at_jabvox            :datetime
+#  inbox_ids_jabvox              :jsonb
+#  lead_filters_jabvox           :jsonb            not null
+#  management_state_ids_jabvox   :jsonb
 #  max_concurrent_jabvox         :integer          default(5), not null
 #  max_retries_jabvox            :integer          default(0), not null
 #  name_jabvox                   :string           default(""), not null
 #  played_complete_count_jabvox  :integer          default(0), not null
 #  retry_interval_jabvox         :integer          default(300), not null
+#  source_jabvox                 :string           default("campaign"), not null
 #  started_at_jabvox             :datetime
 #  status_jabvox                 :string           default("draft"), not null
 #  total_recipients_jabvox       :integer          default(0), not null
@@ -37,7 +44,8 @@
 #  updated_at                    :datetime         not null
 #  account_id                    :bigint           not null
 #  created_by_id                 :bigint
-#  jabvox_dialer_campaign_id     :bigint           not null
+#  jabvox_campaign_id            :bigint
+#  jabvox_dialer_campaign_id     :bigint
 #
 # Indexes
 #
@@ -54,18 +62,33 @@ class JabvoxVoiceBroadcast < ApplicationRecord
   HOUR_FORMAT = /\A([01]\d|2[0-3]):[0-5]\d\z/
 
   belongs_to :account
-  belongs_to :jabvox_dialer_campaign
+  # La campaña de voz SIEMPRE filtra sus propios leads (module independiente del marcador).
+  # La columna jabvox_dialer_campaign_id permanece por compatibilidad de esquema pero ya no
+  # se usa; la asociación se declara optional para no romper registros históricos.
+  belongs_to :jabvox_dialer_campaign, optional: true
   belongs_to :created_by, class_name: 'User', optional: true
   has_many :recipients, class_name: 'JabvoxVoiceBroadcastRecipient',
                         inverse_of: :jabvox_voice_broadcast, dependent: :destroy
+  # Histórico de cada llamada individual (una fila por intento de marcación).
+  has_many :call_logs, class_name: 'JabvoxVoiceBroadcastCallLog',
+                       inverse_of: :jabvox_voice_broadcast, dependent: :destroy
   has_many :audits, class_name: 'JabvoxVoiceBroadcastAudit',
                     inverse_of: :jabvox_voice_broadcast, dependent: :destroy
+
+  # Tope DURO de reintentos: por más que se configure, nunca se marca a un número más
+  # de MAX_RETRIES_HARD_CAP+1 veces. Blindaje anti-marcación-infinita.
+  MAX_RETRIES_HARD_CAP = 10
+  # Vida máxima de una campaña 'running': pasado esto se auto-detiene aunque queden
+  # pendientes (evita campañas colgadas marcando indefinidamente si algo va mal).
+  MAX_RUNTIME_HOURS = 24
 
   validates :name_jabvox, presence: true
   validates :status_jabvox, inclusion: { in: STATUSES }
   validates :max_concurrent_jabvox, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 100 }
   validates :cps_jabvox, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 30 }
-  validates :max_retries_jabvox, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  # max_retries: 0 = una sola llamada; tope duro para no marcar infinito.
+  validates :max_retries_jabvox,
+            numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_RETRIES_HARD_CAP }
   validates :retry_interval_jabvox, numericality: { only_integer: true, greater_than: 0 }
   validates :calling_hours_start_jabvox, format: { with: HOUR_FORMAT }, allow_blank: true
   validates :calling_hours_end_jabvox, format: { with: HOUR_FORMAT }, allow_blank: true
@@ -83,11 +106,20 @@ class JabvoxVoiceBroadcast < ApplicationRecord
   end
 
   # ¿Estamos dentro de la ventana horaria configurada? Sin ventana => siempre true.
+  # Soporta ventanas que cruzan medianoche (ej. inicio 20:00, fin 08:00): en ese caso
+  # se está dentro si la hora es >= inicio O <= fin.
   def in_schedule?(now = Time.current.in_time_zone(SCHEDULE_TZ))
     return true if calling_hours_start_jabvox.blank? || calling_hours_end_jabvox.blank?
 
     current = now.strftime('%H:%M')
-    current.between?(calling_hours_start_jabvox, calling_hours_end_jabvox)
+    start = calling_hours_start_jabvox
+    finish = calling_hours_end_jabvox
+    if finish >= start
+      current.between?(start, finish)
+    else
+      # Ventana nocturna que cruza medianoche.
+      current >= start || current <= finish
+    end
   end
 
   # Destinatarios que aún faltan por marcar (pendientes o reintentos elegibles).
@@ -98,5 +130,24 @@ class JabvoxVoiceBroadcast < ApplicationRecord
   # Cuántos canales del broadcast están activos ahora (para el pacing).
   def in_flight_count
     recipients.where(status_jabvox: 'calling').count
+  end
+
+  # Filtros de leads como hash (para el LeadsFilterService propio), leídos de las columnas.
+  def lead_filters_hash(require_phone: true)
+    {
+      countries: countries_jabvox || [],
+      management_state_ids: (management_state_ids_jabvox || []).map(&:to_s),
+      affiliate_ids: affiliate_ids_jabvox || [],
+      inbox_ids: inbox_ids_jabvox || [],
+      excluded_lead_ids: excluded_lead_ids_jabvox || [],
+      require_phone: require_phone
+    }.merge((lead_filters_jabvox || {}).slice('q', 'email', 'phone', 'document', 'custom'))
+  end
+
+  # Scope de leads que esta campaña de voz apunta (source 'leads'). Usa el servicio de
+  # filtrado PROPIO del Voice Broadcast (independiente del marcador), así el conteo del
+  # formulario = lo que se marca.
+  def target_leads_scope
+    Jabvox::VoiceBroadcast::LeadsFilterService.new(account, lead_filters_hash).scope
   end
 end

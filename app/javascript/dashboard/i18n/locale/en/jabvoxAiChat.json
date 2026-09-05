@@ -6,6 +6,7 @@
     "SIDEBAR_LABEL": "Chat IA",
     "CONFIG_SIDEBAR_LABEL": "Chat IA Config",
     "SEND": "Send",
+    "STOP": "Stop",
     "NEW_CHAT": "New Chat",
     "DELETE_SESSION": "Delete conversation",
     "DELETE_SESSION_CONFIRM": "Are you sure you want to delete this conversation?",
@@ -24,7 +25,8 @@
       "CONFIG": "Configuration",
       "PERMISSIONS": "Permissions",
       "HERMES": "Connect Hermes",
-      "CRON": "Hermes Cron Jobs"
+      "CRON": "Hermes Cron Jobs",
+      "HISTORY": "History"
     },
     "AGENTS": {
       "TITLE": "Hermes agents",

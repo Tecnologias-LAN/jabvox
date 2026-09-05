@@ -141,10 +141,11 @@ module Jabvox
         # JABVOX_VB_RECIPIENT_ID del canal (nunca por "el más reciente").
         handle_voice_broadcast_event(evt_name.downcase, event)
       end
-      # El broadcast también reacciona a Hangup/OriginateResponse (fin/fallo de la
-      # llamada del agente virtual); esos dos handlers de arriba ya corrieron para el
-      # dialer, y aquí complementamos para el broadcast sin interferir.
-      handle_voice_broadcast_event(evt_name.downcase, event) if %w[hangup originateresponse].include?(evt_name.downcase)
+      # El broadcast también reacciona a Hangup/OriginateResponse (fin/fallo) y a Newstate
+      # (para capturar el instante en que la persona contestó = "Up"/6, y medir el ring).
+      # Esos handlers de arriba ya corrieron para el dialer; aquí complementamos para el
+      # broadcast sin interferir.
+      handle_voice_broadcast_event(evt_name.downcase, event) if %w[hangup originateresponse newstate].include?(evt_name.downcase)
     end
 
     # Delega el evento al handler del voice broadcast SOLO si el canal lleva el

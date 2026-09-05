@@ -8,7 +8,9 @@
     "NO_RESULTS": "No results found matching your search",
     "STATUS": {
       "ENABLED": "Activado",
-      "DISABLED": "Deshabilitado"
+      "DISABLED": "Deshabilitado",
+      "CONNECTED": "Conectado",
+      "DISCONNECTED": "Sin conectar"
     },
     "CONFIGURE": "Configurar",
     "ADD_BUTTON": "Añadir un nuevo hook",
@@ -46,7 +48,7 @@
           "PLACEHOLDER": "Seleccione una bandeja de entrada"
         },
         "SUBMIT": "Crear",
-        "VALIDATING_OPENAI": "Validando con OpenAI...",
+        "VALIDATING_OPENAI": "Validando con Jabvox IA...",
         "CANCEL": "Cancelar"
       },
       "API": {

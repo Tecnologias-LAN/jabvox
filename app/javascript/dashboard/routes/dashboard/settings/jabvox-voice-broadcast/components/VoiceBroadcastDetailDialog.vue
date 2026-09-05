@@ -21,6 +21,15 @@ const broadcast = ref(null);
 const monitor = ref(null);
 const report = ref(null);
 const fileInput = ref(null);
+const recipients = ref([]);
+const recipientMeta = ref({
+  total: 0,
+  total_pages: 1,
+  page: 1,
+  counts_by_status: {},
+});
+const recipientFilter = ref('');
+const recipientPage = ref(1);
 let pollTimer = null;
 
 const isRunning = computed(() => broadcast.value?.status === 'running');
@@ -29,6 +38,64 @@ const audioReady = computed(() => broadcast.value?.audio_ready === true);
 const counts = computed(
   () => monitor.value?.counts || broadcast.value?.counts || {}
 );
+
+// Progreso: cuántos ya se marcaron sobre el total (para la barra).
+const progressPct = computed(() => {
+  const total = counts.value.total || 0;
+  if (!total) return 0;
+  const done = counts.value.dialed || 0;
+  return Math.min(100, Math.round((done / total) * 100));
+});
+
+const remaining = computed(
+  () =>
+    monitor.value?.remaining ??
+    (counts.value.total || 0) - (counts.value.dialed || 0)
+);
+
+const STATUS_LABELS = {
+  pending: 'Pendiente',
+  calling: 'Llamando',
+  done: 'Completada',
+  failed: 'Fallida',
+};
+const OUTCOME_LABELS = {
+  answered_human: 'Contestó (humano)',
+  answered_machine: 'Buzón/máquina',
+  no_answer: 'No contestó',
+  busy: 'Ocupado',
+  congestion: 'Congestión',
+  failed: 'Falló',
+  played_complete: 'Escuchó completo',
+  hung_up_early: 'Colgó antes',
+  opted_out: 'Se dio de baja',
+};
+
+const loadRecipients = async () => {
+  if (!broadcast.value) return;
+  try {
+    const { data } = await voiceBroadcastAPI.recipients(broadcast.value.id, {
+      page: recipientPage.value,
+      status: recipientFilter.value,
+    });
+    recipients.value = data.recipients || [];
+    recipientMeta.value = data;
+  } catch (e) {
+    recipients.value = [];
+  }
+};
+
+const setRecipientFilter = status => {
+  recipientFilter.value = status;
+  recipientPage.value = 1;
+  loadRecipients();
+};
+
+const fmtDuration = ms => {
+  if (!ms) return '—';
+  const s = Math.round(ms / 1000);
+  return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
+};
 
 const audioDuration = computed(() => {
   const ms = broadcast.value?.audio_duration_ms;
@@ -41,26 +108,6 @@ const stopPolling = () => {
   pollTimer = null;
 };
 
-const refreshMonitor = async () => {
-  if (!broadcast.value) return;
-  try {
-    const { data } = await voiceBroadcastAPI.liveMonitor(broadcast.value.id);
-    monitor.value = data;
-    if (broadcast.value.status !== data.status) {
-      broadcast.value = { ...broadcast.value, status: data.status };
-      emit('changed');
-    }
-    if (data.status !== 'running') stopPolling();
-  } catch (e) {
-    // silencioso: el poll reintenta
-  }
-};
-
-const startPolling = () => {
-  stopPolling();
-  if (isRunning.value) pollTimer = setInterval(refreshMonitor, POLL_MS);
-};
-
 const loadReport = async () => {
   if (!broadcast.value) return;
   try {
@@ -71,6 +118,31 @@ const loadReport = async () => {
   }
 };
 
+const refreshMonitor = async () => {
+  if (!broadcast.value) return;
+  try {
+    const { data } = await voiceBroadcastAPI.liveMonitor(broadcast.value.id);
+    monitor.value = data;
+    if (broadcast.value.status !== data.status) {
+      broadcast.value = { ...broadcast.value, status: data.status };
+      emit('changed');
+    }
+    // Refresca la tabla de destinatarios en cada tick (ver en qué va, en tiempo real).
+    await loadRecipients();
+    if (data.status !== 'running') {
+      stopPolling();
+      loadReport();
+    }
+  } catch (e) {
+    // silencioso: el poll reintenta
+  }
+};
+
+const startPolling = () => {
+  stopPolling();
+  if (isRunning.value) pollTimer = setInterval(refreshMonitor, POLL_MS);
+};
+
 const open = async row => {
   show.value = true;
   loading.value = true;
@@ -79,7 +151,7 @@ const open = async row => {
   try {
     const { data } = await voiceBroadcastAPI.show(row.id);
     broadcast.value = data;
-    await Promise.all([refreshMonitor(), loadReport()]);
+    await Promise.all([refreshMonitor(), loadReport(), loadRecipients()]);
     startPolling();
   } catch (e) {
     useAlert(t('JABVOX_VOICE_BROADCAST.LOAD_ERROR'));
@@ -166,34 +238,38 @@ defineExpose({ open });
         class="flex flex-col w-full max-w-3xl max-h-[90vh] rounded-2xl bg-n-solid-1 border border-n-weak shadow-lg overflow-hidden"
       >
         <div
-          class="flex items-center justify-between px-5 py-4 border-b border-n-weak"
+          class="flex items-center justify-between gap-3 px-5 py-4 border-b border-n-weak"
         >
-          <div class="min-w-0">
-            <h3 class="text-base font-semibold text-n-slate-12 truncate">
-              {{ broadcast?.name }}
-            </h3>
-            <p class="text-xs text-n-slate-11 mt-0.5">
-              {{
-                t('JABVOX_VOICE_BROADCAST.DETAIL.STATUS_LINE', {
-                  status: t(
-                    `JABVOX_VOICE_BROADCAST.STATUS.${(broadcast?.status || 'draft').toUpperCase()}`
-                  ),
-                })
-              }}
-              <span v-if="monitor" class="ml-2">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span
+              class="i-lucide-radio-tower size-8 shrink-0 rounded-lg bg-n-alpha-2 p-1.5 text-n-brand"
+            />
+            <div class="min-w-0">
+              <h3 class="text-base font-semibold text-n-slate-12 truncate">
+                {{ broadcast?.name }}
+              </h3>
+              <p
+                v-if="monitor"
+                class="text-xs mt-0.5 inline-flex items-center gap-1"
+                :class="
+                  monitor.pbx_reachable ? 'text-n-teal-11' : 'text-n-ruby-11'
+                "
+              >
                 <span
                   :class="
-                    monitor.pbx_reachable ? 'text-n-teal-11' : 'text-n-ruby-11'
-                  "
-                >
-                  {{
                     monitor.pbx_reachable
-                      ? t('JABVOX_VOICE_BROADCAST.DETAIL.PBX_OK')
-                      : t('JABVOX_VOICE_BROADCAST.DETAIL.PBX_DOWN')
-                  }}
-                </span>
-              </span>
-            </p>
+                      ? 'i-lucide-plug-zap'
+                      : 'i-lucide-unplug'
+                  "
+                  class="size-3.5"
+                />
+                {{
+                  monitor.pbx_reachable
+                    ? t('JABVOX_VOICE_BROADCAST.DETAIL.PBX_OK')
+                    : t('JABVOX_VOICE_BROADCAST.DETAIL.PBX_DOWN')
+                }}
+              </p>
+            </div>
           </div>
           <Button
             icon="i-lucide-x"
@@ -213,13 +289,23 @@ defineExpose({ open });
           class="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-5"
         >
           <!-- Audio -->
-          <section class="rounded-lg border border-n-weak p-4">
-            <div class="flex items-center justify-between">
-              <div>
+          <section
+            class="flex items-center justify-between gap-3 rounded-xl border border-n-weak bg-n-alpha-1 px-4 py-3"
+          >
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span
+                class="size-4 shrink-0"
+                :class="
+                  audioReady
+                    ? 'i-lucide-volume-2 text-n-teal-11'
+                    : 'i-lucide-volume-x text-n-slate-10'
+                "
+              />
+              <div class="min-w-0">
                 <h4 class="text-sm font-medium text-n-slate-12">
                   {{ t('JABVOX_VOICE_BROADCAST.DETAIL.AUDIO_TITLE') }}
                 </h4>
-                <p class="text-xs text-n-slate-11 mt-0.5">
+                <p class="text-xs text-n-slate-11 mt-0.5 truncate">
                   <span v-if="audioReady" class="text-n-teal-11">
                     {{ broadcast?.audio_original_name }}
                     <span v-if="audioDuration">{{ `· ${audioDuration}` }}</span>
@@ -229,24 +315,24 @@ defineExpose({ open });
                   </span>
                 </p>
               </div>
-              <Button
-                :label="t('JABVOX_VOICE_BROADCAST.DETAIL.UPLOAD_AUDIO')"
-                icon="i-lucide-upload"
-                size="sm"
-                variant="outline"
-                color="slate"
-                :is-loading="uploading"
-                :disabled="isRunning || uploading"
-                @click="pickAudio"
-              />
-              <input
-                ref="fileInput"
-                type="file"
-                accept="audio/*"
-                class="hidden"
-                @change="onAudioSelected"
-              />
             </div>
+            <Button
+              :label="t('JABVOX_VOICE_BROADCAST.DETAIL.UPLOAD_AUDIO')"
+              icon="i-lucide-upload"
+              size="sm"
+              variant="outline"
+              color="slate"
+              :is-loading="uploading"
+              :disabled="isRunning || uploading"
+              @click="pickAudio"
+            />
+            <input
+              ref="fileInput"
+              type="file"
+              accept="audio/*"
+              class="hidden"
+              @change="onAudioSelected"
+            />
           </section>
 
           <!-- Controles -->
@@ -292,31 +378,103 @@ defineExpose({ open });
             </span>
           </section>
 
-          <!-- Contadores en vivo -->
-          <section class="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <!-- Barra de resumen live (estilo monitor del dialer) -->
+          <section class="flex flex-wrap items-center gap-3">
+            <span
+              class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
+              :class="
+                isRunning
+                  ? 'text-n-teal-11 bg-n-teal-3'
+                  : 'text-n-slate-11 bg-n-alpha-2'
+              "
+            >
+              <span
+                class="i-lucide-radio size-3.5"
+                :class="isRunning ? 'animate-pulse' : ''"
+              />
+              {{
+                t(
+                  `JABVOX_VOICE_BROADCAST.STATUS.${(broadcast?.status || 'draft').toUpperCase()}`
+                )
+              }}
+            </span>
+            <span class="text-xs text-n-slate-11">
+              {{ counts.dialed ?? 0 }} / {{ counts.total ?? 0 }}
+            </span>
+            <span
+              v-if="monitor?.in_flight"
+              class="text-xs text-n-slate-11 inline-flex items-center gap-1"
+            >
+              <span class="i-lucide-phone-outgoing size-3.5 text-n-teal-11" />
+              {{ t('JABVOX_VOICE_BROADCAST.DETAIL.IN_FLIGHT') }}:
+              {{ monitor.in_flight }}
+            </span>
+            <span
+              v-if="isRunning"
+              class="ml-auto inline-flex items-center gap-1 text-[11px] text-n-slate-9"
+            >
+              <span class="size-1.5 rounded-full bg-n-teal-9 animate-pulse" />
+              {{ t('JABVOX_VOICE_BROADCAST.DETAIL.LIVE') }}
+            </span>
+          </section>
+
+          <!-- Barra de progreso -->
+          <section>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-medium text-n-slate-11">
+                {{ t('JABVOX_VOICE_BROADCAST.DETAIL.PROGRESS') }}
+              </span>
+              <span class="text-xs text-n-slate-10 tabular-nums">
+                {{ progressPct }}% ·
+                {{ t('JABVOX_VOICE_BROADCAST.DETAIL.REMAINING') }}:
+                {{ remaining }}
+              </span>
+            </div>
+            <div class="h-2.5 w-full rounded-full bg-n-alpha-1 overflow-hidden">
+              <div
+                class="h-full rounded-full bg-n-brand transition-all duration-500"
+                :style="{ width: `${progressPct}%` }"
+              />
+            </div>
+          </section>
+
+          <!-- Tarjetas KPI (estilo reporte del dialer) -->
+          <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div
               v-for="metric in [
-                { k: 'total', l: 'TOTAL' },
-                { k: 'dialed', l: 'DIALED' },
-                { k: 'answered_human', l: 'ANSWERED_HUMAN' },
-                { k: 'answered_machine', l: 'ANSWERED_MACHINE' },
-                { k: 'played_complete', l: 'PLAYED_COMPLETE' },
-                { k: 'failed', l: 'FAILED' },
+                { k: 'total', l: 'TOTAL', c: 'text-n-slate-12' },
+                { k: 'dialed', l: 'DIALED', c: 'text-n-slate-12' },
+                {
+                  k: 'answered_human',
+                  l: 'ANSWERED_HUMAN',
+                  c: 'text-n-teal-11',
+                },
+                {
+                  k: 'answered_machine',
+                  l: 'ANSWERED_MACHINE',
+                  c: 'text-n-amber-11',
+                },
+                {
+                  k: 'played_complete',
+                  l: 'PLAYED_COMPLETE',
+                  c: 'text-n-blue-11',
+                },
+                { k: 'failed', l: 'FAILED', c: 'text-n-ruby-11' },
               ]"
               :key="metric.k"
-              class="rounded-lg border border-n-weak px-3 py-2"
+              class="rounded-xl border border-n-weak bg-n-alpha-1 p-3 text-center"
             >
-              <div class="text-xs text-n-slate-11">
-                {{ t(`JABVOX_VOICE_BROADCAST.COUNTS.${metric.l}`) }}
-              </div>
-              <div class="text-lg font-semibold text-n-slate-12">
+              <p class="text-xl font-bold tabular-nums" :class="metric.c">
                 {{ counts[metric.k] ?? 0 }}
-              </div>
+              </p>
+              <p class="text-xs text-n-slate-10 mt-0.5">
+                {{ t(`JABVOX_VOICE_BROADCAST.COUNTS.${metric.l}`) }}
+              </p>
             </div>
           </section>
 
           <!-- Reporte -->
-          <section v-if="report" class="rounded-lg border border-n-weak p-4">
+          <section v-if="report" class="rounded-xl border border-n-weak p-4">
             <div class="flex items-center justify-between mb-3">
               <h4 class="text-sm font-medium text-n-slate-12">
                 {{ t('JABVOX_VOICE_BROADCAST.DETAIL.REPORT_TITLE') }}
@@ -363,6 +521,164 @@ defineExpose({ open });
                   {{ report.answered_machine }}
                 </div>
               </div>
+            </div>
+            <!-- Desglose de desenlaces -->
+            <div
+              v-if="report.outcomes && Object.keys(report.outcomes).length"
+              class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-n-weak"
+            >
+              <span
+                v-for="(n, key) in report.outcomes"
+                :key="key"
+                class="inline-flex items-center gap-1.5 rounded-lg bg-n-alpha-2 px-2 py-1 text-xs"
+              >
+                <span class="text-n-slate-11">{{
+                  OUTCOME_LABELS[key] || key
+                }}</span>
+                <span class="font-semibold text-n-slate-12">{{ n }}</span>
+              </span>
+            </div>
+          </section>
+
+          <!-- Detalle por destinatario (en tiempo real) -->
+          <section class="rounded-xl border border-n-weak p-4">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h4 class="text-sm font-medium text-n-slate-12">
+                {{ t('JABVOX_VOICE_BROADCAST.DETAIL.RECIPIENTS_TITLE') }}
+              </h4>
+              <div
+                class="flex items-center gap-1 p-1 rounded-lg bg-n-alpha-1 border border-n-weak overflow-x-auto"
+              >
+                <button
+                  v-for="f in [
+                    { k: '', l: 'ALL' },
+                    { k: 'pending', l: 'PENDING' },
+                    { k: 'calling', l: 'CALLING' },
+                    { k: 'done', l: 'DONE' },
+                    { k: 'failed', l: 'FAILED' },
+                  ]"
+                  :key="f.k"
+                  type="button"
+                  class="px-2.5 py-1 rounded-md text-xs whitespace-nowrap transition-colors"
+                  :class="
+                    recipientFilter === f.k
+                      ? 'bg-n-solid-1 text-n-slate-12 font-medium shadow-sm'
+                      : 'text-n-slate-11 hover:text-n-slate-12'
+                  "
+                  @click="setRecipientFilter(f.k)"
+                >
+                  {{ t(`JABVOX_VOICE_BROADCAST.RECIPIENT_FILTER.${f.l}`) }}
+                  <span v-if="f.k && recipientMeta.counts_by_status[f.k]">
+                    ({{ recipientMeta.counts_by_status[f.k] }})
+                  </span>
+                </button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm border-collapse">
+                <thead>
+                  <tr
+                    class="text-left text-xs text-n-slate-10 border-b border-n-weak"
+                  >
+                    <th class="py-2 pr-3 font-medium">
+                      {{ t('JABVOX_VOICE_BROADCAST.RECIPIENT.NAME') }}
+                    </th>
+                    <th class="py-2 pr-3 font-medium">
+                      {{ t('JABVOX_VOICE_BROADCAST.RECIPIENT.PHONE') }}
+                    </th>
+                    <th class="py-2 pr-3 font-medium">
+                      {{ t('JABVOX_VOICE_BROADCAST.RECIPIENT.STATUS') }}
+                    </th>
+                    <th class="py-2 pr-3 font-medium">
+                      {{ t('JABVOX_VOICE_BROADCAST.RECIPIENT.OUTCOME') }}
+                    </th>
+                    <th class="py-2 pr-3 font-medium">
+                      {{ t('JABVOX_VOICE_BROADCAST.RECIPIENT.DURATION') }}
+                    </th>
+                    <th class="py-2 pr-3 font-medium">
+                      {{ t('JABVOX_VOICE_BROADCAST.RECIPIENT.ATTEMPTS') }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="r in recipients"
+                    :key="r.id"
+                    class="border-b border-n-weak/50"
+                  >
+                    <td
+                      class="py-2 pr-3 text-n-slate-12 truncate max-w-[140px]"
+                    >
+                      {{ r.name || '—' }}
+                    </td>
+                    <td class="py-2 pr-3 text-n-slate-11 font-mono text-xs">
+                      {{ r.phone }}
+                    </td>
+                    <td class="py-2 pr-3">
+                      <span
+                        class="inline-block rounded px-1.5 py-0.5 text-xs"
+                        :class="{
+                          'bg-n-amber-3 text-n-amber-11':
+                            r.status === 'pending',
+                          'bg-n-blue-3 text-n-blue-11': r.status === 'calling',
+                          'bg-n-teal-3 text-n-teal-11': r.status === 'done',
+                          'bg-n-ruby-3 text-n-ruby-11': r.status === 'failed',
+                        }"
+                      >
+                        {{ STATUS_LABELS[r.status] || r.status }}
+                      </span>
+                    </td>
+                    <td class="py-2 pr-3 text-n-slate-11 text-xs">
+                      {{
+                        r.outcome ? OUTCOME_LABELS[r.outcome] || r.outcome : '—'
+                      }}
+                    </td>
+                    <td class="py-2 pr-3 text-n-slate-11 text-xs">
+                      {{ fmtDuration(r.duration_ms) }}
+                    </td>
+                    <td class="py-2 pr-3 text-n-slate-11 text-xs">
+                      {{ r.attempts }}
+                    </td>
+                  </tr>
+                  <tr v-if="!recipients.length">
+                    <td
+                      colspan="6"
+                      class="py-4 text-center text-xs text-n-slate-9"
+                    >
+                      {{ t('JABVOX_VOICE_BROADCAST.DETAIL.NO_RECIPIENTS') }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- Paginación -->
+            <div
+              v-if="recipientMeta.total_pages > 1"
+              class="flex items-center justify-center gap-3 mt-3"
+            >
+              <Button
+                :label="t('JABVOX_VOICE_BROADCAST.DETAIL.PREV')"
+                size="xs"
+                variant="ghost"
+                :disabled="recipientPage <= 1"
+                @click="
+                  recipientPage -= 1;
+                  loadRecipients();
+                "
+              />
+              <span class="text-xs text-n-slate-10">
+                {{ recipientPage }} / {{ recipientMeta.total_pages }}
+              </span>
+              <Button
+                :label="t('JABVOX_VOICE_BROADCAST.DETAIL.NEXT')"
+                size="xs"
+                variant="ghost"
+                :disabled="recipientPage >= recipientMeta.total_pages"
+                @click="
+                  recipientPage += 1;
+                  loadRecipients();
+                "
+              />
             </div>
           </section>
         </div>

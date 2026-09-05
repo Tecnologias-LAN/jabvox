@@ -4,7 +4,6 @@ import { useStore } from 'dashboard/composables/store';
 import { useMapGetter } from 'dashboard/composables/store.js';
 import { useRouter } from 'vue-router';
 import { useAccount } from 'dashboard/composables/useAccount';
-import { useConfig } from 'dashboard/composables/useConfig';
 import { differenceInDays } from 'date-fns';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useI18n } from 'vue-i18n';
@@ -23,7 +22,6 @@ const router = useRouter();
 const store = useStore();
 const { t } = useI18n();
 const { accountId, currentAccount } = useAccount();
-const { isEnterprise } = useConfig();
 const { isAdmin } = useAdmin();
 
 const isOnJabvoxCloud = useMapGetter('globalConfig/isOnJabvoxCloud');
@@ -103,7 +101,9 @@ const routeToBilling = () => {
 };
 
 onMounted(() => {
-  if (isEnterprise) {
+  // Account limits only exist on Jabvox Cloud; the endpoint 404s on self-hosted
+  // enterprise. Guard by cloud, not merely by enterprise, to avoid the 404.
+  if (isOnJabvoxCloud.value) {
     fetchLimits();
   }
 });

@@ -700,8 +700,20 @@ Rails.application.routes.draw do
               collection { patch :typify }
               member { patch :typify }
             end
-            # Agente virtual / Voice Broadcast saliente (reutiliza la lista de una campaña).
+            # Agente virtual / Voice Broadcast saliente. Módulo INDEPENDIENTE del marcador:
+            # tiene sus propios endpoints de catálogo/conteo/preview de leads (colección) y
+            # de historial/reportes globales. Solo requiere el módulo VoIP para sacar llamadas.
             resources :voice_broadcasts, only: [:index, :show, :create, :update, :destroy] do
+              collection do
+                get :lead_fields
+                get :field_values
+                get :filter_lead_count
+                get :filter_preview_leads
+                get :matching_lead_ids
+                get :history
+                get :analytics
+                get :analytics_csv
+              end
               member do
                 post :audio
                 post :start
@@ -709,6 +721,11 @@ Rails.application.routes.draw do
                 post :resume
                 post :stop
                 get :live_monitor
+                get :lead_count
+                get :preview_leads
+                get :recipients
+                get :call_logs
+                get :leads_report
                 get :report
                 get :report_csv
               end
@@ -827,6 +844,7 @@ Rails.application.routes.draw do
                 get :agents
                 get :dialer
                 get :agent_status
+                get :hermes_activity
                 patch :set_dialer_state
               end
             end

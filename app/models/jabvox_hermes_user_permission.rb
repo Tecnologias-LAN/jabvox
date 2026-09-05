@@ -48,16 +48,71 @@ class JabvoxHermesUserPermission < ApplicationRecord
     where(account_id: account_id, user_id: user_id).first&.permissions_list || []
   end
 
+  # Deriva los permisos de Hermes A PARTIR DEL ROL del usuario en la cuenta. Esta es la
+  # fuente: el rol define lo que el usuario puede hacer, y esos permisos se ESCRIBEN aquí
+  # (sync_from_role!). La autorización se basa solo en esta tabla.
+  #   - Administrador de la cuenta ⇒ read, create, write, execute, configure (nunca delete).
+  #   - Agente/custom role ⇒ 'read' siempre; 'create'+'write' si su rol gestiona algo
+  #     (tiene conversation_manage/contact_manage o cualquier permiso jabvox_*_manage/_edit).
+  # Nunca concede 'admin' (esa palabra es solo un atajo interno) ni 'delete'.
+  def self.permissions_for_role(account_user)
+    return [] if account_user.nil?
+    return %w[read create write execute configure] if account_user.administrator?
+
+    perms = %w[read]
+    perms += %w[create write] if role_can_manage?(account_user)
+    perms
+  end
+
+  # ¿El rol/custom_role del usuario permite gestionar (crear/editar) algo? Base Chatwoot o
+  # cualquier capacidad Jabvox de gestión/edición.
+  def self.role_can_manage?(account_user)
+    role = account_user.custom_role
+    return false if role.nil?
+
+    keys = Array(role.permissions)
+    keys.include?('conversation_manage') || keys.include?('contact_manage') ||
+      keys.any? { |k| k.to_s.match?(/\Ajabvox_.*(manage|edit)\z/) }
+  end
+
+  # Escribe en la tabla los permisos derivados del rol del usuario (idempotente). Se llama al
+  # ligar un agente y cuando cambia el rol. Devuelve el registro.
+  def self.sync_from_role!(account_id, user_id)
+    account_user = AccountUser.find_by(account_id: account_id, user_id: user_id)
+    return nil if account_user.nil?
+
+    derived = permissions_for_role(account_user)
+    record = find_or_initialize_by(account_id: account_id, user_id: user_id)
+    record.permissions_jabvox = derived
+    record.save!
+    record
+  end
+
   # ¿El usuario tiene el permiso dado en la cuenta? (fuente de verdad de autorización)
+  #
+  # Los permisos se DERIVAN DEL ROL del usuario (permissions_for_role). La tabla es la
+  # materialización de esa derivación: si la fila existe se usa; si no existe (o el usuario
+  # es admin), se cae al cálculo desde el rol, de modo que un admin nunca queda bloqueado
+  # por falta de fila. Borrar jamás se concede, por ninguna vía.
   def self.allows?(account_id, user_id, permission)
     permission = permission.to_s
-    return false if FORBIDDEN.include?(permission) # borrar jamás, por ninguna vía
+    return false if FORBIDDEN.include?(permission) # borrar jamás
 
-    perms = granted_for(account_id, user_id)
+    perms = effective_permissions(account_id, user_id)
     return true if perms.include?(permission)
 
     # 'admin' implica todo lo concedible EXCEPTO borrar.
     perms.include?('admin') && ADMIN_IMPLIES.include?(permission)
+  end
+
+  # Permisos efectivos: la fila almacenada si existe; si no, los derivados del rol. Un admin
+  # de la cuenta obtiene siempre al menos lo que su rol implica (no depende de tener fila).
+  def self.effective_permissions(account_id, user_id)
+    stored = where(account_id: account_id, user_id: user_id).first
+    return stored.permissions_list if stored
+
+    account_user = AccountUser.find_by(account_id: account_id, user_id: user_id)
+    permissions_for_role(account_user)
   end
 
   def permissions_list

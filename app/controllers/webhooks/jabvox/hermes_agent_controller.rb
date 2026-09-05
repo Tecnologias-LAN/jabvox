@@ -14,10 +14,20 @@
 class Webhooks::Jabvox::HermesAgentController < ActionController::API
   before_action :authenticate_agent!
 
-  # Tools que ESTE agente puede ejecutar (whitelist ya filtrada por permisos + módulos).
+  # Tools que ESTE agente puede ejecutar (whitelist ya filtrada por permisos +
+  # módulos). Devuelve tanto los nombres como las definiciones function-calling
+  # (name/description/parameters) para que Hermes las registre como herramientas.
   def tools
     authorizer = Jabvox::Hermes::Authorizer.new(account: @account, user: @user)
-    render json: { agent: @agent.name_jabvox, tools: authorizer.allowed_tools }
+    names = authorizer.allowed_tools
+    definitions = names.filter_map { |n| Jabvox::Hermes::ToolRegistry.describe(n) }
+    render json: {
+      agent: @agent.name_jabvox,
+      account_id: @account.id,
+      execute_url: '/webhooks/jabvox/hermes_agent/execute',
+      tools: names,
+      definitions: definitions
+    }
   end
 
   # Ejecuta una tool. La autorización (permiso del agente + módulo habilitado) y la política
@@ -29,6 +39,10 @@ class Webhooks::Jabvox::HermesAgentController < ActionController::API
 
     if result.success?
       render json: { ok: true, data: result.data }
+    elsif result.status == 'module_disabled'
+      # Módulo no contratado/activo: respuesta clara y accionable para Hermes.
+      render json: { ok: false, status: 'module_disabled', module: result.code, error: result.error },
+             status: :forbidden
     else
       render json: { ok: false, status: result.status, error: result.error },
              status: result.status == 'forbidden' ? :forbidden : :unprocessable_entity
@@ -37,14 +51,33 @@ class Webhooks::Jabvox::HermesAgentController < ActionController::API
 
   private
 
-  # Autentica por el token del agente (header). Resuelve agente activo → cuenta + usuario.
+  # Autentica por el token del HERMES (por conexión). Cada Hermes tiene su token de acción
+  # único; resuelve la conexión → cuenta + el agente de la app ligado, y Hermes hereda los
+  # permisos de ESE agente/usuario (si el usuario no puede algo, este token tampoco).
+  #
+  # Compatibilidad: si el token no corresponde a una conexión, se intenta como token de
+  # agente (esquema anterior) para no romper integraciones ya repartidas.
+  # Longitud máxima razonable de un token (secreto 24-byte b64 + sufijo). Rechaza payloads
+  # absurdos antes de tocar la BD (defensa en profundidad contra sondas/DoS).
+  MAX_TOKEN_LENGTH = 128
+
   def authenticate_agent!
     token = bearer_token.presence || request.headers['X-Hermes-Agent-Token'].to_s
-    @agent = JabvoxHermesAgent.authenticate(token)
-    return head :unauthorized if @agent.nil?
+    return head :unauthorized if token.blank? || token.length > MAX_TOKEN_LENGTH
 
-    @account = @agent.account
-    @user = @agent.user
+    if (conn = JabvoxHermesConnection.authenticate_action(token))
+      @connection = conn
+      @agent = conn.action_agent
+      @account = conn.account
+      @user = conn.action_user
+    elsif (agent = JabvoxHermesAgent.authenticate(token))
+      @agent = agent
+      @account = agent.account
+      @user = agent.user
+    end
+
+    # Requiere cuenta + usuario resueltos. authenticate() del modelo ya exige agente ACTIVO;
+    # la conexión debe tener un agente/usuario ligado (sin ligar ⇒ no autentica).
     head :unauthorized if @account.nil? || @user.nil?
   end
 

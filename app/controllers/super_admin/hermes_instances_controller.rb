@@ -108,7 +108,20 @@ class SuperAdmin::HermesInstancesController < SuperAdmin::ApplicationController
       hermes_url: handoff&.hermes_url,
       provisioned_at: handoff&.provisioned_at,
       last_error: handoff&.last_error,
-      mcp_servers: Array(handoff&.mcp_servers)
+      mcp_servers: Array(handoff&.mcp_servers),
+      # Agentes de la cuenta y, por cada uno, sus HERMES ligados con el token de acción
+      # (Hermes → Jabvox) de cada Hermes. El token vive en la conexión, no en el agente:
+      # un agente con 2 Hermes tiene 2 tokens distintos. Solo visible aquí (super admin).
+      agents: acc.jabvox_hermes_agents.includes(:user, :hermes_connections).map do |ag|
+        {
+          id: ag.id, name: ag.name_jabvox, user: ag.user&.name, status: ag.status_jabvox,
+          hermes: ag.hermes_connections.map do |conn|
+            { id: conn.id, name: conn.name_jabvox, hermes_agent: conn.hermes_agent_name_jabvox,
+              base_url: conn.base_url_jabvox, status: conn.status_jabvox,
+              action_token: conn.action_token_jabvox }
+          end
+        }
+      end
     }
   end
 end

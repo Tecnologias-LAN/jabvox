@@ -15,16 +15,24 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
   end
 
   def sessions
+    # Incluye metadata para poder mostrar a qué AGENTE/conexión pertenece cada sesión y
+    # asegurar que solo ese agente la atienda (el front bloquea el cambio de agente).
     sessions_data = JabvoxAiChatMessage
                     .where(account_id: Current.account.id, user_id: current_user.id)
-                    .select(:session_id_jabvox, :created_at)
-                    .group(:session_id_jabvox, :created_at)
+                    .select(:session_id_jabvox, :created_at, :metadata_jabvox)
                     .order(created_at: :asc)
 
     grouped = sessions_data.each_with_object({}) do |m, h|
       sid = m.session_id_jabvox
-      h[sid] ||= { session_id: sid, created_at: m.created_at, last_message_at: m.created_at }
+      h[sid] ||= { session_id: sid, created_at: m.created_at, last_message_at: m.created_at,
+                   connection_id: nil, agent: nil }
       h[sid][:last_message_at] = m.created_at if m.created_at > h[sid][:last_message_at]
+      # El agente/conexión de la sesión = el primero registrado en metadata.
+      meta = m.metadata_jabvox || {}
+      if h[sid][:connection_id].nil? && meta['connection_id'].present?
+        h[sid][:connection_id] = meta['connection_id']
+        h[sid][:agent] = meta['agent']
+      end
     end
 
     render json: grouped.values.sort_by { |s| s[:last_message_at] }.reverse
@@ -99,7 +107,8 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
 
     set_sse_headers
     # Guarda el mensaje del usuario ANTES de empezar (así no se pierde si sale del módulo).
-    persist_user_message(session_id)
+    # Cada sesión queda ligada a la conexión/agente que la atiende (conn.id).
+    persist_user_message(session_id, conn)
     # La respuesta se acumula y se PERSISTE al final SIEMPRE, aunque el cliente cierre la
     # conexión (sale del módulo): el turno de Hermes se completa igual y queda guardado, así
     # al volver el usuario ve el avance/resultado.
@@ -108,7 +117,7 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     # navegador y se perdían al salir).
     @stream_tools = []
     full = stream_via_connection(conn, session_id)
-    persist_assistant_message(session_id, conn.hermes_agent_name_jabvox, full, @stream_tools)
+    persist_assistant_message(session_id, conn, full, @stream_tools)
   rescue StandardError => e
     Rails.logger.warn("[AiChatStream] #{e.class}: #{e.message}")
     write_sse("data: #{{ error: e.message }.to_json}\n\n")
@@ -243,20 +252,23 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     nil # el cliente cerró la conexión (el agente se interrumpe solo)
   end
 
-  def persist_user_message(session_id)
+  def persist_user_message(session_id, conn = nil)
     JabvoxAiChatMessage.create!(
       account: Current.account, user: current_user, session_id_jabvox: session_id,
-      role_jabvox: 'user', content_jabvox: params[:content], metadata_jabvox: {}
+      role_jabvox: 'user', content_jabvox: params[:content],
+      # Ata la sesión a su conexión/agente: quién la atiende no cambia después.
+      metadata_jabvox: conn ? { connection_id: conn.id, agent: conn.name_jabvox } : {}
     )
   end
 
   # Guarda la respuesta del asistente al terminar (o al cortarse) el stream, incluyendo las
   # herramientas ejecutadas (para que reaparezcan al reabrir el chat). No guarda si no hubo
   # ni texto ni tools (turno vacío).
-  def persist_assistant_message(session_id, agent_name, full_text, tools = [])
+  def persist_assistant_message(session_id, conn, full_text, tools = [])
     return if full_text.to_s.strip.empty? && tools.blank?
 
-    metadata = { agent: agent_name }
+    metadata = { agent: conn.respond_to?(:name_jabvox) ? conn.name_jabvox : conn.to_s }
+    metadata[:connection_id] = conn.id if conn.respond_to?(:id)
     metadata[:tools] = tools if tools.present?
     JabvoxAiChatMessage.create!(
       account: Current.account, user: current_user, session_id_jabvox: session_id,

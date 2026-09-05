@@ -32,7 +32,8 @@ export function useLabelSuggestions() {
   const aiIntegration = computed(
     () =>
       appIntegrations.value.find(
-        integration => integration.id === 'openai' && !!integration.hooks.length
+        integration =>
+          integration.id === 'jabvox_ia' && !!integration.hooks.length
       )?.hooks[0]
   );
 

@@ -31,10 +31,15 @@ class Captain::BaseTaskService
     @conversation ||= account.conversations.find_by(display_id: conversation_display_id)
   end
 
+  # Base URL of the provider. The account's Jabvox IA hook wins (so each account
+  # can point Captain at its own OpenAI-compatible provider), then the
+  # installation endpoint, then OpenAI. Avoids duplicating a trailing /v1.
   def api_base
-    endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value.presence || 'https://api.openai.com/'
-    endpoint = endpoint.chomp('/')
-    "#{endpoint}/v1"
+    endpoint = openai_hook&.settings&.dig('base_url').presence ||
+               InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value.presence ||
+               'https://api.openai.com/'
+    endpoint = endpoint.strip.chomp('/')
+    endpoint.end_with?('/v1') ? endpoint : "#{endpoint}/v1"
   end
 
   def make_api_call(messages:, model: nil, feature: nil, schema: nil, tools: [])
@@ -57,6 +62,12 @@ class Captain::BaseTaskService
   end
 
   def resolved_model(model:, feature:)
+    # The model configured on the account's Jabvox IA hook wins — the provider
+    # the account connected may only serve that model (e.g. kimi-k3), so we must
+    # not fall back to a default OpenAI model it doesn't have.
+    hook_model = openai_hook&.settings&.dig('model').presence
+    return hook_model if hook_model
+
     return model if feature.blank?
 
     route = Llm::FeatureRouter.resolve(feature: feature, account: account)
@@ -184,8 +195,11 @@ class Captain::BaseTaskService
                         end
   end
 
+  # Prefer the account's Jabvox IA hook credential over the installation key, so
+  # the provider/model the account connected actually gets used (falls back to
+  # the system key when the account has no hook).
   def use_account_openai_hook?
-    false
+    true
   end
 
   def hook_llm_credential
@@ -198,7 +212,7 @@ class Captain::BaseTaskService
   end
 
   def openai_hook
-    @openai_hook ||= account.hooks.find_by(app_id: 'openai', status: 'enabled')
+    @openai_hook ||= account.hooks.find_by(app_id: 'jabvox_ia', status: 'enabled')
   end
 
   def system_api_key

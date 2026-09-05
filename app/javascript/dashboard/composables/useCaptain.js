@@ -5,7 +5,6 @@ import {
   useStore,
 } from 'dashboard/composables/store.js';
 import { useAccount } from 'dashboard/composables/useAccount';
-import { useConfig } from 'dashboard/composables/useConfig';
 import { useCamelCase } from 'dashboard/composables/useTransformKeys';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
@@ -17,7 +16,7 @@ export function useCaptain() {
   const store = useStore();
   const { t } = useI18n();
   const { isCloudFeatureEnabled, currentAccount } = useAccount();
-  const { isEnterprise } = useConfig();
+  const isOnJabvoxCloud = useMapGetter('globalConfig/isOnJabvoxCloud');
   const uiFlags = useMapGetter('accounts/getUIFlags');
   const currentChat = useMapGetter('getSelectedChat');
   const replyMode = useMapGetter('draftMessages/getReplyEditorMode');
@@ -58,7 +57,9 @@ export function useCaptain() {
   const isFetchingLimits = computed(() => uiFlags.value.isFetchingLimits);
 
   const fetchLimits = () => {
-    if (isEnterprise) {
+    // Account limits only exist on Jabvox Cloud; the endpoint 404s on
+    // self-hosted enterprise. Guard by cloud, not merely by enterprise.
+    if (isOnJabvoxCloud.value) {
       store.dispatch('accounts/limits');
     }
   };

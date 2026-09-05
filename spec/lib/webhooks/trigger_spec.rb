@@ -241,6 +241,20 @@ describe Webhooks::Trigger do
 
         trigger.execute(url, payload, webhook_type, secret: secret)
       end
+
+      it 'also sends the V2 generic headers (X-Webhook-Signature-V2 / X-Webhook-Timestamp)' do
+        expect(SafeFetch).to receive(:fetch) do |_received_url, **options, &block|
+          ts = options[:headers]['X-Webhook-Timestamp']
+          # El V2 es el HMAC hex crudo (sin prefijo sha256=) de "{ts}.{body}".
+          expected_hmac = OpenSSL::HMAC.hexdigest('SHA256', secret, "#{ts}.#{body}")
+          expect(options[:headers]['X-Webhook-Signature-V2']).to eq(expected_hmac)
+          # Y coincide con el mismo timestamp que el header propio de Jabvox.
+          expect(ts).to eq(options[:headers]['X-Jabvox-Timestamp'])
+          block.call(fetch_result)
+        end
+
+        trigger.execute(url, payload, webhook_type, secret: secret)
+      end
     end
 
     context 'with both secret and delivery_id' do

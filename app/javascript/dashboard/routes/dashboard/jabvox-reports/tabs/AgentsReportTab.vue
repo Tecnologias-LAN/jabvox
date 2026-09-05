@@ -25,6 +25,9 @@ const filters = ref({ date_from: '', date_to: '' });
 // THAT agent, carrying the same date range this report uses. The drill-down
 // route reads from/to as a custom range (preset=custom).
 const openDrilldown = (agent, metricKey) => {
+  // Las filas de Hermes (bot) no tienen user_id numérico: su detalle vive en el
+  // reporte "Actividad de Hermes", no en el drill-down por agente.
+  if (agent.is_hermes) return;
   const query = {
     preset: 'custom',
     agent_ids: String(agent.id),

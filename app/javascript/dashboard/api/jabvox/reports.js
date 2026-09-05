@@ -8,6 +8,9 @@ export default {
   getAgents: (params = {}) => axios.get(`${client.url}/agents`, { params }),
   getDialer: (params = {}) => axios.get(`${client.url}/dialer`, { params }),
   getAgentStatus: () => axios.get(`${client.url}/agent_status`),
+  // Actividad de Hermes (bot IA): totales, por herramienta, por día, recientes.
+  getHermesActivity: (params = {}) =>
+    axios.get(`${client.url}/hermes_activity`, { params }),
   setDialerState: state =>
     axios.patch(`${client.url}/set_dialer_state`, { state }),
 

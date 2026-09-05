@@ -1,6 +1,14 @@
 <script>
 import { useVuelidate } from '@vuelidate/core';
-import { required, url, minLength } from '@vuelidate/validators';
+import { required, minLength, helpers } from '@vuelidate/validators';
+
+// El validador `url` de Vuelidate rechaza a propósito las IPs privadas (10.x, 192.168.x,
+// 172.16-31.x, 127.x). Jabvox permite webhooks a redes internas/ZeroTier (p. ej. el Hermes
+// de la cuenta en 10.147.100.1:8644), así que usamos un validador propio más permisivo:
+// exige esquema http(s) y un host (dominio o IP) con puerto y path opcionales.
+const permissiveUrl = helpers.regex(
+  /^https?:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d{2,5})?(?:[/?#]\S*)?$/i
+);
 import wootConstants from 'dashboard/constants/globals';
 import { getI18nKey } from 'dashboard/routes/dashboard/settings/helper/settingsHelper';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
@@ -51,7 +59,7 @@ export default {
     url: {
       required,
       minLength: minLength(7),
-      url,
+      url: permissiveUrl,
     },
     subscriptions: {
       required,

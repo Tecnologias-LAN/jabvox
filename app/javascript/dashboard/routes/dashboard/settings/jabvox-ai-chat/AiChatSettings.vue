@@ -23,6 +23,7 @@ import HermesModelsViewer from './components/HermesModelsViewer.vue';
 import HermesCronManager from './components/HermesCronManager.vue';
 import HermesConnectManager from './components/HermesConnectManager.vue';
 import HermesAgentsManager from './components/HermesAgentsManager.vue';
+import HermesHistoryViewer from './components/HermesHistoryViewer.vue';
 
 const store = useStore();
 const { t } = useI18n();
@@ -36,6 +37,7 @@ const tabs = [
   { key: 'agents', icon: 'i-lucide-users' },
   { key: 'hermes', icon: 'i-lucide-plug' },
   { key: 'cron', icon: 'i-lucide-clock' },
+  { key: 'history', icon: 'i-lucide-history' },
 ];
 
 watch(activeTab, val => sessionStorage.setItem(ACTIVE_TAB_KEY, val), {
@@ -589,6 +591,11 @@ onMounted(async () => {
       <!-- ── CRON JOBS DE HERMES ── -->
       <div v-else-if="activeTab === 'cron'" class="w-full">
         <HermesCronManager />
+      </div>
+
+      <!-- ── HISTORIAL: lo que Hermes ha hecho en la app ── -->
+      <div v-else-if="activeTab === 'history'" class="w-full">
+        <HermesHistoryViewer />
       </div>
 
       <!-- ── CONFIG ── -->

@@ -132,7 +132,7 @@ RSpec.describe Integrations::App do
     end
 
     context 'when the app is anything other than webhook' do
-      let(:app_name) { 'openai' }
+      let(:app_name) { 'jabvox_ia' }
 
       it 'returns false if the account does not have any hooks for the app' do
         expect(app.enabled?(account)).to be false
