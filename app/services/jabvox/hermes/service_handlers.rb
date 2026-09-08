@@ -493,6 +493,176 @@ module Jabvox::Hermes::ServiceHandlers
                                             .to_h
   end
 
+  # === Carpetas de Analytics ===
+  def list_analytics_folders(_params)
+    @account.jabvox_analytics_folders.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |f|
+      { id: f.id, name: f.try(:name_jabvox) || f.try(:name) }
+    end
+  end
+
+  def create_analytics_folder(params)
+    f = @account.jabvox_analytics_folders.create!(name_jabvox: params[:name].to_s)
+    { id: f.id, name: f.name_jabvox }
+  end
+
+  def update_analytics_folder(params)
+    f = @account.jabvox_analytics_folders.find(params[:id])
+    f.update!(name_jabvox: params[:name].to_s)
+    { id: f.id, name: f.name_jabvox }
+  end
+
+  # === Reportes cruzados (join entre varias BD externas) ===
+  def list_analytics_cross_reports(_params)
+    JabvoxAnalyticsCrossReport.where(account_id: @account.id).order(:id)
+                              .limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS)
+                              .map { |r| { id: r.id, name: r.try(:name_jabvox) || r.try(:name) } }
+  end
+
+  def get_analytics_cross_report(params)
+    r = JabvoxAnalyticsCrossReport.find_by!(id: params[:id], account_id: @account.id)
+    { id: r.id, name: r.try(:name_jabvox) || r.try(:name) }
+  end
+
+  # Ejecuta un reporte cruzado guardado (read-only). Reusa el servicio de la UI.
+  def execute_analytics_cross_report(params)
+    r = JabvoxAnalyticsCrossReport.find_by!(id: params[:id], account_id: @account.id)
+    result = Jabvox::Analytics::CrossReportExecutionService.new(r).call
+    { columns: result.columns, rows: Array(result.rows).first(Jabvox::Hermes::ServiceLayer::MAX_ROWS),
+      row_count: result.row_count }
+  rescue Jabvox::Analytics::CrossReportExecutionService::ExecutionError => e
+    { error: e.message }
+  end
+
+  def analytics_overview_stats(_params)
+    { dashboards: @account.jabvox_analytics_dashboards.count,
+      data_sources: @account.jabvox_analytics_data_sources.count,
+      folders: @account.jabvox_analytics_folders.count }
+  end
+
+  def analytics_internal_reports(_params)
+    return [] unless defined?(Jabvox::Analytics::InternalReportCatalog)
+
+    Jabvox::Analytics::InternalReportCatalog.try(:all)&.map do |k|
+      { key: k.is_a?(Hash) ? k[:key] : k }
+    end || []
+  rescue StandardError
+    []
+  end
+
+  # === Reportes de la cuenta (solo lectura, resumen para Hermes) ===
+  def report_products(params)
+    scope = @account.jabvox_orders
+    scope = apply_report_dates(scope, params, 'jabvox_orders')
+    { total_orders: scope.count, total_amount: scope.sum(:total).to_s,
+      by_status: scope.reorder(nil).group(:status).count,
+      by_doc_type: scope.reorder(nil).group(:doc_type).count }
+  end
+
+  def report_dialer(params)
+    scope = JabvoxDialerCallLog.where(account_id: @account.id)
+    scope = apply_report_dates(scope, params, 'jabvox_dialer_call_logs')
+    { total_calls: scope.count,
+      answered: scope.where(status_jabvox: 'answered').count,
+      total_duration_seconds: scope.sum(:duration_jabvox).to_i,
+      by_status: scope.reorder(nil).group(:status_jabvox).count }
+  end
+
+  def report_agent_status(_params)
+    online = begin
+      OnlineStatusTracker.get_available_users(@account.id).keys
+    rescue StandardError
+      []
+    end
+    { online_agents: online.size,
+      agents: @account.users.order(:name).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |u|
+        { id: u.id, name: u.name, online: online.map(&:to_s).include?(u.id.to_s) }
+      end }
+  end
+
+  def report_hermes_activity(params)
+    scope = JabvoxHermesActionLog.where(account_id: @account.id)
+    scope = apply_report_dates(scope, params, 'jabvox_hermes_action_logs')
+    { total_actions: scope.count,
+      by_status: scope.reorder(nil).group(:status_jabvox).count,
+      by_tool: scope.reorder(nil).group(:tool_jabvox).order('count_all DESC').limit(20).count }
+  end
+
+  # === Dashboards / widgets (crear y gestionar) ===
+  # Todo scoped a @account vía ActiveRecord. Hermes NUNCA maneja credenciales:
+  # solo referencia data sources YA conectadas por su id.
+  def get_analytics_dashboard(params)
+    d = @account.jabvox_analytics_dashboards.find(params[:id])
+    serialize_dashboard(d, with_widgets: true)
+  end
+
+  def create_analytics_dashboard(params)
+    d = @account.jabvox_analytics_dashboards.new(
+      name_jabvox: params[:name].to_s,
+      description_jabvox: params[:description],
+      folder_id: analytics_folder_id(params[:folder_id]),
+      created_by: @user
+    )
+    d.save!
+    serialize_dashboard(d)
+  end
+
+  def update_analytics_dashboard(params)
+    d = @account.jabvox_analytics_dashboards.find(params[:id])
+    attrs = {}
+    attrs[:name_jabvox] = params[:name].to_s if params.key?(:name)
+    attrs[:description_jabvox] = params[:description] if params.key?(:description)
+    attrs[:folder_id] = analytics_folder_id(params[:folder_id]) if params.key?(:folder_id)
+    d.update!(attrs)
+    serialize_dashboard(d)
+  end
+
+  # Añade un widget a un dashboard. El data_source debe existir en ESTA cuenta;
+  # si no, se rechaza (no se puede apuntar a una fuente de otra cuenta).
+  def create_analytics_widget(params)
+    dashboard = @account.jabvox_analytics_dashboards.find(params[:dashboard_id])
+    data_source_id = resolve_widget_data_source_id(params[:data_source_id])
+    widget = dashboard.widgets.new(
+      account: @account,
+      title_jabvox: params[:title].to_s,
+      widget_type_jabvox: params[:widget_type].to_s.presence || 'table',
+      data_source_id: data_source_id,
+      custom_sql_jabvox: params[:custom_sql],
+      query_spec_jabvox: params[:query_spec].is_a?(Hash) ? params[:query_spec] : {},
+      config_jabvox: params[:config].is_a?(Hash) ? params[:config] : {}
+    )
+    widget.save!
+    serialize_widget(widget)
+  end
+
+  def update_analytics_widget(params)
+    dashboard = @account.jabvox_analytics_dashboards.find(params[:dashboard_id])
+    widget = dashboard.widgets.find(params[:id])
+    widget.update!(widget_update_attrs(params))
+    serialize_widget(widget)
+  end
+
+  # Ejecuta un widget guardado (read-only). Reusa el mismo servicio que la UI:
+  # custom_sql pasa por el validador read-only; el query visual por el builder.
+  def execute_analytics_widget(params)
+    dashboard = @account.jabvox_analytics_dashboards.find(params[:dashboard_id])
+    widget = dashboard.widgets.find(params[:id])
+    raise Jabvox::Hermes::ServiceLayer::UnknownAction, 'el widget no tiene fuente de datos' if widget.data_source.blank?
+
+    svc = Jabvox::Analytics::QueryExecutionService.new(
+      data_source: widget.data_source, user: @user, ttl_seconds: dashboard.cache_ttl_seconds_jabvox
+    )
+    outcome = if widget.uses_custom_sql?
+                svc.run_custom_sql(widget.custom_sql_jabvox)
+              else
+                svc.run_visual(widget.query_spec_jabvox)
+              end
+    outcome.to_h
+  rescue Jabvox::Analytics::QueryExecutionService::RejectedError => e
+    { rejected: true, error: e.message }
+  rescue Jabvox::Analytics::Adapters::BaseAdapter::ConnectionError => e
+    { connection_error: true, error: "No se pudo conectar a la base de datos externa: #{e.message}" }
+  end
+
   # === Importar leads (pull desde BD externa) ===
   def list_lead_import_sources(_params)
     @account.jabvox_lead_sources.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |s|
@@ -793,6 +963,136 @@ module Jabvox::Hermes::ServiceHandlers
     # 'reuse' clona la configuración del lote como base para un reenvío.
     new_batch = batch.respond_to?(:reuse!) ? batch.reuse!(user: @user) : batch.dup.tap(&:save!)
     { id: new_batch.id, status: new_batch.try(:status_jabvox), reused_from: batch.id }
+  end
+
+  def get_bulk_whatsapp_batch(params)
+    b = @account.jabvox_bulk_whatsapp_batches.find(params[:id])
+    { id: b.id, status: b.try(:status_jabvox), total: b.try(:total_rows_jabvox),
+      sent: b.try(:sent_count_jabvox), created_at: b.created_at }
+  end
+
+  # Crea y lanza un envío masivo a leads. Acción DISRUPTIVA (envía mensajes reales).
+  # Reusa el mismo servicio que la UI (BulkWhatsappDispatchService). El sender debe
+  # ser el propio usuario del agente salvo que sea admin (misma regla del controller).
+  def create_bulk_whatsapp_batch(params)
+    inbox = @account.inboxes.find(params[:inbox_id])
+    sender = @account.users.find(params[:sender_user_id] || @user.id)
+    unless admin_account_user? || sender.id == @user.id
+      raise Jabvox::Hermes::ServiceLayer::Forbidden, 'solo un administrador puede enviar en nombre de otro usuario'
+    end
+
+    batch = Jabvox::BulkWhatsappDispatchService.prepare(
+      account: @account, inbox: inbox, sender_user: sender, actor: @user,
+      response_email: params[:response_email], template_name: params[:template_name],
+      language: params[:language], text: params[:text],
+      variable_map: params[:variable_map].is_a?(Hash) ? params[:variable_map] : {},
+      leads_selection: bulk_leads_selection(params)
+    )
+    { id: batch.id, status: batch.try(:status_jabvox), total: batch.try(:total_rows_jabvox) }
+  rescue Jabvox::BulkWhatsappDispatchService::Error => e
+    { error: e.message }
+  end
+
+  # === Grupos de WhatsApp ===
+  def list_whatsapp_groups(_params)
+    @account.jabvox_whatsapp_groups.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |g| whatsapp_group_view(g) }
+  end
+
+  def get_whatsapp_group(params)
+    whatsapp_group_view(@account.jabvox_whatsapp_groups.find(params[:id]), members: true)
+  end
+
+  def create_whatsapp_group(params)
+    inbox = @account.inboxes.find(params[:inbox_id])
+    group = Jabvox::Whatsapp::GroupManager.new(inbox).create(
+      name: params[:name].to_s, description: params[:description],
+      created_by: @user, member_phones: Array(params[:member_phones])
+    )
+    whatsapp_group_view(group, members: true)
+  end
+
+  def update_whatsapp_group(params)
+    group = @account.jabvox_whatsapp_groups.find(params[:id])
+    Jabvox::Whatsapp::GroupManager.new(group.inbox).update_metadata(
+      group, { name: params[:name], description: params[:description] }.compact
+    )
+    whatsapp_group_view(group.reload)
+  end
+
+  def add_whatsapp_group_member(params)
+    group = @account.jabvox_whatsapp_groups.find(params[:id])
+    Jabvox::Whatsapp::GroupManager.new(group.inbox).add_member(group, params[:phone].to_s)
+    whatsapp_group_view(group.reload, members: true)
+  end
+
+  def send_whatsapp_group_message(params)
+    group = @account.jabvox_whatsapp_groups.find(params[:id])
+    Jabvox::Whatsapp::GroupManager.new(group.inbox).send_message(group, params[:text].to_s)
+    { sent: true, group_id: group.id }
+  end
+
+  # === Voice Broadcast (gestión de campañas; el backend hace la marcación real) ===
+  def list_voice_broadcasts(_params)
+    JabvoxVoiceBroadcast.for_account(@account.id).ordered.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |b| voice_broadcast_view(b) }
+  end
+
+  def get_voice_broadcast(params)
+    voice_broadcast_view(find_voice_broadcast(params[:id]), detail: true)
+  end
+
+  def get_voice_broadcast_report(params)
+    b = find_voice_broadcast(params[:id])
+    { id: b.id, name: b.name_jabvox, status: b.status_jabvox,
+      total_recipients: b.try(:total_recipients_jabvox), dialed: b.try(:dialed_count_jabvox),
+      answered_human: b.try(:answered_human_count_jabvox), answered_machine: b.try(:answered_machine_count_jabvox),
+      played_complete: b.try(:played_complete_count_jabvox), failed: b.try(:failed_count_jabvox) }
+  end
+
+  def create_voice_broadcast(params)
+    b = JabvoxVoiceBroadcast.new(voice_broadcast_attrs(params))
+    b.account = @account
+    b.created_by = @user
+    b.source_jabvox = 'leads'
+    b.save!
+    voice_broadcast_view(b, detail: true)
+  end
+
+  def update_voice_broadcast(params)
+    b = find_voice_broadcast(params[:id])
+    b.update!(voice_broadcast_attrs(params))
+    voice_broadcast_view(b, detail: true)
+  end
+
+  # Cambia el estado. start EXIGE audio listo (falla limpio si no lo hay); el backend
+  # (TickAccountJob) hace la marcación. Hermes nunca toca AMI ni origina llamadas.
+  def start_voice_broadcast(params)
+    b = find_voice_broadcast(params[:id])
+    return { error: 'Sube y despliega el audio de la campaña primero (desde la interfaz).' } unless b.audio_ready?
+
+    b.update!(status_jabvox: 'running', started_at_jabvox: b.started_at_jabvox || Time.current)
+    Jabvox::VoiceBroadcast::TickAccountJob.perform_later(b.id)
+    voice_broadcast_view(b, detail: true)
+  end
+
+  def pause_voice_broadcast(params)
+    b = find_voice_broadcast(params[:id])
+    b.update!(status_jabvox: 'paused') if b.running?
+    voice_broadcast_view(b, detail: true)
+  end
+
+  def resume_voice_broadcast(params)
+    b = find_voice_broadcast(params[:id])
+    return { error: 'Solo se puede reanudar una campaña pausada.' } unless b.status_jabvox == 'paused'
+
+    b.update!(status_jabvox: 'running')
+    Jabvox::VoiceBroadcast::TickAccountJob.perform_later(b.id)
+    voice_broadcast_view(b, detail: true)
+  end
+
+  def stop_voice_broadcast(params)
+    b = find_voice_broadcast(params[:id])
+    b.update!(status_jabvox: 'stopped', finished_at_jabvox: Time.current)
+    voice_broadcast_view(b, detail: true)
   end
 
   # Envía una plantilla de WhatsApp APROBADA a un contacto. Crea/reusa su conversación en la
@@ -1129,6 +1429,10 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # --- Chat interno de equipo ---
+  def list_internal_chats(_params)
+    internal_chat_scope.order(updated_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |c| internal_chat_view(c) }
+  end
+
   def create_internal_chat(params)
     chat = params[:chat_type].to_s == 'group_chat' ? create_internal_group(params) : find_or_create_internal_direct(params)
     internal_chat_view(chat)
@@ -1244,25 +1548,35 @@ module Jabvox::Hermes::ServiceHandlers
     { id: c.id, name: c.name_jabvox, status: c.status_jabvox }
   end
 
+  # NO-DESTRUCTIVO: en vez de borrar la fila (como hace la UI), la RESETEA a 'pending'
+  # con attempts=0 para que el motor la vuelva a marcar. Hermes nunca borra registros.
   def redial_dialer_lead(params)
     c = @account.jabvox_dialer_campaigns.find(params[:id])
     cc = c.jabvox_dialer_campaign_contacts.find_by(contact_id: params[:contact_id].to_i)
     raise Jabvox::Hermes::ServiceLayer::UnknownAction, 'contacto no encontrado en la campaña' unless cc
 
-    cc.destroy!
-    { ok: true, campaign_id: c.id, contact_id: params[:contact_id].to_i }
+    cc.update!(status_jabvox: 'pending', attempts_jabvox: 0, last_attempt_at_jabvox: nil)
+    { ok: true, campaign_id: c.id, contact_id: params[:contact_id].to_i, status: cc.status_jabvox }
   end
 
+  # NO-DESTRUCTIVO: añade el lead a la lista de exclusión (el motor ya no lo marca) y
+  # cierra la fila pendiente marcándola 'completed' en vez de borrarla. Hermes nunca borra.
   def exclude_dialer_lead(params)
     c = @account.jabvox_dialer_campaigns.find(params[:id])
     lead = @account.jabvox_leads.find_by(contact_id: params[:contact_id].to_i)
     raise Jabvox::Hermes::ServiceLayer::UnknownAction, 'lead no encontrado' unless lead
 
-    excluded = Array(c.excluded_lead_ids_jabvox).map(&:to_i)
-    excluded << lead.id unless excluded.include?(lead.id)
-    c.update!(excluded_lead_ids_jabvox: excluded.uniq)
-    c.jabvox_dialer_campaign_contacts.find_by(contact_id: params[:contact_id].to_i)&.destroy!
+    add_lead_to_exclusion(c, lead.id)
+    cc = c.jabvox_dialer_campaign_contacts.find_by(contact_id: params[:contact_id].to_i)
+    cc.update!(status_jabvox: 'completed') if cc && cc.status_jabvox == 'pending'
     { ok: true, campaign_id: c.id, contact_id: params[:contact_id].to_i }
+  end
+
+  # Añade un lead a la lista de exclusión de la campaña (idempotente).
+  def add_lead_to_exclusion(campaign, lead_id)
+    excluded = Array(campaign.excluded_lead_ids_jabvox).map(&:to_i)
+    excluded << lead_id unless excluded.include?(lead_id)
+    campaign.update!(excluded_lead_ids_jabvox: excluded.uniq)
   end
 
   def import_dialer_contacts(params)
@@ -1798,6 +2112,128 @@ module Jabvox::Hermes::ServiceHandlers
   def affiliate_view(affiliate)
     { id: affiliate.id, name: affiliate.name, account_code: affiliate.try(:account_code),
       portal_slug: affiliate.try(:portal_slug), active: affiliate.active }
+  end
+
+  # ¿El usuario del agente es administrador de ESTA cuenta? (para reglas como
+  # "solo admin envía en nombre de otro"). Nunca se infiere del LLM.
+  def admin_account_user?
+    @account.account_users.find_by(user_id: @user.id)&.administrator?
+  end
+
+  # A quién enviar el masivo: todos los que matcheen el filtro, o una lista explícita.
+  def bulk_leads_selection(params)
+    { all: ActiveModel::Type::Boolean.new.cast(params[:all]),
+      lead_ids: Array(params[:lead_ids]), excluded_ids: Array(params[:excluded_ids]),
+      filters: params[:filters].is_a?(Hash) ? params[:filters] : {} }
+  end
+
+  # --- Helpers WhatsApp Grupos ---
+  def whatsapp_group_view(group, members: false)
+    base = { id: group.id, name: group.try(:name_jabvox) || group.try(:name),
+             description: group.try(:description_jabvox) || group.try(:description),
+             inbox_id: group.try(:inbox_id) }
+    return base unless members
+
+    base.merge(members: whatsapp_group_members(group))
+  rescue StandardError
+    base
+  end
+
+  def whatsapp_group_members(group)
+    group.members.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |m|
+      { id: m.id, phone: m.try(:phone_jabvox) || m.try(:phone), role: m.try(:role_jabvox) || m.try(:role) }
+    end
+  end
+
+  # --- Helpers Voice Broadcast ---
+  def find_voice_broadcast(id)
+    JabvoxVoiceBroadcast.for_account(@account.id).find(id)
+  end
+
+  def voice_broadcast_view(bcast, detail: false)
+    base = { id: bcast.id, name: bcast.name_jabvox, status: bcast.status_jabvox,
+             total_recipients: bcast.try(:total_recipients_jabvox) }
+    return base unless detail
+
+    base.merge(caller_id: bcast.try(:caller_id_jabvox), max_concurrent: bcast.try(:max_concurrent_jabvox),
+               cps: bcast.try(:cps_jabvox), max_retries: bcast.try(:max_retries_jabvox),
+               audio_ready: bcast.try(:audio_ready?), started_at: bcast.try(:started_at_jabvox),
+               finished_at: bcast.try(:finished_at_jabvox))
+  end
+
+  # Solo los atributos que Hermes envió. Los :json (listas de filtros) se aplican si
+  # vienen como Array. NO incluye el audio (Hermes no lo sube).
+  def voice_broadcast_attrs(params)
+    scalar = params.slice(:name_jabvox, :caller_id_jabvox, :max_concurrent_jabvox, :cps_jabvox,
+                          :max_retries_jabvox, :retry_interval_jabvox,
+                          :calling_hours_start_jabvox, :calling_hours_end_jabvox).compact
+    %i[countries_jabvox management_state_ids_jabvox affiliate_ids_jabvox inbox_ids_jabvox].each do |k|
+      scalar[k] = Array(params[k]) if params[k].is_a?(Array)
+    end
+    scalar
+  end
+
+  # --- Helpers Analytics (dashboards/widgets) ---
+  def serialize_dashboard(dashboard, with_widgets: false)
+    base = { id: dashboard.id, name: dashboard.name_jabvox, description: dashboard.description_jabvox,
+             folder_id: dashboard.folder_id, created_at: dashboard.created_at }
+    return base unless with_widgets
+
+    base.merge(widgets: dashboard.widgets.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |w|
+      serialize_widget(w)
+    end)
+  end
+
+  def serialize_widget(widget)
+    { id: widget.id, dashboard_id: widget.dashboard_id, title: widget.title_jabvox,
+      widget_type: widget.widget_type_jabvox, data_source_id: widget.data_source_id,
+      has_custom_sql: widget.custom_sql_jabvox.present? }
+  end
+
+  # Construye solo los atributos que Hermes envió (los que no manda se dejan
+  # intactos). Los :json solo se aplican si vienen como Hash.
+  def widget_update_attrs(params)
+    attrs = {}
+    attrs[:title_jabvox] = params[:title].to_s if params.key?(:title)
+    attrs[:widget_type_jabvox] = params[:widget_type].to_s if params.key?(:widget_type)
+    attrs[:data_source_id] = resolve_widget_data_source_id(params[:data_source_id]) if params.key?(:data_source_id)
+    attrs[:custom_sql_jabvox] = params[:custom_sql] if params.key?(:custom_sql)
+    attrs[:query_spec_jabvox] = params[:query_spec] if params[:query_spec].is_a?(Hash)
+    attrs[:config_jabvox] = params[:config] if params[:config].is_a?(Hash)
+    attrs
+  end
+
+  # Aplica el rango de fechas (since/until, ISO) a un scope de reporte. Sin fechas,
+  # devuelve el scope intacto. Tolerante a formatos inválidos (los ignora).
+  def apply_report_dates(scope, params, table)
+    if params[:since].present?
+      scope = scope.where("#{table}.created_at >= ?", Time.zone.parse(params[:since].to_s).beginning_of_day)
+    end
+    if params[:until].present?
+      scope = scope.where("#{table}.created_at <= ?", Time.zone.parse(params[:until].to_s).end_of_day)
+    end
+    scope
+  rescue ArgumentError, TypeError
+    scope
+  end
+
+  # Solo acepta un folder que exista en ESTA cuenta; cualquier otro id se ignora
+  # (nil) para no fugar/enlazar carpetas ajenas.
+  def analytics_folder_id(raw)
+    return nil if raw.blank?
+
+    @account.jabvox_analytics_folders.where(id: raw).pick(:id)
+  end
+
+  # Valida que la data source pertenezca a ESTA cuenta antes de enlazarla a un
+  # widget. Si no existe en la cuenta, se rechaza (no se apunta a fuentes ajenas).
+  def resolve_widget_data_source_id(raw)
+    return nil if raw.blank?
+
+    id = @account.jabvox_analytics_data_sources.where(id: raw).pick(:id)
+    raise Jabvox::Hermes::ServiceLayer::UnknownAction, 'la fuente de datos no existe en esta cuenta' if id.nil?
+
+    id
   end
 end
 # rubocop:enable Metrics/ModuleLength
