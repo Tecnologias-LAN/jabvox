@@ -782,6 +782,7 @@ Rails.application.routes.draw do
               collection do
                 get :status
                 post :provision
+                post :stream
               end
             end
             # Estado del Consumer (Chat IA) + sync de modelos con el Hermes de la cuenta.

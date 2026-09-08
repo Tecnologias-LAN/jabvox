@@ -24,6 +24,9 @@ const messageInput = ref('');
 const messagesContainer = ref(null);
 const hermesAgents = ref([]); // agentes Hermes ligados a este usuario (N:N)
 const selectedAgentId = ref(null); // conexión Hermes elegida en el chat
+// Picker de MODELO LLM del agente (glm-5, etc.). Vacío = usa el default del agente en Hermes.
+const modelOptions = ref([]); // [{ value:'zai::glm-5', label:'glm-5', model, provider }]
+const selectedModelKey = ref(''); // 'provider::model' elegido; '' = default del agente
 const isStreaming = ref(false);
 // Permite ABORTAR el streaming en curso (botón Detener) para no bloquear al usuario.
 const streamController = ref(null);
@@ -100,6 +103,18 @@ const canSend = computed(
 const agentOptions = computed(() =>
   (hermesAgents.value || []).map(a => ({ value: a.id, label: a.name }))
 );
+
+// El modelo/proveedor elegidos en el picker, o {} si se usa el default del agente.
+const selectedModelOverride = computed(() => {
+  const opt = modelOptions.value.find(o => o.value === selectedModelKey.value);
+  return opt ? { llm_model: opt.model, llm_provider: opt.provider } : {};
+});
+
+// Opciones del Select de modelo con "Modelo por defecto" (value '') al frente.
+const modelSelectOptions = computed(() => [
+  { value: '', label: t('JABVOX_AI_CHAT.DEFAULT_MODEL') },
+  ...modelOptions.value.map(o => ({ value: o.value, label: o.label })),
+]);
 
 function selectSession(sessionId) {
   currentSessionId.value = sessionId;
@@ -324,6 +339,8 @@ async function streamAssistant(
         session_id: apiSessionId,
         connection_id: selectedAgentId.value,
         attachments: sentAttachments,
+        // Modelo/proveedor elegidos en el picker (vacío = default del agente en Hermes).
+        ...selectedModelOverride.value,
       }),
     });
     if (!res.ok || !res.body) {
@@ -359,9 +376,39 @@ function stopStreaming() {
   streamController.value?.abort();
 }
 
+// Carga los modelos LLM que ofrece el agente elegido (para el picker /model). Aplana los
+// providers autenticados a una lista [{ value:'provider::model', label, model, provider }] y
+// marca el modelo actual (is_current) como seleccionado por defecto. Silencioso si falla:
+// sin modelos, el chat sigue usando el default del agente.
+async function loadModelOptions(connectionId) {
+  modelOptions.value = [];
+  selectedModelKey.value = '';
+  if (!connectionId) return;
+  try {
+    const { data } = await hermesConnectionsAPI.modelOptions(connectionId);
+    const providers = data?.providers || [];
+    const opts = [];
+    let current = '';
+    providers.forEach(p => {
+      if (p.authenticated === false) return; // solo proveedores utilizables
+      (p.models || []).forEach(m => {
+        const value = `${p.slug}::${m}`;
+        opts.push({ value, label: m, provider: p.slug, model: m });
+        if (p.is_current && data.model === m) current = value;
+      });
+    });
+    modelOptions.value = opts;
+    selectedModelKey.value = current; // '' si no hay match → default del agente
+  } catch {
+    modelOptions.value = [];
+  }
+}
+
 // Si el usuario cambia de agente mientras está en una sesión que pertenece a OTRO agente,
 // se abre una conversación nueva: una sesión existente solo se ejecuta con su propio agente.
 watch(selectedAgentId, (newId, oldId) => {
+  // Al cambiar de agente, recarga sus modelos disponibles (cada agente puede ofrecer otros).
+  loadModelOptions(newId);
   if (!oldId || newId === oldId || !currentSessionId.value) return;
   const session = sessions.value.find(
     s => s.session_id === currentSessionId.value
@@ -710,6 +757,14 @@ const numberedSessions = computed(() =>
             <!-- Selector de agente Hermes (los ligados a este usuario) -->
             <div v-if="hasAgents" class="w-48">
               <Select v-model="selectedAgentId" :options="agentOptions" />
+            </div>
+            <!-- Selector de MODELO del agente (equivale a /model). Solo si el agente
+                 reporta modelos disponibles; la 1ª opción usa el default del agente. -->
+            <div v-if="hasAgents && modelOptions.length" class="w-44">
+              <Select
+                v-model="selectedModelKey"
+                :options="modelSelectOptions"
+              />
             </div>
           </div>
         </div>

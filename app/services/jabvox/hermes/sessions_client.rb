@@ -66,12 +66,17 @@ class Jabvox::Hermes::SessionsClient
   # Turno en STREAMING (SSE). Reenvía tal cual cada línea del stream de Hermes al bloque
   # `on_chunk` (texto fluyendo + eventos hermes.tool.progress + [DONE]), igual que Telegram.
   # Devuelve el texto completo acumulado. `on_session` recibe el X-Hermes-Session-Id si llega.
-  def chat_stream(input, on_chunk:, on_session: nil)
+  #
+  # `llm_overrides` (opcional): { model:, provider: } elegidos por el usuario en el picker.
+  # El `model` del body pasa a ser ese LLM (glm-5, etc.) en vez del nombre del agente, y se
+  # añade `provider`. Un provider explícito Hermes siempre lo honra (verificado en vivo). Si
+  # es nil, se envía el agente como model → Hermes usa su default (comportamiento anterior).
+  def chat_stream(input, on_chunk:, on_session: nil, llm_overrides: nil)
     messages = input.is_a?(Array) ? input : [{ role: 'user', content: input.to_s }]
     full = +''
     stream_conn.post(api_path('chat/completions')) do |req|
       req.headers['Accept'] = 'text/event-stream'
-      req.body = { model: @model, messages: messages, stream: true }
+      req.body = stream_body(messages, llm_overrides)
       req.options.on_data = proc do |chunk, _bytes, env|
         on_session&.call(env.response_headers['x-hermes-session-id']) if on_session && env
         full << extract_stream_text(chunk)
@@ -82,6 +87,17 @@ class Jabvox::Hermes::SessionsClient
   rescue Faraday::Error => e
     on_chunk.call("data: #{{ error: net_error(e) }.to_json}\n\n")
     full
+  end
+
+  # Body del chat/completions en streaming. Aplica el modelo/proveedor del picker si vienen.
+  def stream_body(messages, llm_overrides)
+    body = { model: @model, messages: messages, stream: true }
+    return body if llm_overrides.blank?
+
+    overrides = llm_overrides.transform_keys(&:to_sym)
+    body[:model] = overrides[:model] if overrides[:model].present?
+    body[:provider] = overrides[:provider] if overrides[:provider].present?
+    body
   end
 
   # Lista de modelos que expone el Hermes (GET .../v1/models) — para el sync de modelos.
