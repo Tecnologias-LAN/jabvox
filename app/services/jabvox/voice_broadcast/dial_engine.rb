@@ -48,6 +48,17 @@ class Jabvox::VoiceBroadcast::DialEngine
     result == Jabvox::RedisLock::NOT_ACQUIRED ? 0 : result
   end
 
+  # ¿La campaña sigue teniendo trabajo (running + pendientes o llamadas en vuelo)? El
+  # TickAccountJob lo usa para RE-ENCOLARSE de inmediato cuando el tick terminó por tiempo
+  # (MAX_TICK_SECONDS) pero aún queda por marcar — así la marcación es CONTINUA y no espera
+  # al próximo cron (evita el gap de ~15s/minuto). El lock por broadcast impide solaparse.
+  def more_work?
+    @broadcast.reload.running? &&
+      (@broadcast.remaining_recipients_count.positive? || @broadcast.in_flight_count.positive?)
+  rescue StandardError
+    false
+  end
+
   private
 
   # Kill-switch: si la campaña lleva 'running' más que MAX_RUNTIME_HOURS, se auto-detiene
@@ -85,38 +96,72 @@ class Jabvox::VoiceBroadcast::DialEngine
     end
   end
 
-  # Llena los cupos de concurrencia libres, originando al ritmo del CPS (llamadas por
-  # segundo REAL: una pausa de 1/cps entre cada originate). Así una campaña grande alcanza
-  # rápido su max_concurrent sin esperar varios ticks, pero sin saturar el troncal.
-  # El tick no dura más de MAX_TICK_SECONDS para no acaparar el worker; el siguiente
-  # tick (cron) continúa llenando lo que falte.
-  def dial_batch(lock)
-    slots = @broadcast.max_concurrent_jabvox - @broadcast.in_flight_count
-    return 0 if slots <= 0
+  # Cuánto espera el bucle cuando NO hay slots libres (todos los canales ocupados),
+  # antes de volver a mirar si alguna llamada colgó y liberó un cupo. Corto para que el
+  # relleno sea fluido (rellena en cuanto cuelgan), sin martillar la BD.
+  REFILL_POLL_SECONDS = 0.5
 
+  # PACING CONTINUO: mantiene SIEMPRE ~max_concurrent llamadas en vuelo durante todo el
+  # tick, rellenando a medida que las llamadas van colgando (no por lotes). En cada vuelta
+  # recalcula los cupos libres (max_concurrent - in_flight REAL) y origina para llenarlos
+  # al ritmo del CPS; si no hay cupos, espera un poco y reintenta hasta agotar el tiempo del
+  # tick o quedarse sin pendientes. El siguiente tick (cron cada minuto) continúa.
+  #
+  # Antes se calculaba `slots` UNA sola vez al inicio: marcaba 20 y no rellenaba hasta el
+  # próximo tick (1 min después) → efecto "por lotes" (marca 20, espera a que acaben, marca
+  # 20…). Ahora es un flujo continuo: marca 20, cuelgan 4 → marca 4, cuelgan 10 → marca 10.
+  def dial_batch(lock) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
     config = @account.jabvox_voip_config
     return 0 if config&.host.blank?
 
-    cps = [@broadcast.cps_jabvox.to_i, 1].max
-    pause = 1.0 / cps                        # segundos entre originates (CPS real)
-    deadline = Time.current + MAX_TICK_SECONDS
-    service = Jabvox::VoiceBroadcast::OriginateService.new(config)
-    playback = Jabvox::VoiceBroadcast::DeployService.playback_ref(@broadcast.audio_filename_jabvox)
+    ctx = {
+      pause: 1.0 / [@broadcast.cps_jabvox.to_i, 1].max, # segundos entre originates (CPS real)
+      deadline: Time.current + MAX_TICK_SECONDS,
+      service: Jabvox::VoiceBroadcast::OriginateService.new(config),
+      playback: Jabvox::VoiceBroadcast::DeployService.playback_ref(@broadcast.audio_filename_jabvox)
+    }
     count = 0
+    while Time.current < ctx[:deadline] && lock.held?
+      slots = @broadcast.max_concurrent_jabvox - @broadcast.in_flight_count
+      if slots <= 0
+        nap_until(ctx[:deadline]) # canales llenos: espera a que alguna cuelgue
+        next
+      end
+
+      originated = fill_free_slots(lock, ctx, slots)
+      count += originated
+      next if originated.positive? # marcó algo: sigue rellenando de inmediato
+
+      # No marcó nada (cupos libres pero sin pendientes elegibles AHORA): si ya no queda
+      # nada, terminamos; si solo faltan reintentos en espera o hay llamadas en vuelo,
+      # esperamos y reintentamos (se rellenan al colgar / cumplir su intervalo).
+      break if @broadcast.remaining_recipients_count.zero? && @broadcast.in_flight_count.zero?
+
+      nap_until(ctx[:deadline])
+    end
+    count
+  end
+
+  # Origina hasta `slots` llamadas en esta vuelta, al ritmo del CPS. Devuelve cuántas marcó.
+  def fill_free_slots(lock, ctx, slots)
+    originated = 0
     slots.times do
-      # Fencing: si perdimos el lock (proceso congelado > TTL y otro tick lo tomó),
-      # dejamos de originar para no doble-marcar con el nuevo dueño.
       break unless lock.held?
-      break if Time.current >= deadline # no acaparar el worker; el próximo tick sigue
+      break if Time.current >= ctx[:deadline]
 
       recipient = reserve_next_recipient
       break if recipient.nil? # no quedan pendientes elegibles
 
-      originate(service, recipient, playback)
-      count += 1
-      sleep pause
+      originate(ctx[:service], recipient, ctx[:playback])
+      originated += 1
+      sleep ctx[:pause]
     end
-    count
+    originated
+  end
+
+  # Espera hasta REFILL_POLL_SECONDS (sin pasarse del deadline del tick).
+  def nap_until(deadline)
+    sleep REFILL_POLL_SECONDS.clamp(0, [deadline - Time.current, 0].max)
   end
 
   # Reserva atómica del siguiente destinatario pendiente (pending → calling) para
