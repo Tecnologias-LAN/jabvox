@@ -286,7 +286,12 @@ export default class SipClient {
   #scheduleReconnect() {
     if (this.reconnectTimer) return;
     this.reconnectAttempts = (this.reconnectAttempts || 0) + 1;
-    const delay = Math.min(2000 * 2 ** (this.reconnectAttempts - 1), 30000);
+    // Backoff exponencial (2s, 4s, 8s… tope 30s) MÁS jitter aleatorio (0–1s). Sin el
+    // jitter, si el PBX se reinicia TODOS los agentes reconectan en el mismo instante
+    // (2s, 4s…) y lo saturan con una tormenta de REGISTER sincronizados. El jitter
+    // dispersa esa carga — clave con decenas/cientos de softphones conectados.
+    const base = Math.min(2000 * 2 ** (this.reconnectAttempts - 1), 30000);
+    const delay = base + Math.floor(Math.random() * 1000);
     this.#setState('registering');
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
@@ -332,7 +337,15 @@ export default class SipClient {
     this.session = invitation;
     this.#wireSession(invitation, { direction: 'inbound' });
     if (this.credentials.autoAnswer) {
-      invitation.accept();
+      // Aceptar CON las constraints de audio explícitas (igual que la saliente). Sin
+      // esto, el navegador podía no capturar el micrófono en la llamada ENTRANTE del
+      // dialer → audio unidireccional ("se escucha mal / no me oyen"). Es la llamada
+      // que reciben los agentes, así que esto afecta a todos.
+      invitation.accept({
+        sessionDescriptionHandlerOptions: {
+          constraints: { audio: true, video: false },
+        },
+      });
     }
     // La UI decide aceptar/rechazar si no hay autorespuesta (vía onCallStart).
   }
@@ -343,6 +356,11 @@ export default class SipClient {
    * @param {{direction: 'inbound'|'outbound', target?: string}} meta
    */
   #wireSession(session, meta) {
+    // Engancha el audio remoto LO ANTES POSIBLE: el sessionDescriptionHandler (y su
+    // peerConnection) se crea al invitar/aceptar, y los tracks remotos pueden llegar
+    // por `ontrack` ANTES del estado Established. Si esperábamos a Established para
+    // poner el ontrack, ese primer track se perdía → el agente no escuchaba al cliente.
+    this.#bindRemoteAudioEarly(session);
     session.stateChange.addListener(async sessionState => {
       if (sessionState === SessionState.Established) {
         session.jabvoxWasEstablished = true;
@@ -402,34 +420,67 @@ export default class SipClient {
    * ontrack para agregar los tracks que lleguen luego. Guardamos el stream en
    * this.remoteStream para que el visualizador de espectro lea SIEMPRE el remoto real.
    */
+  // Engancha `ontrack` en cuanto exista el peerConnection, aunque la sesión aún no
+  // esté Established. El sessionDescriptionHandler se crea de forma asíncrona, así que
+  // reintentamos brevemente hasta que aparezca. Idempotente con #attachRemoteAudio (el
+  // stream se comparte por this.remoteStream).
+  #bindRemoteAudioEarly(session, attempt = 0) {
+    const pc = session.sessionDescriptionHandler?.peerConnection;
+    if (!pc) {
+      // El handler todavía no existe; reintentar unas pocas veces (máx ~1s).
+      if (attempt < 20 && this.session === session) {
+        setTimeout(() => this.#bindRemoteAudioEarly(session, attempt + 1), 50);
+      }
+      return;
+    }
+    if (pc.jabvoxOntrackBound) return;
+    pc.jabvoxOntrackBound = true;
+    this.#ensureRemoteStream();
+    pc.addEventListener('track', event => this.#onRemoteTrack(event));
+    // Por si algún track ya llegó antes de enganchar el listener.
+    this.#collectExistingReceivers(pc);
+  }
+
+  #ensureRemoteStream() {
+    if (!this.remoteStream) this.remoteStream = new MediaStream();
+    return this.remoteStream;
+  }
+
+  #collectExistingReceivers(pc) {
+    const stream = this.#ensureRemoteStream();
+    pc.getReceivers().forEach(receiver => {
+      const track = receiver.track;
+      if (track && track.kind === 'audio' && !stream.getTrackById(track.id)) {
+        stream.addTrack(track);
+      }
+    });
+    this.#flushRemoteAudio();
+  }
+
+  #onRemoteTrack(event) {
+    const track =
+      event.track || (event.streams && event.streams[0]?.getAudioTracks?.()[0]);
+    if (!track || track.kind !== 'audio') return;
+    const stream = this.#ensureRemoteStream();
+    if (!stream.getTrackById(track.id)) stream.addTrack(track);
+    this.#flushRemoteAudio();
+  }
+
+  #flushRemoteAudio() {
+    if (!this.remoteAudio || !this.remoteStream) return;
+    if (this.remoteAudio.srcObject !== this.remoteStream) {
+      this.remoteAudio.srcObject = this.remoteStream;
+    }
+    this.remoteAudio.play().catch(() => {});
+  }
+
   #attachRemoteAudio(session) {
     const pc = session.sessionDescriptionHandler?.peerConnection;
     if (!pc || !this.remoteAudio) return;
-
-    const remoteStream = new MediaStream();
-    this.remoteStream = remoteStream;
-
-    // Tracks ya presentes
-    pc.getReceivers().forEach(receiver => {
-      if (receiver.track && receiver.track.kind === 'audio') {
-        remoteStream.addTrack(receiver.track);
-      }
-    });
-
-    // Tracks que lleguen después (caso habitual): agregarlos en caliente.
-    pc.ontrack = event => {
-      const track =
-        event.track ||
-        (event.streams && event.streams[0]?.getAudioTracks?.()[0]);
-      if (track && track.kind === 'audio') {
-        if (!remoteStream.getTrackById(track.id)) remoteStream.addTrack(track);
-        this.remoteAudio.srcObject = remoteStream;
-        this.remoteAudio.play().catch(() => {});
-      }
-    };
-
-    this.remoteAudio.srcObject = remoteStream;
-    this.remoteAudio.play().catch(() => {});
+    // Asegura el enganche y recoge cualquier receiver ya presente (respaldo del
+    // #bindRemoteAudioEarly, por si el handler apareció justo en Established).
+    this.#bindRemoteAudioEarly(session);
+    this.#collectExistingReceivers(pc);
   }
 
   /** @param {SipState} state */

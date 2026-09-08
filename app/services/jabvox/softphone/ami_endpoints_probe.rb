@@ -10,7 +10,8 @@ require 'timeout'
 module Jabvox
   module Softphone
     class AmiEndpointsProbe
-      AMI_TIMEOUT = 5
+      # Cubre el peor caso: intento PJSIP (con su timeout corto) + fallback SIPpeers.
+      AMI_TIMEOUT = 8
 
       def initialize(voip_config)
         @config = voip_config
@@ -23,8 +24,12 @@ module Jabvox
       #                error: '<mensaje>' }
       def probe
         with_ami do |socket|
-          send_action(socket, 'PJSIPShowContacts')
-          { ok: true, contacts: parse_contacts(read_event_list(socket)) }
+          # PJSIP primero (Asterisk moderno). Si el PBX no usa PJSIP, la lista viene
+          # vacía o el comando no aplica → caemos a chan_sip (SIPpeers), que es lo que
+          # usan muchos PBX (Issabel/FreePBX con chan_sip). Así funciona en ambos.
+          contacts = parse_contacts(query_pjsip_contacts(socket))
+          contacts = parse_sip_peers(query_sip_peers(socket)) if contacts.empty?
+          { ok: true, contacts: contacts }
         end
       rescue Timeout::Error
         { ok: false, error_code: 'timeout', error: 'El PBX no respondió a tiempo.' }
@@ -73,6 +78,43 @@ module Jabvox
           result[key.to_s.downcase] = val if key
         end
         result
+      end
+
+      # Cuánto esperar por la lista PJSIP antes de rendirse y probar chan_sip. Corto,
+      # porque en un PBX sin PJSIP el comando no produce el evento de fin y colgaría.
+      PJSIP_PROBE_TIMEOUT = 2
+
+      # PJSIP: pide los contactos. Si el comando no aplica en este PBX (chan_sip),
+      # devuelve [] rápido para que el caller pruebe SIPpeers sin colgarse.
+      def query_pjsip_contacts(socket)
+        Timeout.timeout(PJSIP_PROBE_TIMEOUT) do
+          send_action(socket, 'PJSIPShowContacts')
+          read_event_list(socket)
+        end
+      rescue StandardError
+        []
+      end
+
+      # chan_sip: lista de peers (SIPpeers → eventos PeerEntry, fin PeerlistComplete).
+      def query_sip_peers(socket)
+        send_action(socket, 'SIPpeers')
+        read_event_list(socket)
+      rescue StandardError
+        []
+      end
+
+      # Mapa extensión => "reachable"/"unreachable" desde los PeerEntry de chan_sip.
+      # Un peer registrado trae Status "OK (N ms)"; sin registrar, "UNKNOWN" o
+      # "UNREACHABLE" (e IPaddress "-none-").
+      def parse_sip_peers(events)
+        events.each_with_object({}) do |ev, acc|
+          next unless ev['event'].to_s.casecmp?('PeerEntry')
+
+          ext = ev['objectname'].to_s[/\d+/]
+          next if ext.blank?
+
+          acc[ext] = ev['status'].to_s.upcase.start_with?('OK') ? 'reachable' : 'unreachable'
+        end
       end
 
       # Lee eventos hasta el evento de fin de lista (ContactList/EndpointList complete).
