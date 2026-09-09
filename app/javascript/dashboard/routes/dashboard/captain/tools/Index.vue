@@ -81,7 +81,9 @@ const onDeleteSuccess = () => {
 };
 
 onMounted(() => {
-  if (!shouldShowPaywall(FEATURE_FLAGS.CAPTAIN_CUSTOM_TOOLS)) {
+  // Herramientas es parte del módulo único Jabvox IA: se gobierna por CAPTAIN
+  // (captain_integration), no por un flag custom_tools separado que no se activa.
+  if (!shouldShowPaywall(FEATURE_FLAGS.CAPTAIN)) {
     fetchCustomTools();
   }
 });
@@ -92,7 +94,7 @@ onMounted(() => {
     :header-title="$t('CAPTAIN.CUSTOM_TOOLS.HEADER')"
     :button-label="$t('CAPTAIN.CUSTOM_TOOLS.ADD_NEW')"
     :button-policy="['administrator']"
-    :feature-flag="FEATURE_FLAGS.CAPTAIN_CUSTOM_TOOLS"
+    :feature-flag="FEATURE_FLAGS.CAPTAIN"
     :total-count="customToolsMeta.totalCount"
     :current-page="customToolsMeta.page"
     :show-pagination-footer="!isFetching && !!customTools.length"

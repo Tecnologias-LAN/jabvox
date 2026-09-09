@@ -6,6 +6,8 @@
     "SWITCH_VIEW_LAYOUT": "Cambiar el diseño",
     "DASHBOARD_APP_TAB_MESSAGES": "Mensajes",
     "UNVERIFIED_SESSION": "La identidad de este usuario no está verificada",
+    "WHATSAPP_GROUP": "Grupo de WhatsApp",
+    "WHATSAPP_GROUP_BADGE": "Grupo",
     "NO_MESSAGE_1": "¡Oh oh! Parece que no hay mensajes de los clientes en tu bandeja de entrada.",
     "NO_MESSAGE_2": " para enviar un mensaje a tu página!",
     "NO_INBOX_1": "¡Hola! Parece que aún no has añadido ninguna bandeja de entrada.",

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import MessageList from './MessageList.vue';
@@ -13,49 +13,65 @@ const { assistantId } = defineProps({
 });
 
 const { t } = useI18n();
-const messages = ref([]);
+
+// Dos conversaciones de prueba independientes (p. ej. probar dos flujos a la
+// vez). El backend del playground es stateless: cada sesión manda su propio
+// historial, así que no necesitan estado en servidor.
+const createSession = index => ({
+  id: index,
+  messages: [],
+});
+
+const sessions = ref([createSession(1), createSession(2)]);
+const activeSessionId = ref(1);
 const newMessage = ref('');
 const isLoading = ref(false);
 
-const formatMessagesForApi = () => {
-  return messages.value.map(message => {
-    const payload = {
-      role: message.sender,
-      content: message.content,
-    };
+const activeSession = computed(
+  () =>
+    sessions.value.find(s => s.id === activeSessionId.value) ??
+    sessions.value[0]
+);
 
+const formatMessagesForApi = session => {
+  return session.messages.map(message => {
+    const payload = { role: message.sender, content: message.content };
     if (message.sender === 'assistant' && message.agentName) {
       payload.agent_name = message.agentName;
     }
-
     return payload;
   });
 };
 
 const resetConversation = () => {
-  messages.value = [];
+  const session = activeSession.value;
+  session.messages = [];
   newMessage.value = '';
 };
 
-// Watch for assistant ID changes and reset conversation
+const resetAllConversations = () => {
+  sessions.value = [createSession(1), createSession(2)];
+  activeSessionId.value = 1;
+  newMessage.value = '';
+};
+
+// Al cambiar de asistente, se limpian ambas conversaciones de prueba.
 watch(
   () => assistantId,
   (newId, oldId) => {
-    if (oldId && newId !== oldId) {
-      resetConversation();
-    }
+    if (oldId && newId !== oldId) resetAllConversations();
   }
 );
 
 const sendMessage = async () => {
   if (!newMessage.value.trim() || isLoading.value) return;
 
-  const userMessage = {
+  const session = activeSession.value;
+  session.messages.push({
     content: newMessage.value,
     sender: 'user',
     timestamp: new Date().toISOString(),
-  };
-  messages.value.push(userMessage);
+  });
   const currentMessage = newMessage.value;
   newMessage.value = '';
 
@@ -64,10 +80,10 @@ const sendMessage = async () => {
     const { data } = await CaptainAssistant.playground({
       assistantId,
       messageContent: currentMessage,
-      messageHistory: formatMessagesForApi(),
+      messageHistory: formatMessagesForApi(session),
     });
 
-    messages.value.push({
+    session.messages.push({
       content: data.response,
       sender: 'assistant',
       agentName: data.agent_name,
@@ -92,7 +108,7 @@ const handleEnterKey = event => {
   <div
     class="flex flex-col h-full rounded-xl border py-6 border-n-weak text-n-slate-11"
   >
-    <div class="mb-8 px-6">
+    <div class="mb-4 px-6">
       <div class="flex justify-between items-center mb-1">
         <h3 class="text-lg font-medium">
           {{ t('CAPTAIN.PLAYGROUND.HEADER') }}
@@ -110,7 +126,24 @@ const handleEnterKey = event => {
       </p>
     </div>
 
-    <MessageList :messages="messages" :is-loading="isLoading" />
+    <!-- Pestañas de conversación de prueba -->
+    <div class="flex items-center gap-1 px-6 mb-3">
+      <button
+        v-for="(session, index) in sessions"
+        :key="session.id"
+        class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors"
+        :class="
+          activeSessionId === session.id
+            ? 'bg-n-alpha-2 text-n-slate-12'
+            : 'text-n-slate-11 hover:text-n-slate-12'
+        "
+        @click="activeSessionId = session.id"
+      >
+        {{ t('CAPTAIN.PLAYGROUND.SESSION', { number: index + 1 }) }}
+      </button>
+    </div>
+
+    <MessageList :messages="activeSession.messages" :is-loading="isLoading" />
 
     <div
       class="flex items-center mx-6 bg-n-background outline outline-1 outline-n-weak rounded-xl p-3"

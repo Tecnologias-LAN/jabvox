@@ -39,7 +39,6 @@ import { routes as jabvoxManagementStatesRoutes } from './jabvox-management-stat
 import { routes as jabvoxDialerSettingsRoutes } from './jabvox-dialer/routes';
 import { routes as jabvoxFieldSecurityRoutes } from './jabvox-field-security/routes';
 import { routes as jabvoxAffiliatesRoutes } from './jabvox-affiliates/routes';
-import { routes as jabvoxResponseBotRoutes } from './jabvox-response-bot/routes';
 import { routes as jabvoxEmailSettingsRoutes } from './jabvox-email/routes';
 import { routes as jabvoxFormsSettingsRoutes } from './jabvox-forms/routes';
 import { routes as jabvoxCustomizationRoutes } from './jabvox-customization/routes';
@@ -104,7 +103,6 @@ export default {
     ...jabvoxManagementStatesRoutes,
     ...jabvoxDialerSettingsRoutes,
     ...jabvoxAffiliatesRoutes,
-    ...jabvoxResponseBotRoutes,
     ...jabvoxEmailSettingsRoutes,
     ...jabvoxFormsSettingsRoutes,
     ...jabvoxCustomizationRoutes,

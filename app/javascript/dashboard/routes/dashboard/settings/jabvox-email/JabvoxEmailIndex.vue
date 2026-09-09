@@ -153,7 +153,7 @@ const closeEditor = () => {
       <!-- Test -->
       <EmailTemplateTest v-else-if="activeTab === 'test'" />
 
-      <!-- Calendar -->
+      <!-- Calendar reminders -->
       <CalendarSettings v-else />
     </div>
   </div>

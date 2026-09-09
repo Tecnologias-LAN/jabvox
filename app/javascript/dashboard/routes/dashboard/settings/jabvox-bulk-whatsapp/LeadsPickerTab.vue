@@ -5,6 +5,7 @@ import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import leadsAPI from 'dashboard/api/jabvox/leads';
 import bulkWhatsappAPI from 'dashboard/api/jabvox/bulkWhatsapp';
+import TemplatePreview from './components/TemplatePreview.vue';
 
 const props = defineProps({
   inboxId: { type: [Number, String], default: '' },
@@ -12,7 +13,7 @@ const props = defineProps({
   // 'template' | 'text' | null — derived from the inbox by the parent.
   mode: { type: String, default: null },
   configReady: { type: Boolean, default: false },
-  // Wizard step driven by the parent: 2 audience, 3 message, 4 preview.
+  // Wizard step driven by the parent: 2 message/template, 3 audience, 4 preview.
   step: { type: Number, default: 2 },
   // "Reenviar a esta audiencia": respuesta de reuseBatch con los lead_ids ya
   // filtrados por estado + plantilla/idioma/variables del envío original. Cuando
@@ -161,6 +162,11 @@ const inboxTemplates = computed(() => {
 // mapped by the user to a lead field (or a fixed text) before the send.
 const variableMap = ref({});
 
+// Plantilla seleccionada completa (para la previa con media/header/footer/botones).
+const selectedTemplate = computed(() =>
+  inboxTemplates.value.find(tp => tp.name === templateName.value)
+);
+
 // Body text of the currently selected template.
 const selectedTemplateBody = computed(() => {
   const tpl = inboxTemplates.value.find(tp => tp.name === templateName.value);
@@ -193,6 +199,19 @@ const variableFieldOptions = computed(() => {
     label: cf.label || cf.key,
   }));
   return [...base, ...custom];
+});
+
+// Valores de ejemplo para la previa: cada {{n}} se muestra con la ETIQUETA del campo
+// del lead al que se mapeó (p.ej. «Nombre»), ya que no hay un lead concreto elegido.
+const previewSampleValues = computed(() => {
+  const out = {};
+  templateVariables.value.forEach(n => {
+    const opt = variableFieldOptions.value.find(
+      o => o.value === variableMap.value[n]
+    );
+    if (opt) out[String(n)] = `«${opt.label}»`;
+  });
+  return out;
 });
 
 // Reset the mapping whenever the set of variables changes (new template).
@@ -272,9 +291,10 @@ const previewLines = computed(() => {
 });
 
 // Tell the parent whether the current step lets "Next"/"Send" proceed.
+// Nuevo orden del asistente: 2 = plantilla/mensaje, 3 = audiencia, 4 = previa.
 const stepValidity = () => {
-  if (props.step === 2) return audienceValid.value;
   if (props.step === 3) return messageValid.value;
+  if (props.step === 2) return audienceValid.value;
   return canSend.value; // step 4
 };
 watch(
@@ -473,7 +493,7 @@ onMounted(() => {
 
     <!-- Filters (collapsible) — Paso 2: audiencia -->
     <section
-      v-show="step === 2"
+      v-show="step === 3"
       class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm"
     >
       <button
@@ -842,7 +862,7 @@ onMounted(() => {
 
     <!-- Aviso: audiencia precargada desde "Reenviar a esta audiencia" -->
     <div
-      v-if="preselect && step === 2"
+      v-if="preselect && step === 3"
       class="flex items-center gap-2 rounded-xl border border-n-teal-6 bg-n-teal-3 px-4 py-2.5 text-sm text-n-teal-12"
     >
       <span
@@ -858,7 +878,7 @@ onMounted(() => {
 
     <!-- Selection summary -->
     <div
-      v-show="step === 2"
+      v-show="step === 3"
       class="flex flex-wrap items-center justify-between gap-2 text-sm text-n-slate-11"
     >
       <div class="flex items-center gap-2">
@@ -890,7 +910,7 @@ onMounted(() => {
 
     <!-- Lead table -->
     <div
-      v-show="step === 2"
+      v-show="step === 3"
       class="overflow-x-auto rounded-2xl border border-n-weak bg-n-solid-1"
     >
       <table class="w-full text-sm">
@@ -939,7 +959,7 @@ onMounted(() => {
 
     <!-- Pagination -->
     <div
-      v-if="step === 2 && totalPages > 1"
+      v-if="step === 3 && totalPages > 1"
       class="flex items-center justify-center gap-2 text-sm"
     >
       <button
@@ -965,7 +985,7 @@ onMounted(() => {
 
     <!-- Message body — Paso 3: plantilla + variables / texto -->
     <section
-      v-show="step === 3"
+      v-show="step === 2"
       class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm space-y-3"
     >
       <p v-if="!mode" class="text-sm text-n-slate-10">
@@ -1097,6 +1117,12 @@ onMounted(() => {
           }}
         </li>
       </ul>
+      <!-- Previa real de la plantilla (header con media, cuerpo, footer, botones) -->
+      <TemplatePreview
+        v-if="mode === 'template' && selectedTemplate"
+        :template="selectedTemplate"
+        :sample-values="previewSampleValues"
+      />
       <div
         v-if="mode === 'template' && previewLines.length"
         class="rounded-lg bg-n-alpha-1 p-3 space-y-1"

@@ -7,9 +7,9 @@
 #   include Jabvox::AccountResourceLimit
 #   jabvox_resource_limit :automation_rules
 #
-# Para recursos repartidos en varios modelos (docs de IA = ai_chat + response_bot),
-# se pasa `counts_with:` con los modelos que suman al total:
-#   jabvox_resource_limit :ai_documents, counts_with: %w[JabvoxAiChatDocument JabvoxResponseBotDocument]
+# Para recursos repartidos en varios modelos se pasa `counts_with:` con los
+# modelos que suman al total:
+#   jabvox_resource_limit :ai_documents, counts_with: %w[JabvoxAiChatDocument]
 module Jabvox::AccountResourceLimit
   extend ActiveSupport::Concern
 

@@ -190,8 +190,6 @@ class Account < ApplicationRecord
   has_many :jabvox_ai_chat_storages, dependent: :destroy_async
   has_one :jabvox_context_forge_handoff, dependent: :destroy
   has_many :jabvox_provisioning_chat_messages, dependent: :destroy_async
-  has_many :jabvox_response_bot_configs, dependent: :destroy_async
-  has_many :jabvox_response_bot_documents, dependent: :destroy_async
   has_many :jabvox_management_states, dependent: :destroy_async
   has_many :jabvox_management_questions, dependent: :destroy_async
   has_many :jabvox_management_answers, dependent: :destroy_async
@@ -205,6 +203,7 @@ class Account < ApplicationRecord
   has_many :jabvox_affiliate_imports, dependent: :destroy_async
   has_many :jabvox_calendar_events, dependent: :destroy_async
   has_many :jabvox_calendar_external_people, dependent: :destroy_async
+  has_many :jabvox_agent_availabilities, dependent: :delete_all
   has_one :jabvox_form_config, dependent: :destroy
   has_many :jabvox_forms, dependent: :destroy_async
 
@@ -281,9 +280,27 @@ class Account < ApplicationRecord
   scope :pending_payment_older_than, ->(days) { payment_pending.where('created_at < ?', days.days.ago) }
 
   before_validation :validate_limit_keys
+  before_save :sync_jabvox_ia_subfeatures
   after_create_commit :notify_creation
   after_update_commit :clear_unread_conversation_counts_cache, if: :saved_change_to_feature_conversation_unread_counts?
   after_destroy :remove_account_sequences
+
+  # Jabvox IA es UN solo interruptor en super admin (feature captain_integration). Sus
+  # sub-features (V2, auto-sync de documentos, tareas) NO se muestran por separado: se
+  # activan/desactivan junto con la principal, aquí, en el mismo guardado.
+  JABVOX_IA_SUBFEATURES = %w[captain_integration_v2 captain_document_auto_sync captain_tasks].freeze
+
+  def sync_jabvox_ia_subfeatures
+    return unless respond_to?(:feature_captain_integration?)
+
+    target = feature_captain_integration?
+    JABVOX_IA_SUBFEATURES.each do |name|
+      setter = "feature_#{name}="
+      send(setter, target) if respond_to?(setter) && feature_enabled?(name) != target
+    end
+  rescue StandardError => e
+    Rails.logger.error("[jabvox_ia] no se pudieron sincronizar las sub-features | #{e.message}")
+  end
 
   def agents
     users.where(account_users: { role: :agent })

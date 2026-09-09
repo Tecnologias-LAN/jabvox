@@ -44,7 +44,27 @@
     },
     "TABS": {
       "CALENDAR": "Calendario",
-      "SETTINGS": "Configuración"
+      "SETTINGS": "Configuración",
+      "AVAILABILITY": "Agent hours"
+    },
+    "AVAILABILITY": {
+      "TITLE": "Agent working hours",
+      "DESCRIPTION": "Set each agent's working hours. Jabvox IA uses them to offer available appointment slots when scheduling during a conversation.",
+      "AGENT_LABEL": "Agent",
+      "DAY_OFF": "Off",
+      "HELP": "Only enabled days with a valid range generate available slots. The appointment duration sets how each range is split into slots.",
+      "SAVE_SUCCESS": "Working hours saved",
+      "SAVE_ERROR": "Could not save working hours",
+      "SAVE_INVALID": "Check the times: the end time must be after the start time.",
+      "DAYS": {
+        "0": "Sunday",
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday"
+      }
     },
     "FILTERS": {
       "CALENDARS": "Calendarios",

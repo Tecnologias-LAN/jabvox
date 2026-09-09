@@ -120,9 +120,9 @@
     },
     "WIZARD": {
       "STEP1": "Inbox & sender",
-      "STEP2": "Recipients",
-      "STEP3": "Template & variables",
-      "STEP4": "Test & send",
+      "STEP2": "Template",
+      "STEP3": "Recipients",
+      "STEP4": "Preview & send",
       "NEXT": "Next",
       "BACK": "Back",
       "STEP_OF": "Step {current} of {total}"
@@ -141,7 +141,7 @@
       "FILE_HINT": "Columns: nombre, numero, template, idioma. For official WhatsApp the 'template' column is the approved template name; for API inboxes it is the plain message text.",
       "MODE_TEMPLATE": "Official WhatsApp · approved template",
       "MODE_TEXT": "API · plain message",
-      "SAMPLE_HINT": "Not sure about the format? Select an inbox and download a sample CSV.",
+      "SAMPLE_HINT": "The file only needs the number (with +) and the variable columns. Template and language are chosen above.",
       "SAMPLE_SELECT_INBOX": "Select an inbox first to download the sample.",
       "DOWNLOAD_SAMPLE_TEMPLATE": "Sample (template)",
       "DOWNLOAD_SAMPLE_TEXT": "Sample (text)",
@@ -155,7 +155,15 @@
       "SUBMIT": "Send messages",
       "SUCCESS": "Sent to n8n for processing.",
       "ERROR": "Could not send. Check the file and the webhook settings.",
-      "CSV_TEMPLATE_INFO": "Each message template and language come from the CSV \"template\" and \"idioma\" columns. Review the preview below before continuing."
+      "CSV_TEMPLATE_INFO": "Each message template and language come from the CSV \"template\" and \"idioma\" columns. Review the preview below before continuing.",
+      "TEMPLATE": "Template",
+      "TEMPLATE_PLACEHOLDER": "Select a template…",
+      "TEMPLATE_LANG": "Language: {lang}",
+      "NO_TEMPLATES": "This inbox has no approved templates.",
+      "DOWNLOAD_SAMPLE": "Download sample",
+      "FILE_HINT_V2": "CSV with a «numero» column (in +57..., +52... format). Optional: «nombre» and columns for the variables.",
+      "MAP_VARS_TITLE": "Map each template variable to a file column",
+      "MAP_VARS_PLACEHOLDER": "Choose the column…"
     },
     "HISTORY": {
       "LOADING": "Loading history…",
@@ -233,7 +241,11 @@
       "TITLE": "Preview",
       "RECIPIENTS": "Will be sent to {count} recipient(s).",
       "TEMPLATE": "Template: {name} ({lang})",
-      "VARS": "Mapped variables:"
+      "VARS": "Mapped variables:",
+      "MEDIA_IMAGE": "Template image",
+      "MEDIA_VIDEO": "Template video",
+      "MEDIA_DOCUMENT": "Template document",
+      "EMPTY_BODY": "(No text)"
     }
   }
 }

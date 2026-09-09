@@ -42,8 +42,10 @@ class Jabvox::Whatsapp::GroupManager
     member.update!(invite_status_jabvox: 'removed', left_at_jabvox: Time.current)
   end
 
-  def update_member_role(group, member, role)
-    @provider.update_participant_role(group.provider_group_id_jabvox, member.phone_number_jabvox, role) if group.provisioned?
+  # Meta's Groups API has NO endpoint to set a participant's role; roles change only
+  # via the WhatsApp app and reach us through the group_participants_update webhook
+  # (promote/demote). So this updates ONLY local state — it never calls Meta.
+  def update_member_role(_group, member, role)
     member.update!(role_jabvox: role)
   end
 
@@ -56,22 +58,68 @@ class Jabvox::Whatsapp::GroupManager
                   description_jabvox: attrs.key?(:description) ? attrs[:description] : group.description_jabvox)
   end
 
+  # Fetch the current invite link from Meta and cache it locally.
   def refresh_invite_link(group)
     return unless group.provisioned?
 
     link = @provider.invite_link(group.provider_group_id_jabvox)
+    persist_invite_url(group, link)
+  end
+
+  # Rotate the invite link (invalidates the old one), then cache the new URL.
+  def reset_invite_link(group)
+    return unless group.provisioned?
+
+    link = @provider.reset_invite_link(group.provider_group_id_jabvox)
+    persist_invite_url(group, link)
+  end
+
+  # Send a text to the group via Meta AND persist it as an outgoing message in the
+  # group's conversation, so the send shows up in the agent inbox (and counts in
+  # reports) like any other outbound message. `sent_by` is the agent (optional).
+  def send_message(group, text, sent_by: nil)
+    raise Jabvox::Whatsapp::GroupApiError.new('Group is not provisioned yet', 409) unless group.provisioned?
+
+    response = @provider.send_text(group.provider_group_id_jabvox, text)
+    persist_outgoing_message(group, text, response, sent_by)
+    response
+  end
+
+  private
+
+  # Store the outbound group message locally so it appears in the conversation and
+  # counts in reports. Best-effort: a persistence failure must not fail the send
+  # (Meta already accepted it), so errors are logged, not raised.
+  def persist_outgoing_message(group, text, response, sent_by)
+    conversation = group_conversation(group)
+    return if conversation.nil?
+
+    wamid = response.is_a?(Hash) ? response.dig('messages', 0, 'id') : nil
+    conversation.messages.create!(
+      account_id: @account.id, inbox_id: group.inbox_id,
+      message_type: :outgoing, status: :sent,
+      content: text, source_id: wamid,
+      sender: sent_by,
+      content_attributes: { whatsapp_group: { outbound: true } }
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[Jabvox WhatsApp group send persist] #{e.class}: #{e.message}")
+  end
+
+  # The group's conversation (created on the first inbound message). If the group
+  # hasn't received anything yet there is no conversation; the send still goes out,
+  # it just won't have a local thread until the first inbound arrives.
+  def group_conversation(group)
+    group.conversation_id && @account.conversations.find_by(id: group.conversation_id)
+  end
+
+  # Meta returns the URL under `invite_link` (some SDKs nest it under invite.link);
+  # accept both, cache it on the group, and return it.
+  def persist_invite_url(group, link)
     url = link['invite_link'] || link.dig('invite', 'link')
     group.update!(invite_link_jabvox: url) if url.present?
     url
   end
-
-  def send_message(group, text)
-    raise Jabvox::Whatsapp::GroupApiError.new('Group is not provisioned yet', 409) unless group.provisioned?
-
-    @provider.send_text(group.provider_group_id_jabvox, text)
-  end
-
-  private
 
   def normalize(phone)
     phone.to_s.gsub(/\D/, '')

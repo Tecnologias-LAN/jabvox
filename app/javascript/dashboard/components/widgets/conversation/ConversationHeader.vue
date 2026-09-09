@@ -73,6 +73,17 @@ const isHMACVerified = computed(() => {
   return chatMetadata.value.hmac_verified;
 });
 
+// Conversación de grupo de WhatsApp: se identifica por additional_attributes que fija
+// el backend al recibir el primer mensaje del grupo. Mostramos el nombre del grupo (no
+// el del primer participante) y un distintivo.
+const groupAttributes = computed(() => props.chat?.additional_attributes || {});
+const isWhatsappGroup = computed(
+  () => groupAttributes.value.is_whatsapp_group === true
+);
+const whatsappGroupName = computed(
+  () => groupAttributes.value.group_name || ''
+);
+
 const currentContact = computed(() =>
   store.getters['contacts/getContact'](props.chat.meta.sender.id)
 );
@@ -154,12 +165,25 @@ const copyConversationId = async () => {
       >
         <div class="flex flex-row items-center max-w-full gap-1 p-0 m-0">
           <span
+            v-if="isWhatsappGroup"
+            v-tooltip="$t('CONVERSATION.WHATSAPP_GROUP')"
+            class="flex items-center justify-center flex-shrink-0 w-4 h-4 rounded-full bg-n-teal-9/15 text-n-teal-11"
+          >
+            <fluent-icon icon="people-team" size="12" />
+          </span>
+          <span
             class="text-sm font-medium truncate leading-tight text-n-slate-12"
           >
-            {{ currentContact.name }}
+            {{ isWhatsappGroup ? whatsappGroupName : currentContact.name }}
+          </span>
+          <span
+            v-if="isWhatsappGroup"
+            class="flex-shrink-0 rounded-full bg-n-teal-9/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-n-teal-11"
+          >
+            {{ $t('CONVERSATION.WHATSAPP_GROUP_BADGE') }}
           </span>
           <fluent-icon
-            v-if="!isHMACVerified"
+            v-if="!isHMACVerified && !isWhatsappGroup"
             v-tooltip="$t('CONVERSATION.UNVERIFIED_SESSION')"
             size="14"
             class="text-n-amber-10 my-0 mx-0 min-w-[14px] flex-shrink-0"

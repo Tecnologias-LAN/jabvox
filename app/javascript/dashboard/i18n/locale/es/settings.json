@@ -324,14 +324,14 @@
     "JABVOX_LEADS": "Leads",
     "COMPANIES": "Empresas",
     "ALL_COMPANIES": "All Companies",
-    "CAPTAIN": "Capitán",
+    "CAPTAIN": "Jabvox IA",
     "CAPTAIN_ASSISTANTS": "Asistentes",
     "CAPTAIN_OVERVIEW": "Resumen",
     "CAPTAIN_DOCUMENTS": "Documentos",
     "CAPTAIN_RESPONSES": "Preguntas frecuentes",
-    "CAPTAIN_TOOLS": "Tools",
-    "CAPTAIN_SCENARIOS": "Scenarios",
-    "CAPTAIN_PLAYGROUND": "Playground",
+    "CAPTAIN_TOOLS": "Herramientas",
+    "CAPTAIN_SCENARIOS": "Escenarios",
+    "CAPTAIN_PLAYGROUND": "Zona de pruebas",
     "CAPTAIN_INBOXES": "Entradas",
     "CAPTAIN_SETTINGS": "Ajustes",
     "HOME": "Inicio",
@@ -530,53 +530,53 @@
     }
   },
   "CAPTAIN_SETTINGS": {
-    "TITLE": "Captain Settings",
-    "DESCRIPTION": "Configure your AI models and features for Captain. Captain follows a credit based billing, you will be charged credits for every action Captain takes based on the model selected.",
-    "LOADING": "Loading Captain configuration...",
-    "LINK_TEXT": "Learn more about Captain Credits",
-    "NOT_ENABLED": "Captain is not enabled for your account. Please upgrade your plan to access Captain features.",
+    "TITLE": "Configuración de Jabvox IA",
+    "DESCRIPTION": "Configura tus modelos de IA y funciones para Jabvox IA. Jabvox IA usa una facturación basada en créditos; se te cobrarán créditos por cada acción que realice Jabvox IA según el modelo seleccionado.",
+    "LOADING": "Cargando la configuración de Jabvox IA...",
+    "LINK_TEXT": "Más información sobre los créditos de Jabvox IA",
+    "NOT_ENABLED": "Jabvox IA no está habilitado para tu cuenta. Actualiza tu plan para acceder a las funciones de Jabvox IA.",
     "MODEL_CONFIG": {
-      "TITLE": "Model Configuration",
-      "DESCRIPTION": "Select AI models for different features.",
-      "SELECT_MODEL": "Select model",
-      "CREDITS_PER_MESSAGE": "{credits} credit/message",
-      "COMING_SOON": "Coming soon",
+      "TITLE": "Configuración de modelos",
+      "DESCRIPTION": "Selecciona los modelos de IA para las distintas funciones.",
+      "SELECT_MODEL": "Seleccionar modelo",
+      "CREDITS_PER_MESSAGE": "{credits} crédito/mensaje",
+      "COMING_SOON": "Próximamente",
       "EDITOR": {
-        "TITLE": "Editor Features",
-        "DESCRIPTION": "Powers smart compose, grammar corrections, tone adjustments, and content enhancement in your message editor."
+        "TITLE": "Funciones del editor",
+        "DESCRIPTION": "Impulsa la redacción inteligente, las correcciones gramaticales, los ajustes de tono y la mejora de contenido en tu editor de mensajes."
       },
       "ASSISTANT": {
-        "TITLE": "Assistant",
-        "DESCRIPTION": "Handles automated responses, conversation summaries, and intelligent reply suggestions for customer interactions."
+        "TITLE": "Asistente",
+        "DESCRIPTION": "Gestiona las respuestas automáticas, los resúmenes de conversaciones y las sugerencias inteligentes de respuesta para las interacciones con los clientes."
       },
       "COPILOT": {
         "TITLE": "Co-pilot",
-        "DESCRIPTION": "Provides real-time contextual suggestions, knowledge base recommendations, and proactive insights during conversations."
+        "DESCRIPTION": "Ofrece sugerencias contextuales en tiempo real, recomendaciones de la base de conocimiento e información proactiva durante las conversaciones."
       }
     },
     "FEATURES": {
       "TITLE": "Características",
-      "DESCRIPTION": "Enable or disable AI-powered features.",
+      "DESCRIPTION": "Activa o desactiva las funciones impulsadas por IA.",
       "AUDIO_TRANSCRIPTION": {
-        "TITLE": "Audio Transcription",
-        "DESCRIPTION": "Automatically convert voice messages and call recordings into searchable text transcripts.",
+        "TITLE": "Transcripción de audio",
+        "DESCRIPTION": "Convierte automáticamente los mensajes de voz y las grabaciones de llamadas en transcripciones de texto que se pueden buscar.",
         "MODEL_TITLE": "Modelo de Transcripción de Audio",
         "MODEL_DESCRIPTION": "Seleccione el modelo de IA a utilizar para convertir mensajes de audio en transcripciones de texto"
       },
       "HELP_CENTER_SEARCH": {
-        "TITLE": "Help Center Search Indexing",
-        "DESCRIPTION": "Use AI for context aware search inside your help center articles."
+        "TITLE": "Indexación de búsqueda del centro de ayuda",
+        "DESCRIPTION": "Usa IA para una búsqueda con reconocimiento de contexto dentro de los artículos de tu centro de ayuda."
       },
       "LABEL_SUGGESTION": {
-        "TITLE": "Label Suggestion",
-        "DESCRIPTION": "Automatically suggest relevant labels and tags for conversations based on content analysis and context.",
-        "MODEL_TITLE": "Label Suggestion Model",
-        "MODEL_DESCRIPTION": "Select the AI model to use for analyzing conversations and suggesting appropriate labels"
+        "TITLE": "Sugerencia de etiquetas",
+        "DESCRIPTION": "Sugiere automáticamente etiquetas relevantes para las conversaciones según el análisis del contenido y el contexto.",
+        "MODEL_TITLE": "Modelo de sugerencia de etiquetas",
+        "MODEL_DESCRIPTION": "Selecciona el modelo de IA a utilizar para analizar las conversaciones y sugerir las etiquetas adecuadas"
       }
     },
     "API": {
-      "SUCCESS": "Captain settings updated successfully.",
-      "ERROR": "Failed to update Captain settings. Please try again."
+      "SUCCESS": "La configuración de Jabvox IA se actualizó correctamente.",
+      "ERROR": "No se pudo actualizar la configuración de Jabvox IA. Por favor, inténtalo de nuevo."
     }
   },
   "BILLING_SETTINGS": {
@@ -606,12 +606,12 @@
       "BUTTON_TXT": "Ir al portal de facturación"
     },
     "CAPTAIN": {
-      "TITLE": "Capitán",
-      "DESCRIPTION": "Gestione el uso y los créditos para Captain AI.",
+      "TITLE": "Jabvox IA",
+      "DESCRIPTION": "Gestione el uso y los créditos de Jabvox IA.",
       "BUTTON_TXT": "Comprar más créditos",
       "DOCUMENTS": "Documentos",
       "RESPONSES": "Respuestas",
-      "UPGRADE": "Captain no está disponible en el plan gratuito, actualice su suscripción ahora para tener acceso a asistentes, copilot y más.",
+      "UPGRADE": "Jabvox IA no está disponible en el plan gratuito, actualice su suscripción ahora para tener acceso a asistentes, copilot y más.",
       "REFRESH_CREDITS": "Actualizar"
     },
     "CHAT_WITH_US": {
@@ -622,26 +622,26 @@
     "NO_BILLING_USER": "Tu cuenta de facturación está siendo configurada. Por favor, actualiza la página e inténtalo de nuevo.",
     "TOPUP": {
       "BUY_CREDITS": "Comprar más créditos",
-      "MODAL_TITLE": "Buy AI Credits",
-      "MODAL_DESCRIPTION": "Purchase additional credits for Captain AI.",
-      "CREDITS": "CREDITS",
-      "ONE_TIME": "one-time",
-      "POPULAR": "Most Popular",
+      "MODAL_TITLE": "Comprar créditos de IA",
+      "MODAL_DESCRIPTION": "Compra créditos adicionales para Jabvox IA.",
+      "CREDITS": "CRÉDITOS",
+      "ONE_TIME": "pago único",
+      "POPULAR": "Más popular",
       "NOTE_TITLE": "Nota:",
-      "NOTE_DESCRIPTION": "Credits are added immediately and expire in 6 months. An active subscription is required to use credits. Purchased credits are consumed after your monthly plan credits.",
+      "NOTE_DESCRIPTION": "Los créditos se añaden de inmediato y caducan en 6 meses. Se requiere una suscripción activa para usar los créditos. Los créditos comprados se consumen después de los créditos de tu plan mensual.",
       "CANCEL": "Cancelar",
-      "PURCHASE": "Purchase Credits",
-      "LOADING": "Loading options...",
-      "FETCH_ERROR": "Failed to load credit options. Please try again.",
+      "PURCHASE": "Comprar créditos",
+      "LOADING": "Cargando opciones...",
+      "FETCH_ERROR": "No se pudieron cargar las opciones de créditos. Por favor, inténtalo de nuevo.",
       "RETRY": "Reintentar",
-      "PURCHASE_ERROR": "Failed to process purchase. Please try again.",
-      "PURCHASE_SUCCESS": "Successfully added {credits} credits to your account",
+      "PURCHASE_ERROR": "No se pudo procesar la compra. Por favor, inténtalo de nuevo.",
+      "PURCHASE_SUCCESS": "Se añadieron correctamente {credits} créditos a tu cuenta",
       "CONFIRM": {
-        "TITLE": "Confirm Purchase",
-        "DESCRIPTION": "You are about to purchase {credits} credits for {amount}.",
-        "INSTANT_DEDUCTION_NOTE": "Your saved card will be charged immediately upon confirmation.",
+        "TITLE": "Confirmar compra",
+        "DESCRIPTION": "Estás a punto de comprar {credits} créditos por {amount}.",
+        "INSTANT_DEDUCTION_NOTE": "Se cobrará a tu tarjeta guardada de inmediato al confirmar.",
         "GO_BACK": "Volver",
-        "CONFIRM_PURCHASE": "Confirm Purchase"
+        "CONFIRM_PURCHASE": "Confirmar compra"
       }
     }
   },

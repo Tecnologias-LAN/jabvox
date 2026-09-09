@@ -748,7 +748,7 @@ module Jabvox::Hermes::ToolRegistry
     jabvox_analytics jabvox_audio_analysis jabvox_bulk_whatsapp jabvox_calendar jabvox_call_source
     jabvox_cdr jabvox_click_to_call jabvox_customization jabvox_data_export jabvox_dialer
     jabvox_email jabvox_forms jabvox_internal_chat jabvox_kanban jabvox_lead_delete
-    jabvox_lead_import jabvox_leads jabvox_products jabvox_response_bot jabvox_saldo jabvox_sms
+    jabvox_lead_import jabvox_leads jabvox_products jabvox_saldo jabvox_sms
     jabvox_softphone jabvox_tasks jabvox_tickets jabvox_voice_broadcast jabvox_voip
     jabvox_whatsapp_groups jabvox_whatsapp_templates
   ].freeze

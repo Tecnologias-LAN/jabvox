@@ -75,7 +75,6 @@ class CustomRole < ApplicationRecord
     jabvox_click_to_call_use
     jabvox_internal_chat_use
     jabvox_calendar_manage
-    jabvox_response_bot_manage
     jabvox_forms_manage
     jabvox_sms_view
     jabvox_sms_manage
@@ -122,7 +121,6 @@ class CustomRole < ApplicationRecord
     %w[jabvox_click_to_call_use] => 'jabvox_click_to_call',
     %w[jabvox_internal_chat_use] => 'jabvox_internal_chat',
     %w[jabvox_calendar_manage] => 'jabvox_calendar',
-    %w[jabvox_response_bot_manage] => 'jabvox_response_bot',
     %w[jabvox_forms_manage] => 'jabvox_forms',
     %w[jabvox_sms_view jabvox_sms_manage] => 'jabvox_sms',
     %w[jabvox_email_manage] => 'jabvox_email',

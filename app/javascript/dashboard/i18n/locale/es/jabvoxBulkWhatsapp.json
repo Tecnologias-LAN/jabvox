@@ -120,9 +120,9 @@
     },
     "WIZARD": {
       "STEP1": "Bandeja y emisor",
-      "STEP2": "Destinatarios",
-      "STEP3": "Plantilla y variables",
-      "STEP4": "Prueba y enviar",
+      "STEP2": "Plantilla",
+      "STEP3": "Destinatarios",
+      "STEP4": "Previa y enviar",
       "NEXT": "Siguiente",
       "BACK": "Atrás",
       "STEP_OF": "Paso {current} de {total}"
@@ -141,7 +141,7 @@
       "FILE_HINT": "Columnas: nombre, numero, template, idioma. Para WhatsApp oficial la columna 'template' es el nombre de la plantilla aprobada; para bandejas API es el texto del mensaje.",
       "MODE_TEMPLATE": "WhatsApp oficial · plantilla aprobada",
       "MODE_TEXT": "API · mensaje normal",
-      "SAMPLE_HINT": "¿No sabes el formato? Selecciona una bandeja y descarga un CSV de ejemplo.",
+      "SAMPLE_HINT": "El archivo solo necesita el número (con +) y las columnas de variables. La plantilla e idioma se eligen arriba.",
       "SAMPLE_SELECT_INBOX": "Selecciona primero una bandeja para descargar el ejemplo.",
       "DOWNLOAD_SAMPLE_TEMPLATE": "Ejemplo (plantilla)",
       "DOWNLOAD_SAMPLE_TEXT": "Ejemplo (texto)",
@@ -155,7 +155,15 @@
       "SUBMIT": "Enviar mensajes",
       "SUCCESS": "Enviado a n8n para su procesamiento.",
       "ERROR": "No se pudo enviar. Revisa el archivo y la configuración del webhook.",
-      "CSV_TEMPLATE_INFO": "La plantilla y el idioma de cada mensaje se toman de las columnas \"template\" e \"idioma\" del CSV. Revisa la vista previa abajo antes de continuar."
+      "CSV_TEMPLATE_INFO": "La plantilla y el idioma de cada mensaje se toman de las columnas \"template\" e \"idioma\" del CSV. Revisa la vista previa abajo antes de continuar.",
+      "TEMPLATE": "Plantilla",
+      "TEMPLATE_PLACEHOLDER": "Selecciona una plantilla…",
+      "TEMPLATE_LANG": "Idioma: {lang}",
+      "NO_TEMPLATES": "Esta bandeja no tiene plantillas aprobadas.",
+      "DOWNLOAD_SAMPLE": "Descargar ejemplo",
+      "FILE_HINT_V2": "CSV con columna «numero» (en formato +57..., +52...). Opcional: «nombre» y columnas para las variables.",
+      "MAP_VARS_TITLE": "Asigna cada variable de la plantilla a una columna del archivo",
+      "MAP_VARS_PLACEHOLDER": "Elige la columna…"
     },
     "HISTORY": {
       "LOADING": "Cargando historial…",
@@ -233,7 +241,11 @@
       "TITLE": "Previsualización",
       "RECIPIENTS": "Se enviará a {count} destinatario(s).",
       "TEMPLATE": "Plantilla: {name} ({lang})",
-      "VARS": "Variables mapeadas:"
+      "VARS": "Variables mapeadas:",
+      "MEDIA_IMAGE": "Imagen de la plantilla",
+      "MEDIA_VIDEO": "Video de la plantilla",
+      "MEDIA_DOCUMENT": "Documento de la plantilla",
+      "EMPTY_BODY": "(Sin texto)"
     }
   }
 }

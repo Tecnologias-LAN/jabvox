@@ -33,9 +33,13 @@ const faqSuggestionsMeta = {
   permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
 };
 
+// Herramientas forma parte del módulo único Jabvox IA: se habilita con el mismo
+// flag (captain_integration) en lugar de un flag separado que no se activa por
+// cuenta. Antes usaba CAPTAIN_CUSTOM_TOOLS ('custom_tools'), no activo en las
+// cuentas con Jabvox IA, lo que redirigía al inicio al abrir Herramientas.
 const metaCustomTools = {
   permissions: ['administrator', 'agent'],
-  featureFlag: FEATURE_FLAGS.CAPTAIN_CUSTOM_TOOLS,
+  featureFlag: FEATURE_FLAGS.CAPTAIN,
   installationTypes: [INSTALLATION_TYPES.CLOUD, INSTALLATION_TYPES.ENTERPRISE],
 };
 

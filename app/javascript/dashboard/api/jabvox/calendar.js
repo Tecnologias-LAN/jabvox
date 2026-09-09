@@ -5,6 +5,9 @@ const client = new ApiClient('jabvox/calendar_events', { accountScoped: true });
 const peopleClient = new ApiClient('jabvox/calendar_external_people', {
   accountScoped: true,
 });
+const availabilityClient = new ApiClient('jabvox/agent_availabilities', {
+  accountScoped: true,
+});
 
 export default {
   // Events
@@ -20,4 +23,11 @@ export default {
   updateExternalPerson: (id, payload) =>
     axios.patch(`${peopleClient.url}/${id}`, payload),
   destroyExternalPerson: id => axios.delete(`${peopleClient.url}/${id}`),
+
+  // Agent working hours (availability) used by Jabvox IA to offer appointment slots
+  getAgentsAvailability: () => axios.get(availabilityClient.url),
+  getAgentAvailability: agentId =>
+    axios.get(`${availabilityClient.url}/${agentId}`),
+  updateAgentAvailability: (agentId, availabilities) =>
+    axios.patch(`${availabilityClient.url}/${agentId}`, { availabilities }),
 };

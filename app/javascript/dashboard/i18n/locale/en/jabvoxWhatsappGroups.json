@@ -9,6 +9,7 @@
     "CLOSE": "Close",
     "ELIGIBILITY": {
       "BLOCKED_TITLE": "Groups are not available for this inbox",
+      "ELIGIBLE": "Eligible",
       "REASONS": {
         "NOT_CLOUD_API": "Groups only work with Meta's WhatsApp Cloud API.",
         "COEXISTENCE": "Groups are not available on Coexistence (Multi-solution) numbers or the WhatsApp Business app.",

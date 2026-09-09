@@ -29,9 +29,9 @@ class JabvoxAiChatDocument < ApplicationRecord
 
   belongs_to :account
 
-  # Cuota por cuenta (paquete): docs de IA = AI Chat + Response Bot (suman al mismo tope).
+  # Cuota por cuenta (paquete): documentos de IA (AI Chat).
   jabvox_resource_limit :ai_documents,
-                        counts_with: %w[JabvoxAiChatDocument JabvoxResponseBotDocument]
+                        counts_with: %w[JabvoxAiChatDocument]
 
   validates :name_jabvox, presence: true, length: { maximum: 300 }
   validates :s3_key_jabvox, presence: true, length: { maximum: 500 }

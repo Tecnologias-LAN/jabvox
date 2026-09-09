@@ -66,7 +66,6 @@ class DeleteObjectJob < ApplicationJob
     JabvoxKanbanFunnelInbox.where(inbox_id: inbox.id).delete_all
     JabvoxKanbanStageAutomation.where(inbox_id: inbox.id).delete_all
     JabvoxTaskStageAutomation.where(inbox_id: inbox.id).delete_all
-    JabvoxResponseBotConfig.where(inbox_id: inbox.id).delete_all
     JabvoxWhatsappTemplate.where(inbox_id: inbox.id).delete_all
 
     # Bulk WhatsApp batches and task automations have RESTRICT FKs to inboxes,

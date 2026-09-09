@@ -114,6 +114,10 @@ export function usePolicy() {
     }
 
     if (isPremiumFeature(flag)) {
+      // Si la feature está habilitada EN LA CUENTA, nunca se muestra el paywall — se
+      // activa por cuenta (p.ej. al conectar Jabvox IA), sin depender del plan Enterprise.
+      if (isFeatureFlagEnabled(flag)) return false;
+
       if (isOnJabvoxCloud.value) {
         return !isFeatureFlagEnabled(flag);
       }

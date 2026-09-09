@@ -33,56 +33,132 @@ as well as a link to its edit page.
 
   <section class="main-content__body">
     <div class="pr-16">
+      <%
+        # Atributos que van al RESUMEN de la cuenta (tabla compacta arriba), en orden.
+        summary_attrs = %w[id name status current_plan_name jabvox_plan_expires_at
+                           days_until_expiration created_at updated_at days_since_creation
+                           locale conversations suspension_history]
+        # Los 3 límites numéricos: se muestran en fila JUSTO antes de los módulos.
+        inline_numeric = %w[jabvox_ai_chat_max_documents_jabvox jabvox_ai_chat_max_open_chats_jabvox max_forms_jabvox]
+
+        # Aplanamos todos los atributos a un índice por nombre para poder colocarlos donde queramos.
+        attr_index = {}
+        page.attributes.each { |_title, attrs| attrs.each { |a| attr_index[a.name.to_s] = a } }
+
+        label_for = ->(a) { t("helpers.label.#{resource_name}.#{a.name}", default: page.resource.class.human_attribute_name(a.name)) }
+      %>
+
+      <%
+        _r = page.resource
+        _status = _r.try(:status).to_s
+        _status_active = _status == 'active'
+        _initial = _r.name.to_s.strip[0, 1].upcase.presence || '?'
+        # Chip de estado.
+        _st_chip = _status_active ? 'bg-green-100 text-green-700' : (_status == 'suspended' ? 'bg-red-100 text-red-700' : 'bg-n-alpha-2 text-n-slate-11')
+        _plan = _r.try(:current_plan_name).presence
+        _days_since = _r.try(:days_since_creation)
+        _days_until = _r.try(:days_until_expiration)
+        _convs = _r.try(:conversations).respond_to?(:count) ? _r.conversations.count : _r.try(:conversations)
+        # Detalles secundarios (label, valor render) para la grilla inferior.
+        _detail_names = %w[created_at updated_at locale suspension_history]
+      %>
+
+      <%# ── RESUMEN DE LA CUENTA (hero + métricas + detalles) ── %>
+      <div class="rounded-2xl border border-n-weak bg-n-solid-1 overflow-hidden mb-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.10)]">
+        <%# Cabecera con avatar, nombre grande, id, estado y plan %>
+        <div class="flex items-center gap-4 px-6 py-5 border-b border-n-weak bg-gradient-to-br from-green-50/60 via-transparent to-transparent">
+          <div class="shrink-0 h-14 w-14 rounded-2xl bg-gradient-to-br from-green-500 to-teal-600 text-white flex items-center justify-center text-2xl font-bold shadow-md ring-1 ring-white/30">
+            <%= _initial %>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2.5 flex-wrap">
+              <h2 class="text-xl font-bold text-n-slate-12 tracking-tight truncate leading-tight"><%= _r.name %></h2>
+              <span class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider <%= _st_chip %>">
+                <span class="inline-block h-1.5 w-1.5 rounded-full <%= _status_active ? 'bg-green-500' : (_status == 'suspended' ? 'bg-red-500' : 'bg-n-slate-9') %>"></span>
+                <%= _status.presence || '—' %>
+              </span>
+            </div>
+            <div class="flex items-center gap-2.5 text-[13px] text-n-slate-10 mt-1.5">
+              <span class="inline-flex items-center gap-1">ID<span class="font-semibold text-n-slate-11 tabular-nums">#<%= _r.id %></span></span>
+              <span class="inline-block h-1 w-1 rounded-full bg-n-slate-7"></span>
+              <span class="inline-flex items-center gap-1">Plan<span class="font-semibold text-n-slate-11"><%= _plan || 'Sin plan' %></span></span>
+              <% if _r.try(:locale).present? %>
+                <span class="inline-block h-1 w-1 rounded-full bg-n-slate-7"></span>
+                <span class="inline-flex items-center gap-1">Idioma<span class="font-semibold text-n-slate-11 uppercase"><%= _r.locale %></span></span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <%# Métricas clave (KPI) %>
+        <div class="grid grid-cols-3 divide-x divide-n-weak border-b border-n-weak">
+          <div class="px-6 py-4">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-n-slate-10">Antigüedad</div>
+            <div class="mt-1 text-2xl font-bold text-n-slate-12 tabular-nums tracking-tight leading-none">
+              <%= _days_since.nil? ? '—' : _days_since %><span class="text-sm font-medium text-n-slate-10 ml-1.5 tracking-normal">días</span>
+            </div>
+          </div>
+          <div class="px-6 py-4">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-n-slate-10">Conversaciones</div>
+            <div class="mt-1 text-2xl font-bold text-n-slate-12 tabular-nums tracking-tight leading-none"><%= number_with_delimiter(_convs.to_i) %></div>
+          </div>
+          <div class="px-6 py-4">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-n-slate-10">Vence en</div>
+            <div class="mt-1 text-2xl font-bold tabular-nums tracking-tight leading-none <%= _days_until.to_i.negative? ? 'text-red-600' : (_days_until.to_i <= 15 && !_days_until.nil? ? 'text-amber-600' : 'text-n-slate-12') %>">
+              <% if _days_until.nil? %>
+                <span class="text-base font-semibold text-n-slate-10 tracking-normal">Sin caducidad</span>
+              <% else %>
+                <%= _days_until %><span class="text-sm font-medium text-n-slate-10 ml-1.5 tracking-normal">días</span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <%# Detalles secundarios %>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 px-6 py-2">
+          <% _detail_names.each do |attr_name| %>
+            <% attribute = attr_index[attr_name] %>
+            <% next if attribute.nil? %>
+            <div class="flex items-baseline justify-between gap-4 py-3 border-b border-n-weak/70 last:border-b-0 sm:[&:nth-last-child(2)]:border-b-0">
+              <span class="text-[11px] font-semibold uppercase tracking-wide text-n-slate-10 whitespace-nowrap"><%= label_for.call(attribute) %></span>
+              <span class="text-[13px] font-medium text-n-slate-12 text-right"><%= render_field attribute, page: page %></span>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <%# ── LÍMITES NUMÉRICOS (fila, justo antes de los módulos) ── %>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <% inline_numeric.each do |attr_name| %>
+          <% attribute = attr_index[attr_name] %>
+          <% next if attribute.nil? %>
+          <div class="rounded-xl border border-n-weak bg-n-alpha-1 px-4 py-3.5">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-n-slate-10 mb-1.5"><%= label_for.call(attribute) %></div>
+            <div class="text-xl font-bold text-n-slate-12 tabular-nums tracking-tight leading-none"><%= render_field attribute, page: page %></div>
+          </div>
+        <% end %>
+      </div>
+
+      <%# ── RESTO DE ATRIBUTOS (módulos, features, límites, etc.) ──
+          Todo lo que no fue al resumen ni a los numéricos se renderiza aquí en su orden
+          original. all_features y jabvox_modules ya traen su propio diseño agrupado. %>
+      <% _placed = (summary_attrs + inline_numeric).to_set %>
       <% page.attributes.each do |title, attributes| %>
+        <% remaining = attributes.reject { |a| _placed.include?(a.name.to_s) } %>
+        <% next if remaining.empty? %>
         <% if title.present? && title == 'all_features' %>
-          <% regular_features, premium_features =
-            attributes.partition do |attr|
-              !SuperAdmin::AccountFeaturesHelper.account_premium_features.include?(
-                attr.data.keys.first,
-              )
-            end %>
-
-          <div class="space-y-4">
-            <% regular_features.each do |attribute| %>
-              <div class="attribute-label" id="<%= attribute.name %>">
-                <%= t(
-                  "helpers.label.#{resource_name}.#{attribute.name}",
-                  default: page.resource.class.human_attribute_name(attribute.name),
-                ) %>
-              </div>
-
-              <div class="attribute-data attribute-data--<%=attribute.html_class%>"><%= render_field attribute, page: page %></div>
-            <% end %>
-          </div>
-
-          <hr class="my-8 border-n-weak">
-
-          <div class="space-y-4">
-            <% premium_features.each do |attribute| %>
-              <div class="attribute-label" id="<%= attribute.name %>">
-                <%= t(
-                  "helpers.label.#{resource_name}.#{attribute.name}",
-                  default: page.resource.class.human_attribute_name(attribute.name),
-                ) %>
-              </div>
-
-              <div class="attribute-data attribute-data--<%=attribute.html_class%>"><%= render_field attribute, page: page %></div>
-            <% end %>
-          </div>
+          <% remaining.each do |attribute| %>
+            <div class="attribute-data attribute-data--<%=attribute.html_class%>"><%= render_field attribute, page: page %></div>
+          <% end %>
         <% else %>
           <fieldset class="<%= "field-unit--nested" if title.present? %>">
             <% if title.present? %>
               <legend><%= t "helpers.label.#{page.resource_name}.#{title}", default: title %></legend>
             <% end %>
-
-            <% attributes.each do |attribute| %>
+            <% remaining.each do |attribute| %>
               <div class="attribute-label" id="<%= attribute.name %>">
-                <%= t(
-                  "helpers.label.#{resource_name}.#{attribute.name}",
-                  default: page.resource.class.human_attribute_name(attribute.name),
-                ) %>
+                <%= label_for.call(attribute) %>
               </div>
-
               <div class="attribute-data attribute-data--<%=attribute.html_class%>"><%= render_field attribute, page: page %></div>
             <% end %>
           </fieldset>
@@ -93,98 +169,4 @@ as well as a link to its edit page.
 
   <%= render 'super_admin/shared/account_user_form', page: page, namespace: namespace, resource_type: 'account' %>
 
-  <%= render partial: "seed_data", locals: { page: page } %>
-
-  <%= render partial: "reset_cache", locals: { page: page } %>
-
-  <%= render partial: "ssl_form_config", locals: { page: page } %>
-
-  <div style="margin-top:24px; display:flex; gap:16px; flex-wrap:wrap;">
-    <div style="flex:1; min-width:220px; padding:16px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
-      <h3 style="font-weight:600; font-size:14px; margin-bottom:8px;">IP Whitelist</h3>
-      <p style="font-size:13px; color:#374151; margin-bottom:10px;">
-        Manage which IP addresses can access this account.
-      </p>
-      <%= link_to 'Manage IP Whitelist',
-            super_admin_account_jabvox_ip_whitelists_path(page.resource),
-            class: 'button' %>
-    </div>
-
-    <div style="flex:1; min-width:220px; padding:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
-      <h3 style="font-weight:600; font-size:14px; margin-bottom:8px;">Extensions</h3>
-      <%
-        _ext_count = page.resource.jabvox_user_extensions.count
-      %>
-      <p style="font-size:13px; color:#374151; margin-bottom:10px;">
-        <%= _ext_count > 0 ? "#{_ext_count} user(s) with extension assigned." : "No extensions assigned. Users are prompted on each call." %>
-      </p>
-      <%= link_to 'Manage Extensions',
-            super_admin_account_jabvox_user_extensions_path(page.resource),
-            class: 'button' %>
-    </div>
-
-    <div style="flex:1; min-width:220px; padding:16px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px;">
-      <h3 style="font-weight:600; font-size:14px; margin-bottom:8px;">Automatizaciones Avanzadas</h3>
-      <% _autom = page.resource.account_automation_config %>
-      <p style="font-size:13px; color:#374151; margin-bottom:10px;">
-        <%= _autom&.enabled? ? "Activo — #{page.resource.jabvox_flows.count} flujo(s)." : 'Inactivo. Actívalo para que la cuenta pueda crear flujos.' %>
-      </p>
-      <%= link_to 'Gestionar flujos',
-            super_admin_account_account_automations_path(page.resource),
-            class: 'button' %>
-    </div>
-
-    <div style="flex:1; min-width:220px; padding:16px; background:#ecfeff; border:1px solid #a5f3fc; border-radius:8px;">
-      <h3 style="font-weight:600; font-size:14px; margin-bottom:8px;">Hermes</h3>
-      <% _handoff = page.resource.jabvox_context_forge_handoff %>
-      <p style="font-size:13px; color:#374151; margin-bottom:10px;">
-        <% if _handoff&.hermes_operational? %>
-          Conectado — Hermes de la cuenta operativo (<%= _handoff.mcp_servers.size %> MCP/skill).
-        <% elsif _handoff&.status == 'failed' %>
-          Falló: <%= _handoff.last_error %>
-        <% elsif _handoff&.status == 'provisioning' %>
-          Levantando el Hermes de la cuenta… recarga en unos segundos.
-        <% else %>
-          Sin conectar. Lígalo desde el panel de Hermes; el Aprovisionador lo levanta.
-        <% end %>
-      </p>
-      <%= link_to 'Gestionar en Hermes', super_admin_hermes_instances_path, class: 'button' %>
-    </div>
-  </div>
-
-  <%
-    _saldo_config = page.resource.jabvox_saldo_config
-    _saldo_status = _saldo_config ? (Jabvox::SaldoService.new(_saldo_config).fetch_balance rescue { connected: false, balance: _saldo_config.cached_balance_jabvox.to_f, currency: 'COP', message: 'Error al conectar' }) : nil
-    if _saldo_status
-      _bal = _saldo_status[:balance].to_f
-      _saldo_color  = _bal <= 10_000 ? '#ef4444' : (_bal < 50_000 ? '#f97316' : '#2563eb')
-      _saldo_bg     = _bal <= 10_000 ? '#fef2f2' : (_bal < 50_000 ? '#fff7ed' : '#eff6ff')
-      _saldo_border = _bal <= 10_000 ? '#fecaca' : (_bal < 50_000 ? '#fed7aa' : '#bfdbfe')
-    end
-  %>
-  <div style="margin-top:24px; padding:16px; background:<%= _saldo_status ? _saldo_bg : '#eff6ff' %>; border:1px solid <%= _saldo_status ? _saldo_border : '#bfdbfe' %>; border-radius:8px; display:flex; align-items:center; justify-content:space-between; gap:16px;">
-    <div>
-      <h3 style="font-weight:600; font-size:14px; margin-bottom:4px;">Saldo</h3>
-      <% if _saldo_status %>
-        <p style="font-size:12px; color:#6b7280; margin:0;">
-          <%= _saldo_status[:connected] ? 'Conectado' : 'Sin conexión (último valor)' %>
-          &nbsp;·&nbsp; <%= _saldo_status[:message] %>
-        </p>
-      <% else %>
-        <p style="font-size:12px; color:#6b7280; margin:0;">Sin configuración de saldo.</p>
-      <% end %>
-      <div style="margin-top:10px;">
-        <%= link_to 'Configurar Saldo',
-              super_admin_account_jabvox_saldo_config_path(page.resource),
-              class: 'button' %>
-      </div>
-    </div>
-    <% if _saldo_status %>
-      <div style="text-align:right; flex-shrink:0;">
-        <span style="font-size:32px; font-weight:800; color:<%= _saldo_color %>;">
-          $<%= number_with_delimiter(_bal.round(0)) %>
-        </span>
-        <span style="font-size:13px; color:<%= _saldo_color %>;"><%= _saldo_status[:currency] %></span>
-      </div>
-    <% end %>
-  </div>
+  <%= render partial: "management_cards", locals: { page: page } %>

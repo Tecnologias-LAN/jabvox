@@ -2,12 +2,25 @@
   <label>Módulos Jabvox</label>
 </div>
 <div class="field-unit__field">
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    <% field.modules.each do |column, display_name, enabled| %>
-      <label class="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm outline outline-1 outline-n-container cursor-pointer">
-        <span class="text-sm text-slate-700"><%= display_name %></span>
-        <%= f.check_box column, checked: enabled, class: "h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-600" %>
-      </label>
+  <div class="space-y-5">
+    <% field.grouped_modules.each do |group| %>
+      <section class="rounded-lg border border-n-weak bg-n-alpha-1 overflow-hidden">
+        <header class="flex items-center gap-2 px-4 py-2.5 border-b border-n-weak bg-n-alpha-2">
+          <span class="text-sm"><%= group[:icon] %></span>
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-n-slate-11">
+            <%= group[:label] %>
+          </h4>
+        </header>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-n-weak">
+          <% group[:modules].each do |column, display_name, enabled| %>
+            <label class="flex items-center justify-between gap-2 px-4 py-2.5 bg-n-solid-1 cursor-pointer hover:bg-n-alpha-1 transition-colors">
+              <span class="text-sm text-n-slate-12"><%= display_name %></span>
+              <%= f.check_box column, checked: enabled, class: "h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-600" %>
+            </label>
+          <% end %>
+        </div>
+      </section>
     <% end %>
   </div>
 </div>

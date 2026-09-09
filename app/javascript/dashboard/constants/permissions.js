@@ -81,10 +81,6 @@ export const JABVOX_PERMISSION_GROUPS = [
     permissions: ['jabvox_calendar_manage'],
   },
   {
-    module: 'response_bot',
-    permissions: ['jabvox_response_bot_manage'],
-  },
-  {
     module: 'forms',
     permissions: ['jabvox_forms_manage'],
   },

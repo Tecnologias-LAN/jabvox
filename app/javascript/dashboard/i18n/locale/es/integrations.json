@@ -23,10 +23,10 @@
     "SEARCH_PLACEHOLDER": "Search integrations...",
     "NO_RESULTS": "No integrations found matching your search",
     "CAPTAIN": {
-      "DISABLED": "El capitán no está habilitado en tu cuenta.",
+      "DISABLED": "Jabvox IA no está habilitado en tu cuenta.",
       "CLICK_HERE_TO_CONFIGURE": "Haz clic aquí para configurar",
-      "LOADING_CONSOLE": "Cargando consola del capitán...",
-      "FAILED_TO_LOAD_CONSOLE": "No se pudo cargar la consola del capitán. Por favor, actualiza e inténtalo de nuevo."
+      "LOADING_CONSOLE": "Cargando consola de Jabvox IA...",
+      "FAILED_TO_LOAD_CONSOLE": "No se pudo cargar la consola de Jabvox IA. Por favor, actualiza e inténtalo de nuevo."
     },
     "WEBHOOK": {
       "SUBSCRIBED_EVENTS": "Eventos suscritos",
@@ -397,12 +397,12 @@
     }
   },
   "CAPTAIN": {
-    "NAME": "Capitán",
+    "NAME": "Jabvox IA",
     "HEADER_KNOW_MORE": "Más información",
     "OVERVIEW": {
       "HEADER": "Resumen",
       "WELCOME": {
-        "LABEL": "Resumen del capitán",
+        "LABEL": "Resumen de Jabvox IA",
         "LOADING": "Generando resumen…"
       },
       "INBOX_BANNER": {
@@ -417,8 +417,8 @@
       },
       "RANGES": {
         "LAST_DAYS": "Últimos {count} días",
-        "THIS_MONTH": "This month",
-        "LAST_MONTH": "Last month"
+        "THIS_MONTH": "Este mes",
+        "LAST_MONTH": "Mes pasado"
       },
       "METRICS": {
         "HANDLED": {
@@ -427,18 +427,18 @@
         },
         "AUTO_RESOLUTION": {
           "LABEL": "Tasa de resolución automática",
-          "HINT": "Compartido de conversaciones manejadas cerradas sin una respuesta humana."
+          "HINT": "Proporción de conversaciones manejadas que se cerraron sin una respuesta humana."
         },
         "HANDOFF": {
-          "LABEL": "Tasa de desconexión",
-          "HINT": "Comparte las conversaciones manipuladas escaladas a un agente humano."
+          "LABEL": "Tasa de transferencia",
+          "HINT": "Proporción de conversaciones manejadas que se escalaron a un agente humano."
         },
         "HOURS_SAVED": {
           "LABEL": "Tiempo ahorrado",
-          "HINT": "Estimado: El Capitán responde veces ~2 minutos de esfuerzo de agente asumido por respuesta. Trabajo direccional, no medido."
+          "HINT": "Estimado: respuestas de Jabvox IA multiplicadas por ~2 minutos de esfuerzo asumido de un agente por respuesta. Es orientativo, no una medición real del trabajo."
         },
         "REOPEN": {
-          "LABEL": "Reabrir tasa",
+          "LABEL": "Tasa de reapertura",
           "HINT": "Conversaciones resueltas automáticamente que se reabrieron después."
         },
         "DEPTH": {
@@ -449,7 +449,7 @@
       "DRILLDOWN": {
         "CLOSE": "Detalles de cierre",
         "EMPTY": "No se encontraron registros para esta métrica.",
-        "ERROR": "No se pudo cargar los registros. Por favor, inténtelo de nuevo.",
+        "ERROR": "No se pudieron cargar los registros. Por favor, inténtelo de nuevo.",
         "LOAD_MORE": "Cargar más",
         "RESULT_COUNT_CONVERSATION": "Conversación {count} | Conversaciones {count}"
       },
@@ -457,13 +457,13 @@
         "TITLE": "Cobertura del conocimiento",
         "COVERAGE": "{pct}% aprobado",
         "APPROVED": "FAQs Aprobadas",
-        "PENDING": "Pending FAQs",
-        "DOCUMENTS": "Documents"
+        "PENDING": "FAQs pendientes",
+        "DOCUMENTS": "Documentos"
       },
       "LINKS": {
         "DOCS": {
-          "TITLE": "Capitán documentos",
-          "DESCRIPTION": "Guías y cómo para el Capitán"
+          "TITLE": "Documentos de Jabvox IA",
+          "DESCRIPTION": "Guías y tutoriales de Jabvox IA"
         },
         "PLAYGROUND": {
           "TITLE": "Zona de pruebas",
@@ -488,7 +488,7 @@
       "KICK_OFF_MESSAGE": "¿Necesitas un resumen rápido, revisar conversaciones anteriores o redactar una mejor respuesta? Copilot está aquí para agilizarlo.",
       "SEND_MESSAGE": "Enviar mensaje...",
       "EMPTY_MESSAGE": "Se produjo un error al generar la respuesta. Inténtalo de nuevo.",
-      "LOADER": "Captain está pensando",
+      "LOADER": "Jabvox IA está pensando",
       "YOU": "Tú",
       "USE": "Usar esto",
       "RESET": "Restablecer",
@@ -523,23 +523,24 @@
       "MESSAGE_PLACEHOLDER": "Escribe tu mensaje...",
       "HEADER": "Zona de pruebas",
       "DESCRIPTION": "Usa esta zona de pruebas para enviar mensajes a tu asistente y comprobar si responde con precisión, rapidez y con el tono que esperas.",
-      "CREDIT_NOTE": "Los mensajes enviados aquí contarán para tus créditos de Captain."
+      "SESSION": "Prueba {number}",
+      "CREDIT_NOTE": "Los mensajes enviados aquí contarán para tus créditos de Jabvox IA."
     },
     "PAYWALL": {
-      "TITLE": "Actualiza para usar Captain AI",
-      "AVAILABLE_ON": "Captain no está disponible en el plan gratuito.",
+      "TITLE": "Actualiza para usar Jabvox IA",
+      "AVAILABLE_ON": "Jabvox IA no está disponible en el plan gratuito.",
       "UPGRADE_PROMPT": "Actualiza tu plan para obtener acceso a nuestros asistentes, Copilot y más.",
       "UPGRADE_NOW": "Actualizar ahora",
       "CANCEL_ANYTIME": "Puede cambiar o cancelar su plan en cualquier momento"
     },
     "ENTERPRISE_PAYWALL": {
-      "AVAILABLE_ON": "Captain AI solo está disponible en los planes Enterprise.",
+      "AVAILABLE_ON": "Jabvox IA solo está disponible en los planes Enterprise.",
       "UPGRADE_PROMPT": "Actualiza tu plan para obtener acceso a nuestros asistentes, Copilot y más.",
       "ASK_ADMIN": "Por favor, comuníquese con su administrador para la actualización."
     },
     "BANNER": {
-      "RESPONSES": "Has usado más del 80 % de tu límite de respuestas. Para seguir usando Captain AI, actualiza tu plan.",
-      "DOCUMENTS": "Se alcanzó el límite de documentos. Actualiza para seguir usando Captain AI."
+      "RESPONSES": "Has usado más del 80 % de tu límite de respuestas. Para seguir usando Jabvox IA, actualiza tu plan.",
+      "DOCUMENTS": "Se alcanzó el límite de documentos. Actualiza para seguir usando Jabvox IA."
     },
     "FORM": {
       "CANCEL": "Cancelar",
@@ -547,75 +548,89 @@
       "EDIT": "Actualizar"
     },
     "ASSISTANTS": {
-      "HEADER": "Assistants",
-      "NO_ASSISTANTS_AVAILABLE": "There are no assistants available in your account.",
-      "ADD_NEW": "Create a new assistant",
+      "HEADER": "Asistentes",
+      "NO_ASSISTANTS_AVAILABLE": "No hay asistentes disponibles en tu cuenta.",
+      "ADD_NEW": "Crear un nuevo asistente",
       "DELETE": {
-        "TITLE": "Are you sure to delete the assistant?",
-        "DESCRIPTION": "This action is permanent. Deleting this assistant will remove it from all connected inboxes and permanently erase all generated knowledge.",
+        "TITLE": "¿Seguro que deseas eliminar el asistente?",
+        "DESCRIPTION": "Esta acción es permanente. Al eliminar este asistente, se quitará de todas las bandejas de entrada conectadas y se borrará de forma definitiva todo el conocimiento generado.",
         "CONFIRM": "Sí, eliminar",
-        "SUCCESS_MESSAGE": "The assistant has been successfully deleted",
-        "ERROR_MESSAGE": "There was an error deleting the assistant, please try again."
+        "SUCCESS_MESSAGE": "El asistente se ha eliminado correctamente",
+        "ERROR_MESSAGE": "Hubo un error al eliminar el asistente, por favor inténtalo de nuevo."
       },
-      "FORM_DESCRIPTION": "Fill out the details below to name your assistant, describe its purpose, and specify the product it will support.",
+      "FORM_DESCRIPTION": "Completa los datos a continuación para asignar un nombre a tu asistente, describir su propósito y especificar el producto que dará soporte.",
       "CREATE": {
-        "TITLE": "Create an assistant",
-        "SUCCESS_MESSAGE": "The assistant has been successfully created",
-        "ERROR_MESSAGE": "There was an error creating the assistant, please try again."
+        "TITLE": "Crear un asistente",
+        "SUCCESS_MESSAGE": "El asistente se ha creado correctamente",
+        "ERROR_MESSAGE": "Hubo un error al crear el asistente, por favor inténtalo de nuevo."
       },
       "FORM": {
         "UPDATE": "Actualizar",
         "SECTIONS": {
-          "BASIC_INFO": "Basic Information",
-          "SYSTEM_MESSAGES": "System Messages",
-          "INSTRUCTIONS": "Instructions",
+          "BASIC_INFO": "Información básica",
+          "SYSTEM_MESSAGES": "Mensajes del sistema",
+          "INSTRUCTIONS": "Instrucciones",
           "FEATURES": "Características",
-          "TOOLS": "Tools "
+          "TOOLS": "Herramientas "
         },
         "NAME": {
           "LABEL": "Nombre",
-          "PLACEHOLDER": "Enter assistant name",
-          "ERROR": "The name is required"
+          "PLACEHOLDER": "Introduce el nombre del asistente",
+          "ERROR": "El nombre es obligatorio"
         },
         "DESCRIPTION": {
           "LABEL": "Descripción",
-          "PLACEHOLDER": "Enter assistant description",
-          "ERROR": "The description is required"
+          "PLACEHOLDER": "Introduce la descripción del asistente",
+          "ERROR": "La descripción es obligatoria"
         },
         "PRODUCT_NAME": {
-          "LABEL": "Product Name",
-          "PLACEHOLDER": "Enter product name",
-          "ERROR": "The product name is required"
+          "LABEL": "Nombre del producto",
+          "PLACEHOLDER": "Introduce el nombre del producto",
+          "ERROR": "El nombre del producto es obligatorio"
         },
         "WELCOME_MESSAGE": {
-          "LABEL": "Welcome Message",
-          "PLACEHOLDER": "Enter welcome message"
+          "LABEL": "Mensaje de bienvenida",
+          "PLACEHOLDER": "Introduce el mensaje de bienvenida"
         },
         "HANDOFF_MESSAGE": {
-          "LABEL": "Handoff Message",
-          "PLACEHOLDER": "Enter handoff message"
+          "LABEL": "Mensaje de transferencia",
+          "PLACEHOLDER": "Introduce el mensaje de transferencia"
         },
         "RESOLUTION_MESSAGE": {
-          "LABEL": "Resolution Message",
-          "PLACEHOLDER": "Enter resolution message"
+          "LABEL": "Mensaje de resolución",
+          "PLACEHOLDER": "Introduce el mensaje de resolución"
         },
         "INSTRUCTIONS": {
-          "LABEL": "Instructions",
-          "PLACEHOLDER": "Enter instructions for the assistant"
+          "LABEL": "Instrucciones",
+          "PLACEHOLDER": "Introduce las instrucciones para el asistente"
         },
         "FEATURES": {
           "TITLE": "Características",
-          "ALLOW_CONVERSATION_FAQS": "Generate FAQs from resolved conversations",
-          "ALLOW_MEMORIES": "Capture key details as memories from customer interactions.",
-          "ALLOW_CITATIONS": "Include source citations in responses",
-          "ALLOW_CONTACT_ATTRIBUTES": "Allow access to contact information"
+          "ALLOW_CONVERSATION_FAQS": "Generar FAQs a partir de conversaciones resueltas",
+          "ALLOW_MEMORIES": "Capturar detalles clave como recuerdos de las interacciones con los clientes.",
+          "ALLOW_CITATIONS": "Incluir citas de fuentes en las respuestas",
+          "ALLOW_CONTACT_ATTRIBUTES": "Permitir el acceso a la información de contacto"
+        },
+        "AGENDA_TOOLS": {
+          "TITLE": "Agenda y tareas",
+          "DESCRIPTION": "Herramientas que Jabvox IA puede usar durante la conversación. Desactiva las que no quieras que el asistente ejecute.",
+          "CHECK_AVAILABILITY": "Consultar disponibilidad de un agente",
+          "SCHEDULE_APPOINTMENT": "Agendar citas en el calendario",
+          "LIST_BOARDS": "Listar tableros de tareas",
+          "CREATE_TASK": "Crear tareas en un tablero"
+        },
+        "HANDOFF": {
+          "TITLE": "Escalado a un agente",
+          "DESCRIPTION": "Elige a qué agentes puede pasar Jabvox IA la conversación cuando escala a un humano. Si seleccionas varios, se asigna al que tenga menos conversaciones abiertas.",
+          "NO_AGENTS": "No hay agentes disponibles en esta cuenta.",
+          "HELP": "Si no seleccionas ninguno, se escalará a los miembros de la bandeja de la conversación."
         }
       },
       "EDIT": {
-        "TITLE": "Update the assistant",
-        "SUCCESS_MESSAGE": "The assistant has been successfully updated",
-        "ERROR_MESSAGE": "There was an error updating the assistant, please try again.",
-        "NOT_FOUND": "Could not find the assistant. Please try again."
+        "TITLE": "Actualizar el asistente",
+        "SUCCESS_MESSAGE": "El asistente se ha actualizado correctamente",
+        "ERROR_MESSAGE": "Hubo un error al actualizar el asistente, por favor inténtalo de nuevo.",
+        "NOT_FOUND": "No se pudo encontrar el asistente. Por favor, inténtalo de nuevo."
       },
       "SETTINGS": {
         "HEADER": "Ajustes",
@@ -624,166 +639,166 @@
           "DESCRIPTION": "Personaliza lo que dice el asistente al finalizar una conversación o al transferirla a una persona."
         },
         "SYSTEM_SETTINGS": {
-          "TITLE": "System settings",
+          "TITLE": "Configuración del sistema",
           "DESCRIPTION": "Personaliza lo que dice el asistente al finalizar una conversación o al transferirla a una persona."
         },
         "CONTROL_ITEMS": {
-          "TITLE": "The Fun Stuff",
-          "DESCRIPTION": "Add more control to the assistant. (a bit more visual like a story : Query guardrail → scenarios → output) Nudges user to actually utilise these.",
+          "TITLE": "La parte divertida",
+          "DESCRIPTION": "Añade más control al asistente. (algo más visual, como una historia: guardarraíl de consulta → escenarios → salida) Anima al usuario a utilizar realmente estas opciones.",
           "OPTIONS": {
             "GUARDRAILS": {
-              "TITLE": "Guardrails",
-              "DESCRIPTION": "Keeps things on track—only the kinds of questions you want your assistant to answer, nothing off-limits or off-topic."
+              "TITLE": "Guardarraíles",
+              "DESCRIPTION": "Mantiene todo bajo control: solo el tipo de preguntas que quieres que responda tu asistente, nada prohibido ni fuera de tema."
             },
             "RESPONSE_GUIDELINES": {
-              "TITLE": "Response guidelines",
-              "DESCRIPTION": "The vibe and structure of your assistant’s replies—clear and friendly? Short and snappy? Detailed and formal?"
+              "TITLE": "Pautas de respuesta",
+              "DESCRIPTION": "El tono y la estructura de las respuestas de tu asistente: ¿claras y amables? ¿Cortas y directas? ¿Detalladas y formales?"
             }
           }
         },
         "DELETE": {
-          "TITLE": "Delete Assistant",
-          "DESCRIPTION": "This action is permanent. Deleting this assistant will remove it from all connected inboxes and permanently erase all generated knowledge.",
-          "BUTTON_TEXT": "Delete {assistantName}"
+          "TITLE": "Eliminar asistente",
+          "DESCRIPTION": "Esta acción es permanente. Al eliminar este asistente, se quitará de todas las bandejas de entrada conectadas y se borrará de forma definitiva todo el conocimiento generado.",
+          "BUTTON_TEXT": "Eliminar {assistantName}"
         }
       },
       "OPTIONS": {
-        "EDIT_ASSISTANT": "Edit Assistant",
-        "DELETE_ASSISTANT": "Delete Assistant",
-        "VIEW_CONNECTED_INBOXES": "View connected inboxes"
+        "EDIT_ASSISTANT": "Editar asistente",
+        "DELETE_ASSISTANT": "Eliminar asistente",
+        "VIEW_CONNECTED_INBOXES": "Ver bandejas de entrada conectadas"
       },
       "EMPTY_STATE": {
-        "TITLE": "No assistants available",
-        "SUBTITLE": "Create an assistant to provide quick and accurate responses to your users. It can learn from your help articles and past conversations.",
+        "TITLE": "No hay asistentes disponibles",
+        "SUBTITLE": "Crea un asistente para ofrecer respuestas rápidas y precisas a tus usuarios. Puede aprender de tus artículos de ayuda y de conversaciones anteriores.",
         "FEATURE_SPOTLIGHT": {
-          "TITLE": "Captain Assistant",
-          "NOTE": "Captain Assistant engages directly with customers, learns from your help docs and past conversations, and delivers instant, accurate responses. It handles the initial queries, providing quick resolutions before  transferring to an agent when needed."
+          "TITLE": "Asistente de Jabvox IA",
+          "NOTE": "El Asistente de Jabvox IA interactúa directamente con los clientes, aprende de tus documentos de ayuda y conversaciones anteriores, y ofrece respuestas instantáneas y precisas. Gestiona las consultas iniciales y brinda soluciones rápidas antes de transferir a un agente cuando es necesario."
         }
       },
       "GUARDRAILS": {
-        "TITLE": "Guardrails",
-        "DESCRIPTION": "Keeps things on track—only the kinds of questions you want your assistant to answer, nothing off-limits or off-topic.",
+        "TITLE": "Guardarraíles",
+        "DESCRIPTION": "Mantiene todo bajo control: solo el tipo de preguntas que quieres que responda tu asistente, nada prohibido ni fuera de tema.",
         "BULK_ACTION": {
-          "SELECTED": "{count} item selected | {count} items selected",
-          "SELECT_ALL": "Select all ({count})",
-          "UNSELECT_ALL": "Unselect all ({count})",
+          "SELECTED": "{count} elemento seleccionado | {count} elementos seleccionados",
+          "SELECT_ALL": "Seleccionar todo ({count})",
+          "UNSELECT_ALL": "Deseleccionar todo ({count})",
           "BULK_DELETE_BUTTON": "Eliminar"
         },
         "ADD": {
           "SUGGESTED": {
-            "TITLE": "Example guardrails",
-            "ADD": "Add all",
-            "ADD_SINGLE": "Add this",
-            "SAVE": "Add and save (↵)",
-            "PLACEHOLDER": "Type in another guardrail..."
+            "TITLE": "Ejemplos de guardarraíles",
+            "ADD": "Añadir todos",
+            "ADD_SINGLE": "Añadir este",
+            "SAVE": "Añadir y guardar (↵)",
+            "PLACEHOLDER": "Escribe otro guardarraíl..."
           },
           "NEW": {
-            "TITLE": "Add a guardrail",
+            "TITLE": "Añadir un guardarraíl",
             "CREATE": "Crear",
             "CANCEL": "Cancelar",
-            "PLACEHOLDER": "Type in another guardrail...",
-            "TEST_ALL": "Test all"
+            "PLACEHOLDER": "Escribe otro guardarraíl...",
+            "TEST_ALL": "Probar todos"
           }
         },
         "LIST": {
           "SEARCH_PLACEHOLDER": "Buscar..."
         },
-        "EMPTY_MESSAGE": "No guardrails found. Create or add examples to begin.",
-        "SEARCH_EMPTY_MESSAGE": "No guardrails found for this search.",
+        "EMPTY_MESSAGE": "No se encontraron guardarraíles. Crea o añade ejemplos para comenzar.",
+        "SEARCH_EMPTY_MESSAGE": "No se encontraron guardarraíles para esta búsqueda.",
         "API": {
           "ADD": {
-            "SUCCESS": "Guardrails added successfully",
-            "ERROR": "There was an error adding guardrails, please try again."
+            "SUCCESS": "Guardarraíles añadidos correctamente",
+            "ERROR": "Hubo un error al añadir los guardarraíles, por favor inténtalo de nuevo."
           },
           "UPDATE": {
-            "SUCCESS": "Guardrails updated successfully",
-            "ERROR": "There was an error updating guardrails, please try again."
+            "SUCCESS": "Guardarraíles actualizados correctamente",
+            "ERROR": "Hubo un error al actualizar los guardarraíles, por favor inténtalo de nuevo."
           },
           "DELETE": {
-            "SUCCESS": "Guardrails deleted successfully",
-            "ERROR": "There was an error deleting guardrails, please try again."
+            "SUCCESS": "Guardarraíles eliminados correctamente",
+            "ERROR": "Hubo un error al eliminar los guardarraíles, por favor inténtalo de nuevo."
           }
         }
       },
       "RESPONSE_GUIDELINES": {
-        "TITLE": "Response Guidelines",
-        "DESCRIPTION": "The vibe and structure of your assistant’s replies—clear and friendly? Short and snappy? Detailed and formal?",
+        "TITLE": "Pautas de respuesta",
+        "DESCRIPTION": "El tono y la estructura de las respuestas de tu asistente: ¿claras y amables? ¿Cortas y directas? ¿Detalladas y formales?",
         "BULK_ACTION": {
-          "SELECTED": "{count} item selected | {count} items selected",
-          "SELECT_ALL": "Select all ({count})",
-          "UNSELECT_ALL": "Unselect all ({count})",
+          "SELECTED": "{count} elemento seleccionado | {count} elementos seleccionados",
+          "SELECT_ALL": "Seleccionar todo ({count})",
+          "UNSELECT_ALL": "Deseleccionar todo ({count})",
           "BULK_DELETE_BUTTON": "Eliminar"
         },
         "ADD": {
           "SUGGESTED": {
-            "TITLE": "Example response guidelines",
-            "ADD": "Add all",
-            "ADD_SINGLE": "Add this",
-            "SAVE": "Add and save (↵)",
-            "PLACEHOLDER": "Type in another response guideline..."
+            "TITLE": "Ejemplos de pautas de respuesta",
+            "ADD": "Añadir todas",
+            "ADD_SINGLE": "Añadir esta",
+            "SAVE": "Añadir y guardar (↵)",
+            "PLACEHOLDER": "Escribe otra pauta de respuesta..."
           },
           "NEW": {
-            "TITLE": "Add a response guideline",
+            "TITLE": "Añadir una pauta de respuesta",
             "CREATE": "Crear",
             "CANCEL": "Cancelar",
-            "PLACEHOLDER": "Type in another response guideline...",
-            "TEST_ALL": "Test all"
+            "PLACEHOLDER": "Escribe otra pauta de respuesta...",
+            "TEST_ALL": "Probar todas"
           }
         },
         "LIST": {
           "SEARCH_PLACEHOLDER": "Buscar..."
         },
-        "EMPTY_MESSAGE": "No response guidelines found. Create or add examples to begin.",
-        "SEARCH_EMPTY_MESSAGE": "No response guidelines found for this search.",
+        "EMPTY_MESSAGE": "No se encontraron pautas de respuesta. Crea o añade ejemplos para comenzar.",
+        "SEARCH_EMPTY_MESSAGE": "No se encontraron pautas de respuesta para esta búsqueda.",
         "API": {
           "ADD": {
-            "SUCCESS": "Response Guidelines added successfully",
-            "ERROR": "There was an error adding response guidelines, please try again."
+            "SUCCESS": "Pautas de respuesta añadidas correctamente",
+            "ERROR": "Hubo un error al añadir las pautas de respuesta, por favor inténtalo de nuevo."
           },
           "UPDATE": {
-            "SUCCESS": "Response Guidelines updated successfully",
-            "ERROR": "There was an error updating response guidelines, please try again."
+            "SUCCESS": "Pautas de respuesta actualizadas correctamente",
+            "ERROR": "Hubo un error al actualizar las pautas de respuesta, por favor inténtalo de nuevo."
           },
           "DELETE": {
-            "SUCCESS": "Response Guidelines deleted successfully",
-            "ERROR": "There was an error deleting response guidelines, please try again."
+            "SUCCESS": "Pautas de respuesta eliminadas correctamente",
+            "ERROR": "Hubo un error al eliminar las pautas de respuesta, por favor inténtalo de nuevo."
           }
         }
       },
       "SCENARIOS": {
-        "TITLE": "Scenarios",
-        "DESCRIPTION": "Give your assistant some context—like “what to do when a user is stuck,” or “how to act during a refund request.”",
+        "TITLE": "Escenarios",
+        "DESCRIPTION": "Da a tu asistente algo de contexto, como \"qué hacer cuando un usuario se atasca\" o \"cómo actuar durante una solicitud de reembolso\".",
         "BULK_ACTION": {
-          "SELECTED": "{count} item selected | {count} items selected",
-          "SELECT_ALL": "Select all ({count})",
-          "UNSELECT_ALL": "Unselect all ({count})",
+          "SELECTED": "{count} elemento seleccionado | {count} elementos seleccionados",
+          "SELECT_ALL": "Seleccionar todo ({count})",
+          "UNSELECT_ALL": "Deseleccionar todo ({count})",
           "BULK_DELETE_BUTTON": "Eliminar"
         },
         "ADD": {
           "SUGGESTED": {
-            "TITLE": "Example scenarios",
-            "ADD": "Add all",
-            "ADD_SINGLE": "Add this",
-            "TOOLS_USED": "Tools used :"
+            "TITLE": "Ejemplos de escenarios",
+            "ADD": "Añadir todos",
+            "ADD_SINGLE": "Añadir este",
+            "TOOLS_USED": "Herramientas usadas :"
           },
           "NEW": {
-            "CREATE": "Add a scenario",
-            "TITLE": "Create a scenario",
+            "CREATE": "Añadir un escenario",
+            "TITLE": "Crear un escenario",
             "FORM": {
               "TITLE": {
                 "LABEL": "Título",
-                "PLACEHOLDER": "Enter a name for the scenario",
-                "ERROR": "Scenario name is required"
+                "PLACEHOLDER": "Introduce un nombre para el escenario",
+                "ERROR": "El nombre del escenario es obligatorio"
               },
               "DESCRIPTION": {
                 "LABEL": "Descripción",
-                "PLACEHOLDER": "Describe how and where this scenario will be used",
-                "ERROR": "Scenario description is required"
+                "PLACEHOLDER": "Describe cómo y dónde se usará este escenario",
+                "ERROR": "La descripción del escenario es obligatoria"
               },
               "INSTRUCTION": {
-                "LABEL": "How to handle",
-                "PLACEHOLDER": "Describe how and where this scenario will be handled",
-                "ERROR": "Scenario content is required"
+                "LABEL": "Cómo gestionarlo",
+                "PLACEHOLDER": "Describe cómo y dónde se gestionará este escenario",
+                "ERROR": "El contenido del escenario es obligatorio"
               },
               "CREATE": "Crear",
               "CANCEL": "Cancelar"
@@ -792,44 +807,44 @@
         },
         "UPDATE": {
           "CANCEL": "Cancelar",
-          "UPDATE": "Update changes"
+          "UPDATE": "Actualizar cambios"
         },
         "LIST": {
           "SEARCH_PLACEHOLDER": "Buscar..."
         },
-        "EMPTY_MESSAGE": "No scenarios found. Create or add examples to begin.",
-        "SEARCH_EMPTY_MESSAGE": "No scenarios found for this search.",
+        "EMPTY_MESSAGE": "No se encontraron escenarios. Crea o añade ejemplos para comenzar.",
+        "SEARCH_EMPTY_MESSAGE": "No se encontraron escenarios para esta búsqueda.",
         "API": {
           "ADD": {
-            "SUCCESS": "Scenarios added successfully",
-            "ERROR": "There was an error adding scenarios, please try again."
+            "SUCCESS": "Escenarios añadidos correctamente",
+            "ERROR": "Hubo un error al añadir los escenarios, por favor inténtalo de nuevo."
           },
           "UPDATE": {
-            "SUCCESS": "Scenarios updated successfully",
-            "ERROR": "There was an error updating scenarios, please try again."
+            "SUCCESS": "Escenarios actualizados correctamente",
+            "ERROR": "Hubo un error al actualizar los escenarios, por favor inténtalo de nuevo."
           },
           "DELETE": {
-            "SUCCESS": "Scenarios deleted successfully",
-            "ERROR": "There was an error deleting scenarios, please try again."
+            "SUCCESS": "Escenarios eliminados correctamente",
+            "ERROR": "Hubo un error al eliminar los escenarios, por favor inténtalo de nuevo."
           }
         }
       }
     },
     "DOCUMENTS": {
-      "HEADER": "Documents",
-      "ADD_NEW": "Create a new document",
+      "HEADER": "Documentos",
+      "ADD_NEW": "Crear un nuevo documento",
       "FAQ_COUNT": "Preguntas frecuentes {n} | Preguntas frecuentes {n}",
-      "SELECTED": "{count} selected",
-      "SELECT_ALL": "Select all ({count})",
-      "UNSELECT_ALL": "Unselect all ({count})",
+      "SELECTED": "{count} seleccionados",
+      "SELECT_ALL": "Seleccionar todo ({count})",
+      "UNSELECT_ALL": "Deseleccionar todo ({count})",
       "BULK_DELETE_BUTTON": "Eliminar",
       "BULK_SYNC_BUTTON": "Actualizar",
       "BULK_DELETE": {
-        "TITLE": "Delete documents?",
-        "DESCRIPTION": "Are you sure you want to delete the selected documents? This action cannot be undone.",
-        "CONFIRM": "Yes, delete all",
-        "SUCCESS_MESSAGE": "Documents deleted successfully",
-        "ERROR_MESSAGE": "There was an error deleting the documents, please try again."
+        "TITLE": "¿Eliminar documentos?",
+        "DESCRIPTION": "¿Seguro que quieres eliminar los documentos seleccionados? Esta acción no se puede deshacer.",
+        "CONFIRM": "Sí, eliminar todos",
+        "SUCCESS_MESSAGE": "Documentos eliminados correctamente",
+        "ERROR_MESSAGE": "Hubo un error al eliminar los documentos, por favor inténtalo de nuevo."
       },
       "BULK_SYNC": {
         "SUCCESS_MESSAGE_ONE": "Actualizar en cola para 1 documento",
@@ -852,7 +867,7 @@
           "UPDATED": "Actualizado",
           "NEEDS_UPDATE": "Necesita actualización",
           "UPDATING": "Actualizando",
-          "FAILED": "Failed"
+          "FAILED": "Fallido"
         },
         "SORT": {
           "RECENTLY_UPDATED": "Actualizado recientemente",
@@ -877,7 +892,7 @@
         "DEFAULT": "Error de sincronización"
       },
       "RELATED_RESPONSES": {
-        "TITLE": "Related FAQs",
+        "TITLE": "FAQs relacionadas",
         "EMPTY": "Aún no se han generado FAQs de este documento."
       },
       "DETAILS": {
@@ -900,133 +915,133 @@
         "UNREADABLE_CONTENT": "El contenido legible no se pudo extraer de este documento. Puede ver el contenido extraído en bruto.",
         "EMPTY_CONTENT": "Aún no hay contenido grabado disponible para este documento."
       },
-      "FORM_DESCRIPTION": "Enter the URL of the document to add it as a knowledge source and choose the assistant to associate it with.",
+      "FORM_DESCRIPTION": "Introduce la URL del documento para añadirlo como fuente de conocimiento y elige el asistente al que asociarlo.",
       "CREATE": {
-        "TITLE": "Add a document",
-        "SUCCESS_MESSAGE": "The document has been successfully created",
-        "ERROR_MESSAGE": "There was an error creating the document, please try again."
+        "TITLE": "Añadir un documento",
+        "SUCCESS_MESSAGE": "El documento se ha creado correctamente",
+        "ERROR_MESSAGE": "Hubo un error al crear el documento, por favor inténtalo de nuevo."
       },
       "FORM": {
         "TYPE": {
-          "LABEL": "Document Type",
+          "LABEL": "Tipo de documento",
           "URL": "URL",
-          "PDF": "PDF File"
+          "PDF": "Archivo PDF"
         },
         "URL": {
           "LABEL": "URL",
-          "PLACEHOLDER": "Enter the URL of the document",
-          "ERROR": "Please provide a valid URL for the document"
+          "PLACEHOLDER": "Introduce la URL del documento",
+          "ERROR": "Por favor, proporciona una URL válida para el documento"
         },
         "PDF_FILE": {
-          "LABEL": "PDF File",
-          "CHOOSE_FILE": "Choose PDF file",
-          "ERROR": "Please select a PDF file",
-          "HELP_TEXT": "Maximum file size: 10MB",
-          "INVALID_TYPE": "Please select a valid PDF file",
-          "TOO_LARGE": "File size exceeds 10MB limit"
+          "LABEL": "Archivo PDF",
+          "CHOOSE_FILE": "Elegir archivo PDF",
+          "ERROR": "Por favor, selecciona un archivo PDF",
+          "HELP_TEXT": "Tamaño máximo de archivo: 10MB",
+          "INVALID_TYPE": "Por favor, selecciona un archivo PDF válido",
+          "TOO_LARGE": "El tamaño del archivo supera el límite de 10MB"
         },
         "NAME": {
-          "LABEL": "Document Name (Optional)",
-          "PLACEHOLDER": "Enter a name for the document"
+          "LABEL": "Nombre del documento (opcional)",
+          "PLACEHOLDER": "Introduce un nombre para el documento"
         }
       },
       "DELETE": {
-        "TITLE": "Are you sure to delete the document?",
-        "DESCRIPTION": "This action is permanent. Deleting this document will permanently erase all generated knowledge.",
+        "TITLE": "¿Seguro que deseas eliminar el documento?",
+        "DESCRIPTION": "Esta acción es permanente. Al eliminar este documento se borrará de forma definitiva todo el conocimiento generado.",
         "CONFIRM": "Sí, eliminar",
-        "SUCCESS_MESSAGE": "The document has been successfully deleted",
-        "ERROR_MESSAGE": "There was an error deleting the document, please try again."
+        "SUCCESS_MESSAGE": "El documento se ha eliminado correctamente",
+        "ERROR_MESSAGE": "Hubo un error al eliminar el documento, por favor inténtalo de nuevo."
       },
       "OPTIONS": {
         "VIEW_DETAILS": "Ver detalles",
         "SYNC_NOW": "Refrescar ahora",
         "RETRY_SYNC": "Reintentar refresco",
-        "DELETE_DOCUMENT": "Delete Document"
+        "DELETE_DOCUMENT": "Eliminar documento"
       },
       "EMPTY_STATE": {
-        "TITLE": "No documents available",
-        "SUBTITLE": "Documents are used by your assistant to generate FAQs. You can import documents to provide context for your assistant.",
+        "TITLE": "No hay documentos disponibles",
+        "SUBTITLE": "Tu asistente usa los documentos para generar FAQs. Puedes importar documentos para dar contexto a tu asistente.",
         "FILTERED_TITLE": "No hay documentos coincidentes",
         "FILTERED_SUBTITLE": "Intenta cambiar la fuente, el estado o el término de búsqueda.",
         "FEATURE_SPOTLIGHT": {
-          "TITLE": "Captain Document",
-          "NOTE": "A document in Captain serves as a knowledge resource for the assistant. By connecting your help center or guides, Captain can analyze the content and provide accurate responses for customer inquiries."
+          "TITLE": "Documento de Jabvox IA",
+          "NOTE": "Un documento en Jabvox IA sirve como recurso de conocimiento para el asistente. Al conectar tu centro de ayuda o tus guías, Jabvox IA puede analizar el contenido y ofrecer respuestas precisas a las consultas de los clientes."
         }
       }
     },
     "CUSTOM_TOOLS": {
-      "HEADER": "Tools",
-      "ADD_NEW": "Create a new tool",
-      "SOFT_LIMIT_WARNING": "Having more than 10 tools may reduce the assistant's reliability in selecting the right tool. Consider removing unused tools for better results.",
+      "HEADER": "Herramientas",
+      "ADD_NEW": "Crear una nueva herramienta",
+      "SOFT_LIMIT_WARNING": "Tener más de 10 herramientas puede reducir la fiabilidad del asistente al seleccionar la herramienta correcta. Considera eliminar las herramientas sin usar para obtener mejores resultados.",
       "EMPTY_STATE": {
-        "TITLE": "No custom tools available",
-        "SUBTITLE": "Create custom tools to connect your assistant with external APIs and services, enabling it to fetch data and perform actions on your behalf.",
+        "TITLE": "No hay herramientas personalizadas disponibles",
+        "SUBTITLE": "Crea herramientas personalizadas para conectar tu asistente con APIs y servicios externos, lo que le permite obtener datos y realizar acciones en tu nombre.",
         "FEATURE_SPOTLIGHT": {
-          "TITLE": "Custom Tools",
-          "NOTE": "Custom tools allow your assistant to interact with external APIs and services. Create tools to fetch data, perform actions, or integrate with your existing systems to enhance your assistant's capabilities."
+          "TITLE": "Herramientas personalizadas",
+          "NOTE": "Las herramientas personalizadas permiten que tu asistente interactúe con APIs y servicios externos. Crea herramientas para obtener datos, realizar acciones o integrarte con tus sistemas existentes y así ampliar las capacidades de tu asistente."
         }
       },
-      "FORM_DESCRIPTION": "Configure your custom tool to connect with external APIs",
+      "FORM_DESCRIPTION": "Configura tu herramienta personalizada para conectarte con APIs externas",
       "OPTIONS": {
-        "EDIT_TOOL": "Edit tool",
-        "DELETE_TOOL": "Delete tool"
+        "EDIT_TOOL": "Editar herramienta",
+        "DELETE_TOOL": "Eliminar herramienta"
       },
       "CREATE": {
-        "TITLE": "Create Custom Tool",
-        "SUCCESS_MESSAGE": "Custom tool created successfully",
-        "ERROR_MESSAGE": "Failed to create custom tool"
+        "TITLE": "Crear herramienta personalizada",
+        "SUCCESS_MESSAGE": "Herramienta personalizada creada correctamente",
+        "ERROR_MESSAGE": "No se pudo crear la herramienta personalizada"
       },
       "EDIT": {
-        "TITLE": "Edit Custom Tool",
-        "SUCCESS_MESSAGE": "Custom tool updated successfully",
-        "ERROR_MESSAGE": "Failed to update custom tool"
+        "TITLE": "Editar herramienta personalizada",
+        "SUCCESS_MESSAGE": "Herramienta personalizada actualizada correctamente",
+        "ERROR_MESSAGE": "No se pudo actualizar la herramienta personalizada"
       },
       "DELETE": {
-        "TITLE": "Delete Custom Tool",
-        "DESCRIPTION": "Are you sure you want to delete this custom tool? This action cannot be undone.",
+        "TITLE": "Eliminar herramienta personalizada",
+        "DESCRIPTION": "¿Seguro que quieres eliminar esta herramienta personalizada? Esta acción no se puede deshacer.",
         "CONFIRM": "Sí, eliminar",
-        "SUCCESS_MESSAGE": "Custom tool deleted successfully",
-        "ERROR_MESSAGE": "Failed to delete custom tool"
+        "SUCCESS_MESSAGE": "Herramienta personalizada eliminada correctamente",
+        "ERROR_MESSAGE": "No se pudo eliminar la herramienta personalizada"
       },
       "PAYWALL": {
-        "TITLE": "Upgrade to use tools with Captain",
-        "AVAILABLE_ON": "Captain Tools are only available in Business and Enterprise plans. Please upgrade to Business plan to use the feature.",
+        "TITLE": "Actualiza para usar herramientas con Jabvox IA",
+        "AVAILABLE_ON": "Las herramientas de Jabvox IA solo están disponibles en los planes Business y Enterprise. Actualiza al plan Business para usar esta función.",
         "UPGRADE_PROMPT": "",
         "UPGRADE_NOW": "Abrir facturación",
         "CANCEL_ANYTIME": ""
       },
       "ENTERPRISE_PAYWALL": {
-        "AVAILABLE_ON": "Captain Tools are only available in the paid plans.",
-        "UPGRADE_PROMPT": "Please upgrade to a paid plan to use this feature.",
+        "AVAILABLE_ON": "Las herramientas de Jabvox IA solo están disponibles en los planes de pago.",
+        "UPGRADE_PROMPT": "Actualiza a un plan de pago para usar esta función.",
         "ASK_ADMIN": "Por favor, comuníquese con su administrador para la actualización."
       },
       "TEST": {
-        "BUTTON": "Test connection",
-        "SUCCESS": "Endpoint returned HTTP {status}",
-        "ERROR": "Connection failed",
-        "DISABLED_HINT": "Testing is only available for endpoints without templates or request bodies."
+        "BUTTON": "Probar conexión",
+        "SUCCESS": "El endpoint devolvió HTTP {status}",
+        "ERROR": "La conexión falló",
+        "DISABLED_HINT": "Las pruebas solo están disponibles para endpoints sin plantillas ni cuerpos de solicitud."
       },
       "FORM": {
         "TITLE": {
-          "LABEL": "Tool Name",
-          "PLACEHOLDER": "Order Lookup",
-          "ERROR": "Tool name is required",
-          "MAX_LENGTH_ERROR": "Tool name must be {max} characters or fewer"
+          "LABEL": "Nombre de la herramienta",
+          "PLACEHOLDER": "Búsqueda de pedidos",
+          "ERROR": "El nombre de la herramienta es obligatorio",
+          "MAX_LENGTH_ERROR": "El nombre de la herramienta debe tener {max} caracteres o menos"
         },
         "DESCRIPTION": {
           "LABEL": "Descripción",
-          "PLACEHOLDER": "Looks up order details by order ID"
+          "PLACEHOLDER": "Busca los detalles del pedido por ID de pedido"
         },
         "HTTP_METHOD": {
-          "LABEL": "Method"
+          "LABEL": "Método"
         },
         "ENDPOINT_URL": {
-          "LABEL": "Endpoint URL",
+          "LABEL": "URL del endpoint",
           "PLACEHOLDER": "https://api.example.com/orders/{'{{'} order_id {'}}'}",
-          "ERROR": "Valid URL is required"
+          "ERROR": "Se requiere una URL válida"
         },
         "AUTH_TYPE": {
-          "LABEL": "Authentication Type"
+          "LABEL": "Tipo de autenticación"
         },
         "AUTH_TYPES": {
           "NONE": "Ninguna",
@@ -1036,23 +1051,23 @@
         },
         "AUTH_CONFIG": {
           "BEARER_TOKEN": "Bearer Token",
-          "BEARER_TOKEN_PLACEHOLDER": "Enter your bearer token",
-          "USERNAME": "Username",
-          "USERNAME_PLACEHOLDER": "Enter username",
+          "BEARER_TOKEN_PLACEHOLDER": "Introduce tu bearer token",
+          "USERNAME": "Nombre de usuario",
+          "USERNAME_PLACEHOLDER": "Introduce el nombre de usuario",
           "PASSWORD": "Contraseña",
-          "PASSWORD_PLACEHOLDER": "Enter password",
-          "API_KEY": "Header Name",
+          "PASSWORD_PLACEHOLDER": "Introduce la contraseña",
+          "API_KEY": "Nombre del encabezado",
           "API_KEY_PLACEHOLDER": "X-API-Key",
-          "API_VALUE": "Header Value",
-          "API_VALUE_PLACEHOLDER": "Enter API key value"
+          "API_VALUE": "Valor del encabezado",
+          "API_VALUE_PLACEHOLDER": "Introduce el valor de la clave de API"
         },
         "PARAMETERS": {
-          "LABEL": "Parameters",
-          "HELP_TEXT": "Define the parameters that will be extracted from user queries"
+          "LABEL": "Parámetros",
+          "HELP_TEXT": "Define los parámetros que se extraerán de las consultas de los usuarios"
         },
-        "ADD_PARAMETER": "Add Parameter",
+        "ADD_PARAMETER": "Añadir parámetro",
         "PARAM_NAME": {
-          "PLACEHOLDER": "Parameter name (e.g., order_id)"
+          "PLACEHOLDER": "Nombre del parámetro (p. ej., order_id)"
         },
         "PARAM_TYPE": {
           "PLACEHOLDER": "Tipo"
@@ -1065,139 +1080,139 @@
           "OBJECT": "Object"
         },
         "PARAM_DESCRIPTION": {
-          "PLACEHOLDER": "Description of the parameter"
+          "PLACEHOLDER": "Descripción del parámetro"
         },
         "PARAM_REQUIRED": {
           "LABEL": "Requerido"
         },
         "REQUEST_TEMPLATE": {
-          "LABEL": "Request Body Template (Optional)",
+          "LABEL": "Plantilla del cuerpo de solicitud (opcional)",
           "PLACEHOLDER": "{'{'}\n  \"order_id\": \"{'{{'} order_id {'}}'}\"\n{'}'}"
         },
         "RESPONSE_TEMPLATE": {
-          "LABEL": "Response Template (Optional)",
+          "LABEL": "Plantilla de respuesta (opcional)",
           "PLACEHOLDER": "Order {'{{'} order_id {'}}'} status: {'{{'} status {'}}'}"
         },
         "ERRORS": {
-          "PARAM_NAME_REQUIRED": "Parameter name is required"
+          "PARAM_NAME_REQUIRED": "El nombre del parámetro es obligatorio"
         }
       }
     },
     "RESPONSES": {
       "HEADER": "Preguntas frecuentes",
-      "PENDING_FAQS": "Pending FAQs",
-      "ADD_NEW": "Create new FAQ",
+      "PENDING_FAQS": "FAQs pendientes",
+      "ADD_NEW": "Crear nueva FAQ",
       "DOCUMENTABLE": {
-        "CONVERSATION": "Conversation #{id}"
+        "CONVERSATION": "Conversación #{id}"
       },
-      "SELECTED": "{count} selected",
-      "SELECT_ALL": "Select all ({count})",
-      "UNSELECT_ALL": "Unselect all ({count})",
-      "SEARCH_PLACEHOLDER": "Search FAQs...",
-      "BULK_APPROVE_BUTTON": "Approve",
+      "SELECTED": "{count} seleccionados",
+      "SELECT_ALL": "Seleccionar todo ({count})",
+      "UNSELECT_ALL": "Deseleccionar todo ({count})",
+      "SEARCH_PLACEHOLDER": "Buscar FAQs...",
+      "BULK_APPROVE_BUTTON": "Aprobar",
       "BULK_DELETE_BUTTON": "Eliminar",
       "BULK_APPROVE": {
-        "SUCCESS_MESSAGE": "FAQs approved successfully",
-        "ERROR_MESSAGE": "There was an error approving the FAQs, please try again."
+        "SUCCESS_MESSAGE": "FAQs aprobadas correctamente",
+        "ERROR_MESSAGE": "Hubo un error al aprobar las FAQs, por favor inténtalo de nuevo."
       },
       "BULK_DELETE": {
-        "TITLE": "Delete FAQs?",
-        "DESCRIPTION": "Are you sure you want to delete the selected FAQs? This action cannot be undone.",
-        "CONFIRM": "Yes, delete all",
-        "SUCCESS_MESSAGE": "FAQs deleted successfully",
-        "ERROR_MESSAGE": "There was an error deleting the FAQs, please try again."
+        "TITLE": "¿Eliminar FAQs?",
+        "DESCRIPTION": "¿Seguro que quieres eliminar las FAQs seleccionadas? Esta acción no se puede deshacer.",
+        "CONFIRM": "Sí, eliminar todas",
+        "SUCCESS_MESSAGE": "FAQs eliminadas correctamente",
+        "ERROR_MESSAGE": "Hubo un error al eliminar las FAQs, por favor inténtalo de nuevo."
       },
       "DELETE": {
-        "TITLE": "Are you sure to delete the FAQ?",
+        "TITLE": "¿Seguro que deseas eliminar la FAQ?",
         "DESCRIPTION": "",
         "CONFIRM": "Sí, eliminar",
-        "SUCCESS_MESSAGE": "FAQ deleted successfully",
-        "ERROR_MESSAGE": "There was an error deleting the FAQ, please try again."
+        "SUCCESS_MESSAGE": "FAQ eliminada correctamente",
+        "ERROR_MESSAGE": "Hubo un error al eliminar la FAQ, por favor inténtalo de nuevo."
       },
       "FILTER": {
-        "ASSISTANT": "Assistant: {selected}",
-        "STATUS": "Status: {selected}",
+        "ASSISTANT": "Asistente: {selected}",
+        "STATUS": "Estado: {selected}",
         "ALL_ASSISTANTS": "Todos"
       },
       "STATUS": {
         "TITLE": "Estado",
         "PENDING": "Pendientes",
-        "APPROVED": "Approved",
+        "APPROVED": "Aprobadas",
         "ALL": "Todos"
       },
       "PENDING_BANNER": {
-        "TITLE": "Captain has found some FAQs your customers were looking for.",
-        "ACTION": "Click here to review"
+        "TITLE": "Jabvox IA ha encontrado algunas FAQs que tus clientes estaban buscando.",
+        "ACTION": "Haz clic aquí para revisar"
       },
-      "FORM_DESCRIPTION": "Add a question and its corresponding answer to the knowledge base and select the assistant it should be associated with.",
+      "FORM_DESCRIPTION": "Añade una pregunta y su respuesta correspondiente a la base de conocimiento y selecciona el asistente al que debe asociarse.",
       "CREATE": {
-        "TITLE": "Add an FAQ",
-        "SUCCESS_MESSAGE": "The response has been added successfully.",
-        "ERROR_MESSAGE": "An error occurred while adding the response. Please try again."
+        "TITLE": "Añadir una FAQ",
+        "SUCCESS_MESSAGE": "La respuesta se ha añadido correctamente.",
+        "ERROR_MESSAGE": "Ocurrió un error al añadir la respuesta. Por favor, inténtalo de nuevo."
       },
       "FORM": {
         "QUESTION": {
-          "LABEL": "Question",
-          "PLACEHOLDER": "Enter the question here",
-          "ERROR": "Please provide a valid question."
+          "LABEL": "Pregunta",
+          "PLACEHOLDER": "Introduce la pregunta aquí",
+          "ERROR": "Por favor, proporciona una pregunta válida."
         },
         "ANSWER": {
-          "LABEL": "Answer",
-          "PLACEHOLDER": "Enter the answer here",
-          "ERROR": "Please provide a valid answer."
+          "LABEL": "Respuesta",
+          "PLACEHOLDER": "Introduce la respuesta aquí",
+          "ERROR": "Por favor, proporciona una respuesta válida."
         }
       },
       "EDIT": {
-        "TITLE": "Update the FAQ",
-        "SUCCESS_MESSAGE": "The FAQ has been successfully updated",
-        "ERROR_MESSAGE": "There was an error updating the FAQ, please try again",
-        "APPROVE_SUCCESS_MESSAGE": "The FAQ was marked as approved"
+        "TITLE": "Actualizar la FAQ",
+        "SUCCESS_MESSAGE": "La FAQ se ha actualizado correctamente",
+        "ERROR_MESSAGE": "Hubo un error al actualizar la FAQ, por favor inténtalo de nuevo",
+        "APPROVE_SUCCESS_MESSAGE": "La FAQ se marcó como aprobada"
       },
       "OPTIONS": {
-        "APPROVE": "Approve",
+        "APPROVE": "Aprobar",
         "EDIT_RESPONSE": "Editar",
         "DELETE_RESPONSE": "Eliminar"
       },
       "EMPTY_STATE": {
-        "TITLE": "No FAQs Found",
-        "NO_PENDING_TITLE": "There are no more pending FAQs to review",
-        "SUBTITLE": "FAQs help your assistant provide quick and accurate answers to questions from your customers. They can be generated automatically from your content or can be added manually.",
-        "CLEAR_SEARCH": "Clear active filters",
+        "TITLE": "No se encontraron FAQs",
+        "NO_PENDING_TITLE": "No hay más FAQs pendientes de revisar",
+        "SUBTITLE": "Las FAQs ayudan a tu asistente a ofrecer respuestas rápidas y precisas a las preguntas de tus clientes. Se pueden generar automáticamente a partir de tu contenido o añadirse manualmente.",
+        "CLEAR_SEARCH": "Limpiar filtros activos",
         "FEATURE_SPOTLIGHT": {
-          "TITLE": "Captain FAQ",
-          "NOTE": "Captain FAQs detects common customer questions—whether missing from your knowledge base or frequently asked—and generates relevant FAQs to improve support. You can review each suggestion and decide whether to approve or reject it."
+          "TITLE": "FAQ de Jabvox IA",
+          "NOTE": "Las FAQs de Jabvox IA detectan preguntas frecuentes de los clientes, ya sea que falten en tu base de conocimiento o se pregunten a menudo, y generan FAQs relevantes para mejorar el soporte. Puedes revisar cada sugerencia y decidir si la apruebas o la rechazas."
         }
       }
     },
     "INBOXES": {
-      "HEADER": "Connected Inboxes",
-      "ADD_NEW": "Connect a new inbox",
+      "HEADER": "Bandejas de entrada conectadas",
+      "ADD_NEW": "Conectar una nueva bandeja de entrada",
       "OPTIONS": {
         "DISCONNECT": "Desconectar"
       },
       "DELETE": {
-        "TITLE": "Are you sure to disconnect the inbox?",
+        "TITLE": "¿Seguro que deseas desconectar la bandeja de entrada?",
         "DESCRIPTION": "",
         "CONFIRM": "Sí, eliminar",
-        "SUCCESS_MESSAGE": "The inbox was successfully disconnected.",
-        "ERROR_MESSAGE": "There was an error disconnecting the inbox, please try again."
+        "SUCCESS_MESSAGE": "La bandeja de entrada se desconectó correctamente.",
+        "ERROR_MESSAGE": "Hubo un error al desconectar la bandeja de entrada, por favor inténtalo de nuevo."
       },
-      "FORM_DESCRIPTION": "Choose an inbox to connect with the assistant.",
+      "FORM_DESCRIPTION": "Elige una bandeja de entrada para conectar con el asistente.",
       "CREATE": {
-        "TITLE": "Connect an Inbox",
-        "SUCCESS_MESSAGE": "The inbox was successfully connected.",
-        "ERROR_MESSAGE": "An error occurred while connecting the inbox. Please try again."
+        "TITLE": "Conectar una bandeja de entrada",
+        "SUCCESS_MESSAGE": "La bandeja de entrada se conectó correctamente.",
+        "ERROR_MESSAGE": "Ocurrió un error al conectar la bandeja de entrada. Por favor, inténtalo de nuevo."
       },
       "FORM": {
         "INBOX": {
           "LABEL": "Bandeja de entrada",
-          "PLACEHOLDER": "Choose the inbox to deploy the assistant.",
-          "ERROR": "An inbox selection is required."
+          "PLACEHOLDER": "Elige la bandeja de entrada para desplegar el asistente.",
+          "ERROR": "Es obligatorio seleccionar una bandeja de entrada."
         }
       },
       "EMPTY_STATE": {
-        "TITLE": "No Connected Inboxes",
-        "SUBTITLE": "Connecting an inbox allows the assistant to handle initial questions from your customers before transferring them to you."
+        "TITLE": "No hay bandejas de entrada conectadas",
+        "SUBTITLE": "Conectar una bandeja de entrada permite que el asistente gestione las preguntas iniciales de tus clientes antes de transferirlas a ti."
       }
     }
   }

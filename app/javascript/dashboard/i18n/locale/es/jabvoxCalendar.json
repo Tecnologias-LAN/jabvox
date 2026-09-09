@@ -44,7 +44,27 @@
     },
     "TABS": {
       "CALENDAR": "Calendario",
-      "SETTINGS": "Configuración"
+      "SETTINGS": "Configuración",
+      "AVAILABILITY": "Horario de agentes"
+    },
+    "AVAILABILITY": {
+      "TITLE": "Horario de agentes",
+      "DESCRIPTION": "Define el horario laboral de cada agente. Jabvox IA usa estos horarios para ofrecer citas disponibles al agendar durante una conversación.",
+      "AGENT_LABEL": "Agente",
+      "DAY_OFF": "No atiende",
+      "HELP": "Solo los días activados con un horario válido generan huecos disponibles. La duración de cita define en cuántos slots se divide cada franja.",
+      "SAVE_SUCCESS": "Horario guardado",
+      "SAVE_ERROR": "No se pudo guardar el horario",
+      "SAVE_INVALID": "Revisa las horas: la hora de fin debe ser posterior a la de inicio.",
+      "DAYS": {
+        "0": "Domingo",
+        "1": "Lunes",
+        "2": "Martes",
+        "3": "Miércoles",
+        "4": "Jueves",
+        "5": "Viernes",
+        "6": "Sábado"
+      }
     },
     "FILTERS": {
       "CALENDARS": "Calendarios",
