@@ -782,6 +782,7 @@ Rails.application.routes.draw do
               collection do
                 get :status
                 post :provision
+                post :stream
               end
             end
             # Estado del Consumer (Chat IA) + sync de modelos con el Hermes de la cuenta.
@@ -818,14 +819,6 @@ Rails.application.routes.draw do
             end
             # Auditoría de acciones ejecutadas por Hermes (solo lectura, admin del Chat IA).
             resources :hermes_action_logs, only: [:index], controller: 'hermes_action_logs'
-            resources :response_bot_seats, only: [:index]
-            resources :response_bot_roles, only: [:index]
-            resources :response_bot_configs, only: [:index, :create, :update, :destroy] do
-              collection { post :setup_labels }
-            end
-            resources :response_bot_documents, only: [:index, :update, :destroy] do
-              collection { post :sync }
-            end
             resources :affiliates do
               collection { get :portal_login_url }
               member do
@@ -836,6 +829,8 @@ Rails.application.routes.draw do
             end
             resources :calendar_events, only: [:index, :show, :create, :update, :destroy]
             resources :calendar_external_people, only: [:index, :show, :create, :update, :destroy]
+            # Horario laboral por agente para la disponibilidad de citas de Jabvox IA.
+            resources :agent_availabilities, only: [:index, :show, :update]
             resources :forms, only: [:index, :show, :create, :update, :destroy]
             resource :form_config, only: [:show, :update]
             resource :reports, only: [], controller: 'reports' do
@@ -1388,8 +1383,6 @@ Rails.application.routes.draw do
       end
       resources :jabvox_saldo_configs, only: [:index, :new, :create, :destroy]
       resources :jabvox_ticket_helpdesk_configs
-      resources :jabvox_response_bot_seats
-      resources :jabvox_response_bot_roles
       resources :jabvox_deleted_leads, only: [:index, :show] do
         member { post :restore }
       end

@@ -11,40 +11,50 @@ class Jabvox::Whatsapp::GroupProviderService
     @channel = channel
   end
 
-  # Create a group with an initial subject. Returns the group payload incl. its id.
+  # Create a group with an initial subject. Meta requires messaging_product on every
+  # Groups API write. Returns the group payload incl. its id.
+  # Ref: POST /<PHONE_NUMBER_ID>/groups { messaging_product, subject, description }
   def create_group(name, description: nil)
-    body = { subject: name }
+    body = { messaging_product: 'whatsapp', subject: name }
     body[:description] = description if description.present?
     post("#{phone_path}/groups", body)
   end
 
-  # Fetch/refresh the invite link participants use to join (invite-only).
+  # Fetch the invite link participants use to join (invite-only).
+  # Ref: GET /<GROUP_ID>/invite_link
   def invite_link(provider_group_id)
-    get("#{group_path(provider_group_id)}/invite")
+    get("#{group_path(provider_group_id)}/invite_link")
   end
 
+  # Reset (rotate) the invite link, invalidating the previous one.
+  # Ref: POST /<GROUP_ID>/invite_link { messaging_product }
+  def reset_invite_link(provider_group_id)
+    post("#{group_path(provider_group_id)}/invite_link", { messaging_product: 'whatsapp' })
+  end
+
+  # Update group subject/description.
+  # Ref: POST /<GROUP_ID> { messaging_product, subject, description }
   def update_metadata(provider_group_id, attrs)
-    post(group_path(provider_group_id), attrs.compact)
+    post(group_path(provider_group_id), attrs.compact.merge(messaging_product: 'whatsapp'))
   end
 
+  # Remove a participant. Meta expects an array of { user: <phone|wa_id> } objects.
+  # Ref: DELETE /<GROUP_ID>/participants { messaging_product, participants: [{ user }] }
   def remove_participant(provider_group_id, phone_number)
-    delete("#{group_path(provider_group_id)}/participants", { participants: [phone_number] })
+    delete("#{group_path(provider_group_id)}/participants",
+           { messaging_product: 'whatsapp', participants: [{ user: phone_number }] })
   end
 
-  def update_participant_role(provider_group_id, phone_number, role)
-    post("#{group_path(provider_group_id)}/participants",
-         { participant: phone_number, role: role })
-  end
-
-  # Send a text or template message to the group. recipient_type: group is the
-  # only difference from an individual send.
+  # Send a text message to the group. recipient_type: group + the group id as `to`
+  # is the only difference from an individual send.
+  # Ref: POST /<PHONE_NUMBER_ID>/messages { recipient_type: 'group', to: <GROUP_ID> }
   def send_text(provider_group_id, text)
     post("#{phone_path}/messages", {
            messaging_product: 'whatsapp',
            recipient_type: 'group',
            to: provider_group_id,
            type: 'text',
-           text: { body: text }
+           text: { preview_url: true, body: text }
          })
   end
 

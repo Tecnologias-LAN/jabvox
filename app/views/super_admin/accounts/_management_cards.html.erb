@@ -1,0 +1,211 @@
+<%#
+  Grilla uniforme de tarjetas de gestión de la cuenta (Super Admin): IP Whitelist,
+  Extensions, Automatizaciones, Hermes, Saldo y SSL/Dominio. Todas del mismo tamaño
+  compacto, 3 por fila, responsive. Cada tarjeta: ícono + título, un estado breve
+  (con chip de color cuando aplica) y una acción.
+%>
+
+<%
+  _acc = page.resource
+
+  # --- Datos por tarjeta (calculados una vez) ---
+  _ext_count = _acc.jabvox_user_extensions.count
+  _autom = _acc.account_automation_config
+  _handoff = _acc.jabvox_context_forge_handoff
+
+  # Saldo
+  _saldo_config = _acc.jabvox_saldo_config
+  _saldo_status = if _saldo_config
+                    begin
+                      Jabvox::SaldoService.new(_saldo_config).fetch_balance
+                    rescue StandardError
+                      { connected: false, balance: _saldo_config.cached_balance_jabvox.to_f, currency: 'COP', message: 'Error al conectar' }
+                    end
+                  end
+  _saldo_bal = _saldo_status ? _saldo_status[:balance].to_f : nil
+  _saldo_tone = if _saldo_bal.nil? then :slate
+                elsif _saldo_bal <= 10_000 then :red
+                elsif _saldo_bal < 50_000 then :amber
+                else :green end
+
+  # SSL
+  _ssl_config = _acc.jabvox_form_config
+  _ssl_status = _ssl_config&.ssl_status || 'none'
+  _ssl_domain = _ssl_config&.base_url_jabvox.presence
+  _ssl_tone = { 'active' => :green, 'provisioning' => :amber, 'failed' => :red }.fetch(_ssl_status, :slate)
+  _ssl_label = { 'active' => 'Activo', 'provisioning' => 'Generando…', 'failed' => 'Error' }.fetch(_ssl_status, 'Sin cert.')
+
+  # Mapa de chips por tono (clases Tailwind con tokens de estado).
+  chip = ->(tone) {
+    {
+      green: 'bg-green-100 text-green-700',
+      amber: 'bg-amber-100 text-amber-700',
+      red:   'bg-red-100 text-red-700',
+      blue:  'bg-blue-100 text-blue-700',
+      slate: 'bg-n-alpha-2 text-n-slate-11'
+    }[tone]
+  }
+
+  # Botón verde que resalta (sobrescribe el azul de .button de administrate con !important
+  # de utilidades Tailwind). Ocupa el ancho de la tarjeta.
+  _btn = '!bg-green-600 hover:!bg-green-700 !text-white !border-0 !w-full !text-center !justify-center !font-medium !rounded-md !transition-colors'
+  _btn_danger = '!bg-red-600 hover:!bg-red-700 !text-white !border-0'
+%>
+
+<%# Contenedor con margen lateral para que las tarjetas NO toquen los bordes. %>
+<section class="mt-6 px-1 sm:px-2">
+  <h3 class="text-sm font-semibold text-n-slate-12 mb-3">Gestión de la cuenta</h3>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+    <%# 1. IP Whitelist %>
+    <div class="flex flex-col rounded-lg border border-n-weak bg-n-solid-1 p-4 h-full">
+      <div class="flex items-center gap-2 mb-1">
+        <span>🛡️</span>
+        <h4 class="text-sm font-semibold text-n-slate-12">IP Whitelist</h4>
+      </div>
+      <p class="text-xs text-n-slate-11 flex-1 mb-3">
+        Controla desde qué IPs se puede acceder a esta cuenta.
+      </p>
+      <%= link_to 'Gestionar', super_admin_account_jabvox_ip_whitelists_path(_acc), class: "button #{_btn}" %>
+    </div>
+
+    <%# 2. Extensions %>
+    <div class="flex flex-col rounded-lg border border-n-weak bg-n-solid-1 p-4 h-full">
+      <div class="flex items-center gap-2 mb-1">
+        <span>☎️</span>
+        <h4 class="text-sm font-semibold text-n-slate-12">Extensiones</h4>
+      </div>
+      <p class="text-xs text-n-slate-11 flex-1 mb-3">
+        <% if _ext_count.positive? %>
+          <%= _ext_count %> usuario(s) con extensión asignada.
+        <% else %>
+          Sin extensiones. Se pregunta en cada llamada.
+        <% end %>
+      </p>
+      <%= link_to 'Gestionar', super_admin_account_jabvox_user_extensions_path(_acc), class: "button #{_btn}" %>
+    </div>
+
+    <%# 3. Automatizaciones Avanzadas %>
+    <div class="flex flex-col rounded-lg border border-n-weak bg-n-solid-1 p-4 h-full">
+      <div class="flex items-center justify-between gap-2 mb-1">
+        <div class="flex items-center gap-2">
+          <span>⚙️</span>
+          <h4 class="text-sm font-semibold text-n-slate-12">Automatizaciones</h4>
+        </div>
+        <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium <%= chip.call(_autom&.enabled? ? :green : :slate) %>">
+          <%= _autom&.enabled? ? 'Activo' : 'Inactivo' %>
+        </span>
+      </div>
+      <p class="text-xs text-n-slate-11 flex-1 mb-3">
+        <% if _autom&.enabled? %>
+          <%= _acc.jabvox_flows.count %> flujo(s) creados.
+        <% else %>
+          Actívalo para que la cuenta cree flujos.
+        <% end %>
+      </p>
+      <%= link_to 'Gestionar flujos', super_admin_account_account_automations_path(_acc), class: "button #{_btn}" %>
+    </div>
+
+    <%# 4. Hermes %>
+    <div class="flex flex-col rounded-lg border border-n-weak bg-n-solid-1 p-4 h-full">
+      <div class="flex items-center justify-between gap-2 mb-1">
+        <div class="flex items-center gap-2">
+          <span>🌐</span>
+          <h4 class="text-sm font-semibold text-n-slate-12">Hermes</h4>
+        </div>
+        <%
+          _h_tone, _h_label =
+            if _handoff&.hermes_operational? then [:green, 'Operativo']
+            elsif _handoff&.status == 'failed' then [:red, 'Error']
+            elsif _handoff&.status == 'provisioning' then [:amber, 'Levantando']
+            else [:slate, 'Sin conectar'] end
+        %>
+        <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium <%= chip.call(_h_tone) %>">
+          <%= _h_label %>
+        </span>
+      </div>
+      <p class="text-xs text-n-slate-11 flex-1 mb-3">
+        <% if _handoff&.hermes_operational? %>
+          <%= _handoff.mcp_servers.size %> MCP/skill disponibles.
+        <% elsif _handoff&.status == 'failed' %>
+          <%= truncate(_handoff.last_error.to_s, length: 60) %>
+        <% elsif _handoff&.status == 'provisioning' %>
+          Levantando el Hermes de la cuenta…
+        <% else %>
+          Lígalo desde el panel de Hermes.
+        <% end %>
+      </p>
+      <%= link_to 'Gestionar en Hermes', super_admin_hermes_instances_path, class: "button #{_btn}" %>
+    </div>
+
+    <%# 5. Saldo %>
+    <div class="flex flex-col rounded-lg border border-n-weak bg-n-solid-1 p-4 h-full">
+      <div class="flex items-center justify-between gap-2 mb-1">
+        <div class="flex items-center gap-2">
+          <span>💰</span>
+          <h4 class="text-sm font-semibold text-n-slate-12">Saldo</h4>
+        </div>
+        <% if _saldo_status %>
+          <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium <%= chip.call(_saldo_status[:connected] ? :green : :slate) %>">
+            <%= _saldo_status[:connected] ? 'Conectado' : 'Último valor' %>
+          </span>
+        <% end %>
+      </div>
+      <div class="flex-1 mb-3">
+        <% if _saldo_status %>
+          <div class="text-lg font-bold tabular-nums <%= { green: 'text-green-600', amber: 'text-amber-600', red: 'text-red-600', slate: 'text-n-slate-12' }[_saldo_tone] %>">
+            $<%= number_with_delimiter(_saldo_bal.round(0)) %>
+            <span class="text-xs font-normal text-n-slate-10"><%= _saldo_status[:currency] %></span>
+          </div>
+        <% else %>
+          <p class="text-xs text-n-slate-11">Sin configuración de saldo.</p>
+        <% end %>
+      </div>
+      <%= link_to 'Configurar Saldo', super_admin_account_jabvox_saldo_config_path(_acc), class: "button #{_btn}" %>
+    </div>
+
+    <%# 6. SSL / Dominio personalizado %>
+    <div class="flex flex-col rounded-lg border border-n-weak bg-n-solid-1 p-4 h-full">
+      <div class="flex items-center justify-between gap-2 mb-1">
+        <div class="flex items-center gap-2">
+          <span>🔒</span>
+          <h4 class="text-sm font-semibold text-n-slate-12">SSL / Dominio</h4>
+        </div>
+        <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium <%= chip.call(_ssl_tone) %>">
+          <%= _ssl_label %>
+        </span>
+      </div>
+      <p class="text-xs text-n-slate-11 flex-1 mb-3">
+        <% if _ssl_domain.present? %>
+          <span class="font-medium text-n-slate-12"><%= truncate(_ssl_domain, length: 32) %></span>
+          <% if _ssl_config&.ssl_expires_at.present? %>
+            <br><span class="text-[11px]">Vence <%= _ssl_config.ssl_expires_at.strftime('%d/%m/%Y') %></span>
+          <% end %>
+        <% else %>
+          Sin dominio personalizado configurado.
+        <% end %>
+      </p>
+      <%# En SSL hay hasta 2 botones lado a lado; no usan el ancho completo del _btn. %>
+      <% _ssl_btn = '!bg-green-600 hover:!bg-green-700 !text-white !border-0 !font-medium !rounded-md' %>
+      <div class="flex flex-wrap gap-2">
+        <% if _ssl_domain.present? %>
+          <%= form_tag(provision_ssl_form_config_super_admin_account_path(_acc), method: :post, class: 'contents') do %>
+            <%= submit_tag(
+              _ssl_status == 'active' ? 'Renovar' : (_ssl_status == 'failed' ? 'Reintentar' : 'Generar SSL'),
+              class: "button #{_ssl_btn}",
+              onclick: "return confirm('¿Iniciar generación del certificado SSL para #{_ssl_domain}?')"
+            ) %>
+          <% end %>
+        <% end %>
+        <% if _ssl_status != 'none' %>
+          <%= form_tag(revoke_domain_form_config_super_admin_account_path(_acc), method: :delete, class: 'contents') do %>
+            <%= submit_tag('Eliminar', class: "button #{_btn_danger}",
+                  onclick: "return confirm('Esto eliminará el certificado y el dominio personalizado. ¿Estás seguro?')") %>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+
+  </div>
+</section>

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
+import Cookies from 'js-cookie';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { provisioningChatAPI } from 'dashboard/api/jabvox/provisioningChat';
 
@@ -12,6 +13,11 @@ const messageInput = ref('');
 const messagesContainer = ref(null);
 const isSending = ref(false);
 const isLoadingHistory = ref(false);
+// Streaming (SSE) como el Chat IA: progreso en vivo + herramientas + detener.
+const isStreaming = ref(false);
+const streamController = ref(null); // AbortController del stream en curso
+const activeTools = ref([]); // chips de herramientas en vivo del turno actual
+const expandedTool = ref(null); // clave "msgId:toolId" de la herramienta desplegada
 
 // Estado del aprovisionamiento (banner superior)
 const status = ref(null); // { status, contextforge_base_url, virtual_server_id, mcp_servers, has_token, last_error }
@@ -36,9 +42,9 @@ const canProvision = computed(
     !isProvisioning.value
 );
 
-// El input se habilita solo con contenido y sin envío en curso.
+// El input se habilita solo con contenido y sin un stream en curso.
 const canSend = computed(
-  () => messageInput.value.trim().length > 0 && !isSending.value
+  () => messageInput.value.trim().length > 0 && !isStreaming.value
 );
 
 // Mapa de presentación por estado: etiqueta, ayuda, ícono y color del banner.
@@ -107,12 +113,35 @@ async function fetchStatus() {
   }
 }
 
+// Normaliza las tools guardadas (formato backend) al que espera el render (como upsertTool),
+// para que al reabrir el chat las herramientas se vean igual que en vivo.
+function normalizeStoredTools(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map(tool => ({
+    id: tool.toolCallId || tool.tool,
+    emoji: tool.emoji || '🔧',
+    tool: tool.tool || 'tool',
+    label: tool.tool || 'tool',
+    detail: tool.label || tool.detail || tool.output || '',
+    status: tool.status,
+  }));
+}
+
 async function fetchMessages() {
   isLoadingHistory.value = true;
   try {
     const { data } = await provisioningChatAPI.getMessages();
     // El backend puede devolver el array directo o envuelto en {payload}.
-    messages.value = Array.isArray(data) ? data : data?.payload || [];
+    const rows = Array.isArray(data) ? data : data?.payload || [];
+    // Rehidrata las tools de cada mensaje al formato de render.
+    messages.value = rows.map(m => {
+      const tools = m.metadata?.tools;
+      if (!tools) return m;
+      return {
+        ...m,
+        metadata: { ...m.metadata, tools: normalizeStoredTools(tools) },
+      };
+    });
   } catch (e) {
     errorMessage.value =
       e?.response?.data?.error ||
@@ -152,13 +181,113 @@ async function provision() {
   }
 }
 
+// El fetch del stream no añade solo los headers de devise-token-auth; se leen de la cookie
+// de sesión del dashboard y se inyectan a mano (igual que el Chat IA). Sin esto → 401.
+function deviseAuthHeaders() {
+  try {
+    const raw = Cookies.get('cw_d_session_info');
+    const info = raw ? JSON.parse(raw) : {};
+    return {
+      'access-token': info['access-token'] || '',
+      client: info.client || '',
+      uid: info.uid || '',
+      expiry: info.expiry || '',
+      'token-type': 'Bearer',
+    };
+  } catch {
+    return {};
+  }
+}
+
+// Acumula/actualiza una herramienta del turno (dedup por toolCallId, merge sin perder el
+// comando). Espeja el backend y el Chat IA.
+function upsertTool(tool) {
+  const id = tool.toolCallId || tool.tool;
+  const idx = activeTools.value.findIndex(x => x.id === id);
+  if (idx === -1) {
+    activeTools.value.push({
+      id,
+      emoji: tool.emoji || '🔧',
+      tool: tool.tool || 'tool',
+      label: tool.tool || 'tool',
+      detail: tool.label || tool.detail || tool.output || '',
+      status: tool.status,
+    });
+    return;
+  }
+  const prev = activeTools.value[idx];
+  activeTools.value[idx] = {
+    ...prev,
+    status: tool.status || prev.status,
+    detail: tool.label || tool.detail || tool.output || prev.detail,
+    emoji: tool.emoji || prev.emoji,
+  };
+}
+
+function appendToMessage(messageId, chunk) {
+  const msg = messages.value.find(m => m.id === messageId);
+  if (msg) msg.content = (msg.content || '') + chunk;
+}
+
+function handleFrame(eventType, data, assistantId) {
+  let json;
+  try {
+    json = JSON.parse(data);
+  } catch {
+    return;
+  }
+  if (eventType === 'hermes.tool.progress') {
+    upsertTool(json);
+    return;
+  }
+  if (json.error) {
+    appendToMessage(assistantId, `\n\nError: ${json.error}`);
+    return;
+  }
+  const delta = json.choices?.[0]?.delta?.content;
+  if (delta) appendToMessage(assistantId, delta);
+}
+
+function processSseLines(lines, ctx, assistantId) {
+  lines.forEach(line => {
+    if (line.startsWith('event:')) {
+      ctx.eventType = line.slice(6).trim();
+    } else if (line.startsWith('data:')) {
+      const data = line.slice(5).trim();
+      if (data === '[DONE]' || data === '') return;
+      handleFrame(ctx.eventType, data, assistantId);
+      ctx.eventType = null;
+    }
+  });
+}
+
+async function consumeStream(res, assistantId) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const ctx = { eventType: null };
+  let buffer = '';
+  let chunk = await reader.read();
+  while (!chunk.done) {
+    buffer += decoder.decode(chunk.value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    processSseLines(lines, ctx, assistantId);
+    // eslint-disable-next-line no-await-in-loop
+    chunk = await reader.read();
+  }
+}
+
+// Detiene la respuesta/aprovisionamiento en curso (aborta el stream). El input queda libre.
+function stopStreaming() {
+  streamController.value?.abort();
+}
+
 async function sendMessage() {
   const content = messageInput.value.trim();
-  if (!content || isSending.value) return;
+  if (!content || isStreaming.value) return;
 
   errorMessage.value = '';
-
-  // Pintamos de inmediato el mensaje del usuario (optimista).
+  // Mensaje del usuario (optimista).
   messages.value.push({
     id: `local_${Date.now()}`,
     role: 'user',
@@ -166,30 +295,63 @@ async function sendMessage() {
     created_at: new Date().toISOString(),
   });
   messageInput.value = '';
+
+  // Mensaje del asistente vacío que se irá llenando con el stream.
+  const assistantId = `assistant_${Date.now()}`;
+  messages.value.push({
+    id: assistantId,
+    role: 'assistant',
+    content: '',
+    created_at: new Date().toISOString(),
+  });
+
   isSending.value = true;
+  isStreaming.value = true;
+  streamController.value = new AbortController();
+  activeTools.value = [];
 
   try {
-    const { data } = await provisioningChatAPI.sendMessage(content);
-    // El endpoint responde con el mensaje del assistant.
-    if (data) {
-      messages.value.push({
-        id: data.id || `assistant_${Date.now()}`,
-        role: data.role || 'assistant',
-        content: data.content,
-        metadata: data.metadata,
-        created_at: data.created_at || new Date().toISOString(),
-      });
+    const res = await fetch(provisioningChatAPI.streamUrl(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...deviseAuthHeaders() },
+      credentials: 'same-origin',
+      signal: streamController.value?.signal,
+      body: JSON.stringify({ content }),
+    });
+    if (!res.ok || !res.body) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || t('JABVOX_PROVISIONING_CHAT.ERROR.SEND'));
     }
-    // Refrescamos el estado por si el bot cambió el aprovisionamiento.
+    await consumeStream(res, assistantId);
+    // Refresca el estado por si el aprovisionador cambió el aprovisionamiento.
     fetchStatus();
   } catch (e) {
-    errorMessage.value =
-      e?.response?.data?.error ||
-      e?.message ||
-      t('JABVOX_PROVISIONING_CHAT.ERROR.SEND');
+    if (e.name === 'AbortError') {
+      appendToMessage(
+        assistantId,
+        `\n\n_${t('JABVOX_PROVISIONING_CHAT.STOPPED')}_`
+      );
+    } else {
+      errorMessage.value =
+        e?.message || t('JABVOX_PROVISIONING_CHAT.ERROR.SEND');
+      appendToMessage(assistantId, `\n\nError: ${e.message}`);
+    }
   } finally {
+    // Fija las herramientas usadas al mensaje (quedan expandibles), como el Chat IA.
+    const msg = messages.value.find(m => m.id === assistantId);
+    if (msg && activeTools.value.length) {
+      msg.metadata = { ...(msg.metadata || {}), tools: [...activeTools.value] };
+    }
     isSending.value = false;
+    isStreaming.value = false;
+    streamController.value = null;
+    activeTools.value = [];
   }
+}
+
+function toggleToolDetail(msgId, toolId) {
+  const key = `${msgId}:${toolId}`;
+  expandedTool.value = expandedTool.value === key ? null : key;
 }
 
 function handleKeydown(e) {
@@ -380,6 +542,36 @@ function formatTime(dateStr) {
           "
         >
           <p class="whitespace-pre-wrap break-words">{{ msg.content }}</p>
+
+          <!-- Herramientas usadas (persistidas), expandibles como en el Chat IA -->
+          <div
+            v-if="msg.role === 'assistant' && msg.metadata?.tools?.length"
+            class="mt-2 flex flex-col gap-1"
+          >
+            <p class="text-xs font-medium opacity-70">
+              {{ t('JABVOX_PROVISIONING_CHAT.TOOLS_USED') }}
+            </p>
+            <div v-for="tool in msg.metadata.tools" :key="tool.id">
+              <button
+                type="button"
+                class="reset-base flex items-center gap-1.5 text-xs rounded-md bg-n-alpha-1 px-2 py-1 hover:bg-n-alpha-2 transition-colors"
+                @click="toggleToolDetail(msg.id, tool.id)"
+              >
+                <span>{{ tool.emoji }}</span>
+                <span class="font-mono">{{ tool.tool }}</span>
+                <span
+                  v-if="tool.status === 'completed'"
+                  class="i-lucide-check text-n-teal-11 size-3"
+                />
+              </button>
+              <pre
+                v-if="tool.detail && expandedTool === `${msg.id}:${tool.id}`"
+                class="mt-1 ml-5 max-w-full rounded-lg bg-n-alpha-1 p-2 text-xs text-n-slate-11 whitespace-pre-wrap break-all overflow-x-auto"
+                >{{ tool.detail }}</pre
+              >
+            </div>
+          </div>
+
           <span
             class="text-xs opacity-60 mt-1 block"
             :class="msg.role === 'user' ? 'text-right' : ''"
@@ -389,8 +581,31 @@ function formatTime(dateStr) {
         </div>
       </div>
 
-      <!-- Indicador "pensando" -->
-      <div v-if="isSending" class="flex gap-3">
+      <!-- Chips de herramientas EN VIVO mientras el aprovisionador trabaja -->
+      <div
+        v-if="isStreaming && activeTools.length"
+        class="flex flex-wrap gap-1.5 px-1"
+      >
+        <span
+          v-for="tool in activeTools"
+          :key="tool.id"
+          class="inline-flex items-center gap-1.5 text-xs rounded-full bg-n-alpha-1 border border-n-weak px-2.5 py-1"
+        >
+          <span>{{ tool.emoji }}</span>
+          <span class="font-mono">{{ tool.label }}</span>
+          <span
+            v-if="tool.status === 'completed'"
+            class="i-lucide-check text-n-teal-11 size-3"
+          />
+          <span
+            v-else
+            class="i-lucide-loader-2 animate-spin text-n-slate-10 size-3"
+          />
+        </span>
+      </div>
+
+      <!-- Indicador "pensando" (solo antes de recibir el primer texto/tool) -->
+      <div v-if="isStreaming && !activeTools.length" class="flex gap-3">
         <div
           class="bg-n-solid-1 border border-n-weak rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm"
         >
@@ -422,10 +637,18 @@ function formatTime(dateStr) {
           @keydown="handleKeydown"
         />
         <Button
+          v-if="isStreaming"
+          icon="i-lucide-square"
+          color="ruby"
+          :label="t('JABVOX_PROVISIONING_CHAT.STOP')"
+          class="shrink-0 sm:w-auto justify-center"
+          @click="stopStreaming"
+        />
+        <Button
+          v-else
           icon="i-lucide-send"
           :label="t('JABVOX_PROVISIONING_CHAT.SEND')"
           :disabled="!canSend"
-          :is-loading="isSending"
           class="shrink-0 sm:w-auto justify-center"
           @click="sendMessage"
         />

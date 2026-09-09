@@ -39,3 +39,27 @@
   title: 'Handoff to Human'
   description: 'Hand off the conversation to a human agent'
   icon: 'user-switch'
+
+# --- Tools de agenda y tareas de Jabvox IA ---
+# Nota: el id se usa para resolver la clase (id.classify => ClaseTool). Se usan
+# ids en inglés/singular porque el inflector de Rails singulariza mal el español
+# (p. ej. "agendar_cita" => "AgendarCitum"). Los textos visibles van en español.
+- id: check_availability
+  title: 'Consultar disponibilidad'
+  description: 'Consulta los horarios libres de un agente para agendar una cita'
+  icon: 'calendar'
+
+- id: schedule_appointment
+  title: 'Agendar cita'
+  description: 'Agenda una cita en el calendario para el cliente de la conversación'
+  icon: 'calendar-add'
+
+- id: list_board
+  title: 'Listar tableros de tareas'
+  description: 'Lista los tableros de tareas y sus etapas disponibles'
+  icon: 'board'
+
+- id: create_task
+  title: 'Crear tarea'
+  description: 'Crea una tarea en un tablero, vinculada al cliente de la conversación'
+  icon: 'task-add'

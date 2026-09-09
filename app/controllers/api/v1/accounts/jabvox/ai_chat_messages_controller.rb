@@ -97,7 +97,7 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
 
   # Chat en STREAMING (SSE) — reenvía en vivo lo que hace el agente Hermes (texto + tools),
   # igual que Telegram. Solo aplica a modelos Hermes (source='hermes'); para otros, error.
-  def stream
+  def stream # rubocop:disable Metrics/MethodLength
     check_access!
     return if performed?
 
@@ -109,24 +109,41 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     # Guarda el mensaje del usuario ANTES de empezar (así no se pierde si sale del módulo).
     # Cada sesión queda ligada a la conexión/agente que la atiende (conn.id).
     persist_user_message(session_id, conn)
-    # La respuesta se acumula y se PERSISTE al final SIEMPRE, aunque el cliente cierre la
-    # conexión (sale del módulo): el turno de Hermes se completa igual y queda guardado, así
-    # al volver el usuario ve el avance/resultado.
-    # @stream_tools acumula las herramientas (MCP) que ejecutó el agente durante el turno,
-    # para persistirlas y que reaparezcan al reabrir el chat (antes solo vivían en el
-    # navegador y se perdían al salir).
+    # El texto se acumula en @stream_full y las tools en @stream_tools MIENTRAS llega el
+    # stream, para que la persistencia del ensure vea siempre lo último aunque el turno se
+    # corte (el usuario pulsó Stop / salió del módulo → el navegador aborta el HTTP y este
+    # request puede terminar sin volver de stream_via_connection). Por eso la persistencia
+    # va en el ensure y es idempotente (@persisted evita duplicar cuando termina normal).
+    @stream_full = +''
     @stream_tools = []
-    full = stream_via_connection(conn, session_id)
-    persist_assistant_message(session_id, conn, full, @stream_tools)
+    @stream_ctx = { session_id: session_id, conn: conn }
+    # El texto y las tools se acumulan DENTRO del stream (on_chunk), no con el valor de
+    # retorno, para no perder lo parcial si el cliente aborta a mitad. No re-sumamos aquí.
+    stream_via_connection(conn, session_id)
+    persist_stream_result!
   rescue StandardError => e
     Rails.logger.warn("[AiChatStream] #{e.class}: #{e.message}")
     write_sse("data: #{{ error: e.message }.to_json}\n\n")
   ensure
+    # Persiste SIEMPRE, incluso si el cliente abortó el HTTP (Stop) y no volvimos del stream.
+    persist_stream_result!
     begin
       response.stream.close
     rescue IOError
       nil
     end
+  end
+
+  # Guarda el mensaje del asistente una sola vez (idempotente) con el texto y las tools
+  # acumulados hasta el momento. Se llama en el flujo normal y de nuevo en el ensure: la
+  # bandera @persisted garantiza un único INSERT aunque el turno se cortara a mitad.
+  def persist_stream_result!
+    return if @persisted || @stream_ctx.blank?
+
+    @persisted = true
+    persist_assistant_message(@stream_ctx[:session_id], @stream_ctx[:conn], @stream_full, @stream_tools)
+  rescue StandardError => e
+    Rails.logger.warn("[AiChatStream] persist failed: #{e.class}: #{e.message}")
   end
 
   def destroy
@@ -178,12 +195,47 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
       base_url: conn.base_url_jabvox, token: conn.token_jabvox,
       model: conn.hermes_agent_name_jabvox
     )
-    # Reenvía cada frame al navegador Y, si es un evento de herramienta, lo acumula para
-    # persistirlo con el mensaje (así reaparece al reabrir el chat).
-    client.chat_stream(messages, on_chunk: lambda { |chunk|
+    # Reenvía cada frame al navegador Y, en el MISMO callback: acumula las tools y el texto
+    # parcial en @stream_tools/@stream_full. Así, si el usuario pulsa Stop (el navegador
+    # aborta el HTTP a mitad), lo ya recibido queda guardado por el ensure. `llm_overrides`
+    # lleva el modelo/proveedor elegidos en el picker (nil = default del agente).
+    client.chat_stream(messages, llm_overrides: llm_overrides, on_chunk: lambda { |chunk|
       capture_tool_frame(chunk)
+      @stream_full << extract_delta_text(chunk) if @stream_full
       write_sse(chunk)
     })
+  end
+
+  # Extrae el texto (choices[].delta.content) de un chunk SSE para acumular la respuesta
+  # parcial en el propio controlador. Robusto: ignora frames no-JSON, [DONE] y eventos de
+  # tool. Espeja extract_stream_text del SessionsClient (aquí se necesita por-chunk para
+  # persistir lo parcial si el usuario corta el stream).
+  def extract_delta_text(chunk)
+    out = +''
+    chunk.to_s.each_line do |line|
+      next unless line.start_with?('data:')
+
+      data = line.sub('data:', '').strip
+      next if data.empty? || data == '[DONE]'
+
+      begin
+        out << JSON.parse(data).dig('choices', 0, 'delta', 'content').to_s
+      rescue JSON::ParserError
+        next
+      end
+    end
+    out
+  end
+
+  # Modelo/proveedor LLM elegidos por el usuario en el picker (params), validados a strings
+  # simples. nil cuando no se envían → Hermes usa el default del agente.
+  def llm_overrides
+    model = params[:llm_model].to_s.strip
+    provider = params[:llm_provider].to_s.strip
+    out = {}
+    out[:model] = model if model.present? && model.length <= 100
+    out[:provider] = provider if provider.present? && provider.length <= 50
+    out.presence
   end
 
   # Detecta frames SSE "event: hermes.tool.progress\ndata: {json}" y acumula la tool en
@@ -204,12 +256,26 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     end
   end
 
-  def record_tool(json_str)
+  # Acumula/actualiza una herramienta del turno. Hermes emite DOS frames por tool con el
+  # mismo identificador: 'running' (trae tool/emoji/label = el comando) y 'completed' (solo
+  # status, SIN label ni emoji). Por eso: (1) el dedup es por toolCallId (con id como
+  # fallback), no por 'id' — que Hermes no envía; y (2) se MERGEA en vez de reemplazar, para
+  # no perder el comando/emoji cuando llega el 'completed'. Espeja upsertTool del frontend.
+  def record_tool(json_str) # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     return if json_str.blank?
 
     tool = JSON.parse(json_str)
-    idx = @stream_tools.index { |t| t['id'] == tool['id'] }
-    idx ? @stream_tools[idx] = tool : @stream_tools << tool
+    return unless tool.is_a?(Hash)
+
+    key = tool['toolCallId'] || tool['id'] || tool['tool']
+    return if key.blank?
+
+    idx = @stream_tools.index { |t| (t['toolCallId'] || t['id'] || t['tool']) == key }
+    if idx
+      @stream_tools[idx] = @stream_tools[idx].merge(tool.compact)
+    else
+      @stream_tools << tool
+    end
   rescue JSON::ParserError => e
     Rails.logger.debug { "[AiChatStream] tool frame parse skipped: #{e.message}" }
   end
@@ -265,14 +331,18 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
   # herramientas ejecutadas (para que reaparezcan al reabrir el chat). No guarda si no hubo
   # ni texto ni tools (turno vacío).
   def persist_assistant_message(session_id, conn, full_text, tools = [])
-    return if full_text.to_s.strip.empty? && tools.blank?
+    text = full_text.to_s
+    return if text.strip.empty? && tools.blank?
 
     metadata = { agent: conn.respond_to?(:name_jabvox) ? conn.name_jabvox : conn.to_s }
     metadata[:connection_id] = conn.id if conn.respond_to?(:id)
     metadata[:tools] = tools if tools.present?
+    # content_jabvox valida presence: si el turno fue SOLO herramientas (o el usuario cortó
+    # antes del texto), guardamos un marcador para no perder el mensaje ni sus tools.
+    content = text.strip.empty? ? '_(herramientas ejecutadas)_' : text
     JabvoxAiChatMessage.create!(
       account: Current.account, user: current_user, session_id_jabvox: session_id,
-      role_jabvox: 'assistant', content_jabvox: full_text.to_s,
+      role_jabvox: 'assistant', content_jabvox: content,
       metadata_jabvox: metadata
     )
   end

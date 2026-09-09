@@ -65,14 +65,18 @@ class JabvoxHermesUserPermission < ApplicationRecord
   end
 
   # ¿El rol/custom_role del usuario permite gestionar (crear/editar) algo? Base Chatwoot o
-  # cualquier capacidad Jabvox de gestión/edición.
+  # cualquier capacidad Jabvox de gestión/acción. Reconoce los sufijos de GESTIÓN
+  # (manage/edit) y también los de ACCIÓN disruptiva que implican crear/escribir en su
+  # módulo (send = enviar masivo, use = usar/operar el módulo, assign = asignar). NO
+  # cuenta los de solo lectura (view/view_all/view_reports/access), que quedan en 'read'.
+  MANAGE_SUFFIXES = /\Ajabvox_.*(manage|edit|send|use|assign)\z/
   def self.role_can_manage?(account_user)
     role = account_user.custom_role
     return false if role.nil?
 
     keys = Array(role.permissions)
     keys.include?('conversation_manage') || keys.include?('contact_manage') ||
-      keys.any? { |k| k.to_s.match?(/\Ajabvox_.*(manage|edit)\z/) }
+      keys.any? { |k| k.to_s.match?(MANAGE_SUFFIXES) }
   end
 
   # Escribe en la tabla los permisos derivados del rol del usuario (idempotente). Se llama al

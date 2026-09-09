@@ -13,7 +13,6 @@ Rails.application.config.to_prepare do
   Account.prepend Jabvox::AccountAffiliatesFeature
   Account.prepend Jabvox::AccountCalendarFeature
   Account.prepend Jabvox::AccountInternalChatFeature
-  Account.prepend Jabvox::AccountResponseBotFeature
   Account.prepend Jabvox::AccountEmailFeature
   Account.prepend Jabvox::AccountFormsFeature
   Account.prepend Jabvox::AccountCdrFeature

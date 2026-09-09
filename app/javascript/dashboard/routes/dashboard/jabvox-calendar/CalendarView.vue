@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import ExternalPeopleTab from './ExternalPeopleTab.vue';
+import AgentAvailabilityTab from './AgentAvailabilityTab.vue';
 import EventModal from './EventModal.vue';
 
 const { t } = useI18n();
@@ -190,7 +191,7 @@ const TYPE_ICONS = {
       class="flex items-center gap-1 px-5 pt-3 border-b border-n-weak shrink-0"
     >
       <button
-        v-for="tab in ['calendar', 'settings']"
+        v-for="tab in ['calendar', 'settings', 'availability']"
         :key="tab"
         class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
         :class="
@@ -204,8 +205,16 @@ const TYPE_ICONS = {
       </button>
     </div>
 
-    <!-- ── Settings tab ── -->
+    <!-- ── Settings tab (personas externas) ── -->
     <ExternalPeopleTab v-if="activeTab === 'settings'" class="flex-1 min-h-0" />
+
+    <!-- ── Availability tab (horario laboral por agente para Jabvox IA) ── -->
+    <div
+      v-else-if="activeTab === 'availability'"
+      class="flex-1 min-h-0 overflow-y-auto p-5"
+    >
+      <AgentAvailabilityTab />
+    </div>
 
     <!-- ── Calendar tab ── -->
     <div v-else class="flex flex-1 min-h-0 overflow-hidden relative">

@@ -116,7 +116,12 @@ class Jabvox::Hermes::Authorizer
     'jabvox_whatsapp_templates' => { view: 'jabvox_whatsapp_templates_manage', manage: 'jabvox_whatsapp_templates_manage' },
     'jabvox_affiliates' => { view: 'jabvox_affiliates_manage', manage: 'jabvox_affiliates_manage' },
     'jabvox_customization' => { view: 'jabvox_custom_data_manage', manage: 'jabvox_custom_data_manage' },
-    'jabvox_advanced_automations' => { view: 'jabvox_reports_view', manage: 'jabvox_reports_view' },
+    # Automatizaciones avanzadas (flujos): el controller real NO exige un permiso de custom
+    # role propio — solo el módulo activo (jabvox_feature). Por eso su gestión se rige por la
+    # capacidad base de gestión (conversation_manage) y la lectura es libre (view: nil), igual
+    # que tickets/calendar/email. (Antes apuntaba a jabvox_reports_view, un permiso de LECTURA
+    # ajeno que además no concedía create/write — impedía gestionar flujos.)
+    'jabvox_advanced_automations' => { view: nil, manage: 'conversation_manage' },
     # Módulos sin permiso de custom role propio: se gestionan con la capacidad base de
     # gestión (conversation_manage). Leer es libre para cualquier miembro (view: nil).
     'jabvox_tickets' => { view: nil, manage: 'conversation_manage' },
@@ -124,7 +129,10 @@ class Jabvox::Hermes::Authorizer
     'jabvox_email' => { view: nil, manage: 'conversation_manage' },
     'jabvox_internal_chat' => { view: nil, manage: 'jabvox_internal_chat_use' },
     'jabvox_forms' => { view: nil, manage: 'jabvox_forms_manage' },
-    'jabvox_click_to_call' => { view: nil, manage: 'jabvox_click_to_call_use' }
+    'jabvox_click_to_call' => { view: nil, manage: 'jabvox_click_to_call_use' },
+    'jabvox_voice_broadcast' => { view: 'jabvox_voice_broadcast_manage', manage: 'jabvox_voice_broadcast_manage' },
+    'jabvox_whatsapp_groups' => { view: 'jabvox_whatsapp_groups_manage', manage: 'jabvox_whatsapp_groups_manage' },
+    'jabvox_bulk_whatsapp' => { view: 'jabvox_bulk_whatsapp_send', manage: 'jabvox_bulk_whatsapp_send' }
   }.freeze
 
   # Permisos base de Chatwoot para las tools CORE (etiquetas, contactos, conversaciones).
@@ -139,8 +147,26 @@ class Jabvox::Hermes::Authorizer
     return false if account_user.nil?
 
     map = MODULE_ROLE_PERMISSIONS[spec[:feature]] || CORE_ROLE_PERMISSIONS
-    key = spec[:permission].to_s == 'read' ? map[:view] : map[:manage]
-    return true if key.blank? # sin permiso mapeado ⇒ no restringido por rol
+    if spec[:permission].to_s == 'read'
+      role_grants_read?(account_user, map)
+    else
+      # CREAR/EDITAR: exige el permiso de gestión del módulo (blank ⇒ no restringido).
+      grants_key?(account_user, map[:manage])
+    end
+  end
+
+  # LEER: basta el permiso de lectura del módulo O el de gestión (quien gestiona, lee).
+  # Sin permiso de lectura mapeado (view: nil) ⇒ lectura libre para cualquier miembro.
+  def role_grants_read?(account_user, map)
+    return true if map[:view].blank?
+
+    grants_key?(account_user, map[:view]) ||
+      (map[:manage].present? && grants_key?(account_user, map[:manage]))
+  end
+
+  # ¿El rol concede esta clave? Una clave en blanco (no mapeada) no restringe ⇒ true.
+  def grants_key?(account_user, key)
+    return true if key.blank?
 
     JabvoxPermissions.user_grants_permission?(account_user, key)
   end

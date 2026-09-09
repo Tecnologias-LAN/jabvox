@@ -68,12 +68,20 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     });
   }
 
-  // Uploads the CSV (multipart) plus the chosen inbox and sender user.
-  send({ file, inboxId, senderUserId }) {
+  // Uploads the CSV (multipart) plus the chosen inbox and sender user. La plantilla,
+  // el idioma y el mapeo {{n}}→columna se eligen en la UI y viajan aquí; el archivo
+  // solo aporta número, nombre y las columnas de variables.
+  send({ file, inboxId, senderUserId, templateName, language, variableMap }) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('inbox_id', inboxId);
     formData.append('sender_user_id', senderUserId);
+    if (templateName) formData.append('template_name', templateName);
+    if (language) formData.append('language', language);
+    // variable_map es un objeto { "1": "columna" }: se serializa como variable_map[1]=columna.
+    Object.entries(variableMap || {}).forEach(([n, col]) => {
+      if (col) formData.append(`variable_map[${n}]`, col);
+    });
     return axios.post(`${this.url}/batches`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

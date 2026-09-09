@@ -48,15 +48,6 @@ class JabvoxAiChatModel < ApplicationRecord
   has_many :cdr_stages_as_llm, class_name: 'JabvoxCdrStage',
                                foreign_key: :llm_model_id,
                                inverse_of: false, dependent: :nullify
-  has_many :response_bot_configs, class_name: 'JabvoxResponseBotConfig',
-                                  foreign_key: :jabvox_ai_chat_model_id,
-                                  inverse_of: false, dependent: :nullify
-  has_many :response_bot_configs_as_audio, class_name: 'JabvoxResponseBotConfig',
-                                           foreign_key: :jabvox_audio_model_id,
-                                           inverse_of: false, dependent: :nullify
-  has_many :response_bot_configs_as_image, class_name: 'JabvoxResponseBotConfig',
-                                           foreign_key: :jabvox_image_model_id,
-                                           inverse_of: false, dependent: :nullify
 
   encrypts :api_key_jabvox if Jabvox.encryption_configured?
 

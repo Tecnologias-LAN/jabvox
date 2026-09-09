@@ -418,12 +418,29 @@ const endWrapup = () => {
 // Propaga el error al llamador para que NO se cierre el wrap-up si el guardado falla
 // (evita perder la gestión en silencio).
 const saveTypification = async () => {
-  const dialerContactId = lastCall.value?.dialer_contact_id;
-  if (!dialerContactId || !wrapupTypificationId.value) return;
-  await dialerCallLogsAPI.typify({
-    contact_id: dialerContactId,
-    typification_id: wrapupTypificationId.value,
-  });
+  // Sin tipificación elegida no hay nada que guardar (es opcional).
+  if (!wrapupTypificationId.value) return;
+
+  // Correlación de la llamada: id directo del call log > dialer_contact_id. Si el
+  // evento de la llamada llegó tarde y no tenemos NINGÚN identificador, NO fallamos
+  // en silencio: avisamos para que el agente reintente (antes se perdía la gestión).
+  const callLogId =
+    lastCall.value?.dialer_call_log_id || lastCall.value?.call_log_id || null;
+  const dialerContactId = lastCall.value?.dialer_contact_id || null;
+  if (!callLogId && !dialerContactId) {
+    // eslint-disable-next-line no-console
+    console.error(
+      '[Jabvox dialer] No se pudo tipificar: la llamada no trae identificador'
+    );
+    throw new Error('typify_no_call_reference');
+  }
+
+  const payload = { typification_id: wrapupTypificationId.value };
+  if (callLogId) payload.id = callLogId;
+  else payload.contact_id = dialerContactId;
+  // El backend (typify) acepta id o contact_id y crea el log si faltara, así que la
+  // tipificación nunca se pierde por no tener call log correlacionado todavía.
+  await dialerCallLogsAPI.typify(payload);
 };
 
 // Name of the typification the agent picked (for the note text/badge).

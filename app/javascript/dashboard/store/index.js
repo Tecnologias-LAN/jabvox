@@ -81,7 +81,6 @@ import jabvoxCalendar from './modules/jabvox/calendar';
 import jabvoxInternalChat from './modules/jabvox/internalChat';
 import jabvoxAppStates from './modules/jabvox/appStates';
 import jabvoxCampaigns from './modules/jabvox/campaigns';
-import jabvoxResponseBot from './modules/jabvox/responseBot';
 import jabvoxEmail from './modules/jabvox/email';
 import jabvoxForms from './modules/jabvox/forms';
 import jabvoxCustomization from './modules/jabvox/customization';
@@ -171,7 +170,6 @@ export default createStore({
     jabvoxInternalChat,
     jabvoxAppStates,
     jabvoxCampaigns,
-    jabvoxResponseBot,
     jabvoxEmail,
     jabvoxForms,
     jabvoxCustomization,

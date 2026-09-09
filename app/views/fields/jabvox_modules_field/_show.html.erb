@@ -1,19 +1,45 @@
 <div class="w-full">
-  <div class="flex items-center justify-between mb-4">
+  <div class="flex items-center justify-between mb-5">
     <h3 class="text-base font-semibold text-n-slate-12">Módulos Jabvox</h3>
-    <span class="text-sm text-n-slate-11">
-      <%= field.enabled_count %> / <%= field.modules.size %> activos
+    <span class="inline-flex items-center gap-1.5 text-sm text-n-slate-11">
+      <span class="inline-block h-2 w-2 rounded-full bg-green-500"></span>
+      <%= field.enabled_count %> / <%= field.total_count %> activos
     </span>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-    <% field.modules.each do |_column, display_name, enabled| %>
-      <div class="flex items-center justify-between p-3 bg-white rounded-md outline outline-n-container outline-1 shadow-sm">
-        <span class="text-sm text-n-slate-12"><%= display_name %></span>
-        <span class="<%= enabled ? 'bg-green-400 text-white' : 'bg-slate-50 text-slate-800' %> rounded-full p-1 inline-flex">
-          <svg width="12" height="12"><use xlink:href="#icon-tick-line" /></svg>
-        </span>
-      </div>
+  <div class="space-y-5">
+    <% field.grouped_modules.each do |group| %>
+      <% _on = group[:modules].count { |_c, _l, e| e } %>
+      <section class="rounded-lg border border-n-weak bg-n-alpha-1 overflow-hidden">
+        <header class="flex items-center gap-2 px-4 py-2.5 border-b border-n-weak bg-n-alpha-2">
+          <span class="text-sm"><%= group[:icon] %></span>
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-n-slate-11">
+            <%= group[:label] %>
+          </h4>
+          <span class="ml-auto text-[11px] font-medium text-n-slate-10 tabular-nums">
+            <%= _on %>/<%= group[:modules].size %>
+          </span>
+        </header>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-n-weak">
+          <% group[:modules].each do |_column, display_name, enabled| %>
+            <div class="flex items-center justify-between gap-2 px-4 py-2.5 bg-n-solid-1">
+              <span class="text-sm <%= enabled ? 'text-n-slate-12 font-medium' : 'text-n-slate-10' %>">
+                <%= display_name %>
+              </span>
+              <% if enabled %>
+                <span class="shrink-0 inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500 text-white">
+                  <svg width="12" height="12"><use xlink:href="#icon-tick-line" /></svg>
+                </span>
+              <% else %>
+                <span class="shrink-0 inline-flex items-center justify-center h-5 w-5 rounded-full bg-n-alpha-2 text-n-slate-9">
+                  <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 10a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+                </span>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </section>
     <% end %>
   </div>
 </div>

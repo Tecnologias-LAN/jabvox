@@ -43,11 +43,51 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
       metadata[:handoff_note_id] = note.id
     end
 
+    # Asigna al agente menos ocupado ANTES del bot_handoff!, para que el open!
+    # posterior (que dispara el auto-assignment del inbox) no pise nuestra elección.
+    assign_least_busy_agent(conversation)
+
     # Trigger the bot handoff (sets status to open + dispatches events)
     conversation.bot_handoff!
 
     # Send out of office message if applicable (since template messages were suppressed while Captain was handling)
     send_out_of_office_message_if_applicable(conversation)
+  end
+
+  # Elige, entre los agentes candidatos configurados (o los miembros del inbox si
+  # no hay lista), el que tenga MENOS conversaciones abiertas, y le asigna la
+  # conversación. No hace nada si no hay candidatos.
+  def assign_least_busy_agent(conversation)
+    candidates = handoff_candidate_ids(conversation)
+    return if candidates.empty?
+
+    agent_id = least_busy_agent_id(conversation.account, candidates)
+    return if agent_id.nil?
+
+    ::Conversations::AssignmentService.new(
+      conversation: conversation, assignee_id: agent_id
+    ).perform
+    log_tool_usage('handoff_assigned', { conversation_id: conversation.id, assignee_id: agent_id })
+  rescue StandardError => e
+    # Si la asignación falla, no bloqueamos el handoff: la conversación queda
+    # abierta y el auto-assignment del inbox (si existe) puede tomarla.
+    JabvoxExceptionTracker.new(e).capture_exception
+  end
+
+  # IDs candidatos: lista configurada en el asistente; si está vacía, miembros del inbox.
+  def handoff_candidate_ids(conversation)
+    configured = @assistant.handoff_agents.pluck(:id)
+    return configured if configured.any?
+
+    conversation.inbox.inbox_members.pluck(:user_id)
+  end
+
+  # Agente con menos conversaciones abiertas (patrón BalancedSelector).
+  def least_busy_agent_id(account, candidate_ids)
+    counts = account.conversations.open
+                    .where(assignee_id: candidate_ids)
+                    .group(:assignee_id).count
+    candidate_ids.min_by { |id| counts[id] || 0 }
   end
 
   def send_out_of_office_message_if_applicable(conversation)

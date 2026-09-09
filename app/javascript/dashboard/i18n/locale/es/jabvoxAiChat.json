@@ -306,6 +306,7 @@
     "DELETE": "Eliminar",
     "SESSION_ITEM": "Conversación",
     "TOOLS_USED": "Herramientas usadas",
+    "DEFAULT_MODEL": "Modelo por defecto",
     "ATTACH": "Adjuntar archivo"
   }
 }

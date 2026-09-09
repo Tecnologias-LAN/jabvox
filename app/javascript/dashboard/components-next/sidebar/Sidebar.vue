@@ -1553,21 +1553,6 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(jabvoxCan('jabvox_response_bot_manage') &&
-        isFeatureEnabledonAccount.value(
-          accountId.value,
-          FEATURE_FLAGS.JABVOX_RESPONSE_BOT
-        )
-          ? [
-              {
-                name: 'Settings Jabvox Response Bot',
-                label: t('JABVOX_RESPONSE_BOT.SIDEBAR_LABEL'),
-                icon: 'i-lucide-bot-message-square',
-                to: accountScopedRoute('jabvox_response_bot_settings'),
-                activeOn: ['jabvox_response_bot_settings'],
-              },
-            ]
-          : []),
         ...(jabvoxCan('jabvox_email_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,

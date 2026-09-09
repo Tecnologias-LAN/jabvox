@@ -9,6 +9,7 @@
     "CLOSE": "Cerrar",
     "ELIGIBILITY": {
       "BLOCKED_TITLE": "Los grupos no están disponibles para esta bandeja",
+      "ELIGIBLE": "Elegible",
       "REASONS": {
         "NOT_CLOUD_API": "Los grupos solo funcionan con WhatsApp Cloud API de Meta.",
         "COEXISTENCE": "Los grupos no están disponibles en números de Coexistencia (Multi-solución) ni de la app de WhatsApp Business.",

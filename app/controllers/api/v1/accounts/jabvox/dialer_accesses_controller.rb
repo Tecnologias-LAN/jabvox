@@ -175,7 +175,7 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     end
   end
 
-  private def perform_request_call # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
+  private def perform_request_call # rubocop:disable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     agent = read_agent_state
     unless agent
       Rails.logger.info "🔴 [Dialer] Sin estado de agente en Redis | cuenta=#{Current.account.id} usuario=#{current_user.id}"
@@ -207,6 +207,16 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     if config&.host.blank?
       Rails.logger.info "🔴 [Dialer] Sin configuración VoIP | cuenta=#{Current.account.id}"
       return render json: { queued: false, message: 'No VoIP configuration' }
+    end
+
+    # NO marcar si el softphone del agente NO está registrado en el PBX. Sin esto, el
+    # dialer originaba igual y, al contestar el cliente, el leg del agente fallaba →
+    # llamada perdida / cliente escuchando silencio. Verificamos el registro SIP real
+    # (PJSIPShowContacts) con cache corto para no consultar el PBX en cada poll.
+    unless agent_extension_registered?(config, agent[:extension].to_s)
+      Rails.logger.info "🔕 [Dialer] Softphone del agente NO registrado, no se marca | " \
+                        "ext=#{agent[:extension]} usuario=#{current_user.id} cuenta=#{Current.account.id}"
+      return render json: { queued: false, message: 'Softphone not registered', softphone_offline: true }
     end
 
     # Atomically pick + reserve the lead so two concurrent agents on the same
@@ -434,6 +444,89 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
 
     render json: { error: I18n.t('jabvox.permissions.denied', default: 'You do not have permission for this action.') },
            status: :forbidden
+  end
+
+  # Cuánto se cachea el mapa de contactos SIP del PBX. El poll del dialer es cada 6s
+  # por agente; con varios agentes esto evita golpear el PBX (PJSIPShowContacts) en
+  # cada request. 8s: suficientemente fresco para detectar que un softphone se cayó,
+  # sin saturar el AMI.
+  SOFTPHONE_STATUS_TTL = 8
+
+  # ¿La extensión del agente está REGISTRADA y alcanzable en el PBX? Un softphone
+  # cerrado/desconectado no aparece en PJSIPShowContacts (o sale 'unreachable'), así
+  # que el dialer no debe marcarle: la llamada al agente fallaría y el cliente que
+  # contestó quedaría en silencio. Cachea el mapa por cuenta unos segundos.
+  def agent_extension_registered?(config, extension)
+    return false if extension.blank?
+
+    statuses = cached_softphone_statuses(config)
+    # nil = no pudimos consultar el PBX (AMI caído). Fail-open: no bloqueamos por un
+    # fallo de infra (el agente_busy/originate posterior siguen protegiendo); lo
+    # registramos para diagnóstico.
+    return true if statuses.nil?
+
+    statuses[extension.to_s].to_s == 'reachable'
+  end
+
+  # Mapa { extensión => estado } de los contactos SIP, cacheado en Redis por cuenta.
+  # Devuelve nil si el PBX no respondió (para distinguir "caído" de "sin registros").
+  #
+  # Anti-STAMPEDE: con decenas de agentes puliendo a la vez, si el cache está vacío
+  # TODOS consultarían el PBX en paralelo (cache stampede) y lo saturarían. Un lock
+  # (SET NX) deja que SOLO UNO consulte; el resto espera un poco y relee el cache.
+  def cached_softphone_statuses(config)
+    key = "jabvox_dialer_sip_contacts_#{Current.account.id}"
+    cached = Redis::Alfred.get(key)
+    return JSON.parse(cached) if cached.present?
+
+    if acquire_sip_probe_lock
+      begin
+        contacts = probe_and_cache_sip_statuses(config, key)
+      ensure
+        release_sip_probe_lock
+      end
+      return contacts
+    end
+
+    # Otro request ya está consultando el PBX: esperamos brevemente su resultado.
+    wait_for_cached_sip_statuses(key)
+  rescue StandardError => e
+    Rails.logger.error "❌ [Dialer] cached_softphone_statuses failed | #{e.message}"
+    nil
+  end
+
+  def probe_and_cache_sip_statuses(config, key)
+    result = Jabvox::Softphone::AmiEndpointsProbe.new(config).probe
+    return nil unless result[:ok]
+
+    contacts = result[:contacts] || {}
+    Redis::Alfred.set(key, contacts.to_json, ex: SOFTPHONE_STATUS_TTL)
+    contacts
+  end
+
+  # Espera hasta ~3s a que el request dueño del lock publique el mapa en cache.
+  def wait_for_cached_sip_statuses(key, tries: 30, interval: 0.1)
+    tries.times do
+      sleep interval
+      cached = Redis::Alfred.get(key)
+      return JSON.parse(cached) if cached.present?
+    end
+    nil # el dueño no publicó a tiempo → fail-open (no bloquear por timing)
+  end
+
+  SIP_PROBE_LOCK_TTL = 10 # > peor caso del probe (PJSIP timeout + SIPpeers)
+
+  def acquire_sip_probe_lock
+    Redis::Alfred.set("jabvox_dialer_sip_probe_lock_#{Current.account.id}",
+                      '1', nx: true, ex: SIP_PROBE_LOCK_TTL)
+  rescue StandardError
+    true # ante fallo de Redis, dejamos que este request consulte (no bloquear)
+  end
+
+  def release_sip_probe_lock
+    Redis::Alfred.delete("jabvox_dialer_sip_probe_lock_#{Current.account.id}")
+  rescue StandardError
+    nil
   end
 
   # Lock de marcación por agente. SET NX EX es atómico: solo un request lo

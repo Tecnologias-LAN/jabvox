@@ -15,7 +15,10 @@ require 'net/http'
 # chosen per send and forwarded to n8n so it can email the result there.
 class Jabvox::BulkWhatsappDispatchService
   WEBHOOK_PORTS = [80, 443, 8080, 8443].freeze
-  REQUIRED_HEADERS = %w[nombre numero template idioma].freeze
+  # El archivo cargado ahora SOLO aporta destinatario y valores de variables: la
+  # plantilla y su idioma se eligen en la UI (como en el flujo de leads). Lo único
+  # obligatorio es el número; el nombre y las columnas de variables son opcionales.
+  REQUIRED_HEADERS = %w[numero].freeze
   MAX_ROWS = 20_000
   CHUNK_SIZE = 200
   MAX_ATTEMPTS = 3
@@ -168,7 +171,11 @@ class Jabvox::BulkWhatsappDispatchService
         'template_name' => @template_name, 'language' => @language, 'text' => @text,
         'variable_map' => @variable_map }
     else
-      { 'kind' => 'csv', 'rows' => parse_rows }
+      # CSV: la plantilla/idioma vienen de la UI; el archivo solo aporta las filas
+      # (número, nombre y columnas de variables). El variable_map mapea {{n}} -> columna.
+      { 'kind' => 'csv', 'rows' => parse_rows,
+        'template_name' => @template_name, 'language' => @language, 'text' => @text,
+        'variable_map' => @variable_map }
     end
   end
 
@@ -237,13 +244,33 @@ class Jabvox::BulkWhatsappDispatchService
     raise Error, "Faltan columnas en el CSV: #{missing.join(', ')}. Se requieren: #{REQUIRED_HEADERS.join(', ')}."
   end
 
+  # El archivo solo aporta destinatario + valores de variables. Se conserva la fila
+  # COMPLETA (todas las columnas) en 'cells' para que el variable_map pueda resolver
+  # {{n}} contra cualquier columna del CSV. El número es obligatorio y DEBE venir en
+  # formato internacional con prefijo (+57..., +52...); una fila sin '+' se descarta.
   def normalize_row(row)
-    number = digits(row['numero'] || row['número'])
-    template = row['template'].to_s.strip
-    return nil if number.blank? || template.blank?
+    raw = (row['numero'] || row['número']).to_s.strip
+    number = e164(raw)
+    return nil if number.blank?
 
-    { 'nombre' => row['nombre'].to_s.strip, 'numero' => number,
-      'template' => template, 'idioma' => (row['idioma'].presence || 'es').to_s.strip }
+    cells = {}
+    row.each do |key, value|
+      next if key.nil?
+
+      cells[key.to_s.strip.downcase] = value.to_s.strip
+    end
+    name = (row['nombre'] || row['name']).to_s.strip
+    { 'nombre' => name.presence || number, 'numero' => number, 'cells' => cells }
+  end
+
+  # Número en E.164 con prefijo: exige que empiece con '+' seguido de dígitos.
+  # Devuelve "+<digitos>" o nil si no cumple (así se descarta la fila).
+  def e164(value)
+    str = value.to_s.strip
+    return nil unless str.start_with?('+')
+
+    digs = digits(str)
+    digs.present? ? "+#{digs}" : nil
   end
 
   def digits(value)
@@ -253,7 +280,33 @@ class Jabvox::BulkWhatsappDispatchService
   # ── Phase 2 helpers: expand snapshot -> messages ────────────────────────────
   def expand_messages(payload)
     payload = (payload || {}).with_indifferent_access
-    payload[:kind] == 'leads' ? messages_from_leads(payload) : Array(payload[:rows])
+    payload[:kind] == 'leads' ? messages_from_leads(payload) : messages_from_csv(payload)
+  end
+
+  # CSV: cada fila -> un mensaje. La plantilla/idioma salen del snapshot (elegidos en
+  # la UI, no del archivo); los {{n}} se resuelven mapeando el variable_map contra las
+  # columnas de la fila (variable_map = { "1" => "columna_del_csv" }).
+  def messages_from_csv(payload)
+    body = (payload[:template_name].presence || payload[:text]).to_s.strip
+    lang = (payload[:language].presence || 'es')
+    var_map = @variable_map.presence || normalize_variable_map(payload[:variable_map])
+    return [] if body.blank?
+
+    Array(payload[:rows]).filter_map { |row| csv_message(row, body, lang, var_map) }
+  end
+
+  def csv_message(row, body, lang, var_map)
+    row = row.with_indifferent_access
+    # El número ya viene en E.164 con '+' desde normalize_row; se conserva tal cual.
+    number = row[:numero].to_s.strip
+    return nil if number.blank?
+
+    cells = (row[:cells] || {}).to_h.transform_keys { |k| k.to_s.strip.downcase }
+    {
+      'nombre' => row[:nombre].presence || number, 'numero' => number,
+      'template' => body, 'idioma' => lang,
+      'processed_params' => resolve_params(var_map, cells)
+    }
   end
 
   def messages_from_leads(payload)
@@ -272,7 +325,8 @@ class Jabvox::BulkWhatsappDispatchService
     scope = @account.jabvox_leads.where(id: ids).includes(:contact, :jabvox_campaign, :jabvox_affiliate, :assignee)
 
     scope.filter_map do |lead|
-      number = digits(lead.contact&.phone_number)
+      # El contacto guarda el teléfono en E.164 con '+'; se conserva ese formato.
+      number = e164(lead.contact&.phone_number)
       next nil if number.blank? || body.to_s.strip.blank?
 
       lead_message(lead, number, body, lang, var_map)
@@ -325,16 +379,23 @@ class Jabvox::BulkWhatsappDispatchService
 
   # Resolves {{n}} -> value using the variable_map. A mapping value is either a
   # field key present in `fields`, or "text:<literal>" for a fixed value.
+  #
+  # Devuelve el formato "enhanced" que espera el canal de WhatsApp:
+  #   { "body" => { "1" => "Juan", "2" => "..." } }
+  # Es OBLIGATORIO anidar bajo "body": el TemplateProcessor de WhatsApp solo trata el
+  # mensaje como PLANTILLA si processed_params trae las variables bajo esa clave. Un hash
+  # plano { "1" => .. } se ignoraba y el mensaje salía como texto de sesión.
   def resolve_params(var_map, fields)
     return {} if var_map.blank?
 
-    var_map.each_with_object({}) do |(n, source), out|
+    body = var_map.each_with_object({}) do |(n, source), out|
       out[n.to_s] = if source.to_s.start_with?('text:')
                       source.to_s.sub('text:', '')
                     else
                       fields[source.to_s].to_s
                     end
     end
+    body.empty? ? {} : { 'body' => body }
   end
 
   # Coerces the incoming map to { "1" => "fieldkey", ... } with string keys,
@@ -400,9 +461,10 @@ class Jabvox::BulkWhatsappDispatchService
   # fall back to the template name + resolved params joined.
   def render_content(message)
     params = message['processed_params'] || {}
-    return message['template'].to_s if params.blank?
+    body = params['body'] || params[:body] || {}
+    return message['template'].to_s if body.blank?
 
-    "#{message['template']} — #{params.values.join(' | ')}"
+    "#{message['template']} — #{body.values.join(' | ')}"
   end
 
   # ── Delivery ────────────────────────────────────────────────────────────────

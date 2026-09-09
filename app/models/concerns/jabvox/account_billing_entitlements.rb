@@ -95,7 +95,7 @@ module Jabvox::AccountBillingEntitlements
     when 'analytics_dashboards'
       jabvox_analytics_dashboards.count
     when 'ai_documents'
-      jabvox_ai_chat_documents.count + jabvox_response_bot_documents.count
+      jabvox_ai_chat_documents.count
     when 'email_templates'
       jabvox_email_templates.count
     when 'storage_gb'

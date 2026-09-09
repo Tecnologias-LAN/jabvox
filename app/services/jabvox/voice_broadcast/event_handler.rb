@@ -168,7 +168,12 @@ class Jabvox::VoiceBroadcast::EventHandler
     return unless recipient.status_jabvox == 'calling'
 
     outcome = originate_failure_outcome(event['reason'].to_s)
-    finalize(recipient, outcome: outcome, status: retry_or_fail(recipient, outcome))
+    # Guarda el motivo del originate fallido (response + reason) para el reporte, así el
+    # error queda registrado igual que en el CDR del PBX y no como un "failed" a secas.
+    reason_txt = "OriginateResponse: #{event['response']}" \
+                 "#{" (reason #{event['reason']})" if event['reason'].present?}"
+    finalize(recipient, outcome: outcome, status: retry_or_fail(recipient, outcome),
+                        extra: { hangup_cause_jabvox: reason_txt })
     increment_broadcast(recipient, :failed_count_jabvox) if outcome == 'failed'
   end
 
@@ -178,7 +183,7 @@ class Jabvox::VoiceBroadcast::EventHandler
   #     aunque no traiga billableseconds), o
   #   - AMD detectó HUMAN, o ya teníamos answered_at (Newstate Up previo).
   # Así no se marca no_answer una llamada que sí contestó.
-  def handle_hangup(recipient, event) # rubocop:disable Metrics/AbcSize
+  def handle_hangup(recipient, event) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     return unless recipient.status_jabvox == 'calling'
 
     billsec = event['billableseconds'].to_i
@@ -198,7 +203,8 @@ class Jabvox::VoiceBroadcast::EventHandler
     extra = { duration_ms_jabvox: dur }
     rec_file = event['recording_file'].presence || event['recordingfile'].presence
     extra[:recording_file_jabvox] = rec_file if rec_file.present?
-    extra[:hangup_cause_jabvox] = event['cause'].presence
+    # Causa COMPLETA (código Q.850 + texto legible, como el CDR de Issabel), no solo el nº.
+    extra[:hangup_cause_jabvox] = hangup_cause_text(event) || event['cause'].presence
     finalize(recipient, outcome: outcome, status: retry_or_fail(recipient, outcome), extra: extra)
     increment_broadcast(recipient, :answered_human_count_jabvox) if outcome == 'answered_human'
   end
@@ -323,20 +329,69 @@ class Jabvox::VoiceBroadcast::EventHandler
     end
   end
 
+  # `Reason` del OriginateResponse (distinto de los cause Q.850). Asterisk:
+  #   0/1 = no contestó/timeout · 4 = contestó · 5 = ocupado/congestión ·
+  #   8 = colgado. El resto lo tratamos como fallo del originate.
   def originate_failure_outcome(reason)
-    case reason
-    when '3', '5' then 'congestion' # circuit congestion / busy-ish
-    when '8'      then 'no_answer'
+    case reason.to_s
+    when '0', '1' then 'no_answer'
+    when '5'      then 'congestion' # busy/congestion a nivel de originate
     else 'failed'
     end
   end
 
+  # Códigos de causa Q.850 (ISDN) que Asterisk/Issabel adjunta al Hangup, con su
+  # descripción legible (la MISMA que muestra el CDR de Issabel) y el outcome de negocio.
+  # Fuente: causas estándar de Asterisk (AST_CAUSE_*). Guardamos texto+código completos
+  # para que el reporte muestre el error real, no solo un "failed" genérico.
+  HANGUP_CAUSES = {
+    '1'  => ['Número no asignado / inexistente', 'failed'],
+    '2'  => ['Sin ruta a la red especificada', 'failed'],
+    '3'  => ['Sin ruta al destino', 'failed'],
+    '16' => ['Corte normal', 'no_answer'],
+    '17' => ['Ocupado', 'busy'],
+    '18' => ['El usuario no responde', 'no_answer'],
+    '19' => ['No contesta (alertando sin respuesta)', 'no_answer'],
+    '20' => ['Abonado ausente', 'no_answer'],
+    '21' => ['Llamada rechazada', 'failed'],
+    '22' => ['Número cambió', 'failed'],
+    '27' => ['Destino fuera de servicio', 'failed'],
+    '28' => ['Número inválido / formato incorrecto', 'failed'],
+    '29' => ['Facilidad rechazada', 'failed'],
+    '31' => ['Normal, sin especificar', 'no_answer'],
+    '34' => ['Sin circuito/canal disponible', 'congestion'],
+    '38' => ['Red fuera de servicio', 'congestion'],
+    '41' => ['Fallo temporal', 'congestion'],
+    '42' => ['Congestión del conmutador', 'congestion'],
+    '44' => ['Canal solicitado no disponible', 'congestion'],
+    '58' => ['Capacidad no disponible', 'failed'],
+    '88' => ['Destino incompatible', 'failed'],
+    '102' => ['Recuperación por expiración de temporizador', 'no_answer']
+  }.freeze
+
+  # Texto completo de la causa Q.850 para guardar (ej. "34 - Sin circuito/canal
+  # disponible"). Si Asterisk mandó `causetxt`/`cause-txt`, lo preferimos (es su
+  # descripción exacta); si no, usamos nuestra tabla; si el código es desconocido,
+  # guardamos al menos el número.
+  def hangup_cause_text(event)
+    code = event['cause'].to_s.strip
+    txt = asterisk_cause_txt(event)
+    return nil if code.blank? && txt.blank?
+
+    mapped = HANGUP_CAUSES[code]&.first
+    label = txt.presence || mapped
+    label.present? ? "#{code} - #{label}" : code
+  end
+
+  # Descripción de causa que envía Asterisk (varía el nombre del campo según versión).
+  def asterisk_cause_txt(event)
+    (event['causetxt'] || event['cause-txt'] || event['causestr']).to_s.strip
+  end
+
+  # Outcome de negocio a partir del cause Q.850 (cuando el Hangup NO fue contestado).
   def hangup_no_answer_outcome(event)
-    case event['cause'].to_s
-    when '17' then 'busy'
-    when '34', '42' then 'congestion'
-    else 'no_answer'
-    end
+    code = event['cause'].to_s.strip
+    HANGUP_CAUSES[code]&.last || 'no_answer'
   end
 
   def stamp_uniqueid(recipient, event)

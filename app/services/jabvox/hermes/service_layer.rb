@@ -96,6 +96,10 @@ class Jabvox::Hermes::ServiceLayer
     'PATCH jabvox/sms_campaigns/:id' => :update_sms_campaign,
     # Reportes (solo lectura)
     'GET jabvox/reports/agents' => :report_agents_summary,
+    'GET jabvox/reports/products' => :report_products,
+    'GET jabvox/reports/dialer' => :report_dialer,
+    'GET jabvox/reports/agent_status' => :report_agent_status,
+    'GET jabvox/reports/hermes_activity' => :report_hermes_activity,
 
     # Análisis de Audio
     'GET jabvox/audio/jobs' => :list_audio_jobs,
@@ -109,6 +113,22 @@ class Jabvox::Hermes::ServiceLayer
     'POST jabvox/analytics/data_sources/:id/custom_sql' => :run_analytics_query,
     'GET jabvox/analytics/data_sources/:id/preview' => :preview_analytics_table,
     'GET jabvox/analytics/dashboards' => :list_analytics_dashboards,
+    'GET jabvox/analytics/dashboards/:id' => :get_analytics_dashboard,
+    'POST jabvox/analytics/dashboards' => :create_analytics_dashboard,
+    'PATCH jabvox/analytics/dashboards/:id' => :update_analytics_dashboard,
+    # normalize() colapsa cada /\d+ a /:id, por eso dashboards/:id/widgets → …/:id/widgets.
+    'POST jabvox/analytics/dashboards/:id/widgets' => :create_analytics_widget,
+    'PATCH jabvox/analytics/dashboards/:id/widgets/:id' => :update_analytics_widget,
+    'POST jabvox/analytics/dashboards/:id/widgets/:id/execute' => :execute_analytics_widget,
+    # Rutas literales (overview_stats/internal_reports no colapsan porque no son dígitos).
+    'GET jabvox/analytics/dashboards/overview_stats' => :analytics_overview_stats,
+    'GET jabvox/analytics/dashboards/internal_reports' => :analytics_internal_reports,
+    'GET jabvox/analytics/folders' => :list_analytics_folders,
+    'POST jabvox/analytics/folders' => :create_analytics_folder,
+    'PATCH jabvox/analytics/folders/:id' => :update_analytics_folder,
+    'GET jabvox/analytics/cross_reports' => :list_analytics_cross_reports,
+    'GET jabvox/analytics/cross_reports/:id' => :get_analytics_cross_report,
+    'POST jabvox/analytics/cross_reports/:id/execute' => :execute_analytics_cross_report,
 
     # Importar leads
     'GET jabvox/lead_import/sources' => :list_lead_import_sources,
@@ -146,7 +166,26 @@ class Jabvox::Hermes::ServiceLayer
     'POST jabvox/flows/:id/run_node' => :test_flow_node,
     'POST jabvox/flows/:id/run' => :run_flow,
     'GET jabvox/bulk_whatsapp/batches' => :list_bulk_whatsapp_batches,
+    'GET jabvox/bulk_whatsapp/batches/:id' => :get_bulk_whatsapp_batch,
+    'POST jabvox/bulk_whatsapp/batches' => :create_bulk_whatsapp_batch,
     'POST jabvox/bulk_whatsapp/batches/:id/reuse' => :reuse_bulk_whatsapp_batch,
+    # Grupos de WhatsApp
+    'GET jabvox/whatsapp_groups/groups' => :list_whatsapp_groups,
+    'GET jabvox/whatsapp_groups/groups/:id' => :get_whatsapp_group,
+    'POST jabvox/whatsapp_groups/groups' => :create_whatsapp_group,
+    'PATCH jabvox/whatsapp_groups/groups/:id' => :update_whatsapp_group,
+    'POST jabvox/whatsapp_groups/groups/:id/members' => :add_whatsapp_group_member,
+    'POST jabvox/whatsapp_groups/groups/:id/messages' => :send_whatsapp_group_message,
+    # Voice Broadcast (gestión de campañas; el backend hace la marcación, sin AMI aquí)
+    'GET jabvox/voice_broadcasts' => :list_voice_broadcasts,
+    'GET jabvox/voice_broadcasts/:id' => :get_voice_broadcast,
+    'GET jabvox/voice_broadcasts/:id/report' => :get_voice_broadcast_report,
+    'POST jabvox/voice_broadcasts' => :create_voice_broadcast,
+    'PATCH jabvox/voice_broadcasts/:id' => :update_voice_broadcast,
+    'POST jabvox/voice_broadcasts/:id/start' => :start_voice_broadcast,
+    'POST jabvox/voice_broadcasts/:id/pause' => :pause_voice_broadcast,
+    'POST jabvox/voice_broadcasts/:id/resume' => :resume_voice_broadcast,
+    'POST jabvox/voice_broadcasts/:id/stop' => :stop_voice_broadcast,
     'GET jabvox/whatsapp_templates/templates' => :list_whatsapp_templates,
     'POST jabvox/whatsapp_templates/templates' => :create_whatsapp_template,
     'PATCH jabvox/whatsapp_templates/templates/:id' => :update_whatsapp_template,
@@ -190,6 +229,7 @@ class Jabvox::Hermes::ServiceLayer
     'POST jabvox/calendar/external_people' => :create_calendar_external_person,
     'PATCH jabvox/calendar/external_people/:id' => :update_calendar_external_person,
     # Chat interno
+    'GET jabvox/internal_chats' => :list_internal_chats,
     'POST jabvox/internal_chats' => :create_internal_chat,
     'POST jabvox/internal_chats/:id/send_message' => :send_internal_chat_message,
     'POST jabvox/internal_chats/:id/mark_read' => :mark_internal_chat_read,

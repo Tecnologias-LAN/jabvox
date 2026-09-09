@@ -123,8 +123,11 @@ class Api::V1::Accounts::Captain::AssistantsController < Api::V1::Accounts::Base
                                                   config: [
                                                     :product_name, :feature_faq, :feature_memory, :feature_citation,
                                                     :feature_contact_attributes,
+                                                    :feature_check_availability, :feature_schedule_appointment,
+                                                    :feature_list_boards, :feature_create_task,
                                                     :welcome_message, :handoff_message, :resolution_message,
-                                                    :instructions, :temperature
+                                                    :instructions, :temperature,
+                                                    { handoff_agent_ids: [] }
                                                   ])
 
     # Handle array parameters separately to allow partial updates

@@ -64,7 +64,6 @@ import jabvoxAffiliatePortal from './jabvoxAffiliatePortal.json';
 import jabvoxCalendar from './jabvoxCalendar.json';
 import jabvoxInternalChat from './jabvoxInternalChat.json';
 import jabvoxReports from './jabvoxReports.json';
-import jabvoxResponseBot from './jabvoxResponseBot.json';
 import jabvoxEmail from './jabvoxEmail.json';
 import jabvoxActions from './jabvoxActions.json';
 import jabvoxBilling from './jabvoxBilling.json';
@@ -148,7 +147,6 @@ export default {
   ...jabvoxCalendar,
   ...jabvoxInternalChat,
   ...jabvoxReports,
-  ...jabvoxResponseBot,
   ...jabvoxEmail,
   ...jabvoxActions,
   ...jabvoxBilling,

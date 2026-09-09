@@ -116,7 +116,18 @@ module Jabvox
       {}
     end
 
+    # AISLAMIENTO: un evento con datos raros o el fallo del handler de UN agente/llamada
+    # NUNCA debe tumbar el loop del listener (que sirve a TODOS los agentes de la cuenta).
+    # Cualquier excepción que escape de un handler se registra y se descarta aquí, de modo
+    # que el listener sigue procesando los eventos de los demás agentes sin reconectar.
     def dispatch_event(event)
+      dispatch_event!(event)
+    rescue StandardError => e
+      Rails.logger.error "❌ [AmiListener] account=#{@account_id} evento descartado (aislado) | " \
+                         "event=#{event['event']} #{e.class}: #{e.message}"
+    end
+
+    def dispatch_event!(event) # rubocop:disable Metrics/CyclomaticComplexity
       evt_name = event['event'].to_s
       Rails.logger.debug { "🔎 [AmiListener] event=#{evt_name}" } if evt_name.present?
 
@@ -942,9 +953,17 @@ module Jabvox
 
       fv   = field_vis(account, user_id)
       attrs = crm.additional_attributes || {}
+      # Id del call log MÁS RECIENTE de este contacto (el de esta llamada). Viaja al
+      # frontend para que la tipificación del wrap-up lo referencie directamente por id,
+      # sin depender solo del dialer_contact_id (correlación más robusta: la gestión no
+      # se pierde si el contacto tuviera varias llamadas).
+      call_log_id = account.jabvox_dialer_call_logs
+                           .where(jabvox_dialer_campaign_contact_id: contact.id)
+                           .order(id: :desc).limit(1).pick(:id)
       data = {
         account_id: @account_id,
         dialer_contact_id: contact.id,
+        dialer_call_log_id: call_log_id,
         user_id: user_id,
         contact_name: fv['name'] == false ? '***'         : crm.name.to_s,
         contact_phone: fv['phone'] == false ? '***'  : contact.phone_jabvox,

@@ -13,7 +13,8 @@ const currentAccountId = useMapGetter('getCurrentAccountId');
 const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
-
+// El botón de Copilot dentro de la conversación (la "burbuja de ayuda") se muestra si el
+// módulo Jabvox IA (feature captain_integration) está habilitado en la cuenta.
 const showCopilotTab = computed(() =>
   isFeatureEnabledonAccount.value(currentAccountId.value, FEATURE_FLAGS.CAPTAIN)
 );

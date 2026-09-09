@@ -41,6 +41,29 @@ class Captain::Assistant < ApplicationRecord
   has_many :agent_sessions, class_name: 'Captain::AgentSession', dependent: :destroy_async
 
   store_accessor :config, :temperature, :feature_faq, :feature_memory, :feature_contact_attributes, :product_name
+  # Tools de agenda/tareas de Jabvox IA, activables por asistente desde Ajustes.
+  store_accessor :config, :feature_check_availability, :feature_schedule_appointment,
+                 :feature_list_boards, :feature_create_task
+  # Escalado a humano: lista de IDs de agentes candidatos a recibir la conversación
+  # cuando Jabvox IA hace handoff. Si está vacía, cae a los miembros del inbox.
+  store_accessor :config, :handoff_agent_ids
+
+  # Agentes candidatos para el escalado (los configurados que sigan en la cuenta).
+  def handoff_agents
+    ids = Array(handoff_agent_ids).map(&:to_i).uniq.reject(&:zero?)
+    return account.users.none if ids.empty?
+
+    account.users.where(id: ids)
+  end
+
+  # Cada tool de agenda/tareas está activa salvo que se desactive explícitamente
+  # (config sin la clave => true), para no romper asistentes ya existentes.
+  JABVOX_AGENDA_TOOLS = {
+    'check_availability' => :feature_check_availability,
+    'schedule_appointment' => :feature_schedule_appointment,
+    'list_board' => :feature_list_boards,
+    'create_task' => :feature_create_task
+  }.freeze
 
   validates :name, presence: true
   validates :description, presence: true, length: { maximum: DESCRIPTION_LENGTH_LIMIT }
@@ -99,8 +122,28 @@ class Captain::Assistant < ApplicationRecord
     [
       self.class.resolve_tool_class('faq_lookup').new(self),
       self.class.resolve_tool_class('handoff').new(self),
+      # Aprovisionamiento por chat: solo actúa desde el playground (la tool lo
+      # comprueba con state[:source]); segura de tener siempre disponible.
+      self.class.resolve_tool_class('update_configuration').new(self),
+      # Tools de agenda y tareas de Jabvox IA, cada una activable desde Ajustes.
+      *jabvox_agenda_tools,
       *account.captain_custom_tools.enabled.map { |custom_tool| custom_tool.tool(self) }
     ]
+  end
+
+  # Instancia solo las tools de agenda/tareas que estén activas en la config.
+  def jabvox_agenda_tools
+    JABVOX_AGENDA_TOOLS.filter_map do |tool_id, flag|
+      next unless jabvox_agenda_tool_enabled?(flag)
+
+      self.class.resolve_tool_class(tool_id).new(self)
+    end
+  end
+
+  # Activa por defecto: solo se desactiva si la config trae el flag en false.
+  def jabvox_agenda_tool_enabled?(flag)
+    value = config[flag.to_s]
+    value.nil? || ActiveModel::Type::Boolean.new.cast(value)
   end
 
   def prompt_context

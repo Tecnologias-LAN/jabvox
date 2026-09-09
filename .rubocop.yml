@@ -127,6 +127,11 @@ Metrics/PerceivedComplexity:
 Metrics/ParameterLists:
   Exclude:
     - lib/jabvox/flows/engine/context.rb
+    # Las tools de Jabvox IA (Captain) exponen sus keyword args como el schema de
+    # function-calling al LLM: cada `param` es parte del contrato, no una lista
+    # posicional que agrupar. Igual el servicio de disponibilidad (ventana + tz).
+    - enterprise/lib/captain/tools/**/*.rb
+    - app/services/jabvox/agent_availability_service.rb
 
 Naming/MethodParameterName:
   Exclude:
@@ -219,6 +224,9 @@ Metrics/AbcSize:
     - 'app/controllers/concerns/auth_helper.rb'
     # Tabla de despacho de operadores del intérprete de expresiones del motor.
     - 'lib/jabvox/flows/engine/expression.rb'
+    # Tools de Jabvox IA: el `perform` valida entradas del LLM con guard clauses
+    # antes de actuar; partirlo más resta legibilidad al contrato de la tool.
+    - 'enterprise/lib/captain/tools/**/*.rb'
 
     - 'app/models/integrations/hook.rb'
     - 'app/models/canned_response.rb'

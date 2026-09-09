@@ -158,7 +158,11 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
 
     Jabvox::BulkWhatsappDispatchService.prepare(
       account: Current.account, inbox: inbox, sender_user: sender, actor: current_user,
-      response_email: params[:response_email], csv_io: file.to_io, file_name: file.original_filename
+      response_email: params[:response_email], csv_io: file.to_io, file_name: file.original_filename,
+      # La plantilla/idioma se eligen en la UI (no en el archivo). variable_map mapea
+      # cada {{n}} a una columna del CSV; el service resuelve los valores por fila.
+      template_name: params[:template_name], language: params[:language], text: params[:text],
+      variable_map: variable_map_params
     )
   end
 

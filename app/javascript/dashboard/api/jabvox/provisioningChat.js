@@ -12,8 +12,11 @@ const provisioningChatClient = new ApiClient(
 export const provisioningChatAPI = {
   // Historial de mensajes [{ id, role, content, metadata, created_at }].
   getMessages: () => axios.get(provisioningChatClient.url),
-  // Envía un mensaje del usuario y devuelve la respuesta del assistant.
+  // Envía un mensaje del usuario y devuelve la respuesta del assistant (modo sync, legacy).
   sendMessage: content => axios.post(provisioningChatClient.url, { content }),
+  // URL del endpoint de streaming (SSE) — el componente hace fetch directo para leer el
+  // progreso en vivo (texto + herramientas del aprovisionador), igual que el Chat IA.
+  streamUrl: () => `${provisioningChatClient.url}/stream`,
   // Estado del aprovisionamiento (contextforge, virtual_server, mcp_servers…).
   getStatus: () => axios.get(`${provisioningChatClient.url}/status`),
   // Dispara el aprovisionamiento inicial (crea Hermes + MCPs).

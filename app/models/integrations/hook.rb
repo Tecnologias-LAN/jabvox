@@ -20,6 +20,8 @@ class Integrations::Hook < ApplicationRecord
   attr_readonly :app_id, :account_id, :inbox_id, :hook_type
   before_validation :ensure_hook_type
   after_create :trigger_setup_if_crm
+  # La integración Jabvox IA NO se puede conectar si la cuenta no tiene la feature Jabvox IA
+  # (Captain) habilitada por el administrador. Esto se valida abajo (ensure_jabvox_ia_feature).
 
   # TODO: Remove guard once encryption keys become mandatory (target 3-4 releases out).
   encrypts :access_token, deterministic: true if Jabvox.encryption_configured?
@@ -97,7 +99,16 @@ class Integrations::Hook < ApplicationRecord
   private
 
   def ensure_feature_enabled
-    errors.add(:feature_flag, 'Feature not enabled') unless feature_allowed?
+    return if feature_allowed?
+
+    # Mensaje accionable: para Jabvox IA, decir que el administrador debe activar el módulo.
+    message = if openai?
+                'Jabvox IA no está activo en esta cuenta. Contacta al administrador para que ' \
+                'active el módulo Jabvox IA antes de configurar la API key.'
+              else
+                'Feature not enabled'
+              end
+    errors.add(:base, message)
   end
 
   def ensure_hook_type
@@ -143,9 +154,13 @@ class Integrations::Hook < ApplicationRecord
 
   def validate_openai_api_key
     base_url = settings_value(settings, 'base_url')
-    return if Integrations::Openai::KeyValidator.valid?(settings_api_key(settings), base_url)
+    result = Integrations::Openai::KeyValidator.validate(settings_api_key(settings), base_url)
+    return if result.valid?
 
-    errors.add(:base, I18n.t('errors.openai.invalid_api_key'))
+    # Mensaje CON el detalle real del proveedor (código + motivo) para que el usuario sepa
+    # por qué no se conectó, en vez de un "API key inválida" genérico.
+    detail = [result.code, result.message].compact.join(' - ').presence
+    errors.add(:base, detail || I18n.t('errors.openai.invalid_api_key'))
   end
 
   def validate_cloudflare_realtimekit_credentials
@@ -183,4 +198,5 @@ class Integrations::Hook < ApplicationRecord
   def crm_integration?
     %w[leadsquared].include?(app_id)
   end
+
 end

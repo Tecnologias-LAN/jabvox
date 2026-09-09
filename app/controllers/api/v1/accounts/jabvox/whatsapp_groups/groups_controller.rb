@@ -63,8 +63,8 @@ class Api::V1::Accounts::Jabvox::WhatsappGroups::GroupsController <
   end
 
   def send_message
-    manager(@group.inbox).send_message(@group, message_params[:text])
-    head :ok
+    manager(@group.inbox).send_message(@group, message_params[:text], sent_by: Current.user)
+    render json: { conversation_id: @group.reload.conversation_id }
   end
 
   private

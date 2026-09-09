@@ -13,7 +13,7 @@ module Jabvox::ExternalExport::Catalog
   EXCLUDED_MODELS = %w[
     JabvoxAiChatConfig JabvoxAiChatModel JabvoxAudioStorage JabvoxCdrConfig
     JabvoxSmsProvider JabvoxSmtpConfig JabvoxVoipConfig JabvoxIntegrationConfig
-    JabvoxResponseBotConfig JabvoxSaldoConfig JabvoxFormConfig
+    JabvoxSaldoConfig JabvoxFormConfig
     JabvoxAnalyticsDataSource JabvoxAnalyticsDataSourcePermission
     JabvoxLeadSource JabvoxExportTarget JabvoxExportSyncLog
     JabvoxAnalyticsQueryCacheEntry JabvoxAnalyticsAuditLog
@@ -106,7 +106,6 @@ module Jabvox::ExternalExport::Catalog
     'JabvoxAffiliate' => 'jabvox_affiliates',
     'JabvoxCalendar' => 'jabvox_calendar',
     'JabvoxInternal' => 'jabvox_internal_chat',
-    'JabvoxResponseBot' => 'jabvox_response_bot',
     'JabvoxEmail' => 'jabvox_email',
     'JabvoxForm' => 'jabvox_forms',
     'JabvoxWhatsappTemplate' => 'jabvox_whatsapp_templates',
@@ -150,7 +149,6 @@ module Jabvox::ExternalExport::Catalog
     { key: 'ai_chat', feature: 'jabvox_ai_chat', models: %w[JabvoxAiChat] },
     { key: 'audio', feature: 'jabvox_audio_analysis', models: %w[JabvoxAudio] },
     { key: 'internal_chat', feature: 'jabvox_internal_chat', models: %w[JabvoxInternal] },
-    { key: 'response_bot', feature: 'jabvox_response_bot', models: %w[JabvoxResponseBot] },
     { key: 'analytics', feature: 'jabvox_analytics', models: %w[JabvoxAnalytics] }
   ].freeze
 

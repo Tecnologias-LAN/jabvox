@@ -150,9 +150,8 @@
   display_name: Linear Integration
   enabled: false
 - name: captain_integration
-  display_name: Captain
+  display_name: Jabvox IA
   enabled: false
-  premium: true
 - name: custom_roles
   display_name: Custom Roles
   enabled: false
@@ -192,9 +191,8 @@
   display_name: Notion Integration
   enabled: false
 - name: captain_integration_v2
-  display_name: Captain V2
+  display_name: Jabvox IA (V2)
   enabled: false
-  premium: true
 - name: whatsapp_embedded_signup
   display_name: WhatsApp Embedded Signup
   enabled: false
@@ -210,9 +208,8 @@
   display_name: Assignment V2
   enabled: true
 - name: captain_document_auto_sync
-  display_name: Captain Document Auto Sync
+  display_name: Jabvox IA - Auto sync de documentos
   enabled: false
-  premium: true
 - name: advanced_search
   display_name: Advanced Search
   enabled: false
@@ -256,7 +253,7 @@
   enabled: false
   premium: true
 - name: captain_tasks
-  display_name: Captain Tasks
+  display_name: Jabvox IA - Tareas
   enabled: true
 - name: conversation_required_attributes
   display_name: Required Conversation Attributes
