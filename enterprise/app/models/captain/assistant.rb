@@ -160,6 +160,10 @@ class Captain::Assistant < ApplicationRecord
       end,
       response_guidelines: response_guidelines || [],
       guardrails: guardrails || [],
+      # Instrucciones largas personalizadas del asistente (config['instructions']):
+      # el Rol/Reglas/Flujo que no cabe en la descripción (máx 500). Se inyectan
+      # tal cual en el prompt para que definan el comportamiento de ESTA cuenta.
+      custom_instructions: config['instructions'].to_s,
       # Habilita el bloque de instrucciones de agenda en el prompt solo si al menos
       # una tool de agenda está activa, y lista los agentes (nombre -> id) para que
       # el LLM pueda resolver "cita con Fulano" al agente_id correcto.
