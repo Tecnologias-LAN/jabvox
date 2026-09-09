@@ -15,13 +15,14 @@
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null
 #  account_id   :bigint           not null
-#  user_id      :bigint           not null
+#  user_id      :bigint
 #
 # Indexes
 #
-#  index_jabvox_agent_availabilities_on_account_id  (account_id)
-#  index_jabvox_agent_availabilities_on_user_id     (user_id)
-#  index_jabvox_agent_availabilities_unique         (account_id,user_id,day_of_week) UNIQUE
+#  index_jabvox_agent_availabilities_company_unique  (account_id,day_of_week) UNIQUE WHERE (user_id IS NULL)
+#  index_jabvox_agent_availabilities_on_account_id   (account_id)
+#  index_jabvox_agent_availabilities_on_user_id      (user_id)
+#  index_jabvox_agent_availabilities_unique          (account_id,user_id,day_of_week) UNIQUE
 #
 # Foreign Keys
 #
@@ -30,7 +31,9 @@
 #
 class JabvoxAgentAvailability < ApplicationRecord
   belongs_to :account
-  belongs_to :user
+  # user opcional: una fila SIN user (user_id NULL) es el horario de EMPRESA por
+  # defecto, usado como fallback para agentes sin horario propio.
+  belongs_to :user, optional: true
 
   validates :day_of_week, presence: true,
                           inclusion: { in: 0..6 },
@@ -42,6 +45,7 @@ class JabvoxAgentAvailability < ApplicationRecord
 
   scope :active, -> { where(active: true) }
   scope :for_user, ->(user_id) { where(user_id: user_id) }
+  scope :company_wide, -> { where(user_id: nil) }
   scope :for_day, ->(wday) { where(day_of_week: wday) }
 
   private

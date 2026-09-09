@@ -91,11 +91,22 @@ module Jabvox
         end_at: @tz.local(day.year, day.month, day.day, 23, 59, 59) }
     end
 
+    # Horario efectivo del agente: el suyo propio si lo tiene; si no, el horario
+    # de EMPRESA de su cuenta (user_id NULL). Siempre acotado a @account, nunca
+    # cruza cuentas.
     def availabilities
-      @availabilities ||= JabvoxAgentAvailability
-                          .active
-                          .where(account_id: @account.id, user_id: @user.id)
-                          .to_a
+      @availabilities ||= begin
+        own = JabvoxAgentAvailability.active
+                                     .where(account_id: @account.id, user_id: @user.id)
+                                     .to_a
+        own.presence || company_wide_availabilities
+      end
+    end
+
+    def company_wide_availabilities
+      JabvoxAgentAvailability.active.company_wide
+                             .where(account_id: @account.id)
+                             .to_a
     end
 
     def availabilities_for(wday)

@@ -70,6 +70,10 @@ export default class SipClient {
     this.intentionalDisconnect = false;
     this.reconnectAttempts = 0;
     this.reconnectTimer = null;
+    // Si el REGISTER se rechaza por credenciales (401/403), NO reintentamos: el
+    // secreto no va a cambiar solo, y reintentar en bucle satura el PBX y oculta
+    // el error real. Se marca aquí para cortar la auto-reconexión.
+    this.authFailed = false;
   }
 
   /**
@@ -124,7 +128,15 @@ export default class SipClient {
             console.error(
               `[Jabvox softphone] REGISTER rechazado: ${code} ${phrase}`
             );
-            this.#fail(`register_rejected_${code || 'unknown'}`);
+            // 401/403 = credenciales inválidas: el secreto de la extensión no
+            // coincide con el del PBX. No reintentar (el bucle satura el PBX y
+            // oculta el error); mostrar un error claro y accionable.
+            if (code === 401 || code === 403) {
+              this.authFailed = true;
+              this.#fail('credenciales_invalidas');
+            } else {
+              this.#fail(`register_rejected_${code || 'unknown'}`);
+            }
           },
         },
       });
@@ -274,6 +286,16 @@ export default class SipClient {
     if (!transport) return;
     transport.onDisconnect = error => {
       if (this.intentionalDisconnect) return;
+      // No reintentar si el registro fue rechazado por credenciales: el secreto
+      // no cambiará solo y el bucle solo satura el PBX.
+      if (this.authFailed) {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[Jabvox softphone] Registro rechazado por credenciales inválidas. ' +
+            'Revisa el secreto SIP de la extensión en Ajustes (debe coincidir con el del PBX).'
+        );
+        return;
+      }
       // eslint-disable-next-line no-console
       console.warn(
         '[Jabvox softphone] WSS caído, reintentando…',

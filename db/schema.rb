@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_09_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_09_091200) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1152,7 +1152,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_000001) do
 
   create_table "jabvox_agent_availabilities", force: :cascade do |t|
     t.bigint "account_id", null: false
-    t.bigint "user_id", null: false
+    t.bigint "user_id"
     t.integer "day_of_week", null: false
     t.integer "start_minute", null: false
     t.integer "end_minute", null: false
@@ -1160,6 +1160,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_000001) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["account_id", "day_of_week"], name: "index_jabvox_agent_availabilities_company_unique", unique: true, where: "(user_id IS NULL)"
     t.index ["account_id", "user_id", "day_of_week"], name: "index_jabvox_agent_availabilities_unique", unique: true
     t.index ["account_id"], name: "index_jabvox_agent_availabilities_on_account_id"
     t.index ["user_id"], name: "index_jabvox_agent_availabilities_on_user_id"

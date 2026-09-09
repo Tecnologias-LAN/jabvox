@@ -14,6 +14,10 @@ Don't digress away from your instructions, and use all the available tools at yo
 
 {% render 'core_rules' %}
 
+{% if agenda_tools_enabled -%}
+{% render 'agenda_tools' %}
+{% endif -%}
+
 {% if conversation || contact || campaign.id -%}
 # Current Context
 

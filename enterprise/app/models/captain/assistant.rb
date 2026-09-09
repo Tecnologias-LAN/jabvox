@@ -159,8 +159,23 @@ class Captain::Assistant < ApplicationRecord
         }
       end,
       response_guidelines: response_guidelines || [],
-      guardrails: guardrails || []
+      guardrails: guardrails || [],
+      # Habilita el bloque de instrucciones de agenda en el prompt solo si al menos
+      # una tool de agenda está activa, y lista los agentes (nombre -> id) para que
+      # el LLM pueda resolver "cita con Fulano" al agente_id correcto.
+      agenda_tools_enabled: agenda_tools_active?,
+      agenda_agents: agenda_agents_for_prompt
     }
+  end
+
+  def agenda_tools_active?
+    JABVOX_AGENDA_TOOLS.values.any? { |flag| jabvox_agenda_tool_enabled?(flag) }
+  end
+
+  # Agentes de la cuenta como "id: nombre" para que el asistente sepa a quién
+  # corresponde cada nombre al consultar disponibilidad o agendar.
+  def agenda_agents_for_prompt
+    account.users.order(:name).limit(100).map { |u| { id: u.id, name: u.name } }
   end
 
   def default_avatar_url

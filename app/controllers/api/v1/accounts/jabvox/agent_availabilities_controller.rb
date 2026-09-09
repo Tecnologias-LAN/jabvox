@@ -15,16 +15,19 @@ class Api::V1::Accounts::Jabvox::AgentAvailabilitiesController < Api::V1::Accoun
   def index
     configured = JabvoxAgentAvailability.where(account_id: Current.account.id)
                                         .group(:user_id).count
+    # Entrada especial "company" (horario de empresa, fallback) al inicio.
+    company = { id: 'company', name: 'Horario de empresa (por defecto)', email: nil,
+                availabilities_count: configured[nil].to_i }
     agents = Current.account.users.order(:name).map do |user|
       { id: user.id, name: user.name, email: user.email,
         availabilities_count: configured[user.id].to_i }
     end
-    render json: agents
+    render json: [company, *agents]
   end
 
   def show
     render json: {
-      agent: { id: @agent.id, name: @agent.name },
+      agent: @agent ? { id: @agent.id, name: @agent.name } : { id: 'company', name: 'Horario de empresa' },
       availabilities: agent_availabilities.map { |a| serialize(a) }
     }
   end
@@ -45,7 +48,7 @@ class Api::V1::Accounts::Jabvox::AgentAvailabilitiesController < Api::V1::Accoun
 
   def create_availability(attrs)
     Current.account.jabvox_agent_availabilities.create!(
-      user_id: @agent.id,
+      user_id: @agent_user_id,
       day_of_week: attrs[:day_of_week],
       start_minute: attrs[:start_minute],
       end_minute: attrs[:end_minute],
@@ -56,12 +59,20 @@ class Api::V1::Accounts::Jabvox::AgentAvailabilitiesController < Api::V1::Accoun
 
   def agent_availabilities
     @agent_availabilities ||= Current.account.jabvox_agent_availabilities
-                                     .where(user_id: @agent.id)
+                                     .where(user_id: @agent_user_id)
                                      .order(:day_of_week)
   end
 
+  # El id especial "company" gestiona el horario de EMPRESA (user_id NULL), usado
+  # como fallback para agentes sin horario propio. Cualquier otro id es un agente.
   def set_agent
+    if params[:id] == 'company'
+      @agent = nil
+      @agent_user_id = nil
+      return
+    end
     @agent = Current.account.users.find(params[:id])
+    @agent_user_id = @agent.id
   rescue ActiveRecord::RecordNotFound
     render json: { error: 'Agente no encontrado' }, status: :not_found
   end
