@@ -24,6 +24,11 @@ let rafId = null;
 let retryTimer = null;
 // <audio> mudo "keep-alive" para destrabar el analizador del stream remoto (bug Chrome).
 let keepAlive = null;
+// Nodo "sumidero" para el stream remoto: Chrome solo bombea un MediaStreamSource
+// remoto por el grafo de Web Audio si el analizador está conectado a un destino.
+// Usamos un MediaStreamAudioDestinationNode (no audioCtx.destination) para NO emitir
+// sonido — el audio audible ya lo reproduce el <audio> principal del softphone.
+let sink = null;
 
 const stop = () => {
   if (rafId) cancelAnimationFrame(rafId);
@@ -32,6 +37,8 @@ const stop = () => {
   retryTimer = null;
   try {
     source?.disconnect();
+    analyser?.disconnect();
+    sink?.disconnect();
     audioCtx?.close();
   } catch (e) {
     /* noop */
@@ -42,6 +49,7 @@ const stop = () => {
   }
   source = null;
   analyser = null;
+  sink = null;
   audioCtx = null;
 };
 
@@ -102,6 +110,12 @@ const start = () => {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 64;
     source.connect(analyser);
+    // Stream remoto: conectar el analizador a un sumidero silencioso obliga a Chrome
+    // a procesar el audio remoto por el grafo (sin él, getByteFrequencyData da ceros).
+    if (props.remote) {
+      sink = audioCtx.createMediaStreamDestination();
+      analyser.connect(sink);
+    }
     draw();
   } catch (e) {
     stop();
