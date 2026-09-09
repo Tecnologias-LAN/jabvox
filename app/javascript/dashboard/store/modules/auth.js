@@ -53,10 +53,11 @@ export const getters = {
   },
 
   getCurrentAccountId(_, __, rootState) {
-    if (rootState.route.params && rootState.route.params.accountId) {
-      return Number(rootState.route.params.accountId);
-    }
-    return null;
+    // rootState.route puede no existir aún (p. ej. el softphone consulta la cuenta
+    // antes de que la ruta esté montada); optional chaining evita el crash
+    // "Cannot read properties of undefined (reading 'params')".
+    const accountId = rootState.route?.params?.accountId;
+    return accountId ? Number(accountId) : null;
   },
 
   getCurrentRole($state, $getters) {

@@ -194,6 +194,13 @@ export function useSoftphone() {
       sip = new SipClient(creds, ensureRemoteAudio(), {
         onStateChange: s => {
           state.value = s;
+          // Si entra/empieza una llamada con el panel oculto, mostrarlo para que el
+          // agente pueda contestar/ver la llamada (el botón de ocultar mantiene el
+          // registro, así que las entrantes deben poder sacar el panel a la vista).
+          if (s === 'calling' || s === 'in_call') {
+            isOpen.value = true;
+            isMinimized.value = false;
+          }
           // Reportar cada cambio de estado al backend (presencia en vivo).
           reportPresence();
         },
@@ -339,6 +346,12 @@ export function useSoftphone() {
   const minimize = () => {
     isMinimized.value = true;
   };
+  // Oculta la vista del softphone SIN desconectar del PBX: el agente deja de ver el
+  // panel pero sigue registrado y recibiendo llamadas (a diferencia de close(), que
+  // desregistra). Lo usa el botón de la pestaña para mostrar/ocultar.
+  const hide = () => {
+    isOpen.value = false;
+  };
   const close = async () => {
     isOpen.value = false;
     if (!isInCall.value) {
@@ -392,6 +405,7 @@ export function useSoftphone() {
     setDialedNumber,
     open,
     minimize,
+    hide,
     close,
     // historial
     callLogs,

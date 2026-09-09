@@ -10,6 +10,10 @@
     "ELIGIBILITY": {
       "BLOCKED_TITLE": "Groups are not available for this inbox",
       "ELIGIBLE": "Eligible",
+      "RECHECK_OBA": "Re-check OBA",
+      "OBA_OK": "Account is now official! Groups enabled.",
+      "OBA_STILL_PENDING": "Meta does not report this number as an Official Business Account yet.",
+      "OBA_ERROR": "Could not verify OBA status with Meta.",
       "REASONS": {
         "NOT_CLOUD_API": "Groups only work with Meta's WhatsApp Cloud API.",
         "COEXISTENCE": "Groups are not available on Coexistence (Multi-solution) numbers or the WhatsApp Business app.",

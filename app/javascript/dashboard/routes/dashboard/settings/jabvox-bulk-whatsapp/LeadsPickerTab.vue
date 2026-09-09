@@ -267,7 +267,7 @@ const canSend = computed(
       : !!text.value.trim())
 );
 
-// Step 2 (audience) is valid once at least one lead is selected. Step 3 (message)
+// Step 3 (audience) is valid once at least one lead is selected. Step 2 (message)
 // is valid once the template+variables or text are complete.
 const audienceValid = computed(() => selectedCount.value > 0);
 const messageValid = computed(() =>
@@ -293,8 +293,8 @@ const previewLines = computed(() => {
 // Tell the parent whether the current step lets "Next"/"Send" proceed.
 // Nuevo orden del asistente: 2 = plantilla/mensaje, 3 = audiencia, 4 = previa.
 const stepValidity = () => {
-  if (props.step === 3) return messageValid.value;
-  if (props.step === 2) return audienceValid.value;
+  if (props.step === 2) return messageValid.value;
+  if (props.step === 3) return audienceValid.value;
   return canSend.value; // step 4
 };
 watch(
@@ -491,7 +491,7 @@ onMounted(() => {
       </p>
     </div>
 
-    <!-- Filters (collapsible) — Paso 2: audiencia -->
+    <!-- Filters (collapsible) — Paso 3: audiencia -->
     <section
       v-show="step === 3"
       class="rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm"
@@ -983,7 +983,7 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- Message body — Paso 3: plantilla + variables / texto -->
+    <!-- Message body — Paso 2: plantilla + variables / texto -->
     <section
       v-show="step === 2"
       class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm space-y-3"

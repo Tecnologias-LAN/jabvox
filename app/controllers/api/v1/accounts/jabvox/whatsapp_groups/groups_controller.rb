@@ -1,7 +1,7 @@
 class Api::V1::Accounts::Jabvox::WhatsappGroups::GroupsController <
       Api::V1::Accounts::Jabvox::WhatsappGroups::BaseController
   before_action :ensure_admin, except: [:index, :show, :eligibility]
-  before_action :set_inbox, only: [:create, :eligibility]
+  before_action :set_inbox, only: [:create, :eligibility, :recheck_oba]
   before_action :set_group, only: [:show, :update, :invite, :add_member, :remove_member, :update_member, :send_message]
   rescue_from Jabvox::Whatsapp::GroupApiError, with: :render_group_api_error
 
@@ -22,6 +22,19 @@ class Api::V1::Accounts::Jabvox::WhatsappGroups::GroupsController <
       eligible: channel.whatsapp_groups_supported?,
       reason: channel.whatsapp_groups_ineligibility_reason,
       feature_enabled: Current.account.feature_enabled?('jabvox_whatsapp_groups')
+    }
+  end
+
+  # Force a fresh OBA (green tick) check against Meta and return the new eligibility.
+  # Use after Meta approves the Official Business Account so the block clears without
+  # waiting for the cache to expire. whatsapp_cloud only.
+  def recheck_oba
+    channel = @inbox.channel
+    Jabvox::Whatsapp::ObaStatusService.new(channel).refresh if channel.is_a?(Channel::Whatsapp) && channel.provider == 'whatsapp_cloud'
+    render json: {
+      eligible: channel.whatsapp_groups_supported?,
+      reason: channel.whatsapp_groups_ineligibility_reason,
+      is_official_business_account: channel.official_business_account?
     }
   end
 

@@ -903,6 +903,7 @@ Rails.application.routes.draw do
 
             namespace :whatsapp_groups do
               get 'inboxes/:inbox_id/eligibility', to: 'groups#eligibility'
+              post 'inboxes/:inbox_id/recheck_oba', to: 'groups#recheck_oba'
               resources :groups, only: [:index, :show, :create, :update] do
                 member do
                   post :invite
