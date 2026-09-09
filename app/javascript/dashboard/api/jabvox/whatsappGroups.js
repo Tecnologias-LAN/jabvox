@@ -12,6 +12,11 @@ class JabvoxWhatsappGroupsAPI extends ApiClient {
     return axios.get(`${this.url}/inboxes/${inboxId}/eligibility`);
   }
 
+  // Forzar una re-verificación del estado OBA (tick verde) contra Meta.
+  recheckOba(inboxId) {
+    return axios.post(`${this.url}/inboxes/${inboxId}/recheck_oba`);
+  }
+
   getGroups() {
     return axios.get(`${this.url}/groups`);
   }

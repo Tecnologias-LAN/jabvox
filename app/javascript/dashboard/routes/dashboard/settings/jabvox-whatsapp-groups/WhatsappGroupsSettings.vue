@@ -70,6 +70,31 @@ const onInboxChange = async () => {
   await checkEligibility();
 };
 
+// Cuando el bloqueo es por OBA (tick verde), permitir re-verificar contra Meta: si
+// Meta ya aprobó la Cuenta de Empresa Oficial, la bandeja se desbloquea sin esperar.
+const rechecking = ref(false);
+const canRecheckOba = computed(
+  () => eligibility.value?.reason === 'not_official_business'
+);
+const recheckOba = async () => {
+  if (!selectedInboxId.value) return;
+  rechecking.value = true;
+  try {
+    const { data } = await whatsappGroupsAPI.recheckOba(selectedInboxId.value);
+    eligibility.value = { ...eligibility.value, ...data };
+    if (data.eligible) {
+      useAlert(t('JABVOX_WHATSAPP_GROUPS.ELIGIBILITY.OBA_OK'));
+      await loadGroups();
+    } else {
+      useAlert(t('JABVOX_WHATSAPP_GROUPS.ELIGIBILITY.OBA_STILL_PENDING'));
+    }
+  } catch (error) {
+    useAlert(t('JABVOX_WHATSAPP_GROUPS.ELIGIBILITY.OBA_ERROR'));
+  } finally {
+    rechecking.value = false;
+  }
+};
+
 const openCreate = () => {
   createDialog.value?.open(selectedInboxId.value);
 };
@@ -169,13 +194,24 @@ onMounted(async () => {
         size="18"
         class="text-amber-600 dark:text-amber-300 shrink-0 mt-0.5"
       />
-      <div>
+      <div class="flex-1">
         <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">
           {{ t('JABVOX_WHATSAPP_GROUPS.ELIGIBILITY.BLOCKED_TITLE') }}
         </p>
         <p class="text-sm text-amber-700 dark:text-amber-300 mt-1">
           {{ ineligibleReasonText }}
         </p>
+        <woot-button
+          v-if="canRecheckOba"
+          size="tiny"
+          variant="smooth"
+          color-scheme="warning"
+          :is-loading="rechecking"
+          class="mt-3"
+          @click="recheckOba"
+        >
+          {{ t('JABVOX_WHATSAPP_GROUPS.ELIGIBILITY.RECHECK_OBA') }}
+        </woot-button>
       </div>
     </div>
 

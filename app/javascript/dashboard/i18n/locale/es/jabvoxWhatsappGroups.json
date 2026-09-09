@@ -10,6 +10,10 @@
     "ELIGIBILITY": {
       "BLOCKED_TITLE": "Los grupos no están disponibles para esta bandeja",
       "ELIGIBLE": "Elegible",
+      "RECHECK_OBA": "Volver a verificar OBA",
+      "OBA_OK": "¡La cuenta ya es oficial! Grupos habilitados.",
+      "OBA_STILL_PENDING": "Meta aún no reporta la cuenta como oficial (OBA).",
+      "OBA_ERROR": "No se pudo verificar el estado OBA con Meta.",
       "REASONS": {
         "NOT_CLOUD_API": "Los grupos solo funcionan con WhatsApp Cloud API de Meta.",
         "COEXISTENCE": "Los grupos no están disponibles en números de Coexistencia (Multi-solución) ni de la app de WhatsApp Business.",

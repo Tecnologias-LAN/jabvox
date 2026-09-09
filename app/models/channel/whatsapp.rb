@@ -95,10 +95,19 @@ class Channel::Whatsapp < ApplicationRecord
       ActiveModel::Type::Boolean.new.cast(provider_config['coexistence'])
   end
 
-  # OBA status as recorded on the channel. Meta only exposes it via the WABA, so
-  # it is cached in provider_config when known; absent = treat as not verified.
+  # OBA status. If it's already cached on the channel we trust it; otherwise we ask
+  # Meta once (GET /{phone_number_id}?fields=official_business_account) and cache the
+  # result, so groups eligibility resolves on its own for any Cloud API number
+  # without a human flipping a flag. A network/API hiccup falls back to the cached
+  # value (nil → false), never raising into the eligibility check.
   def official_business_account?
-    ActiveModel::Type::Boolean.new.cast(provider_config['is_official_business_account'])
+    return ActiveModel::Type::Boolean.new.cast(provider_config['is_official_business_account']) if oba_cached?
+
+    Jabvox::Whatsapp::ObaStatusService.new(self).official_business_account?
+  end
+
+  def oba_cached?
+    (provider_config || {}).key?('is_official_business_account')
   end
 
   def provider_service

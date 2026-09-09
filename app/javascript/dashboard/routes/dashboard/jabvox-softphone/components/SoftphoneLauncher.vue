@@ -25,7 +25,7 @@ const isEnabled = computed(() =>
   )
 );
 
-const { isOpen, isInCall, open, minimize, call, handleAccountSwitch } =
+const { isOpen, isInCall, open, hide, call, handleAccountSwitch } =
   useSoftphone();
 
 // Punto de entrada de los 3 orígenes (manual/click-to-call/dialer): emiten este evento y
@@ -41,8 +41,10 @@ onBeforeUnmount(() => emitter.off('jabvox.softphone.dial', onDialRequest));
 // Al cambiar de cuenta activa, re-registrar con la extensión de la nueva cuenta.
 watch(accountId, () => handleAccountSwitch());
 
-// La pestaña de flecha alterna abierto/oculto.
-const toggle = () => (isOpen.value ? minimize() : open());
+// La pestaña de flecha alterna mostrar/ocultar el softphone. Ocultar usa hide()
+// (solo esconde la vista, SIGUE registrado y recibiendo llamadas), no minimize()
+// —que no cambiaba isOpen y dejaba el botón sin poder cerrar—.
+const toggle = () => (isOpen.value ? hide() : open());
 </script>
 
 <template>
@@ -76,7 +78,7 @@ const toggle = () => (isOpen.value ? minimize() : open());
       leave-to-class="translate-x-full"
     >
       <div v-show="isOpen" class="mr-2">
-        <SoftphonePanel @click-outside="minimize" />
+        <SoftphonePanel @click-outside="hide" />
       </div>
     </transition>
   </div>

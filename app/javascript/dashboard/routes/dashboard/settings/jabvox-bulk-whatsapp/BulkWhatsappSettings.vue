@@ -232,8 +232,8 @@ const resetWizard = () => {
 const downloadSample = () => {
   const rows = [
     'numero,nombre,var1,var2',
-    '573001234567,Juan Perez,15/06,Bogot\u00E1',
-    '573007654321,Maria Lopez,20/06,Medell\u00EDn',
+    '+573001234567,Juan Perez,15/06,Bogot\u00E1',
+    '+573007654321,Maria Lopez,20/06,Medell\u00EDn',
   ];
   // Prepend a UTF-8 BOM so Excel opens accented names correctly.
   const blob = new Blob([`\uFEFF${rows.join('\n')}`], {
