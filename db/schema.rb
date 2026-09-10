@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2573,10 +2573,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.text "last_error_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "service_user_id"
-    t.text "callback_secret_jabvox"
-    t.string "sessions_path_jabvox", default: "/api/sessions", null: false
-    t.index ["service_user_id"], name: "index_jabvox_hermes_provisioners_on_service_user_id"
+    t.string "hermes_agent_name_jabvox"
   end
 
   create_table "jabvox_hermes_sessions", force: :cascade do |t|
@@ -4537,7 +4534,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
   add_foreign_key "jabvox_hermes_identities", "accounts"
   add_foreign_key "jabvox_hermes_provisioner_links", "accounts"
   add_foreign_key "jabvox_hermes_provisioner_links", "jabvox_hermes_provisioners", column: "hermes_provisioner_id"
-  add_foreign_key "jabvox_hermes_provisioners", "users", column: "service_user_id"
   add_foreign_key "jabvox_hermes_sessions", "accounts"
   add_foreign_key "jabvox_hermes_sessions", "users"
   add_foreign_key "jabvox_hermes_user_permissions", "accounts"

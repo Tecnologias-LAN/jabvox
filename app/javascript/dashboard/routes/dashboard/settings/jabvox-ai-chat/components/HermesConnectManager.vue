@@ -23,7 +23,7 @@ const editingId = ref(null);
 const emptyForm = () => ({
   name_jabvox: '',
   hermes_agent_name_jabvox: '',
-  base_url_jabvox: 'http://10.147.100.1:8642/p/AGENTE/v1',
+  base_url_jabvox: '',
   token_jabvox: '',
 });
 const form = ref(emptyForm());
@@ -185,18 +185,18 @@ onMounted(load);
         <Input
           v-model="form.name_jabvox"
           label="Nombre visible"
-          placeholder="Agente Ana"
+          placeholder="Mi agente"
         />
         <Input
           v-model="form.hermes_agent_name_jabvox"
           label="Nombre del agente en Hermes"
-          placeholder="agente-ana"
+          placeholder="mi-agente"
           custom-input-class="font-mono"
         />
         <Input
           v-model="form.base_url_jabvox"
-          label="URL del agente (ZeroTier)"
-          placeholder="http://10.147.100.1:8642/p/agente-ana/v1"
+          label="URL del agente"
+          placeholder="http://tu-hermes.ejemplo:PUERTO/p/mi-agente/v1"
           message="Mismo host:puerto que los demás agentes. Incluye el prefijo /p/<agente>/v1."
           custom-input-class="font-mono"
         />

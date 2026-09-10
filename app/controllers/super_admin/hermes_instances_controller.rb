@@ -1,51 +1,41 @@
 # frozen_string_literal: true
 
-# Administración central de las instancias Hermes por cuenta (Sección 15 del rediseño).
-# Solo super admin. Toda operación pasa por el Hermes Provisionador (ProvisionerClient) —
-# el super admin NUNCA accede a la BD ni a OVH directamente desde aquí.
+# Configuración del Hermes APROVISIONADOR global (un agente) y de qué cuentas lo usan.
+# Solo super admin. El aprovisionador es UN AGENTE Hermes normal (4 datos); las cuentas
+# ligadas ven el "Chat Aprovisionador", que habla con ese agente. No fabrica Hermes por
+# cuenta (eso es el Chat IA por cuenta, gestionado aparte en Ajustes → Chat IA).
 #
-#   GET  /super_admin/hermes_instances            → lista de cuentas + estado de su Hermes
-#   POST /super_admin/hermes_instances/:account_id/provision → aprovisionar/reaprovisionar
-#   POST /super_admin/hermes_instances/:account_id/disable   → desactivar
-#   POST /super_admin/hermes_instances/:account_id/restart   → reiniciar
-#   POST /super_admin/hermes_instances/:account_id/rotate    → rotar credencial de servicio
+#   GET  /super_admin/hermes_instances                       → agente + cuentas ligadas
+#   POST /super_admin/hermes_instances/connect_provisioner   → conectar/actualizar el agente
+#   POST /super_admin/hermes_instances/:account_id/link_account   → activar en una cuenta
+#   POST /super_admin/hermes_instances/:account_id/unlink_account → desactivar en una cuenta
 class SuperAdmin::HermesInstancesController < SuperAdmin::ApplicationController
   def index
-    handoffs = JabvoxContextForgeHandoff.all.index_by(&:account_id)
-    accounts = Account.where(id: handoffs.keys).or(Account.where(jabvox_ai_chat_enabled_jabvox: true))
+    linked_account_ids = JabvoxHermesProvisionerLink.where(status_jabvox: 'linked').pluck(:account_id)
+    accounts = Account.where(id: linked_account_ids).or(Account.where(jabvox_ai_chat_enabled_jabvox: true))
     @provisioner = JabvoxHermesProvisioner.instance.safe_summary
-    @instances = accounts.map { |acc| instance_summary(acc, handoffs[acc.id]) }
+    linked = linked_account_ids.to_set
+    @instances = accounts.map { |acc| instance_summary(acc, linked.include?(acc.id)) }
     respond_to do |format|
       format.html # vista ERB del panel
       format.json { render json: { provisioner: @provisioner, instances: @instances } }
     end
   end
 
-  # Conecta el Hermes Aprovisionador GLOBAL ÚNICO. Doble seguridad: URL (host:puerto ZeroTier)
-  # + token de servicio + usuario de servicio (segundo factor) + secreto de callback.
-  # Los secretos en blanco = conservar el actual (no se sobreescriben con vacío).
+  # Conecta/actualiza el Hermes Aprovisionador GLOBAL ÚNICO como un agente: nombre visible,
+  # nombre del agente en Hermes, URL del agente y token. El token en blanco = conservar el
+  # actual (no se sobreescribe con vacío).
   def connect_provisioner
     current = JabvoxHermesProvisioner.instance
     token = params[:service_token].presence || current.service_token_jabvox
-    secret = params[:callback_secret].presence || current.callback_secret_jabvox
     result = Jabvox::Hermes::ProvisionerConnectService.new(
       base_url: params[:base_url], service_token: token,
-      service_user: resolve_service_user(current), callback_secret: secret,
-      sessions_path: params[:sessions_path]
+      name: params[:name], hermes_agent_name: params[:hermes_agent_name]
     ).call
     redirect_back_with(result.success?, result.error, 'Aprovisionador conectado')
   end
 
-  # Usuario de servicio del aprovisionador (segundo factor). Se toma del param si viene, si no
-  # se conserva el actual. Debe ser un usuario existente de la app.
-  def resolve_service_user(current)
-    id = params[:service_user_id].presence
-    return current.service_user unless id
-
-    User.find_by(id: id)
-  end
-
-  # Liga el aprovisionador global a una cuenta (esa cuenta verá el Chat Aprovisionador).
+  # Activa el aprovisionador en una cuenta (esa cuenta verá el Chat Aprovisionador).
   def link_account
     provisioner = JabvoxHermesProvisioner.instance
     return redirect_back_with(false, 'Conecta primero el aprovisionador', nil) unless provisioner.connected?
@@ -54,35 +44,12 @@ class SuperAdmin::HermesInstancesController < SuperAdmin::ApplicationController
     link.hermes_provisioner = provisioner
     link.status_jabvox = 'linked'
     link.save!
-    redirect_back_with(true, nil, "Cuenta ##{account.id} ligada")
+    redirect_back_with(true, nil, "Cuenta ##{account.id} activada")
   end
 
   def unlink_account
     JabvoxHermesProvisionerLink.find_by(account_id: account.id)&.update(status_jabvox: 'unlinked')
-    redirect_back_with(true, nil, "Cuenta ##{account.id} desligada")
-  end
-
-  def provision
-    result = Jabvox::Hermes::AccountSetupService.new(account).call
-    redirect_back_with(result.success?, result.error, "Hermes de la cuenta ##{account.id} aprovisionado")
-  end
-
-  def disable
-    result = Jabvox::Hermes::ProvisionerClient.new.disable_instance(account)
-    account.jabvox_context_forge_handoff&.update(status: 'failed', last_error: 'disabled by admin')
-    redirect_back_with(result.success?, result.error, "Hermes de la cuenta ##{account.id} desactivado")
-  end
-
-  def restart
-    result = Jabvox::Hermes::ProvisionerClient.new.restart_instance(account)
-    redirect_back_with(result.success?, result.error, "Hermes de la cuenta ##{account.id} reiniciado")
-  end
-
-  def rotate
-    identity = JabvoxHermesIdentity.for_account(account)
-    identity.rotate_token!
-    account.jabvox_context_forge_handoff&.update(scoped_token: identity.service_token.token)
-    redirect_back_with(true, nil, "Credencial de la cuenta ##{account.id} rotada")
+    redirect_back_with(true, nil, "Cuenta ##{account.id} desactivada")
   end
 
   private
@@ -100,28 +67,8 @@ class SuperAdmin::HermesInstancesController < SuperAdmin::ApplicationController
     end
   end
 
-  # Resumen SIN secretos (nunca el token).
-  def instance_summary(acc, handoff)
-    {
-      account_id: acc.id, account_name: acc.name,
-      status: handoff&.status || 'pending',
-      hermes_url: handoff&.hermes_url,
-      provisioned_at: handoff&.provisioned_at,
-      last_error: handoff&.last_error,
-      mcp_servers: Array(handoff&.mcp_servers),
-      # Agentes de la cuenta y, por cada uno, sus HERMES ligados con el token de acción
-      # (Hermes → Jabvox) de cada Hermes. El token vive en la conexión, no en el agente:
-      # un agente con 2 Hermes tiene 2 tokens distintos. Solo visible aquí (super admin).
-      agents: acc.jabvox_hermes_agents.includes(:user, :hermes_connections).map do |ag|
-        {
-          id: ag.id, name: ag.name_jabvox, user: ag.user&.name, status: ag.status_jabvox,
-          hermes: ag.hermes_connections.map do |conn|
-            { id: conn.id, name: conn.name_jabvox, hermes_agent: conn.hermes_agent_name_jabvox,
-              base_url: conn.base_url_jabvox, status: conn.status_jabvox,
-              action_token: conn.action_token_jabvox }
-          end
-        }
-      end
-    }
+  # Estado de una cuenta frente al aprovisionador: si está activada (ligada).
+  def instance_summary(acc, linked)
+    { account_id: acc.id, account_name: acc.name, linked: linked }
   end
 end

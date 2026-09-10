@@ -12,45 +12,40 @@ RSpec.describe JabvoxHermesProvisioner do
     end
   end
 
-  describe '#valid_callback? (doble validación)' do
-    let(:account) { create(:account) }
-    let(:service_user) { create(:user, account: account) }
-    let(:provisioner) do
+  describe '#mark_connected! / #connected?' do
+    it 'guarda los 4 datos del agente y queda conectado' do
       p = described_class.instance
-      p.mark_connected!(base_url: 'http://10.147.100.1:9119', service_token: 'tok-abc',
-                        service_user: service_user, callback_secret: 'sec-xyz')
-      p
+      p.mark_connected!(
+        base_url: 'http://tu-hermes.ejemplo:9119/p/mi-agente/v1',
+        service_token: 'tok-abc', name: 'Agente Aprovisionador', hermes_agent_name: 'mi-agente'
+      )
+      expect(p.connected?).to be(true)
+      expect(p.name_jabvox).to eq('Agente Aprovisionador')
+      expect(p.hermes_agent_name_jabvox).to eq('mi-agente')
+      expect(p.base_url_jabvox).to eq('http://tu-hermes.ejemplo:9119/p/mi-agente/v1')
     end
 
-    it 'acepta token + usuario de servicio + secreto correctos' do
-      expect(provisioner.valid_callback?(token: 'tok-abc', service_user_id: service_user.id, secret: 'sec-xyz'))
-        .to be(true)
+    it 'no está conectado sin URL o sin token' do
+      p = described_class.new(status_jabvox: 'connected')
+      expect(p.connected?).to be(false)
     end
 
-    it 'rechaza si el token no coincide' do
-      expect(provisioner.valid_callback?(token: 'malo', service_user_id: service_user.id, secret: 'sec-xyz'))
-        .to be(false)
-    end
-
-    it 'rechaza si el usuario de servicio no coincide' do
-      expect(provisioner.valid_callback?(token: 'tok-abc', service_user_id: 999_999, secret: 'sec-xyz'))
-        .to be(false)
-    end
-
-    it 'rechaza si el secreto no coincide' do
-      expect(provisioner.valid_callback?(token: 'tok-abc', service_user_id: service_user.id, secret: 'malo'))
-        .to be(false)
-    end
-
-    it 'rechaza si no está conectado' do
+    it 'conserva el nombre si se llama sin nombre nuevo' do
       p = described_class.instance
-      expect(p.valid_callback?(token: 't', service_user_id: 1, secret: 's')).to be(false)
+      p.mark_connected!(base_url: 'http://h.ejemplo/p/a/v1', service_token: 't', name: 'Original')
+      p.mark_connected!(base_url: 'http://h.ejemplo/p/a/v1', service_token: 't2')
+      expect(p.name_jabvox).to eq('Original')
     end
   end
 
-  describe '#sessions_path' do
-    it 'default /api/sessions' do
-      expect(described_class.instance.sessions_path).to eq('/api/sessions')
+  describe '#safe_summary' do
+    it 'nunca expone el token' do
+      p = described_class.instance
+      p.mark_connected!(base_url: 'http://h.ejemplo/p/a/v1', service_token: 'super-secreto', hermes_agent_name: 'a')
+      summary = p.safe_summary
+      expect(summary[:base_url]).to eq('http://h.ejemplo/p/a/v1')
+      expect(summary[:hermes_agent_name]).to eq('a')
+      expect(summary.values.join).not_to include('super-secreto')
     end
   end
 end

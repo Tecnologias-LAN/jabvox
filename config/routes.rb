@@ -1283,13 +1283,6 @@ Rails.application.routes.draw do
   post 'webhooks/jabvox/billing/resolve', to: 'webhooks/jabvox/billing#resolve_token'
   post 'webhooks/jabvox/billing/checkout', to: 'webhooks/jabvox/billing#create_checkout'
   post 'webhooks/jabvox/billing/:gateway', to: 'webhooks/jabvox/billing#process_payload'
-  # Callback del Hermes Aprovisionador: confirma que el Hermes de una cuenta ya está operativo.
-  post 'webhooks/jabvox/hermes/provisioned', to: 'webhooks/jabvox/hermes#provisioned'
-  # El Aprovisionador consulta las conexiones de DB de una cuenta para crear su MCP de analítica.
-  get 'webhooks/jabvox/hermes/data_sources/:account_id',
-      to: 'webhooks/jabvox/hermes#data_sources'
-  get 'webhooks/jabvox/hermes/data_sources/:account_id/:id/credentials',
-      to: 'webhooks/jabvox/hermes#credentials'
   # Un agente de Hermes ejecuta acciones sobre Jabvox con su token exclusivo (permisos del agente).
   get 'webhooks/jabvox/hermes_agent/tools', to: 'webhooks/jabvox/hermes_agent#tools'
   post 'webhooks/jabvox/hermes_agent/execute', to: 'webhooks/jabvox/hermes_agent#execute'
@@ -1359,11 +1352,7 @@ Rails.application.routes.draw do
           post :connect_provisioner   # conectar el Hermes Aprovisionador global
         end
         member do
-          post :provision
-          post :disable
-          post :restart
-          post :rotate
-          post :link_account          # ligar el aprovisionador a esta cuenta
+          post :link_account          # activar el aprovisionador en esta cuenta
           post :unlink_account
         end
       end

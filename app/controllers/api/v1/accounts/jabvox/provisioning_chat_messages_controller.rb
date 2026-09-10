@@ -73,9 +73,9 @@ class Api::V1::Accounts::Jabvox::ProvisioningChatMessagesController < Api::V1::A
     render json: (handoff&.safe_summary || { status: 'pending', mcp_servers: [], has_token: false })
   end
 
-  # Pide al Hermes Aprovisionador que levante el Hermes de esta cuenta. Jabvox NO aprovisiona:
-  # solo transporta la solicitud; el aprovisionador confirma por el webhook /webhooks/jabvox/
-  # hermes/provisioned, que marca el handoff operativo. El estado se consulta con #status.
+  # Envía al agente Aprovisionador global el mensaje inicial de aprovisionamiento de MCPs de
+  # esta cuenta. Jabvox solo transporta el texto (ProvisionerChatRelay); el agente responde en
+  # línea. Requiere que la cuenta esté activada (ligada) al aprovisionador.
   def provision
     unless JabvoxHermesProvisionerLink.active_for?(Current.account.id)
       return render(json: { error: 'La cuenta no está ligada a un Hermes Aprovisionador' },
