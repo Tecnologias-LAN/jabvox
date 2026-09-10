@@ -1367,6 +1367,8 @@ Rails.application.routes.draw do
           post :unlink_account
         end
       end
+      # Widget de Soporte global (burbuja "Soporte" del dashboard): token + HMAC.
+      resource :support_widget, only: [:show, :update], controller: 'support_widget'
       resource :push_diagnostics, only: [:show, :create] do
         post :destroy_subscriptions, on: :collection
       end
