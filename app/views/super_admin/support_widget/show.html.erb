@@ -1,0 +1,85 @@
+<% content_for(:title) { 'Widget de Soporte' } %>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title" id="page-title">Widget de Soporte</h1>
+</header>
+
+<section class="main-content__body">
+  <% if notice %><p class="flash flash--notice"><%= notice %></p><% end %>
+  <% if alert %><p class="flash flash--error"><%= alert %></p><% end %>
+
+  <div style="margin-bottom:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+    <p style="font-size:13px; color:#374151; margin:0;">
+      El <strong>Widget de Soporte</strong> es la burbuja "Soporte" que aparece en el dashboard
+      de cada cuenta activada. Los mensajes llegan a UNA sola bandeja de soporte (la tuya).
+      Aquí conectas esa bandeja: pega el <strong>token del inbox</strong> de tu bandeja de
+      website de soporte y una <strong>clave HMAC</strong>. La clave HMAC se sincroniza
+      automáticamente con la bandeja para que el historial de cada agente se identifique
+      y no se pierda.
+    </p>
+  </div>
+
+  <!-- Estado actual -->
+  <h2 style="font-size:15px; font-weight:600; margin:0 0 12px;">Estado</h2>
+  <div style="margin-bottom:8px; font-size:13px; color:#374151;">
+    Configurado:
+    <strong style="color:<%= @inbox_token.present? ? '#16a34a' : '#b91c1c' %>;">
+      <%= @inbox_token.present? ? 'Sí' : 'No' %>
+    </strong>
+    <% if @support_inbox.present? %>
+      · Bandeja: <strong><%= @support_inbox.name %></strong> (#<%= @support_inbox.id %>, cuenta <%= @support_inbox.account_id %>)
+    <% elsif @inbox_token.present? %>
+      · <span style="color:#b91c1c;">No se encontró una bandeja de website con ese token</span>
+    <% end %>
+  </div>
+  <div style="margin-bottom:8px; font-size:13px; color:#374151;">
+    HMAC sincronizado con la bandeja:
+    <strong style="color:<%= @hmac_aligned ? '#16a34a' : '#b45309' %>;">
+      <%= @hmac_aligned ? 'Sí' : 'No (se corrige al guardar)' %>
+    </strong>
+  </div>
+  <div style="margin-bottom:20px; font-size:13px; color:#374151;">
+    Cuentas con el módulo "Soporte Jabvox" activo: <strong><%= @enabled_accounts_count %></strong>
+    <span style="color:#6b7280;">
+      · Se activa por cuenta en <em>Account → All Features → Management</em>.
+    </span>
+  </div>
+
+  <!-- Formulario -->
+  <%= form_with url: super_admin_support_widget_path, method: :patch, local: true do |form| %>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :inbox_token, 'Token del inbox (website_token)' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_field :inbox_token, value: @inbox_token, placeholder: 'Ej: aBcDeFgHiJkLmNoPqRsTuVwX' %>
+        <p class="pt-2 text-xs italic text-slate-400">
+          El <code>websiteToken</code> del snippet de tu bandeja de website de soporte
+          (Ajustes → Bandejas → tu bandeja → Configuración).
+        </p>
+      </div>
+    </div>
+
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :hmac_key, 'Clave HMAC' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%# El value NO se precarga a propósito: nunca escribimos el secreto en el HTML. %>
+        <%= form.password_field :hmac_key, value: '', autocomplete: 'new-password',
+              placeholder: @hmac_key.present? ? '•••••••• (configurada — déjalo vacío para conservar)' : 'Déjalo vacío para usar la de la bandeja' %>
+        <p class="pt-2 text-xs italic text-slate-400">
+          Clave secreta para identificar a cada agente (historial persistente). Si lo dejas
+          vacío, se conserva la actual (o se usa la de la bandeja si no hay ninguna). Al
+          guardar, la bandeja se sincroniza con esta clave.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex mb-4">
+      <div class="field-unit__label"></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.submit 'Guardar', class: 'button' %>
+        <p class="pt-2 text-xs italic text-slate-400">
+          Tras guardar, reinicia el servidor web para que tome la configuración.
+        </p>
+      </div>
+    </div>
+  <% end %>
+</section>
