@@ -67,17 +67,18 @@ const loadSdk = () => {
   document.body.appendChild(script);
 };
 
-// Identifica al agente para historial persistente (setUser + HMAC). El nombre
-// que verá soporte es "Nombre del agente (Nombre de la cuenta)", para saber
-// desde qué cuenta escribe. El identifier sigue siendo el user.id (historial
-// estable), así que el paréntesis con la cuenta no rompe la persistencia.
+// Identifica al agente para historial persistente (setUser + HMAC). IMPORTANTE:
+// el `identifier` DEBE ser el email, porque hmac_identifier se calcula firmando
+// el email (OpenSSL::HMAC(sha256, JABVOX_INBOX_HMAC_KEY, email)) y el widget
+// valida el hash contra el identifier recibido. Si no coinciden, el HMAC falla.
+// El nombre que verá soporte es "Nombre del agente (Nombre de la cuenta)".
 const identifyUser = () => {
   const user = currentUser.value;
-  if (!window.$jabvox || !user?.id || !user?.hmac_identifier) return;
+  if (!window.$jabvox || !user?.email || !user?.hmac_identifier) return;
   const displayName = currentAccountName.value
     ? `${user.name} (${currentAccountName.value})`
     : user.name;
-  window.$jabvox.setUser(user.id, {
+  window.$jabvox.setUser(user.email, {
     name: displayName,
     email: user.email,
     identifier_hash: user.hmac_identifier,
