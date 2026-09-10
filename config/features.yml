@@ -165,10 +165,10 @@
   enabled: false
   deprecated: true
 - name: contact_jabvox_support_team
-  display_name: Contact Jabvox Support Team
-  enabled: true
-  jabvox_internal: true
+  display_name: Soporte Jabvox (widget de chat)
+  enabled: false
   column: feature_flags_ext_1
+  help_text: Muestra la burbuja de Soporte de Jabvox en el dashboard de esta cuenta.
 - name: shopify_integration
   display_name: Shopify Integration
   enabled: false

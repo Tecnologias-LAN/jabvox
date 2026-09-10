@@ -20,7 +20,8 @@
       "REGISTERED": "Connected",
       "CALLING": "Calling…",
       "IN_CALL": "In call",
-      "FAILED": "Connection error"
+      "FAILED": "Connection error",
+      "BAD_CREDENTIALS": "Wrong SIP secret"
     },
     "HISTORY": {
       "EMPTY": "No calls yet",

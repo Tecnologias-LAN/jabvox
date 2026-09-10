@@ -39,6 +39,49 @@ const { t } = useI18n();
 const lead = useMapGetter('jabvoxLeads/getCurrentLead');
 const leads = useMapGetter('jabvoxLeads/getLeads');
 const uiFlags = useMapGetter('jabvoxLeads/getUIFlags');
+
+// ── Etiquetas del lead (aplicadas a las conversaciones del contacto) ──
+const accountLabels = useMapGetter('labels/getLabels');
+const leadLabels = ref([]);
+const isSavingLabels = ref(false);
+const newLabelTitle = ref('');
+
+const availableLabels = computed(() =>
+  (accountLabels.value || []).filter(l => !leadLabels.value.includes(l.title))
+);
+
+const fetchLeadLabels = async () => {
+  if (!lead.value?.id) return;
+  try {
+    const { data } = await leadsAPI.getLabels(lead.value.id);
+    leadLabels.value = data.payload || [];
+  } catch {
+    leadLabels.value = [];
+  }
+};
+
+const saveLeadLabels = async labels => {
+  if (!lead.value?.id) return;
+  isSavingLabels.value = true;
+  try {
+    const { data } = await leadsAPI.updateLabels(lead.value.id, labels);
+    leadLabels.value = data.payload || [];
+  } catch {
+    useAlert(t('JABVOX_LEADS.DETAIL.LABELS.ERROR'));
+  } finally {
+    isSavingLabels.value = false;
+  }
+};
+
+const addLeadLabel = title => {
+  if (!title || leadLabels.value.includes(title)) return;
+  saveLeadLabels([...leadLabels.value, title]);
+  newLabelTitle.value = '';
+};
+
+const removeLeadLabel = title => {
+  saveLeadLabels(leadLabels.value.filter(l => l !== title));
+};
 const managementStates = useMapGetter('jabvoxManagementStates/getActiveStates');
 const inboxes = useMapGetter('inboxes/getInboxes');
 const currentUser = useMapGetter('getCurrentUser');
@@ -770,6 +813,13 @@ const loadLead = async () => {
 
 watch(leadId, loadLead);
 watch(leadsTableColumns, initEditForm, { deep: true });
+// Cargar las etiquetas del lead cuando cambia el lead cargado.
+watch(
+  () => lead.value?.id,
+  id => {
+    if (id) fetchLeadLabels();
+  }
+);
 
 // Recargar las notas cuando una gestión se guarda desde otra vista (p. ej. el
 // overlay de click-to-call, que crea la nota —y a veces la conversación— en el
@@ -790,6 +840,7 @@ const onManagementSaved = () => {
 onMounted(async () => {
   store.dispatch('jabvoxManagementStates/fetchStates');
   store.dispatch('agents/get');
+  store.dispatch('labels/get');
   if (isCustomizationEnabled.value) {
     await store.dispatch('jabvoxCustomization/fetchTables');
   }
@@ -1112,6 +1163,56 @@ onBeforeUnmount(() => {
               <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
                 {{ lead.assignee_name || '—' }}
               </dd>
+            </div>
+            <!-- Etiquetas (aplicadas a las conversaciones del contacto) -->
+            <div class="flex items-start gap-2 px-3 py-2.5">
+              <dt class="text-xs text-n-slate-10 w-24 shrink-0 pt-1">
+                {{ t('JABVOX_LEADS.DETAIL.LABELS.TITLE') }}
+              </dt>
+              <div class="flex-1 flex flex-col gap-2 items-end">
+                <div class="flex flex-wrap gap-1.5 justify-end">
+                  <span
+                    v-for="label in leadLabels"
+                    :key="label"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-n-alpha-2 text-xs text-n-slate-12"
+                  >
+                    {{ label }}
+                    <button
+                      type="button"
+                      class="text-n-slate-10 hover:text-n-ruby-11"
+                      :disabled="isSavingLabels"
+                      :aria-label="t('JABVOX_LEADS.DETAIL.LABELS.REMOVE')"
+                      @click="removeLeadLabel(label)"
+                    >
+                      <span class="i-lucide-x size-3" />
+                    </button>
+                  </span>
+                  <span
+                    v-if="!leadLabels.length"
+                    class="text-sm text-n-slate-10"
+                  >
+                    —
+                  </span>
+                </div>
+                <select
+                  v-if="availableLabels.length"
+                  value=""
+                  class="reset-base w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+                  :disabled="isSavingLabels"
+                  @change="addLeadLabel($event.target.value)"
+                >
+                  <option value="" disabled>
+                    {{ t('JABVOX_LEADS.DETAIL.LABELS.ADD') }}
+                  </option>
+                  <option
+                    v-for="label in availableLabels"
+                    :key="label.id"
+                    :value="label.title"
+                  >
+                    {{ label.title }}
+                  </option>
+                </select>
+              </div>
             </div>
             <!-- Last management (read-only, comes from notes) -->
             <div

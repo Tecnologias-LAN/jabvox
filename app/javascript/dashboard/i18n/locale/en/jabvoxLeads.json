@@ -118,6 +118,12 @@
       "EDIT": "Edit",
       "SAVE": "Save",
       "CANCEL": "Cancel",
+      "LABELS": {
+        "TITLE": "Labels",
+        "ADD": "Add label…",
+        "REMOVE": "Remove label",
+        "ERROR": "Could not update labels"
+      },
       "YES": "Yes",
       "NO": "No",
       "SEARCH_FIELDS": "Search field...",

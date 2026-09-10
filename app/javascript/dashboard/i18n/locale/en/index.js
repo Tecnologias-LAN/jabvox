@@ -35,6 +35,7 @@ import setNewPassword from './setNewPassword.json';
 import settings from './settings.json';
 import signup from './signup.json';
 import sla from './sla.json';
+import supportWidget from './supportWidget.json';
 import snooze from './snooze.json';
 import teamsSettings from './teamsSettings.json';
 import whatsappTemplates from './whatsappTemplates.json';
@@ -118,6 +119,7 @@ export default {
   ...settings,
   ...signup,
   ...sla,
+  ...supportWidget,
   ...snooze,
   ...teamsSettings,
   ...whatsappTemplates,

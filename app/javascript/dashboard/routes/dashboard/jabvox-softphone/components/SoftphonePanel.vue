@@ -18,6 +18,7 @@ const {
   isInCall,
   extension,
   currentTarget,
+  lastError,
   call,
   hangup,
   pressDigit,
@@ -33,6 +34,13 @@ const tab = ref('dial'); // 'dial' | 'history'
 
 // --- Estado de conexión (cabecera) ---
 const statusLabel = computed(() => {
+  // Error específico de credenciales: el secreto SIP no coincide con el del PBX.
+  if (
+    state.value === 'failed' &&
+    lastError.value === 'credenciales_invalidas'
+  ) {
+    return t('JABVOX_SOFTPHONE.STATUS.BAD_CREDENTIALS');
+  }
   const labels = {
     disconnected: t('JABVOX_SOFTPHONE.STATUS.DISCONNECTED'),
     registering: t('JABVOX_SOFTPHONE.STATUS.REGISTERING'),

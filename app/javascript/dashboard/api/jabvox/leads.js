@@ -35,4 +35,8 @@ export default {
   // Asigna el lead y sus conversaciones abiertas al agente actual (tras enviar
   // plantilla, para que la conversación quede visible en su bandeja).
   claim: id => axios.patch(`${client.url}/${id}/claim`),
+  // Etiquetas del lead (aplicadas a las conversaciones abiertas del contacto).
+  getLabels: id => axios.get(`${client.url}/${id}/labels`),
+  updateLabels: (id, labels) =>
+    axios.post(`${client.url}/${id}/labels`, { labels }),
 };

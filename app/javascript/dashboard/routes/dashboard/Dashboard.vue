@@ -33,6 +33,7 @@ const JabvoxSoftphoneLauncher = defineAsyncComponent(
 );
 
 import CopilotLauncher from 'dashboard/components-next/copilot/CopilotLauncher.vue';
+import SupportWidgetLauncher from 'dashboard/components-next/support/SupportWidgetLauncher.vue';
 import CopilotContainer from 'dashboard/components/copilot/CopilotContainer.vue';
 
 import MobileSidebarLauncher from 'dashboard/components-next/sidebar/MobileSidebarLauncher.vue';
@@ -46,6 +47,7 @@ export default {
     AddAccountModal,
     UpgradePage,
     CopilotLauncher,
+    SupportWidgetLauncher,
     CopilotContainer,
     FloatingCallWidget,
     JabvoxCallOverlay,
@@ -172,6 +174,7 @@ export default {
         <router-view />
         <CommandBar />
         <CopilotLauncher />
+        <SupportWidgetLauncher />
         <MobileSidebarLauncher
           :is-mobile-sidebar-open="isMobileSidebarOpen"
           @toggle="toggleMobileSidebar"
