@@ -68,20 +68,43 @@ const loadSdk = () => {
 };
 
 // Identifica al agente para historial persistente (setUser + HMAC). IMPORTANTE:
-// el `identifier` DEBE ser el email, porque hmac_identifier se calcula firmando
-// el email (OpenSSL::HMAC(sha256, JABVOX_INBOX_HMAC_KEY, email)) y el widget
-// valida el hash contra el identifier recibido. Si no coinciden, el HMAC falla.
+// el `identifier` es "email:accountId" (NO solo el email), para que el MISMO
+// usuario en cuentas distintas sea un CONTACTO distinto en la bandeja de
+// soporte (nombre e historial por cuenta). El backend firma ese mismo
+// identifier por cuenta (support_hmac_identifiers[accountId]) con la clave
+// HMAC global; si identifier y hash no corresponden, el widget rechaza el HMAC.
 // El nombre que verá soporte es "Nombre del agente (Nombre de la cuenta)".
+const lastIdentifier = ref(null);
 const identifyUser = () => {
   const user = currentUser.value;
-  if (!window.$jabvox || !user?.email || !user?.hmac_identifier) return;
+  const accId = accountId.value;
+  if (!window.$jabvox || !user?.email || !accId) return;
+
+  const hash =
+    user.supportHmacIdentifiers?.[accId] ||
+    user.support_hmac_identifiers?.[accId];
+  if (!hash) return; // sin hash de esta cuenta no identificamos (evita HMAC inválido)
+
+  const identifier = `${user.email}:${accId}`;
   const displayName = currentAccountName.value
     ? `${user.name} (${currentAccountName.value})`
     : user.name;
-  window.$jabvox.setUser(user.email, {
+
+  // Al cambiar de cuenta cambia el identifier: reseteamos la sesión del widget
+  // para no arrastrar el contacto/historial de la cuenta anterior.
+  if (lastIdentifier.value && lastIdentifier.value !== identifier) {
+    try {
+      window.$jabvox.reset();
+    } catch (e) {
+      // El SDK puede no exponer reset en versiones antiguas; setUser igual cambia el user.
+    }
+  }
+  lastIdentifier.value = identifier;
+
+  window.$jabvox.setUser(identifier, {
     name: displayName,
     email: user.email,
-    identifier_hash: user.hmac_identifier,
+    identifier_hash: hash,
   });
 };
 

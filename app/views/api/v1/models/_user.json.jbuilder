@@ -11,7 +11,12 @@ json.confirmed resource.confirmed?
 json.display_name resource.display_name
 json.message_signature resource.message_signature
 json.email resource.email
-json.hmac_identifier resource.hmac_identifier if GlobalConfig.get('JABVOX_INBOX_HMAC_KEY')['JABVOX_INBOX_HMAC_KEY'].present?
+if GlobalConfig.get('JABVOX_INBOX_HMAC_KEY')['JABVOX_INBOX_HMAC_KEY'].present?
+  json.hmac_identifier resource.hmac_identifier
+  # Hash por cuenta: el widget de soporte usa el de la cuenta activa para que
+  # el mismo usuario sea un contacto distinto por cuenta (nombre e historial).
+  json.support_hmac_identifiers resource.support_hmac_identifiers
+end
 json.id resource.id
 json.inviter_id resource.active_account_user&.inviter_id
 json.name resource.name
