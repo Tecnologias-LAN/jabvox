@@ -118,6 +118,12 @@
       "EDIT": "Editar",
       "SAVE": "Guardar",
       "CANCEL": "Cancelar",
+      "LABELS": {
+        "TITLE": "Etiquetas",
+        "ADD": "Agregar etiqueta…",
+        "REMOVE": "Quitar etiqueta",
+        "ERROR": "No se pudo actualizar las etiquetas"
+      },
       "YES": "Sí",
       "NO": "No",
       "SEARCH_FIELDS": "Buscar campo...",

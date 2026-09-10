@@ -47,6 +47,15 @@ class Captain::Assistant < ApplicationRecord
   # Escalado a humano: lista de IDs de agentes candidatos a recibir la conversación
   # cuando Jabvox IA hace handoff. Si está vacía, cae a los miembros del inbox.
   store_accessor :config, :handoff_agent_ids
+  # Permitir que el asistente escale a un humano (handoff). Activo por defecto; si
+  # se pone en false, el asistente NUNCA transfiere y responde siempre él mismo.
+  store_accessor :config, :feature_handoff
+
+  # ¿El asistente puede escalar a un humano? Por defecto sí (solo false lo apaga).
+  def handoff_enabled?
+    value = config['feature_handoff']
+    value.nil? || ActiveModel::Type::Boolean.new.cast(value)
+  end
 
   # Agentes candidatos para el escalado (los configurados que sigan en la cuenta).
   def handoff_agents
@@ -119,16 +128,16 @@ class Captain::Assistant < ApplicationRecord
   end
 
   def agent_tools
-    [
-      self.class.resolve_tool_class('faq_lookup').new(self),
-      self.class.resolve_tool_class('handoff').new(self),
-      # Aprovisionamiento por chat: solo actúa desde el playground (la tool lo
-      # comprueba con state[:source]); segura de tener siempre disponible.
-      self.class.resolve_tool_class('update_configuration').new(self),
-      # Tools de agenda y tareas de Jabvox IA, cada una activable desde Ajustes.
-      *jabvox_agenda_tools,
-      *account.captain_custom_tools.enabled.map { |custom_tool| custom_tool.tool(self) }
-    ]
+    tools = [self.class.resolve_tool_class('faq_lookup').new(self)]
+    # La tool de handoff solo si el asistente puede escalar a un humano.
+    tools << self.class.resolve_tool_class('handoff').new(self) if handoff_enabled?
+    # Aprovisionamiento por chat: solo actúa desde el playground (la tool lo
+    # comprueba con state[:source]); segura de tener siempre disponible.
+    tools << self.class.resolve_tool_class('update_configuration').new(self)
+    # Tools de agenda y tareas de Jabvox IA, activables desde Ajustes.
+    tools.concat(jabvox_agenda_tools)
+    tools.concat(account.captain_custom_tools.enabled.map { |custom_tool| custom_tool.tool(self) })
+    tools
   end
 
   # Instancia solo las tools de agenda/tareas que estén activas en la config.
@@ -168,7 +177,8 @@ class Captain::Assistant < ApplicationRecord
       # una tool de agenda está activa, y lista los agentes (nombre -> id) para que
       # el LLM pueda resolver "cita con Fulano" al agente_id correcto.
       agenda_tools_enabled: agenda_tools_active?,
-      agenda_agents: agenda_agents_for_prompt
+      agenda_agents: agenda_agents_for_prompt,
+      handoff_enabled: handoff_enabled?
     }
   end
 

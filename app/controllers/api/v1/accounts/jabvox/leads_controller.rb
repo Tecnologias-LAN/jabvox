@@ -212,7 +212,25 @@ class Api::V1::Accounts::Jabvox::LeadsController < Api::V1::Accounts::BaseContro
     render json: { error: e.record.errors.full_messages.join(', ') }, status: :unprocessable_entity
   end
 
+  # Etiquetas del lead = etiquetas de las conversaciones abiertas de su contacto.
+  def labels
+    lead = Current.account.jabvox_leads.find(params[:id])
+    render json: { payload: Jabvox::LeadLabelSync.new(Current.account).labels_for(lead) }
+  end
+
+  # Reemplaza la lista de etiquetas (aplicada a las conversaciones del contacto).
+  def update_labels
+    lead = Current.account.jabvox_leads.find(params[:id])
+    sync = Jabvox::LeadLabelSync.new(Current.account)
+    sync.set_labels(lead, label_params)
+    render json: { payload: sync.labels_for(lead) }
+  end
+
   private
+
+  def label_params
+    params.permit(labels: []).fetch(:labels, [])
+  end
 
   # unique_by (account_id, contact_id) hace la inserción idempotente ante una carrera.
   def insert_missing_leads(account_id, missing_ids, next_number)

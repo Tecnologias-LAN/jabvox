@@ -568,6 +568,9 @@ Rails.application.routes.draw do
                 patch :custom_fields
                 patch :update_details
                 patch :claim
+                # Etiquetas del lead (se aplican a las conversaciones del contacto).
+                get :labels
+                post :labels, action: :update_labels
               end
             end
             resources :lead_campaigns, controller: 'campaigns'
