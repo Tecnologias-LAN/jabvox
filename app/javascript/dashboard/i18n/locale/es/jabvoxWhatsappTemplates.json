@@ -145,6 +145,7 @@
       "BODY_LABEL": "Cuerpo *",
       "BODY_PH": "Cuerpo del mensaje. Usa {'{'}{'{'}1{'}'}{'}'}, {'{'}{'{'}2{'}'}{'}'} para variables.",
       "INVALID_VARS": "Meta rechaza estos nombres de variable: {vars}. Usa solo minúsculas, números y guion bajo (sin espacios ni mayúsculas), p. ej. {'{'}{'{'}nombre_empresa{'}'}{'}'} o {'{'}{'{'}1{'}'}{'}'}.",
+      "EDGE_VAR": "El cuerpo no puede empezar ni terminar con una variable (Meta lo rechaza). Agrega texto fijo antes y después, p. ej. «Hola {'{'}{'{'}nombre{'}'}{'}'}, bienvenido».",
       "FOOTER_LABEL": "Pie de página",
       "FOOTER_PH": "Nota opcional del pie de página",
       "VARS_TITLE": "Variables detectadas",

@@ -150,6 +150,7 @@
       "BODY_LABEL": "Body *",
       "BODY_PH": "Message body. Use {'{'}{'{'}1{'}'}{'}'}, {'{'}{'{'}2{'}'}{'}'} for variables.",
       "INVALID_VARS": "Meta rejects these variable names: {vars}. Use only lowercase letters, numbers and underscore (no spaces or capitals), e.g. {'{'}{'{'}company_name{'}'}{'}'} or {'{'}{'{'}1{'}'}{'}'}.",
+      "EDGE_VAR": "The body can't start or end with a variable (Meta rejects it). Add fixed text before and after, e.g. \"Hi {'{'}{'{'}name{'}'}{'}'}, welcome\".",
       "FOOTER_LABEL": "Footer",
       "FOOTER_PH": "Optional footer note",
       "VARS_TITLE": "Detected variables",
