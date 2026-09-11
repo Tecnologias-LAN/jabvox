@@ -161,8 +161,9 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       response_email: params[:response_email], csv_io: file.to_io, file_name: file.original_filename,
       # La plantilla/idioma se eligen en la UI (no en el archivo). variable_map mapea
       # cada {{n}} a una columna del CSV; el service resuelve los valores por fila.
+      # number_column: la columna que contiene el número (elegida/confirmada en la UI).
       template_name: params[:template_name], language: params[:language], text: params[:text],
-      variable_map: variable_map_params
+      variable_map: variable_map_params, number_column: params[:number_column]
     )
   end
 

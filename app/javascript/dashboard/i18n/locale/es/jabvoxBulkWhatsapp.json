@@ -142,7 +142,7 @@
       "FILE_HINT": "Columnas: nombre, numero, template, idioma. Para WhatsApp oficial la columna 'template' es el nombre de la plantilla aprobada; para bandejas API es el texto del mensaje.",
       "MODE_TEMPLATE": "WhatsApp oficial · plantilla aprobada",
       "MODE_TEXT": "API · mensaje normal",
-      "SAMPLE_HINT": "El archivo solo necesita el número (con +) y las columnas de variables. La plantilla e idioma se eligen arriba.",
+      "SAMPLE_HINT": "El archivo solo necesita el número (con prefijo de país, ej. 57…) y las columnas de variables. La plantilla e idioma se eligen arriba.",
       "SAMPLE_SELECT_INBOX": "Selecciona primero una bandeja para descargar el ejemplo.",
       "DOWNLOAD_SAMPLE_TEMPLATE": "Ejemplo (plantilla)",
       "DOWNLOAD_SAMPLE_TEXT": "Ejemplo (texto)",
@@ -162,7 +162,7 @@
       "TEMPLATE_LANG": "Idioma: {lang}",
       "NO_TEMPLATES": "Esta bandeja no tiene plantillas aprobadas.",
       "DOWNLOAD_SAMPLE": "Descargar ejemplo",
-      "FILE_HINT_V2": "CSV con columna «numero» (en formato +57..., +52...). Opcional: «nombre» y columnas para las variables.",
+      "FILE_HINT_V2": "CSV con columna «numero» (con prefijo de país, ej. 573001234567). Opcional: «nombre» y columnas para las variables.",
       "MAP_VARS_TITLE": "Asigna cada variable de la plantilla a una columna del archivo",
       "MAP_VARS_PLACEHOLDER": "Elige la columna…",
       "MISSING_NUMBER": "El archivo debe tener una columna de número (numero, telefono, celular…).",
@@ -170,7 +170,9 @@
       "HEADER_IMAGE": "Imagen",
       "HEADER_VIDEO": "Video",
       "HEADER_DOCUMENT": "Documento",
-      "VARS_COUNT": "Sin variables | 1 variable | {count} variables"
+      "VARS_COUNT": "Sin variables | 1 variable | {count} variables",
+      "NUMBER_COLUMN": "Columna del número (a quién se envía)",
+      "NUMBER_COLUMN_HINT": "Autodetectada del archivo. Puedes cambiarla si el número está en otra columna."
     },
     "HISTORY": {
       "LOADING": "Cargando historial…",

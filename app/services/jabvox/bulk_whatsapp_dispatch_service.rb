@@ -50,7 +50,7 @@ class Jabvox::BulkWhatsappDispatchService
 
   def initialize(account:, inbox:, sender_user:, actor:, response_email: '', csv_io: nil,
                  file_name: '', leads_selection: nil, template_name: nil, language: nil, text: nil,
-                 variable_map: nil, source_batch_id: nil)
+                 variable_map: nil, source_batch_id: nil, number_column: nil)
     @account = account
     @inbox = inbox
     @sender_user = sender_user
@@ -63,6 +63,8 @@ class Jabvox::BulkWhatsappDispatchService
     @language = language
     @text = text
     @source_batch_id = source_batch_id
+    # Columna del CSV con el número (elegida en la UI). Si es nil, se autodetecta.
+    @number_column = number_column.to_s.strip.downcase.presence
     # { "1" => "nombre", "2" => "custom:fecha_entrega2_c", ... } — which lead field
     # fills each {{n}} placeholder of the template body.
     @variable_map = normalize_variable_map(variable_map)
@@ -247,10 +249,16 @@ class Jabvox::BulkWhatsappDispatchService
     raise Error, 'El archivo debe tener una columna de número (numero, telefono, celular…).'
   end
 
+  # Longitud mínima de dígitos para aceptar un número (prefijo de país + local).
+  # Evita colar celdas basura, pero NO exige un formato exacto: el número debe traer
+  # el prefijo de país (p.ej. 57...) — el signo '+' lo antepone el flujo n8n.
+  MIN_PHONE_DIGITS = 10
+
   # El archivo solo aporta destinatario + valores de variables. Se conserva la fila
   # COMPLETA (todas las columnas) en 'cells' para que el variable_map pueda resolver
-  # {{n}} contra cualquier columna del CSV. El número es obligatorio y DEBE venir en
-  # formato internacional con prefijo (+57..., +52...); una fila sin '+' se descarta.
+  # {{n}} contra cualquier columna del CSV. El número debe incluir el prefijo de país;
+  # el '+' NO es obligatorio en el archivo (lo maneja n8n). Se descartan celdas vacías
+  # o con muy pocos dígitos.
   def normalize_row(row)
     # Todas las columnas de la fila con claves normalizadas (minúsculas, sin espacios),
     # para localizar la columna del número/nombre sin depender de la grafía exacta.
@@ -261,7 +269,9 @@ class Jabvox::BulkWhatsappDispatchService
       cells[key.to_s.strip.downcase] = value.to_s.strip
     end
 
-    number = e164(first_present(cells, NUMBER_HEADERS))
+    # Prioriza la columna del número elegida en la UI; si no, autodetecta por sinónimos.
+    raw = @number_column ? cells[@number_column] : first_present(cells, NUMBER_HEADERS)
+    number = normalize_phone(raw)
     return nil if number.blank?
 
     name = first_present(cells, NAME_HEADERS)
@@ -273,14 +283,12 @@ class Jabvox::BulkWhatsappDispatchService
     keys.filter_map { |k| cells[k].presence }.first
   end
 
-  # Número en E.164 con prefijo: exige que empiece con '+' seguido de dígitos.
-  # Devuelve "+<digitos>" o nil si no cumple (así se descarta la fila).
-  def e164(value)
-    str = value.to_s.strip
-    return nil unless str.start_with?('+')
-
-    digs = digits(str)
-    digs.present? ? "+#{digs}" : nil
+  # Normaliza el número a solo dígitos (quita '+', espacios, guiones, paréntesis).
+  # Devuelve los dígitos (con prefijo de país) o nil si no alcanza el mínimo. El '+'
+  # lo pone el flujo n8n; aquí solo garantizamos un número con suficientes dígitos.
+  def normalize_phone(value)
+    digs = digits(value)
+    digs.length >= MIN_PHONE_DIGITS ? digs : nil
   end
 
   def digits(value)
@@ -335,8 +343,8 @@ class Jabvox::BulkWhatsappDispatchService
     scope = @account.jabvox_leads.where(id: ids).includes(:contact, :jabvox_campaign, :jabvox_affiliate, :assignee)
 
     scope.filter_map do |lead|
-      # El contacto guarda el teléfono en E.164 con '+'; se conserva ese formato.
-      number = e164(lead.contact&.phone_number)
+      # Número a solo dígitos (con prefijo de país); el '+' lo pone n8n.
+      number = normalize_phone(lead.contact&.phone_number)
       next nil if number.blank? || body.to_s.strip.blank?
 
       lead_message(lead, number, body, lang, var_map)

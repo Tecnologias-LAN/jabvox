@@ -87,11 +87,13 @@ const NUMBER_HEADERS = [
   'whatsapp',
   'msisdn',
 ];
-const NAME_HEADERS = ['nombre', 'name'];
 
 // ── Plantilla + variables para el flujo CSV (igual que en LeadsPickerTab) ────
 const csvTemplateName = ref('');
 const csvVariableMap = ref({}); // { n: 'nombre_de_columna_del_csv' }
+// Columna del CSV que contiene el número. Se autodetecta al cargar el archivo
+// (primera que coincida con NUMBER_HEADERS) y el usuario puede cambiarla.
+const csvNumberColumn = ref('');
 
 // Plantillas aprobadas de la bandeja elegida (WhatsApp Cloud API oficial).
 const csvTemplates = computed(() => {
@@ -134,12 +136,10 @@ const csvTemplateHeader = computed(() => {
   return h ? (h.format || 'TEXT').toUpperCase() : '';
 });
 
-// Columnas del CSV que se pueden mapear a una variable (todas menos numero/nombre).
-const csvVariableColumns = computed(() =>
-  parsedHeaders.value.filter(
-    h => !NUMBER_HEADERS.includes(h) && !NAME_HEADERS.includes(h)
-  )
-);
+// Columnas del CSV disponibles para mapear a una variable: TODAS las del archivo
+// (incluidas numero y nombre), por si una variable de la plantilla debe llevar el
+// teléfono o el nombre del destinatario.
+const csvVariableColumns = computed(() => parsedHeaders.value);
 
 // Etiqueta del placeholder sin confundir al parser de plantillas.
 const varLabel = n => `{{${n}}}`;
@@ -194,6 +194,7 @@ const canSend = computed(
     !parseError.value &&
     parsedPreview.value.length > 0 &&
     !!csvTemplateName.value &&
+    !!csvNumberColumn.value &&
     allCsvVariablesMapped.value
 );
 
@@ -216,12 +217,13 @@ const onLeadsHasVariables = has => {
 
 // ── Asistente de 5 pasos ─────────────────────────────────────────────────────
 // 1 bandeja+emisor · 2 plantilla · 3 destinatarios · 4 variables · 5 previa+enviar.
-// El paso 4 (variables) se OMITE cuando la plantilla no tiene {{n}}.
 const TOTAL_STEPS = 5;
 
-// ¿La plantilla elegida tiene variables? (para saltar el paso 4 si no tiene).
-const hasVariables = computed(() => {
-  if (source.value === 'csv') return csvTemplateVariables.value.length > 0;
+// ¿Se muestra el paso 4? En CSV SIEMPRE (ahí se confirma la columna del número, además
+// del mapeo de variables). En leads, solo si la plantilla tiene variables (leads no
+// elige columna de número: usa el teléfono del contacto).
+const showStep4 = computed(() => {
+  if (source.value === 'csv') return true;
   return leadsHasVariables.value;
 });
 
@@ -239,10 +241,11 @@ const step3Valid = computed(() => {
   if (source.value !== 'csv') return leadsStepValid.value;
   return !parseError.value && parsedPreview.value.length > 0;
 });
-// Paso 4 = VARIABLES. CSV: cada {{n}} mapeada a una columna. leads: a un campo.
+// Paso 4 = VARIABLES + columna del número. CSV: columna de número elegida y cada
+// {{n}} mapeada a una columna. leads: mapeo a campos (LeadsPickerTab lo valida).
 const step4Valid = computed(() => {
   if (source.value !== 'csv') return leadsStepValid.value;
-  return allCsvVariablesMapped.value;
+  return !!csvNumberColumn.value && allCsvVariablesMapped.value;
 });
 const canGoNext = computed(() => {
   if (wizardStep.value === 1) return step1Valid.value;
@@ -261,19 +264,19 @@ const visibleSteps = computed(() => {
     { n: 4, key: 'STEP4' },
     { n: 5, key: 'STEP5' },
   ];
-  return hasVariables.value ? steps : steps.filter(s => s.n !== 4);
+  return showStep4.value ? steps : steps.filter(s => s.n !== 4);
 });
 
 // Avanza saltando el paso 4 si la plantilla no tiene variables.
 const nextStep = () => {
   if (!canGoNext.value) return;
   let next = wizardStep.value + 1;
-  if (next === 4 && !hasVariables.value) next = 5;
+  if (next === 4 && !showStep4.value) next = 5;
   wizardStep.value = Math.min(next, TOTAL_STEPS);
 };
 const prevStep = () => {
   let prev = wizardStep.value - 1;
-  if (prev === 4 && !hasVariables.value) prev = 3;
+  if (prev === 4 && !showStep4.value) prev = 3;
   wizardStep.value = Math.max(prev, 1);
 };
 const resetWizard = () => {
@@ -287,8 +290,8 @@ const resetWizard = () => {
 const downloadSample = () => {
   const rows = [
     'numero,nombre,var1,var2',
-    '+573001234567,Juan Perez,15/06,Bogot\u00E1',
-    '+573007654321,Maria Lopez,20/06,Medell\u00EDn',
+    '573001234567,Juan Perez,15/06,Bogot\u00E1',
+    '573007654321,Maria Lopez,20/06,Medell\u00EDn',
   ];
   // Prepend a UTF-8 BOM so Excel opens accented names correctly.
   const blob = new Blob([`\uFEFF${rows.join('\n')}`], {
@@ -348,6 +351,11 @@ const onFileChange = event => {
     parseError.value = error;
     parsedPreview.value = rows;
     parsedHeaders.value = headers || [];
+    // Autodetecta la columna del número (primera que coincida con un sinónimo).
+    csvNumberColumn.value =
+      (headers || []).find(h => NUMBER_HEADERS.includes(h)) ||
+      (headers || [])[0] ||
+      '';
   };
   reader.readAsText(f);
 };
@@ -359,6 +367,7 @@ const resetForm = () => {
   parseError.value = '';
   csvTemplateName.value = '';
   csvVariableMap.value = {};
+  csvNumberColumn.value = '';
   if (fileInput.value) fileInput.value.value = '';
   resetWizard();
 };
@@ -414,6 +423,7 @@ const onSend = async () => {
       templateName: csvTemplateName.value,
       language: csvLanguage.value,
       variableMap: csvVariableMap.value,
+      numberColumn: csvNumberColumn.value,
     });
     useAlert(t('JABVOX_BULK_WA.SEND.SUCCESS'));
     resetForm();
@@ -892,43 +902,114 @@ onMounted(() => {
             </div>
           </template>
 
-          <!-- Paso 4: mapear cada {{n}} a una columna del archivo -->
+          <!-- Paso 4: columna del número (a quién se envía) + mapeo de variables -->
           <template v-if="wizardStep === 4">
-            <p class="text-sm font-medium text-n-slate-12">
-              {{ t('JABVOX_BULK_WA.SEND.MAP_VARS_TITLE') }}
-            </p>
-            <div class="space-y-2">
-              <div
-                v-for="n in csvTemplateVariables"
-                :key="`var-${n}`"
-                class="flex items-center gap-2"
+            <!-- Columna del número: autodetectada y editable -->
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-n-slate-12">
+                {{ t('JABVOX_BULK_WA.SEND.NUMBER_COLUMN') }}
+              </label>
+              <select
+                v-model="csvNumberColumn"
+                class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-2.5 py-1.5 max-w-xs"
               >
-                <span
-                  class="font-mono text-xs rounded bg-n-alpha-2 px-1.5 py-0.5 shrink-0"
-                >
-                  {{ varLabel(n) }}
-                </span>
-                <span
-                  class="i-lucide-arrow-right size-3 text-n-slate-9 shrink-0"
-                  aria-hidden="true"
-                />
-                <select
-                  v-model="csvVariableMap[n]"
-                  class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-2 py-1.5 flex-1"
-                >
-                  <option value="">
-                    {{ t('JABVOX_BULK_WA.SEND.MAP_VARS_PLACEHOLDER') }}
-                  </option>
-                  <option
-                    v-for="col in csvVariableColumns"
-                    :key="col"
-                    :value="col"
-                  >
-                    {{ col }}
-                  </option>
-                </select>
-              </div>
+                <option v-for="col in parsedHeaders" :key="col" :value="col">
+                  {{ col }}
+                </option>
+              </select>
+              <span class="text-[11px] text-n-slate-9">
+                {{ t('JABVOX_BULK_WA.SEND.NUMBER_COLUMN_HINT') }}
+              </span>
             </div>
+
+            <!-- Mini-preview con la columna del número resaltada -->
+            <div
+              v-if="parsedPreview.length"
+              class="overflow-x-auto rounded-lg border border-n-weak"
+            >
+              <table class="w-full text-sm">
+                <thead class="bg-n-alpha-1 text-n-slate-11">
+                  <tr>
+                    <th
+                      v-for="h in parsedHeaders"
+                      :key="h"
+                      class="text-left px-3 py-2 font-medium whitespace-nowrap"
+                      :class="
+                        h === csvNumberColumn
+                          ? 'bg-n-teal-3 text-n-teal-11'
+                          : ''
+                      "
+                    >
+                      {{ h }}
+                      <span
+                        v-if="h === csvNumberColumn"
+                        class="i-lucide-phone size-3 inline-block align-middle"
+                        aria-hidden="true"
+                      />
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(row, idx) in parsedPreview.slice(0, 5)"
+                    :key="idx"
+                    class="border-t border-n-weak text-n-slate-12"
+                  >
+                    <td
+                      v-for="h in parsedHeaders"
+                      :key="h"
+                      class="px-3 py-1.5 whitespace-nowrap"
+                      :class="
+                        h === csvNumberColumn
+                          ? 'bg-n-teal-3/40 font-medium text-n-teal-12'
+                          : ''
+                      "
+                    >
+                      {{ row[h] }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Mapeo de variables (solo si la plantilla tiene {{n}}) -->
+            <template v-if="csvTemplateVariables.length">
+              <p class="text-sm font-medium text-n-slate-12 mt-1">
+                {{ t('JABVOX_BULK_WA.SEND.MAP_VARS_TITLE') }}
+              </p>
+              <div class="space-y-2">
+                <div
+                  v-for="n in csvTemplateVariables"
+                  :key="`var-${n}`"
+                  class="flex items-center gap-2"
+                >
+                  <span
+                    class="font-mono text-xs rounded bg-n-alpha-2 px-1.5 py-0.5 shrink-0"
+                  >
+                    {{ varLabel(n) }}
+                  </span>
+                  <span
+                    class="i-lucide-arrow-right size-3 text-n-slate-9 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <select
+                    v-model="csvVariableMap[n]"
+                    class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-2 py-1.5 flex-1"
+                  >
+                    <option value="">
+                      {{ t('JABVOX_BULK_WA.SEND.MAP_VARS_PLACEHOLDER') }}
+                    </option>
+                    <option
+                      v-for="col in csvVariableColumns"
+                      :key="col"
+                      :value="col"
+                    >
+                      {{ col }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+            </template>
           </template>
 
           <!-- Paso 5: previa real de la plantilla + resumen -->
