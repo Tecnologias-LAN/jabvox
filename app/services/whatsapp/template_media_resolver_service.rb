@@ -36,6 +36,15 @@ class Whatsapp::TemplateMediaResolverService
     nil
   end
 
+  # Descarga la imagen del header (HTTP/1.1) y devuelve [binario, content_type], o [nil, nil].
+  # Se usa para adjuntar la media a la conversación de Jabvox (que la muestre, no solo el texto).
+  def fetch_binary
+    download_media
+  rescue StandardError => e
+    Rails.logger.error "[WA TemplateMedia] fetch_binary failed for #{template_name}: #{e.class} #{e.message}"
+    [nil, nil]
+  end
+
   private
 
   # Solo re-subimos URLs alojadas por Meta (scontent/lookaside). Una URL pública propia
