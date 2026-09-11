@@ -33,6 +33,44 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
                                          parameters: processed_parameters
                                        }, message)
     message.update!(source_id: message_id) if message_id.present?
+
+    # Muestra el media del header en la conversación de Jabvox (no solo el texto).
+    attach_template_header_media(processor) if message_id.present?
+  end
+
+  # Si la plantilla tiene header de media (imagen/video/documento), descarga esa media y
+  # la adjunta al mensaje para que se vea en Jabvox. Best-effort: nunca rompe el envío.
+  def attach_template_header_media(processor)
+    return if message.attachments.exists?
+
+    media = processor.resolved_header_media
+    return if media.blank?
+
+    resolver = Whatsapp::TemplateMediaResolverService.new(
+      channel: channel, media_url: media['media_url'], media_type: media['media_type'],
+      template_name: template_params['name']
+    )
+    binary, content_type = resolver.fetch_binary
+    return if binary.blank?
+
+    attach_binary_to_message(binary, content_type, media['media_type'])
+  rescue StandardError => e
+    Rails.logger.warn "[WA SendTemplate] attach header media failed: #{e.message}"
+  end
+
+  def attach_binary_to_message(binary, content_type, media_type)
+    ext = { 'image/jpeg' => 'jpg', 'image/png' => 'png', 'video/mp4' => 'mp4',
+            'application/pdf' => 'pdf' }[content_type.to_s.split(';').first] ||
+          { 'image' => 'jpg', 'video' => 'mp4', 'document' => 'pdf' }[media_type.to_s] || 'bin'
+    file_type = %w[image video document].include?(media_type.to_s) ? (media_type == 'document' ? 'file' : media_type) : 'image'
+
+    attachment = message.attachments.build(account_id: message.account_id, file_type: file_type)
+    attachment.file.attach(
+      io: StringIO.new(binary), filename: "plantilla_header.#{ext}",
+      content_type: content_type.to_s.split(';').first
+    )
+    attachment.save!
+    message.save!
   end
 
   def send_session_message

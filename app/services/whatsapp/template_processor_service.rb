@@ -7,6 +7,14 @@ class Whatsapp::TemplateProcessorService
     process_template_with_params
   end
 
+  # Media del header de la plantilla enviada ({ 'media_url', 'media_type' }) o nil.
+  # Lo usa el servicio de envío para adjuntar la imagen a la conversación de Jabvox.
+  def resolved_header_media
+    return nil if template_params.blank?
+
+    template_media_header(find_template)
+  end
+
   private
 
   def process_template_with_params

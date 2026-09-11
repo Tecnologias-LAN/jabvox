@@ -126,11 +126,29 @@ const v$ = useVuelidate(
   { processedParams }
 );
 
+// URL de EJEMPLO del media que Meta guarda en la plantilla aprobada (header_handle[0]).
+// Sirve para prellenar el campo y que no haya que pegar la URL a mano. El backend de
+// Jabvox la resuelve a un media_id al enviar, así que basta con esta.
+const templateExampleMediaUrl = computed(() => {
+  const ex = headerComponent.value?.example || {};
+  const handle = ex.header_handle || ex.header_url || ex.header_handle_url;
+  if (Array.isArray(handle)) return handle[0] || '';
+  return handle || '';
+});
+
 const initializeTemplateParameters = () => {
   processedParams.value = buildTemplateParameters(
     props.template,
     hasMediaHeader.value
   );
+  // Prellena la media del header con el ejemplo aprobado de la plantilla, para no
+  // pedir la URL a mano (el backend la convierte en media_id al enviar).
+  if (hasMediaHeader.value && templateExampleMediaUrl.value) {
+    processedParams.value.header ??= {};
+    if (!processedParams.value.header.media_url) {
+      processedParams.value.header.media_url = templateExampleMediaUrl.value;
+    }
+  }
   variableFieldMap.value = {};
 };
 
