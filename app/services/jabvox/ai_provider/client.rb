@@ -19,6 +19,11 @@ module Jabvox
       # El cliente se quedó sin saldo: requiere recarga, NO reintento.
       BudgetExceededError = Class.new(StandardError)
 
+      # Adapter forzado (solo tests): si se fija, todas las instancias lo usan.
+      class << self
+        attr_accessor :adapter_override
+      end
+
       Result = Struct.new(:success, :data, :error, :status, keyword_init: true) do
         def success? = success
       end
@@ -70,6 +75,10 @@ module Jabvox
       private
 
       def default_adapter
+        # Override inyectable (tests): permite forzar el Mock aunque el proveedor esté
+        # configurado, sin tocar la lógica de producción.
+        return self.class.adapter_override if self.class.adapter_override
+
         if @config.configured?
           HttpAdapter.new(@config)
         else
@@ -123,7 +132,16 @@ module Jabvox
 
         body = resp[:body]
         msg = body.is_a?(Hash) ? (body['error'] || body['message'] || body['detail']) : nil
-        "El proveedor respondió #{resp[:status]}#{": #{msg}" if msg.present?}"
+        redact_secrets("El proveedor respondió #{resp[:status]}#{": #{msg}" if msg.present?}")
+      end
+
+      # Elimina cualquier Bearer/master key que un proveedor mal configurado pudiera reflejar
+      # en el cuerpo de error, para que el secreto NUNCA llegue a un flash, log o BD.
+      def redact_secrets(text)
+        out = text.to_s.gsub(/Bearer\s+\S+/i, 'Bearer [REDACTED]')
+        key = @config&.master_key_jabvox.to_s
+        out = out.gsub(key, '[REDACTED]') if key.present?
+        out
       end
     end
   end

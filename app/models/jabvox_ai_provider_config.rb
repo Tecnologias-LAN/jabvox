@@ -15,6 +15,7 @@ class JabvoxAiProviderConfig < ApplicationRecord
 
   validates :provider_name_jabvox, presence: true
   validates :status_jabvox, inclusion: { in: STATUSES }
+  validate :base_url_uses_https
 
   # Singleton: siempre el de menor id; se crea si no existe.
   def self.instance
@@ -31,7 +32,27 @@ class JabvoxAiProviderConfig < ApplicationRecord
   end
 
   def mark_error!(msg)
-    update!(status_jabvox: 'error', last_check_at_jabvox: Time.current, last_error_jabvox: msg.to_s[0, 300])
+    # Nunca persistir un Bearer/master key aunque venga reflejado en el error del proveedor.
+    safe = msg.to_s.gsub(/Bearer\s+\S+/i, 'Bearer [REDACTED]')
+    safe = safe.gsub(master_key_jabvox, '[REDACTED]') if master_key_jabvox.present?
+    update!(status_jabvox: 'error', last_check_at_jabvox: Time.current, last_error_jabvox: safe[0, 300])
+  end
+
+  # Exige HTTPS en la URL base (la master key viaja como Bearer): sin TLS iría en claro.
+  # Se permite http solo a loopback/hosts locales para desarrollo.
+  def base_url_uses_https # rubocop:disable Metrics/CyclomaticComplexity
+    return if base_url_jabvox.blank?
+
+    uri = begin
+      URI.parse(base_url_jabvox)
+    rescue URI::InvalidURIError
+      nil
+    end
+    return errors.add(:base_url_jabvox, 'URL inválida') if uri.nil? || uri.host.blank?
+    return if uri.scheme == 'https'
+
+    local = %w[localhost 127.0.0.1 ::1].include?(uri.host) || uri.host.end_with?('.local')
+    errors.add(:base_url_jabvox, 'debe usar https:// (salvo hosts locales)') unless local
   end
 
   # Vista segura para la UI/Super Admin: NUNCA expone la master key.

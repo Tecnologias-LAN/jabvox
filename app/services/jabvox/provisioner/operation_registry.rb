@@ -67,7 +67,18 @@ module Jabvox
         'leads.list' => { resource: 'leads', action: 'view',   handler: :list_leads },
         'leads.import_sources' => { resource: 'leads', action: 'view',   handler: :list_lead_import_sources },
         'leads.trigger_import' => { resource: 'leads', action: 'edit',   handler: :trigger_lead_import },
-        'leads.export_targets' => { resource: 'leads', action: 'view',   handler: :list_lead_export_targets }
+        'leads.export_targets' => { resource: 'leads', action: 'view',   handler: :list_lead_export_targets },
+
+        # --- Proveedor de IA (saldos por cuenta) ---
+        # list: ver qué cuentas están conectadas (con team) o sin conectar.
+        'ai_provider.list' => { resource: 'ai_provider', action: 'view',   handler: :ai_provider_list },
+        'ai_provider.get' => { resource: 'ai_provider', action: 'view',   handler: :ai_provider_get },
+        # setup: crea el team en el proveedor y lo asigna a la cuenta (aplica el saldo del plan).
+        'ai_provider.setup' => { resource: 'ai_provider', action: 'create', handler: :ai_provider_setup },
+        # create_key: crea el PRIMER virtual key del team de la cuenta.
+        'ai_provider.create_key' => { resource: 'ai_provider', action: 'create', handler: :ai_provider_create_key },
+        # recharge: suma saldo comprado aparte (se acumula).
+        'ai_provider.recharge' => { resource: 'ai_provider', action: 'edit', handler: :ai_provider_recharge }
       }.freeze
 
       module_function

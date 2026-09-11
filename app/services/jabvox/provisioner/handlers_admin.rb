@@ -239,6 +239,82 @@ module Jabvox
         { account_id: account.id, targets: rel.map { |t| { id: t.id, status: t.try(:status_jabvox) || t.try(:status) } } }
       end
 
+      # ---------------------------------------------------------------- Proveedor de IA
+      # Lista todas las cuentas con plan de IA: cuáles tienen team (conectadas) y cuáles no.
+      def ai_provider_list(params)
+        plan_ids = JabvoxPlan.where('ai_budget_cents_jabvox > 0').pluck(:id)
+        scope = Account.where(jabvox_plan_id: plan_ids).order(:id)
+        page = [params['page'].to_i, 1].max
+        rows = scope.limit(50).offset((page - 1) * 50).map do |acc|
+          pa = JabvoxAiProviderAccount.find_by(account_id: acc.id)
+          { account_id: acc.id, name: acc.name, plan_id: acc.jabvox_plan_id,
+            connected: pa&.team_id_jabvox.present?, team_id: pa&.team_id_jabvox,
+            status: pa&.status_jabvox }
+        end
+        { accounts: rows, page: page }
+      end
+
+      # Estado de saldo de una cuenta (sin secretos).
+      def ai_provider_get(params)
+        account = h.find_account!(params['account_id'])
+        pa = JabvoxAiProviderAccount.find_by(account_id: account.id)
+        return { account_id: account.id, connected: false } if pa.nil?
+
+        pa.summary
+      end
+
+      # Crea el team en el proveedor y lo asigna a la cuenta (aplica el saldo del plan actual).
+      def ai_provider_setup(params)
+        account = h.find_account!(params['account_id'])
+        plan = account.jabvox_plan || h.error!('la cuenta no tiene plan asignado')
+        result = Jabvox::AiProvider::BalanceService.new(account).apply_plan!(plan, reference: "provisioner:#{account.id}")
+        h.error!("no se pudo aprovisionar: #{result.error}") unless result.success?
+
+        result.provider_account.summary
+      end
+
+      # Crea el PRIMER virtual key del team de la cuenta. Nunca fija saldo por encima del team.
+      def ai_provider_create_key(params) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+        account = h.find_account!(params['account_id'])
+        pa = JabvoxAiProviderAccount.find_by(account_id: account.id)
+        h.error!('la cuenta no tiene team; ejecuta ai_provider.setup primero') if pa.nil? || pa.team_id_jabvox.blank?
+
+        alias_name = params['key_alias'].presence || "crm-#{account.id}-key"
+        max_usd = params['max_budget_usd']
+        # El tope de la key no puede exceder el del team.
+        if max_usd.present? && max_usd.to_f > pa.total_budget_usd
+          h.error!("el tope de la key (#{max_usd}) excede el del team (#{pa.total_budget_usd})")
+        end
+
+        resp = Jabvox::AiProvider::Client.new.generate_key(
+          team_id: pa.team_id_jabvox, key_alias: alias_name,
+          models: Array(params['models']).map(&:to_s),
+          max_budget_usd: max_usd.present? ? max_usd.to_f : nil,
+          metadata: { 'crm_id' => account.id.to_s }
+        )
+        h.error!("no se pudo crear la key: #{resp.error}") unless resp.success?
+
+        # POLÍTICA: la virtual key vive en el PROVEEDOR, no en Jabvox. Jabvox NUNCA la persiste
+        # (ni cifrada) ni la puede volver a mostrar: se devuelve UNA sola vez en esta respuesta,
+        # el cliente la usa directo contra el proveedor (Jabvox no es proxy). Si se pierde, se
+        # rota en el proveedor. token_id es un identificador NO secreto (referencia de gestión).
+        { account_id: account.id, key: resp.data['key'], token_id: resp.data['token_id'],
+          note: 'Guarda esta key ahora: no se vuelve a mostrar. Se usa directamente contra el proveedor, no contra Jabvox.' }
+      end
+
+      # Recarga saldo COMPRADO aparte (se acumula). Idempotente por referencia.
+      def ai_provider_recharge(params)
+        account = h.find_account!(params['account_id'])
+        cents = params['amount_cents'].to_i
+        h.error!('amount_cents debe ser positivo') if cents <= 0
+        reference = params['reference'].presence || h.error!('reference es requerida (idempotencia)')
+
+        result = Jabvox::AiProvider::BalanceService.new(account).purchase!(amount_cents: cents, reference: reference)
+        h.error!("no se pudo recargar: #{result.error}") unless result.success?
+
+        result.provider_account.summary
+      end
+
       # ---------------------------------------------------------------- helpers
       def find_plan!(id)
         JabvoxPlan.find_by(id: id) || h.error!("Plan #{id} no encontrado")
