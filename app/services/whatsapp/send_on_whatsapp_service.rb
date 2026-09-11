@@ -59,18 +59,19 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
   end
 
   def attach_binary_to_message(binary, content_type, media_type)
-    ext = { 'image/jpeg' => 'jpg', 'image/png' => 'png', 'video/mp4' => 'mp4',
-            'application/pdf' => 'pdf' }[content_type.to_s.split(';').first] ||
-          { 'image' => 'jpg', 'video' => 'mp4', 'document' => 'pdf' }[media_type.to_s] || 'bin'
-    file_type = %w[image video document].include?(media_type.to_s) ? (media_type == 'document' ? 'file' : media_type) : 'image'
+    ct = content_type.to_s.split(';').first.presence || 'image/jpeg'
+    ext = { 'image/jpeg' => 'jpg', 'image/png' => 'png', 'video/mp4' => 'mp4', 'application/pdf' => 'pdf' }[ct] ||
+          { 'image' => 'jpg', 'video' => 'mp4', 'document' => 'pdf' }[media_type.to_s] || 'jpg'
+    # file_type de Attachment: image/video para media, file para documentos.
+    file_type = case media_type.to_s
+                when 'video' then 'video'
+                when 'document' then 'file'
+                else 'image'
+                end
 
     attachment = message.attachments.build(account_id: message.account_id, file_type: file_type)
-    attachment.file.attach(
-      io: StringIO.new(binary), filename: "plantilla_header.#{ext}",
-      content_type: content_type.to_s.split(';').first
-    )
+    attachment.file.attach(io: StringIO.new(binary), filename: "plantilla_header.#{ext}", content_type: ct)
     attachment.save!
-    message.save!
   end
 
   def send_session_message
