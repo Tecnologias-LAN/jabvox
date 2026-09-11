@@ -144,6 +144,7 @@
       "HEADER_MEDIA_NOTE": "Sube el archivo de ejemplo (Meta lo exige para aprobar la plantilla). Imagen JPG/PNG, video MP4 o documento PDF.",
       "BODY_LABEL": "Cuerpo *",
       "BODY_PH": "Cuerpo del mensaje. Usa {'{'}{'{'}1{'}'}{'}'}, {'{'}{'{'}2{'}'}{'}'} para variables.",
+      "INVALID_VARS": "Meta rechaza estos nombres de variable: {vars}. Usa solo minúsculas, números y guion bajo (sin espacios ni mayúsculas), p. ej. {'{'}{'{'}nombre_empresa{'}'}{'}'} o {'{'}{'{'}1{'}'}{'}'}.",
       "FOOTER_LABEL": "Pie de página",
       "FOOTER_PH": "Nota opcional del pie de página",
       "VARS_TITLE": "Variables detectadas",

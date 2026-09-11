@@ -515,6 +515,14 @@ const detectedVars = computed(() => {
   return [...new Set(matches.map(m => processVariable(m)))];
 });
 
+// Meta rechaza (INVALID_FORMAT) variables NAMED con espacios, mayúsculas o signos.
+// Válidas: posicional puro ({{1}}) o nombre en minúsculas/números/guion_bajo
+// ({{nombre}}, {{nombre_empresa}}). Devolvemos los tokens inválidos para avisar
+// ANTES de mandar a Meta (p. ej. {{Nombre empresa}}).
+const invalidVars = computed(() =>
+  detectedVars.value.filter(v => !/^[0-9]+$/.test(v) && !/^[a-z0-9_]+$/.test(v))
+);
+
 // ¿El header actual es de tipo media (imagen/video/documento)?
 const isMediaHeader = computed(() =>
   ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(form.value.header_type)
@@ -588,6 +596,16 @@ const openEdit = tpl => {
 };
 
 const submitForm = async () => {
+  // Bloquea nombres de variable inválidos antes de gastar una petición a Meta,
+  // que los rechaza con INVALID_FORMAT (espacios, mayúsculas o signos).
+  if (invalidVars.value.length) {
+    useAlert(
+      t('JABVOX_WA_TEMPLATES.CREATE.INVALID_VARS', {
+        vars: invalidVars.value.map(v => `{{${v}}}`).join(', '),
+      })
+    );
+    return;
+  }
   saving.value = true;
   // A TEXT header with no content is invalid for Meta: treat it as "no header".
   const hasHeaderContent = form.value.header_content?.trim();
