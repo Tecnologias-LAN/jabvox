@@ -142,7 +142,7 @@
       "FILE_HINT": "Columns: nombre, numero, template, idioma. For official WhatsApp the 'template' column is the approved template name; for API inboxes it is the plain message text.",
       "MODE_TEMPLATE": "Official WhatsApp · approved template",
       "MODE_TEXT": "API · plain message",
-      "SAMPLE_HINT": "The file only needs the number (with +) and the variable columns. Template and language are chosen above.",
+      "SAMPLE_HINT": "The file only needs the number (with country code, e.g. 57…) and the variable columns. Template and language are chosen above.",
       "SAMPLE_SELECT_INBOX": "Select an inbox first to download the sample.",
       "DOWNLOAD_SAMPLE_TEMPLATE": "Sample (template)",
       "DOWNLOAD_SAMPLE_TEXT": "Sample (text)",
@@ -162,7 +162,7 @@
       "TEMPLATE_LANG": "Language: {lang}",
       "NO_TEMPLATES": "This inbox has no approved templates.",
       "DOWNLOAD_SAMPLE": "Download sample",
-      "FILE_HINT_V2": "CSV with a «numero» column (in +57..., +52... format). Optional: «nombre» and columns for the variables.",
+      "FILE_HINT_V2": "CSV with a «numero» column (with country code, e.g. 573001234567). Optional: «nombre» and variable columns.",
       "MAP_VARS_TITLE": "Map each template variable to a file column",
       "MAP_VARS_PLACEHOLDER": "Choose the column…",
       "MISSING_NUMBER": "The file must have a number column (numero, telefono, celular…).",
@@ -170,7 +170,9 @@
       "HEADER_IMAGE": "Image",
       "HEADER_VIDEO": "Video",
       "HEADER_DOCUMENT": "Document",
-      "VARS_COUNT": "No variables | 1 variable | {count} variables"
+      "VARS_COUNT": "No variables | 1 variable | {count} variables",
+      "NUMBER_COLUMN": "Number column (who to send to)",
+      "NUMBER_COLUMN_HINT": "Auto-detected from the file. Change it if the number is in another column."
     },
     "HISTORY": {
       "LOADING": "Loading history…",
