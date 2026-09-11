@@ -42,6 +42,32 @@ module Jabvox
         fail_with(pa, e)
       end
 
+      # Crea el team en el proveedor y lo liga a la cuenta MANUALMENTE, con un saldo inicial
+      # opcional (en centavos) que va al saldo COMPRADO (no se restablece). Sirve para dar de
+      # alta cualquier cuenta sin depender del plan. Idempotente: si ya tiene team, solo suma el
+      # saldo inicial si se indica.
+      def manual_setup!(initial_cents: 0, reference: nil)
+        pa = provider_account
+        reference ||= "manual:#{@account.id}:#{Time.current.to_i}"
+        cents = initial_cents.to_i
+
+        if cents.positive?
+          idem = "adjustment:#{@account.id}:#{reference}"
+          unless JabvoxAiBalanceMovement.exists?(idempotency_key_jabvox: idem)
+            pa.with_lock do
+              pa.purchased_budget_cents_jabvox = pa.purchased_budget_cents_jabvox.to_i + cents
+              pa.save!
+              record(pa, kind: 'adjustment', amount_cents: cents, reference: reference, idem: idem)
+            end
+          end
+        end
+
+        ensure_team_and_sync(pa, force: true)
+        Result.new(success: true, provider_account: pa.reload)
+      rescue StandardError => e
+        fail_with(pa, e)
+      end
+
       # Restablece el saldo del PLAN a su valor mensual (worker mensual). No toca lo comprado.
       # Idempotente por periodo: no restablece dos veces el mismo mes.
       def reset_monthly!(period: JabvoxAiProviderAccount.current_period)
@@ -117,9 +143,10 @@ module Jabvox
       end
 
       # Garantiza que el team exista en el proveedor y sincroniza su tope con (plan+comprado).
-      # Si el proveedor no está configurado, el MockAdapter lo simula (dev/test).
-      def ensure_team_and_sync(pa, plan: nil) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Naming/MethodParameterName
-        return if pa.total_budget_cents.zero? && pa.team_id_jabvox.blank?
+      # Si el proveedor no está configurado, el MockAdapter lo simula (dev/test). Con force:true
+      # crea el team aunque el saldo sea 0 (alta manual desde el Super Admin).
+      def ensure_team_and_sync(pa, plan: nil, force: false) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Naming/MethodParameterName
+        return if !force && pa.total_budget_cents.zero? && pa.team_id_jabvox.blank?
 
         if pa.team_id_jabvox.blank?
           resp = @client.create_team(

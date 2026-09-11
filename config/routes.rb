@@ -1378,8 +1378,9 @@ Rails.application.routes.draw do
       resource :ai_provider_config, only: [:show, :update], controller: 'ai_provider_config' do
         member do
           post :test_connection
-          post :provision   # crear team + asignar a una cuenta
-          post :recharge    # recargar saldo comprado de una cuenta
+          post :provision      # crear team + asignar (según el plan de la cuenta)
+          post :manual_setup   # crear team + ligar a cualquier cuenta manualmente
+          post :recharge       # recargar saldo comprado de una cuenta
         end
       end
       # API Provisioner (Hermes): token único, IP allowlist y checklist de permisos.

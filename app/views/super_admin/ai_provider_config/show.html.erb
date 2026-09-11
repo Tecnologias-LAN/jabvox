@@ -92,6 +92,30 @@
         <p style="font-size:13px; color:#b91c1c; margin:8px 0 0;">⚠️ El proveedor está deshabilitado. Actívalo en la pestaña <em>Conexión</em>.</p>
       <% end %>
     </div>
+
+    <!-- Crear team manualmente para CUALQUIER cuenta (sin depender del plan) -->
+    <div style="margin-bottom:24px; padding:16px; border:1px solid #e5e7eb; border-radius:8px;">
+      <h2 style="font-size:15px; font-weight:600; margin:0 0 4px;">Crear team y ligar a una cuenta</h2>
+      <p style="font-size:12px; color:#6b7280; margin:0 0 12px;">
+        Crea el team en el proveedor y lo liga a cualquier cuenta por su ID, sin depender del
+        plan. El saldo inicial (opcional) se suma como saldo comprado (no se restablece).
+      </p>
+      <%= form_with url: manual_setup_super_admin_ai_provider_config_path, method: :post, local: true do |f| %>
+        <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+          <div>
+            <label style="display:block; font-size:12px; color:#374151; margin-bottom:4px;">ID de la cuenta</label>
+            <%= f.number_field :account_id, min: '1', required: true, placeholder: 'Ej: 42', style: 'width:120px;' %>
+          </div>
+          <div>
+            <label style="display:block; font-size:12px; color:#374151; margin-bottom:4px;">Saldo inicial (USD, opcional)</label>
+            <%= f.number_field :initial_usd, step: '0.01', min: '0', placeholder: '0.00', style: 'width:140px;' %>
+          </div>
+          <%= f.submit 'Crear team y ligar', class: 'button' %>
+        </div>
+      <% end %>
+    </div>
+
+    <h2 style="font-size:15px; font-weight:600; margin:0 0 8px;">Cuentas con plan de IA</h2>
     <%= render 'accounts_table', mode: :manage %>
   <% end %>
 

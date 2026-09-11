@@ -67,6 +67,21 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
     end
   end
 
+  # Pestaña "Por cuenta": crea un team y lo liga a CUALQUIER cuenta manualmente (sin depender
+  # del plan), con un saldo inicial opcional en USD que va al saldo comprado.
+  def manual_setup
+    account = Account.find_by(id: params[:account_id])
+    return redirect_tab('accounts', "No existe la cuenta #{params[:account_id]}.", :alert) if account.nil?
+
+    initial_cents = (params[:initial_usd].to_f * 100).round
+    result = Jabvox::AiProvider::BalanceService.new(account).manual_setup!(initial_cents: initial_cents)
+    if result.success?
+      redirect_tab('accounts', "Team creado para la cuenta #{account.id}: #{result.provider_account.team_id_jabvox}.")
+    else
+      redirect_tab('accounts', "No se pudo crear el team: #{result.error}", :alert)
+    end
+  end
+
   # Pestaña "Por cuenta": recarga saldo COMPRADO (se acumula). El monto llega en USD.
   def recharge
     account = Account.find(params[:account_id])
