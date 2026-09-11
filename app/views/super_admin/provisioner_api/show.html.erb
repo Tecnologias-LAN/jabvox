@@ -1,0 +1,113 @@
+<% content_for(:title) { 'API Provisioner (Hermes)' } %>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title" id="page-title">API Provisioner — Hermes</h1>
+</header>
+
+<section class="main-content__body">
+  <% if notice %><p class="flash flash--notice"><%= notice %></p><% end %>
+  <% if alert %><p class="flash flash--error"><%= alert %></p><% end %>
+
+  <div style="margin-bottom:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+    <p style="font-size:13px; color:#374151; margin:0;">
+      La <strong>API Provisioner</strong> permite a UNA instancia autorizada de Hermes
+      gestionar el Super Admin (ver/editar/crear, <strong>nunca eliminar</strong>) a través de
+      <code>/api/provisioner/*</code>. Cada petición valida token, IP, firma, anti-replay y
+      permiso — sin caché. Solo puede existir <strong>un token</strong> y <strong>una
+      conexión</strong>. Hermes nunca recibe credenciales ni contraseñas.
+    </p>
+  </div>
+
+  <!-- Token + secreto de firma recién generados (una sola vez) -->
+  <% if @plaintext_once.present? %>
+    <div style="margin-bottom:20px; padding:16px; background:#ecfdf5; border:1px solid #6ee7b7; border-radius:8px;">
+      <p style="font-size:13px; color:#065f46; margin:0 0 8px;"><strong>Generados — cópialos AHORA. No se volverán a mostrar.</strong></p>
+      <p style="font-size:12px; color:#065f46; margin:0 0 4px;">Token (header <code>Authorization: Bearer</code>):</p>
+      <code style="display:block; word-break:break-all; padding:10px; background:#fff; border:1px solid #d1fae5; border-radius:6px; font-size:13px; margin-bottom:10px;"><%= @plaintext_once %></code>
+      <% if @signing_secret_once.present? %>
+        <p style="font-size:12px; color:#065f46; margin:0 0 4px;">Secreto de firma (clave HMAC para <code>X-Provisioner-Signature</code>):</p>
+        <code style="display:block; word-break:break-all; padding:10px; background:#fff; border:1px solid #d1fae5; border-radius:6px; font-size:13px;"><%= @signing_secret_once %></code>
+      <% end %>
+    </div>
+  <% end %>
+
+  <!-- Estado -->
+  <h2 style="font-size:15px; font-weight:600; margin:0 0 12px;">Estado</h2>
+  <% if @summary %>
+    <div style="margin-bottom:16px; font-size:13px; color:#374151;">
+      Token activo: <strong style="color:#16a34a;">Sí</strong>
+      · Prefijo <code><%= @summary[:prefix] %>…</code>
+      <% if @summary[:label].present? %> · <%= @summary[:label] %><% end %>
+      <% if @summary[:last_used_at].present? %> · Último uso: <%= @summary[:last_used_at] %><% end %>
+      <br>IPs permitidas: <strong><%= @summary[:allowed_ips].join(', ').presence || 'ninguna (bloquea todo)' %></strong>
+      <%= button_to 'Revocar token', revoke_super_admin_provisioner_api_path, method: :post, class: 'button', form_class: 'inline-block', style: 'margin-left:8px;', data: { confirm: '¿Revocar el token activo? Hermes dejará de tener acceso.' } %>
+    </div>
+  <% else %>
+    <div style="margin-bottom:16px; font-size:13px; color:#b91c1c;">No hay token activo. Genera uno abajo.</div>
+  <% end %>
+
+  <!-- Formulario: IP allowlist + checklist de permisos -->
+  <%= form_with url: (@summary ? super_admin_provisioner_api_path : super_admin_provisioner_api_path), method: (@summary ? :patch : :post), local: true do |form| %>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :label, 'Etiqueta (referencia)' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_field :label, value: @summary&.dig(:label), placeholder: 'Hermes aprovisionador' %>
+      </div>
+    </div>
+
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :allowed_ips, 'IPs permitidas' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_area :allowed_ips, value: Array(@summary&.dig(:allowed_ips)).join(', '), rows: 2, placeholder: 'Ej: 10.147.100.1' %>
+        <p class="pt-2 text-xs italic text-slate-400">Una o varias IPs separadas por coma o salto de línea. Vacío = ninguna (bloquea todo).</p>
+      </div>
+    </div>
+
+    <h2 style="font-size:15px; font-weight:600; margin:20px 0 8px;">Permisos (checklist)</h2>
+    <p style="font-size:12px; color:#6b7280; margin:0 0 12px;">Marca qué puede hacer Hermes por cada recurso. El agente <strong>solo</strong> podrá lo habilitado aquí; no puede darse permisos a sí mismo. <em>Eliminar no existe.</em></p>
+
+    <table class="w-full" style="font-size:13px; margin-bottom:16px;">
+      <thead>
+        <tr style="text-align:left; border-bottom:1px solid #e5e7eb;">
+          <th style="padding:8px;">Recurso</th>
+          <% @actions.each do |act| %><th style="padding:8px; text-align:center;"><%= { 'view' => 'Ver', 'edit' => 'Editar', 'create' => 'Crear' }[act] %></th><% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <% @resources.each do |res| %>
+          <% current = Array(@summary&.dig(:permissions, res) || @summary&.dig(:permissions, res.to_sym)) %>
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:8px;"><code><%= res %></code><% if @read_only.include?(res) %> <span style="color:#b45309; font-size:11px;">(solo lectura)</span><% end %></td>
+            <% @actions.each do |act| %>
+              <td style="padding:8px; text-align:center;">
+                <% disabled = @read_only.include?(res) && act != 'view' %>
+                <%= check_box_tag "permissions[#{res}][#{act}]", '1', current.include?(act), disabled: disabled %>
+              </td>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+
+    <% if @summary %>
+      <%= form.submit 'Guardar permisos e IPs', class: 'button' %>
+    <% else %>
+      <%= form.submit 'Generar token', class: 'button' %>
+    <% end %>
+  <% end %>
+
+  <% if @summary %>
+    <h2 style="font-size:15px; font-weight:600; margin:28px 0 8px;">Regenerar token</h2>
+    <p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Genera un token nuevo (revoca el actual y cierra la conexión de Hermes). Úsalo si el token se comprometió.</p>
+    <%= form_with url: super_admin_provisioner_api_path, method: :post, local: true do |form| %>
+      <%= form.hidden_field :label, value: @summary[:label] %>
+      <%= form.hidden_field :allowed_ips, value: Array(@summary[:allowed_ips]).join(', ') %>
+      <% @resources.each do |res| %>
+        <% Array(@summary.dig(:permissions, res) || @summary.dig(:permissions, res.to_sym)).each do |act| %>
+          <%= hidden_field_tag "permissions[#{res}][#{act}]", '1' %>
+        <% end %>
+      <% end %>
+      <%= form.submit 'Regenerar token', class: 'button', data: { confirm: '¿Regenerar? El token actual dejará de funcionar de inmediato.' } %>
+    <% end %>
+  <% end %>
+</section>

@@ -47,6 +47,14 @@ Rails.application.routes.draw do
   get '/health', to: 'health#show'
   get '/api', to: 'api#index'
   namespace :api, defaults: { format: 'json' } do
+    # API Provisioner (Hermes → Jabvox): superficie administrativa privilegiada, autenticada
+    # 100% por token firmado + IP allowlist + firma/anti-replay + sesión única (ver
+    # Api::Provisioner::BaseController). NUNCA borra ni expone credenciales.
+    namespace :provisioner do
+      get  :catalog,  to: 'operations#catalog'
+      post :execute,  to: 'operations#execute'
+    end
+
     namespace :v1 do
       # ----------------------------------
       # start of account scoped api routes
@@ -1361,6 +1369,10 @@ Rails.application.routes.draw do
       end
       # Widget de Soporte global (burbuja "Soporte" del dashboard): token + HMAC.
       resource :support_widget, only: [:show, :update], controller: 'support_widget'
+      # API Provisioner (Hermes): token único, IP allowlist y checklist de permisos.
+      resource :provisioner_api, only: [:show, :create, :update], controller: 'provisioner_api' do
+        post :revoke, on: :member
+      end
       resource :push_diagnostics, only: [:show, :create] do
         post :destroy_subscriptions, on: :collection
       end

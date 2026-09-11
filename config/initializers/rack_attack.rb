@@ -86,6 +86,16 @@ class Rack::Attack
     token.present? ? "hermes:#{Digest::SHA256.hexdigest(token)}" : "hermes-ip:#{req.ip}"
   end
 
+  # API Provisioner (superficie administrativa privilegiada): rate limit estricto por token
+  # hasheado (o por IP si no viene token). Ajustable por env PROVISIONER_API_LIMIT (por minuto).
+  throttle('provisioner_api/token', limit: ENV.fetch('PROVISIONER_API_LIMIT', '120').to_i, period: 1.minute) do |req|
+    next unless req.path.start_with?('/api/provisioner')
+
+    auth = req.get_header('HTTP_AUTHORIZATION').to_s
+    token = auth.start_with?('Bearer ') ? auth.split(' ', 2).last : req.get_header('HTTP_X_PROVISIONER_TOKEN')
+    token.present? ? "provisioner:#{Digest::SHA256.hexdigest(token)}" : "provisioner-ip:#{req.ip}"
+  end
+
   ###-----------------------------------------------###
   ###-----Authentication Related Throttling---------###
   ###-----------------------------------------------###

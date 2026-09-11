@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_10_190900) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -3022,6 +3022,58 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
     t.index ["jabvox_unit_of_measure_id"], name: "index_jabvox_products_on_jabvox_unit_of_measure_id"
   end
 
+  create_table "jabvox_provisioner_api_tokens", force: :cascade do |t|
+    t.string "token_hash_jabvox", null: false
+    t.text "signing_secret_jabvox"
+    t.string "token_prefix_jabvox", null: false
+    t.string "status_jabvox", default: "active", null: false
+    t.jsonb "allowed_ips_jabvox", default: [], null: false
+    t.jsonb "permissions_jabvox", default: {}, null: false
+    t.string "label_jabvox"
+    t.bigint "created_by_id"
+    t.datetime "last_used_at_jabvox"
+    t.datetime "revoked_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status_jabvox"], name: "idx_one_active_provisioner_token", unique: true, where: "((status_jabvox)::text = 'active'::text)"
+    t.index ["token_hash_jabvox"], name: "idx_provisioner_token_hash", unique: true
+  end
+
+  create_table "jabvox_provisioner_audit_logs", force: :cascade do |t|
+    t.bigint "provisioner_api_token_id"
+    t.string "resource_jabvox"
+    t.string "action_jabvox"
+    t.string "outcome_jabvox", null: false
+    t.string "reason_jabvox"
+    t.string "ip_jabvox"
+    t.integer "account_context_id"
+    t.jsonb "params_jabvox", default: {}, null: false
+    t.integer "http_status_jabvox"
+    t.datetime "created_at", null: false
+    t.index ["created_at"], name: "idx_provisioner_audit_created"
+    t.index ["resource_jabvox", "action_jabvox"], name: "idx_provisioner_audit_resource"
+  end
+
+  create_table "jabvox_provisioner_nonces", force: :cascade do |t|
+    t.string "nonce_jabvox", null: false
+    t.datetime "seen_at_jabvox", null: false
+    t.index ["nonce_jabvox"], name: "idx_provisioner_nonce", unique: true
+    t.index ["seen_at_jabvox"], name: "idx_provisioner_nonce_seen"
+  end
+
+  create_table "jabvox_provisioner_sessions", force: :cascade do |t|
+    t.bigint "provisioner_api_token_id", null: false
+    t.string "client_id_jabvox", null: false
+    t.string "bound_ip_jabvox", null: false
+    t.string "fingerprint_jabvox"
+    t.string "status_jabvox", default: "active", null: false
+    t.datetime "last_heartbeat_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provisioner_api_token_id"], name: "index_jabvox_provisioner_sessions_on_provisioner_api_token_id"
+    t.index ["status_jabvox"], name: "idx_one_active_provisioner_session", unique: true, where: "((status_jabvox)::text = 'active'::text)"
+  end
+
   create_table "jabvox_provisioning_chat_messages", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "user_id", null: false
@@ -4605,6 +4657,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
   add_foreign_key "jabvox_products", "jabvox_item_types"
   add_foreign_key "jabvox_products", "jabvox_units_of_measure", column: "jabvox_unit_of_measure_id"
   add_foreign_key "jabvox_products", "users", column: "created_by_id"
+  add_foreign_key "jabvox_provisioner_sessions", "jabvox_provisioner_api_tokens", column: "provisioner_api_token_id"
   add_foreign_key "jabvox_provisioning_chat_messages", "accounts"
   add_foreign_key "jabvox_provisioning_chat_messages", "users"
   add_foreign_key "jabvox_provisioning_transactions", "accounts"
