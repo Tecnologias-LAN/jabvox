@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useAdmin } from 'dashboard/composables/useAdmin';
+import { processVariable } from 'dashboard/helper/templateHelper';
 import bulkWhatsappAPI from 'dashboard/api/jabvox/bulkWhatsapp';
 import LeadsPickerTab from './LeadsPickerTab.vue';
 import BatchReportDialog from './components/BatchReportDialog.vue';
@@ -120,20 +121,45 @@ const csvTemplateBody = computed(() => {
   return body?.text || '';
 });
 
-// Números {{n}} únicos y ordenados del cuerpo de la plantilla.
+// Variables del cuerpo de la plantilla. Soporta AMBOS formatos de WhatsApp:
+// posicional ({{1}}, {{2}}) y con nombre / NAMED ({{var1}}, {{nombre}}). Usa EXACTAMENTE
+// el mismo criterio que el editor oficial de plantillas (processVariable de @chatwoot/utils):
+// regex {{([^}]+)}} y la clave = contenido sin las llaves. Únicas, en orden de aparición.
 const csvTemplateVariables = computed(() => {
-  const found = csvTemplateBody.value.match(/\{\{\s*(\d+)\s*\}\}/g) || [];
-  const nums = found.map(v => parseInt(v.replace(/[^\d]/g, ''), 10));
-  return [...new Set(nums)].sort((a, b) => a - b);
+  const found = csvTemplateBody.value.match(/\{\{([^}]+)\}\}/g) || [];
+  const keys = found.map(v => processVariable(v));
+  return [...new Set(keys)];
 });
 
-// Tipo de header de la plantilla (TEXT/IMAGE/VIDEO/DOCUMENT o ninguno), para el resumen.
-const csvTemplateHeader = computed(() => {
+// Componente HEADER de la plantilla elegida (si tiene).
+const csvHeaderComponent = computed(() => {
   const comps = Array.isArray(csvSelectedTemplate.value?.components)
     ? csvSelectedTemplate.value.components
     : [];
-  const h = comps.find(c => (c.type || '').toUpperCase() === 'HEADER');
-  return h ? (h.format || 'TEXT').toUpperCase() : '';
+  return comps.find(c => (c.type || '').toUpperCase() === 'HEADER') || null;
+});
+
+// Tipo de header de la plantilla (TEXT/IMAGE/VIDEO/DOCUMENT o ninguno), para el resumen.
+const csvTemplateHeader = computed(() =>
+  csvHeaderComponent.value
+    ? (csvHeaderComponent.value.format || 'TEXT').toUpperCase()
+    : ''
+);
+
+// URL del media de EJEMPLO que Meta guarda en la plantilla aprobada (header_handle[0]).
+// El envío usa este mismo media de la plantilla (no se sube nada aparte).
+const csvHeaderMediaUrl = computed(() => {
+  const ex = csvHeaderComponent.value?.example || {};
+  const handle = ex.header_handle || ex.header_url || ex.header_handle_url;
+  return Array.isArray(handle) ? handle[0] || '' : handle || '';
+});
+
+// Si la plantilla tiene header de media, el objeto header para processed_params.
+const csvHeaderMedia = computed(() => {
+  const fmt = csvTemplateHeader.value;
+  if (!['IMAGE', 'VIDEO', 'DOCUMENT'].includes(fmt)) return null;
+  if (!csvHeaderMediaUrl.value) return null;
+  return { media_url: csvHeaderMediaUrl.value, media_type: fmt.toLowerCase() };
 });
 
 // Columnas del CSV disponibles para mapear a una variable: TODAS las del archivo
@@ -424,6 +450,7 @@ const onSend = async () => {
       language: csvLanguage.value,
       variableMap: csvVariableMap.value,
       numberColumn: csvNumberColumn.value,
+      headerMedia: csvHeaderMedia.value,
     });
     useAlert(t('JABVOX_BULK_WA.SEND.SUCCESS'));
     resetForm();

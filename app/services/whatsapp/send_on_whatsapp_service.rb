@@ -19,6 +19,10 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
       message: message
     )
 
+    # OJO: processor.call sobreescribe su template_params interno con los componentes,
+    # así que resolvemos el media del header ANTES de llamar a call.
+    header_media = processor.resolved_header_media
+
     name, namespace, lang_code, processed_parameters = processor.call
 
     if name.blank?
@@ -33,6 +37,43 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
                                          parameters: processed_parameters
                                        }, message)
     message.update!(source_id: message_id) if message_id.present?
+
+    # Muestra el media del header en la conversación de Jabvox (no solo el texto).
+    attach_template_header_media(header_media) if message_id.present?
+  end
+
+  # Si la plantilla tiene header de media (imagen/video/documento), descarga esa media y
+  # la adjunta al mensaje para que se vea en Jabvox. Best-effort: nunca rompe el envío.
+  def attach_template_header_media(media)
+    return if media.blank?
+    return if message.attachments.exists?
+
+    resolver = Whatsapp::TemplateMediaResolverService.new(
+      channel: channel, media_url: media['media_url'], media_type: media['media_type'],
+      template_name: template_params['name']
+    )
+    binary, content_type = resolver.fetch_binary
+    return if binary.blank?
+
+    attach_binary_to_message(binary, content_type, media['media_type'])
+  rescue StandardError => e
+    Rails.logger.warn "[WA SendTemplate] attach header media failed: #{e.message}"
+  end
+
+  def attach_binary_to_message(binary, content_type, media_type)
+    ct = content_type.to_s.split(';').first.presence || 'image/jpeg'
+    ext = { 'image/jpeg' => 'jpg', 'image/png' => 'png', 'video/mp4' => 'mp4', 'application/pdf' => 'pdf' }[ct] ||
+          { 'image' => 'jpg', 'video' => 'mp4', 'document' => 'pdf' }[media_type.to_s] || 'jpg'
+    # file_type de Attachment: image/video para media, file para documentos.
+    file_type = case media_type.to_s
+                when 'video' then 'video'
+                when 'document' then 'file'
+                else 'image'
+                end
+
+    attachment = message.attachments.build(account_id: message.account_id, file_type: file_type)
+    attachment.file.attach(io: StringIO.new(binary), filename: "plantilla_header.#{ext}", content_type: ct)
+    attachment.save!
   end
 
   def send_session_message

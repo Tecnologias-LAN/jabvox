@@ -7,6 +7,14 @@ class Whatsapp::TemplateProcessorService
     process_template_with_params
   end
 
+  # Media del header de la plantilla enviada ({ 'media_url', 'media_type' }) o nil.
+  # Lo usa el servicio de envío para adjuntar la imagen a la conversación de Jabvox.
+  def resolved_header_media
+    return nil if template_params.blank?
+
+    template_media_header(find_template)
+  end
+
   private
 
   def process_template_with_params
@@ -41,7 +49,7 @@ class Whatsapp::TemplateProcessorService
     processed_params ||= template_params['processed_params']
     components = []
 
-    components.concat(process_header_components(processed_params))
+    components.concat(process_header_components(processed_params, template))
     components.concat(process_body_components(processed_params, template))
     components.concat(process_footer_components(processed_params))
     components.concat(process_button_components(processed_params))
@@ -49,11 +57,33 @@ class Whatsapp::TemplateProcessorService
     @template_params = components
   end
 
-  def process_header_components(processed_params)
-    return [] if processed_params['header'].blank?
+  def process_header_components(processed_params, template = nil)
+    header_data = processed_params['header']
+    # Una plantilla con header de media (IMAGE/VIDEO/DOCUMENT) EXIGE el componente header
+    # en el envío; si no llega en processed_params, lo tomamos del ejemplo aprobado de la
+    # plantilla (la imagen que Meta ya tiene). Sin esto Meta responde "#100 Invalid parameter".
+    header_data = template_media_header(template) if header_data.blank?
+    return [] if header_data.blank?
 
-    header_params = build_header_params(processed_params['header'])
+    header_params = build_header_params(header_data)
     header_params.present? ? [{ type: 'header', parameters: header_params }] : []
+  end
+
+  # Devuelve { media_url, media_type } del ejemplo de media aprobado de la plantilla, o nil.
+  def template_media_header(template)
+    return nil if template.blank?
+
+    header = Array(template['components']).find { |c| (c['type'] || '').upcase == 'HEADER' }
+    return nil if header.blank?
+
+    fmt = (header['format'] || 'TEXT').upcase
+    return nil unless %w[IMAGE VIDEO DOCUMENT].include?(fmt)
+
+    handle = header.dig('example', 'header_handle')
+    url = handle.is_a?(Array) ? handle.first : handle
+    return nil if url.blank?
+
+    { 'media_url' => url, 'media_type' => fmt.downcase }
   end
 
   def build_header_params(header_data)
@@ -62,14 +92,32 @@ class Whatsapp::TemplateProcessorService
       next if value.blank?
 
       if media_url_with_type?(key, header_data)
-        media_name = header_data['media_name']
-        media_param = parameter_builder.build_media_parameter(value, header_data['media_type'], media_name)
+        media_param = build_media_header_param(value, header_data)
         header_params << media_param if media_param
       elsif key != 'media_type' && key != 'media_name'
         header_params << parameter_builder.build_parameter(value)
       end
     end
     header_params
+  end
+
+  # Para header de media: si la URL es la de ejemplo de Meta (scontent/lookaside), no sirve
+  # como `link` (Meta la descarga por HTTP/2 y recibe 403 -> "#100"). La resolvemos a un
+  # media_id (descarga HTTP/1.1 + subida a /media, cacheado) y usamos { id: media_id }. Si no
+  # se puede resolver (o es una URL pública propia), caemos al comportamiento por `link`.
+  def build_media_header_param(url, header_data)
+    media_type = header_data['media_type']
+    media_id = Whatsapp::TemplateMediaResolverService.new(
+      channel: channel, media_url: url, media_type: media_type, template_name: template_params['name']
+    ).call
+
+    return build_media_id_param(media_id, media_type) if media_id.present?
+
+    parameter_builder.build_media_parameter(url, media_type, header_data['media_name'])
+  end
+
+  def build_media_id_param(media_id, media_type)
+    { type: media_type.to_s.downcase, media_type.to_s.downcase => { id: media_id } }
   end
 
   def media_url_with_type?(key, header_data)
@@ -79,11 +127,11 @@ class Whatsapp::TemplateProcessorService
   def process_body_components(processed_params, template)
     return [] if processed_params['body'].blank?
 
+    named = named_format?(template, processed_params['body'])
     body_params = processed_params['body'].filter_map do |key, value|
       next if value.blank?
 
-      parameter_format = template['parameter_format']
-      if parameter_format == 'NAMED'
+      if named
         parameter_builder.build_named_parameter(key, value)
       else
         parameter_builder.build_parameter(value)
@@ -91,6 +139,23 @@ class Whatsapp::TemplateProcessorService
     end
 
     body_params.present? ? [{ type: 'body', parameters: body_params }] : []
+  end
+
+  # ¿La plantilla usa variables NAMED? Meta a veces NO devuelve parameter_format en el
+  # payload cacheado, así que lo inferimos también de:
+  #   - el ejemplo del BODY (body_text_named_params), o
+  #   - el texto del BODY con variables no numéricas ({{nombre}}), o
+  #   - las claves de los valores recibidos (no numéricas).
+  # Sin esto, un body NAMED se manda sin parameter_name y Meta responde "#100".
+  def named_format?(template, body_values)
+    return true if template['parameter_format'].to_s.upcase == 'NAMED'
+    return false if template['parameter_format'].to_s.upcase == 'POSITIONAL'
+
+    body = Array(template['components']).find { |c| (c['type'] || '').upcase == 'BODY' }
+    return true if body && body.dig('example', 'body_text_named_params').present?
+    return true if body && body['text'].to_s.scan(/\{\{\s*([^}]+?)\s*\}\}/).flatten.any? { |t| t !~ /\A\d+\z/ }
+
+    Hash(body_values).keys.any? { |k| k.to_s !~ /\A\d+\z/ }
   end
 
   def process_footer_components(processed_params)

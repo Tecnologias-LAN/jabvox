@@ -23,6 +23,16 @@ export const wtTemplatesAPI = {
   getAll: params => axios.get(`${base}/templates`, { params }),
   get: id => axios.get(`${base}/templates/${id}`),
   create: data => axios.post(`${base}/templates`, data),
+  // Sube el media del header a Meta (Resumable Upload) y devuelve { handle: 'h:...' }.
+  // Se llama al elegir el archivo, antes de crear la plantilla.
+  uploadMedia: ({ inboxId, file }) => {
+    const formData = new FormData();
+    formData.append('inbox_id', inboxId);
+    formData.append('file', file);
+    return axios.post(`${base}/templates/upload_media`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   update: (id, data) => axios.patch(`${base}/templates/${id}`, data),
   duplicate: (id, newName) =>
     axios.post(`${base}/templates/${id}/duplicate`, { new_name: newName }),

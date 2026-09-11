@@ -6,6 +6,7 @@ import {
   wtInboxesAPI,
   wtTemplatesAPI,
 } from 'dashboard/api/jabvox/whatsappTemplates';
+import { processVariable } from 'dashboard/helper/templateHelper';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import PromptDialog from './components/PromptDialog.vue';
 
@@ -481,33 +482,87 @@ const emptyForm = () => ({
   category: 'UTILITY',
   language: 'es',
   header_type: 'NONE',
-  header_content: '',
+  header_content: '', // texto del header TEXT (o nombre del archivo, informativo)
+  header_handle: '', // handle "h:..." devuelto por Meta al subir el media
+  header_media_name: '', // nombre del archivo subido (documento)
+  header_media_preview: '', // URL local (object URL) para la previa del media
   body: '',
   footer: '',
   buttons: [],
   var_descriptions: {},
 });
 const form = ref(emptyForm());
+const uploadingMedia = ref(false);
+const headerFileInput = ref(null);
 
-// header_content doubles as the text (TEXT header) or the media URL (IMAGE/VIDEO/DOCUMENT).
-// Clear it when switching between those kinds so a text value isn't sent as a URL or vice versa.
+// Al cambiar el tipo de header, limpia lo que ya no aplica: el texto, o el media
+// (handle/preview/nombre). Así un valor de texto no se manda como media ni al revés.
 watch(
   () => form.value.header_type,
   (next, prev) => {
     if (next === prev) return;
-    const wasText = prev === 'TEXT';
-    const isText = next === 'TEXT';
-    if (wasText !== isText) form.value.header_content = '';
+    form.value.header_content = '';
+    form.value.header_handle = '';
+    form.value.header_media_name = '';
+    form.value.header_media_preview = '';
   }
 );
 
+// Variables del cuerpo. Soporta posicional ({{1}}) y NAMED ({{nombre}}), con el
+// mismo criterio que el resto del sistema (processVariable). Únicas, en orden.
 const detectedVars = computed(() => {
-  const matches = (form.value.body || '').match(/\{\{(\d+)\}\}/g) || [];
-  const nums = [
-    ...new Set(matches.map(m => parseInt(m.replace(/[{}]/g, ''), 10))),
-  ].sort((a, b) => a - b);
-  return nums;
+  const matches = (form.value.body || '').match(/\{\{([^}]+)\}\}/g) || [];
+  return [...new Set(matches.map(m => processVariable(m)))];
 });
+
+// Meta rechaza (INVALID_FORMAT) variables NAMED con espacios, mayúsculas o signos.
+// Válidas: posicional puro ({{1}}) o nombre en minúsculas/números/guion_bajo
+// ({{nombre}}, {{nombre_empresa}}). Devolvemos los tokens inválidos para avisar
+// ANTES de mandar a Meta (p. ej. {{Nombre empresa}}).
+const invalidVars = computed(() =>
+  detectedVars.value.filter(v => !/^[0-9]+$/.test(v) && !/^[a-z0-9_]+$/.test(v))
+);
+
+// Meta rechaza (Invalid parameter) si el cuerpo EMPIEZA o TERMINA con una variable:
+// "Leading or Trailing Params Not Allowed". Debe haber texto fijo antes y después.
+const bodyHasEdgeVar = computed(() => {
+  const body = (form.value.body || '').trim();
+  if (!body) return false;
+  return /^\{\{[^}]+\}\}/.test(body) || /\{\{[^}]+\}\}$/.test(body);
+});
+
+// ¿El header actual es de tipo media (imagen/video/documento)?
+const isMediaHeader = computed(() =>
+  ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(form.value.header_type)
+);
+
+// Sube el archivo del header a Meta (Resumable Upload) y guarda el handle + previa.
+const onHeaderFileChange = async event => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!formInboxId.value) {
+    useAlert(t('JABVOX_WA_TEMPLATES.FORM.SELECT_INBOX_FIRST'));
+    return;
+  }
+  uploadingMedia.value = true;
+  try {
+    const { data } = await wtTemplatesAPI.uploadMedia({
+      inboxId: formInboxId.value,
+      file,
+    });
+    form.value.header_handle = data.handle;
+    form.value.header_media_name = file.name;
+    form.value.header_content = file.name;
+    // Previa local del archivo elegido (no sube nada extra: usa el blob del navegador).
+    form.value.header_media_preview = URL.createObjectURL(file);
+  } catch (err) {
+    useAlert(
+      err?.response?.data?.error || t('JABVOX_WA_TEMPLATES.FORM.UPLOAD_ERROR')
+    );
+  } finally {
+    uploadingMedia.value = false;
+  }
+};
 
 const addButton = () => {
   if (form.value.buttons.length >= 3) return;
@@ -549,6 +604,21 @@ const openEdit = tpl => {
 };
 
 const submitForm = async () => {
+  // Bloquea nombres de variable inválidos antes de gastar una petición a Meta,
+  // que los rechaza con INVALID_FORMAT (espacios, mayúsculas o signos).
+  if (invalidVars.value.length) {
+    useAlert(
+      t('JABVOX_WA_TEMPLATES.CREATE.INVALID_VARS', {
+        vars: invalidVars.value.map(v => `{{${v}}}`).join(', '),
+      })
+    );
+    return;
+  }
+  // Meta no permite variables al inicio o al final del cuerpo.
+  if (bodyHasEdgeVar.value) {
+    useAlert(t('JABVOX_WA_TEMPLATES.CREATE.EDGE_VAR'));
+    return;
+  }
   saving.value = true;
   // A TEXT header with no content is invalid for Meta: treat it as "no header".
   const hasHeaderContent = form.value.header_content?.trim();
@@ -563,6 +633,12 @@ const submitForm = async () => {
     language: form.value.language,
     header_type: headerType,
     header_content: headerType ? form.value.header_content : null,
+    // Para header de media, Meta exige el handle "h:..." (subido con Resumable Upload),
+    // no una URL. Va aparte de header_content.
+    header_handle:
+      headerType && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType)
+        ? form.value.header_handle
+        : null,
     body: form.value.body,
     footer: form.value.footer,
     buttons: form.value.buttons.filter(b => b.text),
@@ -611,12 +687,15 @@ const missingRequiredFields = computed(() => {
     missing.push(t('JABVOX_WA_TEMPLATES.CREATE.BODY_LABEL'));
   if (form.value.header_type === 'TEXT' && blank(form.value.header_content))
     missing.push(t('JABVOX_WA_TEMPLATES.CREATE.HEADER_TYPE_LABEL'));
+  // Header de media: se requiere el handle (archivo ya subido a Meta). Al editar una
+  // plantilla existente que ya trae media, no se re-exige subir de nuevo.
   if (
     form.value.header_type &&
     !['NONE', 'TEXT'].includes(form.value.header_type) &&
-    blank(form.value.header_content)
+    blank(form.value.header_handle) &&
+    !editingTemplate.value
   )
-    missing.push(t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_URL_LABEL'));
+    missing.push(t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_FILE_LABEL'));
   form.value.buttons.forEach((b, i) => {
     if (blank(b.text))
       missing.push(`${t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')} ${i + 1}`);
@@ -660,6 +739,26 @@ const templateAnalytics = computed(() => {
     blocked: raw.blocked || 0,
   };
 });
+
+// URL del media de EJEMPLO que Meta guarda en la plantilla aprobada. Vive en el
+// componente HEADER de meta_json (example.header_handle[0]); vale igual para
+// plantillas creadas en Jabvox y en Meta.
+const detailHeaderMediaUrl = computed(() => {
+  const comps = detailTemplate.value?.meta_json?.components;
+  if (!Array.isArray(comps)) return '';
+  const header = comps.find(c => (c.type || '').toUpperCase() === 'HEADER');
+  const ex = header?.example || {};
+  const handle = ex.header_handle || ex.header_url || ex.header_handle_url;
+  if (Array.isArray(handle)) return handle[0] || '';
+  return handle || '';
+});
+
+const detailHeaderType = computed(() =>
+  (detailTemplate.value?.header_type || '').toUpperCase()
+);
+const detailHeaderIsMedia = computed(() =>
+  ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(detailHeaderType.value)
+);
 
 // ─── Detail / History / Versions ────────────────────────────────────────────
 const detailHistory = ref([]);
@@ -1512,23 +1611,66 @@ onBeforeUnmount(() => {
                 :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.HEADER_TEXT_PH')"
                 maxlength="60"
               />
-              <div
-                v-else-if="form.header_type && form.header_type !== 'NONE'"
-                class="flex flex-col gap-1"
-              >
+              <div v-else-if="isMediaHeader" class="flex flex-col gap-2">
                 <label class="text-xs text-n-slate-11">
-                  {{ t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_URL_LABEL') }}
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_FILE_LABEL') }}
                   <span class="text-n-ruby-11">*</span>
                 </label>
                 <input
-                  v-model="form.header_content"
-                  type="url"
-                  class="reset-base text-sm w-full"
-                  :class="fieldClass(form.header_content, true)"
-                  :placeholder="
-                    t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_URL_PH')
+                  ref="headerFileInput"
+                  type="file"
+                  :accept="
+                    form.header_type === 'IMAGE'
+                      ? 'image/jpeg,image/png'
+                      : form.header_type === 'VIDEO'
+                        ? 'video/mp4,video/3gpp'
+                        : 'application/pdf'
                   "
+                  class="reset-base text-sm w-full file:mr-3 file:rounded-md file:border-0 file:bg-n-brand file:text-white file:px-3 file:py-1 file:text-xs"
+                  @change="onHeaderFileChange"
                 />
+                <div
+                  v-if="uploadingMedia"
+                  class="flex items-center gap-2 text-xs text-n-slate-10"
+                >
+                  <span
+                    class="i-lucide-loader-2 size-3.5 animate-spin"
+                    aria-hidden="true"
+                  />
+                  {{ t('JABVOX_WA_TEMPLATES.FORM.UPLOADING') }}
+                </div>
+                <!-- Previa del media elegido -->
+                <div v-if="form.header_media_preview" class="mt-1">
+                  <img
+                    v-if="form.header_type === 'IMAGE'"
+                    :src="form.header_media_preview"
+                    alt="preview"
+                    class="max-h-40 rounded-lg border border-n-weak"
+                  />
+                  <video
+                    v-else-if="form.header_type === 'VIDEO'"
+                    :src="form.header_media_preview"
+                    controls
+                    class="max-h-40 rounded-lg border border-n-weak bg-black"
+                  />
+                  <div
+                    v-else
+                    class="flex items-center gap-2 rounded-lg border border-n-weak px-3 py-2 text-sm text-n-slate-11"
+                  >
+                    <span
+                      class="i-lucide-file-text size-5"
+                      aria-hidden="true"
+                    />
+                    {{ form.header_media_name }}
+                  </div>
+                </div>
+                <p
+                  v-if="form.header_handle"
+                  class="text-[11px] text-n-teal-11 flex items-center gap-1"
+                >
+                  <span class="i-lucide-check size-3" aria-hidden="true" />
+                  {{ t('JABVOX_WA_TEMPLATES.FORM.MEDIA_READY') }}
+                </p>
                 <p class="text-[11px] text-n-slate-10">
                   {{ t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_NOTE') }}
                 </p>
@@ -1786,16 +1928,44 @@ onBeforeUnmount(() => {
                   >
                     {{ form.header_content }}
                   </div>
-                  <div
-                    v-else-if="
-                      form.header_type &&
-                      form.header_type !== 'NONE' &&
-                      form.header_type !== 'TEXT'
-                    "
-                    class="h-20 bg-white/10 rounded flex items-center justify-center text-white/40 text-[10px]"
-                  >
-                    {{ form.header_type }}
-                  </div>
+                  <template v-else-if="isMediaHeader">
+                    <img
+                      v-if="
+                        form.header_type === 'IMAGE' &&
+                        form.header_media_preview
+                      "
+                      :src="form.header_media_preview"
+                      alt="preview"
+                      class="max-h-28 w-full rounded object-cover mb-1.5"
+                    />
+                    <video
+                      v-else-if="
+                        form.header_type === 'VIDEO' &&
+                        form.header_media_preview
+                      "
+                      :src="form.header_media_preview"
+                      class="max-h-28 w-full rounded bg-black mb-1.5"
+                    />
+                    <div
+                      v-else-if="
+                        form.header_type === 'DOCUMENT' &&
+                        form.header_media_preview
+                      "
+                      class="flex items-center gap-1.5 bg-white/10 rounded px-2 py-1.5 text-white/70 text-[10px] mb-1.5"
+                    >
+                      <span
+                        class="i-lucide-file-text size-4"
+                        aria-hidden="true"
+                      />
+                      {{ form.header_media_name }}
+                    </div>
+                    <div
+                      v-else
+                      class="h-20 bg-white/10 rounded flex items-center justify-center text-white/40 text-[10px]"
+                    >
+                      {{ form.header_type }}
+                    </div>
+                  </template>
                   <p
                     class="text-[11px] leading-relaxed text-white/90 whitespace-pre-wrap"
                   >
@@ -1963,12 +2133,42 @@ onBeforeUnmount(() => {
                   })
                 }}
               </p>
-              <p class="text-sm text-n-slate-12">
+              <p v-if="!detailHeaderIsMedia" class="text-sm text-n-slate-12">
                 {{
                   detailTemplate.header_content ||
                   t('JABVOX_WA_TEMPLATES.DETAIL.MEDIA')
                 }}
               </p>
+              <!-- Media de la plantilla (imagen/video/documento) + URL de Meta -->
+              <template v-else>
+                <img
+                  v-if="detailHeaderType === 'IMAGE' && detailHeaderMediaUrl"
+                  :src="detailHeaderMediaUrl"
+                  alt="header"
+                  class="w-full max-h-56 object-contain rounded-md bg-n-alpha-2"
+                />
+                <video
+                  v-else-if="
+                    detailHeaderType === 'VIDEO' && detailHeaderMediaUrl
+                  "
+                  :src="detailHeaderMediaUrl"
+                  controls
+                  class="w-full max-h-56 rounded-md bg-black"
+                />
+                <p v-else class="text-sm text-n-slate-12">
+                  {{ t('JABVOX_WA_TEMPLATES.DETAIL.MEDIA') }}
+                </p>
+                <a
+                  v-if="detailHeaderMediaUrl"
+                  :href="detailHeaderMediaUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="block truncate mt-1.5 text-[11px] text-n-blue-11 hover:underline"
+                  :title="detailHeaderMediaUrl"
+                >
+                  {{ detailHeaderMediaUrl }}
+                </a>
+              </template>
             </div>
             <div
               v-if="detailTemplate.body_content"

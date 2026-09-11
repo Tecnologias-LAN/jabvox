@@ -47,6 +47,14 @@ Rails.application.routes.draw do
   get '/health', to: 'health#show'
   get '/api', to: 'api#index'
   namespace :api, defaults: { format: 'json' } do
+    # API Provisioner (Hermes → Jabvox): superficie administrativa privilegiada, autenticada
+    # 100% por token firmado + IP allowlist + firma/anti-replay + sesión única (ver
+    # Api::Provisioner::BaseController). NUNCA borra ni expone credenciales.
+    namespace :provisioner do
+      get  :catalog,  to: 'operations#catalog'
+      post :execute,  to: 'operations#execute'
+    end
+
     namespace :v1 do
       # ----------------------------------
       # start of account scoped api routes
@@ -601,6 +609,9 @@ Rails.application.routes.draw do
               # Templates are managed at Meta; Jabvox can view/create/update/duplicate/sync
               # but NOT delete them (deletion is done from Meta). No :destroy route.
               resources :templates, except: [:destroy] do
+                collection do
+                  post :upload_media
+                end
                 member do
                   post :duplicate
                   post :sync
@@ -1361,6 +1372,10 @@ Rails.application.routes.draw do
       # Proveedor de API de IA: URL base + master key (cifrada) + habilitado.
       resource :ai_provider_config, only: [:show, :update], controller: 'ai_provider_config' do
         post :test_connection, on: :member
+      end
+      # API Provisioner (Hermes): token único, IP allowlist y checklist de permisos.
+      resource :provisioner_api, only: [:show, :create, :update], controller: 'provisioner_api' do
+        post :revoke, on: :member
       end
       resource :push_diagnostics, only: [:show, :create] do
         post :destroy_subscriptions, on: :collection

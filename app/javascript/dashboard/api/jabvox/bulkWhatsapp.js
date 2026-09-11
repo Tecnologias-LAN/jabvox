@@ -79,6 +79,7 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     language,
     variableMap,
     numberColumn,
+    headerMedia,
   }) {
     const formData = new FormData();
     formData.append('file', file);
@@ -88,6 +89,12 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     if (language) formData.append('language', language);
     // Columna del CSV que contiene el número (elegida/confirmada en la UI).
     if (numberColumn) formData.append('number_column', numberColumn);
+    // Media del header (de la plantilla): { media_url, media_type }. El backend lo
+    // pone en processed_params.header de cada mensaje.
+    if (headerMedia?.media_url) {
+      formData.append('header_media[media_url]', headerMedia.media_url);
+      formData.append('header_media[media_type]', headerMedia.media_type);
+    }
     // variable_map es un objeto { "1": "columna" }: se serializa como variable_map[1]=columna.
     Object.entries(variableMap || {}).forEach(([n, col]) => {
       if (col) formData.append(`variable_map[${n}]`, col);

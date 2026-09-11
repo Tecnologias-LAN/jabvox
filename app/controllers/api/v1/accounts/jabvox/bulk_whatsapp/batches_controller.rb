@@ -162,9 +162,21 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       # La plantilla/idioma se eligen en la UI (no en el archivo). variable_map mapea
       # cada {{n}} a una columna del CSV; el service resuelve los valores por fila.
       # number_column: la columna que contiene el número (elegida/confirmada en la UI).
+      # header_media: media del header de la plantilla ({ media_url, media_type }).
       template_name: params[:template_name], language: params[:language], text: params[:text],
-      variable_map: variable_map_params, number_column: params[:number_column]
+      variable_map: variable_map_params, number_column: params[:number_column],
+      header_media: header_media_params
     )
+  end
+
+  # Media del header de la plantilla (imagen/video/documento): { media_url, media_type }.
+  # Sale de la propia plantilla (el ejemplo que Meta guardó); igual para todo el envío.
+  def header_media_params
+    raw = params[:header_media]
+    return nil if raw.blank?
+
+    h = raw.respond_to?(:permit) ? raw.permit(:media_url, :media_type).to_h : raw.to_h
+    h[:media_url].present? ? h : nil
   end
 
   def dispatch_from_leads(inbox, sender)
