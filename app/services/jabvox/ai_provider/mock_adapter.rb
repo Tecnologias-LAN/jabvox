@@ -35,6 +35,7 @@ module Jabvox
         when 'GET /team/daily/activity' then activity(args)
         when 'POST /key/generate'   then generate_key(args)
         when 'GET /key/info'        then key_info(args)
+        when 'GET /key/list'        then list_keys(args)
         when 'POST /key/block'      then set_key_block(args, true)
         when 'POST /key/unblock'    then set_key_block(args, false)
         when 'GET /model/info'      then ok('data' => [{ 'model_name' => 'mock/model-a' }, { 'model_name' => 'mock/model-b' }])
@@ -89,9 +90,16 @@ module Jabvox
       def generate_key(args)
         @seq += 1
         k = "sk-mock-#{@seq}"
-        @keys[k] = { 'key_alias' => args['key_alias'], 'team_id' => args['team_id'],
+        @keys[k] = { 'key_alias' => args['key_alias'], 'team_id' => args['team_id'], 'token_id' => "tok-#{@seq}",
                      'max_budget' => args['max_budget'], 'spend' => 0.0, 'blocked' => false }
         ok('key' => k, 'token_id' => "tok-#{@seq}")
+      end
+
+      # Lista las keys del team (metadatos, NUNCA la key en claro — como el proveedor real).
+      def list_keys(args)
+        rows = @keys.values.select { |v| v['team_id'] == args['team_id'] }
+                    .map { |v| v.except('team_id') }
+        ok('keys' => rows)
       end
 
       def key_info(args)

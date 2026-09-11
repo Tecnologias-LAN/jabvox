@@ -33,6 +33,7 @@ import { routes as jabvoxCdrSettingsRoutes } from './jabvox-cdr/routes';
 import { routes as jabvoxAudioAnalysisSettingsRoutes } from './jabvox-audio-analysis/routes';
 import { routes as jabvoxTypificationsSettingsRoutes } from './jabvox-typifications/routes';
 import { routes as jabvoxSaldoRoutes } from './jabvox-saldo/routes';
+import { routes as jabvoxAiBudgetRoutes } from './jabvox-ai-budget/routes';
 import { routes as jabvoxIpWhitelistRoutes } from './jabvox-ip-whitelist/routes';
 import { routes as jabvoxAiChatSettingsRoutes } from './jabvox-ai-chat/routes';
 import { routes as jabvoxManagementStatesRoutes } from './jabvox-management-states/routes';
@@ -98,6 +99,7 @@ export default {
     ...jabvoxAudioAnalysisSettingsRoutes,
     ...jabvoxTypificationsSettingsRoutes,
     ...jabvoxSaldoRoutes,
+    ...jabvoxAiBudgetRoutes,
     ...jabvoxIpWhitelistRoutes,
     ...jabvoxAiChatSettingsRoutes,
     ...jabvoxManagementStatesRoutes,

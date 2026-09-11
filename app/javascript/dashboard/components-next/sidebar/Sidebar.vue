@@ -1471,6 +1471,20 @@ const menuItems = computed(() => {
               },
             ]
           : []),
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_AI_CHAT
+        )
+          ? [
+              {
+                name: 'Settings Jabvox AI Budget',
+                label: t('SIDEBAR.JABVOX_AI_BUDGET'),
+                icon: 'i-lucide-coins',
+                to: accountScopedRoute('jabvox_ai_budget_index'),
+                activeOn: ['jabvox_ai_budget_index'],
+              },
+            ]
+          : []),
         ...(jabvoxCan('jabvox_sms_manage') &&
         isFeatureEnabledonAccount.value(
           accountId.value,

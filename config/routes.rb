@@ -669,6 +669,11 @@ Rails.application.routes.draw do
             end
             resource :saldo_config, only: [:show, :update]
             get :saldo_balance, to: 'saldo_configs#status'
+            # Saldo IA por cuenta: ver saldo + crear/listar virtual keys (contra el proveedor).
+            resource :ai_budget, only: [:show], controller: 'ai_budget' do
+              get :keys
+              post :create_key
+            end
             resources :sms_providers do
               member { get :check_connection }
             end
@@ -1369,9 +1374,13 @@ Rails.application.routes.draw do
       end
       # Widget de Soporte global (burbuja "Soporte" del dashboard): token + HMAC.
       resource :support_widget, only: [:show, :update], controller: 'support_widget'
-      # Proveedor de API de IA: URL base + master key (cifrada) + habilitado.
+      # Proveedor de API de IA (pantalla con pestañas): conexión (master), por cuenta y saldos.
       resource :ai_provider_config, only: [:show, :update], controller: 'ai_provider_config' do
-        post :test_connection, on: :member
+        member do
+          post :test_connection
+          post :provision   # crear team + asignar a una cuenta
+          post :recharge    # recargar saldo comprado de una cuenta
+        end
       end
       # API Provisioner (Hermes): token único, IP allowlist y checklist de permisos.
       resource :provisioner_api, only: [:show, :create, :update], controller: 'provisioner_api' do

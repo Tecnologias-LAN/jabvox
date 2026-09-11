@@ -1,0 +1,27 @@
+{
+  "JABVOX_AI_BUDGET": {
+    "TITLE": "AI Balance",
+    "DESCRIPTION": "Your AI usage balance and virtual keys. The plan balance resets monthly; purchased balance accumulates.",
+    "NOT_PROVISIONED": "This account does not have AI balance provisioned yet. Contact your administrator.",
+    "ACQUIRED": "Total",
+    "SPENT": "Spent",
+    "REMAINING": "Remaining",
+    "PLAN_MONTHLY": "Plan (monthly)",
+    "CREATE_KEY_TITLE": "Virtual keys",
+    "CREATE_KEY_HINT": "Create a key to use the models directly against the provider. The key is shown only once and is never stored by Jabvox.",
+    "KEY_ALIAS": "Name",
+    "KEY_ALIAS_PH": "e.g. production",
+    "KEY_BUDGET": "Key limit (USD, optional)",
+    "CREATE_KEY": "Create key",
+    "KEY_ONCE": "Copy this key now — it will not be shown again:",
+    "KEY_CREATED": "Virtual key created.",
+    "KEY_ERROR": "Could not create the key.",
+    "LOAD_ERROR": "Could not load the AI balance.",
+    "COL_ALIAS": "Name",
+    "COL_BUDGET": "Limit",
+    "COL_SPENT": "Spent",
+    "COL_STATUS": "Status",
+    "ACTIVE": "Active",
+    "BLOCKED": "Blocked"
+  }
+}

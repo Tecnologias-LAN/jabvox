@@ -433,6 +433,7 @@
     "JABVOX_TICKETS": "Requests",
     "JABVOX_TYPIFICATIONS": "Typifications",
     "JABVOX_SALDO": "Saldo",
+    "JABVOX_AI_BUDGET": "Saldo IA",
     "JABVOX_SMS": "SMS",
     "JABVOX_IP_WHITELIST": "IP Whitelist",
     "CAPTAIN_AI": "Jabvox IA",

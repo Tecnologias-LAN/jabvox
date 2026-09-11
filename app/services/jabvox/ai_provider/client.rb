@@ -67,6 +67,7 @@ module Jabvox
       # rubocop:enable Metrics/ParameterLists
 
       def key_info(key)  = get('/key/info', key: key)
+      def list_keys(team_id) = get('/key/list', team_id: team_id)
       def block_key(key) = post('/key/block', key: key)
       def unblock_key(key) = post('/key/unblock', key: key)
 

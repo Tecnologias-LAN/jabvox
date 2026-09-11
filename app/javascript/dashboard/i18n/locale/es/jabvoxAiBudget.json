@@ -1,0 +1,27 @@
+{
+  "JABVOX_AI_BUDGET": {
+    "TITLE": "Saldo IA",
+    "DESCRIPTION": "Tu saldo de uso de IA y tus virtual keys. El saldo del plan se restablece cada mes; el comprado aparte se acumula.",
+    "NOT_PROVISIONED": "Esta cuenta aún no tiene saldo de IA aprovisionado. Contacta a tu administrador.",
+    "ACQUIRED": "Total",
+    "SPENT": "Gastado",
+    "REMAINING": "Restante",
+    "PLAN_MONTHLY": "Plan (mensual)",
+    "CREATE_KEY_TITLE": "Virtual keys",
+    "CREATE_KEY_HINT": "Crea una key para usar los modelos directamente contra el proveedor. La key se muestra una sola vez y Jabvox nunca la guarda.",
+    "KEY_ALIAS": "Nombre",
+    "KEY_ALIAS_PH": "ej. produccion",
+    "KEY_BUDGET": "Tope de la key (USD, opcional)",
+    "CREATE_KEY": "Crear key",
+    "KEY_ONCE": "Copia esta key ahora — no se volverá a mostrar:",
+    "KEY_CREATED": "Virtual key creada.",
+    "KEY_ERROR": "No se pudo crear la key.",
+    "LOAD_ERROR": "No se pudo cargar el saldo de IA.",
+    "COL_ALIAS": "Nombre",
+    "COL_BUDGET": "Tope",
+    "COL_SPENT": "Gastado",
+    "COL_STATUS": "Estado",
+    "ACTIVE": "Activa",
+    "BLOCKED": "Bloqueada"
+  }
+}
