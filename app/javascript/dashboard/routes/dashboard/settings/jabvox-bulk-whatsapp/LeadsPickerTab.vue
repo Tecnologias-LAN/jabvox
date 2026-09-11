@@ -13,7 +13,7 @@ const props = defineProps({
   // 'template' | 'text' | null — derived from the inbox by the parent.
   mode: { type: String, default: null },
   configReady: { type: Boolean, default: false },
-  // Wizard step driven by the parent: 2 message/template, 3 audience, 4 preview.
+  // Wizard step driven by the parent: 2 template, 3 audience, 4 variables, 5 preview.
   step: { type: Number, default: 2 },
   // "Reenviar a esta audiencia": respuesta de reuseBatch con los lead_ids ya
   // filtrados por estado + plantilla/idioma/variables del envío original. Cuando
@@ -21,7 +21,7 @@ const props = defineProps({
   preselect: { type: Object, default: null },
 });
 
-const emit = defineEmits(['sent', 'validity']);
+const emit = defineEmits(['sent', 'validity', 'hasVariables']);
 
 const { t } = useI18n();
 const rootStore = useStore();
@@ -167,6 +167,15 @@ const selectedTemplate = computed(() =>
   inboxTemplates.value.find(tp => tp.name === templateName.value)
 );
 
+// Tipo de header de la plantilla (para el resumen del paso 2).
+const templateHeader = computed(() => {
+  const comps = Array.isArray(selectedTemplate.value?.components)
+    ? selectedTemplate.value.components
+    : [];
+  const h = comps.find(c => (c.type || '').toUpperCase() === 'HEADER');
+  return h ? (h.format || 'TEXT').toUpperCase() : '';
+});
+
 // Body text of the currently selected template.
 const selectedTemplateBody = computed(() => {
   const tpl = inboxTemplates.value.find(tp => tp.name === templateName.value);
@@ -267,13 +276,22 @@ const canSend = computed(
       : !!text.value.trim())
 );
 
-// Step 3 (audience) is valid once at least one lead is selected. Step 2 (message)
-// is valid once the template+variables or text are complete.
-const audienceValid = computed(() => selectedCount.value > 0);
-const messageValid = computed(() =>
+// 5 pasos: 2 plantilla · 3 audiencia · 4 variables · 5 previa.
+// Paso 2 (plantilla): plantilla+idioma elegidos, o texto (modo text). Las variables
+// se validan aparte en el paso 4.
+const templateChosen = computed(() =>
   props.mode === 'template'
-    ? !!templateName.value && !!language.value && allVariablesMapped.value
+    ? !!templateName.value && !!language.value
     : !!text.value.trim()
+);
+const audienceValid = computed(() => selectedCount.value > 0);
+// Paso 4 (variables): cada {{n}} mapeada. Si la plantilla no tiene variables, es válido.
+const variablesValid = computed(
+  () => props.mode !== 'template' || allVariablesMapped.value
+);
+// ¿La plantilla elegida tiene variables? (el padre lo usa para saltar el paso 4).
+const hasVariables = computed(
+  () => props.mode === 'template' && templateVariables.value.length > 0
 );
 
 // Preview of what will be sent (step 4): the template + how each variable maps
@@ -291,15 +309,26 @@ const previewLines = computed(() => {
 });
 
 // Tell the parent whether the current step lets "Next"/"Send" proceed.
-// Nuevo orden del asistente: 2 = plantilla/mensaje, 3 = audiencia, 4 = previa.
+// 5 pasos: 2 = plantilla · 3 = audiencia · 4 = variables · 5 = previa/enviar.
 const stepValidity = () => {
-  if (props.step === 2) return messageValid.value;
+  if (props.step === 2) return templateChosen.value;
   if (props.step === 3) return audienceValid.value;
-  return canSend.value; // step 4
+  if (props.step === 4) return variablesValid.value;
+  return canSend.value; // step 5
 };
 watch(
-  [() => props.step, audienceValid, messageValid, canSend],
-  () => emit('validity', stepValidity()),
+  [
+    () => props.step,
+    audienceValid,
+    templateChosen,
+    variablesValid,
+    canSend,
+    hasVariables,
+  ],
+  () => {
+    emit('validity', stepValidity());
+    emit('hasVariables', hasVariables.value);
+  },
   { immediate: true }
 );
 
@@ -1037,45 +1066,34 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Variables {{n}} of the chosen template: map each one to a lead field -->
-        <div v-if="templateVariables.length" class="flex flex-col gap-2 mt-1">
-          <div class="flex flex-col gap-0.5">
-            <label class="text-xs font-medium text-n-slate-12">
-              {{ t('JABVOX_BULK_WA.VARS.TITLE') }}
-            </label>
-            <span class="text-[11px] text-n-slate-9">
-              {{ t('JABVOX_BULK_WA.VARS.HELP') }}
-            </span>
-          </div>
-          <div
-            v-for="n in templateVariables"
-            :key="`var-${n}`"
-            class="flex items-center gap-2"
+        <!-- Resumen de la plantilla: idioma · header · nº de variables -->
+        <div v-if="selectedTemplate" class="flex flex-wrap items-center gap-2">
+          <span
+            v-if="templateHeader"
+            class="inline-flex items-center gap-1 rounded-full bg-n-alpha-2 px-2 py-0.5 text-[11px] font-medium text-n-slate-11"
           >
             <span
-              class="shrink-0 text-xs font-mono rounded-md bg-n-alpha-2 px-2 py-1.5 text-n-slate-12"
-            >
-              {{ varLabel(n) }}
-            </span>
-            <select
-              v-model="variableMap[n]"
-              class="reset-base flex-1 text-sm rounded-lg border px-3 py-2 bg-n-alpha-1"
-              :class="variableMap[n] ? 'border-n-weak' : 'border-n-ruby-6'"
-            >
-              <option value="">
-                {{ t('JABVOX_BULK_WA.VARS.PLACEHOLDER') }}
-              </option>
-              <option
-                v-for="opt in variableFieldOptions"
-                :key="opt.value"
-                :value="opt.value"
-              >
-                {{ opt.label }}
-              </option>
-            </select>
-          </div>
-          <span v-if="!allVariablesMapped" class="text-[11px] text-n-ruby-9">
-            {{ t('JABVOX_BULK_WA.VARS.INCOMPLETE') }}
+              :class="{
+                'i-lucide-image': templateHeader === 'IMAGE',
+                'i-lucide-video': templateHeader === 'VIDEO',
+                'i-lucide-file-text': templateHeader === 'DOCUMENT',
+                'i-lucide-heading': templateHeader === 'TEXT',
+              }"
+              class="size-3"
+              aria-hidden="true"
+            />
+            {{ t(`JABVOX_BULK_WA.SEND.HEADER_${templateHeader}`) }}
+          </span>
+          <span
+            class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+            :class="
+              templateVariables.length
+                ? 'bg-n-teal-3 text-n-teal-11'
+                : 'bg-n-alpha-2 text-n-slate-11'
+            "
+          >
+            <span class="i-lucide-braces size-3" aria-hidden="true" />
+            {{ t('JABVOX_BULK_WA.SEND.VARS_COUNT', templateVariables.length) }}
           </span>
         </div>
       </template>
@@ -1096,9 +1114,54 @@ onMounted(() => {
       </template>
     </section>
 
-    <!-- Preview — Paso 4: previsualización (no envía) -->
+    <!-- Variables — Paso 4: mapear cada {{n}} a un campo del lead -->
     <section
-      v-show="step === 4"
+      v-show="step === 4 && mode === 'template' && templateVariables.length"
+      class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm space-y-3"
+    >
+      <div class="flex flex-col gap-0.5">
+        <label class="text-xs font-medium text-n-slate-12">
+          {{ t('JABVOX_BULK_WA.VARS.TITLE') }}
+        </label>
+        <span class="text-[11px] text-n-slate-9">
+          {{ t('JABVOX_BULK_WA.VARS.HELP') }}
+        </span>
+      </div>
+      <div
+        v-for="n in templateVariables"
+        :key="`var-${n}`"
+        class="flex items-center gap-2"
+      >
+        <span
+          class="shrink-0 text-xs font-mono rounded-md bg-n-alpha-2 px-2 py-1.5 text-n-slate-12"
+        >
+          {{ varLabel(n) }}
+        </span>
+        <select
+          v-model="variableMap[n]"
+          class="reset-base flex-1 text-sm rounded-lg border px-3 py-2 bg-n-alpha-1"
+          :class="variableMap[n] ? 'border-n-weak' : 'border-n-ruby-6'"
+        >
+          <option value="">
+            {{ t('JABVOX_BULK_WA.VARS.PLACEHOLDER') }}
+          </option>
+          <option
+            v-for="opt in variableFieldOptions"
+            :key="opt.value"
+            :value="opt.value"
+          >
+            {{ opt.label }}
+          </option>
+        </select>
+      </div>
+      <span v-if="!allVariablesMapped" class="text-[11px] text-n-ruby-9">
+        {{ t('JABVOX_BULK_WA.VARS.INCOMPLETE') }}
+      </span>
+    </section>
+
+    <!-- Preview — Paso 5: previsualización (no envía) -->
+    <section
+      v-show="step === 5"
       class="rounded-2xl border border-n-weak bg-n-solid-1 p-4 shadow-sm space-y-3"
     >
       <p class="text-sm font-medium text-n-slate-12">

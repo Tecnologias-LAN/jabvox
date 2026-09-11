@@ -17,8 +17,12 @@ class Jabvox::BulkWhatsappDispatchService
   WEBHOOK_PORTS = [80, 443, 8080, 8443].freeze
   # El archivo cargado ahora SOLO aporta destinatario y valores de variables: la
   # plantilla y su idioma se eligen en la UI (como en el flujo de leads). Lo único
-  # obligatorio es el número; el nombre y las columnas de variables son opcionales.
-  REQUIRED_HEADERS = %w[numero].freeze
+  # obligatorio es una columna de número; el nombre y las columnas de variables son
+  # opcionales. La columna del número se detecta por cualquiera de estos nombres
+  # (case-insensitive), para tolerar archivos que traigan "telefono", "celular", etc.
+  NUMBER_HEADERS = %w[numero número telefono teléfono celular movil móvil phone
+                      whatsapp msisdn].freeze
+  NAME_HEADERS = %w[nombre name].freeze
   MAX_ROWS = 20_000
   CHUNK_SIZE = 200
   MAX_ATTEMPTS = 3
@@ -238,10 +242,9 @@ class Jabvox::BulkWhatsappDispatchService
 
   def validate_headers(headers)
     normalized = Array(headers).compact.map { |h| h.to_s.strip.downcase }
-    missing = REQUIRED_HEADERS - normalized
-    return if missing.empty?
+    return if NUMBER_HEADERS.intersect?(normalized)
 
-    raise Error, "Faltan columnas en el CSV: #{missing.join(', ')}. Se requieren: #{REQUIRED_HEADERS.join(', ')}."
+    raise Error, 'El archivo debe tener una columna de número (numero, telefono, celular…).'
   end
 
   # El archivo solo aporta destinatario + valores de variables. Se conserva la fila
@@ -249,18 +252,25 @@ class Jabvox::BulkWhatsappDispatchService
   # {{n}} contra cualquier columna del CSV. El número es obligatorio y DEBE venir en
   # formato internacional con prefijo (+57..., +52...); una fila sin '+' se descarta.
   def normalize_row(row)
-    raw = (row['numero'] || row['número']).to_s.strip
-    number = e164(raw)
-    return nil if number.blank?
-
+    # Todas las columnas de la fila con claves normalizadas (minúsculas, sin espacios),
+    # para localizar la columna del número/nombre sin depender de la grafía exacta.
     cells = {}
     row.each do |key, value|
       next if key.nil?
 
       cells[key.to_s.strip.downcase] = value.to_s.strip
     end
-    name = (row['nombre'] || row['name']).to_s.strip
+
+    number = e164(first_present(cells, NUMBER_HEADERS))
+    return nil if number.blank?
+
+    name = first_present(cells, NAME_HEADERS)
     { 'nombre' => name.presence || number, 'numero' => number, 'cells' => cells }
+  end
+
+  # Primer valor no vacío entre las claves candidatas (ya normalizadas a minúsculas).
+  def first_present(cells, keys)
+    keys.filter_map { |k| cells[k].presence }.first
   end
 
   # Número en E.164 con prefijo: exige que empiece con '+' seguido de dígitos.

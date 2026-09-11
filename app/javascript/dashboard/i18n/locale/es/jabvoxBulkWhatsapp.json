@@ -122,10 +122,11 @@
       "STEP1": "Bandeja y emisor",
       "STEP2": "Plantilla",
       "STEP3": "Destinatarios",
-      "STEP4": "Previa y enviar",
+      "STEP4": "Variables",
       "NEXT": "Siguiente",
       "BACK": "Atrás",
-      "STEP_OF": "Paso {current} de {total}"
+      "STEP_OF": "Paso {current} de {total}",
+      "STEP5": "Previa y enviar"
     },
     "SEND": {
       "INBOX": "Bandeja",
@@ -163,7 +164,13 @@
       "DOWNLOAD_SAMPLE": "Descargar ejemplo",
       "FILE_HINT_V2": "CSV con columna «numero» (en formato +57..., +52...). Opcional: «nombre» y columnas para las variables.",
       "MAP_VARS_TITLE": "Asigna cada variable de la plantilla a una columna del archivo",
-      "MAP_VARS_PLACEHOLDER": "Elige la columna…"
+      "MAP_VARS_PLACEHOLDER": "Elige la columna…",
+      "MISSING_NUMBER": "El archivo debe tener una columna de número (numero, telefono, celular…).",
+      "HEADER_TEXT": "Encabezado de texto",
+      "HEADER_IMAGE": "Imagen",
+      "HEADER_VIDEO": "Video",
+      "HEADER_DOCUMENT": "Documento",
+      "VARS_COUNT": "Sin variables | 1 variable | {count} variables"
     },
     "HISTORY": {
       "LOADING": "Cargando historial…",
