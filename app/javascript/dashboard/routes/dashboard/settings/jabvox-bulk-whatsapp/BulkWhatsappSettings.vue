@@ -73,8 +73,21 @@ const sending = ref(false);
 const fileInput = ref(null);
 
 // El archivo solo aporta destinatario y valores de variables: la plantilla e idioma
-// se eligen en la UI (paso 3). Lo único obligatorio en el CSV es el número.
-const REQUIRED_HEADERS = ['numero'];
+// se eligen en la UI. Lo único obligatorio es una columna de número, detectada por
+// cualquiera de estos sinónimos (deben coincidir con NUMBER_HEADERS del backend).
+const NUMBER_HEADERS = [
+  'numero',
+  'número',
+  'telefono',
+  'teléfono',
+  'celular',
+  'movil',
+  'móvil',
+  'phone',
+  'whatsapp',
+  'msisdn',
+];
+const NAME_HEADERS = ['nombre', 'name'];
 
 // ── Plantilla + variables para el flujo CSV (igual que en LeadsPickerTab) ────
 const csvTemplateName = ref('');
@@ -112,9 +125,20 @@ const csvTemplateVariables = computed(() => {
   return [...new Set(nums)].sort((a, b) => a - b);
 });
 
+// Tipo de header de la plantilla (TEXT/IMAGE/VIDEO/DOCUMENT o ninguno), para el resumen.
+const csvTemplateHeader = computed(() => {
+  const comps = Array.isArray(csvSelectedTemplate.value?.components)
+    ? csvSelectedTemplate.value.components
+    : [];
+  const h = comps.find(c => (c.type || '').toUpperCase() === 'HEADER');
+  return h ? (h.format || 'TEXT').toUpperCase() : '';
+});
+
 // Columnas del CSV que se pueden mapear a una variable (todas menos numero/nombre).
 const csvVariableColumns = computed(() =>
-  parsedHeaders.value.filter(h => h !== 'numero' && h !== 'nombre')
+  parsedHeaders.value.filter(
+    h => !NUMBER_HEADERS.includes(h) && !NAME_HEADERS.includes(h)
+  )
 );
 
 // Etiqueta del placeholder sin confundir al parser de plantillas.
@@ -173,11 +197,10 @@ const canSend = computed(
     allCsvVariablesMapped.value
 );
 
-// ── Wizard stepper (4 pasos, secuencial y obligatorio para AMBOS flujos) ─────
-// 1: bandeja + emisor | 2: plantilla (idioma automático) | 3: destinatarios
-// (CSV: archivo + mapeo de variables / leads: audiencia) | 4: previa + enviar.
-// Tanto CSV como leads recorren los 4 pasos. En leads, LeadsPickerTab muestra la
-// sección que corresponde al paso vía la prop `step`.
+// ── Wizard stepper (5 pasos para AMBOS flujos) ───────────────────────────────
+// 1 bandeja+emisor · 2 plantilla · 3 destinatarios · 4 variables · 5 previa+enviar.
+// El paso 4 (variables) se OMITE si la plantilla no tiene {{n}}. En leads,
+// LeadsPickerTab muestra la sección que corresponde al paso vía la prop `step`.
 const wizardStep = ref(1);
 const leadsRef = ref(null);
 // Validez del paso actual reportada por LeadsPickerTab (audiencia/mensaje/envío).
@@ -185,41 +208,73 @@ const leadsStepValid = ref(false);
 const onLeadsValidity = valid => {
   leadsStepValid.value = valid;
 };
+// ¿La plantilla elegida en leads tiene variables? (para saltar el paso 4).
+const leadsHasVariables = ref(false);
+const onLeadsHasVariables = has => {
+  leadsHasVariables.value = has;
+};
+
+// ── Asistente de 5 pasos ─────────────────────────────────────────────────────
+// 1 bandeja+emisor · 2 plantilla · 3 destinatarios · 4 variables · 5 previa+enviar.
+// El paso 4 (variables) se OMITE cuando la plantilla no tiene {{n}}.
+const TOTAL_STEPS = 5;
+
+// ¿La plantilla elegida tiene variables? (para saltar el paso 4 si no tiene).
+const hasVariables = computed(() => {
+  if (source.value === 'csv') return csvTemplateVariables.value.length > 0;
+  return leadsHasVariables.value;
+});
 
 // Validez de cada paso — "Siguiente" se bloquea si el paso actual no es válido.
 const step1Valid = computed(
   () => configReady.value && !!selectedInboxId.value && !!selectedSenderId.value
 );
-// Nuevo orden: Paso 2 = PLANTILLA. En CSV se elige la plantilla aquí (el mapeo de
-// variables a columnas se hace en el paso 3, cuando ya hay archivo). En leads,
-// LeadsPickerTab (step 2) valida plantilla + variables mapeadas a campos del lead.
+// Paso 2 = PLANTILLA (idioma automático).
 const step2Valid = computed(() => {
   if (source.value !== 'csv') return leadsStepValid.value;
   return !!csvTemplateName.value;
 });
-// Paso 3 = DESTINATARIOS. CSV: archivo válido + cada {{n}} mapeada a una columna.
-// leads: audiencia seleccionada (LeadsPickerTab step 3).
+// Paso 3 = DESTINATARIOS. CSV: archivo válido. leads: audiencia seleccionada.
 const step3Valid = computed(() => {
   if (source.value !== 'csv') return leadsStepValid.value;
-  return (
-    !parseError.value &&
-    parsedPreview.value.length > 0 &&
-    allCsvVariablesMapped.value
-  );
+  return !parseError.value && parsedPreview.value.length > 0;
+});
+// Paso 4 = VARIABLES. CSV: cada {{n}} mapeada a una columna. leads: a un campo.
+const step4Valid = computed(() => {
+  if (source.value !== 'csv') return leadsStepValid.value;
+  return allCsvVariablesMapped.value;
 });
 const canGoNext = computed(() => {
   if (wizardStep.value === 1) return step1Valid.value;
   if (wizardStep.value === 2) return step2Valid.value;
   if (wizardStep.value === 3) return step3Valid.value;
+  if (wizardStep.value === 4) return step4Valid.value;
   return true;
 });
 
+// Pasos visibles en el stepper: el 4 (Variables) se omite si no hay variables.
+const visibleSteps = computed(() => {
+  const steps = [
+    { n: 1, key: 'STEP1' },
+    { n: 2, key: 'STEP2' },
+    { n: 3, key: 'STEP3' },
+    { n: 4, key: 'STEP4' },
+    { n: 5, key: 'STEP5' },
+  ];
+  return hasVariables.value ? steps : steps.filter(s => s.n !== 4);
+});
+
+// Avanza saltando el paso 4 si la plantilla no tiene variables.
 const nextStep = () => {
   if (!canGoNext.value) return;
-  wizardStep.value = Math.min(wizardStep.value + 1, 4);
+  let next = wizardStep.value + 1;
+  if (next === 4 && !hasVariables.value) next = 5;
+  wizardStep.value = Math.min(next, TOTAL_STEPS);
 };
 const prevStep = () => {
-  wizardStep.value = Math.max(wizardStep.value - 1, 1);
+  let prev = wizardStep.value - 1;
+  if (prev === 4 && !hasVariables.value) prev = 3;
+  wizardStep.value = Math.max(prev, 1);
 };
 const resetWizard = () => {
   wizardStep.value = 1;
@@ -257,14 +312,13 @@ const parseCsv = text => {
     return { rows: [], error: t('JABVOX_BULK_WA.SEND.EMPTY_FILE') };
 
   const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-  const missing = REQUIRED_HEADERS.filter(h => !headers.includes(h));
-  if (missing.length) {
+  // Debe existir una columna de número (por cualquiera de sus sinónimos).
+  const hasNumber = headers.some(h => NUMBER_HEADERS.includes(h));
+  if (!hasNumber) {
     return {
       rows: [],
       headers: [],
-      error: t('JABVOX_BULK_WA.SEND.MISSING_HEADERS', {
-        cols: missing.join(', '),
-      }),
+      error: t('JABVOX_BULK_WA.SEND.MISSING_NUMBER'),
     };
   }
 
@@ -372,12 +426,12 @@ const onSend = async () => {
   }
 };
 
-// Step 4 can submit when CSV is ready, or when LeadsPickerTab reports it can send.
-const canSubmitStep4 = computed(() =>
+// Paso final (5): envía cuando el CSV está listo o LeadsPickerTab puede enviar.
+const canSubmitFinal = computed(() =>
   source.value === 'csv' ? canSend.value : leadsStepValid.value
 );
 
-// Unified step-4 submit: CSV sends here; leads delegates to LeadsPickerTab
+// Unified final submit: CSV sends here; leads delegates to LeadsPickerTab
 // (which owns the audience/template state) via its exposed send().
 const submitWizard = () => {
   if (source.value === 'csv') {
@@ -525,30 +579,30 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Stepper: 4 pasos, secuencial y obligatorio -->
+        <!-- Stepper: 5 pasos (el 4 «Variables» se oculta si la plantilla no tiene). -->
         <div class="flex items-center gap-2">
           <div
-            v-for="(labelKey, i) in ['STEP1', 'STEP2', 'STEP3', 'STEP4']"
-            :key="labelKey"
+            v-for="(st, i) in visibleSteps"
+            :key="st.n"
             class="flex items-center gap-2"
             :class="i > 0 ? 'flex-1' : ''"
           >
             <span
               v-if="i > 0"
               class="h-px flex-1"
-              :class="wizardStep > i ? 'bg-n-brand' : 'bg-n-weak'"
+              :class="wizardStep >= st.n ? 'bg-n-brand' : 'bg-n-weak'"
             />
             <span
               class="inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full px-2.5 py-1"
               :class="
-                wizardStep === i + 1
+                wizardStep === st.n
                   ? 'bg-n-brand text-white'
-                  : wizardStep > i + 1
+                  : wizardStep > st.n
                     ? 'bg-n-teal-3 text-n-teal-11'
                     : 'bg-n-alpha-1 text-n-slate-10'
               "
             >
-              {{ i + 1 }}. {{ t(`JABVOX_BULK_WA.WIZARD.${labelKey}`) }}
+              {{ i + 1 }}. {{ t(`JABVOX_BULK_WA.WIZARD.${st.key}`) }}
             </span>
           </div>
         </div>
@@ -668,17 +722,54 @@ onMounted(() => {
                 {{ tp.name }}
               </option>
             </select>
-            <span v-if="csvLanguage" class="text-[11px] text-n-slate-9">
-              {{
-                t('JABVOX_BULK_WA.SEND.TEMPLATE_LANG', { lang: csvLanguage })
-              }}
-            </span>
             <p
               v-if="!csvTemplates.length"
               class="text-[11px] text-n-amber-11 mt-0.5"
             >
               {{ t('JABVOX_BULK_WA.SEND.NO_TEMPLATES') }}
             </p>
+          </div>
+
+          <!-- Resumen de la plantilla elegida: idioma · header · nº de variables -->
+          <div
+            v-if="source === 'csv' && csvSelectedTemplate"
+            class="flex flex-wrap items-center gap-2"
+          >
+            <span
+              class="inline-flex items-center gap-1 rounded-full bg-n-alpha-2 px-2 py-0.5 text-[11px] font-medium text-n-slate-11"
+            >
+              <span class="i-lucide-languages size-3" aria-hidden="true" />
+              {{ csvLanguage }}
+            </span>
+            <span
+              v-if="csvTemplateHeader"
+              class="inline-flex items-center gap-1 rounded-full bg-n-alpha-2 px-2 py-0.5 text-[11px] font-medium text-n-slate-11"
+            >
+              <span
+                :class="{
+                  'i-lucide-image': csvTemplateHeader === 'IMAGE',
+                  'i-lucide-video': csvTemplateHeader === 'VIDEO',
+                  'i-lucide-file-text': csvTemplateHeader === 'DOCUMENT',
+                  'i-lucide-heading': csvTemplateHeader === 'TEXT',
+                }"
+                class="size-3"
+                aria-hidden="true"
+              />
+              {{ t(`JABVOX_BULK_WA.SEND.HEADER_${csvTemplateHeader}`) }}
+            </span>
+            <span
+              class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+              :class="
+                csvTemplateVariables.length
+                  ? 'bg-n-teal-3 text-n-teal-11'
+                  : 'bg-n-alpha-2 text-n-slate-11'
+              "
+            >
+              <span class="i-lucide-braces size-3" aria-hidden="true" />
+              {{
+                t('JABVOX_BULK_WA.SEND.VARS_COUNT', csvTemplateVariables.length)
+              }}
+            </span>
           </div>
         </section>
 
@@ -695,17 +786,17 @@ onMounted(() => {
           :preselect="reuseData"
           @sent="onLeadsSent"
           @validity="onLeadsValidity"
+          @has-variables="onLeadsHasVariables"
         />
 
-        <!-- CSV source: destinatarios+variables (paso 3) · previa+enviar (paso 4) -->
+        <!-- CSV: destinatarios (3) · variables (4) · previa+enviar (5) -->
         <section
           v-else
           v-show="wizardStep >= 3"
           class="rounded-2xl border border-n-weak bg-n-solid-1 p-5 shadow-sm space-y-4"
         >
-          <!-- Paso 3: archivo + mapeo de variables a columnas -->
+          <!-- Paso 3: cargar archivo + preview de filas -->
           <template v-if="wizardStep === 3">
-            <!-- Sample CSV -->
             <div
               class="flex items-center justify-between gap-3 rounded-lg bg-n-alpha-1 px-3 py-2.5"
             >
@@ -728,7 +819,6 @@ onMounted(() => {
               </button>
             </div>
 
-            <!-- File -->
             <div class="flex flex-col gap-1">
               <label class="text-xs text-n-slate-11">{{
                 t('JABVOX_BULK_WA.SEND.FILE')
@@ -752,47 +842,6 @@ onMounted(() => {
               {{ parseError }}
             </p>
 
-            <!-- Mapeo de variables {{n}} → columna del CSV -->
-            <div
-              v-if="parsedPreview.length && csvTemplateVariables.length"
-              class="space-y-2 rounded-lg bg-n-alpha-1 p-3"
-            >
-              <p class="text-xs font-medium text-n-slate-12">
-                {{ t('JABVOX_BULK_WA.SEND.MAP_VARS_TITLE') }}
-              </p>
-              <div
-                v-for="n in csvTemplateVariables"
-                :key="`var-${n}`"
-                class="flex items-center gap-2"
-              >
-                <span
-                  class="font-mono text-xs rounded bg-n-alpha-2 px-1.5 py-0.5 shrink-0"
-                >
-                  {{ varLabel(n) }}
-                </span>
-                <span
-                  class="i-lucide-arrow-right size-3 text-n-slate-9 shrink-0"
-                  aria-hidden="true"
-                />
-                <select
-                  v-model="csvVariableMap[n]"
-                  class="reset-base text-sm rounded-lg border border-n-weak bg-n-solid-1 px-2 py-1.5 flex-1"
-                >
-                  <option value="">
-                    {{ t('JABVOX_BULK_WA.SEND.MAP_VARS_PLACEHOLDER') }}
-                  </option>
-                  <option
-                    v-for="col in csvVariableColumns"
-                    :key="col"
-                    :value="col"
-                  >
-                    {{ col }}
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Tabla de preview dinámica (columnas del archivo) -->
             <div v-if="parsedPreview.length" class="space-y-2">
               <p class="text-xs text-n-slate-10">
                 {{
@@ -843,8 +892,47 @@ onMounted(() => {
             </div>
           </template>
 
-          <!-- Paso 4: previa real de la plantilla + resumen -->
+          <!-- Paso 4: mapear cada {{n}} a una columna del archivo -->
           <template v-if="wizardStep === 4">
+            <p class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_BULK_WA.SEND.MAP_VARS_TITLE') }}
+            </p>
+            <div class="space-y-2">
+              <div
+                v-for="n in csvTemplateVariables"
+                :key="`var-${n}`"
+                class="flex items-center gap-2"
+              >
+                <span
+                  class="font-mono text-xs rounded bg-n-alpha-2 px-1.5 py-0.5 shrink-0"
+                >
+                  {{ varLabel(n) }}
+                </span>
+                <span
+                  class="i-lucide-arrow-right size-3 text-n-slate-9 shrink-0"
+                  aria-hidden="true"
+                />
+                <select
+                  v-model="csvVariableMap[n]"
+                  class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-2 py-1.5 flex-1"
+                >
+                  <option value="">
+                    {{ t('JABVOX_BULK_WA.SEND.MAP_VARS_PLACEHOLDER') }}
+                  </option>
+                  <option
+                    v-for="col in csvVariableColumns"
+                    :key="col"
+                    :value="col"
+                  >
+                    {{ col }}
+                  </option>
+                </select>
+              </div>
+            </div>
+          </template>
+
+          <!-- Paso 5: previa real de la plantilla + resumen -->
+          <template v-if="wizardStep === 5">
             <p class="text-sm font-medium text-n-slate-12">
               {{ t('JABVOX_BULK_WA.PREVIEW.TITLE') }}
             </p>
@@ -872,8 +960,7 @@ onMounted(() => {
           </template>
         </section>
 
-        <!-- Navegación del wizard: Atrás / Siguiente (no salta pasos ni avanza
-             con datos incompletos). El envío final vive en el Paso 4. -->
+        <!-- Navegación del wizard: Atrás / Siguiente. El envío final vive en el Paso 5. -->
         <div class="flex items-center justify-between pt-1">
           <button
             v-show="wizardStep > 1"
@@ -887,13 +974,13 @@ onMounted(() => {
           <span class="text-xs text-n-slate-10">
             {{
               t('JABVOX_BULK_WA.WIZARD.STEP_OF', {
-                current: wizardStep,
-                total: 4,
+                current: visibleSteps.findIndex(s => s.n === wizardStep) + 1,
+                total: visibleSteps.length,
               })
             }}
           </span>
           <button
-            v-show="wizardStep < 4"
+            v-show="wizardStep < 5"
             type="button"
             class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-n-brand text-white hover:opacity-90 disabled:opacity-50"
             :disabled="!canGoNext"
@@ -902,12 +989,12 @@ onMounted(() => {
             {{ t('JABVOX_BULK_WA.WIZARD.NEXT') }}
             <span class="i-lucide-arrow-right size-4" aria-hidden="true" />
           </button>
-          <!-- Envío final unificado (paso 4): CSV o leads según el origen. -->
+          <!-- Envío final unificado (paso 5): CSV o leads según el origen. -->
           <button
-            v-show="wizardStep === 4"
+            v-show="wizardStep === 5"
             type="button"
             class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-n-brand text-white hover:opacity-90 disabled:opacity-50"
-            :disabled="!canSubmitStep4 || sending"
+            :disabled="!canSubmitFinal || sending"
             @click="submitWizard"
           >
             <span

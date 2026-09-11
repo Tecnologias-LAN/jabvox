@@ -122,10 +122,11 @@
       "STEP1": "Inbox & sender",
       "STEP2": "Template",
       "STEP3": "Recipients",
-      "STEP4": "Preview & send",
+      "STEP4": "Variables",
       "NEXT": "Next",
       "BACK": "Back",
-      "STEP_OF": "Step {current} of {total}"
+      "STEP_OF": "Step {current} of {total}",
+      "STEP5": "Preview & send"
     },
     "SEND": {
       "INBOX": "Inbox",
@@ -163,7 +164,13 @@
       "DOWNLOAD_SAMPLE": "Download sample",
       "FILE_HINT_V2": "CSV with a «numero» column (in +57..., +52... format). Optional: «nombre» and columns for the variables.",
       "MAP_VARS_TITLE": "Map each template variable to a file column",
-      "MAP_VARS_PLACEHOLDER": "Choose the column…"
+      "MAP_VARS_PLACEHOLDER": "Choose the column…",
+      "MISSING_NUMBER": "The file must have a number column (numero, telefono, celular…).",
+      "HEADER_TEXT": "Text header",
+      "HEADER_IMAGE": "Image",
+      "HEADER_VIDEO": "Video",
+      "HEADER_DOCUMENT": "Document",
+      "VARS_COUNT": "No variables | 1 variable | {count} variables"
     },
     "HISTORY": {
       "LOADING": "Loading history…",
