@@ -430,6 +430,13 @@ class Jabvox::BulkWhatsappDispatchService
 
   # Normaliza el media del header a { 'media_url' =>, 'media_type' => } o nil.
   # media_type debe ser image/video/document (el canal lo exige en minúscula).
+  #
+  # IMPORTANTE: la URL de EJEMPLO de una plantilla aprobada vive en scontent.whatsapp.net
+  # y es firmada/temporal/interna de Meta: NO se puede reenviar como link de media (Meta
+  # responde "#100 Invalid parameter"). Para una plantilla con header de media fijo, Meta
+  # ya usa la imagen aprobada si NO se envía el componente header. Por eso, cuando la URL
+  # es de scontent, devolvemos nil (no se manda header) y el mensaje sale con la media de
+  # la plantilla. Solo se reenvía el header si es una URL pública propia y descargable.
   def normalize_header_media(media)
     return nil if media.blank?
 
@@ -437,8 +444,20 @@ class Jabvox::BulkWhatsappDispatchService
     url = h['media_url'].to_s.strip
     type = h['media_type'].to_s.strip.downcase
     return nil if url.blank? || %w[image video document].exclude?(type)
+    return nil if meta_sample_media_url?(url)
 
     { 'media_url' => url, 'media_type' => type }
+  end
+
+  # ¿La URL es el ejemplo interno que Meta guarda en la plantilla aprobada? Esas URLs
+  # (scontent.whatsapp.net / lookaside.fbsbx.com) no son reutilizables como link de envío.
+  def meta_sample_media_url?(url)
+    host = begin
+      URI.parse(url).host.to_s.downcase
+    rescue URI::InvalidURIError
+      ''
+    end
+    host.end_with?('whatsapp.net') || host.end_with?('fbsbx.com') || host.include?('scontent')
   end
 
   # Coerces the incoming map to { "<var>" => "fieldkey", ... } with string keys,
