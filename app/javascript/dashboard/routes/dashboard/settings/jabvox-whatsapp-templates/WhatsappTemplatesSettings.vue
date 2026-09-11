@@ -523,6 +523,14 @@ const invalidVars = computed(() =>
   detectedVars.value.filter(v => !/^[0-9]+$/.test(v) && !/^[a-z0-9_]+$/.test(v))
 );
 
+// Meta rechaza (Invalid parameter) si el cuerpo EMPIEZA o TERMINA con una variable:
+// "Leading or Trailing Params Not Allowed". Debe haber texto fijo antes y después.
+const bodyHasEdgeVar = computed(() => {
+  const body = (form.value.body || '').trim();
+  if (!body) return false;
+  return /^\{\{[^}]+\}\}/.test(body) || /\{\{[^}]+\}\}$/.test(body);
+});
+
 // ¿El header actual es de tipo media (imagen/video/documento)?
 const isMediaHeader = computed(() =>
   ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(form.value.header_type)
@@ -604,6 +612,11 @@ const submitForm = async () => {
         vars: invalidVars.value.map(v => `{{${v}}}`).join(', '),
       })
     );
+    return;
+  }
+  // Meta no permite variables al inicio o al final del cuerpo.
+  if (bodyHasEdgeVar.value) {
+    useAlert(t('JABVOX_WA_TEMPLATES.CREATE.EDGE_VAR'));
     return;
   }
   saving.value = true;
