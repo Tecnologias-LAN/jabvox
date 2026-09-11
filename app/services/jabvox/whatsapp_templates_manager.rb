@@ -137,6 +137,26 @@ class Jabvox::WhatsappTemplatesManager
     { success: false, error: e.message }
   end
 
+  # Sube un archivo de media a Meta con la Resumable Upload API y devuelve el file
+  # handle "h:..." que se usa como example.header_handle al crear/actualizar una
+  # plantilla con header IMAGE/VIDEO/DOCUMENT. Meta NO acepta una URL ahí.
+  #   uploaded = manager.upload_media(inbox, file_path:, file_type:, file_size:)
+  #   uploaded[:handle] => "h:ABC..."
+  def upload_media(inbox, file_path:, file_type:, file_size:)
+    channel = inbox.channel
+    return { success: false, error: 'Not a WhatsApp Cloud inbox' } unless cloud_channel?(channel)
+
+    app_id = whatsapp_app_id(channel)
+    return { success: false, error: 'Falta configurar WHATSAPP_APP_ID' } if app_id.blank?
+
+    session_id = start_upload_session(channel, app_id, file_size, file_type)
+    handle = finish_upload_session(channel, session_id, file_path)
+    { success: true, handle: handle }
+  rescue StandardError => e
+    Rails.logger.error "[WA Templates] upload_media failed: #{e.message}"
+    { success: false, error: e.message }
+  end
+
   def update(template, params)
     channel = template.inbox&.channel
     return { success: false, error: 'Not a WhatsApp Cloud inbox' } unless cloud_channel?(channel)
@@ -365,9 +385,11 @@ class Jabvox::WhatsappTemplatesManager
       # Header text supports a single {{1}} variable; provide one sample if present.
       h[:example] = { header_text: [sample_value(vars.first)] } if vars.any?
       h
-    elsif params[:header_content].present?
-      # Media headers need a sample media URL (or uploaded media handle) for approval.
-      { type: 'HEADER', format: type, example: { header_handle: [params[:header_content]] } }
+    elsif params[:header_handle].present?
+      # Media header (IMAGE/VIDEO/DOCUMENT): Meta exige un file handle "h:..." obtenido con
+      # la Resumable Upload API (NO acepta una URL). El handle lo genera #upload_media del
+      # controlador (subida previa del archivo) y llega aquí en params[:header_handle].
+      { type: 'HEADER', format: type, example: { header_handle: [params[:header_handle]] } }
     end
   end
 
@@ -499,6 +521,44 @@ class Jabvox::WhatsappTemplatesManager
 
   def business_path(channel)
     "#{api_base}/#{api_version}/#{channel.provider_config['business_account_id']}"
+  end
+
+  # App ID de Meta, requerido por la Resumable Upload API. Se toma del canal si lo
+  # trae en provider_config; si no, del config global (misma convención que
+  # app/services/whatsapp/facebook_api_client.rb).
+  def whatsapp_app_id(channel = nil)
+    from_channel = channel&.provider_config.to_h['app_id']
+    from_channel.presence || GlobalConfigService.load('WHATSAPP_APP_ID', '')
+  end
+
+  # Paso 1 de la Resumable Upload API: abre una sesión de subida y devuelve su id.
+  #   POST /{app_id}/uploads?file_length=&file_type=  (auth por Bearer)
+  def start_upload_session(channel, app_id, file_size, file_type)
+    resp = HTTParty.post(
+      "#{api_base}/#{api_version}/#{app_id}/uploads",
+      headers: { 'Authorization' => "Bearer #{channel.provider_config['api_key']}" },
+      query: { file_length: file_size, file_type: file_type }
+    )
+    raise "No se pudo iniciar la subida: #{meta_error(resp)}" unless resp.success? && resp['id'].present?
+
+    resp['id']
+  end
+
+  # Paso 2: sube el binario a la sesión. La autorización aquí es "OAuth <token>"
+  # (no Bearer) y el body es el archivo crudo. Devuelve el handle "h:...".
+  def finish_upload_session(channel, session_id, file_path)
+    resp = HTTParty.post(
+      "#{api_base}/#{api_version}/#{session_id}",
+      headers: {
+        'Authorization' => "OAuth #{channel.provider_config['api_key']}",
+        'file_offset' => '0',
+        'Content-Type' => 'application/octet-stream'
+      },
+      body: File.binread(file_path)
+    )
+    raise "No se pudo subir el archivo: #{meta_error(resp)}" unless resp.success? && resp['h'].present?
+
+    resp['h']
   end
 
   def api_headers(channel)

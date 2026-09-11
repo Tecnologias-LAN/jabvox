@@ -38,6 +38,25 @@ class Api::V1::Accounts::Jabvox::WhatsappTemplates::TemplatesController < Api::V
     end
   end
 
+  # Sube un archivo de media (imagen/video/documento) a Meta con la Resumable Upload
+  # API y devuelve el handle "h:..." para usar como ejemplo del header al crear la
+  # plantilla. Se llama ANTES de create, desde el editor cuando se elige un archivo.
+  def upload_media
+    inbox = Current.account.inboxes.find(params.require(:inbox_id))
+    file = params.require(:file)
+    result = manager.upload_media(
+      inbox,
+      file_path: file.tempfile.path,
+      file_type: file.content_type,
+      file_size: file.tempfile.size
+    )
+    if result[:success]
+      render json: { handle: result[:handle] }
+    else
+      render json: { error: result[:error] }, status: :unprocessable_entity
+    end
+  end
+
   def duplicate
     result = manager.duplicate(@template, new_name: params[:new_name])
     if result[:success]
@@ -83,7 +102,7 @@ class Api::V1::Accounts::Jabvox::WhatsappTemplates::TemplatesController < Api::V
   def template_params
     params.permit(
       :name, :category, :language, :inbox_id,
-      :header_type, :header_content, :body, :footer,
+      :header_type, :header_content, :header_handle, :body, :footer,
       buttons: [:type, :text, :url, :phone_number]
     ).to_h.symbolize_keys
   end

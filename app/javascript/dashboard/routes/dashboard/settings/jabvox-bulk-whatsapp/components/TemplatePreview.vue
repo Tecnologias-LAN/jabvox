@@ -5,6 +5,7 @@
 // Solo visual — no envía nada.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { processVariable } from 'dashboard/helper/templateHelper';
 
 const props = defineProps({
   // Plantilla aprobada tal como viene de inboxes/getWhatsAppTemplates (con components).
@@ -48,11 +49,13 @@ const headerText = computed(() =>
   headerFormat.value === 'TEXT' ? headerComponent.value?.text || '' : ''
 );
 
-// Sustituye {{n}} por el valor de ejemplo (o deja el placeholder si no hay valor).
+// Sustituye {{n}} o {{nombre}} por el valor de ejemplo (posicional y NAMED), usando
+// el mismo criterio de clave que el editor oficial (processVariable).
 const fill = text =>
-  String(text || '').replace(/\{\{\s*(\d+)\s*\}\}/g, (_, n) => {
-    const v = props.sampleValues?.[String(n)];
-    return v === undefined || v === null || v === '' ? `{{${n}}}` : String(v);
+  String(text || '').replace(/\{\{([^}]+)\}\}/g, (match, raw) => {
+    const key = processVariable(match);
+    const v = props.sampleValues?.[key];
+    return v === undefined || v === null || v === '' ? `{{${raw}}}` : String(v);
   });
 
 const renderedHeaderText = computed(() => fill(headerText.value));
@@ -65,9 +68,20 @@ const buttons = computed(() =>
     : []
 );
 
-const mediaLabel = computed(() =>
-  t(`JABVOX_BULK_WA.PREVIEW.MEDIA_${headerFormat.value}`)
-);
+// Etiqueta del tipo de media. Se mapea a claves i18n ESTÁTICAS (no dinámicas) para
+// no romper si el header es TEXT/vacío, donde no existe una clave MEDIA_*.
+const mediaLabel = computed(() => {
+  switch (headerFormat.value) {
+    case 'IMAGE':
+      return t('JABVOX_BULK_WA.PREVIEW.MEDIA_IMAGE');
+    case 'VIDEO':
+      return t('JABVOX_BULK_WA.PREVIEW.MEDIA_VIDEO');
+    case 'DOCUMENT':
+      return t('JABVOX_BULK_WA.PREVIEW.MEDIA_DOCUMENT');
+    default:
+      return headerFormat.value;
+  }
+});
 </script>
 
 <template>
@@ -109,6 +123,19 @@ const mediaLabel = computed(() =>
           <span class="text-xs">{{ mediaLabel }}</span>
         </div>
       </template>
+
+      <!-- URL del media que da Meta (header_handle de la plantilla aprobada). Se
+           muestra además del media para poder copiarla/verificarla. -->
+      <a
+        v-if="isMediaHeader && headerMediaUrl"
+        :href="headerMediaUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="block truncate border-t border-n-teal-6/30 bg-n-alpha-1 px-3 py-1.5 text-[11px] text-n-blue-11 hover:underline"
+        :title="headerMediaUrl"
+      >
+        {{ headerMediaUrl }}
+      </a>
 
       <div class="px-3 py-2 space-y-1.5">
         <!-- Header de texto -->

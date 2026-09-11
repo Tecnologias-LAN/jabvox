@@ -141,7 +141,7 @@
       "HEADER_TEXT_PH": "Texto del encabezado (máx. 60 caracteres)",
       "HEADER_MEDIA_URL_LABEL": "URL de medios",
       "HEADER_MEDIA_URL_PH": "https://ejemplo.com/imagen.jpg",
-      "HEADER_MEDIA_NOTE": "URL de medios de ejemplo para enviar la plantilla a aprobación.",
+      "HEADER_MEDIA_NOTE": "Sube el archivo de ejemplo (Meta lo exige para aprobar la plantilla). Imagen JPG/PNG, video MP4 o documento PDF.",
       "BODY_LABEL": "Cuerpo *",
       "BODY_PH": "Cuerpo del mensaje. Usa {'{'}{'{'}1{'}'}{'}'}, {'{'}{'{'}2{'}'}{'}'} para variables.",
       "FOOTER_LABEL": "Pie de página",
@@ -181,7 +181,8 @@
       "SUBMIT_HEADING": "Enviar a Meta",
       "SUBMIT_NOTE": "Esta acción enviará la plantilla a Meta para su revisión, manteniendo todos los flujos de aprobación actuales.",
       "SUBMIT_HINT": "Asegúrate de que los ejemplos de variables y los botones sean válidos antes de enviar.",
-      "MISSING_REQUIRED": "Faltan campos requeridos:"
+      "MISSING_REQUIRED": "Faltan campos requeridos:",
+      "HEADER_MEDIA_FILE_LABEL": "Archivo del encabezado"
     },
     "DETAIL": {
       "TITLE": "Detalle de la plantilla",
@@ -246,6 +247,12 @@
     "ERROR": "Ocurrió un error. Por favor, inténtalo de nuevo.",
     "LOADING": "Cargando…",
     "EMPTY": "No se encontraron plantillas.",
-    "NO_INBOXES": "No hay bandejas de WhatsApp Cloud API configuradas."
+    "NO_INBOXES": "No hay bandejas de WhatsApp Cloud API configuradas.",
+    "FORM": {
+      "SELECT_INBOX_FIRST": "Primero elige la bandeja de WhatsApp.",
+      "UPLOADING": "Subiendo archivo a Meta…",
+      "UPLOAD_ERROR": "No se pudo subir el archivo a Meta.",
+      "MEDIA_READY": "Archivo listo para enviar a validación."
+    }
   }
 }
