@@ -84,14 +84,32 @@ class Whatsapp::TemplateProcessorService
       next if value.blank?
 
       if media_url_with_type?(key, header_data)
-        media_name = header_data['media_name']
-        media_param = parameter_builder.build_media_parameter(value, header_data['media_type'], media_name)
+        media_param = build_media_header_param(value, header_data)
         header_params << media_param if media_param
       elsif key != 'media_type' && key != 'media_name'
         header_params << parameter_builder.build_parameter(value)
       end
     end
     header_params
+  end
+
+  # Para header de media: si la URL es la de ejemplo de Meta (scontent/lookaside), no sirve
+  # como `link` (Meta la descarga por HTTP/2 y recibe 403 -> "#100"). La resolvemos a un
+  # media_id (descarga HTTP/1.1 + subida a /media, cacheado) y usamos { id: media_id }. Si no
+  # se puede resolver (o es una URL pública propia), caemos al comportamiento por `link`.
+  def build_media_header_param(url, header_data)
+    media_type = header_data['media_type']
+    media_id = Whatsapp::TemplateMediaResolverService.new(
+      channel: channel, media_url: url, media_type: media_type, template_name: template_params['name']
+    ).call
+
+    return build_media_id_param(media_id, media_type) if media_id.present?
+
+    parameter_builder.build_media_parameter(url, media_type, header_data['media_name'])
+  end
+
+  def build_media_id_param(media_id, media_type)
+    { type: media_type.to_s.downcase, media_type.to_s.downcase => { id: media_id } }
   end
 
   def media_url_with_type?(key, header_data)
