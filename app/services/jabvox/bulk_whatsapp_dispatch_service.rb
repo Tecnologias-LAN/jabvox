@@ -50,7 +50,7 @@ class Jabvox::BulkWhatsappDispatchService
 
   def initialize(account:, inbox:, sender_user:, actor:, response_email: '', csv_io: nil,
                  file_name: '', leads_selection: nil, template_name: nil, language: nil, text: nil,
-                 variable_map: nil, source_batch_id: nil, number_column: nil)
+                 variable_map: nil, source_batch_id: nil, number_column: nil, header_media: nil)
     @account = account
     @inbox = inbox
     @sender_user = sender_user
@@ -65,6 +65,8 @@ class Jabvox::BulkWhatsappDispatchService
     @source_batch_id = source_batch_id
     # Columna del CSV con el número (elegida en la UI). Si es nil, se autodetecta.
     @number_column = number_column.to_s.strip.downcase.presence
+    # Media del header de la plantilla ({ media_url, media_type }) — igual para todos.
+    @header_media = normalize_header_media(header_media)
     # { "1" => "nombre", "2" => "custom:fecha_entrega2_c", ... } — which lead field
     # fills each {{n}} placeholder of the template body.
     @variable_map = normalize_variable_map(variable_map)
@@ -175,13 +177,13 @@ class Jabvox::BulkWhatsappDispatchService
       @total_rows = ids.size
       { 'kind' => 'leads', 'lead_ids' => ids, 'selection' => @leads_selection,
         'template_name' => @template_name, 'language' => @language, 'text' => @text,
-        'variable_map' => @variable_map }
+        'variable_map' => @variable_map, 'header_media' => @header_media }
     else
       # CSV: la plantilla/idioma vienen de la UI; el archivo solo aporta las filas
       # (número, nombre y columnas de variables). El variable_map mapea {{n}} -> columna.
       { 'kind' => 'csv', 'rows' => parse_rows,
         'template_name' => @template_name, 'language' => @language, 'text' => @text,
-        'variable_map' => @variable_map }
+        'variable_map' => @variable_map, 'header_media' => @header_media }
     end
   end
 
@@ -298,6 +300,8 @@ class Jabvox::BulkWhatsappDispatchService
   # ── Phase 2 helpers: expand snapshot -> messages ────────────────────────────
   def expand_messages(payload)
     payload = (payload || {}).with_indifferent_access
+    # header_media viaja en el snapshot (deliver! reconstruye el service sin él).
+    @header_media ||= normalize_header_media(payload[:header_media])
     payload[:kind] == 'leads' ? messages_from_leads(payload) : messages_from_csv(payload)
   end
 
@@ -404,25 +408,48 @@ class Jabvox::BulkWhatsappDispatchService
   # mensaje como PLANTILLA si processed_params trae las variables bajo esa clave. Un hash
   # plano { "1" => .. } se ignoraba y el mensaje salía como texto de sesión.
   def resolve_params(var_map, fields)
+    body = resolve_body(var_map, fields)
+    params = {}
+    params['body'] = body if body.present?
+    # Header de media de la plantilla ({ media_url, media_type }): igual para todos.
+    params['header'] = @header_media if @header_media.present?
+    params
+  end
+
+  def resolve_body(var_map, fields)
     return {} if var_map.blank?
 
-    body = var_map.each_with_object({}) do |(n, source), out|
+    var_map.each_with_object({}) do |(n, source), out|
       out[n.to_s] = if source.to_s.start_with?('text:')
                       source.to_s.sub('text:', '')
                     else
                       fields[source.to_s].to_s
                     end
     end
-    body.empty? ? {} : { 'body' => body }
   end
 
-  # Coerces the incoming map to { "1" => "fieldkey", ... } with string keys,
-  # dropping blanks. Accepts a Hash or nil.
+  # Normaliza el media del header a { 'media_url' =>, 'media_type' => } o nil.
+  # media_type debe ser image/video/document (el canal lo exige en minúscula).
+  def normalize_header_media(media)
+    return nil if media.blank?
+
+    h = (media.respond_to?(:to_unsafe_h) ? media.to_unsafe_h : media).to_h.transform_keys(&:to_s)
+    url = h['media_url'].to_s.strip
+    type = h['media_type'].to_s.strip.downcase
+    return nil if url.blank? || %w[image video document].exclude?(type)
+
+    { 'media_url' => url, 'media_type' => type }
+  end
+
+  # Coerces the incoming map to { "<var>" => "fieldkey", ... } with string keys,
+  # dropping blanks. La clave es el TOKEN de la variable tal cual: número para
+  # plantillas posicionales ({{1}}) o el nombre para plantillas NAMED ({{var1}},
+  # {{nombre}}). NO se filtra a solo dígitos (eso rompía las variables con nombre).
   def normalize_variable_map(map)
     return {} if map.blank?
 
     (map.respond_to?(:to_unsafe_h) ? map.to_unsafe_h : map).to_h.each_with_object({}) do |(k, v), out|
-      key = k.to_s.gsub(/\D/, '')
+      key = k.to_s.strip
       out[key] = v.to_s if key.present? && v.to_s.present?
     end
   end

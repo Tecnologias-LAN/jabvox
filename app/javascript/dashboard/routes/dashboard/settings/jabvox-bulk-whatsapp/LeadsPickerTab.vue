@@ -5,6 +5,7 @@ import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import leadsAPI from 'dashboard/api/jabvox/leads';
 import bulkWhatsappAPI from 'dashboard/api/jabvox/bulkWhatsapp';
+import { processVariable } from 'dashboard/helper/templateHelper';
 import TemplatePreview from './components/TemplatePreview.vue';
 
 const props = defineProps({
@@ -185,11 +186,12 @@ const selectedTemplateBody = computed(() => {
   return body?.text || '';
 });
 
-// Ordered, unique {{n}} numbers found in the template body.
+// Variables del cuerpo de la plantilla. Soporta posicional ({{1}}) y NAMED
+// ({{var1}}, {{nombre}}), con el MISMO criterio que el editor oficial (processVariable).
 const templateVariables = computed(() => {
-  const found = selectedTemplateBody.value.match(/\{\{\s*(\d+)\s*\}\}/g) || [];
-  const nums = found.map(v => parseInt(v.replace(/[^\d]/g, ''), 10));
-  return [...new Set(nums)].sort((a, b) => a - b);
+  const found = selectedTemplateBody.value.match(/\{\{([^}]+)\}\}/g) || [];
+  const keys = found.map(v => processVariable(v));
+  return [...new Set(keys)];
 });
 
 // Options offered for each variable: default lead fields + every custom field.

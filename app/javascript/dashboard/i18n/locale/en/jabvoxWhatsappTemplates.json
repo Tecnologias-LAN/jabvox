@@ -146,7 +146,7 @@
       "HEADER_TEXT_PH": "Header text (max 60 chars)",
       "HEADER_MEDIA_URL_LABEL": "Media URL",
       "HEADER_MEDIA_URL_PH": "https://example.com/media.jpg",
-      "HEADER_MEDIA_NOTE": "Sample media URL used to submit the template for approval.",
+      "HEADER_MEDIA_NOTE": "Upload a sample file (Meta requires it to approve the template). JPG/PNG image, MP4 video or PDF document.",
       "BODY_LABEL": "Body *",
       "BODY_PH": "Message body. Use {'{'}{'{'}1{'}'}{'}'}, {'{'}{'{'}2{'}'}{'}'} for variables.",
       "FOOTER_LABEL": "Footer",
@@ -186,7 +186,8 @@
       "SUBMIT_HEADING": "Send to Meta",
       "SUBMIT_NOTE": "This action will submit the template to Meta for review keeping all current approval workflows.",
       "SUBMIT_HINT": "Ensure variable examples and buttons are valid before submission.",
-      "MISSING_REQUIRED": "Required fields still missing:"
+      "MISSING_REQUIRED": "Required fields still missing:",
+      "HEADER_MEDIA_FILE_LABEL": "Header file"
     },
     "DETAIL": {
       "TITLE": "Template detail",
@@ -251,6 +252,12 @@
     "ERROR": "An error occurred. Please try again.",
     "LOADING": "Loading…",
     "EMPTY": "No templates found.",
-    "NO_INBOXES": "No WhatsApp Cloud API inboxes configured."
+    "NO_INBOXES": "No WhatsApp Cloud API inboxes configured.",
+    "FORM": {
+      "SELECT_INBOX_FIRST": "Choose the WhatsApp inbox first.",
+      "UPLOADING": "Uploading file to Meta…",
+      "UPLOAD_ERROR": "Could not upload the file to Meta.",
+      "MEDIA_READY": "File ready to submit for validation."
+    }
   }
 }

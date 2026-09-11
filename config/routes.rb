@@ -601,6 +601,9 @@ Rails.application.routes.draw do
               # Templates are managed at Meta; Jabvox can view/create/update/duplicate/sync
               # but NOT delete them (deletion is done from Meta). No :destroy route.
               resources :templates, except: [:destroy] do
+                collection do
+                  post :upload_media
+                end
                 member do
                   post :duplicate
                   post :sync
