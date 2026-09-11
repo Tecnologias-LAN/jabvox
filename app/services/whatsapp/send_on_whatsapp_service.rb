@@ -19,6 +19,10 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
       message: message
     )
 
+    # OJO: processor.call sobreescribe su template_params interno con los componentes,
+    # así que resolvemos el media del header ANTES de llamar a call.
+    header_media = processor.resolved_header_media
+
     name, namespace, lang_code, processed_parameters = processor.call
 
     if name.blank?
@@ -35,16 +39,14 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
     message.update!(source_id: message_id) if message_id.present?
 
     # Muestra el media del header en la conversación de Jabvox (no solo el texto).
-    attach_template_header_media(processor) if message_id.present?
+    attach_template_header_media(header_media) if message_id.present?
   end
 
   # Si la plantilla tiene header de media (imagen/video/documento), descarga esa media y
   # la adjunta al mensaje para que se vea en Jabvox. Best-effort: nunca rompe el envío.
-  def attach_template_header_media(processor)
-    return if message.attachments.exists?
-
-    media = processor.resolved_header_media
+  def attach_template_header_media(media)
     return if media.blank?
+    return if message.attachments.exists?
 
     resolver = Whatsapp::TemplateMediaResolverService.new(
       channel: channel, media_url: media['media_url'], media_type: media['media_type'],
