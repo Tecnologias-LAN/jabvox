@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_11_161900) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1166,6 +1166,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
     t.index ["user_id"], name: "index_jabvox_agent_availabilities_on_user_id"
   end
 
+  create_table "jabvox_ai_balance_movements", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "kind_jabvox", null: false
+    t.integer "amount_cents_jabvox", default: 0, null: false
+    t.integer "plan_budget_cents_after_jabvox"
+    t.integer "purchased_budget_cents_after_jabvox"
+    t.bigint "jabvox_plan_id"
+    t.string "reference_jabvox"
+    t.string "idempotency_key_jabvox"
+    t.jsonb "metadata_jabvox", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["account_id", "created_at"], name: "idx_ai_balance_movements_account"
+    t.index ["account_id"], name: "index_jabvox_ai_balance_movements_on_account_id"
+    t.index ["idempotency_key_jabvox"], name: "idx_ai_balance_movements_idem", unique: true, where: "(idempotency_key_jabvox IS NOT NULL)"
+  end
+
   create_table "jabvox_ai_chat_configs", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "bucket_url_jabvox", limit: 500
@@ -1251,6 +1267,35 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id", "user_id"], name: "idx_jabvox_ai_chat_permissions_unique", unique: true
+  end
+
+  create_table "jabvox_ai_provider_accounts", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "team_id_jabvox"
+    t.integer "plan_budget_cents_jabvox", default: 0, null: false
+    t.integer "purchased_budget_cents_jabvox", default: 0, null: false
+    t.decimal "cached_spend_jabvox", precision: 15, scale: 6
+    t.datetime "spend_updated_at_jabvox"
+    t.string "last_reset_period_jabvox"
+    t.string "status_jabvox", default: "active", null: false
+    t.datetime "synced_at_jabvox"
+    t.string "last_error_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_ai_provider_accounts_on_account_id", unique: true
+    t.index ["team_id_jabvox"], name: "index_jabvox_ai_provider_accounts_on_team_id_jabvox"
+  end
+
+  create_table "jabvox_ai_provider_configs", force: :cascade do |t|
+    t.string "provider_name_jabvox", default: "Proveedor IA", null: false
+    t.string "base_url_jabvox"
+    t.text "master_key_jabvox"
+    t.boolean "enabled_jabvox", default: false, null: false
+    t.string "status_jabvox", default: "disconnected", null: false
+    t.datetime "last_check_at_jabvox"
+    t.string "last_error_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "jabvox_analytics_audit_logs", force: :cascade do |t|
@@ -2993,6 +3038,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "billing_period", default: 0, null: false
+    t.integer "ai_budget_cents_jabvox", default: 0, null: false
     t.index ["slug"], name: "index_jabvox_plans_on_slug", unique: true
     t.index ["status"], name: "index_jabvox_plans_on_status"
   end
@@ -3020,6 +3066,58 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
     t.index ["jabvox_currency_id"], name: "index_jabvox_products_on_jabvox_currency_id"
     t.index ["jabvox_item_type_id"], name: "index_jabvox_products_on_jabvox_item_type_id"
     t.index ["jabvox_unit_of_measure_id"], name: "index_jabvox_products_on_jabvox_unit_of_measure_id"
+  end
+
+  create_table "jabvox_provisioner_api_tokens", force: :cascade do |t|
+    t.string "token_hash_jabvox", null: false
+    t.text "signing_secret_jabvox"
+    t.string "token_prefix_jabvox", null: false
+    t.string "status_jabvox", default: "active", null: false
+    t.jsonb "allowed_ips_jabvox", default: [], null: false
+    t.jsonb "permissions_jabvox", default: {}, null: false
+    t.string "label_jabvox"
+    t.bigint "created_by_id"
+    t.datetime "last_used_at_jabvox"
+    t.datetime "revoked_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status_jabvox"], name: "idx_one_active_provisioner_token", unique: true, where: "((status_jabvox)::text = 'active'::text)"
+    t.index ["token_hash_jabvox"], name: "idx_provisioner_token_hash", unique: true
+  end
+
+  create_table "jabvox_provisioner_audit_logs", force: :cascade do |t|
+    t.bigint "provisioner_api_token_id"
+    t.string "resource_jabvox"
+    t.string "action_jabvox"
+    t.string "outcome_jabvox", null: false
+    t.string "reason_jabvox"
+    t.string "ip_jabvox"
+    t.integer "account_context_id"
+    t.jsonb "params_jabvox", default: {}, null: false
+    t.integer "http_status_jabvox"
+    t.datetime "created_at", null: false
+    t.index ["created_at"], name: "idx_provisioner_audit_created"
+    t.index ["resource_jabvox", "action_jabvox"], name: "idx_provisioner_audit_resource"
+  end
+
+  create_table "jabvox_provisioner_nonces", force: :cascade do |t|
+    t.string "nonce_jabvox", null: false
+    t.datetime "seen_at_jabvox", null: false
+    t.index ["nonce_jabvox"], name: "idx_provisioner_nonce", unique: true
+    t.index ["seen_at_jabvox"], name: "idx_provisioner_nonce_seen"
+  end
+
+  create_table "jabvox_provisioner_sessions", force: :cascade do |t|
+    t.bigint "provisioner_api_token_id", null: false
+    t.string "client_id_jabvox", null: false
+    t.string "bound_ip_jabvox", null: false
+    t.string "fingerprint_jabvox"
+    t.string "status_jabvox", default: "active", null: false
+    t.datetime "last_heartbeat_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provisioner_api_token_id"], name: "index_jabvox_provisioner_sessions_on_provisioner_api_token_id"
+    t.index ["status_jabvox"], name: "idx_one_active_provisioner_session", unique: true, where: "((status_jabvox)::text = 'active'::text)"
   end
 
   create_table "jabvox_provisioning_chat_messages", force: :cascade do |t|
@@ -4342,6 +4440,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
   add_foreign_key "jabvox_affiliates", "accounts"
   add_foreign_key "jabvox_agent_availabilities", "accounts"
   add_foreign_key "jabvox_agent_availabilities", "users"
+  add_foreign_key "jabvox_ai_balance_movements", "accounts"
   add_foreign_key "jabvox_ai_chat_configs", "accounts"
   add_foreign_key "jabvox_ai_chat_configs", "jabvox_ai_chat_storages", column: "documents_storage_jabvox_id", on_delete: :nullify
   add_foreign_key "jabvox_ai_chat_documents", "accounts"
@@ -4352,6 +4451,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
   add_foreign_key "jabvox_ai_chat_models", "jabvox_hermes_agents", column: "hermes_agent_id"
   add_foreign_key "jabvox_ai_chat_user_permissions", "accounts"
   add_foreign_key "jabvox_ai_chat_user_permissions", "users"
+  add_foreign_key "jabvox_ai_provider_accounts", "accounts"
   add_foreign_key "jabvox_analytics_audit_logs", "accounts"
   add_foreign_key "jabvox_analytics_audit_logs", "users"
   add_foreign_key "jabvox_analytics_cross_joins", "jabvox_analytics_cross_reports", column: "cross_report_id"
@@ -4605,6 +4705,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_10_133500) do
   add_foreign_key "jabvox_products", "jabvox_item_types"
   add_foreign_key "jabvox_products", "jabvox_units_of_measure", column: "jabvox_unit_of_measure_id"
   add_foreign_key "jabvox_products", "users", column: "created_by_id"
+  add_foreign_key "jabvox_provisioner_sessions", "jabvox_provisioner_api_tokens", column: "provisioner_api_token_id"
   add_foreign_key "jabvox_provisioning_chat_messages", "accounts"
   add_foreign_key "jabvox_provisioning_chat_messages", "users"
   add_foreign_key "jabvox_provisioning_transactions", "accounts"

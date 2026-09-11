@@ -1,0 +1,83 @@
+<% content_for(:title) { 'Proveedor de IA' } %>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title" id="page-title">Proveedor de API de IA</h1>
+</header>
+
+<section class="main-content__body">
+  <% if notice %><p class="flash flash--notice"><%= notice %></p><% end %>
+  <% if alert %><p class="flash flash--error"><%= alert %></p><% end %>
+
+  <div style="margin-bottom:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+    <p style="font-size:13px; color:#374151; margin:0;">
+      Conecta el <strong>proveedor de API de IA</strong> (proxy de modelos). Cada cuenta tendrá
+      un <em>team</em> con su saldo: el que da su <strong>plan</strong> se restablece cada mes,
+      y lo que compra aparte se acumula. La <strong>master key</strong> se guarda cifrada y
+      nunca se muestra ni sale al navegador.
+    </p>
+  </div>
+
+  <h2 style="font-size:15px; font-weight:600; margin:0 0 12px;">Estado</h2>
+  <div style="margin-bottom:20px; font-size:13px; color:#374151;">
+    Estado de conexión:
+    <strong style="color:<%= { 'connected' => '#16a34a', 'error' => '#b91c1c' }[@summary[:status]] || '#b45309' %>;">
+      <%= { 'connected' => 'Conectado', 'error' => 'Error', 'disconnected' => 'Sin verificar' }[@summary[:status]] %>
+    </strong>
+    · Habilitado: <strong><%= @summary[:enabled] ? 'Sí' : 'No' %></strong>
+    · Master key: <strong><%= @summary[:master_key_set] ? 'Configurada' : 'No configurada' %></strong>
+    <% if @summary[:last_error].present? %>
+      <br><span style="color:#b91c1c;">Último error: <%= @summary[:last_error] %></span>
+    <% end %>
+    <% if @summary[:last_check_at].present? %>
+      <br><span style="color:#6b7280;">Última verificación: <%= @summary[:last_check_at] %></span>
+    <% end %>
+  </div>
+
+  <%= form_with url: super_admin_ai_provider_config_path, method: :patch, local: true do |form| %>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :provider_name, 'Nombre del proveedor' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_field :provider_name, value: @summary[:provider_name], placeholder: 'Ej: Proveedor IA' %>
+      </div>
+    </div>
+
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :base_url, 'URL base' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_field :base_url, value: @summary[:base_url], placeholder: 'https://proxy.ejemplo.com' %>
+        <p class="pt-2 text-xs italic text-slate-400">URL del proxy del proveedor (sin barra final necesaria).</p>
+      </div>
+    </div>
+
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :master_key, 'Master key' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%# Nunca se precarga el secreto en el HTML. %>
+        <%= form.password_field :master_key, value: '', autocomplete: 'new-password',
+              placeholder: @summary[:master_key_set] ? '•••••••• (configurada — vacío para conservar)' : 'sk-...' %>
+        <p class="pt-2 text-xs italic text-slate-400">Se guarda cifrada. Déjala vacía para conservar la actual. Nunca sale al navegador.</p>
+      </div>
+    </div>
+
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :enabled, 'Habilitado' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.check_box :enabled, checked: @summary[:enabled] %>
+        <span class="text-xs italic text-slate-400">Si está deshabilitado, no se sincroniza saldo ni se corre el worker mensual.</span>
+      </div>
+    </div>
+
+    <div class="flex mb-4">
+      <div class="field-unit__label"></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.submit 'Guardar', class: 'button' %>
+      </div>
+    </div>
+  <% end %>
+
+  <h2 style="font-size:15px; font-weight:600; margin:20px 0 8px;">Probar conexión</h2>
+  <%= form_with url: test_connection_super_admin_ai_provider_config_path, method: :post, local: true do |form| %>
+    <%= form.submit 'Probar conexión', class: 'button' %>
+    <p class="pt-2 text-xs italic text-slate-400">Consulta los modelos del proveedor para verificar URL + master key.</p>
+  <% end %>
+</section>

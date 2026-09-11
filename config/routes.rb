@@ -1358,6 +1358,10 @@ Rails.application.routes.draw do
       end
       # Widget de Soporte global (burbuja "Soporte" del dashboard): token + HMAC.
       resource :support_widget, only: [:show, :update], controller: 'support_widget'
+      # Proveedor de API de IA: URL base + master key (cifrada) + habilitado.
+      resource :ai_provider_config, only: [:show, :update], controller: 'ai_provider_config' do
+        post :test_connection, on: :member
+      end
       resource :push_diagnostics, only: [:show, :create] do
         post :destroy_subscriptions, on: :collection
       end

@@ -43,6 +43,7 @@ as defined by the routes in the `admin/` namespace
         jabvox_softphone_configs jabvox_softphone_extensions
         jabvox_plans jabvox_payment_gateway_configs jabvox_provisioning_transactions
         jabvox_billing_configs hermes_instances support_widget
+        ai_provider_config
       ] %>
       <% Administrate::Namespace.new(namespace).resources.each do |resource| %>
         <% next if hidden_resources.include? resource.resource %>
@@ -60,6 +61,7 @@ as defined by the routes in the `admin/` namespace
       <%= render partial: "nav_item", locals: { icon: 'icon-voice-line', url: super_admin_jabvox_saldo_configs_url, label: 'Saldo VoIP' } %>
       <%= render partial: "nav_item", locals: { icon: 'icon-chat-smile-3-line', url: super_admin_jabvox_ticket_helpdesk_configs_url, label: 'Tickets Helpdesk' } %>
       <%= render partial: "nav_item", locals: { icon: 'icon-robot-line', url: super_admin_hermes_instances_url, label: 'Hermes' } %>
+      <%= render partial: "nav_item", locals: { icon: 'icon-flashlight-line', url: super_admin_ai_provider_config_url, label: 'Saldo IA (Proveedor)' } %>
       <%= render partial: "nav_item", locals: { icon: 'icon-chat-smile-3-line', url: super_admin_support_widget_url, label: 'Widget de Soporte' } %>
 
       <!-- Telefonía / Softphone -->

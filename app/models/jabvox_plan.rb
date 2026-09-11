@@ -57,7 +57,13 @@ class JabvoxPlan < ApplicationRecord
   validates :name, presence: true
   validates :slug, presence: true, uniqueness: true
   validates :price_cents, :duration_days, numericality: { greater_than_or_equal_to: 0 }
+  validates :ai_budget_cents_jabvox, numericality: { greater_than_or_equal_to: 0, only_integer: true }
   validates :currency, presence: true
+
+  # Saldo mensual de IA del plan en USD (el que se restablece cada mes).
+  def ai_budget_usd
+    (ai_budget_cents_jabvox.to_i / 100.0).round(4)
+  end
 
   before_validation :set_slug, on: :create
   before_validation :sync_duration_with_period
@@ -92,6 +98,16 @@ class JabvoxPlan < ApplicationRecord
 
   def price_in_pesos=(value)
     self.price_cents = (value.to_f * 100).round
+  end
+
+  # Saldo de IA en USD para el formulario del Super Admin (se guarda en centavos).
+  #   ai_budget_in_usd = 3 => ai_budget_cents_jabvox = 300 => saldo mensual de $3 USD.
+  def ai_budget_in_usd
+    ai_budget_cents_jabvox.to_i / 100.0
+  end
+
+  def ai_budget_in_usd=(value)
+    self.ai_budget_cents_jabvox = (value.to_f * 100).round
   end
 
   def included_limit_for(resource)

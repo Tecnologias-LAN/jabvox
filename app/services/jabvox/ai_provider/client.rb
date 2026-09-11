@@ -1,0 +1,131 @@
+# frozen_string_literal: true
+
+# Cliente del proveedor de API de IA (proxy tipo LiteLLM, GENÉRICO). Todas las llamadas
+# administrativas usan la master key (leída CIFRADA de BD, nunca hardcodeada ni enviada al
+# frontend). Distingue el 429 de "saldo agotado" del de "rate limit", reintenta solo errores
+# transitorios (5xx y rate limit) con backoff, y devuelve un Result tipado.
+#
+# En dev/test, si el proveedor no está configurado, usa un adaptador MOCK en memoria para
+# poder verificar el flujo completo sin llamar al proxy real.
+# rubocop:disable Style/ClassAndModuleChildren
+module Jabvox
+  module AiProvider
+    class Client
+      OPEN_TIMEOUT = 5
+      TIMEOUT = 30
+      MAX_ATTEMPTS = 4
+
+      ConfigurationError = Class.new(StandardError)
+      # El cliente se quedó sin saldo: requiere recarga, NO reintento.
+      BudgetExceededError = Class.new(StandardError)
+
+      Result = Struct.new(:success, :data, :error, :status, keyword_init: true) do
+        def success? = success
+      end
+
+      def initialize(config: nil, adapter: nil)
+        @config = config || JabvoxAiProviderConfig.instance
+        @adapter = adapter || default_adapter
+      end
+
+      # --- Teams (saldo del cliente) ---
+      def create_team(alias_name:, max_budget_usd:, models: [], metadata: {})
+        post('/team/new', team_alias: alias_name, models: models,
+                          max_budget: max_budget_usd, metadata: metadata)
+      end
+
+      def team_info(team_id)
+        get('/team/info', team_id: team_id)
+      end
+
+      # SUMA/actualiza el tope ABSOLUTO. El llamador es responsable de leer→sumar→escribir.
+      def update_team_budget(team_id, max_budget_usd)
+        post('/team/update', team_id: team_id, max_budget: max_budget_usd)
+      end
+
+      def block_team(team_id)   = post('/team/block', team_id: team_id)
+      def unblock_team(team_id) = post('/team/unblock', team_id: team_id)
+
+      def team_activity(team_id, start_date:, end_date:)
+        get('/team/daily/activity', team_id: team_id, start_date: start_date, end_date: end_date)
+      end
+
+      # --- Virtual keys ---
+      # rubocop:disable Metrics/ParameterLists
+      def generate_key(team_id:, key_alias:, models: [], max_budget_usd: nil,
+                       allowed_routes: nil, metadata: {})
+        body = { team_id: team_id, key_alias: key_alias, models: models, metadata: metadata }
+        body[:max_budget] = max_budget_usd unless max_budget_usd.nil?
+        body[:allowed_routes] = allowed_routes if allowed_routes
+        post('/key/generate', **body)
+      end
+      # rubocop:enable Metrics/ParameterLists
+
+      def key_info(key)  = get('/key/info', key: key)
+      def block_key(key) = post('/key/block', key: key)
+      def unblock_key(key) = post('/key/unblock', key: key)
+
+      def models_info = get('/model/info')
+
+      private
+
+      def default_adapter
+        if @config.configured?
+          HttpAdapter.new(@config)
+        else
+          # Sin proveedor configurado (dev/test): mock en memoria, para verificar el flujo.
+          Jabvox::AiProvider::MockAdapter.instance
+        end
+      end
+
+      def get(path, **params)  = with_retries { @adapter.request(:get, path, params: params) }
+      def post(path, **body)   = with_retries { @adapter.request(:post, path, body: body) }
+
+      # Reintenta solo errores transitorios (5xx, rate limit). El saldo agotado (BudgetExceeded)
+      # se propaga de inmediato sin reintentar.
+      def with_retries
+        last = nil
+        MAX_ATTEMPTS.times do |n|
+          resp = yield
+          return build_result(resp) if resp[:status] == 200
+
+          raise BudgetExceededError, resp[:body_text] if budget_exceeded?(resp)
+
+          return Result.new(success: false, error: error_message(resp), status: resp[:status]) unless transient?(resp[:status])
+
+          last = resp
+          sleep(backoff(n)) unless n == MAX_ATTEMPTS - 1
+        end
+        Result.new(success: false, error: error_message(last), status: last&.dig(:status))
+      end
+
+      def budget_exceeded?(resp)
+        return false unless resp[:status] == 429
+
+        text = resp[:body_text].to_s.downcase
+        text.include?('budget') || text.include?('exceeded')
+      end
+
+      def transient?(status)
+        status == 429 || (status && status >= 500)
+      end
+
+      def backoff(attempt)
+        2**attempt
+      end
+
+      def build_result(resp)
+        Result.new(success: true, data: resp[:body], status: 200)
+      end
+
+      def error_message(resp)
+        return 'Sin respuesta del proveedor.' if resp.nil?
+
+        body = resp[:body]
+        msg = body.is_a?(Hash) ? (body['error'] || body['message'] || body['detail']) : nil
+        "El proveedor respondió #{resp[:status]}#{": #{msg}" if msg.present?}"
+      end
+    end
+  end
+end
+# rubocop:enable Style/ClassAndModuleChildren
