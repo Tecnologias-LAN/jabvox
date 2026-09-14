@@ -1,7 +1,7 @@
 <script setup>
 // Panel flotante del Chat IA (la "burbuja"). Habla con el MISMO agente Hermes de la cuenta
 // que la página completa de Chat IA: comparte store (jabvoxAiChat), sesiones y streaming.
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useStore } from 'dashboard/composables/store';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
@@ -44,14 +44,18 @@ const { isStreaming, activeTools, streamAssistant, stopStreaming } =
   useHermesChat({ errorLabel: t('JABVOX_AI_CHAT.ERROR') });
 
 const hasAgents = computed(() => hermesAgents.value.length > 0);
+const hasFetchedAgents = ref(false);
 
-const shouldShowCopilotPanel = computed(() => {
-  const isAiChatEnabled = isFeatureEnabledonAccount.value(
+const isAiChatEnabled = computed(() =>
+  isFeatureEnabledonAccount.value(
     currentAccountId.value,
     FEATURE_FLAGS.JABVOX_AI_CHAT
-  );
+  )
+);
+
+const shouldShowCopilotPanel = computed(() => {
   const { is_copilot_panel_open: isCopilotPanelOpen } = uiSettings.value;
-  return isAiChatEnabled && isCopilotPanelOpen;
+  return isAiChatEnabled.value && isCopilotPanelOpen;
 });
 
 const closeCopilotPanel = () => {
@@ -104,20 +108,28 @@ const sendMessage = async message => {
   });
 };
 
-onMounted(async () => {
-  const isAiChatEnabled = isFeatureEnabledonAccount.value(
-    currentAccountId.value,
-    FEATURE_FLAGS.JABVOX_AI_CHAT
-  );
-  if (!isAiChatEnabled) return;
-  try {
-    const { data } = await hermesConnectionsAPI.mine();
-    hermesAgents.value = data || [];
-    selectedAgentId.value = hermesAgents.value[0]?.id || null;
-  } catch {
-    hermesAgents.value = [];
-  }
-});
+// CopilotContainer vive siempre montado en el Dashboard (no es una ruta a la que se
+// navega), así que su onMounted corre ANTES de que App.vue termine de cargar
+// accounts/get: en ese instante el flag jabvox_ai_chat aún lee false y la carga de
+// agentes se saltaba en silencio (la burbuja quedaba con "sin agente" para siempre).
+// Con un watch inmediato+reactivo, la carga se dispara en cuanto el flag esté
+// disponible, llegue antes o después del montaje, y solo una vez.
+watch(
+  isAiChatEnabled,
+  async enabled => {
+    if (!enabled || hasFetchedAgents.value) return;
+    hasFetchedAgents.value = true;
+    try {
+      const { data } = await hermesConnectionsAPI.mine();
+      hermesAgents.value = data || [];
+      selectedAgentId.value = hermesAgents.value[0]?.id || null;
+    } catch {
+      hermesAgents.value = [];
+      hasFetchedAgents.value = false;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
