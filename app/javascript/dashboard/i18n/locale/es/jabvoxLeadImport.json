@@ -125,6 +125,11 @@
       "DEST_FIELD": "Campo del lead",
       "DEST_TYPE": "Tipo destino",
       "EMPTY": "Aún no has mapeado ninguna columna."
+    },
+    "COUNTRY": {
+      "LABEL": "País de los números",
+      "PLACEHOLDER": "Selecciona el país",
+      "HINT": "De él sale el prefijo internacional (+57, +93...) que se aplica a los teléfonos importados. No escribas el prefijo en los datos."
     }
   }
 }

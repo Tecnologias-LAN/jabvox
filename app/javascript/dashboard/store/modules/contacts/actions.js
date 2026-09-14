@@ -176,10 +176,14 @@ export const actions = {
     }
   },
 
-  import: async ({ commit }, file) => {
+  import: async ({ commit }, payload) => {
+    // Acepta tanto el File suelto (uso histórico) como { file, country,
+    // duplicatePolicy } del diálogo con vista previa.
+    const { file, ...options } =
+      payload instanceof File ? { file: payload } : payload;
     commit(types.SET_CONTACT_UI_FLAG, { isImporting: true });
     try {
-      await ContactAPI.importContacts(file);
+      await ContactAPI.importContacts(file, options);
       commit(types.SET_CONTACT_UI_FLAG, { isImporting: false });
     } catch (error) {
       commit(types.SET_CONTACT_UI_FLAG, { isImporting: false });

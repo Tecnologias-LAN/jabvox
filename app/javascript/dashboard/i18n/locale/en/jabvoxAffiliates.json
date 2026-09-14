@@ -82,6 +82,7 @@
       "CREATE_SUCCESS": "IP added.",
       "DELETE_SUCCESS": "IP removed.",
       "ERROR": "An error occurred."
-    }
+    },
+    "OWNED_BADGE": "Own"
   }
 }

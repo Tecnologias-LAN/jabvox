@@ -20,6 +20,11 @@ RSpec.describe 'Aislamiento de colas Sidekiq de Jabvox' do
       'Jabvox::LeadImport::SyncJob' => 'jabvox_lead_import',
       'Jabvox::LeadImport::PurgeTrashJob' => 'jabvox_lead_import',
       'Jabvox::LeadImport::StaleSyncReaperJob' => 'jabvox_lead_import',
+      # Importación de contactos por CSV (dashboard) y carga masiva del portal de
+      # afiliados: misma cola aislada. Un archivo grande de una cuenta no puede
+      # taponar las bandejas del worker principal ni las demás importaciones.
+      'DataImportJob' => 'jabvox_lead_import_interactive',
+      'Jabvox::LeadImport::AffiliateCsvJob' => 'jabvox_lead_import_interactive',
       'Jabvox::BulkWhatsappDeliverJob' => 'jabvox_meta',
       'Jabvox::WhatsappTemplatesSyncAllJob' => 'jabvox_meta',
       'Jabvox::CdrSyncJob' => 'jabvox_cdr',

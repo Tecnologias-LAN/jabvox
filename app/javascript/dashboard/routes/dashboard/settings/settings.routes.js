@@ -25,7 +25,6 @@ import customRoles from './customRoles/customRole.routes';
 import profile from './profile/profile.routes';
 import security from './security/security.routes';
 import conversationWorkflow from './conversationWorkflow/conversationWorkflow.routes';
-import captain from './captain/captain.routes';
 import data from './data/data.routes';
 import { routes as jabvoxKanbanSettingsRoutes } from './jabvox-kanban/routes';
 import { routes as jabvoxVoipRoutes } from './jabvox-voip/routes';
@@ -91,7 +90,6 @@ export default {
     ...profile.routes,
     ...security.routes,
     ...conversationWorkflow.routes,
-    ...captain.routes,
     ...jabvoxFieldSecurityRoutes,
     ...jabvoxKanbanSettingsRoutes,
     ...jabvoxVoipRoutes,

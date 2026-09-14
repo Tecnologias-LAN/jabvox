@@ -208,7 +208,7 @@ class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accoun
       :name_jabvox, :engine_jabvox, :host_jabvox, :port_jabvox, :database_jabvox,
       :username_jabvox, :password_jabvox, :ssl_mode_jabvox, :allow_private_network_jabvox,
       :query_timeout_ms_jabvox, :table_jabvox, :external_id_column_jabvox,
-      :phone_prefix_jabvox,
+      :phone_prefix_jabvox, :country_jabvox,
       field_mapping_jabvox: {},
       related_tables_jabvox: [%i[table local_key foreign_key alias]],
       filters_jabvox: [%i[column op value value2]]
@@ -236,6 +236,7 @@ class Api::V1::Accounts::Jabvox::LeadImport::SourcesController < Api::V1::Accoun
       related_tables_jabvox: source.related_tables_jabvox,
       filters_jabvox: source.filters_jabvox,
       phone_prefix_jabvox: source.phone_prefix_jabvox,
+      country_jabvox: source.country_jabvox,
       status_jabvox: source.status_jabvox,
       last_tested_at_jabvox: source.last_tested_at_jabvox,
       last_synced_at_jabvox: source.last_synced_at_jabvox,

@@ -118,9 +118,14 @@ en:
     data_import:
       data_type:
         invalid: Invalid data type
+    jabvox_affiliate:
+      owned_immutable: The account's own affiliate cannot be modified or deleted
+      owned_already_exists: The account already has an own affiliate
     contacts:
       import:
         failed: File is blank
+        country_required: Select a country before importing
+        duplicate_row: Row skipped — the lead already exists or has no valid phone or email
       export:
         success: We will notify you once contacts export file is ready to view.
       email:

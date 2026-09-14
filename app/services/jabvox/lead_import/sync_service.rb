@@ -471,29 +471,32 @@ class Jabvox::LeadImport::SyncService
     col ? row[col] : nil
   end
 
-  # Best-effort E.164 normalization; returns nil if it can't be made valid.
-  # With a configured country prefix (e.g. "57") it covers the three shapes
-  # external DBs bring: "+573207038072" (kept), "573207038072" (adds +),
-  # "3207038072" (adds +57). Local numbers with leading zeros are trimmed.
+  # Normalización E.164 delegada al servicio de identidad compartido, para que
+  # el teléfono con el que se deduplica aquí sea EXACTAMENTE el mismo que produce
+  # el import por CSV y el portal de afiliados. El prefijo sale del país de la
+  # conexión; phone_prefix_jabvox solo se usa como respaldo en conexiones
+  # antiguas que aún no tienen país configurado.
   def normalized_phone(value)
-    digits = value.to_s.gsub(/[^\d+]/, '')
-    return nil if digits.blank?
+    Jabvox::LeadIdentityService.normalize_phone(value, identity_country).value
+  end
 
-    unless digits.start_with?('+')
-      prefix = @source.phone_prefix_jabvox.to_s.gsub(/\D/, '')
-      if prefix.present?
-        digits = digits.sub(/\A0+/, '')
-        # Already carries the country code when it starts with the prefix AND
-        # is longer than a bare local number could be with it prepended.
-        digits = if digits.start_with?(prefix) && digits.length > prefix.length + 6
-                   "+#{digits}"
-                 else
-                   "+#{prefix}#{digits}"
-                 end
-      else
-        digits = "+#{digits}"
-      end
-    end
-    digits.match?(/\A\+[1-9]\d{1,14}\z/) ? digits : nil
+  # País ISO de la conexión. Si solo hay un prefijo numérico heredado, se
+  # traduce al primer país que use ese código de marcación.
+  def identity_country
+    return @identity_country if defined?(@identity_country)
+
+    iso = @source.country_jabvox.to_s.strip.upcase
+    @identity_country = if Jabvox::LeadIdentityService.valid_country?(iso)
+                          iso
+                        else
+                          country_from_legacy_prefix
+                        end
+  end
+
+  def country_from_legacy_prefix
+    prefix = @source.phone_prefix_jabvox.to_s.gsub(/\D/, '')
+    return nil if prefix.blank?
+
+    Jabvox::LeadIdentityService::DIAL_CODES.key(prefix)
   end
 end

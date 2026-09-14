@@ -46,7 +46,7 @@
     "BULK_RESULT_TOTAL": "Total filas",
     "BULK_RESULT_OK": "Exitosos",
     "BULK_RESULT_FAILED": "Fallidos",
-    "BULK_SUCCESS": "Importación completada: {ok} exitosos, {failed} fallidos.",
+    "BULK_SUCCESS": "Importación completada: {ok} montados, {duplicated} duplicados (ya existían), {failed} fallidos.",
     "BULK_ERROR_DEFAULT": "Error al importar el archivo.",
     "HISTORY_TITLE": "Historial",
     "HISTORY_SUBTITLE": "Importaciones realizadas por tu cuenta.",
@@ -76,6 +76,21 @@
     "LEADS_TOTAL": "Total",
     "LEADS_CREATED": "Fecha creación",
     "LEADS_PREV": "Anterior",
-    "LEADS_NEXT": "Siguiente"
+    "LEADS_NEXT": "Siguiente",
+    "BULK_SELECT_COUNTRY": "Selecciona el país antes de importar.",
+    "BULK_COUNTRY_LABEL": "País de los números",
+    "BULK_COUNTRY_PLACEHOLDER": "Selecciona el país",
+    "BULK_COUNTRY_HINT": "El prefijo {prefix} se agrega automáticamente. Sube los números sin prefijo.",
+    "BULK_RESULT_DUPLICATED": "Duplicados (ya existían)",
+    "MANUAL_ERROR_COUNTRY": "Selecciona el país.",
+    "MANUAL_ERROR_IDENTITY": "Ingresa al menos un teléfono o un correo.",
+    "MANUAL_ERROR_DUPLICATE": "Este lead ya existe en la cuenta.",
+    "MANUAL_ERROR_PHONE": "El número de teléfono no es válido.",
+    "MANUAL_PHONE_HINT": "Ingresa el número sin el prefijo del país.",
+    "BULK_PROCESSING": "Procesando…",
+    "BULK_ERROR_IN_PROGRESS": "Ya tienes una importación en curso. Espera a que termine.",
+    "BULK_ERROR_TOO_LARGE": "El archivo es demasiado grande (máximo 5 MB).",
+    "BULK_ERROR_EMPTY": "El archivo está vacío o no se pudo leer.",
+    "BULK_ERROR_TOO_MANY": "El archivo tiene demasiadas filas (máximo {max})."
   }
 }

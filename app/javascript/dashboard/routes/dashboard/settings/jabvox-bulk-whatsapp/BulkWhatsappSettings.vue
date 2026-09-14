@@ -10,6 +10,7 @@ import LeadsPickerTab from './LeadsPickerTab.vue';
 import BatchReportDialog from './components/BatchReportDialog.vue';
 import AnalyticsTab from './components/AnalyticsTab.vue';
 import TemplatePreview from './components/TemplatePreview.vue';
+import countries from 'shared/constants/countries.js';
 
 const { t } = useI18n();
 const rootStore = useStore();
@@ -95,6 +96,9 @@ const csvVariableMap = ref({}); // { n: 'nombre_de_columna_del_csv' }
 // Columna del CSV que contiene el número. Se autodetecta al cargar el archivo
 // (primera que coincida con NUMBER_HEADERS) y el usuario puede cambiarla.
 const csvNumberColumn = ref('');
+// País de los números del CSV: de él sale el prefijo de los que lleguen sin él.
+// Opcional — si se deja vacío, los números se envían tal como vienen.
+const csvCountry = ref('');
 
 // Plantillas aprobadas de la bandeja elegida (WhatsApp Cloud API oficial).
 const csvTemplates = computed(() => {
@@ -394,6 +398,7 @@ const resetForm = () => {
   csvTemplateName.value = '';
   csvVariableMap.value = {};
   csvNumberColumn.value = '';
+  csvCountry.value = '';
   if (fileInput.value) fileInput.value.value = '';
   resetWizard();
 };
@@ -451,6 +456,7 @@ const onSend = async () => {
       variableMap: csvVariableMap.value,
       numberColumn: csvNumberColumn.value,
       headerMedia: csvHeaderMedia.value,
+      country: csvCountry.value,
     });
     useAlert(t('JABVOX_BULK_WA.SEND.SUCCESS'));
     resetForm();
@@ -946,6 +952,27 @@ onMounted(() => {
               </select>
               <span class="text-[11px] text-n-slate-9">
                 {{ t('JABVOX_BULK_WA.SEND.NUMBER_COLUMN_HINT') }}
+              </span>
+            </div>
+
+            <!-- País: aplica el prefijo a los números que llegan sin él -->
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-n-slate-12">
+                {{ t('JABVOX_BULK_WA.SEND.COUNTRY') }}
+              </label>
+              <select
+                v-model="csvCountry"
+                class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-2.5 py-1.5 max-w-xs"
+              >
+                <option value="">
+                  {{ t('JABVOX_BULK_WA.SEND.COUNTRY_NONE') }}
+                </option>
+                <option v-for="c in countries" :key="c.id" :value="c.id">
+                  {{ `${c.emoji} ${c.name} (${c.dial_code})` }}
+                </option>
+              </select>
+              <span class="text-[11px] text-n-slate-9">
+                {{ t('JABVOX_BULK_WA.SEND.COUNTRY_HINT') }}
               </span>
             </div>
 

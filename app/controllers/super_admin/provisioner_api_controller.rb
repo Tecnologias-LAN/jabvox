@@ -20,10 +20,16 @@ class SuperAdmin::ProvisionerApiController < SuperAdmin::ApplicationController
   # Genera/regenera el token único. Revoca el anterior (imposible 2 activos). Muestra el
   # nuevo token UNA sola vez vía flash y redirige.
   def create
+    ips = validated_ips!
+    return if performed?
+
     _record, plaintext, signing_secret = JabvoxProvisionerApiToken.generate!(
       created_by_id: current_super_admin&.id,
-      allowed_ips: parse_ips(params[:allowed_ips]),
-      permissions: parse_permissions(params[:permissions]),
+      allowed_ips: ips,
+      # sanitize_permissions se aplica también dentro de generate!, pero se deja explícito
+      # aquí para que la regla (nunca delete, solo-lectura no admite edit/create) sea visible
+      # en el punto de entrada y no dependa de un detalle del modelo.
+      permissions: JabvoxProvisionerApiToken.sanitize_permissions(parse_permissions(params[:permissions])),
       label: params[:label]
     )
     flash[:provisioner_plaintext] = plaintext
@@ -39,8 +45,11 @@ class SuperAdmin::ProvisionerApiController < SuperAdmin::ApplicationController
     token = JabvoxProvisionerApiToken.current_active
     return redirect_to(super_admin_provisioner_api_path, alert: 'No hay token activo') if token.nil?
 
+    ips = validated_ips!
+    return if performed?
+
     token.update!(
-      allowed_ips_jabvox: parse_ips(params[:allowed_ips]),
+      allowed_ips_jabvox: ips,
       permissions_jabvox: JabvoxProvisionerApiToken.sanitize_permissions(parse_permissions(params[:permissions])),
       label_jabvox: params[:label].presence
     )
@@ -52,7 +61,18 @@ class SuperAdmin::ProvisionerApiController < SuperAdmin::ApplicationController
 
   # Revoca el token activo (y cierra su sesión). No hay borrado: queda como revoked.
   def revoke
-    JabvoxProvisionerApiToken.current_active&.revoke!
+    token = JabvoxProvisionerApiToken.current_active
+    return redirect_to(super_admin_provisioner_api_path, alert: 'No hay token activo') if token.nil?
+
+    token.revoke!
+    # La revocación es un evento de seguridad: queda en la misma auditoría que el resto de
+    # la superficie Provisioner, para poder correlacionar "Hermes dejó de responder" con
+    # quién cortó el acceso y cuándo.
+    JabvoxProvisionerAuditLog.record!(
+      token_id: token.id, resource: 'provisioner_token', action: 'edit', outcome: 'ok',
+      reason: 'token_revoked_by_super_admin', ip: request.remote_ip,
+      params: { 'super_admin_id' => current_super_admin&.id }, status: 200
+    )
     redirect_to super_admin_provisioner_api_path, notice: 'Token revocado.'
   end
 
@@ -60,6 +80,20 @@ class SuperAdmin::ProvisionerApiController < SuperAdmin::ApplicationController
 
   def parse_ips(raw)
     raw.to_s.split(/[\s,]+/).map(&:strip).reject(&:blank?)
+  end
+
+  # Devuelve la allowlist ya validada. Si alguna entrada no es una IP/CIDR válido (o es una
+  # ruta por defecto), redirige con el error y deja `performed?` en true para que quien llama
+  # aborte: una allowlist con basura silenciosa deja a Hermes fuera sin explicación, y una
+  # ruta por defecto abriría la API a todo internet.
+  def validated_ips!
+    ips = parse_ips(params[:allowed_ips])
+    invalid = ips.reject { |ip| JabvoxProvisionerApiToken.valid_allowlist_entry?(ip) }
+    if invalid.any?
+      redirect_to(super_admin_provisioner_api_path,
+                  alert: "IPs inválidas: #{invalid.join(', ')}. Usa IPs o rangos CIDR (ej. 10.147.0.0/16).")
+    end
+    ips
   end
 
   # params[:permissions] llega como { "accounts" => { "view" => "1", "edit" => "1" }, ... }

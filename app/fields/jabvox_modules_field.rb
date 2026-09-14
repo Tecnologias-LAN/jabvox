@@ -34,7 +34,7 @@ class JabvoxModulesField < Administrate::Field::Base
     [:jabvox_audio_analysis_enabled_jabvox, 'Análisis de Audio', :telephony],
     [:jabvox_saldo_enabled_jabvox, 'Saldo', :telephony],
     # IA y Automatización
-    [:jabvox_ai_chat_enabled_jabvox, 'AI Chat', :ai],
+    [:jabvox_ai_chat_enabled_jabvox, 'Chat IA', :ai],
     [:jabvox_ai_chat_provisioning_enabled_jabvox, 'Chat Aprovisionamiento', :ai],
     [:jabvox_advanced_automations_enabled_jabvox, 'Automatizaciones Avanzadas', :ai],
     [:jabvox_analytics_enabled_jabvox, 'Analytics', :ai],

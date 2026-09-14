@@ -8,6 +8,28 @@
 #
 # Table name: jabvox_ai_balance_movements
 #
+#  id                                  :bigint           not null, primary key
+#  amount_cents_jabvox                 :integer          default(0), not null
+#  idempotency_key_jabvox              :string
+#  kind_jabvox                         :string           not null
+#  metadata_jabvox                     :jsonb            not null
+#  plan_budget_cents_after_jabvox      :integer
+#  purchased_budget_cents_after_jabvox :integer
+#  reference_jabvox                    :string
+#  created_at                          :datetime         not null
+#  account_id                          :bigint           not null
+#  jabvox_plan_id                      :bigint
+#
+# Indexes
+#
+#  idx_ai_balance_movements_account                 (account_id,created_at)
+#  idx_ai_balance_movements_idem                    (idempotency_key_jabvox) UNIQUE WHERE (idempotency_key_jabvox IS NOT NULL)
+#  index_jabvox_ai_balance_movements_on_account_id  (account_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id)
+#
 class JabvoxAiBalanceMovement < ApplicationRecord
   belongs_to :account
 

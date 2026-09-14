@@ -227,3 +227,11 @@ jabvox_ai_provider_monthly_budget_reset_job:
   cron: '5 0 1 * *'
   class: 'Jabvox::AiProvider::MonthlyBudgetResetJob'
   queue: jabvox_payments
+
+# Cada 15 minutos: purga los nonces caducados de la API Provisioner (anti-replay). Fuera de
+# la ventana de firma un nonce ya no puede replayearse, así que conservarlo solo hace crecer
+# la tabla sin límite.
+jabvox_provisioner_nonce_purge_job:
+  cron: '*/15 * * * *'
+  class: 'Jabvox::Provisioner::NoncePurgeJob'
+  queue: scheduled_jobs

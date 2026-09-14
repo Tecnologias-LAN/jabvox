@@ -7,6 +7,7 @@
 #
 #  id                           :bigint           not null, primary key
 #  allow_private_network_jabvox :boolean          default(FALSE), not null
+#  country_jabvox               :string           default(""), not null
 #  database_jabvox              :string
 #  engine_jabvox                :string           not null
 #  external_id_column_jabvox    :string

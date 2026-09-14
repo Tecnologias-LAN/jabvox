@@ -104,6 +104,13 @@ CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 SECURITY.md
 RUNBOOK_migracion_db_jabvox.md
+
+# Sistema de memoria/knowledge graph local (nunca sube al repo)
+.mcp.json
+scripts/memory/
+
+# Documentación técnica local en Obsidian (herramienta de productividad, no parte del producto)
+scripts/obsidian/
 .github/PULL_REQUEST_TEMPLATE.md
 .windsurf/rules/chatwoot.md
 

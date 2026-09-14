@@ -100,9 +100,14 @@ es:
     data_import:
       data_type:
         invalid: Tipo de datos no válido
+    jabvox_affiliate:
+      owned_immutable: El afiliado propio de la cuenta no se puede modificar ni eliminar
+      owned_already_exists: La cuenta ya tiene un afiliado propio
     contacts:
       import:
         failed: Archivo está en blanco
+        country_required: Selecciona el país antes de importar
+        duplicate_row: Fila omitida — el lead ya existe o no tiene teléfono ni correo válidos
       export:
         success: Le notificaremos cuando el archivo de exportación de contactos esté listo para ver.
       email:

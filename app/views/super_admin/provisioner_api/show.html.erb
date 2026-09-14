@@ -58,8 +58,13 @@
     <div class="flex mb-4">
       <div class="field-unit__label"><%= form.label :allowed_ips, 'IPs permitidas' %></div>
       <div class="-mt-2 field-unit__field">
-        <%= form.text_area :allowed_ips, value: Array(@summary&.dig(:allowed_ips)).join(', '), rows: 2, placeholder: 'Ej: 10.147.100.1' %>
-        <p class="pt-2 text-xs italic text-slate-400">Una o varias IPs separadas por coma o salto de línea. Vacío = ninguna (bloquea todo).</p>
+        <%= form.text_area :allowed_ips, value: Array(@summary&.dig(:allowed_ips)).join(', '), rows: 2, placeholder: 'Ej: 10.147.100.1, 10.147.0.0/16' %>
+        <p class="pt-2 text-xs italic text-slate-400">
+          Una o varias IPs separadas por coma o salto de línea. Admite IP suelta
+          (<code>10.147.100.1</code>) o rango CIDR — útil para la red ZeroTier completa
+          (<code>10.147.0.0/16</code>). Vacío = ninguna (bloquea todo). No se admite
+          <code>0.0.0.0/0</code>.
+        </p>
       </div>
     </div>
 
@@ -80,8 +85,14 @@
             <td style="padding:8px;"><code><%= res %></code><% if @read_only.include?(res) %> <span style="color:#b45309; font-size:11px;">(solo lectura)</span><% end %></td>
             <% @actions.each do |act| %>
               <td style="padding:8px; text-align:center;">
-                <% disabled = @read_only.include?(res) && act != 'view' %>
-                <%= check_box_tag "permissions[#{res}][#{act}]", '1', current.include?(act), disabled: disabled %>
+                <% if @read_only.include?(res) && act != 'view' %>
+                  <%# Recurso de solo lectura: editar/crear no existe para él. Se muestra un
+                      guion en vez de una casilla deshabilitada, para que quede claro que no
+                      es una opción desactivada sino algo que el modelo nunca concede. %>
+                  <span style="color:#d1d5db;" title="No disponible: recurso de solo lectura">—</span>
+                <% else %>
+                  <%= check_box_tag "permissions[#{res}][#{act}]", '1', current.include?(act) %>
+                <% end %>
               </td>
             <% end %>
           </tr>

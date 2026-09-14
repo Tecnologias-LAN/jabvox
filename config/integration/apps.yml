@@ -29,10 +29,11 @@ jabvox_ia:
   i18n_key: jabvox_ia
   action: /jabvox_ia
   hook_type: account
-  # Solo se puede conectar Jabvox IA (poner la API key) si la cuenta tiene la feature
-  # Jabvox IA habilitada por el administrador. Sin ella, la conexión se rechaza y el
-  # front muestra que contacte al administrador. Es el módulo único de IA (Captain).
-  feature_flag: captain_integration
+  # Solo se puede conectar la IA (poner la API key) si la cuenta tiene el módulo Chat IA
+  # habilitado por el administrador. Sin él, la conexión se rechaza y el front muestra que
+  # contacte al administrador. Es el interruptor único de IA de la cuenta: gobierna el chat,
+  # la burbuja flotante y el asistente de IA de la conversación.
+  feature_flag: jabvox_ai_chat
   allow_multiple_hooks: false
   settings_json_schema:
     {

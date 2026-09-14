@@ -4,6 +4,11 @@ json.email jabvox_mask('email', resource.email)
 json.id resource.id
 json.name jabvox_mask('name', resource.name)
 json.phone_number jabvox_mask('phone', resource.phone_number)
+# El teléfono en sus tres piezas: prefijo (del país), número local y E.164.
+# Pasan por la MISMA máscara que phone_number: si el agente no puede ver el
+# teléfono, tampoco puede reconstruirlo juntando las partes.
+json.phone_country_code jabvox_mask('phone', resource.phone_country_code_jabvox)
+json.phone_national jabvox_mask('phone', resource.phone_national_jabvox)
 json.blocked resource.blocked
 json.identifier resource.identifier
 json.company_id resource.company_id if Current.account&.feature_enabled?('companies')

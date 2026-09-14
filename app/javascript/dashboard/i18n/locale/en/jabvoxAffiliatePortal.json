@@ -46,7 +46,7 @@
     "BULK_RESULT_TOTAL": "Total filas",
     "BULK_RESULT_OK": "Exitosos",
     "BULK_RESULT_FAILED": "Fallidos",
-    "BULK_SUCCESS": "Importación completada: {ok} exitosos, {failed} fallidos.",
+    "BULK_SUCCESS": "Import finished: {ok} uploaded, {duplicated} duplicates (already existed), {failed} failed.",
     "BULK_ERROR_DEFAULT": "Error al importar el archivo.",
     "HISTORY_TITLE": "Historial",
     "HISTORY_SUBTITLE": "Importaciones realizadas por tu cuenta.",
@@ -76,6 +76,21 @@
     "LEADS_TOTAL": "Total",
     "LEADS_CREATED": "Fecha creación",
     "LEADS_PREV": "Anterior",
-    "LEADS_NEXT": "Siguiente"
+    "LEADS_NEXT": "Siguiente",
+    "BULK_SELECT_COUNTRY": "Select a country before importing.",
+    "BULK_COUNTRY_LABEL": "Country of the phone numbers",
+    "BULK_COUNTRY_PLACEHOLDER": "Select a country",
+    "BULK_COUNTRY_HINT": "The {prefix} prefix is added automatically. Upload numbers without a prefix.",
+    "BULK_RESULT_DUPLICATED": "Duplicates (already existed)",
+    "MANUAL_ERROR_COUNTRY": "Select a country.",
+    "MANUAL_ERROR_IDENTITY": "Enter at least a phone number or an email.",
+    "MANUAL_ERROR_DUPLICATE": "This lead already exists in the account.",
+    "MANUAL_ERROR_PHONE": "The phone number is not valid.",
+    "MANUAL_PHONE_HINT": "Enter the number without the country prefix.",
+    "BULK_PROCESSING": "Processing…",
+    "BULK_ERROR_IN_PROGRESS": "You already have an import in progress. Wait for it to finish.",
+    "BULK_ERROR_TOO_LARGE": "The file is too large (5 MB maximum).",
+    "BULK_ERROR_EMPTY": "The file is empty or could not be read.",
+    "BULK_ERROR_TOO_MANY": "The file has too many rows ({max} maximum)."
   }
 }

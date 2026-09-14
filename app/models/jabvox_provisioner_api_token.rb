@@ -13,6 +13,25 @@
 #
 # Table name: jabvox_provisioner_api_tokens
 #
+#  id                    :bigint           not null, primary key
+#  allowed_ips_jabvox    :jsonb            not null
+#  label_jabvox          :string
+#  last_used_at_jabvox   :datetime
+#  permissions_jabvox    :jsonb            not null
+#  revoked_at_jabvox     :datetime
+#  signing_secret_jabvox :text
+#  status_jabvox         :string           default("active"), not null
+#  token_hash_jabvox     :string           not null
+#  token_prefix_jabvox   :string           not null
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  created_by_id         :bigint
+#
+# Indexes
+#
+#  idx_one_active_provisioner_token  (status_jabvox) UNIQUE WHERE ((status_jabvox)::text = 'active'::text)
+#  idx_provisioner_token_hash        (token_hash_jabvox) UNIQUE
+#
 class JabvoxProvisionerApiToken < ApplicationRecord
   # Acciones permitidas por recurso. NUNCA "delete"/"destroy": borrar está prohibido por
   # arquitectura en toda la superficie Provisioner.
@@ -28,6 +47,9 @@ class JabvoxProvisionerApiToken < ApplicationRecord
 
   # Recursos que SOLO admiten lectura (nunca edit/create): datos sensibles/financieros.
   READ_ONLY_RESOURCES = %w[payment_gateways transactions saldo analytics_data_sources].freeze
+
+  # Rutas por defecto: prohibidas en la allowlist (abrirían la API a todo internet).
+  WILDCARD_ENTRIES = ['0.0.0.0/0', '::/0', '0.0.0.0', '*'].freeze
 
   STATUSES = %w[active revoked].freeze
   TOKEN_SUFFIX = '-tlan'
@@ -128,9 +150,45 @@ class JabvoxProvisionerApiToken < ApplicationRecord
   end
 
   # ¿La IP origen está en la allowlist? Vacía = bloquea todo (nunca "permitir todas").
+  # Acepta IPs sueltas y rangos CIDR (p. ej. la red ZeroTier `10.147.0.0/16`), comparando
+  # por pertenencia de red, no por igualdad de texto. Una entrada malformada se ignora (no
+  # concede acceso) y `0.0.0.0/0` / `::/0` se rechazan explícitamente: la allowlist nunca
+  # puede degradarse a "permitir todas".
   def ip_allowed?(ip)
-    ips = Array(allowed_ips_jabvox).map(&:to_s)
-    ips.present? && ips.include?(ip.to_s)
+    candidate = begin
+      IPAddr.new(ip.to_s)
+    rescue IPAddr::Error
+      nil
+    end
+    return false if candidate.nil?
+
+    Array(allowed_ips_jabvox).any? { |entry| entry_covers?(entry, candidate) }
+  end
+
+  # ¿La entrada de la allowlist cubre esta IP? Compara familia (v4/v6) para que un rango v6
+  # no pueda "incluir" una IPv4 mapeada ni viceversa.
+  def entry_covers?(entry, candidate)
+    net = self.class.parse_allowlist_entry(entry)
+    return false if net.nil?
+    return false unless net.family == candidate.family
+
+    net.include?(candidate)
+  end
+
+  # Normaliza una entrada de allowlist a IPAddr, rechazando las rutas por defecto (que
+  # equivaldrían a abrir la API a todo internet) y lo malformado.
+  def self.parse_allowlist_entry(entry)
+    raw = entry.to_s.strip
+    return nil if raw.blank? || WILDCARD_ENTRIES.include?(raw)
+
+    IPAddr.new(raw)
+  rescue IPAddr::Error
+    nil
+  end
+
+  # ¿La entrada es sintácticamente válida para la allowlist? (para validar en el Super Admin)
+  def self.valid_allowlist_entry?(entry)
+    parse_allowlist_entry(entry).present?
   end
 
   def revoke!

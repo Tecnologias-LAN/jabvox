@@ -15,21 +15,22 @@
 #
 # Table name: jabvox_plans
 #
-#  id                :bigint           not null, primary key
-#  billing_period    :integer          default("monthly"), not null
-#  chatwoot_features :jsonb            not null
-#  currency          :string           default("COP"), not null
-#  duration_days     :integer          default(30), not null
-#  limits            :jsonb            not null
-#  modules           :jsonb            not null
-#  name              :string           not null
-#  price_cents       :integer          default(0), not null
-#  slug              :string           not null
-#  sort_order        :integer          default(0), not null
-#  status            :integer          default("draft"), not null
-#  whatsapp_number   :string
-#  created_at        :datetime         not null
-#  updated_at        :datetime         not null
+#  id                     :bigint           not null, primary key
+#  ai_budget_cents_jabvox :integer          default(0), not null
+#  billing_period         :integer          default("monthly"), not null
+#  chatwoot_features      :jsonb            not null
+#  currency               :string           default("COP"), not null
+#  duration_days          :integer          default(30), not null
+#  limits                 :jsonb            not null
+#  modules                :jsonb            not null
+#  name                   :string           not null
+#  price_cents            :integer          default(0), not null
+#  slug                   :string           not null
+#  sort_order             :integer          default(0), not null
+#  status                 :integer          default("draft"), not null
+#  whatsapp_number        :string
+#  created_at             :datetime         not null
+#  updated_at             :datetime         not null
 #
 # Indexes
 #

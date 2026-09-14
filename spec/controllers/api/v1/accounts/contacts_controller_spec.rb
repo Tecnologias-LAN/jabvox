@@ -193,11 +193,44 @@ RSpec.describe 'Contacts API', type: :request do
         file = fixture_file_upload(Rails.root.join('spec/assets/contacts.csv'), 'text/csv')
         post "/api/v1/accounts/#{account.id}/contacts/import",
              headers: admin.create_new_auth_token,
-             params: { import_file: file }
+             params: { import_file: file, country: 'IN', duplicate_policy: 'skip' }
 
         expect(response).to have_http_status(:success)
         expect(account.data_imports.count).to eq(1)
         expect(account.data_imports.first.import_file.attached?).to be(true)
+      end
+
+      # El país es obligatorio: de él sale el prefijo telefónico, nunca se
+      # adivina a partir del número.
+      it 'rejects the import when no country is given' do
+        file = fixture_file_upload(Rails.root.join('spec/assets/contacts.csv'), 'text/csv')
+        post "/api/v1/accounts/#{account.id}/contacts/import",
+             headers: admin.create_new_auth_token,
+             params: { import_file: file }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(account.data_imports.count).to eq(0)
+      end
+
+      it 'stores the country and the duplicate policy the user confirmed' do
+        file = fixture_file_upload(Rails.root.join('spec/assets/contacts.csv'), 'text/csv')
+        post "/api/v1/accounts/#{account.id}/contacts/import",
+             headers: admin.create_new_auth_token,
+             params: { import_file: file, country: 'co', duplicate_policy: 'update' }
+
+        import = account.data_imports.first
+        expect(import.import_country_jabvox).to eq('CO')
+        expect(import.duplicate_policy_jabvox).to eq('update')
+      end
+
+      # Una política desconocida no puede colarse: cae en la opción segura.
+      it 'falls back to skip when the duplicate policy is unknown' do
+        file = fixture_file_upload(Rails.root.join('spec/assets/contacts.csv'), 'text/csv')
+        post "/api/v1/accounts/#{account.id}/contacts/import",
+             headers: admin.create_new_auth_token,
+             params: { import_file: file, country: 'CO', duplicate_policy: 'delete_everything' }
+
+        expect(account.data_imports.first.duplicate_policy_jabvox).to eq('skip')
       end
     end
 

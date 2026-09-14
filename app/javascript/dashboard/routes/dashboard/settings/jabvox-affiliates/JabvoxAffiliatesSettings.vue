@@ -351,6 +351,12 @@ const doDeleteIp = async () => {
                     <tr class="hover:bg-n-alpha-1 transition-colors">
                       <td class="px-4 py-3 font-medium text-n-slate-12">
                         {{ affiliate.name }}
+                        <span
+                          v-if="affiliate.owned"
+                          class="ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium bg-n-alpha-2 text-n-slate-11 align-middle"
+                        >
+                          {{ t('JABVOX_AFFILIATES.OWNED_BADGE') }}
+                        </span>
                       </td>
                       <td class="px-4 py-3">
                         <div class="flex items-center gap-1.5">
@@ -511,7 +517,10 @@ const doDeleteIp = async () => {
                             :title="t('JABVOX_AFFILIATES.IP.MANAGE')"
                             @click="toggleIpPanel(affiliate)"
                           />
+                          <!-- El afiliado propio de la cuenta no se elimina:
+                               representa los leads sin afiliado externo. -->
                           <Button
+                            v-if="!affiliate.owned"
                             icon="i-lucide-trash-2"
                             variant="ghost"
                             color="ruby"
@@ -553,6 +562,12 @@ const doDeleteIp = async () => {
                   <div class="min-w-0">
                     <p class="text-sm font-semibold text-n-slate-12 truncate">
                       {{ affiliate.name }}
+                      <span
+                        v-if="affiliate.owned"
+                        class="ml-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-n-alpha-2 text-n-slate-11"
+                      >
+                        {{ t('JABVOX_AFFILIATES.OWNED_BADGE') }}
+                      </span>
                     </p>
                     <p class="text-xs text-n-slate-10 mt-0.5">
                       {{ formatDate(affiliate.created_at) }}
@@ -721,7 +736,9 @@ const doDeleteIp = async () => {
                     @click="askRegenerateToken(affiliate)"
                   />
                   <div class="flex-1" />
+                  <!-- El afiliado propio no se elimina (ver tabla de escritorio). -->
                   <Button
+                    v-if="!affiliate.owned"
                     icon="i-lucide-trash-2"
                     variant="ghost"
                     color="ruby"

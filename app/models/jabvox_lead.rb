@@ -57,11 +57,30 @@ class JabvoxLead < ApplicationRecord
   validates :lead_number, presence: true, uniqueness: { scope: :account_id }
 
   before_validation :assign_lead_number, on: :create
+  # Todo lead nace atribuido: si no llega por un afiliado externo (portal), se
+  # asigna el afiliado PROPIO de la cuenta. Así el módulo de Afiliados siempre
+  # muestra de dónde salió el lead — alta manual, importación por CSV, desde BD
+  # externa, formulario o conversación nueva — en vez de dejar un hueco.
+  # Va en el modelo, no en cada punto de creación, para que ninguna vía se lo salte.
+  before_validation :assign_owned_affiliate, on: :create
 
   scope :with_associations, -> { includes(:contact, :jabvox_campaign, :assignee, contact: { contact_inboxes: :inbox }) }
   scope :ordered, -> { order(lead_number: :asc) }
 
   private
+
+  # El afiliado propio de la cuenta, creado si aún no existe. Solo se asigna
+  # cuando el lead no trae ya un afiliado externo.
+  def assign_owned_affiliate
+    return if jabvox_affiliate_id.present?
+    return if account.blank?
+
+    self.jabvox_affiliate = JabvoxAffiliate.owned_for!(account)
+  rescue StandardError => e
+    # Nunca impedir la creación del lead por esto: sin afiliado sigue siendo
+    # válido y el índice del módulo lo corrige al listar.
+    Rails.logger.warn("[JabvoxLead] no se pudo asignar el afiliado propio: #{e.message}")
+  end
 
   def assign_lead_number
     return if lead_number.present?

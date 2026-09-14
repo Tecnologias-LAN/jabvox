@@ -13,10 +13,13 @@ const currentAccountId = useMapGetter('getCurrentAccountId');
 const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
-// El botón de Copilot dentro de la conversación (la "burbuja de ayuda") se muestra si el
-// módulo Jabvox IA (feature captain_integration) está habilitado en la cuenta.
+// El botón del Chat IA (Hermes) dentro de la conversación se muestra si el módulo
+// Chat IA (feature jabvox_ai_chat) está habilitado en la cuenta.
 const showCopilotTab = computed(() =>
-  isFeatureEnabledonAccount.value(currentAccountId.value, FEATURE_FLAGS.CAPTAIN)
+  isFeatureEnabledonAccount.value(
+    currentAccountId.value,
+    FEATURE_FLAGS.JABVOX_AI_CHAT
+  )
 );
 
 const { uiSettings } = useUISettings();
@@ -83,7 +86,7 @@ useKeyboardEvents(keyboardEvents);
         'bg-n-alpha-2 !text-n-iris-9 active:!brightness-105 active:shadow-sm':
           isCopilotPanelOpen,
       }"
-      icon="i-woot-captain"
+      icon="i-lucide-bot"
       @click="handleCopilotSidebarToggle"
     />
   </ButtonGroup>

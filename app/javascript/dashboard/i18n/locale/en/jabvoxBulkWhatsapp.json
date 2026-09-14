@@ -172,7 +172,10 @@
       "HEADER_DOCUMENT": "Document",
       "VARS_COUNT": "No variables | 1 variable | {count} variables",
       "NUMBER_COLUMN": "Number column (who to send to)",
-      "NUMBER_COLUMN_HINT": "Auto-detected from the file. Change it if the number is in another column."
+      "NUMBER_COLUMN_HINT": "Auto-detected from the file. Change it if the number is in another column.",
+      "COUNTRY": "Country of the phone numbers",
+      "COUNTRY_NONE": "No country (send as is)",
+      "COUNTRY_HINT": "If selected, the prefix is added to numbers that come without it. Numbers that already have it are left untouched."
     },
     "HISTORY": {
       "LOADING": "Loading history…",

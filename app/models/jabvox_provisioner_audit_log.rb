@@ -7,6 +7,23 @@
 #
 # Table name: jabvox_provisioner_audit_logs
 #
+#  id                       :bigint           not null, primary key
+#  action_jabvox            :string
+#  http_status_jabvox       :integer
+#  ip_jabvox                :string
+#  outcome_jabvox           :string           not null
+#  params_jabvox            :jsonb            not null
+#  reason_jabvox            :string
+#  resource_jabvox          :string
+#  created_at               :datetime         not null
+#  account_context_id       :integer
+#  provisioner_api_token_id :bigint
+#
+# Indexes
+#
+#  idx_provisioner_audit_created   (created_at)
+#  idx_provisioner_audit_resource  (resource_jabvox,action_jabvox)
+#
 class JabvoxProvisionerAuditLog < ApplicationRecord
   SENSITIVE = /token|secret|password|api[_-]?key|authorization|credential|sip_secret|turn_secret/i
 

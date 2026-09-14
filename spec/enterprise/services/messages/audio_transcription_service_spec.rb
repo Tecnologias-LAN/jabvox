@@ -24,8 +24,11 @@ RSpec.describe Messages::AudioTranscriptionService, type: :service do
   describe '#perform' do
     let(:service) { described_class.new(attachment) }
 
-    context 'when captain_integration feature is not enabled' do
+    context 'when the AI module is not enabled' do
       before do
+        # La transcripción depende del módulo de IA de la cuenta (Chat IA / Hermes), con el
+        # flag antiguo de Captain aceptado como respaldo.
+        account.update!(jabvox_ai_chat_enabled_jabvox: false)
         account.disable_features!('captain_integration')
       end
 

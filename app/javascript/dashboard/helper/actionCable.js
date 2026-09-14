@@ -59,7 +59,6 @@ class ActionCableConnector extends BaseActionCableConnector {
         this.onConversationUnreadCountChanged,
       'account.cache_invalidated': this.onCacheInvalidate,
       'account.enrichment_completed': this.onEnrichmentCompleted,
-      'copilot.message.created': this.onCopilotMessageCreated,
       'jabvox.leads_assigned': this.onLeadsAssigned,
       'jabvox.agent_state_changed': this.onAgentStateChanged,
       'jabvox.dialer.call_assigned': this.onDialerCallAssigned,
@@ -337,10 +336,6 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   onNotificationUpdated = data => {
     this.app.$store.dispatch('notifications/updateNotification', data);
-  };
-
-  onCopilotMessageCreated = data => {
-    this.app.$store.dispatch('copilotMessages/upsert', data);
   };
 
   // eslint-disable-next-line class-methods-use-this

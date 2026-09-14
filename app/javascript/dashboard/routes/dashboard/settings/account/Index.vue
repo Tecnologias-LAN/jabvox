@@ -63,9 +63,11 @@ export default {
       isOnJabvoxCloud: 'globalConfig/isOnJabvoxCloud',
     }),
     showAudioTranscriptionConfig() {
+      // La transcripción de audio depende del módulo de IA de la cuenta, que ahora es
+      // el Chat IA (Hermes); antes colgaba del flag de Captain.
       return this.isFeatureEnabledonAccount(
         this.accountId,
-        FEATURE_FLAGS.CAPTAIN
+        FEATURE_FLAGS.JABVOX_AI_CHAT
       );
     },
     languagesSortedByCode() {

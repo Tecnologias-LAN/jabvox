@@ -33,8 +33,10 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
     update_custom_attribute(CAPTAIN_RESPONSES_USAGE, 0)
   end
 
+  # El módulo de documentos desapareció con Captain; el contador se mantiene en cero para
+  # no romper los límites de plan que siguen leyendo esta clave.
   def update_document_usage
-    update_custom_attribute(CAPTAIN_DOCUMENTS_USAGE, captain_documents.count)
+    update_custom_attribute(CAPTAIN_DOCUMENTS_USAGE, 0)
   end
 
   def email_transcript_enabled?

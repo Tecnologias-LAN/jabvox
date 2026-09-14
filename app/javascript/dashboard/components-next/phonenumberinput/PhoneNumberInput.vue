@@ -9,6 +9,7 @@ import {
   getActiveCountryCode,
   getActiveDialCode,
 } from 'shared/components/PhoneInput/helper';
+import { splitE164 } from 'shared/helpers/phoneParts';
 
 import Input from 'dashboard/components-next/input/Input.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -144,16 +145,39 @@ watch(phoneNumber, async value => {
   }
 });
 
+// Carga un número ya guardado separándolo en país + número local.
+//
+// El catálogo propio (splitE164) manda, porque es el MISMO criterio con el que
+// el backend guardó las piezas: siempre el prefijo más largo que encaje, de modo
+// que "+16847331234" se muestra como Samoa Americana (+1684) y no como +1.
+// libphonenumber-js queda como respaldo para lo que el catálogo no cubra.
+//
+// Si no se puede separar, se deja el valor completo en el campo en lugar de
+// vaciarlo: un número raro debe poder verse y guardarse igual, nunca perderse.
 watch(
   modelValue,
   newValue => {
+    if (!newValue) return;
+
+    const parts = splitE164(newValue);
+    if (parts) {
+      if (parts.countryCode) activeCountryCode.value = parts.countryCode;
+      activeDialCode.value = parts.dialCode;
+      phoneNumber.value = parts.national;
+      return;
+    }
+
     const number = parsePhoneNumber(newValue);
     if (number) {
       if (number?.country) activeCountryCode.value = number.country;
       if (number?.countryCallingCode)
         activeDialCode.value = `+${number.countryCallingCode}`;
       phoneNumber.value = newValue.replace(`+${number.countryCallingCode}`, '');
+      return;
     }
+
+    // Último recurso: mostrar el número tal cual, sin el "+", para no perderlo.
+    phoneNumber.value = String(newValue).replace(/^\+/, '');
   },
   { immediate: true }
 );

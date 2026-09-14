@@ -50,7 +50,8 @@ class Jabvox::BulkWhatsappDispatchService
 
   def initialize(account:, inbox:, sender_user:, actor:, response_email: '', csv_io: nil,
                  file_name: '', leads_selection: nil, template_name: nil, language: nil, text: nil,
-                 variable_map: nil, source_batch_id: nil, number_column: nil, header_media: nil)
+                 variable_map: nil, source_batch_id: nil, number_column: nil, header_media: nil,
+                 country: nil)
     @account = account
     @inbox = inbox
     @sender_user = sender_user
@@ -65,6 +66,10 @@ class Jabvox::BulkWhatsappDispatchService
     @source_batch_id = source_batch_id
     # Columna del CSV con el número (elegida en la UI). Si es nil, se autodetecta.
     @number_column = number_column.to_s.strip.downcase.presence
+    # País del envío por CSV: de él sale el prefijo de los números que llegan sin
+    # él. Mismo criterio que la importación de leads — el prefijo NUNCA se adivina
+    # a partir del número. Los envíos desde leads no lo usan: su teléfono ya es E.164.
+    @country_iso = country.to_s.strip.upcase.presence
     # Media del header de la plantilla ({ media_url, media_type }) — igual para todos.
     @header_media = normalize_header_media(header_media)
     # { "1" => "nombre", "2" => "custom:fecha_entrega2_c", ... } — which lead field
@@ -285,12 +290,26 @@ class Jabvox::BulkWhatsappDispatchService
     keys.filter_map { |k| cells[k].presence }.first
   end
 
-  # Normaliza el número a solo dígitos (quita '+', espacios, guiones, paréntesis).
-  # Devuelve los dígitos (con prefijo de país) o nil si no alcanza el mínimo. El '+'
-  # lo pone el flujo n8n; aquí solo garantizamos un número con suficientes dígitos.
+  # Normaliza el número del CSV a dígitos listos para la API de WhatsApp.
+  #
+  # Cuando el envío trae país, el prefijo se aplica con el MISMO servicio que usa
+  # la importación de leads: así "3001234567" sale como "573001234567" en vez de
+  # irse incompleto y fallar en silencio. Un número que ya trae prefijo no se
+  # duplica. Sin país se conserva el comportamiento anterior (solo dígitos), para
+  # no cambiar envíos ya configurados.
   def normalize_phone(value)
+    return normalize_with_country(value) if @country_iso.present?
+
     digs = digits(value)
     digs.length >= MIN_PHONE_DIGITS ? digs : nil
+  end
+
+  # E.164 sin el '+': es el formato que espera la API de WhatsApp.
+  def normalize_with_country(value)
+    e164 = Jabvox::LeadIdentityService.normalize_phone(value, @country_iso).value
+    return nil if e164.blank?
+
+    e164.delete_prefix('+')
   end
 
   def digits(value)

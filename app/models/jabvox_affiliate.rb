@@ -54,8 +54,36 @@ class JabvoxAffiliate < ApplicationRecord
 
   scope :active, -> { where(active: true) }
   scope :ordered, -> { order(created_at: :desc) }
+  scope :owned, -> { where(owned_jabvox: true) }
+  scope :external, -> { where(owned_jabvox: false) }
 
   before_validation :generate_credentials, on: :create
+
+  # El afiliado propio de la cuenta es intocable: representa "sin afiliado
+  # externo" y otros módulos dependen de que exista siempre. Las protecciones
+  # viven en el MODELO, no en el controlador, para que ninguna vía (API, consola,
+  # otro servicio) pueda saltárselas.
+  validate :owned_affiliate_is_immutable, on: :update
+  validate :one_owned_affiliate_per_account, on: :create
+  before_destroy :prevent_owned_affiliate_destroy
+
+  # El afiliado propio de una cuenta, creándolo si aún no existe. Es idempotente
+  # y seguro ante carreras (el índice único decide).
+  def self.owned_for!(account)
+    owned.find_by(account_id: account.id) ||
+      create!(account: account, name: DEFAULT_OWNED_NAME, owned_jabvox: true, active: true)
+  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
+    owned.find_by!(account_id: account.id)
+  end
+
+  # Nombre inicial del afiliado propio. Vive aquí como valor por defecto de la
+  # fila que se crea en base de datos, no como un identificador hardcodeado: el
+  # afiliado propio se reconoce por owned_jabvox, nunca por su nombre.
+  DEFAULT_OWNED_NAME = 'Propio'
+
+  def owned?
+    owned_jabvox
+  end
 
   def regenerate_account_code!
     update!(account_code: self.class.generate_account_code)
@@ -85,6 +113,47 @@ class JabvoxAffiliate < ApplicationRecord
   end
 
   private
+
+  # Un afiliado propio no se renombra, no se desactiva y no cambia de cuenta.
+  # Sus credenciales de portal SÍ pueden regenerarse (no es un cambio de
+  # identidad y permite revocar un token filtrado).
+  PROTECTED_OWNED_ATTRIBUTES = %w[name active owned_jabvox account_id].freeze
+
+  def owned_affiliate_is_immutable
+    return unless owned_jabvox_was
+
+    changed_protected = changed & PROTECTED_OWNED_ATTRIBUTES
+    return if changed_protected.empty?
+
+    errors.add(:base, I18n.t('errors.jabvox_affiliate.owned_immutable'))
+  end
+
+  def one_owned_affiliate_per_account
+    return unless owned_jabvox
+    return unless self.class.owned.exists?(account_id: account_id)
+
+    errors.add(:base, I18n.t('errors.jabvox_affiliate.owned_already_exists'))
+  end
+
+  # Bloquea el borrado del afiliado propio, EXCEPTO cuando desaparece su cuenta:
+  # ahí debe irse con ella, o el borrado de la cuenta quedaría atascado contra su
+  # propia fila (dependent: :destroy_async en Account).
+  def prevent_owned_affiliate_destroy
+    return unless owned_jabvox
+    return if account_being_destroyed?
+
+    errors.add(:base, I18n.t('errors.jabvox_affiliate.owned_immutable'))
+    throw :abort
+  end
+
+  # La cuenta ya no existe (borrado en cascada) o está destruyéndose ahora mismo.
+  def account_being_destroyed?
+    return true if account.nil?
+
+    account.destroyed? || account.marked_for_destruction?
+  rescue ActiveRecord::RecordNotFound
+    true
+  end
 
   def generate_credentials
     self.account_code ||= self.class.generate_account_code

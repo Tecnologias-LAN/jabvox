@@ -117,6 +117,7 @@
   display_name: Custom Tools
   enabled: false
   premium: true
+  deprecated: true
 - name: message_reply_to
   display_name: Message Reply To
   enabled: false
@@ -152,6 +153,7 @@
 - name: captain_integration
   display_name: Jabvox IA
   enabled: false
+  deprecated: true
 - name: custom_roles
   display_name: Custom Roles
   enabled: false
@@ -193,6 +195,7 @@
 - name: captain_integration_v2
   display_name: Jabvox IA (V2)
   enabled: false
+  deprecated: true
 - name: whatsapp_embedded_signup
   display_name: WhatsApp Embedded Signup
   enabled: false
@@ -210,6 +213,7 @@
 - name: captain_document_auto_sync
   display_name: Jabvox IA - Auto sync de documentos
   enabled: false
+  deprecated: true
 - name: advanced_search
   display_name: Advanced Search
   enabled: false
@@ -255,6 +259,7 @@
 - name: captain_tasks
   display_name: Jabvox IA - Tareas
   enabled: true
+  deprecated: true
 - name: conversation_required_attributes
   display_name: Required Conversation Attributes
   enabled: false

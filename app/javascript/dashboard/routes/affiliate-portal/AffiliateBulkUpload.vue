@@ -1,7 +1,8 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import affiliatePortalAPI from '../../api/jabvox/affiliatePortal';
+import countries from 'shared/constants/countries.js';
 
 const { t } = useI18n();
 
@@ -11,6 +12,12 @@ const errorMsg = ref('');
 const fileInput = ref(null);
 const selectedFile = ref(null);
 const result = ref(null);
+// País de los números del archivo: de él sale el prefijo. Obligatorio.
+const country = ref('');
+
+const dialCode = computed(
+  () => countries.find(c => c.id === country.value)?.dial_code ?? ''
+);
 
 const onFileChange = e => {
   const file = e.target.files[0];
@@ -31,9 +38,48 @@ const clearFile = () => {
   if (fileInput.value) fileInput.value.value = '';
 };
 
+let pollTimer = null;
+
+const stopPolling = () => {
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = null;
+};
+
+// Consulta el avance cada 2 s hasta que la importación termina. Se detiene sola
+// al salir de la pantalla para no dejar peticiones colgando.
+const pollImport = async id => {
+  try {
+    const { data } = await affiliatePortalAPI.getImport(id);
+    result.value = data;
+    if (data.status === 'processing') {
+      pollTimer = setTimeout(() => pollImport(id), 2000);
+      return;
+    }
+    isLoading.value = false;
+    if (data.status === 'failed') {
+      errorMsg.value = t('JABVOX_AFFILIATE_PORTAL.BULK_ERROR_DEFAULT');
+      return;
+    }
+    successMsg.value = t('JABVOX_AFFILIATE_PORTAL.BULK_SUCCESS', {
+      ok: data.rows_ok,
+      duplicated: data.rows_duplicated,
+      failed: data.rows_failed,
+    });
+  } catch {
+    isLoading.value = false;
+    errorMsg.value = t('JABVOX_AFFILIATE_PORTAL.BULK_ERROR_DEFAULT');
+  }
+};
+
+onUnmounted(stopPolling);
+
 const onSubmit = async () => {
   if (!selectedFile.value) {
     errorMsg.value = t('JABVOX_AFFILIATE_PORTAL.BULK_SELECT_FILE');
+    return;
+  }
+  if (!country.value) {
+    errorMsg.value = t('JABVOX_AFFILIATE_PORTAL.BULK_SELECT_COUNTRY');
     return;
   }
   errorMsg.value = '';
@@ -43,18 +89,27 @@ const onSubmit = async () => {
   try {
     const formData = new FormData();
     formData.append('file', selectedFile.value);
+    formData.append('country', country.value);
     const { data } = await affiliatePortalAPI.importCsv(formData);
-    result.value = data;
-    successMsg.value = t('JABVOX_AFFILIATE_PORTAL.BULK_SUCCESS', {
-      ok: data.rows_ok,
-      failed: data.rows_failed,
-    });
+    // clearFile() borra el resultado, así que el resumen se guarda después.
     clearFile();
+    result.value = data;
+    // El backend responde 202 y procesa en segundo plano: se consulta el avance
+    // hasta que termine.
+    pollImport(data.id);
   } catch (err) {
-    errorMsg.value =
-      err.response?.data?.error ??
-      t('JABVOX_AFFILIATE_PORTAL.BULK_ERROR_DEFAULT');
-  } finally {
+    const code = err.response?.data?.error;
+    const known = {
+      import_in_progress: 'BULK_ERROR_IN_PROGRESS',
+      country_required: 'BULK_SELECT_COUNTRY',
+      file_too_large: 'BULK_ERROR_TOO_LARGE',
+      file_empty: 'BULK_ERROR_EMPTY',
+      too_many_rows: 'BULK_ERROR_TOO_MANY',
+    }[code];
+    errorMsg.value = t(
+      `JABVOX_AFFILIATE_PORTAL.${known ?? 'BULK_ERROR_DEFAULT'}`,
+      { max: err.response?.data?.max }
+    );
     isLoading.value = false;
   }
 };
@@ -70,10 +125,35 @@ const onSubmit = async () => {
       {{ t('JABVOX_AFFILIATE_PORTAL.BULK_SUBTITLE') }}
       {{ t('JABVOX_AFFILIATE_PORTAL.BULK_COLUMNS_HINT') }}
       <code class="text-xs font-mono bg-n-alpha-black2 px-1 rounded">
-        name, email, phone, country
+        name, email, phone
       </code>
       {{ t('JABVOX_AFFILIATE_PORTAL.BULK_MAX_HINT') }}
     </p>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-n-slate-12 mb-1.5">
+        {{ t('JABVOX_AFFILIATE_PORTAL.BULK_COUNTRY_LABEL') }}
+        <span class="text-n-ruby-9">*</span>
+      </label>
+      <select
+        v-model="country"
+        class="w-full h-9 rounded-lg border border-n-weak bg-n-surface-1 px-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
+      >
+        <option value="" disabled>
+          {{ t('JABVOX_AFFILIATE_PORTAL.BULK_COUNTRY_PLACEHOLDER') }}
+        </option>
+        <option v-for="c in countries" :key="c.id" :value="c.id">
+          {{ c.emoji }} {{ c.name }} ({{ c.dial_code }})
+        </option>
+      </select>
+      <p class="mt-1 text-xs text-n-slate-10">
+        {{
+          t('JABVOX_AFFILIATE_PORTAL.BULK_COUNTRY_HINT', {
+            prefix: dialCode || '—',
+          })
+        }}
+      </p>
+    </div>
 
     <div
       class="rounded-xl border-2 border-dashed border-n-weak bg-n-surface-2 p-6 text-center cursor-pointer hover:border-n-brand/50 transition-colors"
@@ -128,6 +208,19 @@ const onSubmit = async () => {
       v-if="result"
       class="mt-4 rounded-xl border border-n-weak bg-n-surface-2 p-4 space-y-2"
     >
+      <div v-if="result.status === 'processing'" class="space-y-1">
+        <div class="flex justify-between text-xs text-n-slate-11">
+          <span>{{ t('JABVOX_AFFILIATE_PORTAL.BULK_PROCESSING') }}</span>
+          <span>{{ result.rows_processed }} / {{ result.rows_total }}</span>
+        </div>
+        <div class="h-1.5 rounded-full bg-n-alpha-black2 overflow-hidden">
+          <div
+            class="h-full bg-n-brand transition-all"
+            :style="{ width: `${result.progress}%` }"
+          />
+        </div>
+      </div>
+
       <div class="flex justify-between text-sm">
         <span class="text-n-slate-11">
           {{ t('JABVOX_AFFILIATE_PORTAL.BULK_RESULT_TOTAL') }}
@@ -139,6 +232,14 @@ const onSubmit = async () => {
           {{ t('JABVOX_AFFILIATE_PORTAL.BULK_RESULT_OK') }}
         </span>
         <span class="font-medium text-n-teal-11">{{ result.rows_ok }}</span>
+      </div>
+      <div class="flex justify-between text-sm">
+        <span class="text-n-slate-11">
+          {{ t('JABVOX_AFFILIATE_PORTAL.BULK_RESULT_DUPLICATED') }}
+        </span>
+        <span class="font-medium text-n-amber-11">
+          {{ result.rows_duplicated }}
+        </span>
       </div>
       <div class="flex justify-between text-sm">
         <span class="text-n-slate-11">

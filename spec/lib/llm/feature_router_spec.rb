@@ -17,35 +17,7 @@ RSpec.describe Llm::FeatureRouter do
       )
     end
 
-    it 'uses a valid account model override' do
-      account.update!(captain_models: { 'editor' => 'gpt-4.1' })
-
-      resolved = described_class.resolve(feature: 'editor', account: account)
-
-      expect(resolved).to include(
-        feature: 'editor',
-        provider: 'openai',
-        model: 'gpt-4.1',
-        source: :account_override
-      )
-    end
-
-    it 'resolves GPT-5.2 as the assistant default when Captain V2 is enabled without storing an account override' do
-      account.enable_features!('captain_integration_v2')
-
-      resolved = described_class.resolve(feature: 'assistant', account: account)
-
-      expect(resolved).to include(
-        feature: 'assistant',
-        provider: 'openai',
-        model: 'gpt-5.2',
-        source: :default
-      )
-      expect(account.reload.captain_models).to be_nil
-    end
-
-    it 'keeps account model overrides ahead of the Captain V2 default' do
-      account.enable_features!('captain_integration_v2')
+    it 'keeps account model overrides ahead of the default' do
       account.update!(captain_models: { 'assistant' => 'gpt-5.1' })
 
       resolved = described_class.resolve(feature: 'assistant', account: account)

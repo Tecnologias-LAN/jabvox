@@ -18,10 +18,15 @@ export default {
   createContact: payload =>
     axios.post(`${BASE}/contacts`, payload, { headers: authHeaders() }),
 
+  // Responde 202 de inmediato: el archivo se procesa en segundo plano y el
+  // avance se consulta con getImport.
   importCsv: formData =>
     axios.post(`${BASE}/imports`, formData, {
       headers: { ...authHeaders(), 'Content-Type': 'multipart/form-data' },
     }),
+
+  getImport: id =>
+    axios.get(`${BASE}/imports/${id}`, { headers: authHeaders() }),
 
   getLeads: (page = 1) =>
     axios.get(`${BASE}/leads`, {

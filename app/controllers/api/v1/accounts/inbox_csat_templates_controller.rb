@@ -65,9 +65,11 @@ class Api::V1::Accounts::InboxCsatTemplatesController < Api::V1::Accounts::BaseC
   end
 
   def validate_captain_enabled
-    return if Current.account.feature_enabled?('captain_integration')
+    # El módulo de IA de la cuenta es el Chat IA (Hermes); se acepta el flag antiguo de
+    # Captain para no romper cuentas que aún lo tengan activo.
+    return if Current.account.feature_enabled?('jabvox_ai_chat')
 
-    render json: { error: 'Captain is required for template analysis' }, status: :forbidden
+    render json: { error: 'El Chat IA es necesario para el análisis de plantillas' }, status: :forbidden
   end
 
   def render_template_creation_result(result)

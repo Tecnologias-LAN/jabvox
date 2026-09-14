@@ -23,23 +23,23 @@ module SuperAdmin::FeatureCategorizationHelper
       'voice_recorder'
     ],
     integrations: [
-      'integrations', /_integration\z/, /\Acaptain_integration/, 'shopify_integration',
+      'integrations', /_integration\z/, 'shopify_integration',
       'linear_integration', 'notion_integration', 'crm_integration', 'crm_v2',
       'api_and_webhooks', 'data_import'
     ],
     ai: [
       /\Ajabvox_ia/, 'jabvox_v4', /\Acaptain_/, 'agent_bots'
     ],
-    automation: [
-      'automations', 'macros', 'canned_responses', 'auto_resolve_conversations',
-      'sla', 'unattended', 'advanced_assignment', 'assignment_v2',
-      'conversation_required_attributes', 'whatsapp_manual_transfer'
+    automation: %w[
+      automations macros canned_responses auto_resolve_conversations
+      sla unattended advanced_assignment assignment_v2
+      conversation_required_attributes whatsapp_manual_transfer
     ],
-    management: [
-      'agent_management', 'team_management', 'inbox_management', 'inbox_view',
-      'custom_roles', 'audit_logs', 'custom_attributes', 'companies', 'crm',
-      'labels', 'custom_tools', 'saml', 'mentions', 'participating',
-      'contact_jabvox_support_team'
+    management: %w[
+      agent_management team_management inbox_management inbox_view
+      custom_roles audit_logs custom_attributes companies crm
+      labels saml mentions participating
+      contact_jabvox_support_team
     ],
     insights: [
       'reports', 'report_rollup', 'campaigns', /\Ahelp_center/, /\Aadvanced_search/,

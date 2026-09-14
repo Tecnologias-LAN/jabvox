@@ -7,6 +7,17 @@
 #
 # Table name: jabvox_ai_provider_configs
 #
+#  id                   :bigint           not null, primary key
+#  base_url_jabvox      :string
+#  enabled_jabvox       :boolean          default(FALSE), not null
+#  last_check_at_jabvox :datetime
+#  last_error_jabvox    :string
+#  master_key_jabvox    :text
+#  provider_name_jabvox :string           default("Proveedor IA"), not null
+#  status_jabvox        :string           default("disconnected"), not null
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#
 class JabvoxAiProviderConfig < ApplicationRecord
   # No-determinístico + guard (patrón de los modelos jabvox_*): no se busca por la master key.
   encrypts :master_key_jabvox if Jabvox.encryption_configured?

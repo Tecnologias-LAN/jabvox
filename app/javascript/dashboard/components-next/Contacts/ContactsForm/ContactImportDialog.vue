@@ -4,6 +4,13 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { campaignsAPI } from 'dashboard/api/jabvox/campaigns';
+import ContactAPI from 'dashboard/api/contacts';
+import {
+  buildPreviewRows,
+  importableCount as computeImportable,
+  rowsWithPrefix,
+  rowsAlreadyExisting,
+} from './importPreviewHelper';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import countries from 'shared/constants/countries.js';
@@ -18,8 +25,18 @@ const isImportingContact = computed(() => uiFlags.value.isImporting);
 const dialogRef = ref(null);
 const fileInput = ref(null);
 
-// ── step: 'select' | 'mapping' ────────────────────────────────────────
+// ── step: 'select' | 'mapping' | 'preview' ────────────────────────────
 const currentStep = ref('select');
+
+// ── preview state ─────────────────────────────────────────────────────
+// Resumen que devuelve el backend antes de importar: qué se crearía, qué ya
+// existe en la cuenta y qué filas traen ya el prefijo internacional.
+const preview = ref(null);
+const previewError = ref('');
+// 'skip' = no tocar los leads que ya existen; 'update' = el archivo manda.
+const duplicatePolicy = ref('skip');
+// El CSV ya normalizado que se enviará si el usuario confirma tras la vista previa.
+const preparedFile = ref(null);
 
 // ── file state ────────────────────────────────────────────────────────
 const selectedFile = ref(null);
@@ -190,7 +207,7 @@ const buildAndEmit = async () => {
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-  if (!rows.length) return;
+  if (!rows.length) return null;
 
   const headers = (rows[0] || []).map(String);
   const dataRows = rows.slice(1);
@@ -243,7 +260,28 @@ const buildAndEmit = async () => {
 
   const blob = new Blob([csv], { type: 'text/csv' });
   const csvFile = new File([blob], 'import.csv', { type: 'text/csv' });
-  emit('import', csvFile);
+  return { csvFile, headers: outHeaders, rows: outRows };
+};
+
+const runPreview = async () => {
+  previewError.value = '';
+  const built = await buildAndEmit();
+  if (!built) return false;
+
+  preparedFile.value = built.csvFile;
+  try {
+    const { data } = await ContactAPI.importPreview({
+      rows: buildPreviewRows(built.headers, built.rows),
+      country: importCountry.value,
+    });
+    preview.value = data;
+    return true;
+  } catch (error) {
+    previewError.value =
+      error.response?.data?.error ??
+      t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.PREVIEW_ERROR');
+    return false;
+  }
 };
 
 // ── confirm dialog → step transitions ────────────────────────────────
@@ -265,11 +303,28 @@ const onConfirm = async () => {
     return;
   }
 
-  await buildAndEmit();
+  if (currentStep.value === 'mapping') {
+    isParsing.value = true;
+    try {
+      if (await runPreview()) currentStep.value = 'preview';
+    } finally {
+      isParsing.value = false;
+    }
+    return;
+  }
+
+  // Paso 'preview': el usuario ya vio qué se crearía y qué ya existe.
+  if (preparedFile.value) {
+    emit('import', {
+      file: preparedFile.value,
+      country: importCountry.value,
+      duplicatePolicy: duplicatePolicy.value,
+    });
+  }
 };
 
 const onBack = () => {
-  currentStep.value = 'select';
+  currentStep.value = currentStep.value === 'preview' ? 'mapping' : 'select';
 };
 
 // ── file input handlers ───────────────────────────────────────────────
@@ -282,11 +337,20 @@ const processFileName = fileName => {
   return base.length > 20 ? `${base.slice(0, 20)}...${ext}` : fileName;
 };
 
+// Cualquier cambio de archivo invalida la vista previa ya calculada.
+const resetPreview = () => {
+  preview.value = null;
+  previewError.value = '';
+  preparedFile.value = null;
+  duplicatePolicy.value = 'skip';
+};
+
 const handleFileChange = () => {
   const file = fileInput.value?.files[0];
   selectedFile.value = file ?? null;
   selectedFileName.value = file ? processFileName(file.name) : '';
   currentStep.value = 'select';
+  resetPreview();
 };
 
 const handleRemoveFile = () => {
@@ -294,21 +358,42 @@ const handleRemoveFile = () => {
   selectedFileName.value = '';
   if (fileInput.value) fileInput.value.value = null;
   currentStep.value = 'select';
+  resetPreview();
 };
 
 // ── computed ──────────────────────────────────────────────────────────
 const confirmLabel = computed(() => {
-  if (currentStep.value === 'select') {
-    return t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.NEXT');
+  if (currentStep.value === 'preview') {
+    return t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.IMPORT');
   }
-  return t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.IMPORT');
+  return t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.NEXT');
 });
+
+const counts = computed(() => preview.value?.counts ?? {});
+
+// Cuántas filas entrarían realmente con la política elegida.
+const importableCount = computed(() =>
+  computeImportable(counts.value, duplicatePolicy.value)
+);
 
 const isConfirmDisabled = computed(() => {
   if (isImportingContact.value || isParsing.value) return true;
   if (currentStep.value === 'select')
     return !selectedFile.value || !importCountry.value;
+  // Nada que importar: todas las filas son duplicadas o inválidas.
+  if (currentStep.value === 'preview') return !importableCount.value;
   return false;
+});
+
+// Filas cuyo teléfono ya venía con prefijo en el archivo. Se muestran para que
+// el usuario las suba sin él: el prefijo lo pone el país seleccionado.
+const prefixRows = computed(() => rowsWithPrefix(preview.value));
+
+const duplicateRows = computed(() => rowsAlreadyExisting(preview.value));
+
+const selectedCountryLabel = computed(() => {
+  const found = countries.find(c => c.id === importCountry.value);
+  return found ? `${found.emoji} ${found.name} ${found.dial_code}` : '';
 });
 
 const sampleUrl = computed(
@@ -506,6 +591,148 @@ defineExpose({ dialogRef });
           </select>
         </div>
       </div>
+    </div>
+
+    <!-- Step 3: preview — qué se crearía y qué ya existe -->
+    <div v-else-if="currentStep === 'preview'" class="flex flex-col gap-3">
+      <div class="flex items-center gap-2 mb-1">
+        <button
+          class="flex items-center gap-1 text-xs text-n-slate-11 hover:text-n-slate-12 transition-colors"
+          @click="onBack"
+        >
+          <span class="i-lucide-arrow-left w-3 h-3" />
+          {{ t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.BACK') }}
+        </button>
+        <span class="text-xs text-n-slate-10">{{ selectedCountryLabel }}</span>
+      </div>
+
+      <p v-if="previewError" class="text-sm text-n-ruby-11">
+        {{ previewError }}
+      </p>
+
+      <!-- Resumen -->
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div class="rounded-lg border border-n-weak px-3 py-2">
+          <p class="text-xs text-n-slate-10">
+            {{ t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.PREVIEW_NEW') }}
+          </p>
+          <p class="text-lg font-semibold text-n-teal-11">
+            {{ counts.nuevas ?? 0 }}
+          </p>
+        </div>
+        <div class="rounded-lg border border-n-weak px-3 py-2">
+          <p class="text-xs text-n-slate-10">
+            {{
+              t(
+                'CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.PREVIEW_EXISTING'
+              )
+            }}
+          </p>
+          <p class="text-lg font-semibold text-n-amber-11">
+            {{ counts.duplicadas_bd ?? 0 }}
+          </p>
+        </div>
+        <div class="rounded-lg border border-n-weak px-3 py-2">
+          <p class="text-xs text-n-slate-10">
+            {{
+              t(
+                'CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.PREVIEW_DUP_FILE'
+              )
+            }}
+          </p>
+          <p class="text-lg font-semibold text-n-slate-12">
+            {{ counts.duplicadas_archivo ?? 0 }}
+          </p>
+        </div>
+        <div class="rounded-lg border border-n-weak px-3 py-2">
+          <p class="text-xs text-n-slate-10">
+            {{
+              t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.PREVIEW_INVALID')
+            }}
+          </p>
+          <p class="text-lg font-semibold text-n-ruby-11">
+            {{ counts.invalidas ?? 0 }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Aviso de prefijo: el prefijo lo pone el país, no el archivo -->
+      <div
+        v-if="prefixRows.length"
+        class="rounded-lg border border-n-amber-6 bg-n-amber-2 px-3 py-2"
+      >
+        <p class="text-sm font-medium text-n-amber-11">
+          {{
+            t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.PREFIX_WARNING', {
+              count: prefixRows.length,
+            })
+          }}
+        </p>
+        <p class="text-xs text-n-slate-11 mt-1">
+          {{ t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.PREFIX_HINT') }}
+        </p>
+        <ul class="mt-2 space-y-0.5">
+          <li
+            v-for="row in prefixRows.slice(0, 5)"
+            :key="`p-${row.index}`"
+            class="text-xs text-n-slate-11 font-mono"
+          >
+            {{ `${row.phone_original} → ${row.phone}` }}
+          </li>
+        </ul>
+      </div>
+
+      <!-- Qué hacer con los que ya existen -->
+      <div v-if="counts.duplicadas_bd" class="flex flex-col gap-2">
+        <label class="text-sm font-medium text-n-slate-12">
+          {{
+            t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.DUPLICATE_LABEL')
+          }}
+        </label>
+        <label class="flex items-start gap-2 text-sm text-n-slate-11">
+          <input v-model="duplicatePolicy" type="radio" value="skip" />
+          <span>
+            {{
+              t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.DUPLICATE_SKIP')
+            }}
+          </span>
+        </label>
+        <label class="flex items-start gap-2 text-sm text-n-slate-11">
+          <input v-model="duplicatePolicy" type="radio" value="update" />
+          <span>
+            {{
+              t(
+                'CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.DUPLICATE_UPDATE'
+              )
+            }}
+          </span>
+        </label>
+
+        <div
+          class="max-h-40 overflow-y-auto border border-n-weak rounded-lg divide-y divide-n-weak"
+        >
+          <div
+            v-for="row in duplicateRows.slice(0, 50)"
+            :key="`d-${row.index}`"
+            class="px-3 py-1.5 flex items-center justify-between gap-2"
+          >
+            <span class="text-xs text-n-slate-12 truncate">
+              {{ row.name || row.phone || row.email }}
+            </span>
+            <span class="text-xs text-n-slate-10 font-mono shrink-0">
+              {{ row.phone || row.email }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-sm text-n-slate-11">
+        {{
+          t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.PREVIEW_SUMMARY', {
+            count: importableCount,
+          })
+        }}
+      </p>
     </div>
 
     <input

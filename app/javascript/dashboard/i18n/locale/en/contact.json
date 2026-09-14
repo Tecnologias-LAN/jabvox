@@ -306,7 +306,6 @@
       "ID": "(ID: {identifier})"
     }
   },
-
   "CONTACTS_LAYOUT": {
     "HEADER": {
       "TITLE": "Contacts",
@@ -365,7 +364,18 @@
           "CAMPAIGN_LABEL": "Campaña (opcional)",
           "CAMPAIGN_PLACEHOLDER": "Selecciona una campaña...",
           "SUCCESS_MESSAGE": "You will be notified via email when the import is complete.",
-          "ERROR_MESSAGE": "There was an error, please try again"
+          "ERROR_MESSAGE": "There was an error, please try again",
+          "PREVIEW_NEW": "New",
+          "PREVIEW_EXISTING": "Already exist",
+          "PREVIEW_DUP_FILE": "Repeated in file",
+          "PREVIEW_INVALID": "No phone or email",
+          "PREVIEW_SUMMARY": "{count} leads will be imported.",
+          "PREVIEW_ERROR": "The file could not be analyzed. Please try again.",
+          "PREFIX_WARNING": "{count} numbers already include the international prefix in the file.",
+          "PREFIX_HINT": "The prefix comes from the country you selected: upload numbers without it.",
+          "DUPLICATE_LABEL": "What to do with leads that already exist?",
+          "DUPLICATE_SKIP": "Do not import them — leave them as they are.",
+          "DUPLICATE_UPDATE": "Update them with the file data."
         },
         "EXPORT_CONTACT": {
           "TITLE": "Export contacts",
@@ -645,7 +655,6 @@
       "CONFIRM_SINGLE": "Delete contact"
     }
   },
-
   "COMPOSE_NEW_CONVERSATION": {
     "CONTACT_SEARCH": {
       "ERROR_MESSAGE": "We couldn’t complete the search. Please try again."

@@ -7,6 +7,15 @@
 #
 # Table name: jabvox_provisioner_nonces
 #
+#  id             :bigint           not null, primary key
+#  nonce_jabvox   :string           not null
+#  seen_at_jabvox :datetime         not null
+#
+# Indexes
+#
+#  idx_provisioner_nonce       (nonce_jabvox) UNIQUE
+#  idx_provisioner_nonce_seen  (seen_at_jabvox)
+#
 class JabvoxProvisionerNonce < ApplicationRecord
   WINDOW = 300 # segundos: ventana de validez del timestamp firmado
 

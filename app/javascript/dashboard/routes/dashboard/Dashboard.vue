@@ -32,7 +32,7 @@ const JabvoxSoftphoneLauncher = defineAsyncComponent(
     )
 );
 
-import CopilotLauncher from 'dashboard/components-next/copilot/CopilotLauncher.vue';
+import CopilotLauncher from 'dashboard/components/copilot/CopilotLauncher.vue';
 import SupportWidgetLauncher from 'dashboard/components-next/support/SupportWidgetLauncher.vue';
 import CopilotContainer from 'dashboard/components/copilot/CopilotContainer.vue';
 

@@ -82,7 +82,7 @@ class Integrations::Hook < ApplicationRecord
   end
 
   def process_event(_event)
-    # OpenAI integration migrated to Captain::EditorService
+    # La integración de IA la gestionan los servicios de Hermes.
     # Other integrations (slack, dialogflow, etc.) handled via HookJob
     { error: 'No processor found' }
   end
@@ -101,10 +101,10 @@ class Integrations::Hook < ApplicationRecord
   def ensure_feature_enabled
     return if feature_allowed?
 
-    # Mensaje accionable: para Jabvox IA, decir que el administrador debe activar el módulo.
+    # Mensaje accionable: para la IA, decir que el administrador debe activar el módulo.
     message = if openai?
-                'Jabvox IA no está activo en esta cuenta. Contacta al administrador para que ' \
-                'active el módulo Jabvox IA antes de configurar la API key.'
+                'El Chat IA no está activo en esta cuenta. Contacta al administrador para que ' \
+                'active el módulo Chat IA antes de configurar la API key.'
               else
                 'Feature not enabled'
               end

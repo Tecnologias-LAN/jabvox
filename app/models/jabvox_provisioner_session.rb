@@ -7,6 +7,25 @@
 #
 # Table name: jabvox_provisioner_sessions
 #
+#  id                       :bigint           not null, primary key
+#  bound_ip_jabvox          :string           not null
+#  client_id_jabvox         :string           not null
+#  fingerprint_jabvox       :string
+#  last_heartbeat_at_jabvox :datetime
+#  status_jabvox            :string           default("active"), not null
+#  created_at               :datetime         not null
+#  updated_at               :datetime         not null
+#  provisioner_api_token_id :bigint           not null
+#
+# Indexes
+#
+#  idx_one_active_provisioner_session                             (status_jabvox) UNIQUE WHERE ((status_jabvox)::text = 'active'::text)
+#  index_jabvox_provisioner_sessions_on_provisioner_api_token_id  (provisioner_api_token_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (provisioner_api_token_id => jabvox_provisioner_api_tokens.id)
+#
 class JabvoxProvisionerSession < ApplicationRecord
   belongs_to :provisioner_api_token, class_name: 'JabvoxProvisionerApiToken', inverse_of: :sessions
 

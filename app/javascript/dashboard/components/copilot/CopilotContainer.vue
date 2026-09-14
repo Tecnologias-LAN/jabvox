@@ -1,71 +1,57 @@
 <script setup>
+// Panel flotante del Chat IA (la "burbuja"). Habla con el MISMO agente Hermes de la cuenta
+// que la página completa de Chat IA: comparte store (jabvoxAiChat), sesiones y streaming.
 import { ref, computed, onMounted } from 'vue';
-import { useAlert } from 'dashboard/composables';
 import { useStore } from 'dashboard/composables/store';
-import Copilot from 'dashboard/components-next/copilot/Copilot.vue';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
-import { useConfig } from 'dashboard/composables/useConfig';
+import { useHermesChat } from 'dashboard/composables/jabvox/useHermesChat';
+import { hermesConnectionsAPI } from 'dashboard/api/jabvox/aiChat';
 import { useWindowSize } from '@vueuse/core';
 import { vOnClickOutside } from '@vueuse/components';
+import { useI18n } from 'vue-i18n';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import wootConstants from 'dashboard/constants/globals';
-
-defineProps({
-  conversationInboxType: {
-    type: String,
-    default: '',
-  },
-});
+import HermesChatPanel from './HermesChatPanel.vue';
 
 const store = useStore();
+const { t } = useI18n();
 const { uiSettings, updateUISettings } = useUISettings();
-const { isEnterprise } = useConfig();
 const { width: windowWidth } = useWindowSize();
-
-const currentUser = useMapGetter('getCurrentUser');
-const assistants = useMapGetter('captainAssistants/getRecords');
-const uiFlags = useMapGetter('captainAssistants/getUIFlags');
-const inboxAssistant = useMapGetter('getCopilotAssistant');
-const currentChat = useMapGetter('getSelectedChat');
-
-const isSmallScreen = computed(
-  () => windowWidth.value < wootConstants.SMALL_SCREEN_BREAKPOINT
-);
-
-const selectedCopilotThreadId = ref(null);
-const messages = computed(() =>
-  store.getters['copilotMessages/getMessagesByThreadId'](
-    selectedCopilotThreadId.value
-  )
-);
 
 const currentAccountId = useMapGetter('getCurrentAccountId');
 const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
 
-const selectedAssistantId = ref(null);
+const isSmallScreen = computed(
+  () => windowWidth.value < wootConstants.SMALL_SCREEN_BREAKPOINT
+);
 
-const activeAssistant = computed(() => {
-  const preferredId = uiSettings.value.preferred_captain_assistant_id;
+// Sesión de la burbuja. Es una sesión más de Hermes, así que también aparece en la página
+// completa de Chat IA: el usuario puede empezar aquí y seguir allá.
+const currentSessionId = ref(null);
+const hermesAgents = ref([]); // conexiones Hermes ligadas a este usuario
+const selectedAgentId = ref(null);
 
-  // If the user has selected a specific assistant, it takes first preference for Copilot.
-  if (preferredId) {
-    const preferredAssistant = assistants.value.find(a => a.id === preferredId);
-    // Return the preferred assistant if found, otherwise continue to next cases
-    if (preferredAssistant) return preferredAssistant;
-  }
+const messages = computed(() =>
+  currentSessionId.value
+    ? store.getters['jabvoxAiChat/getMessages'](currentSessionId.value)
+    : []
+);
 
-  // If the above is not available, the assistant connected to the inbox takes preference.
-  if (inboxAssistant.value) {
-    const inboxMatchedAssistant = assistants.value.find(
-      a => a.id === inboxAssistant.value.id
-    );
-    if (inboxMatchedAssistant) return inboxMatchedAssistant;
-  }
-  // If neither of the above is available, the first assistant in the account takes preference.
-  return assistants.value[0];
+const { isStreaming, activeTools, streamAssistant, stopStreaming } =
+  useHermesChat({ errorLabel: t('JABVOX_AI_CHAT.ERROR') });
+
+const hasAgents = computed(() => hermesAgents.value.length > 0);
+
+const shouldShowCopilotPanel = computed(() => {
+  const isAiChatEnabled = isFeatureEnabledonAccount.value(
+    currentAccountId.value,
+    FEATURE_FLAGS.JABVOX_AI_CHAT
+  );
+  const { is_copilot_panel_open: isCopilotPanelOpen } = uiSettings.value;
+  return isAiChatEnabled && isCopilotPanelOpen;
 });
 
 const closeCopilotPanel = () => {
@@ -77,54 +63,59 @@ const closeCopilotPanel = () => {
   }
 };
 
-const setAssistant = async assistant => {
-  selectedAssistantId.value = assistant.id;
-  await updateUISettings({
-    preferred_captain_assistant_id: assistant.id,
-  });
+const handleClose = () => {
+  updateUISettings({ is_copilot_panel_open: false });
 };
 
-const shouldShowCopilotPanel = computed(() => {
-  if (!isEnterprise) {
-    return false;
-  }
-  const isCaptainEnabled = isFeatureEnabledonAccount.value(
-    currentAccountId.value,
-    FEATURE_FLAGS.CAPTAIN
-  );
-  const { is_copilot_panel_open: isCopilotPanelOpen } = uiSettings.value;
-  return isCaptainEnabled && isCopilotPanelOpen && !uiFlags.value.fetchingList;
-});
-
+// Conversación nueva: la siguiente pregunta abre una sesión limpia en Hermes.
 const handleReset = () => {
-  selectedCopilotThreadId.value = null;
+  if (isStreaming.value) stopStreaming();
+  currentSessionId.value = null;
 };
 
 const sendMessage = async message => {
-  try {
-    if (selectedCopilotThreadId.value) {
-      await store.dispatch('copilotMessages/create', {
-        assistant_id: activeAssistant.value.id,
-        conversation_id: currentChat.value?.id,
-        threadId: selectedCopilotThreadId.value,
-        message,
-      });
-    } else {
-      const response = await store.dispatch('copilotThreads/create', {
-        assistant_id: activeAssistant.value.id,
-        conversation_id: currentChat.value?.id,
-        message,
-      });
-      selectedCopilotThreadId.value = response.id;
-    }
-  } catch (error) {
-    useAlert(error.message);
-  }
+  const content = (message || '').trim();
+  if (!content || !hasAgents.value) return;
+
+  // Si el bot aún responde, detén esa respuesta antes de enviar el nuevo mensaje.
+  if (isStreaming.value) stopStreaming();
+
+  const isNewChat = !currentSessionId.value;
+  const apiSessionId = currentSessionId.value || null;
+  const displaySessionId = apiSessionId || `pending_${Date.now()}`;
+  if (isNewChat) currentSessionId.value = displaySessionId;
+
+  store.commit('jabvoxAiChat/ADD_MESSAGE', {
+    sessionId: displaySessionId,
+    message: {
+      id: Date.now(),
+      role: 'user',
+      content,
+      created_at: new Date(),
+    },
+  });
+
+  await streamAssistant({
+    content,
+    apiSessionId,
+    displaySessionId,
+    isNewChat,
+    connectionId: selectedAgentId.value,
+  });
 };
 
-onMounted(() => {
-  if (isEnterprise) {
-    store.dispatch('captainAssistants/get');
+onMounted(async () => {
+  const isAiChatEnabled = isFeatureEnabledonAccount.value(
+    currentAccountId.value,
+    FEATURE_FLAGS.JABVOX_AI_CHAT
+  );
+  if (!isAiChatEnabled) return;
+  try {
+    const { data } = await hermesConnectionsAPI.mine();
+    hermesAgents.value = data || [];
+    selectedAgentId.value = hermesAgents.value[0]?.id || null;
+  } catch {
+    hermesAgents.value = [];
   }
 });
 </script>
@@ -141,15 +132,15 @@ onMounted(() => {
       },
     ]"
   >
-    <Copilot
+    <HermesChatPanel
       :messages="messages"
-      :support-agent="currentUser"
-      :conversation-inbox-type="conversationInboxType"
-      :assistants="assistants"
-      :active-assistant="activeAssistant"
-      @set-assistant="setAssistant"
+      :is-streaming="isStreaming"
+      :active-tools="activeTools"
+      :has-agents="hasAgents"
       @send-message="sendMessage"
+      @stop="stopStreaming"
       @reset="handleReset"
+      @close="handleClose"
     />
   </div>
   <template v-else />

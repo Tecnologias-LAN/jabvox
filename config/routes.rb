@@ -75,39 +75,8 @@ Rails.application.routes.draw do
           resources :agents, only: [:index, :create, :update, :destroy] do
             post :bulk_create, on: :collection
           end
-          namespace :captain do
+          namespace :hermes do
             resource :preferences, only: [:show, :update]
-            resources :assistants do
-              member do
-                post :playground
-                get :metrics
-                get :faq_stats
-                get :summary
-                get :drilldown
-              end
-              collection do
-                get :tools
-              end
-              resources :inboxes, only: [:index, :create, :destroy], param: :inbox_id
-              resources :scenarios
-            end
-            resources :agent_sessions, only: [:show]
-            resources :assistant_responses
-            resources :faq_suggestions, only: [:index, :show, :update] do
-              post :approve, on: :member
-              post :dismiss, on: :member
-            end
-            resources :message_reports, only: [:create]
-            resources :bulk_actions, only: [:create]
-            resources :copilot_threads, only: [:index, :create] do
-              resources :copilot_messages, only: [:index, :create]
-            end
-            resources :custom_tools do
-              post :test, on: :collection
-            end
-            resources :documents, only: [:index, :show, :create, :destroy] do
-              post :sync, on: :member
-            end
             resource :tasks, only: [], controller: 'tasks' do
               post :rewrite
               post :summarize
@@ -188,7 +157,6 @@ Rails.application.routes.draw do
               post :unread
               post :custom_attributes
               get :attachments
-              get :inbox_assistant
               get :reporting_events if JabvoxApp.enterprise?
             end
           end
@@ -226,6 +194,7 @@ Rails.application.routes.draw do
               get :search
               post :filter
               post :import
+              post :import_preview
               post :export
               get :sample_import
             end
@@ -1057,7 +1026,7 @@ Rails.application.routes.draw do
         namespace :affiliate_portal do
           post 'auth/login', to: 'auth#login'
           resources :contacts, only: [:create]
-          resources :imports, only: [:create]
+          resources :imports, only: [:create, :show]
           resources :leads, only: [:index] do
             collection { get :history }
           end
@@ -1203,7 +1172,6 @@ Rails.application.routes.draw do
       end
 
       post 'webhooks/stripe', to: 'webhooks/stripe#process_payload'
-      post 'webhooks/firecrawl', to: 'webhooks/firecrawl#process_payload'
     end
   end
 

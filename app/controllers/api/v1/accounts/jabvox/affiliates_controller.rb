@@ -10,8 +10,15 @@ class Api::V1::Accounts::Jabvox::AffiliatesController < Api::V1::Accounts::BaseC
   # actually have a custom role.
   before_action :ensure_module_permission, except: :index
   before_action :set_affiliate, only: %i[update destroy regenerate_token regenerate_code]
+  # El afiliado propio no se renombra, no se desactiva y no se borra. Se bloquea
+  # aquí ADEMÁS de en el modelo: el endpoint responde 403 con un mensaje claro en
+  # vez de un error de validación genérico.
+  before_action :reject_owned_affiliate_write, only: %i[update destroy]
 
   def index
+    # El afiliado propio se garantiza al listar: así una cuenta creada antes de
+    # esta funcionalidad lo obtiene sin necesidad de un backfill manual.
+    JabvoxAffiliate.owned_for!(Current.account)
     @affiliates = Current.account.jabvox_affiliates.ordered
     render json: @affiliates.map { |a| serialize_affiliate(a) }
   end
@@ -69,6 +76,15 @@ class Api::V1::Accounts::Jabvox::AffiliatesController < Api::V1::Accounts::BaseC
     render json: { error: 'Not found' }, status: :not_found
   end
 
+  def reject_owned_affiliate_write
+    return unless @affiliate&.owned?
+
+    render json: { error: I18n.t('errors.jabvox_affiliate.owned_immutable') }, status: :forbidden
+  end
+
+  # owned_jabvox NO es asignable desde la API: el afiliado propio solo lo crea el
+  # propio sistema (owned_for!). Permitirlo dejaría crear un segundo "propio" o
+  # convertir uno externo en intocable.
   def affiliate_params
     params.permit(:name, :active)
   end
@@ -86,6 +102,8 @@ class Api::V1::Accounts::Jabvox::AffiliatesController < Api::V1::Accounts::BaseC
       portal_slug: affiliate.portal_slug,
       portal_url: "#{portal_base_url}/login/#{affiliate.portal_slug}",
       active: affiliate.active,
+      # La interfaz usa esto para mostrarlo sin acciones de editar/eliminar.
+      owned: affiliate.owned?,
       created_at: affiliate.created_at
     }
   end

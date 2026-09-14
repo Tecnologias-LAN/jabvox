@@ -12,6 +12,29 @@
 #
 # Table name: jabvox_ai_provider_accounts
 #
+#  id                            :bigint           not null, primary key
+#  cached_spend_jabvox           :decimal(15, 6)
+#  last_error_jabvox             :string
+#  last_reset_period_jabvox      :string
+#  plan_budget_cents_jabvox      :integer          default(0), not null
+#  purchased_budget_cents_jabvox :integer          default(0), not null
+#  spend_updated_at_jabvox       :datetime
+#  status_jabvox                 :string           default("active"), not null
+#  synced_at_jabvox              :datetime
+#  team_id_jabvox                :string
+#  created_at                    :datetime         not null
+#  updated_at                    :datetime         not null
+#  account_id                    :bigint           not null
+#
+# Indexes
+#
+#  index_jabvox_ai_provider_accounts_on_account_id      (account_id) UNIQUE
+#  index_jabvox_ai_provider_accounts_on_team_id_jabvox  (team_id_jabvox)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id)
+#
 class JabvoxAiProviderAccount < ApplicationRecord
   belongs_to :account
 

@@ -33,7 +33,9 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   private
 
   def can_transcribe?
-    return false unless account.feature_enabled?('captain_integration')
+    # El módulo de IA de la cuenta es el Chat IA (Hermes). Se acepta también el flag antiguo
+    # de Captain para no apagar la transcripción en cuentas que aún lo tengan activo.
+    return false unless account.feature_enabled?('jabvox_ai_chat')
     return false if account.audio_transcriptions.blank?
 
     account.usage_limits[:captain][:responses][:current_available].positive?

@@ -31,11 +31,27 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
     @contacts = fetch_contacts_with_has_more(contacts)
   end
 
+  # POST /contacts/import_preview
+  # Analiza las filas ANTES de importar y devuelve qué se crearía, qué ya
+  # existe en la cuenta (por teléfono o correo exactos) y qué filas traen ya el
+  # prefijo internacional. Es de solo lectura: no escribe nada.
+  def import_preview
+    return render(json: { error: I18n.t('errors.contacts.import.country_required') }, status: :unprocessable_entity) \
+      unless Jabvox::LeadIdentityService.valid_country?(params[:country])
+
+    rows = import_preview_rows
+    return render(json: { error: I18n.t('errors.contacts.import.failed') }, status: :unprocessable_entity) if rows.blank?
+
+    render json: Jabvox::LeadImportPreviewService.new(Current.account, rows, country_iso: params[:country]).call
+  end
+
   def import
     render json: { error: I18n.t('errors.contacts.import.failed') }, status: :unprocessable_entity and return if params[:import_file].blank?
+    return render(json: { error: I18n.t('errors.contacts.import.country_required') }, status: :unprocessable_entity) \
+      unless Jabvox::LeadIdentityService.valid_country?(params[:country])
 
     ActiveRecord::Base.transaction do
-      import = Current.account.data_imports.create!(data_type: 'contacts')
+      import = Current.account.data_imports.create!(data_type: 'contacts', source_metadata: import_metadata)
       import.import_file.attach(params[:import_file])
     end
 
@@ -132,6 +148,32 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   end
 
   private
+
+  # Solo se leen las tres claves que definen identidad y nombre. Cualquier otra
+  # clave del payload se descarta: la vista previa no debe poder usarse para
+  # sondear campos arbitrarios.
+  IMPORT_PREVIEW_KEYS = %w[name email phone_number phone].freeze
+
+  # País y política de duplicados del import, guardados en el DataImport para
+  # que el job aplique exactamente lo que el usuario confirmó en la vista previa.
+  # duplicate_policy solo admite los dos valores conocidos; cualquier otro cae
+  # en 'skip' (no tocar el lead existente), que es la opción segura.
+  def import_metadata
+    policy = params[:duplicate_policy].to_s
+    {
+      'country' => params[:country].to_s.strip.upcase,
+      'duplicate_policy' => (DataImport::DUPLICATE_POLICIES.include?(policy) ? policy : 'skip')
+    }
+  end
+
+  def import_preview_rows
+    Array(params[:rows]).filter_map do |row|
+      next unless row.respond_to?(:to_unsafe_h) || row.is_a?(Hash)
+
+      hash = row.respond_to?(:to_unsafe_h) ? row.to_unsafe_h : row
+      hash.stringify_keys.slice(*IMPORT_PREVIEW_KEYS).presence
+    end
+  end
 
   # TODO: Move this to a finder class
   def resolved_contacts

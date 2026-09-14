@@ -3,8 +3,13 @@
 
 class DataImportJob < ApplicationJob
   include Jabvox::DataImportLeads
+  include Jabvox::DataImportIdentity
 
-  queue_as :low
+  # Cola AISLADA e INTERACTIVA de importaciones: un CSV de 50k filas de una
+  # cuenta no puede taponar las bandejas del worker principal, y a su vez un
+  # usuario que acaba de subir un archivo no espera detrás de una sincronización
+  # de BD externa de millones de filas (ver config/sidekiq_lead_import.yml).
+  queue_as :jabvox_lead_import_interactive
   retry_on ActiveStorage::FileNotFoundError, wait: 1.minute, attempts: 3
 
   LABELS_DELIMITER = ','.freeze
@@ -26,11 +31,17 @@ class DataImportJob < ApplicationJob
 
   def process_import_file
     @data_import.update!(status: :processing)
+    setup_jabvox_identity
     contacts, rejected_contacts, campaign_names = parse_csv_and_build_contacts
 
     import_contacts(contacts)
     create_jabvox_leads(contacts, campaign_names) if @data_import.account.jabvox_leads_enabled_jabvox?
-    update_data_import_status(contacts.length, rejected_contacts.length)
+    # Una fila omitida por duplicada SÍ se procesó (se decidió no tocar el lead
+    # existente): cuenta como procesada, no como rechazada, igual que antes de
+    # separar los duplicados del resto de rechazos.
+    update_data_import_status(contacts.length + jabvox_skipped_duplicates,
+                              rejected_contacts.length - jabvox_skipped_duplicates)
+    jabvox_persist_stats
     save_failed_records_csv(rejected_contacts)
   end
 
@@ -61,12 +72,28 @@ class DataImportJob < ApplicationJob
       return
     end
 
+    # Identidad canónica ANTES de construir el contacto: el teléfono queda en
+    # E.164 con el prefijo del país elegido, y la fila se descarta aquí si es
+    # duplicada (en archivo o en base) o no tiene identidad utilizable.
+    identity = jabvox_normalize_row!(row_hash)
+    if jabvox_row_decision(identity) == :skip
+      append_duplicate_row(row, rejected_contacts)
+      return
+    end
+
     current_contact = @contact_manager.build_contact(row_hash.except(:labels))
     if current_contact.valid?
       contacts << { contact: current_contact, labels: labels }
     else
       append_rejected_contact(row, current_contact, rejected_contacts)
     end
+  end
+
+  # Una fila omitida por duplicada o sin identidad se reporta en el CSV de
+  # rechazados, para que el usuario sepa exactamente qué no entró y por qué.
+  def append_duplicate_row(row, rejected_contacts)
+    row['errors'] = I18n.t('errors.contacts.import.duplicate_row')
+    rejected_contacts << row
   end
 
   def extract_labels(row_hash)

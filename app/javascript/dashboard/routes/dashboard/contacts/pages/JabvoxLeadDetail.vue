@@ -21,6 +21,7 @@ import JabvoxLeadTableRows from 'dashboard/components/widgets/conversation/jabvo
 import TemplatesPicker from 'dashboard/components/widgets/conversation/WhatsappTemplates/TemplatesPicker.vue';
 import WhatsAppTemplateReply from 'dashboard/components/widgets/conversation/WhatsappTemplates/WhatsAppTemplateReply.vue';
 import ManagementQuestionsForm from 'dashboard/components/jabvox/managementStates/ManagementQuestionsForm.vue';
+import PhoneNumberInput from 'dashboard/components-next/phonenumberinput/PhoneNumberInput.vue';
 import {
   isManagementValid,
   buildManagementContentAttributes,
@@ -1036,11 +1037,11 @@ onBeforeUnmount(() => {
               <dt class="text-xs text-n-slate-10 w-24 shrink-0">
                 {{ t('JABVOX_LEADS.DETAIL.INFO.PHONE') }}
               </dt>
-              <input
-                v-if="isEditing"
-                v-model="editForm.phone_number"
-                class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
-              />
+              <!-- Mismo selector de país que el formulario de contacto: el
+                   prefijo sale del país, no se teclea. -->
+              <div v-if="isEditing" class="flex-1">
+                <PhoneNumberInput v-model="editForm.phone_number" />
+              </div>
               <dd
                 v-else
                 class="text-sm text-n-slate-12 font-mono truncate flex-1 text-right"

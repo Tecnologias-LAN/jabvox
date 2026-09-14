@@ -304,44 +304,6 @@ RSpec.describe Account do
         expect(account.settings['auto_resolve_message']).to eq(message)
       end
 
-      it 'defaults captain_auto_resolve_mode to legacy when captain_tasks is disabled' do
-        allow(account).to receive(:feature_enabled?).with('captain_tasks').and_return(false)
-
-        expect(account.captain_auto_resolve_mode).to eq('legacy')
-        expect(account).to be_captain_auto_resolve_legacy
-      end
-
-      it 'defaults captain_auto_resolve_mode to evaluated when captain_tasks is enabled' do
-        allow(account).to receive(:feature_enabled?).with('captain_tasks').and_return(true)
-
-        expect(account.captain_auto_resolve_mode).to eq('evaluated')
-        expect(account).to be_captain_auto_resolve_evaluated
-      end
-
-      it 'correctly gets and sets captain_auto_resolve_mode' do
-        account.captain_auto_resolve_mode = 'legacy'
-
-        expect(account.captain_auto_resolve_mode).to eq('legacy')
-        expect(account.settings['captain_auto_resolve_mode']).to eq('legacy')
-        expect(account).to be_captain_auto_resolve_legacy
-      end
-
-      it 'allows clearing captain_auto_resolve_mode to fall back to feature defaults' do
-        allow(account).to receive(:feature_enabled?).with('captain_tasks').and_return(false)
-        account.captain_auto_resolve_mode = nil
-
-        expect(account).to be_valid
-        expect(account.captain_auto_resolve_mode).to eq('legacy')
-        expect(account.settings['captain_auto_resolve_mode']).to be_nil
-      end
-
-      it 'falls back to disabled mode from legacy settings key' do
-        account.settings = { 'captain_disable_auto_resolve' => true }
-
-        expect(account.captain_auto_resolve_mode).to eq('disabled')
-        expect(account).to be_captain_auto_resolve_disabled
-      end
-
       it 'handles nil values correctly' do
         account.auto_resolve_after = nil
         account.auto_resolve_message = nil
@@ -417,13 +379,6 @@ RSpec.describe Account do
         Llm::Models.feature_keys.each do |feature|
           expect(prefs[:models][feature]).to eq(Llm::Models.default_model_for(feature))
         end
-      end
-
-      it 'returns GPT-5.2 for assistant when Captain V2 is enabled' do
-        account.enable_features!('captain_integration_v2')
-
-        expect(account.captain_preferences[:models]['assistant']).to eq('gpt-5.2')
-        expect(account.reload.captain_models).to be_nil
       end
     end
 
