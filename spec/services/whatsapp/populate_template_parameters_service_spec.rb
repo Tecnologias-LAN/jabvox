@@ -67,4 +67,43 @@ describe Whatsapp::PopulateTemplateParametersService do
       end
     end
   end
+
+  describe '#build_button_parameter' do
+    context 'when button type is flow' do
+      it 'builds an action parameter with the given flow_token and flow_action_data' do
+        result = service.build_button_parameter(
+          'type' => 'flow', 'flow_token' => 'abc123', 'flow_action_data' => { 'screen' => 'FIRST' }
+        )
+
+        expect(result).to eq(
+          type: 'action',
+          action: { flow_token: 'abc123', flow_action_data: { 'screen' => 'FIRST' } }
+        )
+      end
+
+      it 'generates a flow_token when none is given, so Meta always receives one' do
+        result = service.build_button_parameter('type' => 'flow')
+
+        expect(result[:type]).to eq('action')
+        expect(result[:action][:flow_token]).to be_present
+        expect(result[:action][:flow_action_data]).to eq({})
+      end
+    end
+
+    context 'when button type is copy_code' do
+      it 'builds a coupon_code parameter' do
+        result = service.build_button_parameter('type' => 'copy_code', 'parameter' => 'SAVE10')
+
+        expect(result).to eq(type: 'coupon_code', coupon_code: 'SAVE10')
+      end
+    end
+
+    context 'when button type is url' do
+      it 'builds a text parameter from the dynamic suffix' do
+        result = service.build_button_parameter('type' => 'url', 'parameter' => 'abc')
+
+        expect(result).to eq(type: 'text', text: 'abc')
+      end
+    end
+  end
 end

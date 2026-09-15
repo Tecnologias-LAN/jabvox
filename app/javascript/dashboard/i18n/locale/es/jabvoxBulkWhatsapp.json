@@ -232,11 +232,18 @@
         "ERROR_MESSAGE": "Mensaje de error",
         "SENT_AT": "Enviado a las",
         "DELIVERED": "Entregado",
-        "READ": "Leído"
+        "READ": "Leído",
+        "REPLIED": "Respondió",
+        "REPLY_TIME": "Tiempo de respuesta"
       },
       "FILTER_DELIVERED": "Entregados",
       "FILTER_READ": "Leídos",
-      "TOTALS_DELIVERY": "· {delivered} entregados · {read} leídos"
+      "FILTER_REPLIED": "Respondieron",
+      "FILTER_NOT_REPLIED": "No respondieron",
+      "REPLIED_YES": "Sí respondió",
+      "REPLIED_NO": "No respondió",
+      "TOTALS_DELIVERY": "· {delivered} entregados · {read} leídos",
+      "TOTALS_REPLIED": "· {replied} respondieron"
     },
     "SETTINGS": {
       "WEBHOOK_URL": "URL del webhook de n8n",

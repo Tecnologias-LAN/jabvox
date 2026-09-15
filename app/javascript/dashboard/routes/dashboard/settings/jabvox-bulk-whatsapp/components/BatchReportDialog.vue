@@ -61,7 +61,19 @@ const totals = computed(() => ({
   total: batch.value?.total_rows_jabvox || 0,
   delivered: batch.value?.delivery_summary?.delivered || 0,
   read: batch.value?.delivery_summary?.read || 0,
+  replied: batch.value?.delivery_summary?.replied || 0,
 }));
+
+// Tiempo de respuesta en segundos -> texto corto (ej. "2 min", "1 h 5 min").
+const formatReplyTime = seconds => {
+  if (seconds === null || seconds === undefined) return '';
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+  return restMinutes ? `${hours} h ${restMinutes} min` : `${hours} h`;
+};
 
 const stopPolling = () => {
   if (pollTimer) clearInterval(pollTimer);
@@ -226,6 +238,13 @@ defineExpose({ openDialog });
                   })
                 }}
               </span>
+              <span class="ml-2 text-n-blue-11">
+                {{
+                  t('JABVOX_BULK_WA.REPORT.TOTALS_REPLIED', {
+                    replied: totals.replied,
+                  })
+                }}
+              </span>
               <span v-if="isRunning" class="ml-2 text-n-amber-11">
                 {{ t('JABVOX_BULK_WA.REPORT.LIVE') }}
               </span>
@@ -249,6 +268,8 @@ defineExpose({ openDialog });
                 { v: 'sent', l: 'FILTER_SENT' },
                 { v: 'delivered', l: 'FILTER_DELIVERED' },
                 { v: 'read', l: 'FILTER_READ' },
+                { v: 'replied', l: 'FILTER_REPLIED' },
+                { v: 'not_replied', l: 'FILTER_NOT_REPLIED' },
                 { v: 'failed', l: 'FILTER_FAILED' },
                 { v: 'pending', l: 'FILTER_PENDING' },
               ]"
@@ -370,6 +391,12 @@ defineExpose({ openDialog });
                   {{ t('JABVOX_BULK_WA.REPORT.COLS.READ') }}
                 </th>
                 <th class="py-2 px-3">
+                  {{ t('JABVOX_BULK_WA.REPORT.COLS.REPLIED') }}
+                </th>
+                <th class="py-2 px-3">
+                  {{ t('JABVOX_BULK_WA.REPORT.COLS.REPLY_TIME') }}
+                </th>
+                <th class="py-2 px-3">
                   {{ t('JABVOX_BULK_WA.REPORT.COLS.ERROR_CODE') }}
                 </th>
                 <th class="py-2 px-3">
@@ -406,6 +433,21 @@ defineExpose({ openDialog });
                   >
                     {{ r.read ? DOUBLE_CHECK : DASH }}
                   </span>
+                </td>
+                <td class="py-2 px-3 text-n-slate-11">
+                  <span
+                    :title="r.replied_at || ''"
+                    :class="r.replied ? 'text-n-blue-11' : 'text-n-slate-9'"
+                  >
+                    {{
+                      r.replied
+                        ? t('JABVOX_BULK_WA.REPORT.REPLIED_YES')
+                        : t('JABVOX_BULK_WA.REPORT.REPLIED_NO')
+                    }}
+                  </span>
+                </td>
+                <td class="py-2 px-3 text-n-slate-11">
+                  {{ formatReplyTime(r.reply_time_seconds) }}
                 </td>
                 <td class="py-2 px-3 text-n-slate-11">{{ r.error_code }}</td>
                 <td class="py-2 px-3 text-n-slate-11 max-w-xs truncate">

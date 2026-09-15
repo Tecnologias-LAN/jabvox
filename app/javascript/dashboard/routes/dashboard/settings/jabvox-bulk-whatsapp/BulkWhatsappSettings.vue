@@ -166,6 +166,30 @@ const csvHeaderMedia = computed(() => {
   return { media_url: csvHeaderMediaUrl.value, media_type: fmt.toLowerCase() };
 });
 
+// Botón FLOW de la plantilla (si tiene uno): { index, flow_id }. Meta exige el
+// componente button/flow SIEMPRE que la plantilla lo tenga (no es opcional como
+// un quick reply estático) — sin esto el envío masivo falla con el mismo
+// "#131009 Components sub_type invalid" que el envío individual en conversación.
+const csvFlowButton = computed(() => {
+  const comps = Array.isArray(csvSelectedTemplate.value?.components)
+    ? csvSelectedTemplate.value.components
+    : [];
+  const buttonsComponent = comps.find(
+    c => (c.type || '').toUpperCase() === 'BUTTONS'
+  );
+  if (!buttonsComponent?.buttons) return null;
+
+  const index = buttonsComponent.buttons.findIndex(
+    b => (b.type || '').toUpperCase() === 'FLOW'
+  );
+  if (index === -1) return null;
+
+  const flowId = buttonsComponent.buttons[index].flow_id;
+  if (!flowId) return null;
+
+  return { index, flow_id: flowId };
+});
+
 // Columnas del CSV disponibles para mapear a una variable: TODAS las del archivo
 // (incluidas numero y nombre), por si una variable de la plantilla debe llevar el
 // teléfono o el nombre del destinatario.
@@ -456,6 +480,7 @@ const onSend = async () => {
       variableMap: csvVariableMap.value,
       numberColumn: csvNumberColumn.value,
       headerMedia: csvHeaderMedia.value,
+      flowButton: csvFlowButton.value,
       country: csvCountry.value,
     });
     useAlert(t('JABVOX_BULK_WA.SEND.SUCCESS'));

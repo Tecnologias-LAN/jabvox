@@ -128,7 +128,15 @@ class Whatsapp::TemplateProcessorService
     return [] if processed_params['body'].blank?
 
     named = named_format?(template, processed_params['body'])
-    body_params = processed_params['body'].filter_map do |key, value|
+    # POSITIONAL params are sent as a bare array with no index of their own — Meta
+    # matches them to {{1}}, {{2}}... purely by array position. A Ruby Hash keeps
+    # insertion order, not numeric order, so a body that arrives as
+    # {"2" => "b", "1" => "a"} (JSON from a non-frontend caller, e.g. an API
+    # client) would silently swap the values Meta sees. Sort by key numerically
+    # before building positional params; NAMED params carry their own
+    # parameter_name so order never matters for them.
+    ordered_body = named ? processed_params['body'] : sort_positional_body(processed_params['body'])
+    body_params = ordered_body.filter_map do |key, value|
       next if value.blank?
 
       if named
@@ -139,6 +147,10 @@ class Whatsapp::TemplateProcessorService
     end
 
     body_params.present? ? [{ type: 'body', parameters: body_params }] : []
+  end
+
+  def sort_positional_body(body)
+    body.sort_by { |key, _| key.to_s.to_i }
   end
 
   # ¿La plantilla usa variables NAMED? Meta a veces NO devuelve parameter_format en el
@@ -171,10 +183,14 @@ class Whatsapp::TemplateProcessorService
   end
 
   # Meta only accepts a button component when the button actually carries a
-  # runtime parameter: a URL button with a {{var}}, or a COPY_CODE coupon.
-  # Static QUICK_REPLY buttons (and any button with no parameter) must NOT emit
-  # a component — sending one triggers Meta error #131009 "Parameter value is
-  # not valid". We keep the button's real index so it maps to the right button.
+  # runtime parameter: a URL button with a {{var}}, a COPY_CODE coupon, or a
+  # FLOW button (which Meta requires unconditionally, even with no input
+  # fields — omitting it triggers "#131009 Components sub_type invalid at
+  # index: 0", confirmed against a real send in production and matching
+  # Chatwoot's own unresolved flow-support gap, github.com/chatwoot/chatwoot
+  # issue #13267). Static QUICK_REPLY buttons (and any other button with no
+  # parameter) must NOT emit a component. We keep the button's real index so
+  # it maps to the right button.
   def process_button_components(processed_params)
     return [] if processed_params['buttons'].blank?
 
@@ -193,19 +209,20 @@ class Whatsapp::TemplateProcessorService
     button_params.compact
   end
 
-  # A button needs a send-time parameter only when it's a COPY_CODE coupon or a
-  # URL button whose value is non-blank (the dynamic URL suffix). Everything
-  # else — quick replies, static URLs, phone buttons — carries no parameter.
+  # A button needs a send-time parameter when it's a COPY_CODE coupon, a FLOW
+  # button (always), or a URL button whose value is non-blank (the dynamic URL
+  # suffix). Everything else — quick replies, static URLs, phone buttons —
+  # carries no parameter.
   def dynamic_button?(button)
     type = button['type'].to_s
-    return true if type == 'copy_code'
+    return true if %w[copy_code flow].include?(type)
     return button['parameter'].to_s.strip.present? if type == 'url'
 
     false
   end
 
   def button_sub_type(button)
-    button['type'].to_s == 'copy_code' ? 'copy_code' : 'url'
+    button['type'].to_s
   end
 
   def parameter_builder

@@ -13,12 +13,12 @@ import { useVuelidate } from '@vuelidate/core';
 import { requiredIf } from '@vuelidate/validators';
 import { useI18n } from 'vue-i18n';
 
-import { isWhatsAppComplete } from '@chatwoot/utils';
 import Input from 'dashboard/components-next/input/Input.vue';
 import {
   buildTemplateParameters,
   allKeysRequired,
   replaceTemplateVariables,
+  isWhatsAppComplete,
   DEFAULT_LANGUAGE,
   DEFAULT_CATEGORY,
   COMPONENT_TYPES,
@@ -109,6 +109,14 @@ const hasVariables = computed(() => {
 
 const renderedTemplate = computed(() => {
   return replaceTemplateVariables(bodyText.value, processedParams.value);
+});
+
+// FLOW buttons carry no agent-supplied parameter (see initializeTemplateParameters);
+// only URL/COPY_CODE buttons need an input here.
+const fillableButtons = computed(() => {
+  return (processedParams.value.buttons || [])
+    .map((button, index) => ({ button, index }))
+    .filter(({ button }) => button && button.type !== 'flow');
 });
 
 // Completeness validation is shared with the mobile app via @chatwoot/utils.
@@ -319,13 +327,16 @@ defineExpose({
         </div>
       </div>
 
-      <!-- Button Variables Section -->
-      <div v-if="processedParams.buttons">
+      <!-- Button Variables Section. FLOW buttons need no agent input — Meta
+           requires their component unconditionally, but it carries no
+           user-supplied parameter, so they're built into processedParams for
+           the send but hidden from this list. -->
+      <div v-if="fillableButtons.length">
         <p class="mb-2.5 text-sm font-semibold">
           {{ t('WHATSAPP_TEMPLATES.PARSER.BUTTON_PARAMETERS') }}
         </p>
         <div
-          v-for="(button, index) in processedParams.buttons"
+          v-for="{ index } in fillableButtons"
           :key="`button-${index}`"
           class="flex items-center mb-2.5"
         >

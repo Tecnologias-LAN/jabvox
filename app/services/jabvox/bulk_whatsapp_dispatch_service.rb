@@ -51,7 +51,7 @@ class Jabvox::BulkWhatsappDispatchService
   def initialize(account:, inbox:, sender_user:, actor:, response_email: '', csv_io: nil,
                  file_name: '', leads_selection: nil, template_name: nil, language: nil, text: nil,
                  variable_map: nil, source_batch_id: nil, number_column: nil, header_media: nil,
-                 country: nil)
+                 country: nil, flow_button: nil)
     @account = account
     @inbox = inbox
     @sender_user = sender_user
@@ -75,6 +75,12 @@ class Jabvox::BulkWhatsappDispatchService
     # { "1" => "nombre", "2" => "custom:fecha_entrega2_c", ... } — which lead field
     # fills each {{n}} placeholder of the template body.
     @variable_map = normalize_variable_map(variable_map)
+    # Botón FLOW de la plantilla, si tiene uno ({ flow_id }) — igual para todos los
+    # destinatarios del envío. Meta exige el componente button/flow SIEMPRE que la
+    # plantilla tenga un botón FLOW (no es opcional como un quick reply estático); n8n
+    # arma el envío final hacia Meta, así que aquí solo viaja la info necesaria para que
+    # pueda construir { type: 'button', sub_type: 'flow', index, parameters: [...] }.
+    @flow_button = normalize_flow_button(flow_button)
   end
 
   def prepare
@@ -182,13 +188,15 @@ class Jabvox::BulkWhatsappDispatchService
       @total_rows = ids.size
       { 'kind' => 'leads', 'lead_ids' => ids, 'selection' => @leads_selection,
         'template_name' => @template_name, 'language' => @language, 'text' => @text,
-        'variable_map' => @variable_map, 'header_media' => @header_media }
+        'variable_map' => @variable_map, 'header_media' => @header_media,
+        'flow_button' => @flow_button }
     else
       # CSV: la plantilla/idioma vienen de la UI; el archivo solo aporta las filas
       # (número, nombre y columnas de variables). El variable_map mapea {{n}} -> columna.
       { 'kind' => 'csv', 'rows' => parse_rows,
         'template_name' => @template_name, 'language' => @language, 'text' => @text,
-        'variable_map' => @variable_map, 'header_media' => @header_media }
+        'variable_map' => @variable_map, 'header_media' => @header_media,
+        'flow_button' => @flow_button }
     end
   end
 
@@ -319,8 +327,9 @@ class Jabvox::BulkWhatsappDispatchService
   # ── Phase 2 helpers: expand snapshot -> messages ────────────────────────────
   def expand_messages(payload)
     payload = (payload || {}).with_indifferent_access
-    # header_media viaja en el snapshot (deliver! reconstruye el service sin él).
+    # header_media/flow_button viajan en el snapshot (deliver! reconstruye el service sin ellos).
     @header_media ||= normalize_header_media(payload[:header_media])
+    @flow_button ||= normalize_flow_button(payload[:flow_button])
     payload[:kind] == 'leads' ? messages_from_leads(payload) : messages_from_csv(payload)
   end
 
@@ -432,7 +441,21 @@ class Jabvox::BulkWhatsappDispatchService
     params['body'] = body if body.present?
     # Header de media de la plantilla ({ media_url, media_type }): igual para todos.
     params['header'] = @header_media if @header_media.present?
+    # Botón FLOW: mismo índice/flow_id para todos, pero un flow_token ÚNICO por
+    # destinatario (permite correlacionar la respuesta del Flow con este mensaje
+    # concreto en el futuro). n8n arma { type: 'button', sub_type: 'flow', index,
+    # parameters: [{ type: 'action', action: { flow_token, flow_action_data: {} } }] }.
+    params['buttons'] = [flow_button_param] if @flow_button.present?
     params
+  end
+
+  def flow_button_param
+    {
+      'index' => @flow_button['index'],
+      'type' => 'flow',
+      'flow_id' => @flow_button['flow_id'],
+      'flow_token' => SecureRandom.hex(16)
+    }
   end
 
   def resolve_body(var_map, fields)
@@ -466,6 +489,19 @@ class Jabvox::BulkWhatsappDispatchService
     return nil if meta_sample_media_url?(url)
 
     { 'media_url' => url, 'media_type' => type }
+  end
+
+  # { index: <posición del botón en la plantilla>, flow_id: '...' } — index es el que la
+  # UI lee del propio JSON de la plantilla (siempre 0 salvo plantillas con varios botones
+  # dinámicos). flow_token se genera por destinatario en el momento del envío real (no
+  # aquí), para que cada mensaje tenga uno único que correlacione con la respuesta.
+  def normalize_flow_button(button)
+    return nil if button.blank?
+
+    h = (button.respond_to?(:to_unsafe_h) ? button.to_unsafe_h : button).to_h.transform_keys(&:to_s)
+    { 'index' => h['index'].to_i, 'flow_id' => h['flow_id'].to_s.strip }.tap do |out|
+      return nil if out['flow_id'].blank?
+    end
   end
 
   # ¿La URL es el ejemplo interno que Meta guarda en la plantilla aprobada? Esas URLs

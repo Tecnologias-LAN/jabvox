@@ -232,11 +232,18 @@
         "ERROR_MESSAGE": "Error message",
         "SENT_AT": "Sent at",
         "DELIVERED": "Delivered",
-        "READ": "Read"
+        "READ": "Read",
+        "REPLIED": "Replied",
+        "REPLY_TIME": "Reply time"
       },
       "FILTER_DELIVERED": "Delivered",
       "FILTER_READ": "Read",
-      "TOTALS_DELIVERY": "· {delivered} delivered · {read} read"
+      "FILTER_REPLIED": "Replied",
+      "FILTER_NOT_REPLIED": "Not replied",
+      "REPLIED_YES": "Replied",
+      "REPLIED_NO": "Did not reply",
+      "TOTALS_DELIVERY": "· {delivered} delivered · {read} read",
+      "TOTALS_REPLIED": "· {replied} replied"
     },
     "SETTINGS": {
       "WEBHOOK_URL": "n8n webhook URL",

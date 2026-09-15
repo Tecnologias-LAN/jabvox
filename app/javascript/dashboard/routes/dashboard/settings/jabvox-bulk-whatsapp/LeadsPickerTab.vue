@@ -177,6 +177,46 @@ const templateHeader = computed(() => {
   return h ? (h.format || 'TEXT').toUpperCase() : '';
 });
 
+// Media de EJEMPLO del header (image/video/document) que Meta guarda en la
+// plantilla aprobada — mismo criterio que csvHeaderMedia en BulkWhatsappSettings.
+const templateHeaderMedia = computed(() => {
+  const fmt = templateHeader.value;
+  if (!['IMAGE', 'VIDEO', 'DOCUMENT'].includes(fmt)) return null;
+
+  const comps = Array.isArray(selectedTemplate.value?.components)
+    ? selectedTemplate.value.components
+    : [];
+  const h = comps.find(c => (c.type || '').toUpperCase() === 'HEADER');
+  const ex = h?.example || {};
+  const handle = ex.header_handle || ex.header_url || ex.header_handle_url;
+  const url = Array.isArray(handle) ? handle[0] || '' : handle || '';
+  if (!url) return null;
+
+  return { media_url: url, media_type: fmt.toLowerCase() };
+});
+
+// Botón FLOW de la plantilla (si tiene uno): { index, flow_id }. Meta exige el
+// componente button/flow siempre que la plantilla lo tenga.
+const templateFlowButton = computed(() => {
+  const comps = Array.isArray(selectedTemplate.value?.components)
+    ? selectedTemplate.value.components
+    : [];
+  const buttonsComponent = comps.find(
+    c => (c.type || '').toUpperCase() === 'BUTTONS'
+  );
+  if (!buttonsComponent?.buttons) return null;
+
+  const index = buttonsComponent.buttons.findIndex(
+    b => (b.type || '').toUpperCase() === 'FLOW'
+  );
+  if (index === -1) return null;
+
+  const flowId = buttonsComponent.buttons[index].flow_id;
+  if (!flowId) return null;
+
+  return { index, flow_id: flowId };
+});
+
 // Body text of the currently selected template.
 const selectedTemplateBody = computed(() => {
   const tpl = inboxTemplates.value.find(tp => tp.name === templateName.value);
@@ -448,6 +488,10 @@ const onSend = async () => {
           ? variableMap.value
           : undefined,
       sourceBatchId: sourceBatchId.value || undefined,
+      headerMedia:
+        props.mode === 'template' ? templateHeaderMedia.value : undefined,
+      flowButton:
+        props.mode === 'template' ? templateFlowButton.value : undefined,
     });
     useAlert(t('JABVOX_BULK_WA.SEND.SUCCESS'));
     clearSelection();

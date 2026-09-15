@@ -32,9 +32,10 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       format.json do
         recipients = scope.limit(5000).to_a
         status_map = delivery_status_map(recipients)
+        reply_map = first_reply_map(recipients)
         render json: serialize(batch).merge(
           delivery_summary: delivery_summary(batch),
-          recipients: recipients.map { |r| serialize_recipient(r, status_map) }
+          recipients: recipients.map { |r| serialize_recipient(r, status_map, reply_map) }
         )
       end
     end
@@ -163,11 +164,13 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       # cada {{n}} a una columna del CSV; el service resuelve los valores por fila.
       # number_column: la columna que contiene el número (elegida/confirmada en la UI).
       # header_media: media del header de la plantilla ({ media_url, media_type }).
+      # flow_button: botón FLOW de la plantilla, si tiene uno ({ index, flow_id }).
       template_name: params[:template_name], language: params[:language], text: params[:text],
       # country: de él sale el prefijo de los números del CSV que llegan sin él.
       # Opcional: sin país se conserva el comportamiento anterior.
       variable_map: variable_map_params, number_column: params[:number_column],
-      header_media: header_media_params, country: params[:country]
+      header_media: header_media_params, country: params[:country],
+      flow_button: flow_button_params
     )
   end
 
@@ -181,12 +184,24 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     h[:media_url].present? ? h : nil
   end
 
+  # Botón FLOW de la plantilla ({ index, flow_id }), leído del propio JSON de la
+  # plantilla por el frontend — el flow_token único por destinatario se genera en
+  # el servicio, no aquí.
+  def flow_button_params
+    raw = params[:flow_button]
+    return nil if raw.blank?
+
+    h = raw.respond_to?(:permit) ? raw.permit(:index, :flow_id).to_h : raw.to_h
+    h[:flow_id].present? ? h : nil
+  end
+
   def dispatch_from_leads(inbox, sender)
     Jabvox::BulkWhatsappDispatchService.prepare(
       account: Current.account, inbox: inbox, sender_user: sender, actor: current_user,
       response_email: params[:response_email], leads_selection: leads_selection_params,
       template_name: params[:template_name], language: params[:language], text: params[:text],
-      variable_map: variable_map_params, source_batch_id: params[:source_batch_id].presence
+      variable_map: variable_map_params, source_batch_id: params[:source_batch_id].presence,
+      header_media: header_media_params, flow_button: flow_button_params
     )
   end
 
@@ -233,7 +248,7 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     scope.where(id: ids)
   end
 
-  def serialize_recipient(recipient, status_map = {})
+  def serialize_recipient(recipient, status_map = {}, reply_map = {})
     {
       id: recipient.id,
       name: recipient.name_jabvox,
@@ -245,7 +260,7 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       rendered_content: recipient.rendered_content_jabvox,
       conversation_id: recipient.conversation_id,
       sent_at: recipient.sent_at_jabvox
-    }.merge(recipient_delivery_fields(recipient, status_map))
+    }.merge(recipient_delivery_fields(recipient, status_map, reply_map))
   end
 
   def serialize(batch)

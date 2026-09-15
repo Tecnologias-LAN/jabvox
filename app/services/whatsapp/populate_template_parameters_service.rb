@@ -23,11 +23,28 @@ class Whatsapp::PopulateTemplateParametersService
         type: 'coupon_code',
         coupon_code: coupon_code
       }
+    when 'flow'
+      build_flow_button_parameter(button)
     else
       # For URL buttons and other button types, treat parameter as text
       # If parameter is blank, use empty string (required for URL buttons)
       { type: 'text', text: button['parameter'].to_s.strip }
     end
+  end
+
+  # Meta requires a FLOW button to always ship an `action` parameter, even when
+  # the Flow needs no initial data (an empty flow_action_data still triggers
+  # "#131009 Components sub_type invalid" per community reports). flow_token
+  # must be unique per send so a future Flow-response webhook can correlate it
+  # back to this message; SecureRandom keeps it opaque and unguessable.
+  def build_flow_button_parameter(button)
+    {
+      type: 'action',
+      action: {
+        flow_token: button['flow_token'].presence || SecureRandom.hex(16),
+        flow_action_data: button['flow_action_data'].presence || {}
+      }
+    }
   end
 
   def build_media_parameter(url, media_type, media_name = nil)

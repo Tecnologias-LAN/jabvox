@@ -80,6 +80,7 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     variableMap,
     numberColumn,
     headerMedia,
+    flowButton,
     country,
   }) {
     const formData = new FormData();
@@ -97,6 +98,12 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     if (headerMedia?.media_url) {
       formData.append('header_media[media_url]', headerMedia.media_url);
       formData.append('header_media[media_type]', headerMedia.media_type);
+    }
+    // Botón FLOW de la plantilla: { index, flow_id }. Meta exige el componente
+    // button/flow siempre que la plantilla tenga uno.
+    if (flowButton?.flow_id) {
+      formData.append('flow_button[index]', flowButton.index);
+      formData.append('flow_button[flow_id]', flowButton.flow_id);
     }
     // variable_map es un objeto { "1": "columna" }: se serializa como variable_map[1]=columna.
     Object.entries(variableMap || {}).forEach(([n, col]) => {
@@ -120,6 +127,8 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     text,
     variableMap,
     sourceBatchId,
+    headerMedia,
+    flowButton,
   }) {
     return axios.post(`${this.url}/batches`, {
       source: 'leads',
@@ -134,6 +143,8 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
       text,
       variable_map: variableMap,
       source_batch_id: sourceBatchId,
+      header_media: headerMedia?.media_url ? headerMedia : undefined,
+      flow_button: flowButton?.flow_id ? flowButton : undefined,
     });
   }
 }
