@@ -307,6 +307,11 @@
     "SESSION_ITEM": "Conversación",
     "TOOLS_USED": "Tools used",
     "DEFAULT_MODEL": "Default model",
-    "ATTACH": "Attach file"
+    "ATTACH": "Attach file",
+    "SESSIONS": "Conversations",
+    "NO_SESSIONS": "No conversations yet",
+    "UNTITLED_SESSION": "Untitled conversation",
+    "AGENT": "Agent",
+    "MODEL": "Model"
   }
 }

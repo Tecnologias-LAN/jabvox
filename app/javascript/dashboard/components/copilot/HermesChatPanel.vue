@@ -1,9 +1,12 @@
 <script setup>
-// Vista compacta del Chat IA para la burbuja flotante. Es el mismo agente Hermes que la
-// página completa; aquí solo se muestra la conversación en curso (sin lista de sesiones).
-import { ref, nextTick, watch } from 'vue';
+// Vista compacta del Chat IA para la burbuja flotante. Mismos agentes, sesiones y comandos
+// que la página completa (la lógica vive en los composables useHermes*); aquí cambia solo
+// la presentación: la lista de conversaciones y los selectores se despliegan bajo demanda
+// para no comerse el alto disponible.
+import { ref, nextTick, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Button from 'dashboard/components-next/button/Button.vue';
+import { useHermesCommands } from 'dashboard/composables/jabvox/useHermesCommands';
 
 const props = defineProps({
   messages: {
@@ -22,15 +25,75 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  agentOptions: {
+    type: Array,
+    default: () => [],
+  },
+  modelOptions: {
+    type: Array,
+    default: () => [],
+  },
+  sessions: {
+    type: Array,
+    default: () => [],
+  },
+  currentSessionId: {
+    type: [String, Number],
+    default: null,
+  },
+  selectedAgentId: {
+    type: [String, Number],
+    default: null,
+  },
+  selectedModelKey: {
+    type: String,
+    default: '',
+  },
+  selectedAgentName: {
+    type: String,
+    default: '',
+  },
 });
 
-const emit = defineEmits(['sendMessage', 'stop', 'reset', 'close']);
+const emit = defineEmits([
+  'sendMessage',
+  'selectSession',
+  'stop',
+  'reset',
+  'close',
+  'update:selectedAgentId',
+  'update:selectedModelKey',
+]);
 
 const { t } = useI18n();
 
 const messageInput = ref('');
 const messagesContainer = ref(null);
 const expandedTool = ref(null);
+const showSessions = ref(false);
+
+const {
+  showCommands,
+  commandIndex,
+  filteredCommands,
+  onInput,
+  applyCommand,
+  closeCommands,
+  handleCommandKeydown,
+  isNewChatCommand,
+  isStopCommand,
+  isModelCommand,
+} = useHermesCommands(messageInput);
+
+const agentModel = computed({
+  get: () => props.selectedAgentId,
+  set: value => emit('update:selectedAgentId', value),
+});
+
+const modelKey = computed({
+  get: () => props.selectedModelKey,
+  set: value => emit('update:selectedModelKey', value),
+});
 
 const scrollToBottom = async () => {
   await nextTick();
@@ -45,15 +108,28 @@ const toggleToolDetail = (msgId, toolId) => {
   expandedTool.value = expandedTool.value === key ? null : key;
 };
 
+const onSelectSession = sessionId => {
+  showSessions.value = false;
+  emit('selectSession', sessionId);
+};
+
 const send = () => {
   const content = messageInput.value.trim();
   if (!content || !props.hasAgents) return;
-  emit('sendMessage', content);
+  emit('sendMessage', {
+    content,
+    isNewChatCommand: isNewChatCommand(content),
+    isStopCommand: isStopCommand(content) && props.isStreaming,
+    isModelCommand: isModelCommand(content),
+  });
   messageInput.value = '';
+  closeCommands();
 };
 
-// Enter envía; Shift+Enter hace salto de línea.
+// El menú de comandos consume primero las flechas/Tab/Enter; si no, Enter envía y
+// Shift+Enter hace salto de línea.
 const onKeydown = e => {
+  if (handleCommandKeydown(e)) return;
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     send();
@@ -66,6 +142,9 @@ const formatTime = value => {
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
+
+const sessionLabel = session =>
+  session.title || session.name || t('JABVOX_AI_CHAT.UNTITLED_SESSION');
 </script>
 
 <template>
@@ -80,11 +159,28 @@ const formatTime = value => {
         >
           <span class="i-lucide-bot size-4" />
         </span>
-        <h2 class="text-sm font-semibold text-n-slate-12 truncate">
-          {{ t('JABVOX_AI_CHAT.TITLE') }}
-        </h2>
+        <div class="min-w-0">
+          <h2 class="text-sm font-semibold text-n-slate-12 truncate">
+            {{ t('JABVOX_AI_CHAT.TITLE') }}
+          </h2>
+          <p
+            v-if="selectedAgentName"
+            class="text-xs text-n-slate-10 truncate leading-tight"
+          >
+            {{ selectedAgentName }}
+          </p>
+        </div>
       </div>
       <div class="flex items-center gap-1 shrink-0">
+        <Button
+          v-if="hasAgents"
+          icon="i-lucide-messages-square"
+          variant="ghost"
+          :color="showSessions ? 'blue' : 'slate'"
+          size="sm"
+          :title="t('JABVOX_AI_CHAT.SESSIONS')"
+          @click="showSessions = !showSessions"
+        />
         <Button
           icon="i-lucide-plus"
           variant="ghost"
@@ -115,6 +211,68 @@ const formatTime = value => {
     </div>
 
     <template v-else>
+      <!-- Selectores de agente y modelo -->
+      <div
+        class="flex items-center gap-2 px-3 py-2 border-b border-n-weak bg-n-alpha-1 shrink-0"
+      >
+        <select
+          v-model="agentModel"
+          class="flex-1 min-w-0 rounded-lg border border-n-weak bg-n-solid-1 px-2 py-1 text-xs text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-n-brand"
+          :title="t('JABVOX_AI_CHAT.AGENT')"
+        >
+          <option
+            v-for="option in agentOptions"
+            :key="option.value"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </option>
+        </select>
+        <select
+          v-if="modelOptions.length"
+          v-model="modelKey"
+          class="flex-1 min-w-0 rounded-lg border border-n-weak bg-n-solid-1 px-2 py-1 text-xs text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-n-brand"
+          :title="t('JABVOX_AI_CHAT.MODEL')"
+        >
+          <option value="">{{ t('JABVOX_AI_CHAT.DEFAULT_MODEL') }}</option>
+          <option
+            v-for="option in modelOptions"
+            :key="option.value"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Lista de conversaciones (mismas que la página completa) -->
+      <div
+        v-if="showSessions"
+        class="border-b border-n-weak bg-n-solid-1 max-h-48 overflow-y-auto shrink-0"
+      >
+        <p
+          v-if="!sessions.length"
+          class="px-4 py-3 text-xs text-n-slate-10 text-center"
+        >
+          {{ t('JABVOX_AI_CHAT.NO_SESSIONS') }}
+        </p>
+        <button
+          v-for="session in sessions"
+          :key="session.session_id"
+          type="button"
+          class="w-full flex items-center gap-2 px-3 py-2 text-left text-xs hover:bg-n-alpha-1"
+          :class="
+            session.session_id === currentSessionId
+              ? 'bg-n-alpha-2 text-n-brand font-medium'
+              : 'text-n-slate-11'
+          "
+          @click="onSelectSession(session.session_id)"
+        >
+          <span class="i-lucide-message-circle size-3 shrink-0" />
+          <span class="truncate min-w-0">{{ sessionLabel(session) }}</span>
+        </button>
+      </div>
+
       <!-- Mensajes -->
       <div
         ref="messagesContainer"
@@ -215,13 +373,36 @@ const formatTime = value => {
       </div>
 
       <!-- Input -->
-      <div class="border-t border-n-weak bg-n-solid-1 p-3 shrink-0">
+      <div class="border-t border-n-weak bg-n-solid-1 p-3 shrink-0 relative">
+        <!-- Menú de comandos "/" -->
+        <div
+          v-if="showCommands && filteredCommands.length"
+          class="absolute bottom-full left-3 right-3 mb-1 max-h-48 overflow-y-auto rounded-xl border border-n-weak bg-n-solid-1 shadow-lg z-10"
+        >
+          <button
+            v-for="(command, index) in filteredCommands"
+            :key="command.cmd"
+            type="button"
+            class="w-full flex flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-n-alpha-1"
+            :class="index === commandIndex ? 'bg-n-alpha-2' : ''"
+            @click="applyCommand(command.cmd)"
+          >
+            <span class="text-xs font-medium text-n-slate-12">
+              {{ command.cmd }}
+            </span>
+            <span class="text-xs text-n-slate-10 leading-tight">
+              {{ command.desc }}
+            </span>
+          </button>
+        </div>
+
         <div class="flex items-end gap-2">
           <textarea
             v-model="messageInput"
             rows="1"
             class="flex-1 resize-none max-h-32 rounded-xl border border-n-weak bg-n-alpha-1 px-3 py-2 text-sm text-n-slate-12 placeholder:text-n-slate-9 focus:outline-none focus:ring-2 focus:ring-n-brand"
             :placeholder="t('JABVOX_AI_CHAT.PLACEHOLDER')"
+            @input="onInput"
             @keydown="onKeydown"
           />
           <Button

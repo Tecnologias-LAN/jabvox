@@ -1,12 +1,13 @@
 <script setup>
-// Panel flotante del Chat IA (la "burbuja"). Habla con el MISMO agente Hermes de la cuenta
-// que la página completa de Chat IA: comparte store (jabvoxAiChat), sesiones y streaming.
+// Panel flotante del Chat IA (la "burbuja"). Habla con los MISMOS agentes Hermes de la
+// cuenta que la página completa de Chat IA: comparte store (jabvoxAiChat), sesiones,
+// agentes, comandos y streaming, vía los composables useHermes*.
 import { ref, computed, watch } from 'vue';
 import { useStore } from 'dashboard/composables/store';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useHermesChat } from 'dashboard/composables/jabvox/useHermesChat';
-import { hermesConnectionsAPI } from 'dashboard/api/jabvox/aiChat';
+import { useHermesSessions } from 'dashboard/composables/jabvox/useHermesSessions';
 import { useWindowSize } from '@vueuse/core';
 import { vOnClickOutside } from '@vueuse/components';
 import { useI18n } from 'vue-i18n';
@@ -31,16 +32,30 @@ const isSmallScreen = computed(
 // La sesión de la burbuja vive en Vuex (jabvoxAiChat), NO en un ref() local: este
 // componente se desmonta por completo cada vez que la burbuja se cierra (v-if más abajo),
 // y con él cualquier ref() local se perdería. Vuex sí sobrevive, así que reabrir la
-// burbuja (o recargar la página) recupera la MISMA conversación en vez de una vacía —
-// igual que ya hace la página completa de Chat IA con sus sesiones guardadas en backend.
+// burbuja (o recargar la página) recupera la MISMA conversación en vez de una vacía.
 const currentSessionId = computed({
   get: () => store.getters['jabvoxAiChat/getCopilotSessionId'],
   set: value => store.commit('jabvoxAiChat/SET_COPILOT_SESSION_ID', value),
 });
 
-const hermesAgents = ref([]); // conexiones Hermes ligadas a este usuario
-const selectedAgentId = ref(null);
+const {
+  selectedAgentId,
+  selectedAgentName,
+  sessions,
+  hasAgents,
+  agentOptions,
+  modelOptions,
+  selectedModelKey,
+  selectedModelOverride,
+  loadAgents,
+  loadModelOptions,
+  selectSession,
+  restoreLastSession,
+  sessionBelongsToOtherAgent,
+} = useHermesSessions({ sessionId: currentSessionId });
+
 const hasRestoredSession = ref(false);
+const hasFetchedAgents = ref(false);
 
 const messages = computed(() =>
   currentSessionId.value
@@ -50,9 +65,6 @@ const messages = computed(() =>
 
 const { isStreaming, activeTools, streamAssistant, stopStreaming } =
   useHermesChat({ errorLabel: t('JABVOX_AI_CHAT.ERROR') });
-
-const hasAgents = computed(() => hermesAgents.value.length > 0);
-const hasFetchedAgents = ref(false);
 
 const isAiChatEnabled = computed(() =>
   isFeatureEnabledonAccount.value(
@@ -88,12 +100,31 @@ const handleReset = () => {
   currentSessionId.value = null;
 };
 
-const sendMessage = async message => {
-  const content = (message || '').trim();
-  if (!content || !hasAgents.value) return;
+const handleSelectSession = async sessionId => {
+  if (sessionId === currentSessionId.value) return;
+  if (isStreaming.value) stopStreaming();
+  await selectSession(sessionId);
+};
+
+const sendMessage = async ({
+  content,
+  isNewChatCommand,
+  isStopCommand,
+  isModelCommand,
+}) => {
+  const text = (content || '').trim();
+  if (!text || !hasAgents.value) return;
 
   // Si el bot aún responde, detén esa respuesta antes de enviar el nuevo mensaje.
   if (isStreaming.value) stopStreaming();
+
+  // "/new", "/reset" y "/clear" abren sesión nueva en Jabvox; "/stop" solo corta el
+  // streaming. Ninguno se envía a Hermes.
+  if (isNewChatCommand) {
+    currentSessionId.value = null;
+    return;
+  }
+  if (isStopCommand) return;
 
   const isNewChat = !currentSessionId.value;
   const apiSessionId = currentSessionId.value || null;
@@ -105,39 +136,52 @@ const sendMessage = async message => {
     message: {
       id: Date.now(),
       role: 'user',
-      content,
+      content: text,
       created_at: new Date(),
     },
   });
 
   await streamAssistant({
-    content,
+    content: text,
     apiSessionId,
     displaySessionId,
     isNewChat,
     connectionId: selectedAgentId.value,
+    // Con "/model ..." el usuario está eligiendo modelo por comando: mandar además el del
+    // picker sobrescribiría en el body justo lo que el comando acaba de pedir.
+    modelOverride: isModelCommand ? {} : selectedModelOverride.value,
   });
+
+  // Hermes no avisa del cambio de modelo por el stream, así que tras un "/model" releemos
+  // model/options para que el picker refleje el modelo realmente activo.
+  if (isModelCommand) await loadModelOptions(selectedAgentId.value);
 };
 
-// Al habilitarse el módulo (llegue antes o después del montaje, ver el watch de abajo):
-// 1) carga los agentes Hermes del usuario, y 2) si la burbuja no tiene ya una sesión
-// (primera vez que se abre en esta pestaña), recupera la ÚLTIMA sesión existente del
-// backend — igual que hace la página completa — en vez de arrancar siempre en blanco.
-async function restoreLastSession() {
-  if (hasRestoredSession.value || currentSessionId.value) return;
-  hasRestoredSession.value = true;
-  try {
-    await store.dispatch('jabvoxAiChat/fetchSessions');
-    const sessions = store.getters['jabvoxAiChat/getSessions'];
-    if (!sessions.length) return;
+// Cambiar de agente recarga sus modelos y, si la sesión abierta pertenece a otro agente,
+// abre una nueva: una conversación siempre continúa con su propio interlocutor.
+watch(selectedAgentId, (newId, oldId) => {
+  loadModelOptions(newId);
+  if (!oldId || newId === oldId || !currentSessionId.value) return;
+  if (sessionBelongsToOtherAgent(currentSessionId.value, newId)) {
+    if (isStreaming.value) stopStreaming();
+    currentSessionId.value = null;
+  }
+});
 
-    const [lastSession] = sessions;
-    currentSessionId.value = lastSession.session_id;
-    if (lastSession.connection_id)
-      selectedAgentId.value = lastSession.connection_id;
-    await store.dispatch('jabvoxAiChat/fetchMessages', lastSession.session_id);
+// Al habilitarse el módulo: carga agentes y sesiones, y recupera la última conversación
+// si la burbuja aún no tiene una abierta.
+async function initialise() {
+  if (hasFetchedAgents.value) return;
+  hasFetchedAgents.value = true;
+  try {
+    await loadAgents({ keepSelection: true });
+    if (!hasRestoredSession.value && !currentSessionId.value) {
+      hasRestoredSession.value = true;
+      await restoreLastSession();
+    }
+    await loadModelOptions(selectedAgentId.value);
   } catch {
-    hasRestoredSession.value = false;
+    hasFetchedAgents.value = false;
   }
 }
 
@@ -150,20 +194,7 @@ async function restoreLastSession() {
 watch(
   isAiChatEnabled,
   async enabled => {
-    if (!enabled || hasFetchedAgents.value) return;
-    hasFetchedAgents.value = true;
-    try {
-      const { data } = await hermesConnectionsAPI.mine();
-      hermesAgents.value = data || [];
-      // No pisar el agente ya restaurado de una sesión anterior (ver restoreLastSession).
-      if (!selectedAgentId.value) {
-        selectedAgentId.value = hermesAgents.value[0]?.id || null;
-      }
-      await restoreLastSession();
-    } catch {
-      hermesAgents.value = [];
-      hasFetchedAgents.value = false;
-    }
+    if (enabled) await initialise();
   },
   { immediate: true }
 );
@@ -182,11 +213,19 @@ watch(
     ]"
   >
     <HermesChatPanel
+      v-model:selected-agent-id="selectedAgentId"
+      v-model:selected-model-key="selectedModelKey"
       :messages="messages"
       :is-streaming="isStreaming"
       :active-tools="activeTools"
       :has-agents="hasAgents"
+      :agent-options="agentOptions"
+      :model-options="modelOptions"
+      :sessions="sessions"
+      :current-session-id="currentSessionId"
+      :selected-agent-name="selectedAgentName"
       @send-message="sendMessage"
+      @select-session="handleSelectSession"
       @stop="stopStreaming"
       @reset="handleReset"
       @close="handleClose"
