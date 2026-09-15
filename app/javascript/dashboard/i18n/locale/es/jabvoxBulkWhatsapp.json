@@ -234,7 +234,8 @@
         "DELIVERED": "Entregado",
         "READ": "Leído",
         "REPLIED": "Respondió",
-        "REPLY_TIME": "Tiempo de respuesta"
+        "REPLY_TIME": "Tiempo de respuesta",
+        "REPLY_TEXT": "Respuesta"
       },
       "FILTER_DELIVERED": "Entregados",
       "FILTER_READ": "Leídos",
@@ -242,6 +243,11 @@
       "FILTER_NOT_REPLIED": "No respondieron",
       "REPLIED_YES": "Sí respondió",
       "REPLIED_NO": "No respondió",
+      "REPLY_SOURCE": {
+        "FLOW": "Formulario",
+        "BUTTON": "Botón",
+        "MESSAGE": "Mensaje"
+      },
       "TOTALS_DELIVERY": "· {delivered} entregados · {read} leídos",
       "TOTALS_REPLIED": "· {replied} respondieron"
     },

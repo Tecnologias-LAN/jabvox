@@ -1,6 +1,9 @@
 # Resolves the WhatsApp delivery lifecycle (delivered/read + timestamps) for bulk
 # send recipients by joining their chatwoot_message_id to message_status_events.
-# Kept in a concern so the batches controller stays focused on CRUD.
+# Reply tracking (replied/not_replied) lives in Jabvox::BulkWhatsappReplyStatus —
+# split out purely to stay under the module-length cop; both are included
+# together by the controller. Kept in concerns so the batches controller stays
+# focused on CRUD.
 module Jabvox::BulkWhatsappDeliveryStatus
   # One query for all recipients' delivered/read events, keyed by
   # chatwoot_message_id: { message_id => { 'delivered' => time, 'read' => time } }.
@@ -16,97 +19,81 @@ module Jabvox::BulkWhatsappDeliveryStatus
     map
   end
 
-  # First INCOMING message (contact's reply) in each recipient's conversation
-  # AFTER the template was sent — keyed by conversation_id: { conversation_id =>
-  # created_at }. "Replied" means the contact wrote back at all, not that they
-  # replied specifically to the template (WhatsApp gives no such linkage), so we
-  # take the first incoming message after sent_at_jabvox as the reply signal.
-  # One query per distinct sent_at avoids an N+1 while still respecting each
-  # recipient's own send time as the reply-window start.
-  def first_reply_map(recipients)
-    with_conv = recipients.select { |r| r.conversation_id && r.sent_at_jabvox }
-    return {} if with_conv.empty?
-
-    first_incoming_by_conversation = first_incoming_message_times(with_conv)
-
-    with_conv.each_with_object({}) do |r, out|
-      first_reply_at = first_incoming_by_conversation[r.conversation_id]
-      out[r.id] = first_reply_at if first_reply_at && first_reply_at >= r.sent_at_jabvox
-    end
-  end
-
-  # { conversation_id => created_at of its first incoming message on/after the
-  # earliest send in this batch }. One query for every recipient avoids an N+1;
-  # the per-recipient sent_at_jabvox check happens in the caller.
-  def first_incoming_message_times(recipients_with_conv)
-    conversation_ids = recipients_with_conv.map(&:conversation_id)
-    earliest_sent_at = recipients_with_conv.map(&:sent_at_jabvox).min
-
-    map = {}
-    Message.where(account_id: Current.account.id, conversation_id: conversation_ids, message_type: :incoming)
-           .where('messages.created_at >= ?', earliest_sent_at)
-           .order(:created_at)
-           .pluck(:conversation_id, :created_at)
-           .each { |conv_id, created_at| map[conv_id] ||= created_at }
-    map
-  end
-
-  # Aggregate delivered/read/replied counts for the batch header.
-  def delivery_summary(batch)
-    ids = batch.recipients.where.not(chatwoot_message_id: nil).pluck(:chatwoot_message_id)
+  # Aggregate delivered/read/replied counts for the batch header. `recipients`
+  # is any recipients relation — batch.recipients for a single batch, or the
+  # account-wide/filtered scope from the cross-batch Informes → Plantillas
+  # report (see Jabvox::BulkWhatsappTemplatesReport).
+  def delivery_summary(recipients)
+    ids = recipients.where.not(chatwoot_message_id: nil).pluck(:chatwoot_message_id)
     delivered_read = if ids.empty?
                        { 'delivered' => 0, 'read' => 0 }
                      else
                        MessageStatusEvent.where(account_id: Current.account.id, message_id: ids).group(:status).count
                      end
 
-    replied = first_reply_map(batch.recipients.where.not(conversation_id: nil).where.not(sent_at_jabvox: nil)).size
+    replied = first_reply_map(recipients.where.not(conversation_id: nil).where.not(sent_at_jabvox: nil)).size
     { delivered: delivered_read['delivered'].to_i, read: delivered_read['read'].to_i, replied: replied }
   end
 
   # status filter accepts recipient states (pending/sent/failed) plus the
   # delivery-lifecycle states (delivered/read/replied/not_replied), resolved via
   # message_status_events / the contact's first incoming message.
-  def filter_recipients_by_status(batch, scope, status)
-    return filter_by_reply_status(batch, scope, status) if %w[replied not_replied].include?(status)
+  # `all_recipients` is the universe to resolve delivered/read/replied against
+  # (batch.recipients for one batch, or the same cross-batch scope as
+  # `scope` for the Informes report) — kept separate from `scope` (already
+  # filtered by other params) so status filtering doesn't narrow its own lookup.
+  def filter_recipients_by_status(all_recipients, scope, status)
+    return filter_by_reply_status(all_recipients, scope, status) if %w[replied not_replied].include?(status)
     return scope.where(status_jabvox: status) unless %w[delivered read].include?(status)
 
-    ids = batch.recipients.where.not(chatwoot_message_id: nil).pluck(:chatwoot_message_id)
+    ids = all_recipients.where.not(chatwoot_message_id: nil).pluck(:chatwoot_message_id)
     reached = MessageStatusEvent.where(account_id: Current.account.id, message_id: ids,
                                        status: MessageStatusEvent.statuses[status]).pluck(:message_id)
     scope.where(chatwoot_message_id: reached)
   end
 
-  def filter_by_reply_status(batch, scope, status)
-    all_with_conv = batch.recipients.where.not(conversation_id: nil).where.not(sent_at_jabvox: nil)
-    replied_ids = first_reply_map(all_with_conv).keys
+  def filter_by_reply_status(all_recipients, scope, status)
+    with_conv = all_recipients.where.not(conversation_id: nil).where.not(sent_at_jabvox: nil)
+    replied_ids = first_reply_map(with_conv).keys
     status == 'replied' ? scope.where(id: replied_ids) : scope.where.not(id: replied_ids)
+  end
+
+  # Combina uno o varios estados (OR): la unión de los recipients que están en cualquiera
+  # de los estados pedidos, reutilizando filter_recipients_by_status por estado.
+  # `all_recipients` is the universe to resolve delivered/read/replied against;
+  # shared by BatchesController (batch.recipients) and the cross-batch Informes
+  # → Plantillas report (TemplatesReportController).
+  def filter_by_statuses(all_recipients, scope, status_param)
+    statuses = status_param.to_s.split(',').map(&:strip).reject(&:blank?).uniq
+    return scope if statuses.empty?
+    return filter_recipients_by_status(all_recipients, scope, statuses.first) if statuses.one?
+
+    ids = statuses.flat_map { |st| filter_recipients_by_status(all_recipients, all_recipients, st).pluck(:id) }.uniq
+    scope.where(id: ids)
   end
 
   # Delivered/read flags + timestamps for one recipient from the preloaded map.
   # reply_map is optional so callers that don't need it (e.g. delivery_summary's
-  # own aggregate query) aren't forced to compute it.
+  # own aggregate query) aren't forced to compute it. reply_map values are the
+  # Reply struct itself (see Jabvox::BulkWhatsappReplyStatus#first_reply_map),
+  # so the actual answer text (reply_text) AND how confident the match is
+  # (reply_source: 'flow'/'button' are exact, 'message' is a best-effort guess)
+  # can both be shown, not just whether/when.
   def recipient_delivery_fields(recipient, status_map, reply_map = {})
     events = status_map[recipient.chatwoot_message_id] || {}
-    replied_at = reply_map[recipient.id]
+    reply = reply_map[recipient.id]
     {
       chatwoot_message_id: recipient.chatwoot_message_id,
       delivered_at: events['delivered'],
       read_at: events['read'],
       delivered: events.key?('delivered'),
       read: events.key?('read'),
-      replied: replied_at.present?,
-      replied_at: replied_at,
-      reply_time_seconds: reply_time_seconds(recipient, replied_at)
+      replied: reply.present?,
+      replied_at: reply&.created_at,
+      reply_text: reply_text_for(reply),
+      reply_source: reply_source_for(reply),
+      reply_time_seconds: reply_time_seconds(recipient, reply&.created_at)
     }
-  end
-
-  # Seconds between the template send and the contact's first reply, or nil
-  # while there isn't one (still waiting) or the send has no timestamp yet.
-  def reply_time_seconds(recipient, replied_at)
-    return nil unless replied_at && recipient.sent_at_jabvox
-
-    (replied_at - recipient.sent_at_jabvox).round
   end
 
   # CSV with the full send result per recipient, including delivered/read/replied.
@@ -117,17 +104,23 @@ module Jabvox::BulkWhatsappDeliveryStatus
     CSV.generate(headers: true) do |csv|
       csv << ['Nombre', 'Número', 'Plantilla', 'Estado', 'Entregado', 'Leído',
               'Entregado a las', 'Leído a las', 'Respondió', 'Respondido a las',
-              'Tiempo de respuesta (seg)', 'Código error', 'Mensaje error',
-              'Enviado a las', 'ID mensaje']
+              'Vía de respuesta', 'Tiempo de respuesta (seg)', 'Respuesta', 'Código error',
+              'Mensaje error', 'Enviado a las', 'ID mensaje']
       rows.each { |r| csv << recipient_csv_row(r, status_map[r.chatwoot_message_id] || {}, reply_map[r.id]) }
     end
   end
 
-  def recipient_csv_row(recipient, events, replied_at)
+  def recipient_csv_row(recipient, events, reply)
     [recipient.name_jabvox, recipient.phone_number_jabvox, recipient.template_name_jabvox,
      recipient.status_jabvox, (events.key?('delivered') ? 'Sí' : 'No'), (events.key?('read') ? 'Sí' : 'No'),
-     events['delivered'], events['read'], (replied_at.present? ? 'Sí' : 'No'), replied_at,
-     reply_time_seconds(recipient, replied_at), recipient.error_code_jabvox, recipient.error_message_jabvox,
+     events['delivered'], events['read'], (reply.present? ? 'Sí' : 'No'), reply&.created_at,
+     reply_source_label(reply_source_for(reply)),
+     reply_time_seconds(recipient, reply&.created_at), reply_text_for(reply),
+     recipient.error_code_jabvox, recipient.error_message_jabvox,
      recipient.sent_at_jabvox, recipient.chatwoot_message_id]
+  end
+
+  def reply_source_label(source)
+    { 'flow' => 'Formulario (Flow)', 'button' => 'Botón', 'message' => 'Mensaje' }[source]
   end
 end

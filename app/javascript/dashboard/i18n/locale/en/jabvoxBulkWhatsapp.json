@@ -234,7 +234,8 @@
         "DELIVERED": "Delivered",
         "READ": "Read",
         "REPLIED": "Replied",
-        "REPLY_TIME": "Reply time"
+        "REPLY_TIME": "Reply time",
+        "REPLY_TEXT": "Reply"
       },
       "FILTER_DELIVERED": "Delivered",
       "FILTER_READ": "Read",
@@ -242,6 +243,11 @@
       "FILTER_NOT_REPLIED": "Not replied",
       "REPLIED_YES": "Replied",
       "REPLIED_NO": "Did not reply",
+      "REPLY_SOURCE": {
+        "FLOW": "Form",
+        "BUTTON": "Button",
+        "MESSAGE": "Message"
+      },
       "TOTALS_DELIVERY": "· {delivered} delivered · {read} read",
       "TOTALS_REPLIED": "· {replied} replied"
     },

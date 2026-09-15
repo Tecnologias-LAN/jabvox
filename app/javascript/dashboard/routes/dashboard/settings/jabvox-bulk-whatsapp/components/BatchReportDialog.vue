@@ -5,7 +5,7 @@ import { useAlert } from 'dashboard/composables';
 import bulkWhatsappAPI from 'dashboard/api/jabvox/bulkWhatsapp';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
-import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import RecipientsTable from './RecipientsTable.vue';
 
 // Per-execution report: opens a batch, lists its recipients with status filter,
 // search, CSV export and "resend to this audience". While the batch is still
@@ -22,11 +22,6 @@ const POLL_MS = 4000;
 const POST_SEND_POLL_MS = 10000;
 const POST_SEND_POLL_LIMIT_MS = 10 * 60 * 1000;
 const RUNNING = ['queued', 'running', 'pending'];
-// Delivered/read indicators (WhatsApp-style ticks), kept as constants so the
-// template stays free of bare literals.
-const CHECK = '✓';
-const DOUBLE_CHECK = '✓✓';
-const DASH = '—';
 
 const open = ref(false);
 const loading = ref(false);
@@ -63,17 +58,6 @@ const totals = computed(() => ({
   read: batch.value?.delivery_summary?.read || 0,
   replied: batch.value?.delivery_summary?.replied || 0,
 }));
-
-// Tiempo de respuesta en segundos -> texto corto (ej. "2 min", "1 h 5 min").
-const formatReplyTime = seconds => {
-  if (seconds === null || seconds === undefined) return '';
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const restMinutes = minutes % 60;
-  return restMinutes ? `${hours} h ${restMinutes} min` : `${hours} h`;
-};
 
 const stopPolling = () => {
   if (pollTimer) clearInterval(pollTimer);
@@ -188,16 +172,6 @@ const reuse = async () => {
     reusing.value = false;
   }
 };
-
-const statusLabel = s =>
-  t(`JABVOX_BULK_WA.STATUS.${(s || 'pending').toUpperCase()}`);
-
-const statusClass = s =>
-  ({
-    sent: 'text-n-teal-11',
-    failed: 'text-n-ruby-11',
-    pending: 'text-n-slate-10',
-  })[s] || 'text-n-slate-10';
 
 onUnmounted(stopPolling);
 
@@ -358,105 +332,11 @@ defineExpose({ openDialog });
 
         <!-- Body -->
         <div class="flex-1 overflow-y-auto px-5 py-4">
-          <div v-if="loading" class="flex items-center justify-center py-16">
-            <Spinner :size="24" />
-          </div>
-          <div
-            v-else-if="!recipients.length"
-            class="rounded-xl border border-dashed border-n-weak py-12 text-center text-sm text-n-slate-11"
-          >
-            {{ t('JABVOX_BULK_WA.REPORT.EMPTY') }}
-          </div>
-          <table v-else class="min-w-full text-sm">
-            <thead>
-              <tr
-                class="text-left text-xs font-medium uppercase tracking-wide text-n-slate-10 border-b border-n-weak"
-              >
-                <th class="py-2 px-3">
-                  {{ t('JABVOX_BULK_WA.REPORT.COLS.NAME') }}
-                </th>
-                <th class="py-2 px-3">
-                  {{ t('JABVOX_BULK_WA.REPORT.COLS.PHONE') }}
-                </th>
-                <th class="py-2 px-3">
-                  {{ t('JABVOX_BULK_WA.REPORT.COLS.TEMPLATE') }}
-                </th>
-                <th class="py-2 px-3">
-                  {{ t('JABVOX_BULK_WA.REPORT.COLS.STATUS') }}
-                </th>
-                <th class="py-2 px-3">
-                  {{ t('JABVOX_BULK_WA.REPORT.COLS.DELIVERED') }}
-                </th>
-                <th class="py-2 px-3">
-                  {{ t('JABVOX_BULK_WA.REPORT.COLS.READ') }}
-                </th>
-                <th class="py-2 px-3">
-                  {{ t('JABVOX_BULK_WA.REPORT.COLS.REPLIED') }}
-                </th>
-                <th class="py-2 px-3">
-                  {{ t('JABVOX_BULK_WA.REPORT.COLS.REPLY_TIME') }}
-                </th>
-                <th class="py-2 px-3">
-                  {{ t('JABVOX_BULK_WA.REPORT.COLS.ERROR_CODE') }}
-                </th>
-                <th class="py-2 px-3">
-                  {{ t('JABVOX_BULK_WA.REPORT.COLS.ERROR_MESSAGE') }}
-                </th>
-                <th class="py-2 px-3">
-                  {{ t('JABVOX_BULK_WA.REPORT.COLS.SENT_AT') }}
-                </th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-n-weak">
-              <tr v-for="r in recipients" :key="r.id">
-                <td class="py-2 px-3 text-n-slate-12">{{ r.name }}</td>
-                <td class="py-2 px-3 text-n-slate-11">{{ r.phone_number }}</td>
-                <td class="py-2 px-3 text-n-slate-11">{{ r.template_name }}</td>
-                <td
-                  class="py-2 px-3 font-medium"
-                  :class="statusClass(r.status)"
-                >
-                  {{ statusLabel(r.status) }}
-                </td>
-                <td class="py-2 px-3 text-n-slate-11">
-                  <span
-                    :title="r.delivered_at || ''"
-                    :class="r.delivered ? 'text-n-teal-11' : 'text-n-slate-9'"
-                  >
-                    {{ r.delivered ? CHECK : DASH }}
-                  </span>
-                </td>
-                <td class="py-2 px-3 text-n-slate-11">
-                  <span
-                    :title="r.read_at || ''"
-                    :class="r.read ? 'text-n-teal-11' : 'text-n-slate-9'"
-                  >
-                    {{ r.read ? DOUBLE_CHECK : DASH }}
-                  </span>
-                </td>
-                <td class="py-2 px-3 text-n-slate-11">
-                  <span
-                    :title="r.replied_at || ''"
-                    :class="r.replied ? 'text-n-blue-11' : 'text-n-slate-9'"
-                  >
-                    {{
-                      r.replied
-                        ? t('JABVOX_BULK_WA.REPORT.REPLIED_YES')
-                        : t('JABVOX_BULK_WA.REPORT.REPLIED_NO')
-                    }}
-                  </span>
-                </td>
-                <td class="py-2 px-3 text-n-slate-11">
-                  {{ formatReplyTime(r.reply_time_seconds) }}
-                </td>
-                <td class="py-2 px-3 text-n-slate-11">{{ r.error_code }}</td>
-                <td class="py-2 px-3 text-n-slate-11 max-w-xs truncate">
-                  {{ r.error_message }}
-                </td>
-                <td class="py-2 px-3 text-n-slate-11">{{ r.sent_at }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <RecipientsTable
+            :recipients="recipients"
+            :loading="loading"
+            show-template
+          />
         </div>
       </div>
     </div>

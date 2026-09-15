@@ -55,6 +55,46 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     return axios.get(`${this.url}/batches/senders`);
   }
 
+  // Informes → Plantillas: historial de destinatarios CROSS-batch (todas las
+  // plantillas de la cuenta), con filtros de rango de fechas/plantilla/bandeja/
+  // estado/búsqueda y paginación.
+  getTemplatesReport({
+    from,
+    to,
+    template,
+    inboxId,
+    status,
+    q,
+    page = 1,
+  } = {}) {
+    return axios.get(`${this.url}/templates_report`, {
+      params: {
+        from,
+        to,
+        template: template || undefined,
+        inbox_id: inboxId || undefined,
+        status: status || undefined,
+        q: q || undefined,
+        page,
+      },
+    });
+  }
+
+  // Descarga el CSV del reporte de plantillas (mismos filtros que la vista).
+  downloadTemplatesReportCsv({ from, to, template, inboxId, status, q } = {}) {
+    return axios.get(`${this.url}/templates_report.csv`, {
+      params: {
+        from,
+        to,
+        template: template || undefined,
+        inbox_id: inboxId || undefined,
+        status: status || undefined,
+        q: q || undefined,
+      },
+      responseType: 'blob',
+    });
+  }
+
   // Lead custom-field definitions, to build dynamic filters in the leads picker.
   getLeadFields() {
     return axios.get(`${this.url}/batches/lead_fields`);

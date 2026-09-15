@@ -24,6 +24,7 @@ import BotReports from './BotReports.vue';
 import LiveReports from './LiveReports.vue';
 import SLAReports from './SLAReports.vue';
 import WhatsappReports from './WhatsappReports.vue';
+import WhatsappTemplatesReports from './WhatsappTemplatesReports.vue';
 
 const meta = {
   featureFlag: FEATURE_FLAGS.REPORTS,
@@ -177,6 +178,16 @@ export default {
           // bloqueaba la ruta redirigiendo al dashboard).
           meta: { permissions: ['administrator', 'report_manage'] },
           component: WhatsappReports,
+        },
+        {
+          path: 'whatsapp/templates',
+          name: 'whatsapp_templates_reports',
+          // Mismo criterio de acceso que 'whatsapp' arriba; además depende del
+          // módulo de Envío Masivo (sin él no hay ningún envío que listar), pero
+          // esa gate ya la aplica el backend (BulkWhatsapp::BaseController) — la
+          // página simplemente sale vacía/con error si el módulo está apagado.
+          meta: { permissions: ['administrator', 'report_manage'] },
+          component: WhatsappTemplatesReports,
         },
       ],
     },

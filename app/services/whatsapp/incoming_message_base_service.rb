@@ -204,7 +204,7 @@ class Whatsapp::IncomingMessageBaseService
     content_attrs[:in_reply_to_external_id] = @in_reply_to_external_id if @in_reply_to_external_id.present?
     referral_content_attrs = referral_attributes(message)
     content_attrs[:referral] = referral_content_attrs if referral_content_attrs.present?
-    content_attrs
+    add_flow_response_attributes(content_attrs, message)
   end
 
   def attach_contact(contact)

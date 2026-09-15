@@ -5,6 +5,7 @@ require 'csv'
 # Also exposes the send history and the list of selectable sender users. Admin-only.
 class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Accounts::Jabvox::BulkWhatsapp::BaseController
   include Jabvox::BulkWhatsappDeliveryStatus
+  include Jabvox::BulkWhatsappReplyStatus
   include Jabvox::BulkWhatsappAnalytics
 
   before_action :ensure_admin
@@ -34,7 +35,7 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
         status_map = delivery_status_map(recipients)
         reply_map = first_reply_map(recipients)
         render json: serialize(batch).merge(
-          delivery_summary: delivery_summary(batch),
+          delivery_summary: delivery_summary(batch.recipients),
           recipients: recipients.map { |r| serialize_recipient(r, status_map, reply_map) }
         )
       end
@@ -229,23 +230,12 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
   # params[:status] acepta uno o varios estados separados por coma (p. ej. "failed,pending").
   def filtered_recipients(batch)
     scope = batch.recipients
-    scope = filter_by_statuses(batch, scope, params[:status]) if params[:status].present?
+    scope = filter_by_statuses(batch.recipients, scope, params[:status]) if params[:status].present?
     if params[:q].present?
       q = "%#{params[:q].to_s.strip}%"
       scope = scope.where('name_jabvox ILIKE :q OR phone_number_jabvox ILIKE :q', q: q)
     end
     scope
-  end
-
-  # Combina uno o varios estados (OR): la unión de los recipients que están en cualquiera
-  # de los estados pedidos, reutilizando filter_recipients_by_status por estado.
-  def filter_by_statuses(batch, scope, status_param)
-    statuses = status_param.to_s.split(',').map(&:strip).reject(&:blank?).uniq
-    return scope if statuses.empty?
-    return filter_recipients_by_status(batch, scope, statuses.first) if statuses.one?
-
-    ids = statuses.flat_map { |st| filter_recipients_by_status(batch, batch.recipients, st).pluck(:id) }.uniq
-    scope.where(id: ids)
   end
 
   def serialize_recipient(recipient, status_map = {}, reply_map = {})
