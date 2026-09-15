@@ -5,13 +5,67 @@
 # rubocop:disable Rails/I18nLocaleTexts
 class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
   TABS = %w[connection accounts balances].freeze
+  # Tope de cuentas que se ofrecen en el selector. Evita renderizar un <select> gigantesco.
+  ACCOUNT_OPTIONS_LIMIT = 500
 
   def show
     @config = JabvoxAiProviderConfig.instance
     @summary = @config.safe_summary
     @tab = TABS.include?(params[:tab]) ? params[:tab] : 'connection'
     # Datos de las pestañas "Por cuenta" y "Saldos" (se cargan siempre; son ligeros).
-    @rows = load_account_rows if %w[accounts balances].include?(@tab)
+    return unless %w[accounts balances].include?(@tab)
+
+    @rows = load_account_rows
+    @account_options = account_options
+    @orphans = JabvoxAiProviderAccount.orphans.order(:team_alias_jabvox, :id).limit(200)
+  end
+
+  # Trae TODO de LiteLLM y lo refleja en Jabvox: importa los teams que no existían aquí,
+  # actualiza los que sí, y deja como "huérfanos" los que no se pueden mapear a una cuenta.
+  def sync_provider
+    config = JabvoxAiProviderConfig.instance
+    return redirect_tab('accounts', 'Configura URL, master key y habilita el proveedor antes de sincronizar.', :alert) unless config.configured?
+
+    result = Jabvox::AiProvider::SyncService.new.sync_all!
+    if result.success?
+      redirect_tab('accounts', "Sincronización completa: #{result.imported} importados, " \
+                               "#{result.updated} actualizados, #{result.linked} ligados " \
+                               "automáticamente. Huérfanos pendientes: #{result.orphans}.")
+    else
+      redirect_tab('accounts', "No se pudo sincronizar: #{result.error}", :alert)
+    end
+  rescue StandardError => e
+    Rails.logger.error("[AiProviderConfig] sincronizar: #{e.class}: #{e.message}")
+    redirect_tab('accounts', 'No se pudo sincronizar con el proveedor.', :alert)
+  end
+
+  # Liga un team ya existente en el proveedor (huérfano) a una cuenta de Jabvox.
+  def link_account
+    provider_account = JabvoxAiProviderAccount.find(params[:provider_account_id])
+    account = Account.find_by(id: params[:account_id])
+    return redirect_tab('accounts', "No existe la cuenta #{params[:account_id]}.", :alert) if account.nil?
+
+    Jabvox::AiProvider::SyncService.new.link_to_account!(provider_account, account)
+    redirect_tab('accounts', "Team #{provider_account.team_id_jabvox} ligado a la cuenta #{account.id}.")
+  rescue ArgumentError => e
+    redirect_tab('accounts', e.message, :alert)
+  rescue ActiveRecord::RecordNotFound
+    redirect_tab('accounts', 'No existe ese team.', :alert)
+  rescue StandardError => e
+    Rails.logger.error("[AiProviderConfig] ligar: #{e.class}: #{e.message}")
+    redirect_tab('accounts', 'No se pudo ligar el team a la cuenta.', :alert)
+  end
+
+  # Desliga la cuenta de su team. El team NO se borra en el proveedor: queda huérfano.
+  def unlink_account
+    provider_account = JabvoxAiProviderAccount.find(params[:provider_account_id])
+    Jabvox::AiProvider::SyncService.new.unlink!(provider_account)
+    redirect_tab('accounts', "Team #{provider_account.team_id_jabvox} desligado. Sigue existiendo en el proveedor.")
+  rescue ActiveRecord::RecordNotFound
+    redirect_tab('accounts', 'No existe ese team.', :alert)
+  rescue StandardError => e
+    Rails.logger.error("[AiProviderConfig] desligar: #{e.class}: #{e.message}")
+    redirect_tab('accounts', 'No se pudo desligar el team.', :alert)
   end
 
   # Guarda la config. La master key en blanco = conservar la actual (nunca se sobreescribe con
@@ -103,14 +157,24 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
     redirect_to super_admin_ai_provider_config_path(tab: tab), kind => msg
   end
 
-  # Cuentas con plan que otorga saldo de IA + su desglose (para las pestañas por cuenta/saldos).
+  # Filas de la tabla: cuentas con plan de IA + CUALQUIER cuenta que ya tenga un team ligado
+  # (aunque su plan no otorgue saldo, p. ej. las importadas de LiteLLM o dadas de alta a mano).
   def load_account_rows
     plan_ids = JabvoxPlan.where('ai_budget_cents_jabvox > 0').pluck(:id)
-    accounts = Account.where(jabvox_plan_id: plan_ids).order(:id).limit(200)
+    linked_ids = JabvoxAiProviderAccount.linked.pluck(:account_id)
+    accounts = Account.where(jabvox_plan_id: plan_ids).or(Account.where(id: linked_ids))
+                      .order(:id).limit(200)
     provider_accounts = JabvoxAiProviderAccount.where(account_id: accounts.map(&:id)).index_by(&:account_id)
     accounts.map do |acc|
       pa = provider_accounts[acc.id]
       { account: acc, plan: acc.jabvox_plan, provider_account: pa, connected: pa&.team_id_jabvox.present? }
+    end
+  end
+
+  # Opciones del selector de cuentas: [etiqueta, id]. Sustituye al campo numérico a ciegas.
+  def account_options
+    Account.order(:id).limit(ACCOUNT_OPTIONS_LIMIT).pluck(:id, :name).map do |id, name|
+      ["##{id} — #{name}", id]
     end
   end
 end

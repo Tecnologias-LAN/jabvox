@@ -36,14 +36,41 @@
 #  fk_rails_...  (account_id => accounts.id)
 #
 class JabvoxAiProviderAccount < ApplicationRecord
-  belongs_to :account
+  # Opcional: un team importado de LiteLLM puede existir sin cuenta ("huérfano") hasta que
+  # un admin lo ligue desde el Super Admin.
+  belongs_to :account, optional: true
 
   STATUSES = %w[active blocked].freeze
+  ORIGINS = %w[jabvox litellm].freeze
 
-  validates :account_id, uniqueness: true
+  # Unicidad solo entre filas CON cuenta: varios huérfanos (account_id NULL) pueden coexistir.
+  validates :account_id, uniqueness: true, allow_nil: true
   validates :status_jabvox, inclusion: { in: STATUSES }
+  validates :origin_jabvox, inclusion: { in: ORIGINS }
+  # Un mismo team del proxy no puede quedar ligado a dos filas (respaldado por índice único).
+  validates :team_id_jabvox, uniqueness: true, allow_blank: true
   validates :plan_budget_cents_jabvox, :purchased_budget_cents_jabvox,
             numericality: { greater_than_or_equal_to: 0, only_integer: true }
+
+  scope :orphans, -> { where(account_id: nil) }
+  scope :linked, -> { where.not(account_id: nil) }
+
+  # Team existente en el proxy pero sin cuenta de Jabvox asignada.
+  def orphan?
+    account_id.nil?
+  end
+
+  def imported?
+    origin_jabvox == 'litellm'
+  end
+
+  # ¿El tope que Jabvox cree tener difiere del que reporta el proxy? Señal de divergencia
+  # que la UI muestra para que el admin la resuelva (re-sincronizando).
+  def budget_diverged?
+    return false if remote_max_budget_jabvox.nil? || team_id_jabvox.blank?
+
+    (remote_max_budget_jabvox.to_f - total_budget_usd).abs > 0.0001
+  end
 
   # Tope total (centavos) = saldo del plan + saldo comprado acumulado.
   def total_budget_cents
@@ -86,7 +113,13 @@ class JabvoxAiProviderAccount < ApplicationRecord
       cached_spend_usd: (cached_spend_jabvox || 0).to_f.round(4),
       remaining_usd: remaining_usd,
       last_reset_period: last_reset_period_jabvox,
-      synced_at: synced_at_jabvox
+      synced_at: synced_at_jabvox,
+      team_alias: team_alias_jabvox,
+      remote_max_budget: remote_max_budget_jabvox&.to_f,
+      remote_blocked: remote_blocked_jabvox,
+      origin: origin_jabvox,
+      orphan: orphan?,
+      budget_diverged: budget_diverged?
     }
   end
 end

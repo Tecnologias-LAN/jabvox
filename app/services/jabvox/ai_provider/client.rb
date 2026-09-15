@@ -34,13 +34,30 @@ module Jabvox
       end
 
       # --- Teams (saldo del cliente) ---
-      def create_team(alias_name:, max_budget_usd:, models: [], metadata: {})
-        post('/team/new', team_alias: alias_name, models: models,
-                          max_budget: max_budget_usd, metadata: metadata)
+      # `team_id:` permite fijar el id desde Jabvox para que reintentar la creación no genere
+      # teams duplicados en el proxy (LiteLLM lo genera solo si no se envía).
+      def create_team(alias_name:, max_budget_usd:, models: [], metadata: {}, team_id: nil)
+        body = { team_alias: alias_name, models: models,
+                 max_budget: max_budget_usd, metadata: metadata }
+        body[:team_id] = team_id if team_id.present?
+        post('/team/new', **body)
       end
 
       def team_info(team_id)
         get('/team/info', team_id: team_id)
+      end
+
+      # Lista TODOS los teams del proxy. Verificado contra el código de LiteLLM
+      # (management_endpoints/team_endpoints.py): `/team/list` devuelve un ARRAY PLANO de
+      # teams, no un objeto envuelto. El normalizador de abajo tolera ambas formas por si
+      # una versión del proxy lo envuelve.
+      def list_teams
+        get('/team/list')
+      end
+
+      # Borra teams en el proxy. LiteLLM espera la clave `team_ids` (lista), no `team_id`.
+      def delete_teams(team_ids)
+        post('/team/delete', team_ids: Array(team_ids))
       end
 
       # SUMA/actualiza el tope ABSOLUTO. El llamador es responsable de leer→sumar→escribir.
@@ -72,6 +89,18 @@ module Jabvox
       def unblock_key(key) = post('/key/unblock', key: key)
 
       def models_info = get('/model/info')
+
+      # --- Normalización de la respuesta de /team/list ---
+      # Devuelve siempre un Array de Hash, sin importar si el proxy respondió un array plano
+      # (comportamiento actual de LiteLLM) o un objeto {"teams"|"data"|"results" => [...]}.
+      def self.normalize_team_list(data)
+        rows = case data
+               when Array then data
+               when Hash  then data['teams'] || data['data'] || data['results'] || []
+               else []
+               end
+        Array(rows).select { |r| r.is_a?(Hash) }
+      end
 
       private
 

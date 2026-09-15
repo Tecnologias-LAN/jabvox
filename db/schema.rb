@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_15_013000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_15_020000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1088,7 +1088,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_013000) do
   end
 
   create_table "jabvox_ai_provider_accounts", force: :cascade do |t|
-    t.bigint "account_id", null: false
+    t.bigint "account_id"
     t.string "team_id_jabvox"
     t.integer "plan_budget_cents_jabvox", default: 0, null: false
     t.integer "purchased_budget_cents_jabvox", default: 0, null: false
@@ -1100,8 +1100,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_013000) do
     t.string "last_error_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["account_id"], name: "index_jabvox_ai_provider_accounts_on_account_id", unique: true
-    t.index ["team_id_jabvox"], name: "index_jabvox_ai_provider_accounts_on_team_id_jabvox"
+    t.string "team_alias_jabvox"
+    t.decimal "remote_max_budget_jabvox", precision: 15, scale: 6
+    t.boolean "remote_blocked_jabvox", default: false, null: false
+    t.jsonb "remote_models_jabvox", default: [], null: false
+    t.string "origin_jabvox", default: "jabvox", null: false
+    t.index ["account_id"], name: "idx_ai_provider_accounts_account", unique: true, where: "(account_id IS NOT NULL)"
+    t.index ["team_id_jabvox"], name: "idx_ai_provider_accounts_team", unique: true, where: "((team_id_jabvox IS NOT NULL) AND ((team_id_jabvox)::text <> ''::text))"
   end
 
   create_table "jabvox_ai_provider_configs", force: :cascade do |t|
@@ -2402,6 +2407,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_013000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.text "action_token_jabvox"
+    t.string "allowed_ips_jabvox", default: [], null: false, array: true
     t.index ["account_id", "hermes_agent_name_jabvox"], name: "idx_hermes_conn_account_agent", unique: true
     t.index ["account_id"], name: "index_jabvox_hermes_connections_on_account_id"
     t.index ["action_token_jabvox"], name: "idx_hermes_conn_action_token", unique: true, where: "(action_token_jabvox IS NOT NULL)"

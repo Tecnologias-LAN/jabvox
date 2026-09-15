@@ -20,7 +20,16 @@
         <td style="padding:8px;"><strong><%= row[:account].name %></strong><br><span style="color:#6b7280;">#<%= row[:account].id %></span></td>
         <td style="padding:8px;"><%= row[:plan]&.name %><br><span style="color:#6b7280;">$<%= format('%.2f', (row[:plan]&.ai_budget_cents_jabvox.to_i / 100.0)) %>/mes</span></td>
         <td style="padding:8px;">
-          <% if row[:connected] %><span style="color:#16a34a;">● Conectada</span>
+          <% if row[:connected] %>
+            <span style="color:#16a34a;">● Conectada</span><br>
+            <span style="color:#6b7280; font-family:monospace; font-size:11px;"><%= pa.team_alias_jabvox.presence || pa.team_id_jabvox %></span>
+            <% if pa.imported? %><br><span style="color:#6b7280; font-size:11px;">importada del proveedor</span><% end %>
+            <% if pa.budget_diverged? %>
+              <br><span style="color:#b45309; font-size:11px;" title="El tope en el proveedor no coincide con el saldo calculado aquí.">
+                ⚠ tope remoto $<%= format('%.2f', pa.remote_max_budget_jabvox) %>
+              </span>
+            <% end %>
+            <% if pa.remote_blocked_jabvox %><br><span style="color:#b91c1c; font-size:11px;">bloqueada en el proveedor</span><% end %>
           <% else %><span style="color:#b45309;">○ Sin conectar</span><% end %>
         </td>
         <td style="padding:8px; text-align:right;"><%= pa ? "$#{format('%.2f', pa.plan_budget_cents_jabvox / 100.0)}" : '—' %></td>
@@ -39,6 +48,11 @@
               <%= f.hidden_field :account_id, value: row[:account].id %>
               <%= f.number_field :amount_usd, step: '0.01', min: '0', placeholder: 'USD', style: 'width:70px;' %>
               <%= f.submit 'Recargar', class: 'button' %>
+            <% end %>
+            <% if row[:connected] %>
+              <%= button_to 'Desligar', unlink_account_super_admin_ai_provider_config_path(provider_account_id: pa.id),
+                    method: :post, class: 'button', form_class: 'inline-block',
+                    data: { confirm: "¿Desligar el team de la cuenta #{row[:account].id}? El team seguirá existiendo en el proveedor." } %>
             <% end %>
           </td>
         <% end %>

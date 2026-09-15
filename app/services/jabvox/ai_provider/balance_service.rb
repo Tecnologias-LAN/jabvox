@@ -36,7 +36,7 @@ module Jabvox
                      reference: reference, idem: idem)
         end
 
-        ensure_team_and_sync(pa, plan: plan)
+        ensure_team_and_sync(pa)
         Result.new(success: true, provider_account: pa.reload)
       rescue StandardError => e
         fail_with(pa, e)
@@ -92,7 +92,7 @@ module Jabvox
           applied = true
         end
 
-        ensure_team_and_sync(pa, plan: plan) if applied
+        ensure_team_and_sync(pa) if applied
         Result.new(success: true, provider_account: pa.reload)
       rescue StandardError => e
         fail_with(pa, e)
@@ -139,31 +139,39 @@ module Jabvox
       private
 
       def provider_account
-        JabvoxAiProviderAccount.find_or_create_by!(account_id: @account.id)
+        JabvoxAiProviderAccount.find_by(account_id: @account.id) ||
+          JabvoxAiProviderAccount.create!(account_id: @account.id, origin_jabvox: 'jabvox')
       end
 
       # Garantiza que el team exista en el proveedor y sincroniza su tope con (plan+comprado).
       # Si el proveedor no está configurado, el MockAdapter lo simula (dev/test). Con force:true
       # crea el team aunque el saldo sea 0 (alta manual desde el Super Admin).
-      def ensure_team_and_sync(pa, plan: nil, force: false) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Naming/MethodParameterName
+      def ensure_team_and_sync(pa, force: false) # rubocop:disable Naming/MethodParameterName
         return if !force && pa.total_budget_cents.zero? && pa.team_id_jabvox.blank?
 
-        if pa.team_id_jabvox.blank?
-          resp = @client.create_team(
-            alias_name: "crm-#{@account.id}", max_budget_usd: pa.total_budget_usd,
-            models: Array(plan&.modules).map(&:to_s),
-            metadata: { 'crm_id' => @account.id.to_s }
-          )
-          raise "no se pudo crear el team: #{resp.error}" unless resp.success?
+        pa.team_id_jabvox.blank? ? create_remote_team(pa) : update_remote_budget(pa)
+      end
 
-          team_id = resp.data['team_id'] || resp.data.dig('team_info', 'team_id')
-          pa.update!(team_id_jabvox: team_id, synced_at_jabvox: Time.current, last_error_jabvox: nil)
-        else
-          resp = @client.update_team_budget(pa.team_id_jabvox, pa.total_budget_usd)
-          raise "no se pudo actualizar el tope: #{resp.error}" unless resp.success?
+      # models: [] = sin restricción de catálogo en LiteLLM. El límite real de la cuenta es el
+      # presupuesto (max_budget), no la lista de modelos. Antes se enviaban aquí los MÓDULOS
+      # del plan ('dialer', 'cdr'...), que LiteLLM interpreta como nombres de modelo
+      # inexistentes y deja al team sin acceso a ninguno.
+      def create_remote_team(pa) # rubocop:disable Naming/MethodParameterName
+        resp = @client.create_team(
+          alias_name: "crm-#{@account.id}", max_budget_usd: pa.total_budget_usd,
+          models: [], metadata: { 'crm_id' => @account.id.to_s }
+        )
+        raise "no se pudo crear el team: #{resp.error}" unless resp.success?
 
-          pa.update!(synced_at_jabvox: Time.current, last_error_jabvox: nil)
-        end
+        team_id = resp.data['team_id'] || resp.data.dig('team_info', 'team_id')
+        pa.update!(team_id_jabvox: team_id, synced_at_jabvox: Time.current, last_error_jabvox: nil)
+      end
+
+      def update_remote_budget(pa) # rubocop:disable Naming/MethodParameterName
+        resp = @client.update_team_budget(pa.team_id_jabvox, pa.total_budget_usd)
+        raise "no se pudo actualizar el tope: #{resp.error}" unless resp.success?
+
+        pa.update!(synced_at_jabvox: Time.current, last_error_jabvox: nil)
       end
 
       def record(pa, kind:, amount_cents:, idem:, plan_id: nil, reference: nil) # rubocop:disable Metrics/ParameterLists,Naming/MethodParameterName

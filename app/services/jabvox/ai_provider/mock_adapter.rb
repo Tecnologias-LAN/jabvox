@@ -32,6 +32,8 @@ module Jabvox
         when 'POST /team/update'    then update_team(args)
         when 'POST /team/block'     then set_team_block(args, true)
         when 'POST /team/unblock'   then set_team_block(args, false)
+        when 'GET /team/list'       then list_teams
+        when 'POST /team/delete'    then delete_teams(args)
         when 'GET /team/daily/activity' then activity(args)
         when 'POST /key/generate'   then generate_key(args)
         when 'GET /key/info'        then key_info(args)
@@ -43,6 +45,17 @@ module Jabvox
         end
       end
 
+      # Permite sembrar teams "que ya existen en el proxy" para probar la importación.
+      def seed_team(team_id:, **attrs)
+        @teams[team_id] = { 'team_id' => team_id,
+                            'team_alias' => attrs[:team_alias],
+                            'max_budget' => attrs[:max_budget],
+                            'spend' => attrs.fetch(:spend, 0.0),
+                            'blocked' => false,
+                            'metadata' => attrs.fetch(:metadata, {}),
+                            'models' => attrs.fetch(:models, []) }
+      end
+
       private
 
       def ok(body) = { status: 200, body: body, body_text: body.to_json }
@@ -50,10 +63,11 @@ module Jabvox
 
       def create_team(args)
         @seq += 1
-        id = "team-mock-#{@seq}"
+        id = args['team_id'].presence || "team-mock-#{@seq}"
         @teams[id] = { 'team_id' => id, 'team_alias' => args['team_alias'],
                        'max_budget' => args['max_budget'], 'spend' => 0.0,
-                       'blocked' => false, 'metadata' => args['metadata'] || {} }
+                       'blocked' => false, 'metadata' => args['metadata'] || {},
+                       'models' => Array(args['models']) }
         ok(@teams[id].merge('team_id' => id))
       end
 
@@ -62,6 +76,16 @@ module Jabvox
         return not_found('team no existe') unless t
 
         ok('team_info' => t)
+      end
+
+      # Igual que LiteLLM: /team/list devuelve un ARRAY PLANO de teams.
+      def list_teams
+        ok(@teams.values.map { |t| t.merge('team_memberships' => [], 'keys' => []) })
+      end
+
+      def delete_teams(args)
+        Array(args['team_ids']).each { |id| @teams.delete(id) }
+        ok('deleted_teams' => Array(args['team_ids']))
       end
 
       def update_team(args)
