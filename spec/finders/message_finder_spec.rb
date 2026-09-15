@@ -73,5 +73,22 @@ describe MessageFinder do
         expect(result.last.id).to be conversation.messages[-2].id
       end
     end
+
+    # El módulo Captain se eliminó, pero sus mensajes conservaban sender_type
+    # 'Captain::Assistant'. Al cargarlos, el eager loading de la asociación polimórfica
+    # intentaba resolver una clase inexistente y tumbaba con NameError el listado entero de
+    # mensajes de la cuenta (ver la migración NullifyOrphanCaptainSenders, que deja esos
+    # senders en NULL). Este test fija el contrato: sin sender huérfano, el listado carga.
+    context 'when a message has no sender' do
+      let(:params) { {} }
+
+      before do
+        conversation.messages.first.update_columns(sender_type: nil, sender_id: nil)
+      end
+
+      it 'still loads the conversation messages' do
+        expect { message_finder.perform.to_a }.not_to raise_error
+      end
+    end
   end
 end
