@@ -19,100 +19,15 @@ const streamController = ref(null); // AbortController del stream en curso
 const activeTools = ref([]); // chips de herramientas en vivo del turno actual
 const expandedTool = ref(null); // clave "msgId:toolId" de la herramienta desplegada
 
-// Estado del aprovisionamiento (banner superior)
-const status = ref(null); // { status, contextforge_base_url, virtual_server_id, mcp_servers, has_token, last_error }
-const isLoadingStatus = ref(false);
-const isProvisioning = ref(false);
-
 // Error visible (nunca se silencia)
 const errorMessage = ref('');
-
-// --- Derivados del estado -------------------------------------------------
-// Normalizamos el string de estado para comparaciones y clases.
-const statusValue = computed(() => status.value?.status || 'unknown');
-const isReady = computed(() => statusValue.value === 'ready');
-const mcpServers = computed(() => status.value?.mcp_servers || []);
-
-// El botón "Aprovisionar mi cuenta" solo tiene sentido cuando la cuenta
-// todavía no está lista y no hay una operación en curso.
-const canProvision = computed(
-  () =>
-    !isReady.value &&
-    statusValue.value !== 'provisioning' &&
-    !isProvisioning.value
-);
 
 // El input se habilita solo con contenido y sin un stream en curso.
 const canSend = computed(
   () => messageInput.value.trim().length > 0 && !isStreaming.value
 );
 
-// Mapa de presentación por estado: etiqueta, ayuda, ícono y color del banner.
-const statusMeta = computed(() => {
-  const map = {
-    pending: {
-      label: t('JABVOX_PROVISIONING_CHAT.STATUS.PENDING'),
-      hint: t('JABVOX_PROVISIONING_CHAT.STATUS.PENDING_HINT'),
-      icon: 'i-lucide-circle-dashed',
-      tone: 'amber',
-    },
-    provisioning: {
-      label: t('JABVOX_PROVISIONING_CHAT.STATUS.PROVISIONING'),
-      hint: t('JABVOX_PROVISIONING_CHAT.STATUS.PROVISIONING_HINT'),
-      icon: 'i-lucide-loader',
-      tone: 'blue',
-    },
-    ready: {
-      label: t('JABVOX_PROVISIONING_CHAT.STATUS.READY'),
-      hint: t('JABVOX_PROVISIONING_CHAT.STATUS.READY_HINT'),
-      icon: 'i-lucide-check-circle-2',
-      tone: 'teal',
-    },
-    failed: {
-      label: t('JABVOX_PROVISIONING_CHAT.STATUS.FAILED'),
-      hint: t('JABVOX_PROVISIONING_CHAT.STATUS.FAILED_HINT'),
-      icon: 'i-lucide-alert-triangle',
-      tone: 'ruby',
-    },
-  };
-  return (
-    map[statusValue.value] || {
-      label: t('JABVOX_PROVISIONING_CHAT.STATUS.UNKNOWN'),
-      hint: '',
-      icon: 'i-lucide-help-circle',
-      tone: 'slate',
-    }
-  );
-});
-
-// Clases del banner según el tono (mismos tokens n-*).
-const bannerClasses = computed(() => {
-  const tones = {
-    amber: 'bg-n-amber-3 border-n-amber-6 text-n-amber-11',
-    blue: 'bg-n-blue-3 border-n-blue-6 text-n-blue-11',
-    teal: 'bg-n-teal-3 border-n-teal-6 text-n-teal-11',
-    ruby: 'bg-n-ruby-3 border-n-ruby-6 text-n-ruby-11',
-    slate: 'bg-n-alpha-2 border-n-weak text-n-slate-11',
-  };
-  return tones[statusMeta.value.tone] || tones.slate;
-});
-
 // --- Carga inicial --------------------------------------------------------
-async function fetchStatus() {
-  isLoadingStatus.value = true;
-  try {
-    const { data } = await provisioningChatAPI.getStatus();
-    status.value = data;
-  } catch (e) {
-    errorMessage.value =
-      e?.response?.data?.error ||
-      e?.message ||
-      t('JABVOX_PROVISIONING_CHAT.ERROR.LOAD_STATUS');
-  } finally {
-    isLoadingStatus.value = false;
-  }
-}
-
 // Normaliza las tools guardadas (formato backend) al que espera el render (como upsertTool),
 // para que al reabrir el chat las herramientas se vean igual que en vivo.
 function normalizeStoredTools(list) {
@@ -153,7 +68,7 @@ async function fetchMessages() {
 }
 
 onMounted(async () => {
-  await Promise.all([fetchStatus(), fetchMessages()]);
+  await fetchMessages();
 });
 
 // Autoscroll al final cuando cambian los mensajes o el indicador "pensando".
@@ -165,22 +80,6 @@ watch([messages, isSending], async () => {
 });
 
 // --- Acciones -------------------------------------------------------------
-async function provision() {
-  errorMessage.value = '';
-  isProvisioning.value = true;
-  try {
-    const { data } = await provisioningChatAPI.provision();
-    status.value = data;
-  } catch (e) {
-    errorMessage.value =
-      e?.response?.data?.error ||
-      e?.message ||
-      t('JABVOX_PROVISIONING_CHAT.ERROR.PROVISION');
-  } finally {
-    isProvisioning.value = false;
-  }
-}
-
 // Acumula/actualiza una herramienta del turno (dedup por toolCallId, merge sin perder el
 // comando). Espeja el backend y el Chat IA.
 function upsertTool(tool) {
@@ -305,8 +204,6 @@ async function sendMessage() {
       throw new Error(err.error || t('JABVOX_PROVISIONING_CHAT.ERROR.SEND'));
     }
     await consumeStream(res, assistantId);
-    // Refresca el estado por si el aprovisionador cambió el aprovisionamiento.
-    fetchStatus();
   } catch (e) {
     if (e.name === 'AbortError') {
       appendToMessage(
@@ -370,102 +267,6 @@ function formatTime(dateStr) {
         <p class="text-xs text-n-slate-10 truncate">
           {{ t('JABVOX_PROVISIONING_CHAT.SUBTITLE') }}
         </p>
-      </div>
-    </div>
-
-    <!-- Banner de estado del aprovisionamiento -->
-    <div class="px-4 sm:px-6 pt-4">
-      <div class="rounded-xl border px-4 py-3" :class="bannerClasses">
-        <div class="flex items-start gap-3">
-          <span
-            class="size-5 shrink-0 mt-0.5"
-            :class="[
-              statusMeta.icon,
-              statusValue === 'provisioning' || isProvisioning
-                ? 'animate-spin'
-                : '',
-            ]"
-          />
-          <div class="flex-1 min-w-0">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <p class="text-sm font-semibold">
-                {{
-                  `${t('JABVOX_PROVISIONING_CHAT.STATUS.LABEL')}: ${statusMeta.label}`
-                }}
-              </p>
-              <div class="flex items-center gap-2">
-                <Button
-                  icon="i-lucide-refresh-cw"
-                  variant="ghost"
-                  color="slate"
-                  size="sm"
-                  :is-loading="isLoadingStatus"
-                  :title="t('JABVOX_PROVISIONING_CHAT.RELOAD')"
-                  @click="fetchStatus"
-                />
-                <!-- Botón de aprovisionamiento (solo si no está listo) -->
-                <Button
-                  v-if="canProvision"
-                  :label="t('JABVOX_PROVISIONING_CHAT.PROVISION_BUTTON')"
-                  icon="i-lucide-sparkles"
-                  size="sm"
-                  :is-loading="isProvisioning"
-                  @click="provision"
-                />
-              </div>
-            </div>
-            <p v-if="statusMeta.hint" class="text-xs mt-1 opacity-90">
-              {{ statusMeta.hint }}
-            </p>
-
-            <!-- Detalle cuando está listo -->
-            <div v-if="isReady" class="mt-3 space-y-2 text-xs text-n-slate-11">
-              <div
-                v-if="status?.virtual_server_id"
-                class="flex flex-wrap items-center gap-1.5"
-              >
-                <span class="font-medium text-n-slate-12">
-                  {{
-                    `${t('JABVOX_PROVISIONING_CHAT.STATUS.VIRTUAL_SERVER')}:`
-                  }}
-                </span>
-                <code
-                  class="px-1.5 py-0.5 rounded bg-n-alpha-2 text-n-slate-12 break-all"
-                >
-                  {{ status.virtual_server_id }}
-                </code>
-              </div>
-              <div>
-                <p class="font-medium text-n-slate-12 mb-1">
-                  {{ `${t('JABVOX_PROVISIONING_CHAT.STATUS.MCP_SERVERS')}:` }}
-                </p>
-                <ul v-if="mcpServers.length" class="flex flex-wrap gap-1.5">
-                  <li
-                    v-for="(server, idx) in mcpServers"
-                    :key="server.id || server.name || idx"
-                    class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-n-alpha-2 text-n-slate-12"
-                  >
-                    <span class="i-lucide-plug size-3.5 text-n-brand" />
-                    {{ server.name || server.id || server }}
-                  </li>
-                </ul>
-                <p v-else class="text-n-slate-10">
-                  {{ t('JABVOX_PROVISIONING_CHAT.STATUS.NO_MCP_SERVERS') }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Último error reportado por el estado -->
-            <p
-              v-if="status?.last_error"
-              class="text-xs mt-2 text-n-ruby-11 break-words"
-            >
-              {{
-                `${t('JABVOX_PROVISIONING_CHAT.STATUS.LAST_ERROR')}: ${status.last_error}`
-              }}
-            </p>
-          </div>
-        </div>
       </div>
     </div>
 
