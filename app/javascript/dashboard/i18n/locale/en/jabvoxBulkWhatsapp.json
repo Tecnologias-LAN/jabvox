@@ -235,7 +235,12 @@
         "READ": "Read",
         "REPLIED": "Replied",
         "REPLY_TIME": "Reply time",
-        "REPLY_TEXT": "Reply"
+        "REPLY_TEXT": "Reply",
+        "ORIGIN": "Sent via"
+      },
+      "ORIGIN": {
+        "BULK": "Bulk",
+        "INDIVIDUAL": "Individual"
       },
       "FILTER_DELIVERED": "Delivered",
       "FILTER_READ": "Read",

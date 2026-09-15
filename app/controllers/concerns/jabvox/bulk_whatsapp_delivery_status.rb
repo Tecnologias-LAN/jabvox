@@ -97,27 +97,38 @@ module Jabvox::BulkWhatsappDeliveryStatus
   end
 
   # CSV with the full send result per recipient, including delivered/read/replied.
-  def recipients_csv(scope)
+  # with_origin adds a "Vía de envío" column (Masivo/Individual) for the
+  # cross-source Informes → Plantillas report — the per-batch report (every row
+  # already the same origin) omits it, so its CSV shape doesn't change.
+  def recipients_csv(scope, with_origin: false)
     rows = scope.to_a
     status_map = delivery_status_map(rows)
     reply_map = first_reply_map(rows)
     CSV.generate(headers: true) do |csv|
-      csv << ['Nombre', 'Número', 'Plantilla', 'Estado', 'Entregado', 'Leído',
-              'Entregado a las', 'Leído a las', 'Respondió', 'Respondido a las',
-              'Vía de respuesta', 'Tiempo de respuesta (seg)', 'Respuesta', 'Código error',
-              'Mensaje error', 'Enviado a las', 'ID mensaje']
-      rows.each { |r| csv << recipient_csv_row(r, status_map[r.chatwoot_message_id] || {}, reply_map[r.id]) }
+      headers = ['Nombre', 'Número', 'Plantilla', 'Estado', 'Entregado', 'Leído',
+                 'Entregado a las', 'Leído a las', 'Respondió', 'Respondido a las',
+                 'Vía de respuesta', 'Tiempo de respuesta (seg)', 'Respuesta', 'Código error',
+                 'Mensaje error', 'Enviado a las', 'ID mensaje']
+      headers << 'Vía de envío' if with_origin
+      csv << headers
+      rows.each { |r| csv << recipient_csv_row(r, status_map[r.chatwoot_message_id] || {}, reply_map[r.id], with_origin: with_origin) }
     end
   end
 
-  def recipient_csv_row(recipient, events, reply)
-    [recipient.name_jabvox, recipient.phone_number_jabvox, recipient.template_name_jabvox,
-     recipient.status_jabvox, (events.key?('delivered') ? 'Sí' : 'No'), (events.key?('read') ? 'Sí' : 'No'),
-     events['delivered'], events['read'], (reply.present? ? 'Sí' : 'No'), reply&.created_at,
-     reply_source_label(reply_source_for(reply)),
-     reply_time_seconds(recipient, reply&.created_at), reply_text_for(reply),
-     recipient.error_code_jabvox, recipient.error_message_jabvox,
-     recipient.sent_at_jabvox, recipient.chatwoot_message_id]
+  def recipient_csv_row(recipient, events, reply, with_origin: false)
+    row = [recipient.name_jabvox, recipient.phone_number_jabvox, recipient.template_name_jabvox,
+           recipient.status_jabvox, (events.key?('delivered') ? 'Sí' : 'No'), (events.key?('read') ? 'Sí' : 'No'),
+           events['delivered'], events['read'], (reply.present? ? 'Sí' : 'No'), reply&.created_at,
+           reply_source_label(reply_source_for(reply)),
+           reply_time_seconds(recipient, reply&.created_at), reply_text_for(reply),
+           recipient.error_code_jabvox, recipient.error_message_jabvox,
+           recipient.sent_at_jabvox, recipient.chatwoot_message_id]
+    row << send_origin_label(recipient) if with_origin
+    row
+  end
+
+  def send_origin_label(recipient)
+    recipient.respond_to?(:source) && recipient.source == 'individual' ? 'Individual' : 'Masivo'
   end
 
   def reply_source_label(source)

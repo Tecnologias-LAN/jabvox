@@ -16,6 +16,7 @@ const baseRecipient = {
   reply_time_seconds: 12,
   reply_text: 'Rating: Excelente\nComments: Muy bueno',
   reply_source: 'flow',
+  origin: 'bulk',
   error_code: null,
   error_message: null,
   sent_at: '2026-09-15T16:55:53Z',
@@ -154,6 +155,36 @@ describe('RecipientsTable', () => {
     );
     expect(wrapper.text()).not.toContain(
       wrapper.vm.$t('JABVOX_BULK_WA.REPORT.REPLY_SOURCE.MESSAGE')
+    );
+  });
+
+  it('hides the Origin column unless showOrigin is set (per-batch dialog use)', () => {
+    const withoutOrigin = mount(RecipientsTable, {
+      props: { recipients: [baseRecipient], loading: false },
+    });
+    const withOrigin = mount(RecipientsTable, {
+      props: { recipients: [baseRecipient], loading: false, showOrigin: true },
+    });
+
+    expect(withoutOrigin.text()).not.toContain(
+      withoutOrigin.vm.$t('JABVOX_BULK_WA.REPORT.ORIGIN.BULK')
+    );
+    expect(withOrigin.text()).toContain(
+      withOrigin.vm.$t('JABVOX_BULK_WA.REPORT.ORIGIN.BULK')
+    );
+  });
+
+  it('labels an individual (1-a-1) send differently from a bulk one', () => {
+    const wrapper = mount(RecipientsTable, {
+      props: {
+        recipients: [{ ...baseRecipient, origin: 'individual' }],
+        loading: false,
+        showOrigin: true,
+      },
+    });
+
+    expect(wrapper.text()).toContain(
+      wrapper.vm.$t('JABVOX_BULK_WA.REPORT.ORIGIN.INDIVIDUAL')
     );
   });
 

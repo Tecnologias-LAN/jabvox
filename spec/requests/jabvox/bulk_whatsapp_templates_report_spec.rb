@@ -32,6 +32,8 @@ RSpec.describe 'Informes → Plantillas (cross-batch WhatsApp template history)'
 
   def url = "/api/v1/accounts/#{account.id}/jabvox/bulk_whatsapp/templates_report"
 
+  def bulk_id(recipient) = "bulk-#{recipient.id}"
+
   it 'lists recipients across every batch, most recent send first' do
     old = create_recipient(batch_a, template_name: 'plantilla_a', sent_at: 2.days.ago)
     recent = create_recipient(batch_b, template_name: 'plantilla_b', sent_at: 1.hour.ago)
@@ -41,7 +43,8 @@ RSpec.describe 'Informes → Plantillas (cross-batch WhatsApp template history)'
     expect(response).to have_http_status(:success)
     body = response.parsed_body
     expect(body['total']).to eq(2)
-    expect(body['recipients'].map { |r| r['id'] }).to eq([recent.id, old.id])
+    expect(body['recipients'].map { |r| r['id'] }).to eq([bulk_id(recent), bulk_id(old)])
+    expect(body['recipients'].map { |r| r['origin'] }).to all(eq('bulk'))
   end
 
   it 'filters by template name' do
@@ -62,7 +65,7 @@ RSpec.describe 'Informes → Plantillas (cross-batch WhatsApp template history)'
     get url, params: { inbox_id: other_inbox.id }, headers: admin.create_new_auth_token, as: :json
 
     body = response.parsed_body
-    expect(body['recipients'].map { |r| r['id'] }).to eq([in_other.id])
+    expect(body['recipients'].map { |r| r['id'] }).to eq([bulk_id(in_other)])
   end
 
   it 'filters by date range (sent_at_jabvox)' do
@@ -72,7 +75,7 @@ RSpec.describe 'Informes → Plantillas (cross-batch WhatsApp template history)'
     get url, params: { from: 3.days.ago.to_i, to: 1.day.ago.to_i }, headers: admin.create_new_auth_token, as: :json
 
     body = response.parsed_body
-    expect(body['recipients'].map { |r| r['id'] }).to eq([within_range.id])
+    expect(body['recipients'].map { |r| r['id'] }).to eq([bulk_id(within_range)])
   end
 
   it 'filters by status (failed)' do
@@ -82,7 +85,7 @@ RSpec.describe 'Informes → Plantillas (cross-batch WhatsApp template history)'
     get url, params: { status: 'failed' }, headers: admin.create_new_auth_token, as: :json
 
     body = response.parsed_body
-    expect(body['recipients'].map { |r| r['id'] }).to eq([failed.id])
+    expect(body['recipients'].map { |r| r['id'] }).to eq([bulk_id(failed)])
   end
 
   it 'searches by name/phone' do
@@ -127,7 +130,9 @@ RSpec.describe 'Informes → Plantillas (cross-batch WhatsApp template history)'
     body = response.parsed_body
     expect(body['delivery_summary']).to include('delivered', 'read', 'replied')
     expect(body['templates']).to contain_exactly('plantilla_a', 'plantilla_b')
-    expect(body['inboxes'].map { |i| i['id'] }).to contain_exactly(inbox.id, other_inbox.id)
+    # Every WhatsApp inbox of the account, not just the ones a bulk batch used —
+    # an individual template send can come from any of them.
+    expect(body['inboxes'].map { |i| i['id'] }).to include(inbox.id, other_inbox.id)
   end
 
   it 'exports the same filtered scope as CSV' do
@@ -169,5 +174,90 @@ RSpec.describe 'Informes → Plantillas (cross-batch WhatsApp template history)'
     get url, headers: agent.create_new_auth_token, as: :json
 
     expect(response).to have_http_status(:forbidden)
+  end
+
+  # An agent sending a template 1-a-1 from the conversation composer never goes
+  # through JabvoxBulkWhatsappRecipient — it's a plain Message with
+  # additional_attributes.template_params (see Messages::MessageBuilder). This
+  # report has to surface those too, alongside bulk sends, or "every template
+  # ever sent, from anywhere" would silently miss half its own sends.
+  def create_individual_template_message(template_name:, created_at:, status: 'sent')
+    create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :template,
+                     status: status, created_at: created_at,
+                     additional_attributes: { template_params: { name: template_name, category: 'MARKETING', language: 'es' } })
+  end
+
+  describe 'individual (1-a-1) template sends' do
+    it 'includes a template sent from the conversation composer, not just bulk sends' do
+      msg = create_individual_template_message(template_name: 'seguimiento_propuesta', created_at: 1.hour.ago)
+
+      get url, headers: admin.create_new_auth_token, as: :json
+
+      body = response.parsed_body
+      expect(body['total']).to eq(1)
+      row = body['recipients'].first
+      expect(row['id']).to eq("msg-#{msg.id}")
+      expect(row['origin']).to eq('individual')
+      expect(row['template_name']).to eq('seguimiento_propuesta')
+      expect(row['name']).to eq(contact.name)
+      expect(row['phone_number']).to eq(contact.phone_number)
+    end
+
+    it 'shows every template sent to the same lead, from every origin, without deduplicating by contact' do
+      # Exactly the scenario the report exists for: one lead (same phone/contact),
+      # 3 different template sends via 3 different paths — all 3 must show up,
+      # never collapsed into one row just because it's the same person.
+      create_recipient(batch_a, template_name: 'formulario_de_intencion', sent_at: 3.hours.ago)
+      create_individual_template_message(template_name: 'seguimiento_propuesta', created_at: 2.hours.ago)
+      create_individual_template_message(template_name: 'otra_plantilla', created_at: 1.hour.ago)
+
+      get url, headers: admin.create_new_auth_token, as: :json
+
+      body = response.parsed_body
+      expect(body['total']).to eq(3)
+      expect(body['recipients'].map { |r| r['template_name'] })
+        .to eq(%w[otra_plantilla seguimiento_propuesta formulario_de_intencion])
+    end
+
+    it 'a failed individual send is reported as failed, with its Meta error' do
+      create_individual_template_message(template_name: 'plantilla_x', created_at: 1.hour.ago, status: 'failed')
+      Message.last.update_column(:content_attributes, { external_error: '131009: Parameter value is not valid' }) # rubocop:disable Rails/SkipsModelValidations -- test setup only
+
+      get url, headers: admin.create_new_auth_token, as: :json
+
+      row = response.parsed_body['recipients'].first
+      expect(row['status']).to eq('failed')
+      expect(row['error_message']).to eq('131009: Parameter value is not valid')
+    end
+
+    it 'filters individual sends by template name alongside bulk ones' do
+      create_recipient(batch_a, template_name: 'plantilla_a', sent_at: 1.hour.ago)
+      create_individual_template_message(template_name: 'plantilla_b', created_at: 1.hour.ago)
+
+      get url, params: { template: 'plantilla_b' }, headers: admin.create_new_auth_token, as: :json
+
+      body = response.parsed_body
+      expect(body['recipients'].size).to eq(1)
+      expect(body['recipients'].first['origin']).to eq('individual')
+    end
+
+    it 'lists individual template names in the template filter dropdown too' do
+      create_individual_template_message(template_name: 'solo_individual', created_at: 1.hour.ago)
+
+      get url, headers: admin.create_new_auth_token, as: :json
+
+      expect(response.parsed_body['templates']).to include('solo_individual')
+    end
+
+    it 'includes a "Vía de envío" column in the CSV distinguishing bulk from individual' do
+      create_recipient(batch_a, template_name: 'plantilla_a', sent_at: 1.hour.ago)
+      create_individual_template_message(template_name: 'plantilla_b', created_at: 1.hour.ago)
+
+      get "#{url}.csv", headers: admin.create_new_auth_token
+
+      expect(response.body).to include('Vía de envío')
+      expect(response.body).to include('Masivo')
+      expect(response.body).to include('Individual')
+    end
   end
 end

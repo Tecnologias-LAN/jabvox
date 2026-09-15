@@ -235,7 +235,12 @@
         "READ": "Leído",
         "REPLIED": "Respondió",
         "REPLY_TIME": "Tiempo de respuesta",
-        "REPLY_TEXT": "Respuesta"
+        "REPLY_TEXT": "Respuesta",
+        "ORIGIN": "Vía de envío"
+      },
+      "ORIGIN": {
+        "BULK": "Masivo",
+        "INDIVIDUAL": "Individual"
       },
       "FILTER_DELIVERED": "Entregados",
       "FILTER_READ": "Leídos",

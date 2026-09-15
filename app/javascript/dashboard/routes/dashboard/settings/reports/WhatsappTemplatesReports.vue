@@ -238,6 +238,7 @@ onMounted(load);
       :recipients="recipients"
       :loading="loading"
       show-template
+      show-origin
     />
 
     <!-- Paginación -->

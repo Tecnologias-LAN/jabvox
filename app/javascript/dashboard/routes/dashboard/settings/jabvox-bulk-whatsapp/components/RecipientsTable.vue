@@ -15,6 +15,10 @@ defineProps({
   // (every row is the same template already named in the dialog header), the
   // cross-batch Informes page needs it.
   showTemplate: { type: Boolean, default: false },
+  // Whether to render the Origin column (bulk/individual) — only the
+  // cross-batch Informes → Plantillas report mixes both origins; a per-batch
+  // dialog is always 100% bulk, so the column would be redundant there.
+  showOrigin: { type: Boolean, default: false },
 });
 
 const { t } = useI18n();
@@ -59,12 +63,22 @@ const replySourceClass = source =>
     message: 'bg-n-slate-3 text-n-slate-11',
   })[source] || '';
 
+// Where the send itself came from — 'bulk' (a batch, JabvoxBulkWhatsappRecipient)
+// or 'individual' (an agent sending a template from the conversation composer,
+// a plain Message). Only meaningful in the cross-source Informes → Plantillas
+// report (see showOrigin).
+const originLabel = origin =>
+  t(
+    `JABVOX_BULK_WA.REPORT.ORIGIN.${origin === 'individual' ? 'INDIVIDUAL' : 'BULK'}`
+  );
+
 defineExpose({
   formatReplyTime,
   statusLabel,
   statusClass,
   replySourceLabel,
   replySourceClass,
+  originLabel,
   CHECK,
   DOUBLE_CHECK,
   DASH,
@@ -95,6 +109,9 @@ defineExpose({
           </th>
           <th v-if="showTemplate" class="py-2 px-3 whitespace-nowrap">
             {{ t('JABVOX_BULK_WA.REPORT.COLS.TEMPLATE') }}
+          </th>
+          <th v-if="showOrigin" class="py-2 px-3 whitespace-nowrap">
+            {{ t('JABVOX_BULK_WA.REPORT.COLS.ORIGIN') }}
           </th>
           <th class="py-2 px-3 whitespace-nowrap">
             {{ t('JABVOX_BULK_WA.REPORT.COLS.STATUS') }}
@@ -138,6 +155,12 @@ defineExpose({
             class="py-2 px-3 text-n-slate-11 whitespace-nowrap"
           >
             {{ r.template_name }}
+          </td>
+          <td
+            v-if="showOrigin"
+            class="py-2 px-3 text-n-slate-11 whitespace-nowrap"
+          >
+            {{ originLabel(r.origin) }}
           </td>
           <td
             class="py-2 px-3 font-medium whitespace-nowrap"
