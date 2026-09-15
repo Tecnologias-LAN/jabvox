@@ -35,12 +35,20 @@ module Jabvox
         when 'GET /team/list'       then list_teams
         when 'POST /team/delete'    then delete_teams(args)
         when 'GET /team/daily/activity' then activity(args)
-        when 'POST /key/generate'   then generate_key(args)
-        when 'GET /key/info'        then key_info(args)
-        when 'GET /key/list'        then list_keys(args)
-        when 'POST /key/block'      then set_key_block(args, true)
-        when 'POST /key/unblock'    then set_key_block(args, false)
         when 'GET /model/info'      then ok('data' => [{ 'model_name' => 'mock/model-a' }, { 'model_name' => 'mock/model-b' }])
+        else key_route(key, args)
+        end
+      end
+
+      # Rutas de virtual keys (separadas para no inflar el enrutado principal).
+      def key_route(key, args)
+        case key
+        when 'POST /key/generate' then generate_key(args)
+        when 'GET /key/info'      then key_info(args)
+        when 'GET /key/list'      then list_keys(args)
+        when 'POST /key/block'    then set_key_block(args, true)
+        when 'POST /key/unblock'  then set_key_block(args, false)
+        when 'POST /key/update'   then update_key(args)
         else not_found("ruta desconocida: #{key}")
         end
       end
@@ -122,23 +130,38 @@ module Jabvox
       # Lista las keys del team (metadatos, NUNCA la key en claro — como el proveedor real).
       def list_keys(args)
         rows = @keys.values.select { |v| v['team_id'] == args['team_id'] }
-                    .map { |v| v.except('team_id') }
-        ok('keys' => rows)
+                    .map { |v| v.except('team_id').merge('token' => v['token_id']) }
+        ok('keys' => rows, 'total_count' => rows.size, 'current_page' => 1, 'total_pages' => 1)
       end
 
       def key_info(args)
-        info = @keys[args['key']]
+        info = find_key(args['key'])
         return not_found('key no existe') unless info
 
         ok('info' => info)
       end
 
       def set_key_block(args, blocked)
-        info = @keys[args['key']]
+        info = find_key(args['key'])
         return not_found('key no existe') unless info
 
         info['blocked'] = blocked
         ok('info' => info)
+      end
+
+      def update_key(args)
+        info = find_key(args['key'])
+        return not_found('key no existe') unless info
+
+        info['max_budget'] = args['max_budget'] if args.key?('max_budget')
+        ok('info' => info)
+      end
+
+      # Como el proveedor real: una key se identifica por su valor en claro (sk-...) O por su
+      # hash/token. Jabvox siempre usa el hash, para no tener que almacenar el secreto.
+      def find_key(identifier)
+        id = identifier.to_s
+        @keys[id] || @keys.values.find { |v| v['token_id'].to_s == id || v['token'].to_s == id }
       end
     end
   end

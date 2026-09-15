@@ -6,6 +6,7 @@ import { aiBudgetAPI } from 'dashboard/api/jabvox/aiBudget';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 
 const { t } = useI18n();
 
@@ -19,16 +20,23 @@ const newKeyBudget = ref('');
 const createdKey = ref(null);
 
 const connected = computed(() => !!balance.value.connected);
+// Team sin tope en el proveedor: el consumo no está limitado por saldo. Mostrarlo como
+// "$0.00" diría justo lo contrario (agotado).
+const unlimited = computed(() => !!balance.value.unlimited);
+// La key sobre la que se está ejecutando una acción (para deshabilitar sus botones).
+const busyKey = ref(null);
+
+const refreshKeys = async () => {
+  const res = await aiBudgetAPI.keys();
+  keys.value = res.data?.keys || [];
+};
 
 const fetchAll = async () => {
   loading.value = true;
   try {
     const { data } = await aiBudgetAPI.get();
     balance.value = data || { connected: false };
-    if (connected.value) {
-      const res = await aiBudgetAPI.keys();
-      keys.value = res.data?.keys || [];
-    }
+    if (connected.value) await refreshKeys();
   } catch (e) {
     useAlert(t('JABVOX_AI_BUDGET.LOAD_ERROR'));
   } finally {
@@ -48,8 +56,7 @@ const createKey = async () => {
     newKeyBudget.value = '';
     useAlert(t('JABVOX_AI_BUDGET.KEY_CREATED'));
     // Refrescar la lista (sin la key en claro).
-    const res = await aiBudgetAPI.keys();
-    keys.value = res.data?.keys || [];
+    await refreshKeys();
   } catch (e) {
     const msg = e?.response?.data?.error || t('JABVOX_AI_BUDGET.KEY_ERROR');
     useAlert(msg);
@@ -59,6 +66,84 @@ const createKey = async () => {
 };
 
 const money = v => `$${Number(v || 0).toFixed(2)}`;
+// Un tope nulo significa "sin límite", no cero.
+const moneyOrDash = v => (v === null || v === undefined ? '—' : money(v));
+
+// Acciones sobre una key concreta. El token_id es el hash, nunca la key en claro.
+// `outcome` es 'blocked' | 'unblocked' | 'updated'; cada rama usa una clave i18n literal
+// para que el extractor de traducciones pueda detectarlas.
+const successMessage = outcome => {
+  if (outcome === 'blocked') return t('JABVOX_AI_BUDGET.KEY_BLOCKED');
+  if (outcome === 'unblocked') return t('JABVOX_AI_BUDGET.KEY_UNBLOCKED');
+  return t('JABVOX_AI_BUDGET.KEY_UPDATED');
+};
+
+const runKeyAction = async (tokenId, action, outcome) => {
+  busyKey.value = tokenId;
+  try {
+    await action();
+    useAlert(successMessage(outcome));
+    await refreshKeys();
+  } catch (e) {
+    useAlert(
+      e?.response?.data?.error || t('JABVOX_AI_BUDGET.KEY_ACTION_ERROR')
+    );
+  } finally {
+    busyKey.value = null;
+  }
+};
+
+// --- Bloquear / desbloquear ---
+const blockDialog = ref(null);
+const targetKey = ref(null);
+
+const toggleBlock = k => {
+  if (!k.token_id) return;
+  targetKey.value = k;
+  // Desbloquear no es destructivo: se aplica directo. Bloquear sí pide confirmación.
+  if (k.blocked) {
+    runKeyAction(
+      k.token_id,
+      () => aiBudgetAPI.unblockKey(k.token_id),
+      'unblocked'
+    );
+    return;
+  }
+  blockDialog.value?.open();
+};
+
+const confirmBlock = () => {
+  const k = targetKey.value;
+  if (!k?.token_id) return;
+  runKeyAction(k.token_id, () => aiBudgetAPI.blockKey(k.token_id), 'blocked');
+};
+
+// --- Cambiar el tope de una key ---
+const budgetDialog = ref(null);
+const budgetValue = ref('');
+
+const editBudget = k => {
+  if (!k.token_id) return;
+  targetKey.value = k;
+  budgetValue.value = k.max_budget != null ? String(k.max_budget) : '';
+  budgetDialog.value?.open();
+};
+
+const confirmBudget = () => {
+  const k = targetKey.value;
+  const value = Number(budgetValue.value);
+  if (!k?.token_id) return;
+  if (!Number.isFinite(value) || value <= 0) {
+    useAlert(t('JABVOX_AI_BUDGET.KEY_ACTION_ERROR'));
+    return;
+  }
+  runKeyAction(
+    k.token_id,
+    () => aiBudgetAPI.updateKey(k.token_id, value),
+    'updated'
+  );
+  budgetDialog.value?.close();
+};
 
 onMounted(fetchAll);
 </script>
@@ -94,7 +179,11 @@ onMounted(fetchAll);
             {{ t('JABVOX_AI_BUDGET.ACQUIRED') }}
           </div>
           <div class="mt-1 text-lg font-semibold text-n-slate-12">
-            {{ money(balance.total_budget_usd) }}
+            {{
+              unlimited
+                ? t('JABVOX_AI_BUDGET.UNLIMITED')
+                : money(balance.total_budget_usd)
+            }}
           </div>
         </div>
         <div class="p-4 border rounded-lg border-n-weak bg-n-solid-2">
@@ -110,7 +199,11 @@ onMounted(fetchAll);
             {{ t('JABVOX_AI_BUDGET.REMAINING') }}
           </div>
           <div class="mt-1 text-lg font-semibold text-n-teal-11">
-            {{ money(balance.remaining_usd) }}
+            {{
+              unlimited
+                ? t('JABVOX_AI_BUDGET.UNLIMITED')
+                : money(balance.remaining_usd)
+            }}
           </div>
         </div>
         <div class="p-4 border rounded-lg border-n-weak bg-n-solid-2">
@@ -121,6 +214,14 @@ onMounted(fetchAll);
             {{ money(balance.plan_budget_usd) }}
           </div>
         </div>
+      </div>
+
+      <!-- Aviso: el team no tiene tope en el proveedor -->
+      <div
+        v-if="connected && unlimited"
+        class="p-3 text-sm border rounded-lg border-n-amber-6 bg-n-amber-2 text-n-slate-11"
+      >
+        {{ t('JABVOX_AI_BUDGET.UNLIMITED_HINT') }}
       </div>
 
       <!-- Crear virtual key -->
@@ -164,6 +265,14 @@ onMounted(fetchAll);
         </div>
       </div>
 
+      <!-- Sin keys todavía -->
+      <div
+        v-if="connected && !keys.length"
+        class="p-4 text-sm border rounded-lg border-n-weak bg-n-solid-2 text-n-slate-11"
+      >
+        {{ t('JABVOX_AI_BUDGET.NO_KEYS') }}
+      </div>
+
       <!-- Lista de keys (metadatos, sin la key en claro) -->
       <div
         v-if="connected && keys.length"
@@ -176,6 +285,7 @@ onMounted(fetchAll);
               <th class="p-3">{{ t('JABVOX_AI_BUDGET.COL_BUDGET') }}</th>
               <th class="p-3">{{ t('JABVOX_AI_BUDGET.COL_SPENT') }}</th>
               <th class="p-3">{{ t('JABVOX_AI_BUDGET.COL_STATUS') }}</th>
+              <th class="p-3">{{ t('JABVOX_AI_BUDGET.COL_ACTIONS') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -186,9 +296,13 @@ onMounted(fetchAll);
             >
               <td class="p-3 text-n-slate-12">{{ k.alias || '—' }}</td>
               <td class="p-3 text-n-slate-11">
-                {{ k.max_budget != null ? money(k.max_budget) : '—' }}
+                {{
+                  k.max_budget != null
+                    ? money(k.max_budget)
+                    : t('JABVOX_AI_BUDGET.UNLIMITED')
+                }}
               </td>
-              <td class="p-3 text-n-slate-11">{{ money(k.spend) }}</td>
+              <td class="p-3 text-n-slate-11">{{ moneyOrDash(k.spend) }}</td>
               <td class="p-3">
                 <span :class="k.blocked ? 'text-n-ruby-11' : 'text-n-teal-11'">
                   {{
@@ -198,10 +312,60 @@ onMounted(fetchAll);
                   }}
                 </span>
               </td>
+              <td class="p-3">
+                <div class="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="faded"
+                    :label="t('JABVOX_AI_BUDGET.EDIT_BUDGET')"
+                    :disabled="!k.token_id || busyKey === k.token_id"
+                    @click="editBudget(k)"
+                  />
+                  <Button
+                    size="sm"
+                    variant="faded"
+                    :color="k.blocked ? 'teal' : 'ruby'"
+                    :label="
+                      k.blocked
+                        ? t('JABVOX_AI_BUDGET.UNBLOCK')
+                        : t('JABVOX_AI_BUDGET.BLOCK')
+                    "
+                    :disabled="!k.token_id || busyKey === k.token_id"
+                    @click="toggleBlock(k)"
+                  />
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
     </template>
+
+    <!-- Confirmación de bloqueo: la key deja de funcionar de inmediato. -->
+    <Dialog
+      ref="blockDialog"
+      type="alert"
+      :title="t('JABVOX_AI_BUDGET.BLOCK')"
+      :description="t('JABVOX_AI_BUDGET.CONFIRM_BLOCK')"
+      :confirm-button-label="t('JABVOX_AI_BUDGET.BLOCK')"
+      @confirm="confirmBlock"
+    />
+
+    <!-- Cambiar el tope de una key -->
+    <Dialog
+      ref="budgetDialog"
+      :title="t('JABVOX_AI_BUDGET.EDIT_BUDGET')"
+      :confirm-button-label="t('JABVOX_AI_BUDGET.EDIT_BUDGET')"
+      @confirm="confirmBudget"
+    >
+      <Input
+        v-model="budgetValue"
+        type="number"
+        min="0"
+        step="0.01"
+        :label="t('JABVOX_AI_BUDGET.EDIT_BUDGET_PROMPT')"
+        placeholder="USD"
+      />
+    </Dialog>
   </div>
 </template>

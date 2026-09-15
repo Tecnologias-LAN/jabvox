@@ -2,13 +2,13 @@
   "JABVOX_AI_BUDGET": {
     "TITLE": "AI Balance",
     "DESCRIPTION": "Your AI usage balance and virtual keys. The plan balance resets monthly; purchased balance accumulates.",
-    "NOT_PROVISIONED": "This account does not have AI balance provisioned yet. Contact your administrator.",
+    "NOT_PROVISIONED": "This account does not have an AI balance provisioned yet. Contact your administrator.",
     "ACQUIRED": "Total",
     "SPENT": "Spent",
     "REMAINING": "Remaining",
     "PLAN_MONTHLY": "Plan (monthly)",
     "CREATE_KEY_TITLE": "Virtual keys",
-    "CREATE_KEY_HINT": "Create a key to use the models directly against the provider. The key is shown only once and is never stored by Jabvox.",
+    "CREATE_KEY_HINT": "Create a key to use the models directly against the provider. The key is shown once and Jabvox never stores it.",
     "KEY_ALIAS": "Name",
     "KEY_ALIAS_PH": "e.g. production",
     "KEY_BUDGET": "Key limit (USD, optional)",
@@ -22,6 +22,19 @@
     "COL_SPENT": "Spent",
     "COL_STATUS": "Status",
     "ACTIVE": "Active",
-    "BLOCKED": "Blocked"
+    "BLOCKED": "Blocked",
+    "UNLIMITED": "Unlimited",
+    "UNLIMITED_HINT": "This team has no limit set on the provider: usage is not capped by balance.",
+    "COL_ACTIONS": "Actions",
+    "BLOCK": "Block",
+    "UNBLOCK": "Unblock",
+    "EDIT_BUDGET": "Change limit",
+    "EDIT_BUDGET_PROMPT": "New key limit in USD:",
+    "KEY_UPDATED": "Key updated.",
+    "KEY_BLOCKED": "Key blocked.",
+    "KEY_UNBLOCKED": "Key unblocked.",
+    "KEY_ACTION_ERROR": "Could not complete the action on the key.",
+    "CONFIRM_BLOCK": "Block this key? It will stop working immediately.",
+    "NO_KEYS": "No virtual keys in this team yet."
   }
 }

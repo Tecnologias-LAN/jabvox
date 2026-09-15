@@ -533,6 +533,8 @@ Rails.application.routes.draw do
                 get 'for_contact/:contact_id', action: :for_contact, as: :for_contact
                 patch 'for_contact/:contact_id', action: :update_contact_lead, as: :update_contact_lead
                 get 'detail_for_contact/:contact_id', action: :lead_detail, as: :lead_detail_for_contact
+                # Catálogo de los 4 estados del ciclo de vida, leído de BD.
+                get :lifecycle_stages
               end
               # Multi-row custom tables for a lead. The path id is the TABLE id
               # (a lead can have many rows per table); the specific row is passed
@@ -548,6 +550,8 @@ Rails.application.routes.draw do
                 # Etiquetas del lead (se aplican a las conversaciones del contacto).
                 get :labels
                 post :labels, action: :update_labels
+                # Cambia el estado del ciclo de vida (Prospecto/Interesado/Cliente/Inactivo).
+                patch :lifecycle_stage, action: :update_lifecycle_stage
               end
             end
             resources :lead_campaigns, controller: 'campaigns'
@@ -642,6 +646,9 @@ Rails.application.routes.draw do
             resource :ai_budget, only: [:show], controller: 'ai_budget' do
               get :keys
               post :create_key
+              post :block_key    # bloquear una key del team de la cuenta
+              post :unblock_key  # desbloquearla
+              post :update_key   # cambiar su tope (max_budget)
             end
             resources :sms_providers do
               member { get :check_connection }

@@ -22,6 +22,19 @@
     "COL_SPENT": "Gastado",
     "COL_STATUS": "Estado",
     "ACTIVE": "Activa",
-    "BLOCKED": "Bloqueada"
+    "BLOCKED": "Bloqueada",
+    "UNLIMITED": "Sin límite",
+    "UNLIMITED_HINT": "Este team no tiene tope en el proveedor: el consumo no está limitado por saldo.",
+    "COL_ACTIONS": "Acciones",
+    "BLOCK": "Bloquear",
+    "UNBLOCK": "Desbloquear",
+    "EDIT_BUDGET": "Cambiar tope",
+    "EDIT_BUDGET_PROMPT": "Nuevo tope de la key en USD:",
+    "KEY_UPDATED": "Key actualizada.",
+    "KEY_BLOCKED": "Key bloqueada.",
+    "KEY_UNBLOCKED": "Key desbloqueada.",
+    "KEY_ACTION_ERROR": "No se pudo completar la acción sobre la key.",
+    "CONFIRM_BLOCK": "¿Bloquear esta key? Dejará de funcionar de inmediato.",
+    "NO_KEYS": "Aún no hay virtual keys en este team."
   }
 }

@@ -84,9 +84,28 @@ module Jabvox
       # rubocop:enable Metrics/ParameterLists
 
       def key_info(key)  = get('/key/info', key: key)
-      def list_keys(team_id) = get('/key/list', team_id: team_id)
+
+      # Lista las keys del team. Verificado contra el código de LiteLLM
+      # (management_endpoints/key_management_endpoints.py):
+      #   - pagina con `size` (default 10, máximo 100) — sin esto solo se verían 10 keys;
+      #   - sin `return_full_object=true` devuelve solo el token como string, no el objeto
+      #     con spend/max_budget/blocked, que es justo lo que necesita la UI.
+      # Responde { keys: [...], total_count, current_page, total_pages }.
+      def list_keys(team_id, page: 1, size: 100)
+        get('/key/list', team_id: team_id, page: page, size: size, return_full_object: true)
+      end
+
+      # `key` admite tanto la key en claro (sk-...) como su HASH (el `token` que devuelve
+      # /key/list). Jabvox siempre usa el hash: así nunca necesita almacenar la key en claro.
       def block_key(key) = post('/key/block', key: key)
       def unblock_key(key) = post('/key/unblock', key: key)
+
+      # Actualiza una key existente (merge patch: lo que no se envía conserva su valor).
+      def update_key(key, max_budget_usd: nil)
+        body = { key: key }
+        body[:max_budget] = max_budget_usd unless max_budget_usd.nil?
+        post('/key/update', **body)
+      end
 
       def models_info = get('/model/info')
 
