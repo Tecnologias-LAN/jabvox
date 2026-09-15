@@ -66,7 +66,7 @@ class Api::V1::Accounts::Hermes::TasksController < Api::V1::Accounts::BaseContro
   end
 
   def check_authorization
-    authorize(:'captain/tasks')
+    authorize(:'hermes/tasks')
   end
 end
 

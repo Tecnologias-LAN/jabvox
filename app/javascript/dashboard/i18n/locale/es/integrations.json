@@ -169,28 +169,28 @@
         "MAKE_FRIENDLY": "Cambiar tono de mensaje a amigable",
         "MAKE_FORMAL": "Usar tono formal",
         "SIMPLIFY": "Simplificar",
-        "CONFIDENT": "Use confident tone",
-        "PROFESSIONAL": "Use professional tone",
-        "CASUAL": "Use casual tone",
-        "STRAIGHTFORWARD": "Use straightforward tone"
+        "CONFIDENT": "Usar tono seguro",
+        "PROFESSIONAL": "Usar tono profesional",
+        "CASUAL": "Usar tono casual",
+        "STRAIGHTFORWARD": "Usar tono directo"
       },
       "REPLY_OPTIONS": {
-        "IMPROVE_REPLY": "Improve reply",
-        "IMPROVE_REPLY_SELECTION": "Improve the selection",
+        "IMPROVE_REPLY": "Mejorar respuesta",
+        "IMPROVE_REPLY_SELECTION": "Mejorar la selección",
         "CHANGE_TONE": {
-          "TITLE": "Change tone",
+          "TITLE": "Cambiar el tono",
           "OPTIONS": {
             "PROFESSIONAL": "Profesional",
             "CASUAL": "Casual",
-            "STRAIGHTFORWARD": "Straightforward",
-            "CONFIDENT": "Confident",
+            "STRAIGHTFORWARD": "Directo",
+            "CONFIDENT": "Seguro",
             "FRIENDLY": "Amigable"
           }
         },
-        "GRAMMAR": "Fix grammar & spelling",
-        "SUGGESTION": "Suggest a reply",
-        "SUMMARIZE": "Summarize the conversation",
-        "ASK_COPILOT": "Ask Copilot"
+        "GRAMMAR": "Corregir gramática y ortografía",
+        "SUGGESTION": "Sugerir una respuesta",
+        "SUMMARIZE": "Resumir la conversación",
+        "ASK_COPILOT": "Preguntar a Copilot"
       },
       "ASSISTANCE_MODAL": {
         "DRAFT_TITLE": "Contenido de borrador",

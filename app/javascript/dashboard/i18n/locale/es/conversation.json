@@ -99,7 +99,10 @@
       "JOIN_CALL": "Unirse a la llamada",
       "CALL_BACK": "Llamar de vuelta",
       "TRANSCRIPT_SHOW_MORE": "Mostrar más",
-      "TRANSCRIPT_SHOW_LESS": "Mostrar menos"
+      "TRANSCRIPT_SHOW_LESS": "Mostrar menos",
+      "VIEW_TRANSLATION": "Ver traducción",
+      "TRANSCRIBING": "Transcribiendo…",
+      "TRANSCRIBE_ERROR": "No se pudo transcribir el audio"
     },
     "HEADER": {
       "RESOLVE_ACTION": "Resolver",

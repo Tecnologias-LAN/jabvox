@@ -111,7 +111,10 @@
       "JOIN_CALL": "Join call",
       "CALL_BACK": "Call back",
       "TRANSCRIPT_SHOW_MORE": "Show more",
-      "TRANSCRIPT_SHOW_LESS": "Show less"
+      "TRANSCRIPT_SHOW_LESS": "Show less",
+      "VIEW_TRANSLATION": "View translation",
+      "TRANSCRIBING": "Transcribing…",
+      "TRANSCRIBE_ERROR": "Could not transcribe the audio"
     },
     "HEADER": {
       "RESOLVE_ACTION": "Resolve",

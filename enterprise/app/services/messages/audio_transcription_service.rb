@@ -1,4 +1,4 @@
-class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
+class Messages::AudioTranscriptionService
   include Integrations::LlmInstrumentation
 
   # OpenAI's transcription endpoint hard limit is 25 MB *decimal* (25_000_000), not
@@ -6,19 +6,18 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   # range to the API as 413s. Long audio (~70+ min Opus) keeps the attachment but skips
   # transcription.
   TRANSCRIPTION_BYTE_LIMIT = 25_000_000
+  DEFAULT_MODEL = 'whisper-1'.freeze
 
-  attr_reader :attachment, :message, :account, :transcription_model
+  attr_reader :attachment, :message, :account
 
   def initialize(attachment)
-    super()
     @attachment = attachment
     @message = attachment.message
     @account = message.account
-    @transcription_model = Llm::FeatureRouter.resolve(feature: 'audio_transcription', account: account)[:model]
   end
 
   def perform
-    return { error: 'Transcription limit exceeded' } unless can_transcribe?
+    return { error: 'No hay ninguna IA conectada. Configúrala en Ajustes > Integraciones > Jabvox IA.' } unless can_transcribe?
     return { error: 'Message not found' } if message.blank?
     return { error: 'Audio too large for Whisper' } if audio_too_large?
 
@@ -32,13 +31,24 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
 
   private
 
+  # El mismo proveedor de IA que la cuenta ya conectó en Ajustes > Integraciones > Jabvox
+  # IA (hook app_id: 'jabvox_ia'), compartido con Hermes (redacción/resumen/chat). Antes
+  # esta clase usaba una API key de instalación global (Llm::LegacyBaseOpenAiService,
+  # marcada deprecada y sin consumidores desde la unificación en Hermes) que en la
+  # práctica no estaba configurada en ninguna instalación real.
   def can_transcribe?
-    # El módulo de IA de la cuenta es el Chat IA (Hermes). Se acepta también el flag antiguo
-    # de Captain para no apagar la transcripción en cuentas que aún lo tengan activo.
-    return false unless account.feature_enabled?('jabvox_ai_chat')
-    return false if account.audio_transcriptions.blank?
+    account.feature_enabled?('jabvox_ai_chat') && openai_hook.present?
+  end
 
-    account.usage_limits[:captain][:responses][:current_available].positive?
+  def openai_hook
+    @openai_hook ||= account.hooks.find_by(app_id: 'jabvox_ia', status: 'enabled')
+  end
+
+  def client
+    @client ||= OpenAI::Client.new(
+      access_token: openai_hook.settings['api_key'],
+      uri_base: openai_hook.settings['base_url'].presence || 'https://api.openai.com/'
+    )
   end
 
   def audio_too_large?
@@ -81,9 +91,9 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
       # temperature: 0.0 minimises hallucinations on silence / near-silent
       # audio; non-zero values trigger spiraling repeats — well-documented
       # behaviour across OpenAI transcription models.
-      response = @client.audio.transcribe(
+      response = client.audio.transcribe(
         parameters: {
-          model: transcription_model,
+          model: DEFAULT_MODEL,
           file: file,
           temperature: 0.0
         }
@@ -100,7 +110,7 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   def instrumentation_params(file_path)
     {
       span_name: 'llm.messages.audio_transcription',
-      model: transcription_model,
+      model: DEFAULT_MODEL,
       account_id: account&.id,
       feature_name: 'audio_transcription',
       file_path: file_path
@@ -110,9 +120,8 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   def update_transcription(transcribed_text)
     return if transcribed_text.blank?
 
-    attachment.update!(meta: { transcribed_text: transcribed_text })
+    attachment.update!(meta: (attachment.meta || {}).merge('transcribed_text' => transcribed_text))
     message.reload.send_update_event
-    message.account.increment_response_usage
 
     return unless JabvoxApp.advanced_search_allowed?
 

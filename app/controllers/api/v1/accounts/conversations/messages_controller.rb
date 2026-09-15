@@ -36,6 +36,20 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     render_could_not_create_error(e.message)
   end
 
+  # Dispara la transcripción de un adjunto de audio del mensaje (nota de voz o grabación de
+  # llamada de WhatsApp — ambas son un Attachment file_type: :audio) en el worker dedicado.
+  # Asíncrono a propósito: llama a un proveedor de IA externo y puede tardar varios
+  # segundos; el resultado llega al frontend por el broadcast normal de actualización del
+  # mensaje (Attachment#meta vive dentro del payload de message.updated).
+  def transcribe
+    attachment = message.attachments.find(permitted_params[:attachment_id])
+    return render_could_not_create_error('El adjunto no es un audio') unless attachment.audio?
+    return head :ok if attachment.meta&.[]('transcribed_text').present?
+
+    Messages::AudioTranscriptionJob.perform_later(attachment.id)
+    head :accepted
+  end
+
   def translate
     return head :ok if already_translated_content_available?
 
@@ -68,7 +82,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def permitted_params
-    params.permit(:id, :target_language, :status, :external_error)
+    params.permit(:id, :target_language, :status, :external_error, :attachment_id)
   end
 
   def already_translated_content_available?

@@ -71,7 +71,7 @@ jabvox_ia:
         'validation': '',
       },
       {
-        'label': 'Show label suggestions',
+        'label': 'Mostrar sugerencias de etiquetas',
         'type': 'checkbox',
         'name': 'label_suggestion',
         'validation': '',

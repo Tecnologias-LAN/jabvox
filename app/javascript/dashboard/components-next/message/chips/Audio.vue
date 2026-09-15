@@ -4,6 +4,7 @@ import {
   onMounted,
   useTemplateRef,
   ref,
+  watch,
   getCurrentInstance,
 } from 'vue';
 import Icon from 'next/icon/Icon.vue';
@@ -11,8 +12,12 @@ import { timeStampAppendedURL } from 'dashboard/helper/URLHelper';
 import { downloadFile } from '@chatwoot/utils';
 import { useEmitter } from 'dashboard/composables/emitter';
 import { emitter } from 'shared/helpers/mitt';
+import { useAlert } from 'dashboard/composables';
+import { useI18n } from 'vue-i18n';
+import MessageApi from 'dashboard/api/inbox/message';
+import { useMessageContext } from '../provider.js';
 
-const { attachment } = defineProps({
+const { attachment, showTranscribedText } = defineProps({
   attachment: {
     type: Object,
     required: true,
@@ -22,6 +27,11 @@ const { attachment } = defineProps({
     default: true,
   },
 });
+
+const { t } = useI18n();
+// Sin conversationId (p. ej. una vista/preview fuera del hilo de conversación) el botón
+// de transcripción simplemente no se ofrece, en vez de fallar al construir la URL.
+const { conversationId } = useMessageContext();
 
 defineOptions({
   inheritAttrs: false,
@@ -41,6 +51,50 @@ const displayedTranscript = computed(() => {
   if (!isTranscriptLong.value || isTranscriptExpanded.value) return text;
   return `${text.slice(0, TRANSCRIPT_PREVIEW_LENGTH).trimEnd()}…`;
 });
+
+// "Ver traducción": dispara la transcripción en el worker dedicado (usa la IA que la
+// cuenta ya conectó en Ajustes > Integraciones > Jabvox IA). Es asíncrono — el texto no
+// vuelve en esta respuesta, llega poco después por el broadcast normal de actualización
+// del mensaje, momento en el que `attachment.transcribedText` pasa a tener valor y este
+// bloque entero deja paso al que ya lo muestra.
+const isTranscribing = ref(false);
+const transcribeErrored = ref(false);
+const canTranscribe = computed(
+  () => showTranscribedText && !!conversationId?.value && !!attachment.messageId
+);
+
+const requestTranscription = async () => {
+  if (isTranscribing.value) return;
+  transcribeErrored.value = false;
+  isTranscribing.value = true;
+  try {
+    await MessageApi.transcribeAttachment(
+      conversationId.value,
+      attachment.messageId,
+      attachment.id
+    );
+  } catch (error) {
+    transcribeErrored.value = true;
+    useAlert(
+      error?.response?.data?.error ||
+        t('CONVERSATION.VOICE_CALL.TRANSCRIBE_ERROR')
+    );
+  } finally {
+    // Se mantiene "transcribiendo" hasta que el texto llegue por el broadcast; si falló,
+    // se libera el botón para reintentar.
+    if (transcribeErrored.value) isTranscribing.value = false;
+  }
+};
+
+// El texto llega asíncrono vía broadcast del mensaje (no en la respuesta del POST de
+// arriba): en cuanto attachment.transcribedText deje de estar vacío, el spinner se apaga
+// solo y el bloque de arriba (ya existente) se hace cargo de mostrarlo.
+watch(
+  () => attachment.transcribedText,
+  value => {
+    if (value) isTranscribing.value = false;
+  }
+);
 
 const audioPlayer = useTemplateRef('audioPlayer');
 
@@ -239,5 +293,24 @@ const downloadAudio = async () => {
         }}
       </button>
     </div>
+
+    <button
+      v-else-if="canTranscribe"
+      class="flex items-center gap-1 mt-0.5 p-0 border-0 bg-transparent text-n-slate-11 hover:text-n-slate-12 font-medium text-xs disabled:opacity-60 disabled:cursor-wait"
+      :disabled="isTranscribing"
+      @click="requestTranscription"
+    >
+      <Icon
+        v-if="isTranscribing"
+        class="size-3 animate-spin"
+        icon="i-lucide-loader-2"
+      />
+      <Icon v-else class="size-3" icon="i-lucide-languages" />
+      {{
+        isTranscribing
+          ? $t('CONVERSATION.VOICE_CALL.TRANSCRIBING')
+          : $t('CONVERSATION.VOICE_CALL.VIEW_TRANSLATION')
+      }}
+    </button>
   </div>
 </template>

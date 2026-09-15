@@ -2,7 +2,13 @@ module Enterprise::Concerns::Attachment
   extend ActiveSupport::Concern
 
   included do
-    after_create_commit :enqueue_audio_transcription
+    # La transcripción ya NO es automática: el agente la pide a demanda (botón "Ver
+    # traducción" bajo el audio, ver AudioChip.vue), que dispara
+    # Messages::AudioTranscriptionJob explícitamente vía el endpoint
+    # POST .../messages/:id/transcribe. Se transcribe una sola vez — el resultado queda
+    # en attachment.meta['transcribed_text'] y cualquier otro agente que abra la
+    # conversación ya lo ve, sin volver a gastar la IA.
+    #
     # Broadcast the message update so the FE bubble picks up the new audio
     # attachment immediately. Without this, the FE has to wait until Whisper
     # finishes (or fall back to a page refresh) — and if Whisper returns blank,
@@ -11,15 +17,6 @@ module Enterprise::Concerns::Attachment
   end
 
   private
-
-  def enqueue_audio_transcription
-    return unless file_type.to_sym == :audio
-
-    # No file.attached? guard: the social-media ingest path saves the
-    # Attachment before attaching the blob. AudioTranscriptionJob retries
-    # on ActiveStorage::FileNotFoundError to ride out that race.
-    Messages::AudioTranscriptionJob.perform_later(id)
-  end
 
   def broadcast_message_update_for_audio
     return unless file_type.to_sym == :audio
