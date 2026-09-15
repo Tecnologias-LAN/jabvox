@@ -36,7 +36,6 @@ const CONFIG_ITEMS = [
   "name: 'Settings Jabvox AI Chat'",
   "name: 'Settings Jabvox Dialer'",
   "name: 'Settings Jabvox Affiliates'",
-  "name: 'Settings Jabvox Response Bot'",
   "name: 'Settings Jabvox Email'",
   "name: 'Settings Jabvox Forms'",
   "name: 'Settings Jabvox Customization'",

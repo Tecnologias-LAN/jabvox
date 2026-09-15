@@ -76,7 +76,7 @@ describe('#actions', () => {
   describe('#delete', () => {
     it('sends correct actions if API is success', async () => {
       axios.delete.mockResolvedValue({ data: agentList[0] });
-      await actions.delete({ commit }, agentList[0].id);
+      await actions.delete({ commit }, { agentId: agentList[0].id });
       expect(commit.mock.calls).toEqual([
         [types.default.SET_AGENT_DELETING_STATUS, true],
         [types.default.DELETE_AGENT, agentList[0].id],
@@ -85,9 +85,9 @@ describe('#actions', () => {
     });
     it('sends correct actions if API is error', async () => {
       axios.delete.mockRejectedValue({ message: 'Incorrect header' });
-      await expect(actions.delete({ commit }, agentList[0].id)).rejects.toThrow(
-        Error
-      );
+      await expect(
+        actions.delete({ commit }, { agentId: agentList[0].id })
+      ).rejects.toThrow(Error);
       expect(commit.mock.calls).toEqual([
         [types.default.SET_AGENT_DELETING_STATUS, true],
         [types.default.SET_AGENT_DELETING_STATUS, false],
