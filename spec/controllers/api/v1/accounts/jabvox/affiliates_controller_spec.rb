@@ -45,6 +45,29 @@ RSpec.describe 'Jabvox Affiliates API', type: :request do
 
       expect(response.parsed_body.pluck('name')).not_to include('De otra cuenta')
     end
+
+    it 'no expone account_code/auth_token (credenciales del portal) a un agente sin permiso de gestión' do
+      create(:jabvox_affiliate, account: account, name: 'Afiliado')
+
+      get "/api/v1/accounts/#{account.id}/jabvox/affiliates",
+          headers: agent.create_new_auth_token
+
+      response.parsed_body.each do |row|
+        expect(row).not_to have_key('account_code')
+        expect(row).not_to have_key('auth_token')
+      end
+    end
+
+    it 'sí expone account_code/auth_token a un administrador' do
+      create(:jabvox_affiliate, account: account, name: 'Afiliado')
+
+      get "/api/v1/accounts/#{account.id}/jabvox/affiliates",
+          headers: admin.create_new_auth_token
+
+      row = response.parsed_body.find { |a| a['name'] == 'Afiliado' }
+      expect(row['account_code']).to be_present
+      expect(row['auth_token']).to be_present
+    end
   end
 
   describe 'protección del afiliado propio' do

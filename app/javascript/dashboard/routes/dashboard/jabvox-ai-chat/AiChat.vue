@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
-import Cookies from 'js-cookie';
+import { deviseAuthHeaders } from 'dashboard/helper/deviseAuthHeaders';
 import { useAlert } from 'dashboard/composables';
 import { aiChatAPI, hermesConnectionsAPI } from 'dashboard/api/jabvox/aiChat';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -279,26 +279,6 @@ async function consumeStream(res, sessionId, assistantId) {
     processSseLines(lines, ctx, sessionId, assistantId);
     // eslint-disable-next-line no-await-in-loop
     chunk = await reader.read();
-  }
-}
-
-// devise-token-auth exige access-token/client/uid en cada request. fetch() no los añade
-// solo (a diferencia de axios), así que los leemos de la cookie cw_d_session_info que el
-// dashboard fija al iniciar sesión. Sin esto el /stream responde 401.
-function deviseAuthHeaders() {
-  try {
-    const raw = Cookies.get('cw_d_session_info');
-    if (!raw) return {};
-    const s = JSON.parse(raw);
-    return {
-      'access-token': s['access-token'] || '',
-      client: s.client || '',
-      uid: s.uid || '',
-      expiry: s.expiry || '',
-      'token-type': s['token-type'] || 'Bearer',
-    };
-  } catch {
-    return {};
   }
 }
 

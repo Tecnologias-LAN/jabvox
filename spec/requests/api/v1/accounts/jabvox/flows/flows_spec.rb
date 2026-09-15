@@ -303,4 +303,43 @@ RSpec.describe 'Jabvox flows API', type: :request do
       expect(response.parsed_body['error']).to include('funnelId')
     end
   end
+
+  describe 'seguridad: gateo por rol (jabvox_flows_manage)' do
+    let(:agent) { create(:user, account: account, role: :agent) }
+    let(:agent_headers) { agent.create_new_auth_token }
+    let(:flow_id) { create_flow }
+
+    it 'un agente plano puede LEER (index/show/nodes/options)' do
+      get url, headers: agent_headers, as: :json
+      expect(response).to have_http_status(:success)
+
+      get url('/nodes'), headers: agent_headers, as: :json
+      expect(response).to have_http_status(:success)
+    end
+
+    it 'un agente plano NO puede crear un flujo' do
+      post url, params: { name: 'x' }, headers: agent_headers, as: :json
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'un agente plano NO puede activar/editar un flujo existente' do
+      patch url("/#{flow_id}"), params: { status: 'active' }, headers: agent_headers, as: :json
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'un agente plano NO puede borrar un flujo' do
+      delete url("/#{flow_id}"), headers: agent_headers, as: :json
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'un agente plano NO puede ejecutar un flujo (run)' do
+      post url("/#{flow_id}/run"), headers: agent_headers, as: :json
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'un administrador SÍ puede escribir' do
+      post url, params: { name: 'x' }, headers: headers, as: :json
+      expect(response).to have_http_status(:created)
+    end
+  end
 end

@@ -85,6 +85,41 @@ RSpec.describe 'Jabvox Tickets API', type: :request do
     end
   end
 
+  describe 'seguridad: assign solo acepta staff/resolver de la cuenta gestora' do
+    let(:ticket) { create(:jabvox_ticket, account: account, requester: owner) }
+    let(:resolver) { create(:user, account: manager_account, role: :agent) }
+    let(:outsider) { create(:user, account: account, role: :agent) }
+
+    it 'asigna correctamente a un usuario de la cuenta gestora' do
+      post "#{base(manager_account)}/#{ticket.id}/assign",
+           params: { assignee_id: resolver.id },
+           headers: staff.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(ticket.reload.assignee_id).to eq(resolver.id)
+    end
+
+    it 'rechaza asignar a un usuario que NO pertenece a la cuenta gestora (IDOR)' do
+      post "#{base(manager_account)}/#{ticket.id}/assign",
+           params: { assignee_id: outsider.id },
+           headers: staff.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:not_found)
+      expect(ticket.reload.assignee_id).to be_nil
+    end
+
+    it 'permite desasignar (assignee_id ausente)' do
+      ticket.update!(assignee_id: resolver.id)
+
+      post "#{base(manager_account)}/#{ticket.id}/assign",
+           params: {},
+           headers: staff.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(ticket.reload.assignee_id).to be_nil
+    end
+  end
+
   describe 'feature flag' do
     let(:no_module) { create(:account) }
     let(:user) { create(:user, account: no_module, role: :agent) }

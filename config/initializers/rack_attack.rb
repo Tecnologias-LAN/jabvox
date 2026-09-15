@@ -141,6 +141,23 @@ class Rack::Attack
     req.ip if req.post? && req.path.match?(%r{/jabvox/bulk_whatsapp/batches/[^/]+/results\z})
   end
 
+  ## Webhook SMS (Bandwidth): token propio en la URL, sin firma HMAC del proveedor. Cap por
+  ## IP para frenar fuerza bruta del token y abuso del endpoint en general.
+  throttle('webhooks_sms/ip', limit: 60, period: 1.minute) do |req|
+    req.ip if req.post? && req.path.start_with?('/webhooks/sms/')
+  end
+
+  ## Login del portal de afiliados: account_code/portal_slug son públicos (van en la URL),
+  ## así que el único secreto real es el auth_token de 32 caracteres. Mismo patrón que el
+  ## login estándar (login/ip + login/email) para no depender solo de la entropía del token.
+  throttle('affiliate_portal_login/ip', limit: 5, period: 5.minutes) do |req|
+    req.ip if req.post? && req.path == '/api/v1/jabvox/affiliate_portal/auth/login'
+  end
+
+  throttle('affiliate_portal_login/account_code', limit: 10, period: 15.minutes) do |req|
+    req.params['account_code'].presence if req.post? && req.path == '/api/v1/jabvox/affiliate_portal/auth/login'
+  end
+
   ## Alta de tickets: limita la creación por IP (anti-spam / doble submit). La
   ## idempotencia por Idempotency-Key la maneja el controller.
   throttle('jabvox_tickets_create/ip', limit: 20, period: 1.minute) do |req|

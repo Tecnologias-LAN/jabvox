@@ -94,11 +94,9 @@ class Api::V1::Accounts::Jabvox::AffiliatesController < Api::V1::Accounts::BaseC
   end
 
   def serialize_affiliate(affiliate)
-    {
+    attrs = {
       id: affiliate.id,
       name: affiliate.name,
-      account_code: affiliate.account_code,
-      auth_token: affiliate.auth_token,
       portal_slug: affiliate.portal_slug,
       portal_url: "#{portal_base_url}/login/#{affiliate.portal_slug}",
       active: affiliate.active,
@@ -106,5 +104,15 @@ class Api::V1::Accounts::Jabvox::AffiliatesController < Api::V1::Accounts::BaseC
       owned: affiliate.owned?,
       created_at: affiliate.created_at
     }
+    # account_code + auth_token son las credenciales de login al portal externo del
+    # afiliado: solo quien tiene el permiso de GESTIÓN del módulo las ve. `index` está
+    # abierto a cualquier agente/admin (lo necesita el filtro de leads del dialer), así
+    # que sin esta condición cualquier agente podía leer el login completo de todos los
+    # afiliados de la cuenta.
+    if jabvox_can?('jabvox_affiliates_manage')
+      attrs[:account_code] = affiliate.account_code
+      attrs[:auth_token] = affiliate.auth_token
+    end
+    attrs
   end
 end

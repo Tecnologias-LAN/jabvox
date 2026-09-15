@@ -1,31 +1,13 @@
 import { ref } from 'vue';
-import Cookies from 'js-cookie';
 import { useStore } from 'vuex';
 import { aiChatAPI } from 'dashboard/api/jabvox/aiChat';
+import { deviseAuthHeaders } from 'dashboard/helper/deviseAuthHeaders';
 
 // Lógica de conversación con el agente Hermes de la cuenta (streaming SSE + chips de
 // herramientas). Vive en un composable porque la usan dos superficies distintas: la página
 // completa de Chat IA y la burbuja flotante del dashboard. Ambas hablan con el MISMO Hermes.
 
-// devise-token-auth exige access-token/client/uid en cada request. fetch() no los añade solo
-// (a diferencia de axios), así que los leemos de la cookie cw_d_session_info que el dashboard
-// fija al iniciar sesión. Sin esto el /stream responde 401.
-export function deviseAuthHeaders() {
-  try {
-    const raw = Cookies.get('cw_d_session_info');
-    if (!raw) return {};
-    const s = JSON.parse(raw);
-    return {
-      'access-token': s['access-token'] || '',
-      client: s.client || '',
-      uid: s.uid || '',
-      expiry: s.expiry || '',
-      'token-type': s['token-type'] || 'Bearer',
-    };
-  } catch {
-    return {};
-  }
-}
+export { deviseAuthHeaders };
 
 export function useHermesChat({ errorLabel = 'Error' } = {}) {
   const store = useStore();

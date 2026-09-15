@@ -81,4 +81,44 @@ RSpec.describe AccountUser do
       expect(invalidator).to have_received(:user_visibility_changed!).with(user_id: user.id).twice
     end
   end
+
+  describe 'seguridad: resincronización de permisos de Hermes al cambiar de rol' do
+    let(:account) { create(:account) }
+    let(:user) { create(:user) }
+    let(:custom_role) { create(:custom_role, account: account, permissions: []) }
+
+    # JabvoxHermesUserPermission#permissions_for_role deriva TODO (read/create/write/
+    # execute/configure) para un administrator?, sin mirar el custom role. Esa tabla se
+    # escribe una sola vez (sync_from_role!) y no se releía en cada request — quedaba
+    # obsoleta si el rol cambiaba después. Sin este callback, degradar a un admin a un
+    # rol personalizado restrictivo dejaba su fila de permisos de Hermes con los
+    # privilegios amplios de cuando era admin.
+    it 'downgrades stale Hermes permissions when an admin is restricted to a custom role' do
+      account_user = create(:account_user, account: account, user: user, role: :administrator)
+      JabvoxHermesUserPermission.sync_from_role!(account.id, user.id)
+      expect(JabvoxHermesUserPermission.granted_for(account.id, user.id)).to include('execute', 'configure')
+
+      account_user.update!(role: :agent, custom_role_id: custom_role.id)
+
+      expect(JabvoxHermesUserPermission.granted_for(account.id, user.id)).to eq(['read'])
+    end
+
+    it 'upgrades Hermes permissions when a restricted user is promoted to administrator' do
+      account_user = create(:account_user, account: account, user: user, role: :agent, custom_role_id: custom_role.id)
+      JabvoxHermesUserPermission.sync_from_role!(account.id, user.id)
+      expect(JabvoxHermesUserPermission.granted_for(account.id, user.id)).to eq(['read'])
+
+      account_user.update!(role: :administrator, custom_role_id: nil)
+
+      expect(JabvoxHermesUserPermission.granted_for(account.id, user.id)).to include('execute', 'configure')
+    end
+
+    it 'does not resync when an unrelated attribute changes' do
+      account_user = create(:account_user, account: account, user: user, role: :agent)
+      JabvoxHermesUserPermission.sync_from_role!(account.id, user.id)
+
+      expect(JabvoxHermesUserPermission).not_to receive(:sync_from_role!)
+      account_user.update!(availability: :busy)
+    end
+  end
 end

@@ -35,5 +35,39 @@ RSpec.describe 'Enterprise Agents API', type: :request do
         expect(JSON.parse(response.body)['custom_role_id']).to eq(custom_role.id)
       end
     end
+
+    # Seguridad: JabvoxPermissions concede TODO a un administrator? sin mirar el custom
+    # role. Sin este downgrade, asignarle un rol personalizado a alguien que YA era
+    # administrator lo dejaba con acceso total ADEMÁS del rol — el rol quedaba sin
+    # ningún efecto real (el usuario seguía pudiendo hacer todo lo de admin).
+    context 'when assigning a custom role to an existing administrator' do
+      let(:restricted_role) { create(:custom_role, account: account, permissions: []) }
+      let(:existing_admin) { create(:user, account: account, role: :administrator) }
+
+      it 'downgrades the base role to agent, so the custom role is the only source of permissions' do
+        put "/api/v1/accounts/#{account.id}/agents/#{existing_admin.id}",
+            headers: admin.create_new_auth_token,
+            params: { custom_role_id: restricted_role.id },
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        account_user = existing_admin.account_users.first.reload
+        expect(account_user.custom_role_id).to eq(restricted_role.id)
+        expect(account_user).to be_agent
+        expect(JabvoxPermissions.user_grants_permission?(account_user, 'jabvox_sms_manage')).to be false
+      end
+
+      it 'does NOT downgrade when custom_role_id is explicitly cleared (unassigning keeps administrator)' do
+        existing_admin.account_users.first.update!(custom_role_id: restricted_role.id, role: :agent)
+
+        put "/api/v1/accounts/#{account.id}/agents/#{existing_admin.id}",
+            headers: admin.create_new_auth_token,
+            params: { custom_role_id: nil },
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(existing_admin.account_users.first.reload.custom_role_id).to be_nil
+      end
+    end
   end
 end

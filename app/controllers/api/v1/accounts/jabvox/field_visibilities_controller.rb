@@ -27,6 +27,10 @@ module Api::V1::Accounts::Jabvox
 
     # PATCH /api/v1/accounts/:account_id/jabvox/field_visibilities
     def update
+      unless Current.account.account_users.exists?(user_id: params[:user_id])
+        return render json: { error: 'user not found in this account' }, status: :not_found
+      end
+
       visibility = Current.account.jabvox_field_visibilities.find_or_initialize_by(
         user_id: params[:user_id],
         field_name: params[:field_name]

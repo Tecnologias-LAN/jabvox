@@ -80,8 +80,11 @@ const handleVerification = async () => {
         uid: response.headers.uid,
       };
 
-      // Store in cookies for auth
-      document.cookie = `cw_d_session_info=${encodeURIComponent(JSON.stringify(authData))}; path=/; SameSite=Lax`;
+      // Store in cookies for auth. `Secure` en HTTPS evita que viaje en claro; se omite
+      // en desarrollo local (http://localhost) para no invalidar la cookie.
+      const secureFlag =
+        window.location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = `cw_d_session_info=${encodeURIComponent(JSON.stringify(authData))}; path=/; SameSite=Lax${secureFlag}`;
 
       // Redirect to dashboard
       window.location.href = '/app/';

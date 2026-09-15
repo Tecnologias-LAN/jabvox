@@ -50,6 +50,7 @@ class SuperAdmin::JabvoxSaldoConfigsController < SuperAdmin::ApplicationControll
     @config = @account.jabvox_saldo_config || @account.build_jabvox_saldo_config
 
     attrs = config_params.to_h
+    attrs.delete('api_key_jabvox') if attrs['api_key_jabvox'].blank?
     attrs.delete('api_secret_jabvox') if attrs['api_secret_jabvox'].blank?
 
     @config.update!(attrs)

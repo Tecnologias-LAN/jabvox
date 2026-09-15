@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
-import Cookies from 'js-cookie';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { provisioningChatAPI } from 'dashboard/api/jabvox/provisioningChat';
+import { deviseAuthHeaders } from 'dashboard/helper/deviseAuthHeaders';
 
 const { t } = useI18n();
 
@@ -178,24 +178,6 @@ async function provision() {
       t('JABVOX_PROVISIONING_CHAT.ERROR.PROVISION');
   } finally {
     isProvisioning.value = false;
-  }
-}
-
-// El fetch del stream no añade solo los headers de devise-token-auth; se leen de la cookie
-// de sesión del dashboard y se inyectan a mano (igual que el Chat IA). Sin esto → 401.
-function deviseAuthHeaders() {
-  try {
-    const raw = Cookies.get('cw_d_session_info');
-    const info = raw ? JSON.parse(raw) : {};
-    return {
-      'access-token': info['access-token'] || '',
-      client: info.client || '',
-      uid: info.uid || '',
-      expiry: info.expiry || '',
-      'token-type': 'Bearer',
-    };
-  } catch {
-    return {};
   }
 }
 

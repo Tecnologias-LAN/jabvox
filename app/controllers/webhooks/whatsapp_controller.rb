@@ -19,7 +19,9 @@ class Webhooks::WhatsappController < ActionController::API
   def valid_token?(token)
     channel = Channel::Whatsapp.find_by(phone_number: params[:phone_number])
     whatsapp_webhook_verify_token = channel.provider_config['webhook_verify_token'] if channel.present?
-    token == whatsapp_webhook_verify_token if whatsapp_webhook_verify_token.present?
+    return false if whatsapp_webhook_verify_token.blank?
+
+    ActiveSupport::SecurityUtils.secure_compare(token.to_s, whatsapp_webhook_verify_token.to_s)
   end
 
   def meta_app_secrets

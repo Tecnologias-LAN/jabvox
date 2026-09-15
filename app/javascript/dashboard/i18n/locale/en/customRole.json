@@ -69,6 +69,8 @@
         "AFFILIATES": "Affiliates",
         "APP_STATES": "Presence states",
         "REPORTS": "Reports",
+        "FLOWS": "Automations (Flows)",
+        "AI_CHAT_PROVISIONING": "AI Chat Provisioning",
         "SALES_REPORTS": "Sales reports"
       },
       "CONVERSATION_MANAGE": "Manage all conversations",
@@ -123,6 +125,8 @@
       "JABVOX_AFFILIATES_MANAGE": "Manage affiliates",
       "JABVOX_APP_STATES_MANAGE": "Manage presence states",
       "JABVOX_REPORTS_VIEW": "View reports",
+      "JABVOX_FLOWS_MANAGE": "Manage automations (create, activate, run and delete flows)",
+      "JABVOX_AI_CHAT_PROVISIONING_MANAGE": "Manage AI Chat provisioning",
       "JABVOX_SALES_REPORTS_MANAGE": "Manage sales reports"
     },
     "FORM": {

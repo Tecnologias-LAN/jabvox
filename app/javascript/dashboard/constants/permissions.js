@@ -144,6 +144,14 @@ export const JABVOX_PERMISSION_GROUPS = [
     module: 'reports',
     permissions: ['jabvox_reports_view'],
   },
+  {
+    module: 'flows',
+    permissions: ['jabvox_flows_manage'],
+  },
+  {
+    module: 'ai_chat_provisioning',
+    permissions: ['jabvox_ai_chat_provisioning_manage'],
+  },
 ];
 
 export const JABVOX_CUSTOM_ROLE_PERMISSIONS = JABVOX_PERMISSION_GROUPS.flatMap(
