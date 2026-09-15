@@ -83,7 +83,9 @@ describe MessageFinder do
       let(:params) { {} }
 
       before do
-        conversation.messages.first.update_columns(sender_type: nil, sender_id: nil)
+        # update_columns a propósito: reproduce el estado en BD saltándose callbacks, igual
+        # que lo dejó la migración.
+        conversation.messages.first.update_columns(sender_type: nil, sender_id: nil) # rubocop:disable Rails/SkipsModelValidations
       end
 
       it 'still loads the conversation messages' do

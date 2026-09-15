@@ -54,6 +54,7 @@ class JabvoxHermesConnection < ApplicationRecord
   validates :base_url_jabvox, presence: true
   validates :status_jabvox, inclusion: { in: STATUSES }
   validate :same_host_as_account_connections
+  validate :allowed_ips_are_parseable
 
   # Cada Hermes nace con su token de acción exclusivo (Hermes → Jabvox). Necesita el
   # account_id, así que se genera después de asignar la cuenta.
@@ -90,6 +91,38 @@ class JabvoxHermesConnection < ApplicationRecord
     conn
   end
 
+  # ¿Este Hermes acepta ejecutar algo pedido desde `ip`?
+  #
+  # FAIL-CLOSED a propósito: sin IPs declaradas no se acepta NADA. El action_token por sí
+  # solo no basta — si se filtra, sin esta allowlist serviría desde cualquier punto de
+  # internet. Aquí exigimos además que el request venga del propio Hermes.
+  #
+  # Se aceptan rangos PRIVADOS (10.x, 172.16-31.x, 192.168.x): los Hermes desplegados sobre
+  # ZeroTier llegan con IP de la red virtual. Esto es una allowlist de origen entrante, lo
+  # contrario del guard SSRF (que restringe a dónde SALE Jabvox), así que aquí una IP
+  # privada es legítima y esperada, no una señal de ataque.
+  def ip_allowed?(ip)
+    return false if ip.blank?
+
+    ranges = parsed_allowed_ips
+    return false if ranges.empty?
+
+    candidate = IPAddr.new(ip.to_s)
+    ranges.any? { |range| range.include?(candidate) }
+  rescue IPAddr::InvalidAddressError
+    false
+  end
+
+  # Entradas válidas (IP suelta o CIDR) ya parseadas; descarta en silencio las inválidas,
+  # que la validación del modelo impide guardar de todos modos.
+  def parsed_allowed_ips
+    Array(allowed_ips_jabvox).filter_map do |entry|
+      IPAddr.new(entry.to_s.strip)
+    rescue IPAddr::InvalidAddressError
+      nil
+    end
+  end
+
   # Rota el token de acción de este Hermes (revoca el anterior).
   def rotate_action_token!
     update!(action_token_jabvox: self.class.generate_action_token(account_id))
@@ -99,8 +132,11 @@ class JabvoxHermesConnection < ApplicationRecord
   # sobre la cuenta. Si hay varios ligados, se usa el primero de forma estable (por id).
   # Los permisos efectivos son EXACTAMENTE los del usuario de ese agente: si el usuario no
   # puede crear etiquetas, este token tampoco podrá.
+  # Solo agentes ACTIVOS: desactivar un agente debe cortarle el paso también por esta vía,
+  # igual que ya hace JabvoxHermesAgent.authenticate con el token de agente. Sin el filtro,
+  # el token de conexión seguía ejecutando con un agente dado de baja.
   def action_agent
-    hermes_agents.order(:id).first
+    hermes_agents.active.order(:id).first
   end
 
   def action_user
@@ -127,7 +163,12 @@ class JabvoxHermesConnection < ApplicationRecord
       id: id, name: name_jabvox, hermes_agent: hermes_agent_name_jabvox,
       base_url: base_url_jabvox, host_port: host_port, status: status_jabvox,
       has_token: token_jabvox.present?, has_action_token: action_token_jabvox.present?,
-      last_error: last_error_jabvox, last_check_at: last_check_at_jabvox
+      last_error: last_error_jabvox, last_check_at: last_check_at_jabvox,
+      # Las IPs no son un secreto (son la allowlist de origen, no una credencial) y la UI
+      # las necesita para editarlas. `allowed_ips_configured` avisa de la conexión que aún
+      # no acepta nada por no tener origen declarado.
+      allowed_ips: Array(allowed_ips_jabvox),
+      allowed_ips_configured: Array(allowed_ips_jabvox).any?
     }
   end
 
@@ -145,5 +186,24 @@ class JabvoxHermesConnection < ApplicationRecord
     errors.add(:base_url_jabvox,
                I18n.t('jabvox.hermes.same_host_required',
                       default: 'debe usar el mismo host y puerto que los demás agentes de esta cuenta'))
+  end
+
+  # Falla al guardar una entrada mal escrita en vez de descartarla en silencio: una IP con
+  # un typo dejaría fuera al Hermes real sin que nadie se entere hasta que algo deje de
+  # funcionar.
+  def allowed_ips_are_parseable
+    Array(allowed_ips_jabvox).each do |entry|
+      value = entry.to_s.strip
+      next if value.blank?
+
+      begin
+        IPAddr.new(value)
+      rescue IPAddr::InvalidAddressError
+        errors.add(:allowed_ips_jabvox,
+                   I18n.t('jabvox.hermes.invalid_ip',
+                          value: value,
+                          default: '«%<value>s» no es una IP ni un rango CIDR válido'))
+      end
+    end
   end
 end

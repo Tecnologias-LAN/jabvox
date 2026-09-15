@@ -13,6 +13,7 @@
 #   POST /webhooks/jabvox/hermes_agent/execute  → ejecuta una tool { tool:, args: {} }
 class Webhooks::Jabvox::HermesAgentController < ActionController::API
   before_action :authenticate_agent!
+  before_action :authorize_source_ip!
 
   # Tools que ESTE agente puede ejecutar (whitelist ya filtrada por permisos +
   # módulos). Devuelve tanto los nombres como las definiciones function-calling
@@ -65,20 +66,51 @@ class Webhooks::Jabvox::HermesAgentController < ActionController::API
     token = bearer_token.presence || request.headers['X-Hermes-Agent-Token'].to_s
     return head :unauthorized if token.blank? || token.length > MAX_TOKEN_LENGTH
 
-    if (conn = JabvoxHermesConnection.authenticate_action(token))
-      @connection = conn
-      @agent = conn.action_agent
-      @account = conn.account
-      @user = conn.action_user
-    elsif (agent = JabvoxHermesAgent.authenticate(token))
-      @agent = agent
-      @account = agent.account
-      @user = agent.user
-    end
+    resolve_by_connection(token) || resolve_by_agent(token)
 
     # Requiere cuenta + usuario resueltos. authenticate() del modelo ya exige agente ACTIVO;
     # la conexión debe tener un agente/usuario ligado (sin ligar ⇒ no autentica).
     head :unauthorized if @account.nil? || @user.nil?
+  end
+
+  def resolve_by_connection(token)
+    conn = JabvoxHermesConnection.authenticate_action(token)
+    return false if conn.nil?
+
+    @connection = conn
+    @agent = conn.action_agent
+    @account = conn.account
+    @user = conn.action_user
+    true
+  end
+
+  def resolve_by_agent(token)
+    agent = JabvoxHermesAgent.authenticate(token)
+    return false if agent.nil?
+
+    @agent = agent
+    @account = agent.account
+    @user = agent.user
+    true
+  end
+
+  # Segundo candado, tras el token: el request debe venir de una IP declarada por ESA
+  # conexión (ver JabvoxHermesConnection#ip_allowed?). Un action_token filtrado no sirve
+  # desde fuera del propio Hermes.
+  #
+  # Es FAIL-CLOSED: una conexión sin IPs declaradas no ejecuta nada. Eso incluye al esquema
+  # antiguo de token-de-agente (sin conexión asociada), que no tiene allowlist y por tanto
+  # ya no puede usarse para ejecutar: dejarlo pasar sería una puerta trasera que anula esta
+  # verificación entera.
+  def authorize_source_ip!
+    return head :forbidden if @connection.nil?
+    return if @connection.ip_allowed?(request.remote_ip)
+
+    Rails.logger.warn(
+      "[HermesAgent] IP no autorizada connection_id=#{@connection.id} " \
+      "account_id=#{@account&.id} ip=#{request.remote_ip}"
+    )
+    head :forbidden
   end
 
   # Soporta Authorization: Bearer <token> además del header propio.

@@ -71,6 +71,7 @@
       <tr style="text-align:left; border-bottom:1px solid #e5e7eb;">
         <th style="padding:8px;">Cuenta</th>
         <th style="padding:8px;">Chat Aprovisionador</th>
+        <th style="padding:8px;">IPs autorizadas del Hermes</th>
         <th style="padding:8px;">Acciones</th>
       </tr>
     </thead>
@@ -83,6 +84,30 @@
               <%= inst[:linked] ? 'Activado' : 'Desactivado' %>
             </strong>
           </td>
+          <td style="padding:8px;">
+            <% if inst[:connections].blank? %>
+              <span style="color:#9ca3af;">Sin conexiones Hermes</span>
+            <% else %>
+              <% inst[:connections].each do |conn| %>
+                <%# Solo desde estas IPs puede ese Hermes ejecutar acciones sobre la cuenta.
+                    Vacío = no ejecuta nada (fail-closed). Acepta IP suelta o CIDR, incluidas
+                    las privadas de ZeroTier. %>
+                <%= form_with url: update_allowed_ips_super_admin_hermes_instance_path(inst[:account_id]), method: :post, local: true, html: { style: 'margin:0 0 6px;' } do |f| %>
+                  <%= f.hidden_field :connection_id, value: conn[:id] %>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="min-width:120px; color:#6b7280;"><%= conn[:name] %></span>
+                    <%= f.text_field :allowed_ips, value: conn[:allowed_ips].join(', '),
+                                     placeholder: '203.0.113.5, 10.147.17.0/24',
+                                     style: 'font-family:monospace; font-size:12px; padding:4px 6px; border:1px solid #d1d5db; border-radius:4px; width:260px;' %>
+                    <%= f.submit 'Guardar', class: 'button button--secondary', style: 'font-size:12px; padding:4px 10px;' %>
+                    <% if conn[:allowed_ips].blank? %>
+                      <span style="color:#d97706; font-size:12px;" title="Sin IPs no puede ejecutar nada">⚠ bloqueado</span>
+                    <% end %>
+                  </div>
+                <% end %>
+              <% end %>
+            <% end %>
+          </td>
           <td style="padding:8px; white-space:nowrap;">
             <% if inst[:linked] %>
               <%= button_to 'Desactivar', unlink_account_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button', form_class: 'inline-block' %>
@@ -93,7 +118,7 @@
         </tr>
       <% end %>
       <% if @instances.empty? %>
-        <tr><td colspan="3" style="padding:16px; color:#9ca3af;">No hay cuentas con Chat IA todavía.</td></tr>
+        <tr><td colspan="4" style="padding:16px; color:#9ca3af;">No hay cuentas con Chat IA todavía.</td></tr>
       <% end %>
     </tbody>
   </table>

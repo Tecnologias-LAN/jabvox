@@ -52,6 +52,21 @@ class SuperAdmin::HermesInstancesController < SuperAdmin::ApplicationController
     redirect_back_with(true, nil, "Cuenta ##{account.id} desactivada")
   end
 
+  # Allowlist de IPs desde las que el Hermes de ESTA cuenta puede ejecutar acciones. La
+  # conexión se busca dentro de la cuenta (nunca por id global), así que no se puede tocar
+  # la de otra cuenta desde aquí.
+  def update_allowed_ips
+    conn = account.jabvox_hermes_connections.find_by(id: params[:connection_id])
+    return redirect_back_with(false, 'Conexión no encontrada', nil) if conn.nil?
+
+    ips = params[:allowed_ips].to_s.split(',').map(&:strip).reject(&:blank?)
+    if conn.update(allowed_ips_jabvox: ips)
+      redirect_back_with(true, nil, "IPs actualizadas para «#{conn.name_jabvox}»")
+    else
+      redirect_back_with(false, conn.errors.full_messages.to_sentence, nil)
+    end
+  end
+
   private
 
   def account
@@ -67,8 +82,16 @@ class SuperAdmin::HermesInstancesController < SuperAdmin::ApplicationController
     end
   end
 
-  # Estado de una cuenta frente al aprovisionador: si está activada (ligada).
+  # Estado de una cuenta frente al aprovisionador: si está activada (ligada), y las
+  # conexiones Hermes de esa cuenta con su allowlist de IPs (desde qué origen puede ese
+  # Hermes ejecutar acciones sobre la cuenta).
   def instance_summary(acc, linked)
-    { account_id: acc.id, account_name: acc.name, linked: linked }
+    {
+      account_id: acc.id, account_name: acc.name, linked: linked,
+      connections: acc.jabvox_hermes_connections.order(:name_jabvox).map do |conn|
+        { id: conn.id, name: conn.name_jabvox, base_url: conn.base_url_jabvox,
+          allowed_ips: Array(conn.allowed_ips_jabvox) }
+      end
+    }
   end
 end

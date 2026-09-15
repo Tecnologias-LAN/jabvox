@@ -10,15 +10,30 @@ RSpec.describe 'Webhooks::Jabvox::HermesAgent (agente ejecuta tools)' do
     JabvoxHermesAgent.create!(account: account, user: user, name_jabvox: 'Agente', status_jabvox: 'active')
   end
 
+  # Las tools se ejecutan por el token de CONEXIÓN, que además declara desde qué IPs acepta
+  # ejecutar (ver JabvoxHermesConnection#ip_allowed?). ALLOWED_IP es la IP del Hermes.
+  let(:allowed_ip) { '203.0.113.5' }
+  let(:connection) do
+    conn = JabvoxHermesConnection.create!(
+      account: account,
+      name_jabvox: 'hermes-uno',
+      hermes_agent_name_jabvox: 'hermes-uno',
+      base_url_jabvox: 'https://hermes.example.com',
+      allowed_ips_jabvox: [allowed_ip]
+    )
+    JabvoxHermesAgentConnection.create!(hermes_connection: conn, hermes_agent: agent)
+    conn
+  end
+
   before do
     JabvoxHermesUserPermission.create!(account: account, user: user, permissions_jabvox: %w[read create])
   end
 
-  def agent_headers(token = agent.agent_token_jabvox)
-    { 'X-Hermes-Agent-Token' => token }
+  def agent_headers(token = connection.reload.action_token_jabvox, ip: allowed_ip)
+    { 'X-Hermes-Agent-Token' => token, 'REMOTE_ADDR' => ip }
   end
 
-  describe 'autenticación por token de agente' do
+  describe 'autenticación por token' do
     it 'rechaza sin token' do
       get '/webhooks/jabvox/hermes_agent/tools'
       expect(response).to have_http_status(:unauthorized)
@@ -29,10 +44,33 @@ RSpec.describe 'Webhooks::Jabvox::HermesAgent (agente ejecuta tools)' do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it 'acepta Bearer con el token del agente' do
+    it 'acepta Bearer con el token de la conexión desde su IP' do
       get '/webhooks/jabvox/hermes_agent/tools',
-          headers: { 'Authorization' => "Bearer #{agent.agent_token_jabvox}" }
+          headers: { 'Authorization' => "Bearer #{connection.reload.action_token_jabvox}",
+                     'REMOTE_ADDR' => allowed_ip }
       expect(response).to have_http_status(:ok)
+    end
+  end
+
+  # El token dice QUIÉN llama; la allowlist verifica que la llamada venga del propio Hermes.
+  describe 'restricción por IP de origen' do
+    it 'rechaza un token válido usado desde otra IP' do
+      get '/webhooks/jabvox/hermes_agent/tools', headers: agent_headers(ip: '45.77.167.167')
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'rechaza si la conexión no declaró ninguna IP (fail-closed)' do
+      connection.update!(allowed_ips_jabvox: [])
+      get '/webhooks/jabvox/hermes_agent/tools', headers: agent_headers
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    # El esquema antiguo de token-de-agente no tiene allowlist: dejarlo ejecutar sería una
+    # puerta trasera que anula la restricción por IP.
+    it 'rechaza el token de agente antiguo, que no tiene allowlist' do
+      get '/webhooks/jabvox/hermes_agent/tools',
+          headers: { 'X-Hermes-Agent-Token' => agent.agent_token_jabvox, 'REMOTE_ADDR' => allowed_ip }
+      expect(response).to have_http_status(:forbidden)
     end
   end
 

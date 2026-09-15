@@ -1338,6 +1338,7 @@ Rails.application.routes.draw do
         member do
           post :link_account          # activar el aprovisionador en esta cuenta
           post :unlink_account
+          post :update_allowed_ips    # allowlist de IPs del Hermes de esta cuenta
         end
       end
       # Widget de Soporte global (burbuja "Soporte" del dashboard): token + HMAC.
@@ -1349,6 +1350,9 @@ Rails.application.routes.draw do
           post :provision      # crear team + asignar (según el plan de la cuenta)
           post :manual_setup   # crear team + ligar a cualquier cuenta manualmente
           post :recharge       # recargar saldo comprado de una cuenta
+          post :sync_provider  # traer TODO del proveedor (LiteLLM) e importarlo
+          post :link_account   # ligar un team huérfano a una cuenta
+          post :unlink_account # desligar un team de su cuenta (el team sigue en el proveedor)
         end
       end
       # API Provisioner (Hermes): token único, IP allowlist y checklist de permisos.
