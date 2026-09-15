@@ -35,6 +35,17 @@
     "KEY_UNBLOCKED": "Key unblocked.",
     "KEY_ACTION_ERROR": "Could not complete the action on the key.",
     "CONFIRM_BLOCK": "Block this key? It will stop working immediately.",
-    "NO_KEYS": "No virtual keys in this team yet."
+    "NO_KEYS": "No virtual keys in this team yet.",
+    "SUBTITLE": "Your AI usage balance and virtual keys. The plan balance resets monthly; purchased balance accumulates.",
+    "USAGE_TITLE": "Usage",
+    "USAGE_OF": "of",
+    "KEYS_COUNT": "{count} keys",
+    "COPY": "Copy",
+    "COPIED": "Key copied to clipboard.",
+    "EMPTY_KEYS_TITLE": "No virtual keys",
+    "TEAM_LABEL": "Team",
+    "SEARCH_KEYS": "Search by name…",
+    "NO_RESULTS": "No key matches your search.",
+    "ACTIONS_MENU": "Actions"
   }
 }

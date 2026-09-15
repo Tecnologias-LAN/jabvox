@@ -35,6 +35,17 @@
     "KEY_UNBLOCKED": "Key desbloqueada.",
     "KEY_ACTION_ERROR": "No se pudo completar la acción sobre la key.",
     "CONFIRM_BLOCK": "¿Bloquear esta key? Dejará de funcionar de inmediato.",
-    "NO_KEYS": "Aún no hay virtual keys en este team."
+    "NO_KEYS": "Aún no hay virtual keys en este team.",
+    "SUBTITLE": "Tu saldo de uso de IA y tus virtual keys. El saldo del plan se restablece cada mes; el comprado aparte se acumula.",
+    "USAGE_TITLE": "Consumo",
+    "USAGE_OF": "de",
+    "KEYS_COUNT": "{count} keys",
+    "COPY": "Copiar",
+    "COPIED": "Key copiada al portapapeles.",
+    "EMPTY_KEYS_TITLE": "Sin virtual keys",
+    "TEAM_LABEL": "Team",
+    "SEARCH_KEYS": "Buscar por nombre…",
+    "NO_RESULTS": "Ninguna key coincide con la búsqueda.",
+    "ACTIONS_MENU": "Acciones"
   }
 }
