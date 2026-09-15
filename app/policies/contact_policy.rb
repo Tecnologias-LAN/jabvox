@@ -11,6 +11,12 @@ class ContactPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  # La vista previa de importación lee contactos existentes para detectar
+  # duplicados: mismo nivel de privilegio que la importación en sí.
+  def import_preview?
+    @account_user.administrator?
+  end
+
   def export?
     @account_user.administrator?
   end

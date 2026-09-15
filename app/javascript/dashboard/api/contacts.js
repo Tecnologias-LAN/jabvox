@@ -86,12 +86,23 @@ class ContactAPI extends ApiClient {
     return axios.post(requestURL, queryPayload);
   }
 
-  importContacts(file) {
+  // El país es obligatorio: de él sale el prefijo telefónico. duplicatePolicy
+  // indica qué hacer con los leads que ya existen ('skip' u 'update'), tal como
+  // lo confirmó el usuario en la vista previa.
+  importContacts(file, { country, duplicatePolicy = 'skip' } = {}) {
     const formData = new FormData();
     formData.append('import_file', file);
+    if (country) formData.append('country', country);
+    formData.append('duplicate_policy', duplicatePolicy);
     return axios.post(`${this.url}/import`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+  }
+
+  // Analiza las filas antes de importar: devuelve cuáles son nuevas, cuáles ya
+  // existen en la cuenta y cuáles traen el prefijo en el archivo. No escribe nada.
+  importPreview({ rows, country }) {
+    return axios.post(`${this.url}/import_preview`, { rows, country });
   }
 
   destroyCustomAttributes(contactId, customAttributes) {

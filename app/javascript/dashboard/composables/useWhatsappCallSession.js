@@ -1,5 +1,5 @@
 import { readonly, ref } from 'vue';
-import Cookies from 'js-cookie';
+import { deviseAuthHeaders } from 'dashboard/helper/deviseAuthHeaders';
 import WhatsappCallsAPI from 'dashboard/api/channel/whatsapp/whatsappCallsAPI';
 import { VOICE_CALL_OUTBOUND_INIT_STATUS } from 'dashboard/components-next/message/constants';
 
@@ -200,33 +200,12 @@ const stopRecorderAndUpload = async callId => {
   }
 };
 
-// devise-token-auth requires access-token / client / uid headers on every
-// request — navigator.sendBeacon can't set custom headers, so we rehydrate
-// the auth payload from the cw_d_session_info cookie that the dashboard sets
-// at login. Used by the page-close terminate path below.
-const getDeviseAuthHeaders = () => {
-  try {
-    const raw = Cookies.get('cw_d_session_info');
-    if (!raw) return null;
-    const session = JSON.parse(raw);
-    return {
-      'access-token': session['access-token'] || '',
-      client: session.client || '',
-      uid: session.uid || '',
-      expiry: session.expiry || '',
-      'token-type': session['token-type'] || 'Bearer',
-    };
-  } catch (_) {
-    return null;
-  }
-};
-
 const beaconTerminate = callId => {
   if (!callId) return;
   const accountId = window.location.pathname.split('/')[3];
   if (!accountId) return;
-  const headers = getDeviseAuthHeaders();
-  if (!headers) return;
+  const headers = deviseAuthHeaders();
+  if (!headers['access-token']) return;
   const url = `/api/v1/accounts/${accountId}/whatsapp_calls/${callId}/terminate`;
   // fetch+keepalive (instead of navigator.sendBeacon) so we can attach auth
   // headers — without them devise-token-auth 401s and the call stays open on

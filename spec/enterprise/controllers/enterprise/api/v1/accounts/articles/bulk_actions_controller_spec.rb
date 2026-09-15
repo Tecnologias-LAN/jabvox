@@ -47,7 +47,7 @@ RSpec.describe 'Article Bulk Actions API', type: :request do
 
     context 'when authenticated as admin' do
       before do
-        account.enable_features!('captain_tasks')
+        account.update!(jabvox_ai_chat_enabled_jabvox: true)
       end
 
       it 'enqueues translation jobs for each article' do
@@ -56,7 +56,7 @@ RSpec.describe 'Article Bulk Actions API', type: :request do
                headers: admin.create_new_auth_token,
                params: { ids: [article_one.id, article_two.id], locale: 'es', category_id: category_es.id },
                as: :json
-        end.to have_enqueued_job(Captain::Articles::TranslateJob).exactly(2).times
+        end.to have_enqueued_job(Hermes::Articles::TranslateJob).exactly(2).times
 
         expect(response).to have_http_status(:ok)
       end
@@ -67,7 +67,7 @@ RSpec.describe 'Article Bulk Actions API', type: :request do
                headers: admin.create_new_auth_token,
                params: { ids: [article_one.id], locale: 'es', category_id: category_es.id },
                as: :json
-        end.to have_enqueued_job(Captain::Articles::TranslateJob).with(
+        end.to have_enqueued_job(Hermes::Articles::TranslateJob).with(
           account, article_one.id, 'es', category_es.id, admin
         )
 
@@ -107,7 +107,7 @@ RSpec.describe 'Article Bulk Actions API', type: :request do
                headers: admin.create_new_auth_token,
                params: { ids: [article_one.id], locale: 'es' },
                as: :json
-        end.to have_enqueued_job(Captain::Articles::TranslateJob).with(
+        end.to have_enqueued_job(Hermes::Articles::TranslateJob).with(
           account, article_one.id, 'es', nil, admin
         )
 
@@ -120,7 +120,7 @@ RSpec.describe 'Article Bulk Actions API', type: :request do
                headers: admin.create_new_auth_token,
                params: { ids: [article_one.id], locale: 'es', category_id: '' },
                as: :json
-        end.to have_enqueued_job(Captain::Articles::TranslateJob).with(
+        end.to have_enqueued_job(Hermes::Articles::TranslateJob).with(
           account, article_one.id, 'es', nil, admin
         )
 
@@ -160,7 +160,7 @@ RSpec.describe 'Article Bulk Actions API', type: :request do
                  headers: admin.create_new_auth_token,
                  params: { ids: [article_one.id], locale: 'es', category_id: category_es.id },
                  as: :json
-          end.not_to have_enqueued_job(Captain::Articles::TranslateJob)
+          end.not_to have_enqueued_job(Hermes::Articles::TranslateJob)
         end
 
         it 'enqueues jobs when force is true' do
@@ -169,7 +169,7 @@ RSpec.describe 'Article Bulk Actions API', type: :request do
                  headers: admin.create_new_auth_token,
                  params: { ids: [article_one.id], locale: 'es', category_id: category_es.id, force: true },
                  as: :json
-          end.to have_enqueued_job(Captain::Articles::TranslateJob).exactly(1).times
+          end.to have_enqueued_job(Hermes::Articles::TranslateJob).exactly(1).times
 
           expect(response).to have_http_status(:ok)
         end

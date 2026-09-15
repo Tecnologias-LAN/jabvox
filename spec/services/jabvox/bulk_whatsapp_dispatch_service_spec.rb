@@ -22,29 +22,36 @@ RSpec.describe Jabvox::BulkWhatsappDispatchService do
       service.send(:resolve_params, service.send(:normalize_variable_map, map), fields)
     end
 
+    # resolve_params anida el resultado bajo "body": el canal de WhatsApp solo trata el
+    # mensaje como PLANTILLA si processed_params trae las variables ahí (un hash plano
+    # se ignoraba y el mensaje salía como texto de sesión — ver el comentario de
+    # resolve_params).
     it 'maps {{n}} to the chosen lead field value' do
-      expect(resolve('1' => 'nombre', '2' => 'campaign')).to eq('1' => 'Mel', '2' => 'C12')
+      expect(resolve('1' => 'nombre', '2' => 'campaign')).to eq('body' => { '1' => 'Mel', '2' => 'C12' })
     end
 
     it 'resolves a custom field key' do
-      expect(resolve('1' => 'custom:zona')).to eq('1' => 'Norte')
+      expect(resolve('1' => 'custom:zona')).to eq('body' => { '1' => 'Norte' })
     end
 
     it 'supports a literal "text:" value' do
-      expect(resolve('1' => 'text:Hola fijo')).to eq('1' => 'Hola fijo')
+      expect(resolve('1' => 'text:Hola fijo')).to eq('body' => { '1' => 'Hola fijo' })
     end
 
     it 'yields empty string for a missing field (never nil)' do
-      expect(resolve('1' => 'no_existe')).to eq('1' => '')
+      expect(resolve('1' => 'no_existe')).to eq('body' => { '1' => '' })
     end
 
     it 'returns {} when the map is blank' do
       expect(resolve({})).to eq({})
     end
 
-    it 'normalizes keys to bare digit strings and drops blank values' do
+    # La clave es el TOKEN de la variable tal cual (no se filtra a solo dígitos): las
+    # plantillas NAMED usan {{nombre_variable}}, no un índice numérico, así que forzar
+    # dígitos rompía esas plantillas.
+    it 'preserves the variable token as-is (supports NAMED templates) and drops blank values' do
       normalized = service.send(:normalize_variable_map, '{{1}}' => 'nombre', '2' => '', '3' => 'email')
-      expect(normalized).to eq('1' => 'nombre', '3' => 'email')
+      expect(normalized).to eq('{{1}}' => 'nombre', '3' => 'email')
     end
   end
 

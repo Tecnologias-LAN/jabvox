@@ -9,8 +9,8 @@ import { useCamelCase } from 'dashboard/composables/useTransformKeys';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
-import TasksAPI from 'dashboard/api/captain/tasks';
-import { CAPTAIN_ERROR_TYPES } from 'dashboard/composables/captain/constants';
+import TasksAPI from 'dashboard/api/ai/tasks';
+import { CAPTAIN_ERROR_TYPES } from 'dashboard/composables/ai/constants';
 
 export function useCaptain() {
   const store = useStore();
@@ -27,12 +27,14 @@ export function useCaptain() {
   const draftMessage = useFunctionGetter('draftMessages/get', draftKey);
 
   // === Feature Flags ===
+  // El módulo de IA de la cuenta es el Chat IA (Hermes): un solo interruptor gobierna el
+  // chat, la burbuja flotante y el asistente de redacción de la conversación.
   const captainEnabled = computed(() => {
-    return isCloudFeatureEnabled(FEATURE_FLAGS.CAPTAIN);
+    return isCloudFeatureEnabled(FEATURE_FLAGS.JABVOX_AI_CHAT);
   });
 
   const captainTasksEnabled = computed(() => {
-    return isCloudFeatureEnabled(FEATURE_FLAGS.CAPTAIN_TASKS);
+    return isCloudFeatureEnabled(FEATURE_FLAGS.JABVOX_AI_CHAT);
   });
 
   // === Limits (Enterprise) ===

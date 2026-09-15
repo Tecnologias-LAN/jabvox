@@ -57,6 +57,17 @@ const state = {
     isSavingConfig: false,
     isSyncingDocuments: false,
   },
+  // Estado de la burbuja flotante (CopilotContainer), separado del store porque el
+  // componente se DESMONTA por completo cada vez que se cierra (v-if), y con él
+  // cualquier `ref()` local. Vuex sí sobrevive a eso, así que guardar aquí la sesión
+  // activa y el progreso del streaming es lo que permite: (1) reabrir la burbuja y
+  // seguir viendo la misma conversación en vez de una vacía, y (2) que si hay un
+  // streaming en curso al cerrar, al reabrir la UI siga reflejando "está pensando" +
+  // las tools en vivo, en vez de perder ese estado visual (el streaming en sí nunca se
+  // corta: corre en el módulo del composable, ajeno al ciclo de vida del componente).
+  copilotSessionId: null,
+  copilotIsStreaming: false,
+  copilotActiveTools: [],
 };
 
 const getters = {
@@ -67,6 +78,9 @@ const getters = {
   getDocuments: s => s.documents,
   getMyAccess: s => s.myAccess,
   getUIFlags: s => s.uiFlags,
+  getCopilotSessionId: s => s.copilotSessionId,
+  getCopilotIsStreaming: s => s.copilotIsStreaming,
+  getCopilotActiveTools: s => s.copilotActiveTools,
 };
 
 const mutations = {
@@ -116,6 +130,15 @@ const mutations = {
     const msgs = { ...s.messages };
     delete msgs[sessionId];
     s.messages = msgs;
+  },
+  SET_COPILOT_SESSION_ID(s, sessionId) {
+    s.copilotSessionId = sessionId;
+  },
+  SET_COPILOT_IS_STREAMING(s, value) {
+    s.copilotIsStreaming = value;
+  },
+  SET_COPILOT_ACTIVE_TOOLS(s, tools) {
+    s.copilotActiveTools = tools;
   },
   SET_MODELS(s, models) {
     s.models = models;

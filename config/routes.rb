@@ -47,6 +47,14 @@ Rails.application.routes.draw do
   get '/health', to: 'health#show'
   get '/api', to: 'api#index'
   namespace :api, defaults: { format: 'json' } do
+    # API Provisioner (Hermes → Jabvox): superficie administrativa privilegiada, autenticada
+    # 100% por token firmado + IP allowlist + firma/anti-replay + sesión única (ver
+    # Api::Provisioner::BaseController). NUNCA borra ni expone credenciales.
+    namespace :provisioner do
+      get  :catalog,  to: 'operations#catalog'
+      post :execute,  to: 'operations#execute'
+    end
+
     namespace :v1 do
       # ----------------------------------
       # start of account scoped api routes
@@ -67,39 +75,8 @@ Rails.application.routes.draw do
           resources :agents, only: [:index, :create, :update, :destroy] do
             post :bulk_create, on: :collection
           end
-          namespace :captain do
+          namespace :hermes do
             resource :preferences, only: [:show, :update]
-            resources :assistants do
-              member do
-                post :playground
-                get :metrics
-                get :faq_stats
-                get :summary
-                get :drilldown
-              end
-              collection do
-                get :tools
-              end
-              resources :inboxes, only: [:index, :create, :destroy], param: :inbox_id
-              resources :scenarios
-            end
-            resources :agent_sessions, only: [:show]
-            resources :assistant_responses
-            resources :faq_suggestions, only: [:index, :show, :update] do
-              post :approve, on: :member
-              post :dismiss, on: :member
-            end
-            resources :message_reports, only: [:create]
-            resources :bulk_actions, only: [:create]
-            resources :copilot_threads, only: [:index, :create] do
-              resources :copilot_messages, only: [:index, :create]
-            end
-            resources :custom_tools do
-              post :test, on: :collection
-            end
-            resources :documents, only: [:index, :show, :create, :destroy] do
-              post :sync, on: :member
-            end
             resource :tasks, only: [], controller: 'tasks' do
               post :rewrite
               post :summarize
@@ -161,6 +138,7 @@ Rails.application.routes.draw do
                 member do
                   post :translate
                   post :retry
+                  post :transcribe
                 end
               end
               resources :assignments, only: [:create]
@@ -180,7 +158,6 @@ Rails.application.routes.draw do
               post :unread
               post :custom_attributes
               get :attachments
-              get :inbox_assistant
               get :reporting_events if JabvoxApp.enterprise?
             end
           end
@@ -218,6 +195,7 @@ Rails.application.routes.draw do
               get :search
               post :filter
               post :import
+              post :import_preview
               post :export
               get :sample_import
             end
@@ -556,6 +534,8 @@ Rails.application.routes.draw do
                 get 'for_contact/:contact_id', action: :for_contact, as: :for_contact
                 patch 'for_contact/:contact_id', action: :update_contact_lead, as: :update_contact_lead
                 get 'detail_for_contact/:contact_id', action: :lead_detail, as: :lead_detail_for_contact
+                # Catálogo de los 4 estados del ciclo de vida, leído de BD.
+                get :lifecycle_stages
               end
               # Multi-row custom tables for a lead. The path id is the TABLE id
               # (a lead can have many rows per table); the specific row is passed
@@ -571,6 +551,8 @@ Rails.application.routes.draw do
                 # Etiquetas del lead (se aplican a las conversaciones del contacto).
                 get :labels
                 post :labels, action: :update_labels
+                # Cambia el estado del ciclo de vida (Prospecto/Interesado/Cliente/Inactivo).
+                patch :lifecycle_stage, action: :update_lifecycle_stage
               end
             end
             resources :lead_campaigns, controller: 'campaigns'
@@ -661,6 +643,14 @@ Rails.application.routes.draw do
             end
             resource :saldo_config, only: [:show, :update]
             get :saldo_balance, to: 'saldo_configs#status'
+            # Saldo IA por cuenta: ver saldo + crear/listar virtual keys (contra el proveedor).
+            resource :ai_budget, only: [:show], controller: 'ai_budget' do
+              get :keys
+              post :create_key
+              post :block_key    # bloquear una key del team de la cuenta
+              post :unblock_key  # desbloquearla
+              post :update_key   # cambiar su tope (max_budget)
+            end
             resources :sms_providers do
               member { get :check_connection }
             end
@@ -1044,7 +1034,7 @@ Rails.application.routes.draw do
         namespace :affiliate_portal do
           post 'auth/login', to: 'auth#login'
           resources :contacts, only: [:create]
-          resources :imports, only: [:create]
+          resources :imports, only: [:create, :show]
           resources :leads, only: [:index] do
             collection { get :history }
           end
@@ -1190,7 +1180,6 @@ Rails.application.routes.draw do
       end
 
       post 'webhooks/stripe', to: 'webhooks/stripe#process_payload'
-      post 'webhooks/firecrawl', to: 'webhooks/firecrawl#process_payload'
     end
   end
 
@@ -1286,13 +1275,6 @@ Rails.application.routes.draw do
   post 'webhooks/jabvox/billing/resolve', to: 'webhooks/jabvox/billing#resolve_token'
   post 'webhooks/jabvox/billing/checkout', to: 'webhooks/jabvox/billing#create_checkout'
   post 'webhooks/jabvox/billing/:gateway', to: 'webhooks/jabvox/billing#process_payload'
-  # Callback del Hermes Aprovisionador: confirma que el Hermes de una cuenta ya está operativo.
-  post 'webhooks/jabvox/hermes/provisioned', to: 'webhooks/jabvox/hermes#provisioned'
-  # El Aprovisionador consulta las conexiones de DB de una cuenta para crear su MCP de analítica.
-  get 'webhooks/jabvox/hermes/data_sources/:account_id',
-      to: 'webhooks/jabvox/hermes#data_sources'
-  get 'webhooks/jabvox/hermes/data_sources/:account_id/:id/credentials',
-      to: 'webhooks/jabvox/hermes#credentials'
   # Un agente de Hermes ejecuta acciones sobre Jabvox con su token exclusivo (permisos del agente).
   get 'webhooks/jabvox/hermes_agent/tools', to: 'webhooks/jabvox/hermes_agent#tools'
   post 'webhooks/jabvox/hermes_agent/execute', to: 'webhooks/jabvox/hermes_agent#execute'
@@ -1362,16 +1344,29 @@ Rails.application.routes.draw do
           post :connect_provisioner   # conectar el Hermes Aprovisionador global
         end
         member do
-          post :provision
-          post :disable
-          post :restart
-          post :rotate
-          post :link_account          # ligar el aprovisionador a esta cuenta
+          post :link_account          # activar el aprovisionador en esta cuenta
           post :unlink_account
+          post :update_allowed_ips    # allowlist de IPs del Hermes de esta cuenta
         end
       end
       # Widget de Soporte global (burbuja "Soporte" del dashboard): token + HMAC.
       resource :support_widget, only: [:show, :update], controller: 'support_widget'
+      # Proveedor de API de IA (pantalla con pestañas): conexión (master), por cuenta y saldos.
+      resource :ai_provider_config, only: [:show, :update], controller: 'ai_provider_config' do
+        member do
+          post :test_connection
+          post :provision      # crear team + asignar (según el plan de la cuenta)
+          post :manual_setup   # crear team + ligar a cualquier cuenta manualmente
+          post :recharge       # recargar saldo comprado de una cuenta
+          post :sync_provider  # traer TODO del proveedor (LiteLLM) e importarlo
+          post :link_account   # ligar un team huérfano a una cuenta
+          post :unlink_account # desligar un team de su cuenta (el team sigue en el proveedor)
+        end
+      end
+      # API Provisioner (Hermes): token único, IP allowlist y checklist de permisos.
+      resource :provisioner_api, only: [:show, :create, :update], controller: 'provisioner_api' do
+        post :revoke, on: :member
+      end
       resource :push_diagnostics, only: [:show, :create] do
         post :destroy_subscriptions, on: :collection
       end

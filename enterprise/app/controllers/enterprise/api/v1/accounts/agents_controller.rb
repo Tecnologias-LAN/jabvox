@@ -20,6 +20,15 @@ module Enterprise::Api::V1::Accounts::AgentsController
 
     # Scope to the account so a foreign account's role id can never be attached.
     role_id = params[:custom_role_id].presence && Current.account.custom_roles.find(params[:custom_role_id]).id
-    @agent.current_account_user.update!(custom_role_id: role_id)
+    account_user = @agent.current_account_user
+    attrs = { custom_role_id: role_id }
+    # JabvoxPermissions concede TODO a un administrator? sin mirar el custom role (por
+    # diseño, para no romper admins existentes al activar el sistema). Sin este downgrade,
+    # asignar un rol personalizado a alguien que YA era administrator lo dejaba con acceso
+    # total además de lo que el rol personalizado indicara — el rol quedaba sin ningún
+    # efecto real. Al asignar un rol personalizado real (no al quitarlo), el usuario pasa a
+    # depender exclusivamente de los permisos de ese rol.
+    attrs[:role] = :agent if role_id.present? && account_user.administrator?
+    account_user.update!(attrs)
   end
 end

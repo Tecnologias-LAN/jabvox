@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_15_020000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -218,31 +218,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.index ["account_id"], name: "index_agent_capacity_policies_on_account_id"
   end
 
-  create_table "agent_sessions", force: :cascade do |t|
-    t.integer "session_type", null: false
-    t.string "subject_type", null: false
-    t.bigint "subject_id", null: false
-    t.string "result_type"
-    t.bigint "result_id"
-    t.bigint "account_id", null: false
-    t.bigint "assistant_id", null: false
-    t.bigint "user_id"
-    t.string "llm_model"
-    t.float "credits_consumed"
-    t.jsonb "faq_ids", default: []
-    t.jsonb "document_ids", default: []
-    t.jsonb "scenario_ids", default: []
-    t.jsonb "run_context", default: {}
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id", "result_type", "result_id"], name: "idx_on_account_id_result_type_result_id_ca66c00cd7"
-    t.index ["account_id", "session_type", "created_at"], name: "idx_on_account_id_session_type_created_at_c20a14bd4e"
-    t.index ["account_id", "subject_type", "subject_id"], name: "idx_on_account_id_subject_type_subject_id_6d60963b3d"
-    t.index ["account_id"], name: "index_agent_sessions_on_account_id"
-    t.index ["assistant_id"], name: "index_agent_sessions_on_assistant_id"
-    t.index ["user_id"], name: "index_agent_sessions_on_user_id"
-  end
-
   create_table "applied_slas", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "sla_policy_id", null: false
@@ -418,151 +393,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.text "content"
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
-  end
-
-  create_table "captain_assistant_responses", force: :cascade do |t|
-    t.string "question", null: false
-    t.text "answer", null: false
-    t.vector "embedding", limit: 1536
-    t.bigint "assistant_id", null: false
-    t.bigint "documentable_id"
-    t.bigint "account_id", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.integer "status", default: 1, null: false
-    t.string "documentable_type"
-    t.boolean "edited", default: false, null: false
-    t.index ["account_id"], name: "index_captain_assistant_responses_on_account_id"
-    t.index ["assistant_id"], name: "index_captain_assistant_responses_on_assistant_id"
-    t.index ["documentable_id", "documentable_type"], name: "idx_cap_asst_resp_on_documentable"
-    t.index ["embedding"], name: "vector_idx_knowledge_entries_embedding", using: :ivfflat
-    t.index ["status"], name: "index_captain_assistant_responses_on_status"
-  end
-
-  create_table "captain_assistants", force: :cascade do |t|
-    t.string "name", null: false
-    t.bigint "account_id", null: false
-    t.text "description"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.jsonb "config", default: {}, null: false
-    t.jsonb "response_guidelines", default: []
-    t.jsonb "guardrails", default: []
-    t.index ["account_id"], name: "index_captain_assistants_on_account_id"
-  end
-
-  create_table "captain_custom_tools", force: :cascade do |t|
-    t.bigint "account_id", null: false
-    t.string "slug", null: false
-    t.string "title", null: false
-    t.text "description"
-    t.string "http_method", default: "GET", null: false
-    t.text "endpoint_url", null: false
-    t.text "request_template"
-    t.text "response_template"
-    t.string "auth_type", default: "none"
-    t.jsonb "auth_config", default: {}
-    t.jsonb "param_schema", default: []
-    t.boolean "enabled", default: true, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id", "slug"], name: "index_captain_custom_tools_on_account_id_and_slug", unique: true
-    t.index ["account_id"], name: "index_captain_custom_tools_on_account_id"
-  end
-
-  create_table "captain_documents", force: :cascade do |t|
-    t.string "name"
-    t.text "external_link", null: false
-    t.text "content"
-    t.bigint "assistant_id", null: false
-    t.bigint "account_id", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.integer "status", default: 0, null: false
-    t.jsonb "metadata", default: {}
-    t.integer "sync_status"
-    t.datetime "last_synced_at"
-    t.datetime "last_sync_attempted_at"
-    t.index "assistant_id, md5(external_link)", name: "idx_captain_documents_on_assistant_id_and_external_link_md5", unique: true
-    t.index ["account_id", "assistant_id", "sync_status", "last_synced_at"], name: "idx_captain_documents_on_account_assistant_sync_stats"
-    t.index ["account_id", "sync_status"], name: "index_captain_documents_on_account_id_and_sync_status"
-    t.index ["account_id"], name: "index_captain_documents_on_account_id"
-    t.index ["assistant_id"], name: "index_captain_documents_on_assistant_id"
-    t.index ["status"], name: "index_captain_documents_on_status"
-  end
-
-  create_table "captain_faq_observations", force: :cascade do |t|
-    t.bigint "account_id", null: false
-    t.bigint "conversation_id", null: false
-    t.bigint "faq_suggestion_id"
-    t.string "generated_question", null: false
-    t.text "generated_answer", null: false
-    t.string "language", default: "en", null: false
-    t.integer "status", default: 0, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id"], name: "index_captain_faq_observations_on_account_id"
-    t.index ["conversation_id", "faq_suggestion_id"], name: "idx_captain_faq_observations_on_conversation_and_suggestion", unique: true, where: "(faq_suggestion_id IS NOT NULL)"
-    t.index ["conversation_id"], name: "index_captain_faq_observations_on_conversation_id"
-    t.index ["faq_suggestion_id"], name: "index_captain_faq_observations_on_faq_suggestion_id"
-  end
-
-  create_table "captain_faq_suggestions", force: :cascade do |t|
-    t.string "question", null: false
-    t.text "answer", null: false
-    t.vector "embedding", limit: 1536
-    t.bigint "assistant_id", null: false
-    t.bigint "account_id", null: false
-    t.string "language", default: "en", null: false
-    t.integer "source_count", default: 0, null: false
-    t.integer "status", default: 0, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id", "assistant_id", "status", "language"], name: "idx_cap_faq_suggestions_on_account_assistant_status_language"
-    t.index ["account_id"], name: "index_captain_faq_suggestions_on_account_id"
-    t.index ["assistant_id"], name: "index_captain_faq_suggestions_on_assistant_id"
-    t.index ["embedding"], name: "vector_idx_captain_faq_suggestions_embedding", opclass: :vector_cosine_ops, using: :ivfflat
-  end
-
-  create_table "captain_inboxes", force: :cascade do |t|
-    t.bigint "captain_assistant_id", null: false
-    t.bigint "inbox_id", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["captain_assistant_id", "inbox_id"], name: "index_captain_inboxes_on_captain_assistant_id_and_inbox_id", unique: true
-    t.index ["captain_assistant_id"], name: "index_captain_inboxes_on_captain_assistant_id"
-    t.index ["inbox_id"], name: "index_captain_inboxes_on_inbox_id"
-  end
-
-  create_table "captain_message_reports", force: :cascade do |t|
-    t.bigint "account_id", null: false
-    t.bigint "conversation_id", null: false
-    t.bigint "message_id", null: false
-    t.bigint "user_id", null: false
-    t.string "report_reason", null: false
-    t.text "description"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id"], name: "index_captain_message_reports_on_account_id"
-    t.index ["conversation_id"], name: "index_captain_message_reports_on_conversation_id"
-    t.index ["message_id"], name: "index_captain_message_reports_on_message_id"
-    t.index ["user_id"], name: "index_captain_message_reports_on_user_id"
-  end
-
-  create_table "captain_scenarios", force: :cascade do |t|
-    t.string "title"
-    t.text "description"
-    t.text "instruction"
-    t.jsonb "tools", default: []
-    t.boolean "enabled", default: true, null: false
-    t.bigint "assistant_id", null: false
-    t.bigint "account_id", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id"], name: "index_captain_scenarios_on_account_id"
-    t.index ["assistant_id", "enabled"], name: "index_captain_scenarios_on_assistant_id_and_enabled"
-    t.index ["assistant_id"], name: "index_captain_scenarios_on_assistant_id"
-    t.index ["enabled"], name: "index_captain_scenarios_on_enabled"
   end
 
   create_table "categories", force: :cascade do |t|
@@ -811,6 +641,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.string "country_code", default: ""
     t.boolean "blocked", default: false, null: false
     t.bigint "company_id"
+    t.string "phone_country_code_jabvox"
+    t.string "phone_national_jabvox"
     t.index "lower((email)::text), account_id", name: "index_contacts_on_lower_email_account_id"
     t.index ["account_id", "contact_type"], name: "index_contacts_on_account_id_and_contact_type"
     t.index ["account_id", "email", "phone_number", "identifier"], name: "index_contacts_on_nonempty_fields", where: "(((email)::text <> ''::text) OR ((phone_number)::text <> ''::text) OR ((identifier)::text <> ''::text))"
@@ -881,29 +713,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.index ["team_id"], name: "index_conversations_on_team_id"
     t.index ["uuid"], name: "index_conversations_on_uuid", unique: true
     t.index ["waiting_since"], name: "index_conversations_on_waiting_since"
-  end
-
-  create_table "copilot_messages", force: :cascade do |t|
-    t.bigint "copilot_thread_id", null: false
-    t.bigint "account_id", null: false
-    t.jsonb "message", default: {}, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.integer "message_type", default: 0
-    t.index ["account_id"], name: "index_copilot_messages_on_account_id"
-    t.index ["copilot_thread_id"], name: "index_copilot_messages_on_copilot_thread_id"
-  end
-
-  create_table "copilot_threads", force: :cascade do |t|
-    t.string "title", null: false
-    t.bigint "user_id", null: false
-    t.bigint "account_id", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.integer "assistant_id"
-    t.index ["account_id"], name: "index_copilot_threads_on_account_id"
-    t.index ["assistant_id"], name: "index_copilot_threads_on_assistant_id"
-    t.index ["user_id"], name: "index_copilot_threads_on_user_id"
   end
 
   create_table "csat_survey_responses", force: :cascade do |t|
@@ -1118,8 +927,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "created_by_id"
+    t.integer "rows_duplicated", default: 0, null: false
+    t.integer "status", default: 0, null: false
+    t.string "country_jabvox", default: "", null: false
+    t.string "campaign_name_jabvox"
+    t.string "error_message"
+    t.datetime "completed_at"
     t.index ["account_id"], name: "index_jabvox_affiliate_imports_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_affiliate_imports_on_created_by_id"
+    t.index ["jabvox_affiliate_id", "created_at"], name: "index_jabvox_affiliate_imports_on_affiliate_and_created"
     t.index ["jabvox_affiliate_id"], name: "index_jabvox_affiliate_imports_on_jabvox_affiliate_id"
   end
 
@@ -1143,9 +959,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "portal_slug", null: false
+    t.boolean "owned_jabvox", default: false, null: false
     t.index ["account_code"], name: "index_jabvox_affiliates_on_account_code", unique: true
     t.index ["account_id", "active"], name: "index_jabvox_affiliates_on_account_id_and_active"
     t.index ["account_id"], name: "index_jabvox_affiliates_on_account_id"
+    t.index ["account_id"], name: "index_jabvox_affiliates_one_owned_per_account", unique: true, where: "(owned_jabvox = true)"
     t.index ["auth_token"], name: "index_jabvox_affiliates_on_auth_token", unique: true
     t.index ["portal_slug"], name: "index_jabvox_affiliates_on_portal_slug", unique: true
   end
@@ -1164,6 +982,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.index ["account_id", "user_id", "day_of_week"], name: "index_jabvox_agent_availabilities_unique", unique: true
     t.index ["account_id"], name: "index_jabvox_agent_availabilities_on_account_id"
     t.index ["user_id"], name: "index_jabvox_agent_availabilities_on_user_id"
+  end
+
+  create_table "jabvox_ai_balance_movements", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "kind_jabvox", null: false
+    t.integer "amount_cents_jabvox", default: 0, null: false
+    t.integer "plan_budget_cents_after_jabvox"
+    t.integer "purchased_budget_cents_after_jabvox"
+    t.bigint "jabvox_plan_id"
+    t.string "reference_jabvox"
+    t.string "idempotency_key_jabvox"
+    t.jsonb "metadata_jabvox", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["account_id", "created_at"], name: "idx_ai_balance_movements_account"
+    t.index ["account_id"], name: "index_jabvox_ai_balance_movements_on_account_id"
+    t.index ["idempotency_key_jabvox"], name: "idx_ai_balance_movements_idem", unique: true, where: "(idempotency_key_jabvox IS NOT NULL)"
   end
 
   create_table "jabvox_ai_chat_configs", force: :cascade do |t|
@@ -1251,6 +1085,40 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id", "user_id"], name: "idx_jabvox_ai_chat_permissions_unique", unique: true
+  end
+
+  create_table "jabvox_ai_provider_accounts", force: :cascade do |t|
+    t.bigint "account_id"
+    t.string "team_id_jabvox"
+    t.integer "plan_budget_cents_jabvox", default: 0, null: false
+    t.integer "purchased_budget_cents_jabvox", default: 0, null: false
+    t.decimal "cached_spend_jabvox", precision: 15, scale: 6
+    t.datetime "spend_updated_at_jabvox"
+    t.string "last_reset_period_jabvox"
+    t.string "status_jabvox", default: "active", null: false
+    t.datetime "synced_at_jabvox"
+    t.string "last_error_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "team_alias_jabvox"
+    t.decimal "remote_max_budget_jabvox", precision: 15, scale: 6
+    t.boolean "remote_blocked_jabvox", default: false, null: false
+    t.jsonb "remote_models_jabvox", default: [], null: false
+    t.string "origin_jabvox", default: "jabvox", null: false
+    t.index ["account_id"], name: "idx_ai_provider_accounts_account", unique: true, where: "(account_id IS NOT NULL)"
+    t.index ["team_id_jabvox"], name: "idx_ai_provider_accounts_team", unique: true, where: "((team_id_jabvox IS NOT NULL) AND ((team_id_jabvox)::text <> ''::text))"
+  end
+
+  create_table "jabvox_ai_provider_configs", force: :cascade do |t|
+    t.string "provider_name_jabvox", default: "Proveedor IA", null: false
+    t.string "base_url_jabvox"
+    t.text "master_key_jabvox"
+    t.boolean "enabled_jabvox", default: false, null: false
+    t.string "status_jabvox", default: "disconnected", null: false
+    t.datetime "last_check_at_jabvox"
+    t.string "last_error_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "jabvox_analytics_audit_logs", force: :cascade do |t|
@@ -2539,6 +2407,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.text "action_token_jabvox"
+    t.string "allowed_ips_jabvox", default: [], null: false, array: true
     t.index ["account_id", "hermes_agent_name_jabvox"], name: "idx_hermes_conn_account_agent", unique: true
     t.index ["account_id"], name: "index_jabvox_hermes_connections_on_account_id"
     t.index ["action_token_jabvox"], name: "idx_hermes_conn_action_token", unique: true, where: "(action_token_jabvox IS NOT NULL)"
@@ -2573,10 +2442,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.text "last_error_jabvox"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "service_user_id"
-    t.text "callback_secret_jabvox"
-    t.string "sessions_path_jabvox", default: "/api/sessions", null: false
-    t.index ["service_user_id"], name: "index_jabvox_hermes_provisioners_on_service_user_id"
+    t.string "hermes_agent_name_jabvox"
   end
 
   create_table "jabvox_hermes_sessions", force: :cascade do |t|
@@ -2819,6 +2685,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.jsonb "related_tables_jabvox", default: [], null: false
     t.jsonb "filters_jabvox", default: [], null: false
     t.string "phone_prefix_jabvox", default: "", null: false
+    t.string "country_jabvox", default: "", null: false
     t.index ["account_id", "name_jabvox"], name: "index_jabvox_lead_sources_on_account_id_and_name_jabvox", unique: true
     t.index ["account_id"], name: "index_jabvox_lead_sources_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_lead_sources_on_created_by_id"
@@ -2996,6 +2863,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "billing_period", default: 0, null: false
+    t.integer "ai_budget_cents_jabvox", default: 0, null: false
     t.index ["slug"], name: "index_jabvox_plans_on_slug", unique: true
     t.index ["status"], name: "index_jabvox_plans_on_status"
   end
@@ -3023,6 +2891,58 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
     t.index ["jabvox_currency_id"], name: "index_jabvox_products_on_jabvox_currency_id"
     t.index ["jabvox_item_type_id"], name: "index_jabvox_products_on_jabvox_item_type_id"
     t.index ["jabvox_unit_of_measure_id"], name: "index_jabvox_products_on_jabvox_unit_of_measure_id"
+  end
+
+  create_table "jabvox_provisioner_api_tokens", force: :cascade do |t|
+    t.string "token_hash_jabvox", null: false
+    t.text "signing_secret_jabvox"
+    t.string "token_prefix_jabvox", null: false
+    t.string "status_jabvox", default: "active", null: false
+    t.jsonb "allowed_ips_jabvox", default: [], null: false
+    t.jsonb "permissions_jabvox", default: {}, null: false
+    t.string "label_jabvox"
+    t.bigint "created_by_id"
+    t.datetime "last_used_at_jabvox"
+    t.datetime "revoked_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status_jabvox"], name: "idx_one_active_provisioner_token", unique: true, where: "((status_jabvox)::text = 'active'::text)"
+    t.index ["token_hash_jabvox"], name: "idx_provisioner_token_hash", unique: true
+  end
+
+  create_table "jabvox_provisioner_audit_logs", force: :cascade do |t|
+    t.bigint "provisioner_api_token_id"
+    t.string "resource_jabvox"
+    t.string "action_jabvox"
+    t.string "outcome_jabvox", null: false
+    t.string "reason_jabvox"
+    t.string "ip_jabvox"
+    t.integer "account_context_id"
+    t.jsonb "params_jabvox", default: {}, null: false
+    t.integer "http_status_jabvox"
+    t.datetime "created_at", null: false
+    t.index ["created_at"], name: "idx_provisioner_audit_created"
+    t.index ["resource_jabvox", "action_jabvox"], name: "idx_provisioner_audit_resource"
+  end
+
+  create_table "jabvox_provisioner_nonces", force: :cascade do |t|
+    t.string "nonce_jabvox", null: false
+    t.datetime "seen_at_jabvox", null: false
+    t.index ["nonce_jabvox"], name: "idx_provisioner_nonce", unique: true
+    t.index ["seen_at_jabvox"], name: "idx_provisioner_nonce_seen"
+  end
+
+  create_table "jabvox_provisioner_sessions", force: :cascade do |t|
+    t.bigint "provisioner_api_token_id", null: false
+    t.string "client_id_jabvox", null: false
+    t.string "bound_ip_jabvox", null: false
+    t.string "fingerprint_jabvox"
+    t.string "status_jabvox", default: "active", null: false
+    t.datetime "last_heartbeat_at_jabvox"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provisioner_api_token_id"], name: "index_jabvox_provisioner_sessions_on_provisioner_api_token_id"
+    t.index ["status_jabvox"], name: "idx_one_active_provisioner_session", unique: true, where: "((status_jabvox)::text = 'active'::text)"
   end
 
   create_table "jabvox_provisioning_chat_messages", force: :cascade do |t|
@@ -4345,6 +4265,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
   add_foreign_key "jabvox_affiliates", "accounts"
   add_foreign_key "jabvox_agent_availabilities", "accounts"
   add_foreign_key "jabvox_agent_availabilities", "users"
+  add_foreign_key "jabvox_ai_balance_movements", "accounts"
   add_foreign_key "jabvox_ai_chat_configs", "accounts"
   add_foreign_key "jabvox_ai_chat_configs", "jabvox_ai_chat_storages", column: "documents_storage_jabvox_id", on_delete: :nullify
   add_foreign_key "jabvox_ai_chat_documents", "accounts"
@@ -4355,6 +4276,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
   add_foreign_key "jabvox_ai_chat_models", "jabvox_hermes_agents", column: "hermes_agent_id"
   add_foreign_key "jabvox_ai_chat_user_permissions", "accounts"
   add_foreign_key "jabvox_ai_chat_user_permissions", "users"
+  add_foreign_key "jabvox_ai_provider_accounts", "accounts"
   add_foreign_key "jabvox_analytics_audit_logs", "accounts"
   add_foreign_key "jabvox_analytics_audit_logs", "users"
   add_foreign_key "jabvox_analytics_cross_joins", "jabvox_analytics_cross_reports", column: "cross_report_id"
@@ -4537,7 +4459,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
   add_foreign_key "jabvox_hermes_identities", "accounts"
   add_foreign_key "jabvox_hermes_provisioner_links", "accounts"
   add_foreign_key "jabvox_hermes_provisioner_links", "jabvox_hermes_provisioners", column: "hermes_provisioner_id"
-  add_foreign_key "jabvox_hermes_provisioners", "users", column: "service_user_id"
   add_foreign_key "jabvox_hermes_sessions", "accounts"
   add_foreign_key "jabvox_hermes_sessions", "users"
   add_foreign_key "jabvox_hermes_user_permissions", "accounts"
@@ -4609,6 +4530,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_09_193800) do
   add_foreign_key "jabvox_products", "jabvox_item_types"
   add_foreign_key "jabvox_products", "jabvox_units_of_measure", column: "jabvox_unit_of_measure_id"
   add_foreign_key "jabvox_products", "users", column: "created_by_id"
+  add_foreign_key "jabvox_provisioner_sessions", "jabvox_provisioner_api_tokens", column: "provisioner_api_token_id"
   add_foreign_key "jabvox_provisioning_chat_messages", "accounts"
   add_foreign_key "jabvox_provisioning_chat_messages", "users"
   add_foreign_key "jabvox_provisioning_transactions", "accounts"

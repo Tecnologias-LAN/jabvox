@@ -7,6 +7,7 @@
 #  id                  :bigint           not null, primary key
 #  filename            :string
 #  import_type         :integer          default("manual"), not null
+#  rows_duplicated     :integer          default(0), not null
 #  rows_failed         :integer          default(0), not null
 #  rows_ok             :integer          default(0), not null
 #  rows_total          :integer          default(0), not null
@@ -43,9 +44,27 @@ class JabvoxAffiliateImport < ApplicationRecord
   self.table_name = 'jabvox_affiliate_imports'
 
   enum :import_type, { manual: 0, csv: 1 }
+  # Una carga masiva se procesa en segundo plano: nace 'processing' y el portal
+  # consulta su avance. El alta manual nace ya 'completed'.
+  enum :status, { processing: 0, completed: 1, failed: 2 }, prefix: true
 
   belongs_to :account
   belongs_to :jabvox_affiliate
 
+  # El CSV original, para que el job lo lea fuera del request.
+  has_one_attached :source_file
+
   scope :ordered, -> { order(created_at: :desc) }
+
+  # Filas que ya se resolvieron (montadas + duplicadas + fallidas). Permite
+  # mostrar el avance mientras el archivo se procesa.
+  def rows_processed
+    rows_ok + rows_duplicated + rows_failed
+  end
+
+  def progress_percent
+    return 100 if status_completed? || rows_total.zero?
+
+    [(rows_processed * 100 / rows_total), 100].min
+  end
 end

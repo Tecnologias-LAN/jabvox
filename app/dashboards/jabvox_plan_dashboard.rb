@@ -14,6 +14,8 @@ class JabvoxPlanDashboard < Administrate::BaseDashboard
     price_in_pesos: Field::Number.with_options(searchable: false),
     price_cents: Field::Number,
     currency: Field::String,
+    # Saldo mensual de IA del plan, en USD (se guarda en centavos). 3 = $3 USD/mes.
+    ai_budget_in_usd: Field::Number.with_options(searchable: false),
     duration_days: Field::Number,
     billing_period: Field::Select.with_options(collection: JabvoxPlan.billing_periods.keys),
     status: Field::Select.with_options(collection: JabvoxPlan.statuses.keys),
@@ -42,6 +44,7 @@ class JabvoxPlanDashboard < Administrate::BaseDashboard
     price_in_pesos
     price_cents
     currency
+    ai_budget_in_usd
     duration_days
     billing_period
     status
@@ -59,6 +62,7 @@ class JabvoxPlanDashboard < Administrate::BaseDashboard
     slug
     price_in_pesos
     currency
+    ai_budget_in_usd
     duration_days
     billing_period
     status

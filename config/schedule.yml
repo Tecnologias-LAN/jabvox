@@ -219,3 +219,19 @@ jabvox_flows_sweep_due_runs_job:
   cron: '* * * * *'
   class: 'Jabvox::Flows::SweepDueRunsJob'
   queue: jabvox_flows_scheduled
+
+# Día 1 de cada mes a las 00:05: restablece el saldo de IA del PLAN de cada cuenta a su
+# presupuesto mensual (el saldo comprado aparte se conserva). Dispatcher que hace fan-out a
+# un job por cuenta; idempotente por periodo (no restablece dos veces el mismo mes).
+jabvox_ai_provider_monthly_budget_reset_job:
+  cron: '5 0 1 * *'
+  class: 'Jabvox::AiProvider::MonthlyBudgetResetJob'
+  queue: jabvox_payments
+
+# Cada 15 minutos: purga los nonces caducados de la API Provisioner (anti-replay). Fuera de
+# la ventana de firma un nonce ya no puede replayearse, así que conservarlo solo hace crecer
+# la tabla sin límite.
+jabvox_provisioner_nonce_purge_job:
+  cron: '*/15 * * * *'
+  class: 'Jabvox::Provisioner::NoncePurgeJob'
+  queue: scheduled_jobs

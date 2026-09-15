@@ -6,7 +6,7 @@ import { CAPTAIN_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 import {
   CAPTAIN_ERROR_TYPES,
   CAPTAIN_GENERATION_FAILURE_REASONS,
-} from 'dashboard/composables/captain/constants';
+} from 'dashboard/composables/ai/constants';
 
 // Actions that map to REWRITE events (with operation attribute)
 const REWRITE_ACTIONS = [

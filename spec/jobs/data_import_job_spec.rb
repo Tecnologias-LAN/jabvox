@@ -6,10 +6,12 @@ RSpec.describe DataImportJob do
   let!(:data_import) { create(:data_import) }
 
   describe 'enqueueing the job' do
-    it 'queues the job on the low priority queue' do
+    it 'encola en la cola AISLADA e interactiva de importaciones' do
+      # Nunca en las colas del worker principal: un CSV grande no puede taponar
+      # las bandejas de mensajes.
       expect { job }.to have_enqueued_job(described_class)
         .with(data_import)
-        .on_queue('low')
+        .on_queue('jabvox_lead_import_interactive')
     end
   end
 

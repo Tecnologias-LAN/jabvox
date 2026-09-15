@@ -114,6 +114,18 @@ class MessageApi extends ApiClient {
       }
     );
   }
+
+  // Dispara la transcripción de un adjunto de audio (nota de voz o grabación de llamada
+  // de WhatsApp) en el worker dedicado. Asíncrono: el texto llega por el broadcast normal
+  // de actualización del mensaje, no en esta respuesta.
+  transcribeAttachment(conversationId, messageId, attachmentId) {
+    return axios.post(
+      `${this.url}/${conversationId}/messages/${messageId}/transcribe`,
+      {
+        attachment_id: attachmentId,
+      }
+    );
+  }
 }
 
 export default new MessageApi();

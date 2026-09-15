@@ -37,6 +37,7 @@ class Jabvox::Billing::ProvisioningService
       result = run_account_provisioning(plan)
       account = result[:account]
       apply_plan_period!(account, plan)
+      apply_ai_budget!(account, plan)
 
       @tx.mark_provisioned!(account)
       { account: account, created_user: result[:created_user], set_password_url: result[:set_password_url] }
@@ -71,6 +72,19 @@ class Jabvox::Billing::ProvisioningService
       jabvox_plan_expires_at: base + plan.duration_days.days,
       status: :active
     )
+  end
+
+  # Aplica el saldo de IA del plan a la cuenta (crea/actualiza el team en el proveedor). Es
+  # BEST-EFFORT: si el proveedor no responde, NO revienta el aprovisionamiento del pago; el
+  # error queda registrado y el worker mensual / un reintento posterior lo corrige. Solo actúa
+  # si el proveedor está habilitado y el plan otorga saldo de IA.
+  def apply_ai_budget!(account, plan)
+    return unless JabvoxAiProviderConfig.instance.enabled_jabvox
+    return if plan.ai_budget_cents_jabvox.to_i.zero?
+
+    Jabvox::AiProvider::BalanceService.new(account).apply_plan!(plan, reference: @tx.idempotency_key)
+  rescue StandardError => e
+    Rails.logger.error("[Billing::Provisioning] saldo IA cuenta #{account.id}: #{e.class}: #{e.message}")
   end
 
   # Reconstruye el resultado sin volver a tocar nada (reintento sobre algo ya hecho).

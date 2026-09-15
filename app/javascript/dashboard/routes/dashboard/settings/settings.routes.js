@@ -25,7 +25,6 @@ import customRoles from './customRoles/customRole.routes';
 import profile from './profile/profile.routes';
 import security from './security/security.routes';
 import conversationWorkflow from './conversationWorkflow/conversationWorkflow.routes';
-import captain from './captain/captain.routes';
 import data from './data/data.routes';
 import { routes as jabvoxKanbanSettingsRoutes } from './jabvox-kanban/routes';
 import { routes as jabvoxVoipRoutes } from './jabvox-voip/routes';
@@ -33,6 +32,7 @@ import { routes as jabvoxCdrSettingsRoutes } from './jabvox-cdr/routes';
 import { routes as jabvoxAudioAnalysisSettingsRoutes } from './jabvox-audio-analysis/routes';
 import { routes as jabvoxTypificationsSettingsRoutes } from './jabvox-typifications/routes';
 import { routes as jabvoxSaldoRoutes } from './jabvox-saldo/routes';
+import { routes as jabvoxAiBudgetRoutes } from './jabvox-ai-budget/routes';
 import { routes as jabvoxIpWhitelistRoutes } from './jabvox-ip-whitelist/routes';
 import { routes as jabvoxAiChatSettingsRoutes } from './jabvox-ai-chat/routes';
 import { routes as jabvoxManagementStatesRoutes } from './jabvox-management-states/routes';
@@ -90,7 +90,6 @@ export default {
     ...profile.routes,
     ...security.routes,
     ...conversationWorkflow.routes,
-    ...captain.routes,
     ...jabvoxFieldSecurityRoutes,
     ...jabvoxKanbanSettingsRoutes,
     ...jabvoxVoipRoutes,
@@ -98,6 +97,7 @@ export default {
     ...jabvoxAudioAnalysisSettingsRoutes,
     ...jabvoxTypificationsSettingsRoutes,
     ...jabvoxSaldoRoutes,
+    ...jabvoxAiBudgetRoutes,
     ...jabvoxIpWhitelistRoutes,
     ...jabvoxAiChatSettingsRoutes,
     ...jabvoxManagementStatesRoutes,

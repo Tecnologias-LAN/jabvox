@@ -79,7 +79,6 @@ RSpec.describe Account, type: :model do
       }.with_indifferent_access
     end
     let(:account) { create(:account, { custom_attributes: { plan_name: 'startups' } }) }
-    let(:assistant) { create(:captain_assistant, account: account) }
 
     before do
       create(:installation_config, name: 'ACCOUNT_AGENTS_LIMIT', value: 20)
@@ -87,18 +86,11 @@ RSpec.describe Account, type: :model do
 
     describe 'when captain limits are configured' do
       before do
-        create_list(:captain_document, 3, account: account, assistant: assistant, status: :available)
         create(:installation_config, name: 'CAPTAIN_CLOUD_PLAN_LIMITS', value: captain_limits.to_json)
       end
 
-      ## Document
-      it 'updates document count accurately' do
-        account.update_document_usage
-        expect(account.custom_attributes['captain_documents_usage']).to eq(3)
-      end
-
-      it 'handles zero documents' do
-        account.captain_documents.destroy_all
+      ## Document — el módulo de documentos desapareció con Captain: el consumo es siempre 0.
+      it 'keeps document usage at zero' do
         account.update_document_usage
         expect(account.custom_attributes['captain_documents_usage']).to eq(0)
       end
@@ -106,8 +98,8 @@ RSpec.describe Account, type: :model do
       it 'reflects document limits' do
         document_limits = account.usage_limits[:captain][:documents]
 
-        expect(document_limits[:consumed]).to eq 3
-        expect(document_limits[:current_available]).to eq captain_limits[:startups][:documents] - 3
+        expect(document_limits[:consumed]).to eq 0
+        expect(document_limits[:current_available]).to eq captain_limits[:startups][:documents]
       end
 
       ## Responses
@@ -273,94 +265,6 @@ RSpec.describe Account, type: :model do
       )
     end
 
-    it 'enables Captain V2 for new self-hosted enterprise accounts' do
-      allow(JabvoxApp).to receive(:self_hosted_enterprise?).and_return(true)
-
-      account = create(:account)
-
-      expect(account).to be_feature_enabled('captain_integration')
-      expect(account).to be_feature_enabled('captain_integration_v2')
-      expect(account.captain_preferences[:models]['assistant']).to eq('gpt-5.2')
-      expect(account.captain_models).to be_nil
-    end
-
-    it 'marks new cloud accounts as eligible for the Captain V2 paid-plan default' do
-      allow(JabvoxApp).to receive(:self_hosted_enterprise?).and_return(false)
-      allow(JabvoxApp).to receive(:jabvox_cloud?).and_return(true)
-
-      account = create(:account)
-
-      expect(account.internal_attributes[Enterprise::Account::CAPTAIN_V2_DEFAULT_ELIGIBLE]).to be true
-      expect(account).not_to be_feature_enabled('captain_integration')
-      expect(account).not_to be_feature_enabled('captain_integration_v2')
-    end
-  end
-
-  describe 'captain document sync cadence' do
-    let(:account) { create(:account) }
-
-    it 'has no cadence when installation config is missing' do
-      account.update!(custom_attributes: { plan_name: 'business' })
-      expect(account.captain_document_sync_interval).to be_nil
-    end
-
-    it 'uses configured plan intervals from installation config' do
-      intervals = {
-        business: 48,
-        enterprise: 24
-      }
-      create(:installation_config, name: 'CAPTAIN_DOCUMENT_AUTO_SYNC_INTERVALS', value: intervals.to_json)
-      account.update!(custom_attributes: { plan_name: 'business' })
-
-      expect(account.captain_document_sync_interval).to eq(2.days)
-    end
-
-    it 'normalizes configured plan name casing' do
-      create(:installation_config, name: 'CAPTAIN_DOCUMENT_AUTO_SYNC_INTERVALS', value: { business: 24 }.to_json)
-      account.update!(custom_attributes: { plan_name: 'Business' })
-
-      expect(account.captain_document_sync_interval).to eq(1.day)
-    end
-
-    it 'uses the enterprise cadence for self-hosted enterprise installs without a plan_name' do
-      allow(JabvoxApp).to receive(:self_hosted_enterprise?).and_return(true)
-      create(:installation_config, name: 'CAPTAIN_DOCUMENT_AUTO_SYNC_INTERVALS', value: { enterprise: 6 }.to_json)
-      account.update!(custom_attributes: {})
-
-      expect(account.captain_document_sync_interval).to eq(6.hours)
-    end
-
-    it 'allows installation config to disable a plan cadence' do
-      create(:installation_config, name: 'CAPTAIN_DOCUMENT_AUTO_SYNC_INTERVALS', value: { business: nil }.to_json)
-      account.update!(custom_attributes: { plan_name: 'business' })
-
-      expect(account.captain_document_sync_interval).to be_nil
-    end
-
-    it 'has no cadence when installation config is invalid' do
-      create(:installation_config, name: 'CAPTAIN_DOCUMENT_AUTO_SYNC_INTERVALS', value: 'invalid-json')
-      account.update!(custom_attributes: { plan_name: 'business' })
-
-      expect(account.captain_document_sync_interval).to be_nil
-    end
-
-    it 'treats invalid plan interval values as disabled' do
-      intervals = {
-        business: false,
-        enterprise: { hours: 6 },
-        startups: '168'
-      }
-      create(:installation_config, name: 'CAPTAIN_DOCUMENT_AUTO_SYNC_INTERVALS', value: intervals.to_json)
-
-      account.update!(custom_attributes: { plan_name: 'business' })
-      expect(account.captain_document_sync_interval).to be_nil
-
-      account.update!(custom_attributes: { plan_name: 'enterprise' })
-      expect(account.captain_document_sync_interval).to be_nil
-
-      account.update!(custom_attributes: { plan_name: 'startups' })
-      expect(account.captain_document_sync_interval).to be_nil
-    end
   end
 
   describe 'account deletion' do

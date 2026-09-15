@@ -58,6 +58,7 @@ import jabvoxLeadImport from './jabvoxLeadImport.json';
 import jabvoxDataExport from './jabvoxDataExport.json';
 import jabvoxAdvancedAutomations from './jabvoxAdvancedAutomations.json';
 import jabvoxSaldo from './jabvoxSaldo.json';
+import jabvoxAiBudget from './jabvoxAiBudget.json';
 import jabvoxSms from './jabvoxSms.json';
 import jabvoxVoip from './jabvoxVoip.json';
 import labelsMgmt from './labelsMgmt.json';
@@ -138,6 +139,7 @@ export default {
   ...jabvoxDataExport,
   ...jabvoxAdvancedAutomations,
   ...jabvoxSaldo,
+  ...jabvoxAiBudget,
   ...jabvoxSms,
   ...jabvoxVoip,
   ...labelsMgmt,

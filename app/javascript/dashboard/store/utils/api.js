@@ -44,6 +44,10 @@ export const setAuthCredentials = response => {
   }, {});
   Cookies.set('cw_d_session_info', JSON.stringify(authHeaders), {
     expires: differenceInDays(expiryDate, new Date()),
+    // `secure` en HTTPS evita que el token viaje en claro si alguna vez la app se
+    // sirviera por HTTP; en desarrollo local (http://localhost) se omite para no
+    // invalidar la cookie silenciosamente.
+    secure: window.location.protocol === 'https:',
   });
   setUser(response.data.data, expiryDate);
 };

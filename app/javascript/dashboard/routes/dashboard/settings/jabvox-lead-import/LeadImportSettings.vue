@@ -9,6 +9,7 @@ import Select from 'dashboard/components-next/select/Select.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
+import countries from 'shared/constants/countries.js';
 
 const { t } = useI18n();
 
@@ -164,7 +165,7 @@ const openMapping = async source => {
       externalIdColumn: source.external_id_column_jabvox || '',
       map: { ...(source.field_mapping_jabvox || {}) },
       related: (source.related_tables_jabvox || []).map(r => ({ ...r })),
-      phonePrefix: source.phone_prefix_jabvox || '',
+      country: source.country_jabvox || '',
       filters: (source.filters_jabvox || []).map(f => ({
         column: f.column || '',
         op: f.op || 'eq',
@@ -457,7 +458,7 @@ const saveMapping = async () => {
       external_id_column_jabvox: m.externalIdColumn,
       field_mapping_jabvox: m.map,
       related_tables_jabvox: related,
-      phone_prefix_jabvox: m.phonePrefix,
+      country_jabvox: m.country,
       filters_jabvox: filters,
     });
     mapping.value = null;
@@ -735,16 +736,24 @@ onUnmounted(() => clearInterval(pollTimer));
           </div>
         </div>
 
-        <!-- Phone prefix (E.164 normalization) -->
+        <!-- País: de él sale el prefijo E.164 de los teléfonos importados -->
         <div v-if="mapping.table" class="flex flex-col gap-1.5">
-          <Input
-            v-model="mapping.phonePrefix"
-            class="max-w-[12rem]"
-            :label="t('JABVOX_LEAD_IMPORT.PHONE_PREFIX.LABEL')"
-            placeholder="57"
-          />
+          <label class="text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_LEAD_IMPORT.COUNTRY.LABEL') }}
+          </label>
+          <select
+            v-model="mapping.country"
+            class="max-w-[20rem] h-9 rounded-lg border border-n-weak bg-n-solid-1 px-3 text-sm text-n-slate-12"
+          >
+            <option value="">
+              {{ t('JABVOX_LEAD_IMPORT.COUNTRY.PLACEHOLDER') }}
+            </option>
+            <option v-for="c in countries" :key="c.id" :value="c.id">
+              {{ c.emoji }} {{ c.name }} ({{ c.dial_code }})
+            </option>
+          </select>
           <p class="text-xs text-n-slate-11">
-            {{ t('JABVOX_LEAD_IMPORT.PHONE_PREFIX.HINT') }}
+            {{ t('JABVOX_LEAD_IMPORT.COUNTRY.HINT') }}
           </p>
         </div>
 

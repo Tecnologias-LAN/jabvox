@@ -2,7 +2,7 @@ import { computed, onMounted } from 'vue';
 import { useMapGetter, useStore } from 'dashboard/composables/store';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
-import TasksAPI from 'dashboard/api/captain/tasks';
+import TasksAPI from 'dashboard/api/ai/tasks';
 
 /**
  * Cleans and normalizes a list of labels.
@@ -26,7 +26,7 @@ export function useLabelSuggestions() {
   const conversationId = computed(() => currentChat.value?.id);
 
   const captainTasksEnabled = computed(() => {
-    return isCloudFeatureEnabled(FEATURE_FLAGS.CAPTAIN_TASKS);
+    return isCloudFeatureEnabled(FEATURE_FLAGS.JABVOX_AI_CHAT);
   });
 
   const aiIntegration = computed(

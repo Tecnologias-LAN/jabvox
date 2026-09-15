@@ -86,6 +86,16 @@ class Rack::Attack
     token.present? ? "hermes:#{Digest::SHA256.hexdigest(token)}" : "hermes-ip:#{req.ip}"
   end
 
+  # API Provisioner (superficie administrativa privilegiada): rate limit estricto por token
+  # hasheado (o por IP si no viene token). Ajustable por env PROVISIONER_API_LIMIT (por minuto).
+  throttle('provisioner_api/token', limit: ENV.fetch('PROVISIONER_API_LIMIT', '120').to_i, period: 1.minute) do |req|
+    next unless req.path.start_with?('/api/provisioner')
+
+    auth = req.get_header('HTTP_AUTHORIZATION').to_s
+    token = auth.start_with?('Bearer ') ? auth.split(' ', 2).last : req.get_header('HTTP_X_PROVISIONER_TOKEN')
+    token.present? ? "provisioner:#{Digest::SHA256.hexdigest(token)}" : "provisioner-ip:#{req.ip}"
+  end
+
   ###-----------------------------------------------###
   ###-----Authentication Related Throttling---------###
   ###-----------------------------------------------###
@@ -129,6 +139,23 @@ class Rack::Attack
   ## to blunt any brute-forcing of the per-batch token.
   throttle('jabvox_bulk_wa_callback/ip', limit: 300, period: 1.minute) do |req|
     req.ip if req.post? && req.path.match?(%r{/jabvox/bulk_whatsapp/batches/[^/]+/results\z})
+  end
+
+  ## Webhook SMS (Bandwidth): token propio en la URL, sin firma HMAC del proveedor. Cap por
+  ## IP para frenar fuerza bruta del token y abuso del endpoint en general.
+  throttle('webhooks_sms/ip', limit: 60, period: 1.minute) do |req|
+    req.ip if req.post? && req.path.start_with?('/webhooks/sms/')
+  end
+
+  ## Login del portal de afiliados: account_code/portal_slug son públicos (van en la URL),
+  ## así que el único secreto real es el auth_token de 32 caracteres. Mismo patrón que el
+  ## login estándar (login/ip + login/email) para no depender solo de la entropía del token.
+  throttle('affiliate_portal_login/ip', limit: 5, period: 5.minutes) do |req|
+    req.ip if req.post? && req.path == '/api/v1/jabvox/affiliate_portal/auth/login'
+  end
+
+  throttle('affiliate_portal_login/account_code', limit: 10, period: 15.minutes) do |req|
+    req.params['account_code'].presence if req.post? && req.path == '/api/v1/jabvox/affiliate_portal/auth/login'
   end
 
   ## Alta de tickets: limita la creación por IP (anti-spam / doble submit). La

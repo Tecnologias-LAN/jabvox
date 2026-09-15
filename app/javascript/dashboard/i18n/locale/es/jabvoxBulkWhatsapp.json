@@ -172,7 +172,10 @@
       "HEADER_DOCUMENT": "Documento",
       "VARS_COUNT": "Sin variables | 1 variable | {count} variables",
       "NUMBER_COLUMN": "Columna del número (a quién se envía)",
-      "NUMBER_COLUMN_HINT": "Autodetectada del archivo. Puedes cambiarla si el número está en otra columna."
+      "NUMBER_COLUMN_HINT": "Autodetectada del archivo. Puedes cambiarla si el número está en otra columna.",
+      "COUNTRY": "País de los números",
+      "COUNTRY_NONE": "Sin país (enviar tal cual)",
+      "COUNTRY_HINT": "Si lo eliges, el prefijo se agrega a los números que vengan sin él. Los que ya lo traen no se modifican."
     },
     "HISTORY": {
       "LOADING": "Cargando historial…",

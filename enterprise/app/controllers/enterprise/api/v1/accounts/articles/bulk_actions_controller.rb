@@ -10,7 +10,7 @@ module Enterprise::Api::V1::Accounts::Articles::BulkActionsController
     end
 
     @articles.find_each do |article|
-      Captain::Articles::TranslateJob.perform_later(
+      Hermes::Articles::TranslateJob.perform_later(
         Current.account, article.id, @locale, @category&.id, Current.user
       )
     end
@@ -38,7 +38,7 @@ module Enterprise::Api::V1::Accounts::Articles::BulkActionsController
   end
 
   def captain_available?
-    return true if Current.account.feature_enabled?('captain_tasks')
+    return true if Current.account.feature_enabled?('jabvox_ai_chat')
 
     render_could_not_create_error(I18n.t('portals.articles.captain_not_available'))
     false

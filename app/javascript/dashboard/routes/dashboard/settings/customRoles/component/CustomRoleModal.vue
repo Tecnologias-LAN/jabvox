@@ -57,6 +57,8 @@ const MODULE_FEATURE_FLAG = {
   voip: FEATURE_FLAGS.JABVOX_VOIP,
   products: FEATURE_FLAGS.JABVOX_PRODUCTS,
   affiliates: FEATURE_FLAGS.JABVOX_AFFILIATES,
+  flows: FEATURE_FLAGS.JABVOX_ADVANCED_AUTOMATIONS,
+  ai_chat_provisioning: FEATURE_FLAGS.JABVOX_AI_CHAT_PROVISIONING,
   // management_states, integrations, ip_whitelist, typifications,
   // field_visibilities, campaigns, app_states, reports: no per-account module
   // toggle in the backend's enabled_features → always shown. (Mapping a

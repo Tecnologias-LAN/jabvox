@@ -1,5 +1,5 @@
 [Unit]
-Description=Jabvox Sidekiq worker — Import de leads (cola aislada)
+Description=Jabvox Sidekiq worker — Importaciones de leads (CSV, afiliados, BD externa)
 After=network.target postgresql.service redis-server.service
 
 [Service]
@@ -9,11 +9,18 @@ WorkingDirectory=/home/jabvox/jabvox
 Environment=RAILS_ENV=production
 # rbenv en el PATH (igual que el worker principal)
 Environment=PATH=/home/jabvox/.rbenv/shims:/home/jabvox/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+# Pool de Postgres ACOTADO: database.yml deriva el pool de SIDEKIQ_CONCURRENCY,
+# así que sin fijarla aquí este worker abriría ~10 conexiones en vez de 8.
+# Ambas deben moverse JUNTAS si se cambia la concurrencia.
+Environment=JABVOX_LEADIMPORT_CONCURRENCY=8
+Environment=SIDEKIQ_CONCURRENCY=8
 ExecStart=/home/jabvox/.rbenv/shims/bundle exec sidekiq -C config/sidekiq_lead_import.yml
 Restart=always
 RestartSec=5
 # Reinicio de memoria: si el worker crece demasiado, systemd lo recicla (evita OOM global)
-MemoryMax=700M
+# Un CSV grande se procesa por lotes, pero el margen evita que un archivo
+# atípico tumbe el worker: systemd lo recicla y Sidekiq reintenta.
+MemoryMax=900M
 
 [Install]
 WantedBy=multi-user.target

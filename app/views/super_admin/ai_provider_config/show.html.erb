@@ -1,0 +1,229 @@
+<% content_for(:title) { 'Saldo IA' } %>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title" id="page-title">Saldo IA — Proveedor</h1>
+</header>
+
+<section class="main-content__body">
+  <% if notice %><p class="flash flash--notice"><%= notice %></p><% end %>
+  <% if alert %><p class="flash flash--error"><%= alert %></p><% end %>
+
+  <!-- Pestañas -->
+  <% tabs = { 'connection' => 'Conexión (master)', 'accounts' => 'Por cuenta', 'balances' => 'Saldos' } %>
+  <div style="display:flex; gap:4px; border-bottom:1px solid #e5e7eb; margin-bottom:20px;">
+    <% tabs.each do |key, label| %>
+      <%= link_to label, super_admin_ai_provider_config_path(tab: key),
+            style: "padding:8px 16px; font-size:13px; text-decoration:none; border-bottom:2px solid #{@tab == key ? '#15605A' : 'transparent'}; color:#{@tab == key ? '#15605A' : '#6b7280'}; font-weight:#{@tab == key ? '600' : '400'};" %>
+    <% end %>
+  </div>
+
+  <!-- ================= TAB: Conexión (master) ================= -->
+  <% if @tab == 'connection' %>
+    <div style="margin-bottom:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+      <p style="font-size:13px; color:#374151; margin:0;">
+        Conecta el <strong>proveedor de IA</strong> con su <strong>master key</strong> (se guarda
+        cifrada, nunca se muestra). Cada cuenta tendrá su team con saldo: el del plan se
+        restablece cada mes y lo comprado aparte se acumula.
+      </p>
+    </div>
+
+    <h2 style="font-size:15px; font-weight:600; margin:0 0 12px;">Estado</h2>
+    <div style="margin-bottom:20px; font-size:13px; color:#374151;">
+      Conexión:
+      <strong style="color:<%= { 'connected' => '#16a34a', 'error' => '#b91c1c' }[@summary[:status]] || '#b45309' %>;">
+        <%= { 'connected' => 'Conectado', 'error' => 'Error', 'disconnected' => 'Sin verificar' }[@summary[:status]] %>
+      </strong>
+      · Habilitado: <strong><%= @summary[:enabled] ? 'Sí' : 'No' %></strong>
+      · Master key: <strong><%= @summary[:master_key_set] ? 'Configurada' : 'No configurada' %></strong>
+      <% if @summary[:last_error].present? %><br><span style="color:#b91c1c;">Último error: <%= @summary[:last_error] %></span><% end %>
+      <% if @summary[:last_check_at].present? %><br><span style="color:#6b7280;">Última verificación: <%= @summary[:last_check_at] %></span><% end %>
+    </div>
+
+    <%= form_with url: super_admin_ai_provider_config_path, method: :patch, local: true do |form| %>
+      <div class="flex mb-4">
+        <div class="field-unit__label"><%= form.label :provider_name, 'Nombre del proveedor' %></div>
+        <div class="-mt-2 field-unit__field">
+          <%= form.text_field :provider_name, value: @summary[:provider_name], placeholder: 'Ej: Proveedor IA' %>
+        </div>
+      </div>
+      <div class="flex mb-4">
+        <div class="field-unit__label"><%= form.label :base_url, 'URL base' %></div>
+        <div class="-mt-2 field-unit__field">
+          <%= form.text_field :base_url, value: @summary[:base_url], placeholder: 'https://proxy.ejemplo.com' %>
+          <p class="pt-2 text-xs italic text-slate-400">Debe usar https:// (salvo hosts locales). La master key viaja como Bearer.</p>
+        </div>
+      </div>
+      <div class="flex mb-4">
+        <div class="field-unit__label"><%= form.label :master_key, 'Master key' %></div>
+        <div class="-mt-2 field-unit__field">
+          <%= form.password_field :master_key, value: '', autocomplete: 'new-password',
+                placeholder: @summary[:master_key_set] ? '•••••••• (configurada — vacío para conservar)' : 'sk-...' %>
+          <p class="pt-2 text-xs italic text-slate-400">Se guarda cifrada. Vacía para conservar la actual. Nunca sale al navegador.</p>
+        </div>
+      </div>
+      <div class="flex mb-4">
+        <div class="field-unit__label"><%= form.label :enabled, 'Habilitado' %></div>
+        <div class="-mt-2 field-unit__field">
+          <%= form.check_box :enabled, checked: @summary[:enabled] %>
+          <span class="text-xs italic text-slate-400">Si está deshabilitado, no se sincroniza saldo ni corre el worker mensual.</span>
+        </div>
+      </div>
+      <div class="flex mb-4">
+        <div class="field-unit__label"></div>
+        <div class="-mt-2 field-unit__field"><%= form.submit 'Guardar', class: 'button' %></div>
+      </div>
+    <% end %>
+
+    <h2 style="font-size:15px; font-weight:600; margin:20px 0 8px;">Probar conexión</h2>
+    <%= form_with url: test_connection_super_admin_ai_provider_config_path, method: :post, local: true do |form| %>
+      <%= form.submit 'Probar conexión', class: 'button' %>
+      <p class="pt-2 text-xs italic text-slate-400">Consulta los modelos del proveedor para verificar URL + master key.</p>
+    <% end %>
+  <% end %>
+
+  <!-- ================= TAB: Por cuenta ================= -->
+  <% if @tab == 'accounts' %>
+    <div style="margin-bottom:20px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+      <p style="font-size:13px; color:#374151; margin:0;">
+        <strong>Aprovisionar</strong> crea el team de la cuenta en el proveedor y le aplica el
+        saldo del plan. <strong>Recargar</strong> suma saldo comprado (se acumula).
+      </p>
+      <% unless @summary[:enabled] %>
+        <p style="font-size:13px; color:#b91c1c; margin:8px 0 0;">⚠️ El proveedor está deshabilitado. Actívalo en la pestaña <em>Conexión</em>.</p>
+      <% end %>
+    </div>
+
+    <!-- Sincronizar TODO desde el proveedor -->
+    <div style="margin-bottom:24px; padding:16px; border:1px solid #e5e7eb; border-radius:8px; background:#f0fdf4;">
+      <h2 style="font-size:15px; font-weight:600; margin:0 0 4px;">Sincronizar desde el proveedor</h2>
+      <p style="font-size:12px; color:#6b7280; margin:0 0 12px;">
+        Trae <strong>todos</strong> los teams que existen en el proveedor y los refleja aquí.
+        Los que traen <code>crm_id</code> en su metadata o se llaman <code>crm-&lt;id&gt;</code>
+        se ligan automáticamente a su cuenta; el resto queda abajo como <em>sin cuenta</em>
+        para que los ligues a mano. No borra nada ni pisa los saldos locales.
+      </p>
+      <%= button_to 'Sincronizar ahora', sync_provider_super_admin_ai_provider_config_path,
+            method: :post, class: 'button',
+            data: { confirm: '¿Traer todos los teams del proveedor e importarlos a Jabvox?' } %>
+    </div>
+
+    <!-- Crear team manualmente para CUALQUIER cuenta (sin depender del plan) -->
+    <div style="margin-bottom:24px; padding:16px; border:1px solid #e5e7eb; border-radius:8px;">
+      <h2 style="font-size:15px; font-weight:600; margin:0 0 4px;">Crear team y ligar a una cuenta</h2>
+      <p style="font-size:12px; color:#6b7280; margin:0 0 12px;">
+        Crea el team en el proveedor y lo liga a la cuenta que elijas, sin depender del
+        plan. El saldo inicial (opcional) se suma como saldo comprado (no se restablece).
+      </p>
+      <%= form_with url: manual_setup_super_admin_ai_provider_config_path, method: :post, local: true do |f| %>
+        <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+          <div>
+            <label style="display:block; font-size:12px; color:#374151; margin-bottom:4px;">Cuenta</label>
+            <%= f.select :account_id,
+                  options_for_select(@account_options),
+                  { include_blank: 'Selecciona una cuenta…' },
+                  { required: true, style: 'min-width:280px;', data: { jabvox_account_select: true } } %>
+          </div>
+          <div>
+            <label style="display:block; font-size:12px; color:#374151; margin-bottom:4px;">Saldo inicial (USD, opcional)</label>
+            <%= f.number_field :initial_usd, step: '0.01', min: '0', placeholder: '0.00', style: 'width:140px;' %>
+          </div>
+          <%= f.submit 'Crear team y ligar', class: 'button' %>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Teams del proveedor sin cuenta asignada -->
+    <% if Array(@orphans).any? %>
+      <div style="margin-bottom:24px; padding:16px; border:1px solid #fcd34d; border-radius:8px; background:#fffbeb;">
+        <h2 style="font-size:15px; font-weight:600; margin:0 0 4px;">
+          Teams en el proveedor sin cuenta (<%= @orphans.size %>)
+        </h2>
+        <p style="font-size:12px; color:#6b7280; margin:0 0 12px;">
+          Existen en el proveedor pero no se pudieron mapear a ninguna cuenta. Elige la cuenta
+          a la que pertenece cada uno.
+        </p>
+        <table class="w-full" style="font-size:13px;">
+          <thead>
+            <tr style="text-align:left; border-bottom:1px solid #fcd34d;">
+              <th style="padding:6px;">Team</th>
+              <th style="padding:6px; text-align:right;">Tope</th>
+              <th style="padding:6px; text-align:right;">Gastado</th>
+              <th style="padding:6px;">Ligar a cuenta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @orphans.each do |orphan| %>
+              <tr style="border-bottom:1px solid #fef3c7;">
+                <td style="padding:6px;">
+                  <strong><%= orphan.team_alias_jabvox.presence || '(sin alias)' %></strong><br>
+                  <span style="color:#6b7280; font-family:monospace; font-size:11px;"><%= orphan.team_id_jabvox %></span>
+                </td>
+                <td style="padding:6px; text-align:right;">
+                  <%= orphan.remote_max_budget_jabvox ? "$#{format('%.2f', orphan.remote_max_budget_jabvox)}" : 'Sin tope' %>
+                </td>
+                <td style="padding:6px; text-align:right;">$<%= format('%.4f', (orphan.cached_spend_jabvox || 0).to_f) %></td>
+                <td style="padding:6px;">
+                  <%= form_with url: link_account_super_admin_ai_provider_config_path, method: :post, local: true do |f| %>
+                    <%= f.hidden_field :provider_account_id, value: orphan.id %>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                      <%= f.select :account_id, options_for_select(@account_options),
+                            { include_blank: 'Selecciona…' },
+                            { required: true, style: 'min-width:240px;', data: { jabvox_account_select: true } } %>
+                      <%= f.submit 'Ligar', class: 'button' %>
+                    </div>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+
+    <h2 style="font-size:15px; font-weight:600; margin:0 0 8px;">Cuentas con plan de IA</h2>
+    <%= render 'super_admin/ai_provider_config/accounts_table', mode: :manage %>
+  <% end %>
+
+  <!-- Buscador de cuentas: convierte cada <select> de cuentas en un combo filtrable.
+       Sin dependencias: se apoya en un <datalist> espejo y valida contra las opciones
+       reales, de modo que solo se pueda enviar un id de cuenta existente. -->
+  <% if @tab == 'accounts' %>
+    <script>
+      (function () {
+        document.querySelectorAll('select[data-jabvox-account-select]').forEach(function (select) {
+          var options = Array.prototype.slice.call(select.options).filter(function (o) { return o.value; });
+          if (options.length < 8) return; // con pocas cuentas el <select> nativo basta
+
+          var box = document.createElement('input');
+          box.type = 'search';
+          box.placeholder = 'Filtrar por nombre o #id…';
+          box.setAttribute('aria-label', 'Filtrar cuentas');
+          box.style.cssText = 'display:block; margin-bottom:4px; width:100%; box-sizing:border-box;';
+          select.parentNode.insertBefore(box, select);
+
+          box.addEventListener('input', function () {
+            var q = box.value.trim().toLowerCase();
+            var firstVisible = null;
+            options.forEach(function (option) {
+              var hit = !q || option.text.toLowerCase().indexOf(q) !== -1;
+              option.hidden = !hit;
+              if (hit && !firstVisible) firstVisible = option;
+            });
+            // Si la selección actual quedó oculta, salta a la primera coincidencia.
+            if (select.selectedOptions[0] && select.selectedOptions[0].hidden) {
+              select.value = firstVisible ? firstVisible.value : '';
+            }
+          });
+        });
+      })();
+    </script>
+  <% end %>
+
+  <!-- ================= TAB: Saldos ================= -->
+  <% if @tab == 'balances' %>
+    <div style="margin-bottom:20px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+      <p style="font-size:13px; color:#374151; margin:0;">Saldo de cada cuenta: del plan (se restablece cada mes) + comprado (se acumula) − gastado.</p>
+    </div>
+    <%= render 'super_admin/ai_provider_config/accounts_table', mode: :view %>
+  <% end %>
+</section>

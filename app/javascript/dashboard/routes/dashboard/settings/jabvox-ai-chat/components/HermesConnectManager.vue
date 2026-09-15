@@ -23,8 +23,11 @@ const editingId = ref(null);
 const emptyForm = () => ({
   name_jabvox: '',
   hermes_agent_name_jabvox: '',
-  base_url_jabvox: 'http://10.147.100.1:8642/p/AGENTE/v1',
+  base_url_jabvox: '',
   token_jabvox: '',
+  // IPs/CIDR desde los que ESTE Hermes puede ejecutar acciones sobre la cuenta. Se edita
+  // como texto separado por comas; el backend lo normaliza a lista y valida cada entrada.
+  allowed_ips_jabvox: '',
 });
 const form = ref(emptyForm());
 
@@ -53,6 +56,7 @@ const openEdit = conn => {
     hermes_agent_name_jabvox: conn.hermes_agent,
     base_url_jabvox: conn.base_url,
     token_jabvox: '', // en blanco = conservar
+    allowed_ips_jabvox: (conn.allowed_ips || []).join(', '),
   };
   showForm.value = true;
 };
@@ -114,6 +118,8 @@ const TXT = {
   title: 'Agentes de Hermes',
   desc: 'Conecta uno o varios agentes del Hermes de la cuenta. Todos deben usar el mismo host y puerto (mismo Hermes), cada uno con su URL de agente y su token.',
   empty: 'No hay agentes de Hermes conectados todavía.',
+  noAllowedIps: 'Sin IPs autorizadas: este Hermes no puede ejecutar acciones.',
+  allowedIpsPrefix: 'IPs: ',
 };
 
 onMounted(load);
@@ -147,6 +153,20 @@ onMounted(load);
           </div>
           <div v-if="conn.last_error" class="text-xs text-red-500 mt-0.5">
             {{ conn.last_error }}
+          </div>
+          <div
+            v-if="!conn.allowed_ips_configured"
+            class="text-xs text-amber-600 mt-0.5 flex items-center gap-1"
+          >
+            <span class="i-lucide-shield-alert size-3 shrink-0" />
+            {{ TXT.noAllowedIps }}
+          </div>
+          <div
+            v-else
+            class="text-xs text-n-slate-10 mt-0.5 font-mono truncate"
+            :title="conn.allowed_ips.join(', ')"
+          >
+            {{ TXT.allowedIpsPrefix + conn.allowed_ips.join(', ') }}
           </div>
         </div>
         <div class="flex items-center gap-2">
@@ -185,18 +205,18 @@ onMounted(load);
         <Input
           v-model="form.name_jabvox"
           label="Nombre visible"
-          placeholder="Agente Ana"
+          placeholder="Mi agente"
         />
         <Input
           v-model="form.hermes_agent_name_jabvox"
           label="Nombre del agente en Hermes"
-          placeholder="agente-ana"
+          placeholder="mi-agente"
           custom-input-class="font-mono"
         />
         <Input
           v-model="form.base_url_jabvox"
-          label="URL del agente (ZeroTier)"
-          placeholder="http://10.147.100.1:8642/p/agente-ana/v1"
+          label="URL del agente"
+          placeholder="http://tu-hermes.ejemplo:PUERTO/p/mi-agente/v1"
           message="Mismo host:puerto que los demás agentes. Incluye el prefijo /p/<agente>/v1."
           custom-input-class="font-mono"
         />
@@ -207,6 +227,13 @@ onMounted(load);
           :placeholder="
             editingId ? '(en blanco = conservar)' : 'Bearer token del agente'
           "
+          custom-input-class="font-mono"
+        />
+        <Input
+          v-model="form.allowed_ips_jabvox"
+          label="IPs autorizadas de este Hermes"
+          placeholder="203.0.113.5, 10.147.17.0/24"
+          message="Solo desde estas IPs o rangos podrá este Hermes ejecutar acciones. Acepta IP suelta o CIDR, incluidas las de ZeroTier. Si se deja vacío, no podrá ejecutar nada."
           custom-input-class="font-mono"
         />
         <div class="flex gap-2 justify-end">

@@ -26,6 +26,10 @@ class Api::V1::Accounts::Jabvox::Analytics::ExportsController < Api::V1::Account
   end
 
   def destroy
+    unless @export.user_id == current_user.id || jabvox_can?('jabvox_analytics_manage')
+      return render json: { error: 'No tienes permiso para borrar este export' }, status: :forbidden
+    end
+
     @export.destroy!
     head :no_content
   end

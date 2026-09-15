@@ -93,6 +93,8 @@ class CustomRole < ApplicationRecord
     jabvox_affiliates_manage
     jabvox_app_states_manage
     jabvox_reports_view
+    jabvox_flows_manage
+    jabvox_ai_chat_provisioning_manage
   ].freeze
 
   PERMISSIONS = (BASE_PERMISSIONS + JABVOX_PERMISSIONS).freeze
@@ -127,7 +129,9 @@ class CustomRole < ApplicationRecord
     %w[jabvox_saldo_manage] => 'jabvox_saldo',
     %w[jabvox_voip_manage] => 'jabvox_voip',
     %w[jabvox_products_manage jabvox_orders_manage] => 'jabvox_products',
-    %w[jabvox_affiliates_manage] => 'jabvox_affiliates'
+    %w[jabvox_affiliates_manage] => 'jabvox_affiliates',
+    %w[jabvox_flows_manage] => 'jabvox_advanced_automations',
+    %w[jabvox_ai_chat_provisioning_manage] => 'jabvox_ai_chat_provisioning'
   }.flat_map { |perms, feature| perms.map { |p| [p, feature] } }.to_h.freeze
 
   # Can `permission` be granted on `account` right now? False only when the

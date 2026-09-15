@@ -37,6 +37,10 @@ class DataImport < ApplicationRecord
   LEGACY_DATA_TYPES = ['contacts'].freeze
   INTEGRATION_DATA_TYPES = ['intercom'].freeze
   IMPORT_TYPES = %w[contacts conversations].freeze
+  # Qué hacer con un lead que ya existe en la cuenta (mismo teléfono o correo).
+  #   'skip'      : no se toca, solo se reporta como duplicado.
+  #   'update'    : los campos que trae el archivo pisan los del lead existente.
+  DUPLICATE_POLICIES = %w[skip update].freeze
 
   belongs_to :account
   belongs_to :initiated_by, class_name: 'User', optional: true
@@ -62,6 +66,17 @@ class DataImport < ApplicationRecord
 
   def legacy_contacts_csv_import?
     data_type == 'contacts' && source_provider.blank?
+  end
+
+  # País ISO elegido al importar: de él sale el prefijo telefónico. Nunca se
+  # deduce del número.
+  def import_country_jabvox
+    source_metadata['country'].to_s.strip.upcase.presence
+  end
+
+  def duplicate_policy_jabvox
+    policy = source_metadata['duplicate_policy'].to_s
+    DUPLICATE_POLICIES.include?(policy) ? policy : 'skip'
   end
 
   def intercom_import?

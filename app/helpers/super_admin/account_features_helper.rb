@@ -26,18 +26,6 @@ module SuperAdmin::AccountFeaturesHelper
     features.except(*deprecated_features)
   end
 
-  # Sub-features de Jabvox IA (Captain): NO se muestran por separado en super admin. Se
-  # gobiernan con la feature principal `captain_integration` ("Jabvox IA"): al activarla se
-  # activan estas automáticamente (ver Account#sync_jabvox_ia_subfeatures). Así el admin ve
-  # UN solo interruptor "Jabvox IA".
-  JABVOX_IA_SUBFEATURES = %w[
-    captain_integration_v2 captain_document_auto_sync captain_tasks captain_v1_action_classifier
-  ].freeze
-
-  def self.filter_jabvox_ia_subfeatures(features)
-    features.except(*JABVOX_IA_SUBFEATURES)
-  end
-
   def self.sort_and_transform_features(features, display_names)
     features.sort_by { |key, _| display_names[key] || key }
             .to_h
@@ -47,7 +35,6 @@ module SuperAdmin::AccountFeaturesHelper
   def self.partition_features(features)
     filtered = filter_internal_features(features)
     filtered = filter_deprecated_features(filtered)
-    filtered = filter_jabvox_ia_subfeatures(filtered)
     display_names = feature_display_names
 
     regular, premium = filtered.partition { |key, _value| account_premium_features.exclude?(key) }

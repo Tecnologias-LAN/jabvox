@@ -49,6 +49,13 @@ class AccountUser < ApplicationRecord
   after_save :update_presence_in_redis, if: :saved_change_to_availability?
   after_commit :invalidate_filtered_unread_count_visibility, on: [:create, :destroy]
   after_update_commit :invalidate_filtered_unread_count_visibility_update, if: :filtered_unread_count_visibility_changed?
+  # Seguridad: JabvoxHermesUserPermission#permissions_for_role se deriva del rol en el
+  # momento de sync_from_role!, y esa tabla NO se releía en cada request — quedaba
+  # obsoleta si el rol/custom_role cambiaba después. Sin este callback, degradar a un
+  # admin a un rol personalizado restrictivo dejaba su fila de permisos de Hermes con
+  # los privilegios amplios de cuando era admin (read/create/write/execute/configure),
+  # aunque el resto de la app ya lo tratara como agente restringido.
+  after_update_commit :resync_hermes_permissions, if: :saved_change_to_role_or_custom_role?
 
   validates :user_id, uniqueness: { scope: :account_id }
 
@@ -92,6 +99,19 @@ class AccountUser < ApplicationRecord
 
   def filtered_unread_count_visibility_changed?
     previous_changes.key?('role') || previous_changes.key?('custom_role_id')
+  end
+
+  def saved_change_to_role_or_custom_role?
+    saved_change_to_role? || saved_change_to_custom_role_id?
+  end
+
+  def resync_hermes_permissions
+    JabvoxHermesUserPermission.sync_from_role!(account_id, user_id)
+  rescue StandardError => e
+    # Best-effort: un fallo aquí no debe bloquear el cambio de rol en sí (que ya se
+    # guardó). Se loguea para investigar, pero la fuente de verdad real en cada
+    # request sigue siendo JabvoxPermissions/Authorizer, no esta tabla derivada.
+    Rails.logger.error("[AccountUser#resync_hermes_permissions] account_id=#{account_id} user_id=#{user_id}: #{e.message}")
   end
 
   def invalidate_filtered_unread_count_visibility

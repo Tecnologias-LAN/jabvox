@@ -1,28 +1,27 @@
 # frozen_string_literal: true
 
-# Conecta (desde super admin) el Hermes APROVISIONADOR global ÚNICO: guarda su URL (host:
-# puerto ZeroTier), token de servicio (cifrado), usuario de servicio (segundo factor) y
-# secreto de callback (cifrado), y verifica que responde por la Sessions API nativa de Hermes.
+# Conecta (desde super admin) el Hermes APROVISIONADOR global ÚNICO como UN AGENTE: guarda
+# su nombre visible, el nombre del agente en Hermes, su URL (host:puerto/p/<agente>/v1) y su
+# token (cifrado), y verifica que responde por la Sessions API nativa de Hermes.
 #
-# Doble seguridad: el aprovisionador tiene acceso amplio (todas las cuentas, contraseñas
-# incluidas) MENOS borrar, así que su callback exige token + usuario de servicio + secreto.
+# Es un agente normal: no fabrica Hermes por cuenta ni tiene 2º factor. Las cuentas ligadas
+# usan este mismo agente en el Chat Aprovisionador.
 class Jabvox::Hermes::ProvisionerConnectService
   Result = Struct.new(:success, :provisioner, :error, keyword_init: true) do
     def success? = success
   end
 
-  def initialize(base_url:, service_token:, service_user: nil, callback_secret: nil, sessions_path: nil)
+  def initialize(base_url:, service_token:, name: nil, hermes_agent_name: nil)
     @base_url = base_url.to_s.strip
     @service_token = service_token.to_s.strip
-    @service_user = service_user
-    @callback_secret = callback_secret.to_s.strip
-    @sessions_path = sessions_path.to_s.strip
+    @name = name.to_s.strip
+    @hermes_agent_name = hermes_agent_name.to_s.strip
   end
 
   def call
-    return failure('La URL del aprovisionador es requerida.') if @base_url.blank?
+    return failure('La URL del agente es requerida.') if @base_url.blank?
     return failure('URL inválida.') unless valid_url?(@base_url)
-    return failure('El token de servicio es requerido.') if @service_token.blank?
+    return failure('El token del agente es requerido.') if @service_token.blank?
 
     ping = verify
     return failure(ping.error) unless ping.success?
@@ -43,27 +42,20 @@ class Jabvox::Hermes::ProvisionerConnectService
     false
   end
 
-  # Verifica con la Sessions API nativa de Hermes (health), respetando sessions_path.
+  # Verifica con la Sessions API nativa de Hermes (health).
   def verify
-    client = Jabvox::Hermes::SessionsClient.new(
-      base_url: @base_url, token: @service_token, sessions_path: effective_sessions_path
-    )
+    client = Jabvox::Hermes::SessionsClient.new(base_url: @base_url, token: @service_token)
     res = client.health
-    res.success? ? ok : failure(res.error || 'El aprovisionador no respondió health')
+    res.success? ? ok : failure(res.error || 'El agente no respondió health')
   end
 
   def persist!
     provisioner = JabvoxHermesProvisioner.instance
-    provisioner.sessions_path_jabvox = effective_sessions_path
     provisioner.mark_connected!(
       base_url: @base_url, service_token: @service_token,
-      service_user: @service_user, callback_secret: @callback_secret.presence
+      name: @name.presence, hermes_agent_name: @hermes_agent_name.presence
     )
     provisioner
-  end
-
-  def effective_sessions_path
-    @sessions_path.presence || '/api/sessions'
   end
 
   def ok

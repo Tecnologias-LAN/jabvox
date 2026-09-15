@@ -1,7 +1,7 @@
-<% content_for(:title) { 'Hermes — Instancias' } %>
+<% content_for(:title) { 'Hermes — Aprovisionador' } %>
 
 <header class="main-content__header" role="banner">
-  <h1 class="main-content__page-title" id="page-title">Hermes — Aprovisionador e instancias</h1>
+  <h1 class="main-content__page-title" id="page-title">Hermes — Aprovisionador</h1>
 </header>
 
 <section class="main-content__body">
@@ -10,14 +10,14 @@
 
   <div style="margin-bottom:24px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
     <p style="font-size:13px; color:#374151; margin:0;">
-      El <strong>Hermes Aprovisionador</strong> es global: se conecta una vez y ya sabe crear
-      y ligar el Hermes de cada cuenta. Aquí lo conectas y lo ligas a cuentas; cada cuenta
-      ligada verá su <strong>Chat Aprovisionador</strong>. Jabvox nunca toca la BD ni OVH
-      directamente: todo pasa por el Aprovisionador.
+      El <strong>Hermes Aprovisionador</strong> es global: se configura una sola vez como un
+      agente (nombre, URL y token). Aquí lo conectas y eliges en qué cuentas se activa; cada
+      cuenta activada verá su <strong>Chat Aprovisionador</strong>, que habla con este mismo
+      agente. El Chat IA de cada cuenta es aparte (se gestiona en <em>Ajustes → Chat IA</em>).
     </p>
   </div>
 
-  <!-- Estado + conexión del Aprovisionador global -->
+  <!-- Estado + conexión del agente Aprovisionador global -->
   <h2 style="font-size:15px; font-weight:600; margin:0 0 12px;">Hermes Aprovisionador (global)</h2>
   <div style="margin-bottom:8px; font-size:13px; color:#374151;">
     Estado:
@@ -25,7 +25,7 @@
       <%= @provisioner[:status] %>
     </strong>
     <% if @provisioner[:base_url].present? %>· <code><%= @provisioner[:base_url] %></code><% end %>
-    <% if @provisioner[:linked_accounts].to_i.positive? %>· <%= @provisioner[:linked_accounts] %> cuenta(s) ligada(s)<% end %>
+    <% if @provisioner[:linked_accounts].to_i.positive? %>· <%= @provisioner[:linked_accounts] %> cuenta(s) activada(s)<% end %>
     <% if @provisioner[:last_error].present? %>
       <span style="color:#b91c1c;">· <%= @provisioner[:last_error] %></span>
     <% end %>
@@ -33,51 +33,45 @@
 
   <%= form_with url: connect_provisioner_super_admin_hermes_instances_path, method: :post, local: true do |form| %>
     <div class="flex mb-4">
-      <div class="field-unit__label"><%= form.label :base_url, 'URL del Aprovisionador (ZeroTier)' %></div>
+      <div class="field-unit__label"><%= form.label :name, 'Nombre visible' %></div>
       <div class="-mt-2 field-unit__field">
-        <%= form.text_field :base_url, value: @provisioner[:base_url], placeholder: 'http://10.147.100.1:9119' %>
-        <p class="pt-2 text-xs italic text-slate-400">Host:puerto de la red ZeroTier. Sin path (se añade /api/sessions).</p>
+        <%= form.text_field :name, value: @provisioner[:name], placeholder: 'Agente Aprovisionador' %>
+        <p class="pt-2 text-xs italic text-slate-400">Nombre del agente (solo referencia interna).</p>
       </div>
     </div>
     <div class="flex mb-4">
-      <div class="field-unit__label"><%= form.label :sessions_path, 'Path de sesiones' %></div>
+      <div class="field-unit__label"><%= form.label :hermes_agent_name, 'Nombre del agente en Hermes' %></div>
       <div class="-mt-2 field-unit__field">
-        <%= form.text_field :sessions_path, value: @provisioner[:sessions_path], placeholder: '/api/sessions' %>
-        <p class="pt-2 text-xs italic text-slate-400">Solo cámbialo si tu Hermes usa otro prefijo.</p>
+        <%= form.text_field :hermes_agent_name, value: @provisioner[:hermes_agent_name], placeholder: 'mi-agente' %>
+        <p class="pt-2 text-xs italic text-slate-400">El identificador del agente dentro de Hermes.</p>
       </div>
     </div>
     <div class="flex mb-4">
-      <div class="field-unit__label"><%= form.label :service_token, 'Token de servicio' %></div>
+      <div class="field-unit__label"><%= form.label :base_url, 'URL del agente' %></div>
+      <div class="-mt-2 field-unit__field">
+        <%= form.text_field :base_url, value: @provisioner[:base_url], placeholder: 'http://tu-hermes.ejemplo:PUERTO/p/mi-agente/v1' %>
+        <p class="pt-2 text-xs italic text-slate-400">Host:puerto del gateway de Hermes, con el prefijo <code>/p/&lt;agente&gt;/v1</code>.</p>
+      </div>
+    </div>
+    <div class="flex mb-4">
+      <div class="field-unit__label"><%= form.label :service_token, 'Token del agente' %></div>
       <div class="-mt-2 field-unit__field">
         <%= form.password_field :service_token, placeholder: '(en blanco = conservar)' %>
-        <p class="pt-2 text-xs italic text-slate-400">Se guarda cifrado. Nunca se muestra.</p>
-      </div>
-    </div>
-    <div class="flex mb-4">
-      <div class="field-unit__label"><%= form.label :service_user_id, 'Usuario de servicio (2º factor)' %></div>
-      <div class="-mt-2 field-unit__field">
-        <%= form.number_field :service_user_id, value: @provisioner[:service_user_id], placeholder: 'ID de usuario' %>
-        <p class="pt-2 text-xs italic text-slate-400">ID de un usuario de la app dedicado al aprovisionador (doble validación).</p>
-      </div>
-    </div>
-    <div class="flex mb-4">
-      <div class="field-unit__label"><%= form.label :callback_secret, 'Secreto de callback (2º factor)' %></div>
-      <div class="-mt-2 field-unit__field">
-        <%= form.password_field :callback_secret, placeholder: '(en blanco = conservar)' %>
-        <p class="pt-2 text-xs italic text-slate-400">Se guarda cifrado. El aprovisionador lo envía en cada callback.</p>
+        <p class="pt-2 text-xs italic text-slate-400">Bearer token del agente. Se guarda cifrado. Nunca se muestra.</p>
       </div>
     </div>
     <%= form.submit 'Conectar aprovisionador', class: 'button' %>
   <% end %>
 
-  <!-- Instancias por cuenta -->
-  <h2 style="font-size:15px; font-weight:600; margin:28px 0 12px;">Hermes por cuenta</h2>
+  <!-- Cuentas: activar/desactivar el Chat Aprovisionador -->
+  <h2 style="font-size:15px; font-weight:600; margin:28px 0 12px;">Cuentas</h2>
+  <p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Activa el Chat Aprovisionador en las cuentas que lo necesiten. Todas usan el mismo agente global de arriba.</p>
   <table class="w-full" style="font-size:13px;">
     <thead>
       <tr style="text-align:left; border-bottom:1px solid #e5e7eb;">
         <th style="padding:8px;">Cuenta</th>
-        <th style="padding:8px;">Estado</th>
-        <th style="padding:8px;">URL Hermes</th>
+        <th style="padding:8px;">Chat Aprovisionador</th>
+        <th style="padding:8px;">IPs autorizadas del Hermes</th>
         <th style="padding:8px;">Acciones</th>
       </tr>
     </thead>
@@ -85,89 +79,47 @@
       <% @instances.each do |inst| %>
         <tr style="border-bottom:1px solid #f3f4f6;">
           <td style="padding:8px;">#<%= inst[:account_id] %> — <%= inst[:account_name] %></td>
-          <td style="padding:8px;"><%= inst[:status] %><% if inst[:last_error].present? %> <span style="color:#b91c1c;">(<%= inst[:last_error] %>)</span><% end %></td>
-          <td style="padding:8px;"><code><%= inst[:hermes_url] %></code></td>
+          <td style="padding:8px;">
+            <strong style="color:<%= inst[:linked] ? '#16a34a' : '#9ca3af' %>;">
+              <%= inst[:linked] ? 'Activado' : 'Desactivado' %>
+            </strong>
+          </td>
+          <td style="padding:8px;">
+            <% if inst[:connections].blank? %>
+              <span style="color:#9ca3af;">Sin conexiones Hermes</span>
+            <% else %>
+              <% inst[:connections].each do |conn| %>
+                <%# Solo desde estas IPs puede ese Hermes ejecutar acciones sobre la cuenta.
+                    Vacío = no ejecuta nada (fail-closed). Acepta IP suelta o CIDR, incluidas
+                    las privadas de ZeroTier. %>
+                <%= form_with url: update_allowed_ips_super_admin_hermes_instance_path(inst[:account_id]), method: :post, local: true, html: { style: 'margin:0 0 6px;' } do |f| %>
+                  <%= f.hidden_field :connection_id, value: conn[:id] %>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="min-width:120px; color:#6b7280;"><%= conn[:name] %></span>
+                    <%= f.text_field :allowed_ips, value: conn[:allowed_ips].join(', '),
+                                     placeholder: '203.0.113.5, 10.147.17.0/24',
+                                     style: 'font-family:monospace; font-size:12px; padding:4px 6px; border:1px solid #d1d5db; border-radius:4px; width:260px;' %>
+                    <%= f.submit 'Guardar', class: 'button button--secondary', style: 'font-size:12px; padding:4px 10px;' %>
+                    <% if conn[:allowed_ips].blank? %>
+                      <span style="color:#d97706; font-size:12px;" title="Sin IPs no puede ejecutar nada">⚠ bloqueado</span>
+                    <% end %>
+                  </div>
+                <% end %>
+              <% end %>
+            <% end %>
+          </td>
           <td style="padding:8px; white-space:nowrap;">
-            <%= button_to 'Aprovisionar', provision_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button button--secondary', form_class: 'inline-block' %>
-            <%= button_to 'Ligar', link_account_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button button--secondary', form_class: 'inline-block' %>
-            <%= button_to 'Reiniciar', restart_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button button--secondary', form_class: 'inline-block' %>
-            <%= button_to 'Rotar token', rotate_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button button--secondary', form_class: 'inline-block' %>
-            <%= button_to 'Desactivar', disable_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button', form_class: 'inline-block' %>
+            <% if inst[:linked] %>
+              <%= button_to 'Desactivar', unlink_account_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button', form_class: 'inline-block' %>
+            <% else %>
+              <%= button_to 'Activar', link_account_super_admin_hermes_instance_path(inst[:account_id]), method: :post, class: 'button button--secondary', form_class: 'inline-block' %>
+            <% end %>
           </td>
         </tr>
-        <% if inst[:agents].present? %>
-          <tr style="border-bottom:1px solid #f3f4f6; background:#fafafa;">
-            <td colspan="4" style="padding:8px 16px;">
-              <strong style="font-size:12px; color:#6b7280;">Agentes de la cuenta y el token de acción de cada Hermes (solo super admin):</strong>
-              <table style="width:100%; margin-top:6px; font-size:13px;">
-                <% inst[:agents].each do |ag| %>
-                  <tr style="background:#f3f4f6;">
-                    <td colspan="3" style="padding:6px 8px; font-weight:600;">
-                      <%= ag[:name] %> <span style="color:#9ca3af; font-weight:400;">(<%= ag[:user] %> · <%= ag[:status] %>)</span>
-                    </td>
-                  </tr>
-                  <% if ag[:hermes].present? %>
-                    <% ag[:hermes].each do |h| %>
-                      <tr>
-                        <td style="padding:4px 8px 4px 24px; white-space:nowrap;">
-                          <%= h[:name] %>
-                          <span style="color:#9ca3af;">(<%= h[:hermes_agent] %> · <%= h[:status] %>)</span>
-                        </td>
-                        <td style="padding:4px 8px;">
-                          <code class="hermes-token" data-token="<%= h[:action_token] %>" style="letter-spacing:1px;">••••••••••••••••••••</code>
-                        </td>
-                        <td style="padding:4px 8px; white-space:nowrap;">
-                          <button type="button" class="button button--secondary hermes-token-toggle" style="padding:2px 8px; font-size:12px;">Mostrar</button>
-                          <button type="button" class="button button--secondary hermes-token-copy" style="padding:2px 8px; font-size:12px;">Copiar</button>
-                        </td>
-                      </tr>
-                    <% end %>
-                  <% else %>
-                    <tr>
-                      <td colspan="3" style="padding:4px 8px 4px 24px; color:#9ca3af;">
-                        Sin Hermes ligados. Conéctalos desde el Chat IA de la cuenta.
-                      </td>
-                    </tr>
-                  <% end %>
-                <% end %>
-              </table>
-            </td>
-          </tr>
-        <% end %>
       <% end %>
       <% if @instances.empty? %>
-        <tr><td colspan="4" style="padding:16px; color:#9ca3af;">No hay cuentas con Chat IA o Hermes todavía.</td></tr>
+        <tr><td colspan="4" style="padding:16px; color:#9ca3af;">No hay cuentas con Chat IA todavía.</td></tr>
       <% end %>
     </tbody>
   </table>
 </section>
-
-<script>
-  // Mostrar/ocultar y copiar el token de cada agente Hermes (solo en este panel
-  // super-admin). El token viaja en data-token; se enmascara por defecto.
-  document.querySelectorAll('.hermes-token-toggle').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var code = btn.closest('tr').querySelector('.hermes-token');
-      var shown = code.dataset.shown === '1';
-      if (shown) {
-        code.textContent = '••••••••••••••••••••';
-        code.dataset.shown = '0';
-        btn.textContent = 'Mostrar';
-      } else {
-        code.textContent = code.dataset.token || '';
-        code.dataset.shown = '1';
-        btn.textContent = 'Ocultar';
-      }
-    });
-  });
-  document.querySelectorAll('.hermes-token-copy').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var token = btn.closest('tr').querySelector('.hermes-token').dataset.token || '';
-      navigator.clipboard.writeText(token).then(function () {
-        var prev = btn.textContent;
-        btn.textContent = '¡Copiado!';
-        setTimeout(function () { btn.textContent = prev; }, 1200);
-      });
-    });
-  });
-</script>

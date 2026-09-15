@@ -4,7 +4,16 @@
 # `jabvox_advanced_automations` apagado, TODA la API responde 403 sin llegar a
 # tocar la base de datos.
 class Api::V1::Accounts::Jabvox::Flows::BaseController < Api::V1::Accounts::Jabvox::BaseController
+  include JabvoxPermissions
+
   jabvox_feature 'jabvox_advanced_automations'
+
+  # Sin esto, cualquier agente plano de la cuenta podía crear/activar/borrar flujos y
+  # gestionar variables (incluidas las marcadas como secretas) sin ningún permiso de
+  # gestión — el único gate previo era el feature de CUENTA, no de usuario. Lecturas
+  # (index/show/run listado) quedan abiertas a cualquier miembro, igual que el resto
+  # de módulos de configuración (SMS, Email, Integraciones).
+  before_action -> { jabvox_authorize_write!('jabvox_flows_manage') }
 
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
 

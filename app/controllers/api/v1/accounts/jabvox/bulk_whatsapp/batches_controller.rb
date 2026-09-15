@@ -164,8 +164,10 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       # number_column: la columna que contiene el número (elegida/confirmada en la UI).
       # header_media: media del header de la plantilla ({ media_url, media_type }).
       template_name: params[:template_name], language: params[:language], text: params[:text],
+      # country: de él sale el prefijo de los números del CSV que llegan sin él.
+      # Opcional: sin país se conserva el comportamiento anterior.
       variable_map: variable_map_params, number_column: params[:number_column],
-      header_media: header_media_params
+      header_media: header_media_params, country: params[:country]
     )
   end
 

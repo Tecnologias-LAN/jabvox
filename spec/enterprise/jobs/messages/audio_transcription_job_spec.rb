@@ -15,10 +15,10 @@ RSpec.describe Messages::AudioTranscriptionJob do
   let(:conversation) { message.conversation }
   let(:transcription_service) { instance_double(Messages::AudioTranscriptionService) }
 
-  it 'enqueues the job' do
+  it 'enqueues the job on its own dedicated queue' do
     expect { job }.to have_enqueued_job(described_class)
       .with(attachment_id)
-      .on_queue('low')
+      .on_queue('jabvox_transcription')
   end
 
   context 'when performing the job' do

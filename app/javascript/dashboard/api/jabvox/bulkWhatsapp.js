@@ -80,6 +80,7 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     variableMap,
     numberColumn,
     headerMedia,
+    country,
   }) {
     const formData = new FormData();
     formData.append('file', file);
@@ -89,6 +90,8 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     if (language) formData.append('language', language);
     // Columna del CSV que contiene el número (elegida/confirmada en la UI).
     if (numberColumn) formData.append('number_column', numberColumn);
+    // País del envío: de él sale el prefijo de los números que llegan sin él.
+    if (country) formData.append('country', country);
     // Media del header (de la plantilla): { media_url, media_type }. El backend lo
     // pone en processed_params.header de cada mensaje.
     if (headerMedia?.media_url) {

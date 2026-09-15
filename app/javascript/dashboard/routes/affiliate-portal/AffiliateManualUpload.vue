@@ -1,7 +1,8 @@
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import affiliatePortalAPI from '../../api/jabvox/affiliatePortal';
+import countries from 'shared/constants/countries.js';
 
 const { t } = useI18n();
 
@@ -23,11 +24,25 @@ const resetForm = () => {
   form.country = '';
 };
 
+// Prefijo del país elegido. Se muestra al lado del campo de teléfono para
+// dejar claro que el número se sube SIN prefijo: lo pone el país.
+const dialCode = computed(
+  () => countries.find(c => c.id === form.country)?.dial_code ?? ''
+);
+
 const onSubmit = async () => {
   errorMsg.value = '';
   successMsg.value = '';
   if (!form.name.trim()) {
     errorMsg.value = t('JABVOX_AFFILIATE_PORTAL.MANUAL_ERROR_NAME');
+    return;
+  }
+  if (!form.country) {
+    errorMsg.value = t('JABVOX_AFFILIATE_PORTAL.MANUAL_ERROR_COUNTRY');
+    return;
+  }
+  if (!form.phone_number.trim() && !form.email.trim()) {
+    errorMsg.value = t('JABVOX_AFFILIATE_PORTAL.MANUAL_ERROR_IDENTITY');
     return;
   }
   isLoading.value = true;
@@ -36,16 +51,21 @@ const onSubmit = async () => {
       name: form.name.trim(),
       email: form.email.trim() || undefined,
       phone_number: form.phone_number.trim() || undefined,
-      additional_attributes: form.country
-        ? { country: form.country.trim() }
-        : undefined,
+      country: form.country,
     });
     successMsg.value = t('JABVOX_AFFILIATE_PORTAL.MANUAL_SUCCESS');
     resetForm();
   } catch (err) {
-    errorMsg.value =
-      err.response?.data?.error ??
-      t('JABVOX_AFFILIATE_PORTAL.MANUAL_ERROR_DEFAULT');
+    const code = err.response?.data?.error;
+    const known = {
+      duplicate_lead: 'MANUAL_ERROR_DUPLICATE',
+      country_required: 'MANUAL_ERROR_COUNTRY',
+      identity_required: 'MANUAL_ERROR_IDENTITY',
+      phone_invalid: 'MANUAL_ERROR_PHONE',
+    }[code];
+    errorMsg.value = t(
+      `JABVOX_AFFILIATE_PORTAL.${known ?? 'MANUAL_ERROR_DEFAULT'}`
+    );
   } finally {
     isLoading.value = false;
   }
@@ -92,24 +112,39 @@ const onSubmit = async () => {
         <label class="block text-sm font-medium text-n-slate-12 mb-1.5">
           {{ t('JABVOX_AFFILIATE_PORTAL.MANUAL_PHONE_LABEL') }}
         </label>
-        <input
-          v-model="form.phone_number"
-          type="tel"
-          :placeholder="t('JABVOX_AFFILIATE_PORTAL.MANUAL_PHONE_PLACEHOLDER')"
-          class="w-full h-9 rounded-lg border border-n-weak bg-n-surface-1 px-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
-        />
+        <div class="flex items-center gap-2">
+          <span
+            class="h-9 px-3 flex items-center rounded-lg border border-n-weak bg-n-surface-2 text-sm text-n-slate-11 shrink-0"
+          >
+            {{ dialCode || '—' }}
+          </span>
+          <input
+            v-model="form.phone_number"
+            type="tel"
+            :placeholder="t('JABVOX_AFFILIATE_PORTAL.MANUAL_PHONE_PLACEHOLDER')"
+            class="w-full h-9 rounded-lg border border-n-weak bg-n-surface-1 px-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
+          />
+        </div>
+        <p class="mt-1 text-xs text-n-slate-10">
+          {{ t('JABVOX_AFFILIATE_PORTAL.MANUAL_PHONE_HINT') }}
+        </p>
       </div>
 
       <div>
         <label class="block text-sm font-medium text-n-slate-12 mb-1.5">
           {{ t('JABVOX_AFFILIATE_PORTAL.MANUAL_COUNTRY_LABEL') }}
         </label>
-        <input
+        <select
           v-model="form.country"
-          type="text"
-          :placeholder="t('JABVOX_AFFILIATE_PORTAL.MANUAL_COUNTRY_PLACEHOLDER')"
           class="w-full h-9 rounded-lg border border-n-weak bg-n-surface-1 px-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
-        />
+        >
+          <option value="" disabled>
+            {{ t('JABVOX_AFFILIATE_PORTAL.MANUAL_COUNTRY_PLACEHOLDER') }}
+          </option>
+          <option v-for="c in countries" :key="c.id" :value="c.id">
+            {{ c.emoji }} {{ c.name }} ({{ c.dial_code }})
+          </option>
+        </select>
       </div>
 
       <p

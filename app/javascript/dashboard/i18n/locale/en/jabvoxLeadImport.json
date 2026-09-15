@@ -55,7 +55,6 @@
       "SEARCH_TABLE": "Search table…",
       "SEARCH_COLUMN": "Search column…",
       "NO_COLUMNS": "No columns match your search.",
-      "SEARCH_COLUMN": "Search column…",
       "NO_RESULTS": "No results",
       "FIELDS_TITLE": "Field mapping",
       "CREATE_MISSING": "Create missing fields",
@@ -126,6 +125,11 @@
       "DEST_FIELD": "Lead field",
       "DEST_TYPE": "Target type",
       "EMPTY": "You haven't mapped any column yet."
+    },
+    "COUNTRY": {
+      "LABEL": "Country of the phone numbers",
+      "PLACEHOLDER": "Select a country",
+      "HINT": "The international prefix (+57, +93...) applied to imported phones comes from it. Do not include the prefix in the data."
     }
   }
 }

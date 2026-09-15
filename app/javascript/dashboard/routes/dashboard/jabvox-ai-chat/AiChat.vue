@@ -2,9 +2,10 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
-import Cookies from 'js-cookie';
+import { deviseAuthHeaders } from 'dashboard/helper/deviseAuthHeaders';
 import { useAlert } from 'dashboard/composables';
 import { aiChatAPI, hermesConnectionsAPI } from 'dashboard/api/jabvox/aiChat';
+import { useHermesCommands } from 'dashboard/composables/jabvox/useHermesCommands';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
@@ -21,6 +22,21 @@ const alert = useAlert;
 
 const currentSessionId = ref(null);
 const messageInput = ref('');
+
+// Comandos "/" de Hermes: la lista, el filtrado y la navegación del menú viven en
+// useHermesCommands, compartido con la burbuja flotante para que ambas superficies
+// ofrezcan exactamente los mismos comandos.
+const {
+  showCommands,
+  commandIndex,
+  filteredCommands,
+  onInput,
+  applyCommand,
+  handleCommandKeydown,
+  isNewChatCommand,
+  isModelCommand,
+} = useHermesCommands(messageInput);
+
 const messagesContainer = ref(null);
 const hermesAgents = ref([]); // agentes Hermes ligados a este usuario (N:N)
 const selectedAgentId = ref(null); // conexión Hermes elegida en el chat
@@ -31,8 +47,6 @@ const isStreaming = ref(false);
 // Permite ABORTAR el streaming en curso (botón Detener) para no bloquear al usuario.
 const streamController = ref(null);
 const activeTools = ref([]); // chips de herramientas en vivo (Telegram-like)
-const showCommands = ref(false); // menú de comandos "/"
-const commandIndex = ref(0);
 const expandedTool = ref(null); // clave "msgId:toolId" de la herramienta desplegada
 const fileInput = ref(null);
 const attachments = ref([]); // [{ type:'image'|'file', name, url(base64 o http) }]
@@ -282,26 +296,6 @@ async function consumeStream(res, sessionId, assistantId) {
   }
 }
 
-// devise-token-auth exige access-token/client/uid en cada request. fetch() no los añade
-// solo (a diferencia de axios), así que los leemos de la cookie cw_d_session_info que el
-// dashboard fija al iniciar sesión. Sin esto el /stream responde 401.
-function deviseAuthHeaders() {
-  try {
-    const raw = Cookies.get('cw_d_session_info');
-    if (!raw) return {};
-    const s = JSON.parse(raw);
-    return {
-      'access-token': s['access-token'] || '',
-      client: s.client || '',
-      uid: s.uid || '',
-      expiry: s.expiry || '',
-      'token-type': s['token-type'] || 'Bearer',
-    };
-  } catch {
-    return {};
-  }
-}
-
 // Envía el mensaje al agente Hermes en STREAMING (SSE): pinta el texto que fluye y los chips
 // de herramientas en vivo (como Telegram). Al terminar, refresca la sesión.
 async function streamAssistant(
@@ -340,7 +334,9 @@ async function streamAssistant(
         connection_id: selectedAgentId.value,
         attachments: sentAttachments,
         // Modelo/proveedor elegidos en el picker (vacío = default del agente en Hermes).
-        ...selectedModelOverride.value,
+        // Con "/model ..." se omite: el usuario está eligiendo modelo por comando y mandar
+        // además el del picker sobrescribiría justo lo que el comando pide.
+        ...(isModelCommand(content) ? {} : selectedModelOverride.value),
       }),
     });
     if (!res.ok || !res.body) {
@@ -376,25 +372,40 @@ function stopStreaming() {
   streamController.value?.abort();
 }
 
-// Carga los modelos LLM que ofrece el agente elegido (para el picker /model). Aplana los
-// providers autenticados a una lista [{ value:'provider::model', label, model, provider }] y
-// marca el modelo actual (is_current) como seleccionado por defecto. Silencioso si falla:
-// sin modelos, el chat sigue usando el default del agente.
+// Carga los modelos LLM que ofrece el agente elegido (para el picker /model). Jabvox
+// reenvía la respuesta de Hermes sin validarla, así que su forma no está garantizada:
+// toleramos providers[] o array raíz, models[] u options[], slug/name/provider, y modelos
+// como string o como objeto {id|name|slug}. Silencioso si falla: sin modelos, el chat sigue
+// usando el default del agente.
+const providerSlug = p => p?.slug || p?.name || p?.provider || '';
+const modelName = m =>
+  typeof m === 'string' ? m : m?.id || m?.name || m?.slug || '';
+
+const providerList = data => {
+  if (Array.isArray(data?.providers)) return data.providers;
+  if (Array.isArray(data)) return data;
+  return [];
+};
+
 async function loadModelOptions(connectionId) {
   modelOptions.value = [];
   selectedModelKey.value = '';
   if (!connectionId) return;
   try {
     const { data } = await hermesConnectionsAPI.modelOptions(connectionId);
-    const providers = data?.providers || [];
+    const providers = providerList(data);
     const opts = [];
     let current = '';
     providers.forEach(p => {
-      if (p.authenticated === false) return; // solo proveedores utilizables
-      (p.models || []).forEach(m => {
-        const value = `${p.slug}::${m}`;
-        opts.push({ value, label: m, provider: p.slug, model: m });
-        if (p.is_current && data.model === m) current = value;
+      if (p?.authenticated === false) return; // solo proveedores utilizables
+      const slug = providerSlug(p);
+      if (!slug) return;
+      (p.models || p.options || []).forEach(m => {
+        const name = modelName(m);
+        if (!name) return;
+        const value = `${slug}::${name}`;
+        opts.push({ value, label: name, provider: slug, model: name });
+        if (p.is_current && data?.model === name) current = value;
       });
     });
     modelOptions.value = opts;
@@ -439,7 +450,7 @@ async function sendMessage() {
   // "/new", "/reset" y "/clear" inician una conversación nueva en Jabvox (aparece en la
   // lista izquierda) en vez de enviarse a Hermes. Las demás (/model, /status, /retry...)
   // sí van a Hermes para que él las interprete.
-  if (['/new', '/reset', '/clear'].includes(content)) {
+  if (isNewChatCommand(content)) {
     if (isStreaming.value) stopStreaming();
     newChat();
     showCommands.value = false;
@@ -483,77 +494,15 @@ async function sendMessage() {
     isNewChat,
     sentAttachments
   );
-}
 
-// ─── Comandos de Hermes (se escriben con "/"; Hermes los interpreta) ───
-// Estos son los comandos que soporta el Hermes de la cuenta. Jabvox solo maneja "/new",
-// "/reset" y "/clear" en local (crean sesión nueva); el resto se envían a Hermes tal cual.
-const HERMES_COMMANDS = [
-  {
-    cmd: '/model',
-    desc: 'Cambiar modelo: /model [nombre] [--global] (--global lo hace permanente)',
-  },
-  { cmd: '/new', desc: 'Sesión nueva (nombre opcional)' },
-  { cmd: '/reset', desc: 'Sesión nueva (reinicia el contexto)' },
-  { cmd: '/clear', desc: 'Limpiar pantalla e iniciar sesión nueva' },
-  { cmd: '/retry', desc: 'Reenviar el último mensaje' },
-  {
-    cmd: '/steer',
-    desc: 'Inyectar un mensaje tras la próxima llamada a herramienta',
-  },
-  { cmd: '/status', desc: 'Info de la sesión: modelo, tokens y contexto' },
-  {
-    cmd: '/stop',
-    desc: 'Detener la respuesta / matar procesos en segundo plano',
-  },
-];
-
-// Comandos que coinciden con lo escrito (solo cuando el texto empieza por "/").
-const filteredCommands = computed(() => {
-  const text = messageInput.value.trim();
-  if (!text.startsWith('/')) return [];
-  const q = text.toLowerCase();
-  return HERMES_COMMANDS.filter(c => c.cmd.startsWith(q) || q === '/');
-});
-
-// Muestra/oculta el menú al escribir. Se llama en @input del textarea.
-function onInput() {
-  const show = filteredCommands.value.length > 0;
-  showCommands.value = show;
-  if (show) commandIndex.value = 0;
-}
-
-function applyCommand(cmd) {
-  messageInput.value = `${cmd} `;
-  showCommands.value = false;
+  // Hermes no anuncia el cambio de modelo por el stream, así que tras un "/model" releemos
+  // model/options para que el picker refleje el modelo realmente activo.
+  if (isModelCommand(content)) await loadModelOptions(selectedAgentId.value);
 }
 
 function handleKeydown(e) {
-  // Navegación del menú de comandos
-  if (showCommands.value && filteredCommands.value.length) {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      commandIndex.value =
-        (commandIndex.value + 1) % filteredCommands.value.length;
-      return;
-    }
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      commandIndex.value =
-        (commandIndex.value - 1 + filteredCommands.value.length) %
-        filteredCommands.value.length;
-      return;
-    }
-    if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
-      e.preventDefault();
-      applyCommand(filteredCommands.value[commandIndex.value].cmd);
-      return;
-    }
-    if (e.key === 'Escape') {
-      showCommands.value = false;
-      return;
-    }
-  }
+  // El menú de comandos consume primero flechas/Tab/Enter/Escape.
+  if (handleCommandKeydown(e)) return;
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     if (canSend.value) sendMessage();

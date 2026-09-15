@@ -32,10 +32,19 @@ class Api::V1::Accounts::Jabvox::SmsProvidersController < Api::V1::Accounts::Jab
     head :no_content
   end
 
+  # SMS_CHECK_ALLOWED_PORTS: proveedores SMS externos (Bandwidth, Vozip, ...) suelen
+  # escuchar en 443/80, no en los puertos de BD del guard de Analytics.
+  SMS_CHECK_ALLOWED_PORTS = [443, 80].freeze
+
   def check_connection
     uri = URI.parse(@provider.base_url)
-    connected = tcp_reachable?(uri.host, uri.port || (uri.scheme == 'https' ? 443 : 80))
-    render json: { connected: connected }
+    port = uri.port || (uri.scheme == 'https' ? 443 : 80)
+    guard = Jabvox::Analytics::HostGuardService.new(
+      host: uri.host, port: port, allowed_ports: SMS_CHECK_ALLOWED_PORTS
+    ).call
+    return render json: { connected: false, error: guard.reason }, status: :unprocessable_entity unless guard.allowed?
+
+    render json: { connected: tcp_reachable?(uri.host, port) }
   end
 
   private
@@ -59,7 +68,10 @@ class Api::V1::Accounts::Jabvox::SmsProvidersController < Api::V1::Accounts::Jab
   end
 
   def tcp_reachable?(host, port)
-    Timeout.timeout(5) { TCPSocket.new(host, port.to_i).close; true }
+    Timeout.timeout(5) do
+      TCPSocket.new(host, port.to_i).close
+      true
+    end
   rescue Timeout::Error, Errno::ECONNREFUSED, Errno::EHOSTUNREACH, SocketError
     false
   end

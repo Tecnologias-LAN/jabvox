@@ -50,18 +50,6 @@ import teamMembers from './modules/teamMembers';
 import teams from './modules/teams';
 import userNotificationSettings from './modules/userNotificationSettings';
 import webhooks from './modules/webhooks';
-import captainAgentSessions from './captain/agentSessions';
-import captainAssistants from './captain/assistant';
-import captainDocuments from './captain/document';
-import captainResponses from './captain/response';
-import captainFaqSuggestions from './captain/faqSuggestions';
-import captainInboxes from './captain/inboxes';
-import captainBulkActions from './captain/bulkActions';
-import copilotThreads from './captain/copilotThreads';
-import copilotMessages from './captain/copilotMessages';
-import captainScenarios from './captain/scenarios';
-import captainTools from './captain/tools';
-import captainCustomTools from './captain/customTools';
 import jabvoxKanban from './modules/jabvox/kanban';
 import jabvoxProducts from './modules/jabvox/products';
 import jabvoxVoip from './modules/jabvox/voip';
@@ -139,18 +127,6 @@ export default createStore({
     teams,
     userNotificationSettings,
     webhooks,
-    captainAgentSessions,
-    captainAssistants,
-    captainDocuments,
-    captainResponses,
-    captainFaqSuggestions,
-    captainInboxes,
-    captainBulkActions,
-    copilotThreads,
-    copilotMessages,
-    captainScenarios,
-    captainTools,
-    captainCustomTools,
     jabvoxKanban,
     jabvoxProducts,
     jabvoxVoip,

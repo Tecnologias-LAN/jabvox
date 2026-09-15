@@ -9,7 +9,6 @@ import { routes as inboxRoutes } from './inbox/routes';
 import { frontendURL } from '../../helper/URLHelper';
 import helpcenterRoutes from './helpcenter/helpcenter.routes';
 import campaignsRoutes from './campaigns/campaigns.routes';
-import { routes as captainRoutes } from './captain/captain.routes';
 import { routes as jabvoxKanbanRoutes } from './jabvox-kanban/routes';
 import { routes as jabvoxProductsRoutes } from './jabvox-products/routes';
 import { routes as jabvoxSmsRoutes } from './jabvox-sms/routes';
@@ -37,7 +36,6 @@ export default {
       path: frontendURL('accounts/:accountId'),
       component: AppContainer,
       children: [
-        ...captainRoutes,
         ...inboxRoutes,
         ...conversation.routes,
         ...settings.routes,

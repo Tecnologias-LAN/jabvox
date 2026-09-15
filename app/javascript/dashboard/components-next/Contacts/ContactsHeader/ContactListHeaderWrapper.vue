@@ -110,9 +110,10 @@ const onCreate = async contact => {
   }
 };
 
-const onImport = async file => {
+// El diálogo emite { file, country, duplicatePolicy } tras la vista previa.
+const onImport = async payload => {
   try {
-    await store.dispatch('contacts/import', file);
+    await store.dispatch('contacts/import', payload);
     contactImportDialogRef.value?.dialogRef.close();
     useAlert(
       t('CONTACTS_LAYOUT.HEADER.ACTIONS.IMPORT_CONTACT.SUCCESS_MESSAGE')

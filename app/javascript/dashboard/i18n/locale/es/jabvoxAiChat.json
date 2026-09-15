@@ -307,6 +307,11 @@
     "SESSION_ITEM": "Conversación",
     "TOOLS_USED": "Herramientas usadas",
     "DEFAULT_MODEL": "Modelo por defecto",
-    "ATTACH": "Adjuntar archivo"
+    "ATTACH": "Adjuntar archivo",
+    "SESSIONS": "Conversaciones",
+    "NO_SESSIONS": "Todavía no hay conversaciones",
+    "UNTITLED_SESSION": "Conversación sin título",
+    "AGENT": "Agente",
+    "MODEL": "Modelo"
   }
 }

@@ -1,5 +1,8 @@
 class Messages::AudioTranscriptionJob < ApplicationJob
-  queue_as :low
+  # Cola AISLADA y dedicada: transcribir audio llama a un proveedor de IA externo y puede
+  # tardar varios segundos por archivo — vive en su propio worker Sidekiq para que no
+  # pueda taponar el envío/recepción de mensajes ni ningún otro servicio.
+  queue_as :jabvox_transcription
 
   discard_on Faraday::BadRequestError do |job, error|
     log_context = {

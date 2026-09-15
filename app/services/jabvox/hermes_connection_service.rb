@@ -27,6 +27,7 @@ module Jabvox
 
       identity = JabvoxHermesIdentity.for_account(@account)
       handoff = persist(identity)
+      ensure_default_agent
       Result.new(success: true, handoff: handoff, prompt: build_prompt)
     rescue StandardError => e
       failure(e.message)
@@ -94,6 +95,24 @@ module Jabvox
 
     def jabvox_base_url
       ENV['FRONTEND_URL'].to_s.strip.presence || 'https://app.jabvox.co'
+    end
+
+    # Toda cuenta con su Hermes trae 1 agente por defecto ("Asistente"), ligado a un
+    # administrador de la cuenta, con permisos derivados de su rol. El admin luego crea
+    # más agentes. Idempotente.
+    def ensure_default_agent
+      return if JabvoxHermesAgent.exists?(account_id: @account.id, is_default_jabvox: true)
+
+      admin_user_id = AccountUser.where(account_id: @account.id, role: :administrator).limit(1).pick(:user_id)
+      return unless admin_user_id
+
+      JabvoxHermesAgent.create!(
+        account_id: @account.id, user_id: admin_user_id, name_jabvox: 'Asistente',
+        description_jabvox: 'Agente por defecto del Hermes de la cuenta.',
+        is_default_jabvox: true, status_jabvox: 'active'
+      )
+      # Los permisos se DERIVAN DEL ROL del usuario ligado (fuente de verdad).
+      JabvoxHermesUserPermission.sync_from_role!(@account.id, admin_user_id)
     end
 
     def failure(msg)

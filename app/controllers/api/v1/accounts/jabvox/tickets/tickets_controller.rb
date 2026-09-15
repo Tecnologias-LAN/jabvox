@@ -46,7 +46,7 @@ class Api::V1::Accounts::Jabvox::Tickets::TicketsController <
 
   def assign
     authorize @ticket, :assign?
-    assignee = params[:assignee_id].present? ? User.find(params[:assignee_id]) : nil
+    assignee = resolve_assignee(params[:assignee_id])
     @ticket.assign_to!(assignee, actor: Current.user)
     Jabvox::Tickets::NotificationService.new(@ticket, actor: Current.user).ticket_assigned
     render :show
@@ -92,7 +92,11 @@ class Api::V1::Accounts::Jabvox::Tickets::TicketsController <
   # deja rastro en la bitácora de ambos y lo archiva.
   def merge
     authorize @ticket, :update?
-    target = JabvoxTicket.find(params.require(:target_id))
+    # find_by (no find): así un target_id de un ticket que la policy igual rechazaría
+    # queda cubierto por el mismo 404/403 sin depender únicamente del orden de las líneas.
+    target = JabvoxTicket.find_by(id: params.require(:target_id))
+    return render json: { error: 'not_found' }, status: :not_found if target.nil?
+
     authorize target, :show?
     Jabvox::Tickets::MergeService.new(source: @ticket, target: target, actor: Current.user).call
     render :show
@@ -110,6 +114,19 @@ class Api::V1::Accounts::Jabvox::Tickets::TicketsController <
   end
 
   private
+
+  # El assignee de un ticket es SIEMPRE staff/resolver de la cuenta GESTORA del
+  # helpdesk (ver Jabvox::TicketPermissionResolver), nunca un usuario arbitrario del
+  # sistema. Sin este scope, `User.find(params[:assignee_id])` aceptaba el id de
+  # cualquier usuario de cualquier cuenta y lo vinculaba al ticket como responsable.
+  def resolve_assignee(assignee_id)
+    return nil if assignee_id.blank?
+
+    manager_account = ticket_permission.manager_account
+    return nil if manager_account.nil?
+
+    manager_account.users.find(assignee_id)
+  end
 
   # Autorización usada por el servicio de lote (respeta la policy por ticket).
   def authorize_for_bulk(ticket, query)

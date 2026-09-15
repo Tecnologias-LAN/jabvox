@@ -73,7 +73,6 @@ const executeCopilotAction = (action, data) => {
               : ''
           "
           enable-variables
-          enable-captain-tools
           :show-character-count="false"
           :signature="messageSignature"
           allow-signature

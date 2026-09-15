@@ -24,6 +24,10 @@ class DeviseOverrides::SessionsController < DeviseTokenAuth::SessionsController
 
   def render_create_success
     track_user_session unless @impersonation
+    # Cookie HttpOnly con el mismo token (ver config/initializers/devise_token_auth.rb):
+    # cubre el login normal, SSO y MFA en un solo punto, ya que los tres llegan aquí con
+    # @resource/@token ya asignados.
+    set_token_in_cookie(@resource, @token) if @token
     render partial: 'devise/auth', formats: [:json], locals: { resource: @resource }
   end
 

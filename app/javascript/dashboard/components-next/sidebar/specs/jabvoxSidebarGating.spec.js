@@ -36,7 +36,6 @@ const CONFIG_ITEMS = [
   "name: 'Settings Jabvox AI Chat'",
   "name: 'Settings Jabvox Dialer'",
   "name: 'Settings Jabvox Affiliates'",
-  "name: 'Settings Jabvox Response Bot'",
   "name: 'Settings Jabvox Email'",
   "name: 'Settings Jabvox Forms'",
   "name: 'Settings Jabvox Customization'",
@@ -82,10 +81,10 @@ describe('Jabvox sidebar gating matches the permission spec', () => {
     }
   );
 
-  it('Captain is gated by its feature flag', () => {
-    const ctx = contextBefore("name: 'Captain'");
-    expect(ctx).not.toBeNull();
-    expect(/FEATURE_FLAGS\.CAPTAIN\b/.test(ctx)).toBe(true);
+  // Captain se unificó dentro del Chat IA (Hermes): ya no tiene entrada propia en el
+  // sidebar. El único módulo de IA de la cuenta es "Jabvox AI Chat" (ver USAGE_FLAG_ONLY).
+  it('Captain no longer has its own sidebar entry', () => {
+    expect(contextBefore("name: 'Captain'")).toBeNull();
   });
 
   it('Help Center (Portals) is gated by its feature flag', () => {

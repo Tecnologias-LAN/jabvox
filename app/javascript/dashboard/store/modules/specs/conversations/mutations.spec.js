@@ -555,21 +555,6 @@ describe('#mutations', () => {
     });
   });
 
-  describe('#SET_INBOX_CAPTAIN_ASSISTANT', () => {
-    it('set inbox captain assistant', () => {
-      const state = { copilotAssistant: {} };
-      const data = {
-        assistant: {
-          id: 1,
-          name: 'Assistant',
-          description: 'Assistant description',
-        },
-      };
-      mutations[types.SET_INBOX_CAPTAIN_ASSISTANT](state, data);
-      expect(state.copilotAssistant).toEqual(data.assistant);
-    });
-  });
-
   describe('#SET_CHAT_DATA_FETCHED', () => {
     it('should set dataFetched to true on the conversation by ID', () => {
       const state = {

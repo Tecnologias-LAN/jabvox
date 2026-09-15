@@ -1,0 +1,11 @@
+# Transcripción de audio (notas de voz y grabaciones de llamadas de WhatsApp) vía IA.
+# Worker Sidekiq dedicado y AISLADO: llama a un proveedor de IA externo y puede tardar
+# varios segundos por archivo, así que vive en su propia cola para que no pueda taponar el
+# envío/recepción de mensajes ni ningún otro servicio.
+---
+:verbose: false
+:concurrency: <%= ENV.fetch("JABVOX_TRANSCRIPTION_CONCURRENCY", "4").to_i %>
+:timeout: 25
+:max_retries: 3
+:queues:
+  - jabvox_transcription

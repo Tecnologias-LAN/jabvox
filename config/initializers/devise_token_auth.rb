@@ -5,6 +5,21 @@ DeviseTokenAuth.setup do |config|
   # each request.
   config.change_headers_on_each_request = false
 
+  # Seguridad: además de los headers (que el JS sigue enviando en cada request vía
+  # axios, sin cambios), el gem también deja el mismo token en una cookie HttpOnly.
+  # El JS NUNCA puede leer esta cookie (a diferencia de la anterior cw_d_session_info,
+  # que sí podía) — un XSS ya no puede exfiltrar el token vía document.cookie. Los
+  # pocos flujos que no pueden mandar headers manualmente (streaming SSE de Hermes,
+  # beacons de WhatsApp/dialer al cerrar pestaña, DirectUpload) se autentican con esta
+  # cookie automáticamente (el navegador la adjunta solo, con credentials: 'include');
+  # el gem prioriza headers sobre cookie, así que el resto de la app sigue igual.
+  config.cookie_enabled = true
+  config.cookie_attributes = {
+    httponly: true,
+    same_site: :lax,
+    secure: ActiveModel::Type::Boolean.new.cast(ENV.fetch('FORCE_SSL', false))
+  }
+
   # By default, users will need to re-authenticate after 2 weeks. This setting
   # determines how long tokens will remain valid after they are issued.
   config.token_lifespan = 2.months

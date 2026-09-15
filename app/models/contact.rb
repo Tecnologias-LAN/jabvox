@@ -41,6 +41,8 @@
 
 # rubocop:enable Layout/LineLength
 
+# rubocop:disable Metrics/ClassLength -- una línea sobre el límite tras añadir
+# has_many :jabvox_leads, necesaria para que borrar un contacto no viole la FK.
 class Contact < ApplicationRecord
   include Avatarable
   include AvailabilityStatusable
@@ -49,6 +51,9 @@ class Contact < ApplicationRecord
   include Labelable
   include LlmFormattable
   include ContactAgentVisibility
+  # Mantiene phone_country_code_jabvox / phone_national_jabvox derivados del E.164
+  # de phone_number, que sigue siendo la identidad del contacto.
+  include Jabvox::ContactPhoneParts
 
   validates :account_id, presence: true
   validates :email, allow_blank: true, uniqueness: { scope: [:account_id], case_sensitive: false },
@@ -68,6 +73,8 @@ class Contact < ApplicationRecord
   # Contact-linked custom rows go away with the contact (the FK is also
   # ON DELETE CASCADE, so a bulk delete_all can't be blocked either).
   has_many :jabvox_custom_table_rows, dependent: :delete_all
+  # Sin esta relación, borrar un contacto fallaba con violación de FK.
+  has_many :jabvox_leads, dependent: :destroy
   before_validation :prepare_contact_attributes
   after_create_commit :dispatch_create_event, :ip_lookup
   after_update_commit :dispatch_update_event
@@ -252,4 +259,5 @@ class Contact < ApplicationRecord
     )
   end
 end
+# rubocop:enable Metrics/ClassLength
 Contact.include_mod_with('Concerns::Contact')

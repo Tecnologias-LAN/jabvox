@@ -23,9 +23,21 @@ class Channel::Sms < ApplicationRecord
 
   validates :phone_number, presence: true, uniqueness: true
   # before_save :validate_provider_config
+  before_validation :ensure_webhook_token
 
   def name
     'Sms'
+  end
+
+  # Bandwidth no firma sus webhooks (a diferencia de Meta/Shopify/TikTok), así que el único
+  # secreto disponible para autenticar el callback es este token propio, incluido en la URL
+  # que el admin pega en el panel de Bandwidth (ver Inbox#callback_webhook_url). Se compara
+  # en tiempo constante para no filtrar el valor por timing.
+  def valid_webhook_token?(token)
+    expected = provider_config['webhook_token']
+    return false if expected.blank? || token.blank?
+
+    ActiveSupport::SecurityUtils.secure_compare(expected, token)
   end
 
   # all this should happen in provider service . but hack mode on
@@ -95,5 +107,10 @@ class Channel::Sms < ApplicationRecord
       headers: { 'Content-Type': 'application/json' }
     )
     errors.add(:provider_config, 'error setting up') unless response.success?
+  end
+
+  def ensure_webhook_token
+    self.provider_config ||= {}
+    provider_config['webhook_token'] ||= SecureRandom.hex(24)
   end
 end

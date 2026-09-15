@@ -119,6 +119,19 @@ class Api::V1::Accounts::Jabvox::HermesConnectionsController < Api::V1::Accounts
   end
 
   def connection_params
-    params.permit(:name_jabvox, :hermes_agent_name_jabvox, :base_url_jabvox, :token_jabvox)
+    permitted = params.permit(:name_jabvox, :hermes_agent_name_jabvox, :base_url_jabvox, :token_jabvox,
+                              allowed_ips_jabvox: [])
+    return permitted unless params.key?(:allowed_ips_jabvox)
+
+    permitted.merge(allowed_ips_jabvox: normalized_allowed_ips)
+  end
+
+  # La allowlist llega como array (JSON) o como texto separado por comas desde un input
+  # simple. Se normaliza a array sin vacíos; el modelo valida que cada entrada sea una IP o
+  # un CIDR real.
+  def normalized_allowed_ips
+    raw = params[:allowed_ips_jabvox]
+    list = raw.is_a?(Array) ? raw : raw.to_s.split(',')
+    list.map { |entry| entry.to_s.strip }.reject(&:blank?)
   end
 end

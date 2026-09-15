@@ -1,10 +1,18 @@
-# Importación de leads desde BD externa
+# Importación de leads (CSV del dashboard, portal de afiliados y BD externa)
 # Worker Sidekiq dedicado y AISLADO: procesa solo su(s) cola(s). Así una carga
 # pesada en este servicio no puede taponar los mensajes ni otros servicios.
 ---
 :verbose: false
-:concurrency: <%= ENV.fetch("JABVOX_LEADIMPORT_CONCURRENCY", "5").to_i %>
+# Varias cuentas importan a la vez: la concurrencia es lo que permite atender
+# 10 importaciones simultáneas sin que una espere a que termine la anterior.
+# Subirla exige revisar el pool de Postgres (ver la unidad systemd).
+:concurrency: <%= ENV.fetch("JABVOX_LEADIMPORT_CONCURRENCY", "8").to_i %>
 :timeout: 25
 :max_retries: 3
+# Orden = prioridad estricta (sin pesos). Las importaciones que un usuario está
+# mirando en pantalla (CSV del dashboard, portal de afiliados) van PRIMERO: una
+# sincronización de BD externa de millones de filas no puede dejar esperando a
+# alguien que acaba de subir un archivo de 200 leads.
 :queues:
+  - jabvox_lead_import_interactive
   - jabvox_lead_import
