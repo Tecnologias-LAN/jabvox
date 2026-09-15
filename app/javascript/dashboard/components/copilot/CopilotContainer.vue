@@ -28,11 +28,19 @@ const isSmallScreen = computed(
   () => windowWidth.value < wootConstants.SMALL_SCREEN_BREAKPOINT
 );
 
-// Sesión de la burbuja. Es una sesión más de Hermes, así que también aparece en la página
-// completa de Chat IA: el usuario puede empezar aquí y seguir allá.
-const currentSessionId = ref(null);
+// La sesión de la burbuja vive en Vuex (jabvoxAiChat), NO en un ref() local: este
+// componente se desmonta por completo cada vez que la burbuja se cierra (v-if más abajo),
+// y con él cualquier ref() local se perdería. Vuex sí sobrevive, así que reabrir la
+// burbuja (o recargar la página) recupera la MISMA conversación en vez de una vacía —
+// igual que ya hace la página completa de Chat IA con sus sesiones guardadas en backend.
+const currentSessionId = computed({
+  get: () => store.getters['jabvoxAiChat/getCopilotSessionId'],
+  set: value => store.commit('jabvoxAiChat/SET_COPILOT_SESSION_ID', value),
+});
+
 const hermesAgents = ref([]); // conexiones Hermes ligadas a este usuario
 const selectedAgentId = ref(null);
+const hasRestoredSession = ref(false);
 
 const messages = computed(() =>
   currentSessionId.value
@@ -67,11 +75,14 @@ const closeCopilotPanel = () => {
   }
 };
 
+// Cerrar la burbuja SOLO oculta el panel: no aborta el streaming en curso (isStreaming/
+// activeTools viven en Vuex, ajenos al ciclo de vida de este componente) ni borra la
+// sesión — al reabrir, se ve la misma conversación, completa o siguiendo en vivo.
 const handleClose = () => {
   updateUISettings({ is_copilot_panel_open: false });
 };
 
-// Conversación nueva: la siguiente pregunta abre una sesión limpia en Hermes.
+// Conversación nueva explícita: el usuario pidió empezar de cero.
 const handleReset = () => {
   if (isStreaming.value) stopStreaming();
   currentSessionId.value = null;
@@ -108,6 +119,28 @@ const sendMessage = async message => {
   });
 };
 
+// Al habilitarse el módulo (llegue antes o después del montaje, ver el watch de abajo):
+// 1) carga los agentes Hermes del usuario, y 2) si la burbuja no tiene ya una sesión
+// (primera vez que se abre en esta pestaña), recupera la ÚLTIMA sesión existente del
+// backend — igual que hace la página completa — en vez de arrancar siempre en blanco.
+async function restoreLastSession() {
+  if (hasRestoredSession.value || currentSessionId.value) return;
+  hasRestoredSession.value = true;
+  try {
+    await store.dispatch('jabvoxAiChat/fetchSessions');
+    const sessions = store.getters['jabvoxAiChat/getSessions'];
+    if (!sessions.length) return;
+
+    const [lastSession] = sessions;
+    currentSessionId.value = lastSession.session_id;
+    if (lastSession.connection_id)
+      selectedAgentId.value = lastSession.connection_id;
+    await store.dispatch('jabvoxAiChat/fetchMessages', lastSession.session_id);
+  } catch {
+    hasRestoredSession.value = false;
+  }
+}
+
 // CopilotContainer vive siempre montado en el Dashboard (no es una ruta a la que se
 // navega), así que su onMounted corre ANTES de que App.vue termine de cargar
 // accounts/get: en ese instante el flag jabvox_ai_chat aún lee false y la carga de
@@ -122,7 +155,11 @@ watch(
     try {
       const { data } = await hermesConnectionsAPI.mine();
       hermesAgents.value = data || [];
-      selectedAgentId.value = hermesAgents.value[0]?.id || null;
+      // No pisar el agente ya restaurado de una sesión anterior (ver restoreLastSession).
+      if (!selectedAgentId.value) {
+        selectedAgentId.value = hermesAgents.value[0]?.id || null;
+      }
+      await restoreLastSession();
     } catch {
       hermesAgents.value = [];
       hasFetchedAgents.value = false;
