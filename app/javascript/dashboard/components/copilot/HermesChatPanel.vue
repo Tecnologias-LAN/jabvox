@@ -211,13 +211,18 @@ const sessionLabel = session =>
     </div>
 
     <template v-else>
-      <!-- Selectores de agente y modelo -->
+      <!-- Selectores de agente y modelo.
+           w-0 + flex-1: un <select> nativo se ancha según el texto de sus opciones, así que
+           un nombre de agente o modelo largo estiraría el panel entero y lo desplazaría del
+           borde derecho. Con w-0 el reparto lo decide el flex, no el contenido.
+           flex-wrap: en pantallas estrechas los dos selectores se apilan en vez de quedar
+           espachurrados en una sola fila. -->
       <div
-        class="flex items-center gap-2 px-3 py-2 border-b border-n-weak bg-n-alpha-1 shrink-0"
+        class="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-n-weak bg-n-alpha-1 shrink-0 min-w-0"
       >
         <select
           v-model="agentModel"
-          class="flex-1 min-w-0 rounded-lg border border-n-weak bg-n-solid-1 px-2 py-1 text-xs text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-n-brand"
+          class="flex-1 basis-32 min-w-0 rounded-lg border border-n-weak bg-n-solid-1 px-2 py-1 text-xs text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-n-brand"
           :title="t('JABVOX_AI_CHAT.AGENT')"
         >
           <option
@@ -231,7 +236,7 @@ const sessionLabel = session =>
         <select
           v-if="modelOptions.length"
           v-model="modelKey"
-          class="flex-1 min-w-0 rounded-lg border border-n-weak bg-n-solid-1 px-2 py-1 text-xs text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-n-brand"
+          class="flex-1 basis-32 min-w-0 rounded-lg border border-n-weak bg-n-solid-1 px-2 py-1 text-xs text-n-slate-12 focus:outline-none focus:ring-1 focus:ring-n-brand"
           :title="t('JABVOX_AI_CHAT.MODEL')"
         >
           <option value="">{{ t('JABVOX_AI_CHAT.DEFAULT_MODEL') }}</option>
@@ -361,14 +366,16 @@ const sessionLabel = session =>
         <span
           v-for="tool in activeTools"
           :key="tool.id"
-          class="flex items-center gap-1 text-xs text-n-slate-11 rounded-full bg-n-solid-1 border border-n-weak px-2 py-0.5"
+          class="flex items-center gap-1 max-w-full min-w-0 text-xs text-n-slate-11 rounded-full bg-n-solid-1 border border-n-weak px-2 py-0.5"
         >
           <span
             v-if="tool.status === 'running'"
-            class="i-lucide-loader-2 animate-spin size-3"
+            class="i-lucide-loader-2 animate-spin size-3 shrink-0"
           />
-          <span v-else class="i-lucide-check size-3 text-green-500" />
-          {{ tool.emoji }} {{ tool.label }}
+          <span v-else class="i-lucide-check size-3 text-green-500 shrink-0" />
+          <span class="truncate min-w-0">
+            {{ tool.emoji }} {{ tool.label }}
+          </span>
         </span>
       </div>
 
