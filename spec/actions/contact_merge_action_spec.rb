@@ -80,6 +80,41 @@ describe ContactMergeAction do
       end
     end
 
+    # Regresión: en producción, cada contacto nuevo dispara su propio
+    # Jabvox::ContactLeadsIntegration#jabvox_create_lead (after_commit), así que llega
+    # con SU PROPIO JabvoxLead ya creado. Fusionar dos contactos que ambos ya tienen lead
+    # violaba index_jabvox_leads_on_account_id_and_contact_id al intentar mover el lead
+    # del mergee al mismo contact_id que el lead del base (widget de Soporte: 500 en
+    # PATCH /api/v1/widget/contact/set_user).
+    context 'when both contacts already have their own jabvox lead' do
+      let!(:base_lead) { create(:jabvox_lead, account: account, contact: base_contact) }
+      let!(:mergee_lead) { create(:jabvox_lead, account: account, contact: mergee_contact) }
+
+      it 'does not raise a unique constraint violation' do
+        expect { contact_merge }.not_to raise_error
+      end
+
+      it 'keeps the base contact lead untouched' do
+        contact_merge
+        expect(JabvoxLead.exists?(id: base_lead.id)).to be(true)
+        expect(base_contact.reload.jabvox_leads.count).to eq(1)
+      end
+
+      it 'discards the mergee lead (it is deleted along with the mergee contact)' do
+        contact_merge
+        expect(JabvoxLead.exists?(id: mergee_lead.id)).to be(false)
+      end
+    end
+
+    context 'when only the mergee contact has a jabvox lead' do
+      let!(:mergee_lead) { create(:jabvox_lead, account: account, contact: mergee_contact) }
+
+      it 'moves the lead to the base contact' do
+        contact_merge
+        expect(mergee_lead.reload.contact_id).to eq(base_contact.id)
+      end
+    end
+
     context 'when contacts belong to a different account' do
       it 'throws an exception' do
         new_account = create(:account)

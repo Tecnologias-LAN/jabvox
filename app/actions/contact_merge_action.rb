@@ -31,8 +31,15 @@ class ContactMergeAction
     @account.id == contact.account_id
   end
 
+  # Si el contacto base YA tiene su propio lead (el caso común: ambos contactos se
+  # crearon por separado y cada uno disparó su propio Jabvox::ContactLeadsIntegration),
+  # mover el lead del mergee al mismo account_id+contact_id violaría el índice único
+  # index_jabvox_leads_on_account_id_and_contact_id. En ese caso se conserva el lead del
+  # base y el del mergee queda para que merge_and_remove_mergee_contact lo borre más abajo
+  # (ese borrado usa DELETE, no UPDATE, así que no colisiona).
   def merge_leads
     return unless defined?(JabvoxLead)
+    return if JabvoxLead.exists?(contact_id: @base_contact.id)
 
     JabvoxLead.where(contact_id: @mergee_contact.id).update_all(contact_id: @base_contact.id)
   end
