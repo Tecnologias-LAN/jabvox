@@ -84,13 +84,6 @@ export const COMPONENT_CATALOG = {
         default: 'text',
       },
       REQUIRED_FIELD,
-      {
-        key: 'init_value',
-        label: 'Valor inicial (variable)',
-        kind: 'text',
-        variableAllowed: true,
-        optional: true,
-      },
     ],
   },
   TextArea: {
@@ -99,18 +92,7 @@ export const COMPONENT_CATALOG = {
     category: 'input',
     hasName: true,
     maxLength: 600,
-    fields: [
-      INPUT_NAME_FIELD,
-      LABEL_FIELD,
-      REQUIRED_FIELD,
-      {
-        key: 'init_value',
-        label: 'Valor inicial (variable)',
-        kind: 'text',
-        variableAllowed: true,
-        optional: true,
-      },
-    ],
+    fields: [INPUT_NAME_FIELD, LABEL_FIELD, REQUIRED_FIELD],
   },
   RadioButtonsGroup: {
     label: 'Selección única (radio)',

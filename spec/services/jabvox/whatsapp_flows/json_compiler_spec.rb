@@ -133,8 +133,27 @@ RSpec.describe Jabvox::WhatsappFlows::JsonCompiler do
     expect(radio[:'on-select-action']['name']).to eq('data_exchange')
   end
 
-  # Meta no ignora una propiedad vacía: rechaza el Flow entero al publicarlo con
-  # "Property 'init-value' is not allowed in 'TextInput' component".
+  # Comprobado contra la API real: Meta rechaza el Flow entero con
+  # "Property 'init-value' is not allowed in 'TextInput' component", tenga la
+  # propiedad contenido o no, porque solo aplica a flows con endpoint.
+  it 'omits init_value, which Meta rejects on endpoint-less flows' do
+    with_init = [
+      { 'id' => 'unica', 'title' => 'Única', 'terminal' => true, 'order' => 0, 'components' => [
+        { 'type' => 'TextInput', 'props' => { 'name' => 'v0', 'label' => 'vo', 'init_value' => 'v0' } },
+        { 'type' => 'TextArea', 'props' => { 'name' => 'v1', 'label' => 'v1', 'init_value' => 'texto' } },
+        { 'type' => 'Footer', 'props' => { 'label' => 'Enviar', 'action' => { 'name' => 'complete' } } }
+      ] }
+    ]
+    children = described_class.new(with_init).call[:screens].first[:layout][:children].first[:children]
+
+    expect(children[0]).not_to have_key(:'init-value')
+    expect(children[1]).not_to have_key(:'init-value')
+    # El campo sigue recogiéndose en el payload: solo se quita la precarga.
+    expect(children[2][:'on-click-action']['payload']).to eq(
+      { 'v0' => '${form.v0}', 'v1' => '${form.v1}' }
+    )
+  end
+
   it 'omits props the user left blank' do
     with_blanks = [
       { 'id' => 'unica', 'title' => 'Única', 'terminal' => true, 'order' => 0, 'components' => [
