@@ -52,9 +52,13 @@ class Jabvox::WhatsappFlows::MetaClient
     tempfile.write(flow_json.to_json)
     tempfile.rewind
 
+    # `multipart: true` es obligatorio: sin él HTTParty serializa el cuerpo como
+    # form-urlencoded y el archivo nunca viaja, así que Meta responde
+    # "(#100) The parameter file is required".
     response = HTTParty.post(
       "#{graph_base}/#{@flow.meta_flow_id}/assets",
       headers: { 'Authorization' => "Bearer #{access_token}" },
+      multipart: true,
       body: {
         name: 'flow.json',
         asset_type: 'FLOW_JSON',

@@ -4,13 +4,49 @@ RSpec.describe Jabvox::WhatsappFlows::MetaClient do
   let(:account) { create(:account) }
   let(:channel) do
     create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', sync_templates: false, validate_provider_config: false,
-                               provider_config: { 'api_key' => 'secret_token_123', 'phone_number_id' => '111', 'business_account_id' => 'waba-1' })
+                              provider_config: { 'api_key' => 'secret_token_123', 'phone_number_id' => '111', 'business_account_id' => 'waba-1' })
   end
   let(:inbox) { create(:inbox, account: account, channel: channel) }
   let(:flow) { create(:jabvox_whatsapp_flow, account: account, inbox: inbox, waba_id: 'waba-1') }
   let(:client) { described_class.new(flow) }
 
-  let(:base) { "https://graph.facebook.com/v22.0" }
+  let(:base) { 'https://graph.facebook.com/v22.0' }
+
+  describe '#update_json' do
+    let(:flow) do
+      create(:jabvox_whatsapp_flow, account: account, inbox: inbox, waba_id: 'waba-1',
+                                    meta_flow_id: 'meta-flow-1')
+    end
+
+    # Meta responde "(#100) The parameter file is required" si el cuerpo no va
+    # como multipart: el archivo simplemente no viaja.
+    it 'sube el Flow JSON como multipart con el nombre y el tipo de asset' do
+      stub = stub_request(:post, "#{base}/meta-flow-1/assets")
+             .with do |req|
+        req.headers['Content-Type'].to_s.start_with?('multipart/form-data') &&
+          req.body.include?('FLOW_JSON') && req.body.include?('flow.json')
+      end
+             .to_return(status: 200, body: { success: true }.to_json,
+                        headers: { 'Content-Type' => 'application/json' })
+
+      result = client.update_json({ version: '7.3', screens: [] })
+
+      expect(result[:success]).to be(true)
+      expect(stub).to have_been_requested
+    end
+
+    it 'devuelve el error de Meta de forma legible' do
+      stub_request(:post, "#{base}/meta-flow-1/assets")
+        .to_return(status: 400,
+                   body: { error: { message: '(#100) The parameter file is required.' } }.to_json,
+                   headers: { 'Content-Type' => 'application/json' })
+
+      result = client.update_json({ version: '7.3', screens: [] })
+
+      expect(result[:success]).to be(false)
+      expect(result[:error]).to include('parameter file is required')
+    end
+  end
 
   describe '#create' do
     it 'POSTs to /{WABA_ID}/flows with name and categories, and returns the new meta_flow_id' do

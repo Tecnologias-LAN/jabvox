@@ -90,6 +90,21 @@ RSpec.describe Jabvox::WhatsappTemplates::FlowTemplateCreator do
       expect(button[:navigate_screen]).to eq('welcome')
     end
 
+    # Meta exige nombres únicos dentro del WABA y el usuario no elige el del
+    # Flow (lo hereda de la plantilla), así que un reintento chocaba con
+    # "Flow name is not unique".
+    it 'evita chocar con el nombre de un Flow que ya existe en la bandeja' do
+      account.jabvox_whatsapp_flows.create!(
+        inbox: inbox, waba_id: '1', name: 'encuesta_satisfaccion',
+        category: 'SURVEY', status: 'draft', screens_json: screens
+      )
+
+      creator.call(inbox, params)
+
+      expect(account.jabvox_whatsapp_flows.pluck(:name))
+        .to contain_exactly('encuesta_satisfaccion', 'encuesta_satisfaccion_2')
+    end
+
     it 'enlaza la plantilla con el Flow' do
       result = creator.call(inbox, params)
 

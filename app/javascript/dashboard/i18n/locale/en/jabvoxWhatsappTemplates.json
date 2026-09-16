@@ -279,12 +279,13 @@
         "PANEL_CONFIG": "Settings",
         "ADD_SCREEN": "+ Screen",
         "ADD_WIDGET": "Add element",
-        "SCREEN_NAME": "Screen name",
+        "SCREEN_NAME": "Screen title",
         "SELECT_WIDGET": "Pick an element from the screen to configure it.",
         "FINAL_BADGE": "Final",
         "WIDGET_COUNT": "{count} element(s)",
         "BUTTON_LOCKED_NOTE": "This template opens a form, so Meta only allows this button. You can change its label.",
-        "EMPTY_SCREEN": "This screen has no content yet."
+        "EMPTY_SCREEN": "This screen has no content yet.",
+        "SCREEN_NAME_HELP": "Shown at the top of the screen inside WhatsApp."
       },
       "BUTTON_TYPES": {
         "QUICK_REPLY": "Quick reply",

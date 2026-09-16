@@ -41,15 +41,32 @@ class Jabvox::WhatsappTemplates::FlowTemplateCreator
     @account.jabvox_whatsapp_flows.create(
       inbox: inbox,
       waba_id: inbox.channel.provider_config['business_account_id'],
-      # Sin nombre propio, el Flow hereda el de la plantilla: son una sola cosa
-      # desde el punto de vista del usuario.
-      name: flow_params[:name].presence || params[:name],
+      name: unique_flow_name(inbox, flow_params[:name].presence || params[:name]),
       category: flow_params[:category].presence || 'OTHER',
       description: flow_params[:description],
       screens_json: flow_params[:screens_json],
       status: 'draft',
       created_by: @user
     )
+  end
+
+  # Meta exige que el nombre del Flow sea único dentro del WABA, y el usuario no
+  # lo elige (lo hereda de la plantilla). Al reintentar tras un fallo, o al crear
+  # dos plantillas con el mismo nombre base, el anterior ya ocupó ese nombre y
+  # Meta responde "Flow name is not unique". Se añade un sufijo corto cuando ya
+  # existe uno con ese nombre en la misma cuenta.
+  def unique_flow_name(inbox, base_name)
+    base = base_name.to_s.strip.presence || 'formulario'
+    taken = @account.jabvox_whatsapp_flows
+                    .where(inbox_id: inbox.id)
+                    .where('name LIKE ?', "#{base}%")
+                    .pluck(:name)
+                    .to_set
+    return base if taken.exclude?(base)
+
+    suffix = 2
+    suffix += 1 while taken.include?("#{base}_#{suffix}")
+    "#{base}_#{suffix}"
   end
 
   # El Flow queda guardado como borrador aunque falle la publicación, así el

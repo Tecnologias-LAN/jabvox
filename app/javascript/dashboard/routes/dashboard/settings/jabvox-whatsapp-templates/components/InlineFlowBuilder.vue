@@ -292,7 +292,7 @@ defineExpose({ issues });
 
     <!-- Tres paneles: pantallas · widgets · configuración del widget -->
     <div
-      class="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_280px] rounded-xl border border-n-weak overflow-hidden min-h-[460px]"
+      class="grid grid-cols-1 lg:grid-cols-[200px_minmax(0,260px)_minmax(0,1fr)] rounded-xl border border-n-weak overflow-hidden min-h-[460px]"
     >
       <!-- Panel 1: pantallas -->
       <div
@@ -394,6 +394,9 @@ defineExpose({ issues });
             :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SCREEN_NAME')"
             @input="renameScreen($event.target.value)"
           />
+          <p class="text-[10px] text-n-slate-10 mt-1">
+            {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SCREEN_NAME_HELP') }}
+          </p>
         </div>
 
         <div class="flex-1 overflow-y-auto max-h-[520px] p-2">

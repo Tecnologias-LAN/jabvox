@@ -274,12 +274,13 @@
         "PANEL_CONFIG": "Configuración",
         "ADD_SCREEN": "+ Pantalla",
         "ADD_WIDGET": "Agregar elemento",
-        "SCREEN_NAME": "Nombre de la pantalla",
+        "SCREEN_NAME": "Título de la pantalla",
         "SELECT_WIDGET": "Elige un elemento de la pantalla para configurarlo.",
         "FINAL_BADGE": "Final",
         "WIDGET_COUNT": "{count} elemento(s)",
         "BUTTON_LOCKED_NOTE": "Esta plantilla abre un formulario, así que Meta solo admite este botón. Puedes cambiarle el texto.",
-        "EMPTY_SCREEN": "Esta pantalla aún no tiene contenido."
+        "EMPTY_SCREEN": "Esta pantalla aún no tiene contenido.",
+        "SCREEN_NAME_HELP": "Se muestra en la parte superior de la pantalla dentro de WhatsApp."
       },
       "BUTTON_TYPES": {
         "QUICK_REPLY": "Respuesta rápida",
