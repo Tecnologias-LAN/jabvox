@@ -34,11 +34,11 @@ RSpec.describe Jabvox::WhatsappTemplatesManager do
       flow_button = buttons_component['buttons'].find { |b| b['type'] == 'FLOW' }
       expect(flow_button).to include(
         'type' => 'FLOW', 'text' => 'Comenzar', 'flow_id' => 'meta-flow-42',
-        'flow_action' => 'navigate', 'navigate_screen' => 'welcome'
+        'flow_action' => 'NAVIGATE', 'navigate_screen' => 'welcome'
       )
     end
 
-    it 'omits navigate_screen when not provided, but still sets flow_action: navigate' do
+    it 'omits navigate_screen when not provided, but still sets flow_action: NAVIGATE' do
       stub_create_template
       manager.create(inbox, {
                        name: 'plantilla_flow2', category: 'MARKETING', language: 'es', body: 'Hola',
@@ -48,7 +48,7 @@ RSpec.describe Jabvox::WhatsappTemplatesManager do
       last_request = WebMock::RequestRegistry.instance.requested_signatures.hash.keys.last
       sent_body = JSON.parse(last_request.body)
       flow_button = sent_body['components'].find { |c| c['type'] == 'BUTTONS' }['buttons'].find { |b| b['type'] == 'FLOW' }
-      expect(flow_button['flow_action']).to eq('navigate')
+      expect(flow_button['flow_action']).to eq('NAVIGATE')
       expect(flow_button).not_to have_key('navigate_screen')
     end
   end

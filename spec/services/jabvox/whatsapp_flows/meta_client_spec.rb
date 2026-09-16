@@ -18,21 +18,25 @@ RSpec.describe Jabvox::WhatsappFlows::MetaClient do
                                     meta_flow_id: 'meta-flow-1')
     end
 
-    # Meta responde "(#100) The parameter file is required" si el cuerpo no va
-    # como multipart: el archivo simplemente no viaja.
-    it 'sube el Flow JSON como multipart con el nombre y el tipo de asset' do
-      stub = stub_request(:post, "#{base}/meta-flow-1/assets")
-             .with do |req|
-        req.headers['Content-Type'].to_s.start_with?('multipart/form-data') &&
-          req.body.include?('FLOW_JSON') && req.body.include?('flow.json')
+    # Contrastado contra la API real: el multipart de HTTParty omite la línea en
+    # blanco que exige el estándar y Meta responde "(#100) The parameter file is
+    # required"; este cuerpo, construido a mano, sí lo acepta.
+    it 'sube el Flow JSON como multipart con el archivo, el nombre y el tipo de asset' do
+      captured = nil
+      stub = stub_request(:post, "#{base}/meta-flow-1/assets").to_return do |req|
+        captured = { ctype: req.headers['Content-Type'].to_s, body: req.body.to_s }
+        { status: 200, body: { success: true }.to_json, headers: { 'Content-Type' => 'application/json' } }
       end
-             .to_return(status: 200, body: { success: true }.to_json,
-                        headers: { 'Content-Type' => 'application/json' })
 
       result = client.update_json({ version: '7.3', screens: [] })
 
       expect(result[:success]).to be(true)
       expect(stub).to have_been_requested
+      expect(captured[:ctype]).to start_with('multipart/form-data')
+      # La línea en blanco tras cada cabecera es justo lo que faltaba.
+      expect(captured[:body]).to include(%(name="asset_type"\r\n\r\nFLOW_JSON))
+      expect(captured[:body]).to include(%(name="file"; filename="flow.json"))
+      expect(captured[:body]).to include('"version":"7.3"')
     end
 
     it 'devuelve el error de Meta de forma legible' do

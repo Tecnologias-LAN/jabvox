@@ -627,16 +627,19 @@ class Jabvox::WhatsappTemplatesManager
 
   # Fills in a FLOW-type template button with the exact shape Meta expects when
   # CREATING a template (architecture doc docs/whatsapp-flows/architecture.md section 2.5):
-  #   { type: 'FLOW', text:, flow_id:, flow_action: 'navigate', navigate_screen: }
+  #   { type: 'FLOW', text:, flow_id:, flow_action: 'NAVIGATE', navigate_screen: }
   # flow_id here is Meta's OWN id (JabvoxWhatsappFlow#meta_flow_id) resolved by the
   # caller (controller) from the managed Jabvox catalog — never free text. This does not
   # touch the SEND-time payload (Whatsapp::PopulateTemplateParametersService#build_flow_button_parameter),
   # which is a separate, already-implemented mechanic per the architecture doc.
+  #
+  # flow_action va en MAYÚSCULAS: así lo devuelve Meta en una plantilla aprobada
+  # con botón FLOW ("flow_action": "NAVIGATE"), contrastado contra una real.
   def apply_flow_button!(btn, raw)
     flow_id = raw[:flow_id] || raw['flow_id']
     navigate_screen = raw[:navigate_screen] || raw['navigate_screen']
     btn[:flow_id] = flow_id.to_s
-    btn[:flow_action] = 'navigate'
+    btn[:flow_action] = 'NAVIGATE'
     btn[:navigate_screen] = navigate_screen.to_s if navigate_screen.present?
   end
 
