@@ -36,21 +36,55 @@ export const uniqueScreenId = (title, existingScreens = []) => {
 
 export const createComponentId = () => nextId('cmp');
 
-/** Crea una screen nueva (vacía) con el siguiente `order` disponible. */
-export const createScreen = (screens = [], title = 'Nueva pantalla') => ({
-  id: uniqueScreenId(title, screens),
-  title,
-  terminal: screens.length === 0,
-  order: screens.length,
-  components: [],
+/**
+ * Botón de avance de una pantalla. Meta exige un Footer en cada pantalla para
+ * poder continuar (y obligatoriamente en la terminal), así que se puede crear
+ * junto con la pantalla en vez de dejar que el usuario descubra el requisito
+ * cuando la validación falla. El texto es editable como cualquier otro.
+ */
+export const createFooter = ({ label, complete = false, next = '' }) => ({
+  id: createComponentId(),
+  type: 'Footer',
+  props: {
+    label,
+    action: complete ? { name: 'complete' } : { name: 'navigate', next },
+  },
 });
+
+/**
+ * Crea una screen nueva con el siguiente `order` disponible.
+ * `footerLabels` (opcional) añade el botón de avance ya puesto:
+ *   { next: 'Siguiente', submit: 'Enviar' }
+ */
+export const createScreen = (
+  screens = [],
+  title = 'Nueva pantalla',
+  footerLabels = null
+) => {
+  const terminal = screens.length === 0;
+  const components = footerLabels
+    ? [
+        createFooter({
+          label: terminal ? footerLabels.submit : footerLabels.next,
+          complete: terminal,
+        }),
+      ]
+    : [];
+  return {
+    id: uniqueScreenId(title, screens),
+    title,
+    terminal,
+    order: screens.length,
+    components,
+  };
+};
 
 /** Reindexa `order` 0..n-1 según la posición actual del array. */
 export const reindexScreens = screens =>
   screens.map((s, i) => ({ ...s, order: i }));
 
-export const addScreen = (screens, title) =>
-  reindexScreens([...screens, createScreen(screens, title)]);
+export const addScreen = (screens, title, footerLabels = null) =>
+  reindexScreens([...screens, createScreen(screens, title, footerLabels)]);
 
 export const removeScreen = (screens, screenId) =>
   reindexScreens(screens.filter(s => s.id !== screenId));

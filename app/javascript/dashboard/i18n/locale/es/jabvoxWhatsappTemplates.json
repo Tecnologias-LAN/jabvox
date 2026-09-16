@@ -250,7 +250,46 @@
         "FIRST_SCREEN": "Inicio",
         "NEW_SCREEN": "Nueva pantalla",
         "NEEDS_TERMINAL": "Marca la última pantalla como final para que el formulario pueda cerrarse.",
-        "NEEDS_FOOTER": "Falta el botón de avance en: {screens}."
+        "NEEDS_FOOTER": "Falta el botón de avance en: {screens}.",
+        "PREVIEW_TITLE": "Formulario que abre el botón",
+        "NEXT_BUTTON": "Siguiente",
+        "SUBMIT_BUTTON": "Enviar",
+        "BUTTON_DEFAULT": "Abrir formulario",
+        "CATEGORY_HELP": "Le dice a Meta para qué sirve el formulario. No cambia lo que ve el contacto.",
+        "CATEGORIES": {
+          "SURVEY": "Encuesta",
+          "LEAD_GENERATION": "Captación de clientes",
+          "APPOINTMENT_BOOKING": "Agendar una cita",
+          "CONTACT_US": "Contacto",
+          "CUSTOMER_SUPPORT": "Atención al cliente",
+          "SIGN_UP": "Registro",
+          "SIGN_IN": "Inicio de sesión",
+          "OTHER": "Otro"
+        },
+        "MISSING_FOOTER": "falta el botón de avance",
+        "MISSING_FOOTER_LABEL": "el botón necesita un texto",
+        "MISSING_NEXT": "el botón no indica a qué pantalla lleva"
+      },
+      "BUTTON_TYPES": {
+        "QUICK_REPLY": "Respuesta rápida",
+        "URL": "Abrir un enlace",
+        "PHONE_NUMBER": "Llamar por teléfono",
+        "COPY_CODE": "Copiar un código",
+        "VOICE_CALL": "Llamada por WhatsApp",
+        "FLOW": "Abrir formulario"
+      },
+      "OTP_TYPES": {
+        "ONE_TAP": "Autocompletar con un toque",
+        "COPY_CODE": "Copiar el código",
+        "ZERO_TAP": "Autocompletar sin tocar"
+      },
+      "MEDIA_TYPES": {
+        "NONE": "Ninguno",
+        "TEXT": "Texto",
+        "IMAGE": "Imagen",
+        "VIDEO": "Video",
+        "DOCUMENT": "Documento",
+        "LOCATION": "Ubicación"
       }
     },
     "DETAIL": {

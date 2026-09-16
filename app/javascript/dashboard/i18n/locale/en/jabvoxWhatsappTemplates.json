@@ -255,7 +255,46 @@
         "FIRST_SCREEN": "Start",
         "NEW_SCREEN": "New screen",
         "NEEDS_TERMINAL": "Mark the last screen as final so the form can be submitted.",
-        "NEEDS_FOOTER": "Missing the continue button on: {screens}."
+        "NEEDS_FOOTER": "Missing the continue button on: {screens}.",
+        "PREVIEW_TITLE": "Form opened by the button",
+        "NEXT_BUTTON": "Next",
+        "SUBMIT_BUTTON": "Submit",
+        "BUTTON_DEFAULT": "Open form",
+        "CATEGORY_HELP": "Tells Meta what the form is for. It does not change what the contact sees.",
+        "CATEGORIES": {
+          "SURVEY": "Survey",
+          "LEAD_GENERATION": "Lead generation",
+          "APPOINTMENT_BOOKING": "Appointment booking",
+          "CONTACT_US": "Contact us",
+          "CUSTOMER_SUPPORT": "Customer support",
+          "SIGN_UP": "Sign up",
+          "SIGN_IN": "Sign in",
+          "OTHER": "Other"
+        },
+        "MISSING_FOOTER": "missing the continue button",
+        "MISSING_FOOTER_LABEL": "the button needs a label",
+        "MISSING_NEXT": "the button does not say which screen it opens"
+      },
+      "BUTTON_TYPES": {
+        "QUICK_REPLY": "Quick reply",
+        "URL": "Open a link",
+        "PHONE_NUMBER": "Call phone number",
+        "COPY_CODE": "Copy a code",
+        "VOICE_CALL": "WhatsApp voice call",
+        "FLOW": "Open form"
+      },
+      "OTP_TYPES": {
+        "ONE_TAP": "One-tap autofill",
+        "COPY_CODE": "Copy the code",
+        "ZERO_TAP": "Zero-tap autofill"
+      },
+      "MEDIA_TYPES": {
+        "NONE": "None",
+        "TEXT": "Text",
+        "IMAGE": "Image",
+        "VIDEO": "Video",
+        "DOCUMENT": "Document",
+        "LOCATION": "Location"
       }
     },
     "DETAIL": {

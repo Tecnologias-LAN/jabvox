@@ -11,6 +11,8 @@ import { processVariable } from 'dashboard/helper/templateHelper';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import PromptDialog from './components/PromptDialog.vue';
 import InlineFlowBuilder from './components/InlineFlowBuilder.vue';
+import { getComponentMeta } from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/componentCatalog';
+import FlowPreview from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/components/FlowPreview.vue';
 import { useTemplateValidation } from './composables/useTemplateValidation';
 
 const { t } = useI18n();
@@ -523,14 +525,27 @@ const LANGUAGES = [
   { value: 'de', label: 'Deutsch' },
 ];
 const CATEGORIES = ['MARKETING', 'UTILITY', 'AUTHENTICATION'];
+// FLOW no está aquí a propósito: ese botón no se elige de la lista, lo pone el
+// sistema cuando el tipo de plantilla es Formulario (y su texto se edita en esa
+// sección). Ofrecerlo suelto llevaría a una plantilla con un botón sin Flow.
 const BUTTON_TYPES = [
   'QUICK_REPLY',
   'URL',
   'PHONE_NUMBER',
-  'FLOW',
   'COPY_CODE',
   'VOICE_CALL',
 ];
+
+const buttonTypeLabel = type =>
+  t(`JABVOX_WA_TEMPLATES.CREATE.BUTTON_TYPES.${type}`);
+
+// Dentro de una card de carrusel Meta solo admite estos tres.
+const CARD_BUTTON_TYPES = ['QUICK_REPLY', 'URL', 'PHONE_NUMBER'];
+
+const otpTypeLabel = type => t(`JABVOX_WA_TEMPLATES.CREATE.OTP_TYPES.${type}`);
+
+const mediaTypeLabel = type =>
+  t(`JABVOX_WA_TEMPLATES.CREATE.MEDIA_TYPES.${type}`);
 // 'authentication' se deriva automáticamente al elegir esa categoría, no es una
 // opción redundante en el selector de tipo de plantilla (sección 5 del diseño).
 // Cada tipo se presenta como una tarjeta con icono y una línea que explica
@@ -541,17 +556,21 @@ const TEMPLATE_KIND_OPTIONS = [
   { key: 'flow', icon: 'i-lucide-clipboard-list' },
 ];
 const OTP_TYPES = ['ONE_TAP', 'COPY_CODE', 'ZERO_TAP'];
-// Categorías de Flow que admite Meta (distintas de las de plantilla).
+// Categorías de Flow que admite Meta (distintas de las de plantilla). El valor
+// viaja en inglés porque es lo que espera Meta; la etiqueta se traduce.
 const FLOW_CATEGORIES = [
-  'SIGN_UP',
-  'SIGN_IN',
-  'APPOINTMENT_BOOKING',
+  'SURVEY',
   'LEAD_GENERATION',
+  'APPOINTMENT_BOOKING',
   'CONTACT_US',
   'CUSTOMER_SUPPORT',
-  'SURVEY',
+  'SIGN_UP',
+  'SIGN_IN',
   'OTHER',
 ];
+
+const flowCategoryLabel = category =>
+  t(`JABVOX_WA_TEMPLATES.CREATE.FLOW.CATEGORIES.${category}`);
 const CARD_MIN = 2;
 const CARD_MAX = 10;
 const CARD_HEADER_TYPES = ['IMAGE', 'VIDEO'];
@@ -646,6 +665,21 @@ const isAuthenticationKind = computed(
 );
 const isCarouselKind = computed(() => form.value.template_kind === 'carousel');
 const isFlowKind = computed(() => form.value.template_kind === 'flow');
+
+// Botones que se pintan en la previa del mensaje. En una plantilla de tipo
+// Formulario el botón no vive en form.buttons (lo arma el backend al enlazar el
+// Flow publicado), así que se agrega aquí para que la previa no salga sin él.
+const previewButtons = computed(() => {
+  if (isFlowKind.value) {
+    const text =
+      form.value.flow_button_text ||
+      t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_DEFAULT');
+    return [{ key: 'flow', text, isFlow: true }];
+  }
+  return form.value.buttons
+    .filter(b => b.text)
+    .map((b, index) => ({ key: `${index}-${b.text}`, text: b.text }));
+});
 const isStandardKind = computed(() => form.value.template_kind === 'standard');
 
 // LTO solo visible para category MARKETING y template_kind standard.
@@ -960,6 +994,68 @@ const fieldClass = (value, required = false) => {
 // Required-field checklist: drives the submit gate and the pending list shown
 // on the final step. Once a header type is chosen, its content is required —
 // removing the header is done by picking NONE, not by leaving it empty.
+// Requisitos del formulario, separados para no engordar el check general.
+// Reflejan lo que Meta valida al publicar un Flow: pantallas con id y título,
+// un botón de avance por pantalla, una pantalla final, y campos con nombre.
+const missingFlowFields = blank => {
+  const missing = [];
+  const label = t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SECTION_TITLE');
+
+  if (blank(form.value.flow_button_text)) {
+    missing.push(t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_TEXT'));
+  }
+  const screens = form.value.flow_screens || [];
+  if (!screens.length) {
+    missing.push(label);
+    return missing;
+  }
+  if (!screens.some(s => s.terminal)) {
+    missing.push(t('JABVOX_WA_TEMPLATES.CREATE.FLOW.NEEDS_TERMINAL'));
+  }
+
+  screens.forEach(screen => {
+    const name = screen.title || screen.id;
+    const components = screen.components || [];
+    const footers = components.filter(c => c.type === 'Footer');
+
+    if (!footers.length) {
+      missing.push(
+        `${name}: ${t('JABVOX_WA_TEMPLATES.CREATE.FLOW.MISSING_FOOTER')}`
+      );
+    }
+    footers.forEach(f => {
+      if (blank(f.props?.label)) {
+        missing.push(
+          `${name}: ${t('JABVOX_WA_TEMPLATES.CREATE.FLOW.MISSING_FOOTER_LABEL')}`
+        );
+      }
+      // Un botón que navega debe saber a dónde; Meta rechaza un destino vacío.
+      if (
+        f.props?.action?.name === 'navigate' &&
+        blank(f.props?.action?.next)
+      ) {
+        missing.push(
+          `${name}: ${t('JABVOX_WA_TEMPLATES.CREATE.FLOW.MISSING_NEXT')}`
+        );
+      }
+    });
+    // Todo campo que captura datos necesita nombre (es la clave de la respuesta)
+    // y etiqueta visible.
+    components.forEach(c => {
+      const meta = getComponentMeta(c.type);
+      if (!meta) return;
+      (meta.fields || []).forEach(field => {
+        if (!field.required) return;
+        const value = c.props?.[field.key];
+        const empty = Array.isArray(value) ? !value.length : blank(value);
+        if (empty) missing.push(`${name} · ${meta.label}: ${field.label}`);
+      });
+    });
+  });
+
+  return missing;
+};
+
 const missingRequiredFields = computed(() => {
   const blank = v => String(v ?? '').trim() === '';
   const missing = [];
@@ -1028,6 +1124,9 @@ const missingRequiredFields = computed(() => {
       }
     });
   }
+
+  // Formulario: lo que Meta exige del Flow JSON antes de poder publicarlo.
+  if (isFlowKind.value) missing.push(...missingFlowFields(blank));
 
   return missing;
 });
@@ -2041,7 +2140,7 @@ onBeforeUnmount(() => {
                   class="reset-base text-sm wa-field wa-field-valid"
                 >
                   <option v-for="ot in OTP_TYPES" :key="ot" :value="ot">
-                    {{ ot }}
+                    {{ otpTypeLabel(ot) }}
                   </option>
                 </select>
               </div>
@@ -2109,11 +2208,7 @@ onBeforeUnmount(() => {
                   :class="fieldClass(form.header_type)"
                 >
                   <option v-for="f in HEADER_FORMATS" :key="f" :value="f">
-                    {{
-                      f === 'NONE'
-                        ? t('JABVOX_WA_TEMPLATES.CREATE.HEADER_NONE')
-                        : f
-                    }}
+                    {{ mediaTypeLabel(f) }}
                   </option>
                 </select>
               </div>
@@ -2339,15 +2434,15 @@ onBeforeUnmount(() => {
                     class="reset-base text-sm wa-field wa-field-valid"
                   >
                     <option v-for="fc in FLOW_CATEGORIES" :key="fc" :value="fc">
-                      {{ fc }}
+                      {{ flowCategoryLabel(fc) }}
                     </option>
                   </select>
+                  <p class="text-[11px] text-n-slate-10">
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.CATEGORY_HELP') }}
+                  </p>
                 </div>
               </div>
-              <InlineFlowBuilder
-                v-model="form.flow_screens"
-                :flow-name="form.name"
-              />
+              <InlineFlowBuilder v-model="form.flow_screens" />
             </section>
 
             <!-- ── CAROUSEL: editor de cards (2-10), cada una con su propio
@@ -2409,7 +2504,7 @@ onBeforeUnmount(() => {
                         :key="ht"
                         :value="ht"
                       >
-                        {{ ht }}
+                        {{ mediaTypeLabel(ht) }}
                       </option>
                     </select>
 
@@ -2496,11 +2591,11 @@ onBeforeUnmount(() => {
                         class="reset-base text-xs w-32"
                       >
                         <option
-                          v-for="bt in ['QUICK_REPLY', 'URL', 'PHONE_NUMBER']"
+                          v-for="bt in CARD_BUTTON_TYPES"
                           :key="bt"
                           :value="bt"
                         >
-                          {{ bt }}
+                          {{ buttonTypeLabel(bt) }}
                         </option>
                       </select>
                       <input
@@ -2688,7 +2783,7 @@ onBeforeUnmount(() => {
                   :class="fieldClass(btn.type)"
                 >
                   <option v-for="bt in BUTTON_TYPES" :key="bt" :value="bt">
-                    {{ bt }}
+                    {{ buttonTypeLabel(bt) }}
                   </option>
                 </select>
                 <input
@@ -2903,7 +2998,9 @@ onBeforeUnmount(() => {
               {{ t('JABVOX_WA_TEMPLATES.CREATE.PREVIEW_TITLE') }}
             </p>
           </div>
-          <div class="flex-1 overflow-auto p-4 flex items-start justify-center">
+          <div
+            class="flex-1 overflow-auto p-4 flex flex-col items-center gap-4"
+          >
             <div
               class="w-full max-w-[200px] bg-[#0b141a] rounded-2xl p-3 shadow-lg"
             >
@@ -2978,17 +3075,39 @@ onBeforeUnmount(() => {
                   </p>
                 </div>
                 <div
-                  v-if="form.buttons.filter(b => b.text).length"
+                  v-if="previewButtons.length"
                   class="mx-2 mb-2 mt-0.5 space-y-1"
                 >
                   <div
-                    v-for="btn in form.buttons.filter(b => b.text)"
-                    :key="btn.text"
-                    class="bg-[#2a3942] rounded py-1.5 text-center text-[11px] text-[#53bdeb] font-medium"
+                    v-for="btn in previewButtons"
+                    :key="btn.key"
+                    class="bg-[#2a3942] rounded py-1.5 text-center text-[11px] text-[#53bdeb] font-medium flex items-center justify-center gap-1"
                   >
+                    <span
+                      v-if="btn.isFlow"
+                      class="i-lucide-clipboard-list size-3"
+                      aria-hidden="true"
+                    />
                     {{ btn.text }}
                   </div>
                 </div>
+              </div>
+            </div>
+            <!-- Previa del formulario, debajo de la del mensaje: así se ve
+                 primero lo que llega al chat y luego lo que abre el botón. -->
+            <div v-if="isFlowKind && form.flow_screens.length" class="w-full">
+              <p
+                class="text-[10px] uppercase tracking-wide text-n-slate-10 mb-1.5 text-center"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.PREVIEW_TITLE') }}
+              </p>
+              <div
+                class="rounded-xl border border-n-weak overflow-hidden h-[320px]"
+              >
+                <FlowPreview
+                  :screens="form.flow_screens"
+                  :flow-name="form.name"
+                />
               </div>
             </div>
           </div>

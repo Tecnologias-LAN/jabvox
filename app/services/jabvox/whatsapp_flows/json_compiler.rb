@@ -52,13 +52,26 @@ class Jabvox::WhatsappFlows::JsonCompiler
     props.each_with_object({}) do |(key, value), out|
       if key.to_s == 'action'
         meta_key = Jabvox::WhatsappFlows::ComponentCatalog.action_prop_key(type)
-        out[meta_key.to_sym] = compile_value(value) if meta_key
+        out[meta_key.to_sym] = compile_action(value) if meta_key
         next
       end
 
       meta_key = Jabvox::WhatsappFlows::ComponentCatalog.meta_prop_key(key)
       out[meta_key.to_sym] = compile_value(value)
     end
+  end
+
+  # Meta espera el destino de un `navigate` como objeto
+  # ({ type: 'screen', name: 'ID' }), no como el id suelto que guarda el
+  # builder. Sin esta traducción el Flow se rechaza al publicarlo.
+  def compile_action(action)
+    compiled = compile_value(action)
+    return compiled unless compiled.is_a?(Hash)
+
+    target = compiled['next']
+    return compiled unless compiled['name'].to_s == 'navigate' && target.is_a?(String)
+
+    compiled.merge('next' => { 'type' => 'screen', 'name' => target })
   end
 
   def compile_value(value)

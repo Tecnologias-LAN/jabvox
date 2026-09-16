@@ -58,7 +58,11 @@ RSpec.describe Jabvox::WhatsappFlows::JsonCompiler do
   it 'compiles a Footer action to on-click-action, not a generic action key' do
     footer = compiled[:screens].first[:layout][:children].last
     expect(footer).not_to have_key(:action)
-    expect(footer[:'on-click-action']).to eq({ 'name' => 'navigate', 'next' => 'rating' })
+    # Meta espera el destino como objeto, no como el id suelto: un `next` en
+    # texto plano hace que rechace el Flow al publicarlo.
+    expect(footer[:'on-click-action']).to eq(
+      { 'name' => 'navigate', 'next' => { 'type' => 'screen', 'name' => 'rating' } }
+    )
   end
 
   it 'compiles a RadioButtonsGroup on-select action to on-select-action, not a generic action key' do

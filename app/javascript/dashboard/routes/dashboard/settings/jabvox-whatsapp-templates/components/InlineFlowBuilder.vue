@@ -33,12 +33,10 @@ import {
 import ScreenList from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/components/ScreenList.vue';
 import ScreenEditor from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/components/ScreenEditor.vue';
 import ComponentPalette from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/components/ComponentPalette.vue';
-import FlowPreview from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/components/FlowPreview.vue';
 
 const props = defineProps({
   // screens_json del formulario en construcción
   modelValue: { type: Array, default: () => [] },
-  flowName: { type: String, default: '' },
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -50,6 +48,46 @@ const selectedScreenId = ref('');
 
 const setScreens = next => emit('update:modelValue', next);
 
+const footerLabels = () => ({
+  next: t('JABVOX_WA_TEMPLATES.CREATE.FLOW.NEXT_BUTTON'),
+  submit: t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SUBMIT_BUTTON'),
+});
+
+/**
+ * Reencadena la navegación tras agregar, quitar o reordenar pantallas: cada una
+ * avanza a la siguiente y solo la última cierra el formulario. Sin esto, al
+ * añadir una segunda pantalla la primera seguiría siendo la final y la nueva
+ * quedaría inalcanzable.
+ *
+ * Respeta el texto que el usuario haya escrito en su botón; solo ajusta a dónde
+ * lleva y cuál termina.
+ */
+const relinkScreens = list => {
+  const ordered = [...list].sort((a, b) => a.order - b.order);
+  const labels = footerLabels();
+  return ordered.map((screen, index) => {
+    const isLast = index === ordered.length - 1;
+    const nextId = isLast ? '' : ordered[index + 1].id;
+    const components = (screen.components || []).map(component => {
+      if (component.type !== 'Footer') return component;
+      const label = component.props?.label;
+      const wasDefault = label === labels.next || label === labels.submit;
+      const defaultLabel = isLast ? labels.submit : labels.next;
+      return {
+        ...component,
+        props: {
+          ...component.props,
+          label: wasDefault ? defaultLabel : label,
+          action: isLast
+            ? { name: 'complete' }
+            : { name: 'navigate', next: nextId },
+        },
+      };
+    });
+    return { ...screen, terminal: isLast, components };
+  });
+};
+
 // Arranca con una pantalla para que el usuario no vea un lienzo vacío sin saber
 // por dónde empezar.
 watch(
@@ -57,7 +95,11 @@ watch(
   value => {
     if (!value.length) {
       setScreens(
-        addScreen([], t('JABVOX_WA_TEMPLATES.CREATE.FLOW.FIRST_SCREEN'))
+        addScreen(
+          [],
+          t('JABVOX_WA_TEMPLATES.CREATE.FLOW.FIRST_SCREEN'),
+          footerLabels()
+        )
       );
       return;
     }
@@ -81,9 +123,12 @@ const isFirstScreen = computed(
 );
 
 const onAddScreen = () => {
-  const next = addScreen(
-    screens.value,
-    t('JABVOX_WA_TEMPLATES.CREATE.FLOW.NEW_SCREEN')
+  const next = relinkScreens(
+    addScreen(
+      screens.value,
+      t('JABVOX_WA_TEMPLATES.CREATE.FLOW.NEW_SCREEN'),
+      footerLabels()
+    )
   );
   setScreens(next);
   selectedScreenId.value = next[next.length - 1].id;
@@ -91,18 +136,19 @@ const onAddScreen = () => {
 
 const onRemoveScreen = screenId => {
   const wasSelected = selectedScreenId.value === screenId;
-  const next = removeScreen(screens.value, screenId);
+  const next = relinkScreens(removeScreen(screens.value, screenId));
   setScreens(next);
   if (wasSelected) selectedScreenId.value = next[0]?.id || '';
 };
 
 const onDuplicateScreen = screenId =>
-  setScreens(duplicateScreen(screens.value, screenId));
+  setScreens(relinkScreens(duplicateScreen(screens.value, screenId)));
 const onMoveScreenUp = screenId =>
-  setScreens(moveScreenUp(screens.value, screenId));
+  setScreens(relinkScreens(moveScreenUp(screens.value, screenId)));
 const onMoveScreenDown = screenId =>
-  setScreens(moveScreenDown(screens.value, screenId));
-const onReorderScreens = newOrder => setScreens(reindexScreens(newOrder));
+  setScreens(relinkScreens(moveScreenDown(screens.value, screenId)));
+const onReorderScreens = newOrder =>
+  setScreens(relinkScreens(reindexScreens(newOrder)));
 
 const onUpdateScreen = patch =>
   setScreens(
@@ -190,10 +236,15 @@ defineExpose({ issues });
       </p>
     </div>
 
+    <!-- Dos columnas: pantallas y edición de la seleccionada. La previa del
+         formulario vive en el panel lateral del asistente, debajo de la previa
+         del mensaje, para no apretar este editor. -->
     <div
-      class="grid grid-cols-1 lg:grid-cols-[170px_1fr_200px] gap-2 rounded-xl border border-n-weak overflow-hidden min-h-[380px]"
+      class="grid grid-cols-1 md:grid-cols-[210px_1fr] rounded-xl border border-n-weak overflow-hidden min-h-[420px]"
     >
-      <div class="border-r border-n-weak overflow-y-auto max-h-[460px]">
+      <div
+        class="md:border-r border-b md:border-b-0 border-n-weak overflow-y-auto max-h-[520px] bg-n-alpha-1"
+      >
         <ScreenList
           :screens="orderedScreens"
           :selected-screen-id="selectedScreenId"
@@ -208,7 +259,7 @@ defineExpose({ issues });
       </div>
 
       <div class="flex flex-col min-w-0 overflow-hidden">
-        <div class="flex-1 overflow-y-auto max-h-[400px]">
+        <div class="flex-1 overflow-y-auto max-h-[440px]">
           <ScreenEditor
             v-if="selectedScreen"
             :screen="selectedScreen"
@@ -220,17 +271,13 @@ defineExpose({ issues });
             @reorder-components="onReorderComponents"
           />
         </div>
-        <div class="border-t border-n-weak shrink-0">
+        <div class="border-t border-n-weak shrink-0 bg-n-alpha-1">
           <ComponentPalette
             :disabled="!selectedScreen"
             :screen-components="selectedScreen?.components || []"
             @add="onAddComponent"
           />
         </div>
-      </div>
-
-      <div class="border-l border-n-weak overflow-y-auto max-h-[460px]">
-        <FlowPreview :screens="orderedScreens" :flow-name="flowName" />
       </div>
     </div>
   </div>
