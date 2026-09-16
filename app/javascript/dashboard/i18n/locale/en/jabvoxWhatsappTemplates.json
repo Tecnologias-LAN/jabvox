@@ -273,7 +273,18 @@
         },
         "MISSING_FOOTER": "missing the continue button",
         "MISSING_FOOTER_LABEL": "the button needs a label",
-        "MISSING_NEXT": "the button does not say which screen it opens"
+        "MISSING_NEXT": "the button does not say which screen it opens",
+        "PANEL_SCREENS": "Screens",
+        "PANEL_WIDGETS": "Screen content",
+        "PANEL_CONFIG": "Settings",
+        "ADD_SCREEN": "+ Screen",
+        "ADD_WIDGET": "Add element",
+        "SCREEN_NAME": "Screen name",
+        "SELECT_WIDGET": "Pick an element from the screen to configure it.",
+        "FINAL_BADGE": "Final",
+        "WIDGET_COUNT": "{count} element(s)",
+        "BUTTON_LOCKED_NOTE": "This template opens a form, so Meta only allows this button. You can change its label.",
+        "EMPTY_SCREEN": "This screen has no content yet."
       },
       "BUTTON_TYPES": {
         "QUICK_REPLY": "Quick reply",

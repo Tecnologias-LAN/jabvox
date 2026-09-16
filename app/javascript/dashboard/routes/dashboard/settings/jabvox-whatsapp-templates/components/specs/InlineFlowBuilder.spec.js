@@ -82,7 +82,11 @@ describe('InlineFlowBuilder', () => {
       },
     ]);
 
-    await wrapper.findComponent({ name: 'ScreenList' }).vm.$emit('add');
+    // El botón de agregar pantalla vive en la cabecera del panel de pantallas.
+    const addScreenButton = wrapper
+      .findAll('button')
+      .find(b => b.text().includes('ADD_SCREEN'));
+    await addScreenButton.trigger('click');
 
     const emitted = wrapper.emitted('update:modelValue');
     const screens = emitted[emitted.length - 1][0];
@@ -96,6 +100,41 @@ describe('InlineFlowBuilder', () => {
     // Y la última es la que ahora lo cierra.
     expect(screens[1].terminal).toBe(true);
     expect(screens[1].components[0].props.action).toEqual({ name: 'complete' });
+  });
+
+  it('permite renombrar la pantalla seleccionada', async () => {
+    const wrapper = mountWith([screenWith('welcome', 0)]);
+
+    const nameInput = wrapper.find('input');
+    await nameInput.setValue('Datos del cliente');
+
+    const emitted = wrapper.emitted('update:modelValue');
+    expect(emitted[emitted.length - 1][0][0].title).toBe('Datos del cliente');
+  });
+
+  it('inserta un elemento en la posición elegida, no siempre al final', async () => {
+    const footer = {
+      id: 'f1',
+      type: 'Footer',
+      props: { label: 'Enviar', action: { name: 'complete' } },
+    };
+    const wrapper = mountWith([
+      { ...screenWith('welcome', 0), terminal: true, components: [footer] },
+    ]);
+
+    // El primer "+" inserta antes del footer existente.
+    const plusButtons = wrapper
+      .findAll('button')
+      .filter(b => b.find('.i-lucide-plus').exists());
+    await plusButtons[0].trigger('click');
+    const pick = wrapper.findAll('button').find(b => b.text() === 'Título');
+    await pick.trigger('click');
+
+    const emitted = wrapper.emitted('update:modelValue');
+    const components = emitted[emitted.length - 1][0][0].components;
+    expect(components).toHaveLength(2);
+    expect(components[0].type).toBe('TextHeading');
+    expect(components[1].type).toBe('Footer');
   });
 
   it('no reporta problemas cuando el formulario está completo', () => {

@@ -268,7 +268,18 @@
         },
         "MISSING_FOOTER": "falta el botón de avance",
         "MISSING_FOOTER_LABEL": "el botón necesita un texto",
-        "MISSING_NEXT": "el botón no indica a qué pantalla lleva"
+        "MISSING_NEXT": "el botón no indica a qué pantalla lleva",
+        "PANEL_SCREENS": "Pantallas",
+        "PANEL_WIDGETS": "Contenido de la pantalla",
+        "PANEL_CONFIG": "Configuración",
+        "ADD_SCREEN": "+ Pantalla",
+        "ADD_WIDGET": "Agregar elemento",
+        "SCREEN_NAME": "Nombre de la pantalla",
+        "SELECT_WIDGET": "Elige un elemento de la pantalla para configurarlo.",
+        "FINAL_BADGE": "Final",
+        "WIDGET_COUNT": "{count} elemento(s)",
+        "BUTTON_LOCKED_NOTE": "Esta plantilla abre un formulario, así que Meta solo admite este botón. Puedes cambiarle el texto.",
+        "EMPTY_SCREEN": "Esta pantalla aún no tiene contenido."
       },
       "BUTTON_TYPES": {
         "QUICK_REPLY": "Respuesta rápida",

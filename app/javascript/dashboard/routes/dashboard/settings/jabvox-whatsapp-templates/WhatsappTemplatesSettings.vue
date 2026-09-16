@@ -1876,8 +1876,12 @@ onBeforeUnmount(() => {
     <!-- ── CREATE / EDIT FORM MODAL ──────────────────────────────────── -->
     <div v-if="showForm" class="fixed inset-0 z-50 flex">
       <div class="absolute inset-0 bg-black/50" @click="showForm = false" />
+      <!-- El editor de formularios necesita tres paneles (pantallas · widgets ·
+           configuración) más la previa, así que el panel se ensancha para ese
+           tipo y mantiene el ancho habitual para el resto. -->
       <div
-        class="relative ml-auto w-full md:max-w-[900px] h-full bg-n-solid-1 shadow-xl flex overflow-hidden"
+        class="relative ml-auto w-full h-full bg-n-solid-1 shadow-xl flex overflow-hidden"
+        :class="isFlowKind ? 'md:max-w-[1500px]' : 'md:max-w-[900px]'"
       >
         <!-- Left: form -->
         <div class="flex-1 flex flex-col overflow-hidden">
@@ -2409,38 +2413,23 @@ onBeforeUnmount(() => {
               >
                 {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SECTION_TITLE') }}
               </h3>
-              <div class="grid grid-cols-2 gap-3">
-                <div class="flex flex-col gap-1">
-                  <label class="text-xs text-n-slate-11">
-                    {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_TEXT') }}
-                    <span class="text-n-ruby-11">*</span>
-                  </label>
-                  <input
-                    v-model="form.flow_button_text"
-                    maxlength="25"
-                    class="reset-base text-sm"
-                    :class="fieldClass(form.flow_button_text, true)"
-                    :placeholder="
-                      t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_TEXT_PH')
-                    "
-                  />
-                </div>
-                <div class="flex flex-col gap-1">
-                  <label class="text-xs text-n-slate-11">
-                    {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.CATEGORY') }}
-                  </label>
-                  <select
-                    v-model="form.flow_category"
-                    class="reset-base text-sm wa-field wa-field-valid"
-                  >
-                    <option v-for="fc in FLOW_CATEGORIES" :key="fc" :value="fc">
-                      {{ flowCategoryLabel(fc) }}
-                    </option>
-                  </select>
-                  <p class="text-[11px] text-n-slate-10">
-                    {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.CATEGORY_HELP') }}
-                  </p>
-                </div>
+              <!-- El texto del botón se edita en el paso de Botones, junto al
+                   resto de botones de la plantilla. -->
+              <div class="flex flex-col gap-1 max-w-sm">
+                <label class="text-xs text-n-slate-11">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.CATEGORY') }}
+                </label>
+                <select
+                  v-model="form.flow_category"
+                  class="reset-base text-sm wa-field wa-field-valid"
+                >
+                  <option v-for="fc in FLOW_CATEGORIES" :key="fc" :value="fc">
+                    {{ flowCategoryLabel(fc) }}
+                  </option>
+                </select>
+                <p class="text-[11px] text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.CATEGORY_HELP') }}
+                </p>
               </div>
               <InlineFlowBuilder v-model="form.flow_screens" />
             </section>
@@ -2765,15 +2754,45 @@ onBeforeUnmount(() => {
                   {{ t('JABVOX_WA_TEMPLATES.CREATE.BUTTONS_LABEL') }}
                 </h3>
                 <button
-                  v-if="form.buttons.length < 10"
+                  v-if="!isFlowKind && form.buttons.length < 10"
                   class="text-xs text-n-brand hover:underline"
                   @click="addButton"
                 >
                   {{ t('JABVOX_WA_TEMPLATES.CREATE.ADD_BUTTON') }}
                 </button>
               </div>
+
+              <!-- Plantilla de tipo Formulario: Meta solo admite el botón que
+                   abre el Flow, así que aquí únicamente se edita su texto. -->
+              <template v-if="isFlowKind">
+                <div
+                  class="flex flex-wrap items-center gap-2 p-2.5 rounded-lg border border-n-brand/40 bg-n-brand/5"
+                >
+                  <span
+                    class="flex items-center gap-1.5 text-xs font-medium text-n-brand shrink-0"
+                  >
+                    <span
+                      class="i-lucide-clipboard-list size-3.5"
+                      aria-hidden="true"
+                    />
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TYPES.FLOW') }}
+                  </span>
+                  <input
+                    v-model="form.flow_button_text"
+                    maxlength="25"
+                    class="reset-base text-xs flex-1 min-w-32"
+                    :class="fieldClass(form.flow_button_text, true)"
+                    :placeholder="
+                      t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_TEXT_PH')
+                    "
+                  />
+                </div>
+                <p class="text-[11px] text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_LOCKED_NOTE') }}
+                </p>
+              </template>
               <div
-                v-for="(btn, i) in form.buttons"
+                v-for="(btn, i) in isFlowKind ? [] : form.buttons"
                 :key="i"
                 class="flex flex-wrap gap-2 items-center p-2.5 rounded-lg bg-n-alpha-1"
               >
