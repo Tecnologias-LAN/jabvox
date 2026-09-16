@@ -1,0 +1,157 @@
+{
+  "JABVOX_WA_FLOWS": {
+    "CONFIRM": {
+      "OK": "Aceptar",
+      "CANCEL": "Cancelar"
+    },
+    "CATEGORIES": {
+      "SIGN_UP": "Registro",
+      "SIGN_IN": "Inicio de sesión",
+      "APPOINTMENT_BOOKING": "Agendamiento de citas",
+      "LEAD_GENERATION": "Generación de leads",
+      "CONTACT_US": "Contáctanos",
+      "CUSTOMER_SUPPORT": "Soporte al cliente",
+      "SURVEY": "Encuesta",
+      "OTHER": "Otro"
+    },
+    "STATUS": {
+      "DRAFT": "Borrador",
+      "VALIDATING": "Validando",
+      "READY": "Listo",
+      "PUBLISHED": "Publicado",
+      "SYNC_FAILED": "Error de sincronización"
+    },
+    "LIST": {
+      "HEADER": {
+        "TITLE": "WhatsApp Flows",
+        "SUBTITLE": "Crea formularios interactivos de WhatsApp (encuestas, registros, agendamiento) sin escribir JSON a mano.",
+        "CREATE": "Crear Flow"
+      },
+      "EMPTY_TITLE": "Aún no tienes ningún Flow",
+      "EMPTY_BODY": "Crea tu primer formulario interactivo de WhatsApp: pantallas, campos y navegación, todo desde el builder visual.",
+      "EMPTY_CTA": "Crear el primer Flow",
+      "NO_INBOX": "Sin bandeja",
+      "SCREENS_COUNT": "pantallas",
+      "ERROR": "Ocurrió un error. Intenta de nuevo.",
+      "DUPLICATED": "Flow duplicado como borrador.",
+      "SYNCED": "Estado sincronizado con Meta.",
+      "PUBLISHED": "Flow publicado en Meta.",
+      "DELETED": "Flow eliminado.",
+      "DELETE_CONFIRM_TITLE": "Eliminar Flow",
+      "DELETE_CONFIRM_BODY": "¿Eliminar el Flow \"{name}\"? Esta acción no se puede deshacer.",
+      "ACTIONS": {
+        "OPEN": "Abrir",
+        "METRICS": "Ver métricas",
+        "DUPLICATE": "Duplicar",
+        "SYNC": "Sincronizar con Meta",
+        "PUBLISH": "Publicar",
+        "DELETE": "Eliminar"
+      },
+      "METRICS": {
+        "TITLE": "Métricas de {name}",
+        "TOTAL_SUBMISSIONS": "Respuestas recibidas",
+        "LAST_SUBMISSION": "Última respuesta",
+        "NONE_YET": "Aún ninguna"
+      }
+    },
+    "BUILDER": {
+      "NAME_PLACEHOLDER": "Nombre del Flow",
+      "SAVED": "Borrador guardado.",
+      "PUBLISHED": "Flow publicado en Meta.",
+      "NAME_REQUIRED": "Ponle un nombre al Flow antes de guardar.",
+      "SAVE_BEFORE_VALIDATE": "Guarda el Flow como borrador antes de validarlo.",
+      "SAVE_BEFORE_PUBLISH": "Guarda el Flow como borrador antes de publicarlo.",
+      "ERROR_LOAD": "No se pudo cargar el Flow.",
+      "ERROR_SAVE": "No se pudo guardar el Flow.",
+      "ERROR_PUBLISH": "No se pudo publicar el Flow.",
+      "TABS": {
+        "BUILDER": "Editor",
+        "JSON": "JSON",
+        "VALIDATION": "Validación"
+      },
+      "ACTIONS": {
+        "VALIDATE": "Validar",
+        "SAVE_DRAFT": "Guardar borrador",
+        "PUBLISH": "Publicar"
+      },
+      "SCREENS": {
+        "TITLE": "Pantallas",
+        "ADD": "Agregar pantalla",
+        "EMPTY": "Sin pantallas todavía.",
+        "UNTITLED": "Nueva pantalla",
+        "START_BADGE": "Inicio",
+        "TERMINAL_BADGE": "Final",
+        "HAS_ERRORS": "Esta pantalla tiene errores de validación",
+        "COMPONENT_COUNT": "{count} componente(s)",
+        "MOVE_UP": "Mover arriba",
+        "MOVE_DOWN": "Mover abajo",
+        "DUPLICATE": "Duplicar pantalla",
+        "REMOVE": "Eliminar pantalla",
+        "NEW_TITLE_PROMPT": "Título de la nueva pantalla",
+        "REMOVE_CONFIRM_TITLE": "Eliminar pantalla",
+        "REMOVE_CONFIRM_BODY": "¿Eliminar esta pantalla y todos sus componentes? Esta acción no se puede deshacer.",
+        "SELECT_OR_CREATE": "Selecciona una pantalla o crea una nueva para empezar a editar.",
+        "PROPS_TITLE": "Título del Flow"
+      },
+      "SCREEN_EDITOR": {
+        "TITLE_PLACEHOLDER": "Título de la pantalla",
+        "IS_TERMINAL": "Pantalla final",
+        "ID_LABEL": "ID",
+        "NO_COMPONENTS": "Sin componentes. Agrega uno desde la paleta.",
+        "SELECT_COMPONENT": "Selecciona un componente para editar sus propiedades.",
+        "URL_PLACEHOLDER": "https://ejemplo.com"
+      },
+      "PALETTE": {
+        "SCREEN_LIMIT_REACHED": "Esta pantalla llegó al máximo de 50 componentes."
+      },
+      "PROPS": {
+        "YES": "Sí",
+        "ACTION_NAVIGATE": "Ir a otra pantalla",
+        "ACTION_COMPLETE": "Finalizar Flow",
+        "ACTION_OPEN_URL": "Abrir enlace externo",
+        "SELECT_SCREEN": "Selecciona una pantalla…",
+        "OPTION_ID": "Valor",
+        "OPTION_TITLE": "Texto visible",
+        "ADD_OPTION": "Agregar opción"
+      },
+      "VARIABLES": {
+        "PICKER_TITLE": "Insertar variable",
+        "SYSTEM_GROUP": "Variables del contacto",
+        "SCREENS_GROUP": "Respuestas de pantallas anteriores",
+        "NONE_AVAILABLE": "No hay variables disponibles todavía."
+      },
+      "PREVIEW": {
+        "TITLE": "Vista previa",
+        "RESTART": "Reiniciar simulación",
+        "UNTITLED_FLOW": "Flow sin nombre",
+        "EMPTY": "Agrega una pantalla para ver la vista previa.",
+        "COMPLETED": "Flow completado",
+        "CONTINUE": "Continuar",
+        "SELECT_PLACEHOLDER": "Selecciona…"
+      },
+      "JSON_VIEW": {
+        "TITLE": "JSON generado (solo lectura)",
+        "HINT": "Vista previa local — el JSON autoritativo se compila en el servidor al publicar.",
+        "CHECK_HAS_SCREENS": "Tiene al menos una pantalla",
+        "CHECK_TERMINAL": "Tiene una pantalla final",
+        "CHECK_IDS": "Todas las pantallas tienen ID",
+        "CHECK_FOOTER": "Todas las pantallas tienen un botón (Footer)"
+      },
+      "VALIDATION": {
+        "TITLE": "Validación",
+        "RUNNING": "Validando…",
+        "NOT_RUN": "Aún no se ha validado este Flow. Pulsa \"Validar\" para revisarlo.",
+        "NO_ERRORS": "JSON válido. No se encontraron errores.",
+        "SCREEN_LABEL": "Pantalla",
+        "COMPONENT_LABEL": "Componente",
+        "GO_TO_FIELD": "Ir al campo"
+      }
+    },
+    "TEMPLATES_INTEGRATION": {
+      "FLOW_BUTTON_LABEL": "Flow de WhatsApp",
+      "SELECT_FLOW": "Selecciona un Flow publicado…",
+      "NO_PUBLISHED_FLOWS": "Esta bandeja no tiene Flows publicados todavía.",
+      "SELECT_INBOX_FIRST": "Selecciona primero una bandeja."
+    }
+  }
+}

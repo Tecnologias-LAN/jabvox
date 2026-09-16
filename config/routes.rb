@@ -595,6 +595,20 @@ Rails.application.routes.draw do
                 end
               end
             end
+            namespace :whatsapp_flows do
+              resources :flows, path: '', except: [] do
+                collection { get :categories }
+                member do
+                  post :validate
+                  post :publish
+                  post :sync
+                  post :duplicate
+                  get :versions
+                  get :submissions
+                  get :metrics
+                end
+              end
+            end
             namespace :cdr do
               resource :config, only: [:show, :update], controller: 'configs'
               post 'config/test', to: 'configs#test'
@@ -895,6 +909,9 @@ Rails.application.routes.draw do
               end
               # Callback de n8n por batch_uuid (autenticado por token, no por admin).
               post 'batches/:batch_uuid/results', to: 'callbacks#results'
+              # Informes → Plantillas: historial de destinatarios CROSS-batch
+              # (todas las plantillas enviadas por la cuenta), no uno por batch.
+              resource :templates_report, only: [:show], controller: 'templates_report'
             end
 
             namespace :whatsapp_groups do

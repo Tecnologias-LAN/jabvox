@@ -3,6 +3,7 @@ import {
   buildTemplateParameters,
   processVariable,
   allKeysRequired,
+  isWhatsAppComplete,
 } from '../templateHelper';
 import { templates } from '../../store/modules/specs/inboxes/templateFixtures';
 
@@ -312,6 +313,54 @@ describe('templateHelper', () => {
       );
     });
 
+    // @chatwoot/utils#buildButtonParams only recognizes URL/COPY_CODE buttons, so a
+    // FLOW button never lands in processed_params.buttons on its own — Meta then
+    // rejects the send with "#131009 Components sub_type invalid at index: 0"
+    // (confirmed against a real production send). addFlowButtonParams fills this gap.
+    it('should include a FLOW button even though it needs no agent-supplied parameter', () => {
+      const flowTemplate = {
+        components: [
+          { type: 'BODY', text: 'Hola {{nombre}}' },
+          {
+            type: 'BUTTONS',
+            buttons: [{ type: 'FLOW', text: 'Empezar', flow_id: '123' }],
+          },
+        ],
+      };
+
+      const result = buildTemplateParameters(flowTemplate);
+      expect(result.buttons).toEqual([{ type: 'flow' }]);
+    });
+
+    it('should place the FLOW button at its real index alongside a dynamic URL button', () => {
+      const mixedButtonsTemplate = {
+        components: [
+          { type: 'BODY', text: 'Hola' },
+          {
+            type: 'BUTTONS',
+            buttons: [
+              { type: 'URL', url: 'https://example.com/{{1}}' },
+              { type: 'FLOW', text: 'Empezar', flow_id: '123' },
+            ],
+          },
+        ],
+      };
+
+      const result = buildTemplateParameters(mixedButtonsTemplate);
+      expect(result.buttons[0]).toEqual({
+        type: 'url',
+        parameter: '',
+        url: 'https://example.com/{{1}}',
+        variables: ['1'],
+      });
+      expect(result.buttons[1]).toEqual({ type: 'flow' });
+    });
+
+    it('should not add a buttons key for a template with no FLOW button', () => {
+      const result = buildTemplateParameters(technicianTemplate);
+      expect(result.buttons).toBeUndefined();
+    });
+
     it('should handle templates with mixed parameter types', () => {
       const mixedTemplate = {
         components: [
@@ -370,6 +419,61 @@ describe('templateHelper', () => {
       const result = replaceTemplateVariables(templateText, partialParams);
       expect(result).toBe('Hi John, order {{order_id}} is ready');
       expect(result).toContain('{{order_id}}'); // Unreplaced variable preserved
+    });
+  });
+
+  // @chatwoot/utils#isWhatsAppComplete treats any button with no `.parameter` as
+  // incomplete, which would permanently block sending a template with a FLOW
+  // button (it never carries one). The wrapper here must strip flow buttons
+  // before delegating so the shared check only judges what it understands.
+  describe('isWhatsAppComplete', () => {
+    const flowTemplate = {
+      components: [
+        { type: 'BODY', text: 'Hola {{nombre}}' },
+        {
+          type: 'BUTTONS',
+          buttons: [{ type: 'FLOW', text: 'Empezar', flow_id: '123' }],
+        },
+      ],
+    };
+
+    it('is complete once the body variable is filled, even though the flow button has no parameter', () => {
+      const params = buildTemplateParameters(flowTemplate);
+      params.body.nombre = 'Estrada';
+
+      expect(isWhatsAppComplete(flowTemplate, params)).toBe(true);
+    });
+
+    it('is still incomplete while the body variable is empty', () => {
+      const params = buildTemplateParameters(flowTemplate);
+
+      expect(isWhatsAppComplete(flowTemplate, params)).toBe(false);
+    });
+
+    it('still requires a URL button parameter alongside an unrelated flow button', () => {
+      // The body must carry a variable of its own — with none, and no media
+      // header, @chatwoot/utils#isWhatsAppComplete short-circuits to `true`
+      // before it ever looks at buttons (a template with neither is "complete"
+      // by design, buttons notwithstanding).
+      const mixedTemplate = {
+        components: [
+          { type: 'BODY', text: 'Hola {{nombre}}' },
+          {
+            type: 'BUTTONS',
+            buttons: [
+              { type: 'URL', url: 'https://example.com/{{1}}' },
+              { type: 'FLOW', text: 'Empezar', flow_id: '123' },
+            ],
+          },
+        ],
+      };
+      const params = buildTemplateParameters(mixedTemplate);
+      params.body.nombre = 'Estrada';
+
+      expect(isWhatsAppComplete(mixedTemplate, params)).toBe(false);
+
+      params.buttons[0].parameter = 'abc123';
+      expect(isWhatsAppComplete(mixedTemplate, params)).toBe(true);
     });
   });
 });

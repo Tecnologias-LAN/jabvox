@@ -6,9 +6,14 @@ import {
   wtInboxesAPI,
   wtTemplatesAPI,
 } from 'dashboard/api/jabvox/whatsappTemplates';
+import { wfFlowsAPI } from 'dashboard/api/jabvox/whatsappFlows';
 import { processVariable } from 'dashboard/helper/templateHelper';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import PromptDialog from './components/PromptDialog.vue';
+import InlineFlowBuilder from './components/InlineFlowBuilder.vue';
+import { validateFlow } from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/widgetValidation';
+import FlowPreview from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/components/FlowPreview.vue';
+import { useTemplateValidation } from './composables/useTemplateValidation';
 
 const { t } = useI18n();
 
@@ -409,6 +414,45 @@ const categoryLabel = c => {
   }
 };
 
+const templateKindHint = kind => {
+  switch (kind) {
+    case 'standard':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.STANDARD_HINT');
+    case 'carousel':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.CAROUSEL_HINT');
+    case 'flow':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.FLOW_HINT');
+    default:
+      return '';
+  }
+};
+
+const templateKindDescriptionFor = kind => {
+  switch (kind) {
+    case 'standard':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.STANDARD_DESC');
+    case 'carousel':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.CAROUSEL_DESC');
+    case 'flow':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.FLOW_DESC');
+    default:
+      return '';
+  }
+};
+
+const templateKindLabel = kind => {
+  switch (kind) {
+    case 'standard':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.STANDARD');
+    case 'carousel':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.CAROUSEL');
+    case 'authentication':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.AUTHENTICATION');
+    default:
+      return kind;
+  }
+};
+
 const qualityLabel = q => {
   switch ((q || '').toUpperCase()) {
     case 'GREEN':
@@ -424,6 +468,8 @@ const qualityLabel = q => {
 
 const detailTabLabel = dt => {
   switch (dt) {
+    case 'preview':
+      return t('JABVOX_WA_TEMPLATES.DETAIL.PREVIEW');
     case 'components':
       return t('JABVOX_WA_TEMPLATES.DETAIL.COMPONENTS');
     case 'variables':
@@ -456,6 +502,13 @@ const syncTemplate = async tpl => {
 const showForm = ref(false);
 const editingTemplate = ref(null);
 const formInboxId = ref(null);
+
+// Nombre de la bandeja elegida, para confirmar visualmente sobre cuál se va a
+// crear la plantilla (es la que la registra en Meta bajo su WABA).
+const selectedFormInboxName = computed(() => {
+  const inbox = inboxes.value.find(i => i.id === formInboxId.value);
+  return inbox ? `${inbox.name} ${DASH} ${inbox.phone_number}` : '';
+});
 const saving = ref(false);
 // Current step of the create/edit wizard (declared here so openCreate/openEdit
 // can reset it without a forward reference).
@@ -474,13 +527,109 @@ const LANGUAGES = [
   { value: 'de', label: 'Deutsch' },
 ];
 const CATEGORIES = ['MARKETING', 'UTILITY', 'AUTHENTICATION'];
-const BUTTON_TYPES = ['QUICK_REPLY', 'URL', 'PHONE_NUMBER'];
-const HEADER_FORMATS = ['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'];
+// FLOW no está aquí a propósito: ese botón no se elige de la lista, lo pone el
+// sistema cuando el tipo de plantilla es Formulario (y su texto se edita en esa
+// sección). Ofrecerlo suelto llevaría a una plantilla con un botón sin Flow.
+const BUTTON_TYPES = [
+  'QUICK_REPLY',
+  'URL',
+  'PHONE_NUMBER',
+  'COPY_CODE',
+  'VOICE_CALL',
+];
+
+const buttonTypeLabel = type =>
+  t(`JABVOX_WA_TEMPLATES.CREATE.BUTTON_TYPES.${type}`);
+
+// Dentro de una card de carrusel Meta solo admite estos tres.
+const CARD_BUTTON_TYPES = ['QUICK_REPLY', 'URL', 'PHONE_NUMBER'];
+
+// Meta fija el texto del botón de cupón: lo rechaza si se cambia.
+const COPY_CODE_BUTTON_TEXT = 'Copiar código de oferta';
+
+const otpTypeLabel = type => t(`JABVOX_WA_TEMPLATES.CREATE.OTP_TYPES.${type}`);
+
+const mediaTypeLabel = type =>
+  t(`JABVOX_WA_TEMPLATES.CREATE.MEDIA_TYPES.${type}`);
+// 'authentication' se deriva automáticamente al elegir esa categoría, no es una
+// opción redundante en el selector de tipo de plantilla (sección 5 del diseño).
+// Cada tipo se presenta como una tarjeta con icono y una línea que explica
+// para qué sirve, en vez de un botón con solo el nombre.
+const TEMPLATE_KIND_OPTIONS = [
+  { key: 'standard', icon: 'i-lucide-message-square-text' },
+  { key: 'carousel', icon: 'i-lucide-gallery-horizontal-end' },
+  { key: 'flow', icon: 'i-lucide-clipboard-list' },
+];
+const OTP_TYPES = ['ONE_TAP', 'COPY_CODE', 'ZERO_TAP'];
+// Categorías de Flow que admite Meta (distintas de las de plantilla). El valor
+// viaja en inglés porque es lo que espera Meta; la etiqueta se traduce.
+const FLOW_CATEGORIES = [
+  'SURVEY',
+  'LEAD_GENERATION',
+  'APPOINTMENT_BOOKING',
+  'CONTACT_US',
+  'CUSTOMER_SUPPORT',
+  'SIGN_UP',
+  'SIGN_IN',
+  'OTHER',
+];
+
+const flowCategoryLabel = category =>
+  t(`JABVOX_WA_TEMPLATES.CREATE.FLOW.CATEGORIES.${category}`);
+const CARD_MIN = 2;
+const CARD_MAX = 10;
+const CARD_HEADER_TYPES = ['IMAGE', 'VIDEO'];
+
+// WhatsApp Flows publicados de la bandeja elegida en el formulario — se
+// recargan cada vez que cambia formInboxId. El botón FLOW referencia el
+// `meta_flow_id` de un JabvoxWhatsappFlow gestionado, nunca texto libre.
+const publishedFlowsForInbox = ref([]);
+const loadPublishedFlows = async inboxId => {
+  if (!inboxId) {
+    publishedFlowsForInbox.value = [];
+    return;
+  }
+  try {
+    const { data } = await wfFlowsAPI.getAll({
+      status: 'published',
+      inbox_id: inboxId,
+    });
+    publishedFlowsForInbox.value = data.flows || [];
+  } catch {
+    publishedFlowsForInbox.value = [];
+  }
+};
+watch(formInboxId, id => loadPublishedFlows(id));
+const HEADER_FORMATS = [
+  'NONE',
+  'TEXT',
+  'IMAGE',
+  'VIDEO',
+  'DOCUMENT',
+  'LOCATION',
+];
+
+const emptyAuthConfig = () => ({
+  add_security_recommendation: false,
+  code_expiration_minutes: 10,
+  otp_type: 'COPY_CODE',
+  supported_apps: [],
+});
+
+const emptyCard = () => ({
+  header_type: 'IMAGE',
+  header_handle: '',
+  header_media_name: '',
+  header_media_preview: '',
+  body_content: '',
+  buttons: [],
+});
 
 const emptyForm = () => ({
   name: '',
   category: 'UTILITY',
   language: 'es',
+  template_kind: 'standard',
   header_type: 'NONE',
   header_content: '', // texto del header TEXT (o nombre del archivo, informativo)
   header_handle: '', // handle "h:..." devuelto por Meta al subir el media
@@ -490,10 +639,144 @@ const emptyForm = () => ({
   footer: '',
   buttons: [],
   var_descriptions: {},
+  limited_time_offer: false,
+  auth_config: emptyAuthConfig(),
+  cards: [],
+  // Formulario (WhatsApp Flow) construido junto a la plantilla, cuando el tipo
+  // elegido es 'flow'. El backend lo publica en Meta antes de crear la plantilla.
+  flow_screens: [],
+  flow_category: 'SURVEY',
+  flow_button_text: '',
 });
 const form = ref(emptyForm());
 const uploadingMedia = ref(false);
 const headerFileInput = ref(null);
+
+// Elegir AUTHENTICATION como categoría fuerza template_kind = 'authentication'
+// automáticamente (no es una opción separada y redundante en el selector).
+watch(
+  () => form.value.category,
+  category => {
+    if (category === 'AUTHENTICATION') {
+      form.value.template_kind = 'authentication';
+    } else if (form.value.template_kind === 'authentication') {
+      form.value.template_kind = 'standard';
+    }
+  }
+);
+
+const isAuthenticationKind = computed(
+  () => form.value.template_kind === 'authentication'
+);
+const isCarouselKind = computed(() => form.value.template_kind === 'carousel');
+const isFlowKind = computed(() => form.value.template_kind === 'flow');
+
+// Botones que se pintan en la previa del mensaje. En una plantilla de tipo
+// Formulario el botón no vive en form.buttons (lo arma el backend al enlazar el
+// Flow publicado), así que se agrega aquí para que la previa no salga sin él.
+const previewButtons = computed(() => {
+  if (isFlowKind.value) {
+    // Mientras no se escriba el texto se marca como pendiente, para no
+    // confundir un relleno de la previa con lo que se enviará a Meta.
+    const written = form.value.flow_button_text;
+    return [
+      {
+        key: 'flow',
+        text: written || t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_DEFAULT'),
+        isFlow: true,
+        placeholder: !written,
+      },
+    ];
+  }
+  return form.value.buttons
+    .filter(b => b.text)
+    .map((b, index) => ({ key: `${index}-${b.text}`, text: b.text }));
+});
+const isStandardKind = computed(() => form.value.template_kind === 'standard');
+
+// LTO solo visible para category MARKETING y template_kind standard.
+const canShowLto = computed(
+  () => form.value.category === 'MARKETING' && isStandardKind.value
+);
+
+// ─── Validación en vivo (paridad con el editor de Meta Business Manager) ───
+// Usa el mismo composable que corren los specs de Vitest; las validaciones de
+// variables ({{n}}) que YA existían arriba (detectedVars/invalidVars/
+// bodyHasEdgeVar, basadas en processVariable de @chatwoot/utils) se mantienen
+// intactas por compatibilidad -- este bloque solo AGREGA las reglas nuevas
+// (consecutivas, mezcla posicional+NAMED, secuencia, contadores, botones).
+const {
+  bodyHasConsecutiveVars,
+  bodyHasMixedVarTypes,
+  bodyHasNonSequentialVars,
+  counters: templateCounters,
+  counterClass,
+  buttonErrors,
+  errors: templateValidationErrors,
+  isValid: templateIsValid,
+} = useTemplateValidation(form);
+
+// ─── Carousel: cards ────────────────────────────────────────────────────────
+const addCard = () => {
+  if (form.value.cards.length >= CARD_MAX) return;
+  form.value.cards.push(emptyCard());
+};
+const removeCard = i => form.value.cards.splice(i, 1);
+
+const onCardFileChange = async (event, cardIndex) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!formInboxId.value) {
+    useAlert(t('JABVOX_WA_TEMPLATES.FORM.SELECT_INBOX_FIRST'));
+    return;
+  }
+  // La previa se pinta de inmediato desde el archivo local: así el usuario ve
+  // cómo queda la tarjeta aunque la subida a Meta falle (p. ej. si falta
+  // configurar WHATSAPP_APP_ID), en vez de quedarse con la tarjeta vacía.
+  const card = form.value.cards[cardIndex];
+  card.header_media_name = file.name;
+  card.header_media_preview = URL.createObjectURL(file);
+
+  uploadingMedia.value = true;
+  try {
+    const { data } = await wtTemplatesAPI.uploadMedia({
+      inboxId: formInboxId.value,
+      file,
+    });
+    card.header_handle = data.handle;
+  } catch (err) {
+    useAlert(
+      err?.response?.data?.error || t('JABVOX_WA_TEMPLATES.FORM.UPLOAD_ERROR')
+    );
+  } finally {
+    uploadingMedia.value = false;
+  }
+};
+
+const addCardButton = card => {
+  if (card.buttons.length >= 2) return;
+  card.buttons.push({
+    type: 'QUICK_REPLY',
+    text: '',
+    url: '',
+    phone_number: '',
+  });
+};
+const removeCardButton = (card, i) => card.buttons.splice(i, 1);
+
+// ─── Authentication: supported_apps (ONE_TAP/ZERO_TAP) ─────────────────────
+const addSupportedApp = () => {
+  form.value.auth_config.supported_apps.push({
+    package_name: '',
+    signature_hash: '',
+  });
+};
+const removeSupportedApp = i =>
+  form.value.auth_config.supported_apps.splice(i, 1);
+
+const authRequiresSupportedApps = computed(() =>
+  ['ONE_TAP', 'ZERO_TAP'].includes(form.value.auth_config.otp_type)
+);
 
 // Al cambiar el tipo de header, limpia lo que ya no aplica: el texto, o el media
 // (handle/preview/nombre). Así un valor de texto no se manda como media ni al revés.
@@ -521,6 +804,15 @@ const detectedVars = computed(() => {
 // ANTES de mandar a Meta (p. ej. {{Nombre empresa}}).
 const invalidVars = computed(() =>
   detectedVars.value.filter(v => !/^[0-9]+$/.test(v) && !/^[a-z0-9_]+$/.test(v))
+);
+
+// Mensaje precalculado (fuera del template) para evitar que un literal con
+// "{{" dentro de una interpolación Vue choque con los propios delimitores
+// {{ }} del parser.
+const invalidVarsMessage = computed(() =>
+  t('JABVOX_WA_TEMPLATES.CREATE.INVALID_VARS', {
+    vars: invalidVars.value.map(v => VAR_OPEN + v + VAR_CLOSE).join(', '),
+  })
 );
 
 // Meta rechaza (Invalid parameter) si el cuerpo EMPIEZA o TERMINA con una variable:
@@ -564,13 +856,17 @@ const onHeaderFileChange = async event => {
   }
 };
 
+// Tope real de Meta: 10 botones combinados (antes tope artificial de 3). Las
+// reglas finas de agrupación/exclusividad/cantidad por tipo las valida
+// buttonErrors (useTemplateValidation) e impiden enviar, no agregar.
 const addButton = () => {
-  if (form.value.buttons.length >= 3) return;
+  if (form.value.buttons.length >= 10) return;
   form.value.buttons.push({
     type: 'QUICK_REPLY',
     text: '',
     url: '',
     phone_number: '',
+    flow_id: '',
   });
 };
 const removeButton = i => form.value.buttons.splice(i, 1);
@@ -579,26 +875,6 @@ const openCreate = () => {
   editingTemplate.value = null;
   form.value = emptyForm();
   formInboxId.value = selectedInboxId.value || (inboxes.value[0]?.id ?? null);
-  wizardStep.value = 1;
-  showForm.value = true;
-};
-
-const openEdit = tpl => {
-  editingTemplate.value = tpl;
-  form.value = {
-    name: tpl.name,
-    category: tpl.category,
-    language: tpl.language,
-    header_type: tpl.header_type || 'NONE',
-    header_content: tpl.header_content || '',
-    body: tpl.body_content || '',
-    footer: tpl.footer_content || '',
-    buttons: (tpl.buttons_json || []).map(b => ({ ...b })),
-    var_descriptions: Object.fromEntries(
-      Object.entries(tpl.variables_json || {}).map(([k, v]) => [k, v])
-    ),
-  };
-  formInboxId.value = tpl.inbox_id;
   wizardStep.value = 1;
   showForm.value = true;
 };
@@ -619,6 +895,14 @@ const submitForm = async () => {
     useAlert(t('JABVOX_WA_TEMPLATES.CREATE.EDGE_VAR'));
     return;
   }
+  // Resto de reglas nuevas (consecutivas, mezcla posicional+NAMED, secuencia,
+  // botones) -- mismo gate que ya bloquea el botón "Enviar a Meta" en el wizard.
+  if (!templateIsValid.value) {
+    useAlert(
+      templateValidationErrors.value[0] || t('JABVOX_WA_TEMPLATES.ERROR')
+    );
+    return;
+  }
   saving.value = true;
   // A TEXT header with no content is invalid for Meta: treat it as "no header".
   const hasHeaderContent = form.value.header_content?.trim();
@@ -631,19 +915,43 @@ const submitForm = async () => {
     name: form.value.name,
     category: form.value.category,
     language: form.value.language,
-    header_type: headerType,
-    header_content: headerType ? form.value.header_content : null,
+    template_kind: form.value.template_kind,
+    header_type: isAuthenticationKind.value ? null : headerType,
+    header_content:
+      !isAuthenticationKind.value && headerType
+        ? form.value.header_content
+        : null,
     // Para header de media, Meta exige el handle "h:..." (subido con Resumable Upload),
     // no una URL. Va aparte de header_content.
     header_handle:
-      headerType && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType)
+      !isAuthenticationKind.value &&
+      headerType &&
+      ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType)
         ? form.value.header_handle
         : null,
-    body: form.value.body,
-    footer: form.value.footer,
-    buttons: form.value.buttons.filter(b => b.text),
+    body: isAuthenticationKind.value ? null : form.value.body,
+    footer: isAuthenticationKind.value ? null : form.value.footer,
+    buttons: isAuthenticationKind.value
+      ? []
+      : form.value.buttons.filter(b => b.text),
     inbox_id: formInboxId.value,
+    // Ejemplo por variable: Meta lo usa para revisar la plantilla, así que se
+    // envía lo que el usuario escribió en el paso de variables.
+    var_descriptions: form.value.var_descriptions || {},
+    limited_time_offer: canShowLto.value
+      ? form.value.limited_time_offer
+      : false,
+    auth_config: isAuthenticationKind.value ? form.value.auth_config : {},
+    cards: isCarouselKind.value ? form.value.cards : [],
   };
+  // El backend crea y publica el Flow en Meta antes de crear la plantilla.
+  if (isFlowKind.value) {
+    payload.flow = {
+      screens_json: form.value.flow_screens,
+      category: form.value.flow_category,
+    };
+    payload.flow_button_text = form.value.flow_button_text;
+  }
   try {
     if (editingTemplate.value) {
       await wtTemplatesAPI.update(editingTemplate.value.id, payload);
@@ -674,6 +982,27 @@ const fieldClass = (value, required = false) => {
 // Required-field checklist: drives the submit gate and the pending list shown
 // on the final step. Once a header type is chosen, its content is required —
 // removing the header is done by picking NONE, not by leaving it empty.
+// Requisitos del formulario. Las reglas de cada widget (obligatorios, largos,
+// límites de opciones, destinos de navegación) viven en widgetValidation.js,
+// que es lo mismo que marca en rojo el editor mientras se arma el formulario.
+const missingFlowFields = blank => {
+  const missing = [];
+
+  if (blank(form.value.flow_button_text)) {
+    missing.push(t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_TEXT'));
+  }
+  const screens = form.value.flow_screens || [];
+  if (!screens.length) {
+    missing.push(t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SECTION_TITLE'));
+    return missing;
+  }
+  if (!screens.some(s => s.terminal)) {
+    missing.push(t('JABVOX_WA_TEMPLATES.CREATE.FLOW.NEEDS_TERMINAL'));
+  }
+
+  return missing.concat(validateFlow(screens).messages);
+};
+
 const missingRequiredFields = computed(() => {
   const blank = v => String(v ?? '').trim() === '';
   const missing = [];
@@ -683,6 +1012,20 @@ const missingRequiredFields = computed(() => {
     if (blank(form.value.name))
       missing.push(t('JABVOX_WA_TEMPLATES.CREATE.NAME_LABEL'));
   }
+
+  // Authentication no usa body/header/footer libres -- Meta los genera desde
+  // auth_config. Solo se exige el propio auth_config.
+  if (isAuthenticationKind.value) {
+    if (blank(form.value.auth_config.otp_type))
+      missing.push(t('JABVOX_WA_TEMPLATES.CREATE.AUTH.OTP_TYPE_LABEL'));
+    if (
+      authRequiresSupportedApps.value &&
+      !form.value.auth_config.supported_apps.length
+    )
+      missing.push(t('JABVOX_WA_TEMPLATES.CREATE.AUTH.SUPPORTED_APPS_LABEL'));
+    return missing;
+  }
+
   if (blank(form.value.body))
     missing.push(t('JABVOX_WA_TEMPLATES.CREATE.BODY_LABEL'));
   if (form.value.header_type === 'TEXT' && blank(form.value.header_content))
@@ -691,7 +1034,7 @@ const missingRequiredFields = computed(() => {
   // plantilla existente que ya trae media, no se re-exige subir de nuevo.
   if (
     form.value.header_type &&
-    !['NONE', 'TEXT'].includes(form.value.header_type) &&
+    !['NONE', 'TEXT', 'LOCATION'].includes(form.value.header_type) &&
     blank(form.value.header_handle) &&
     !editingTemplate.value
   )
@@ -701,9 +1044,37 @@ const missingRequiredFields = computed(() => {
       missing.push(`${t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')} ${i + 1}`);
     if (b.type === 'URL' && blank(b.url))
       missing.push(`${t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_URL')} ${i + 1}`);
-    if (b.type === 'PHONE_NUMBER' && blank(b.phone_number))
+    if (
+      (b.type === 'PHONE_NUMBER' || b.type === 'VOICE_CALL') &&
+      blank(b.phone_number)
+    )
       missing.push(`${t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_PHONE')} ${i + 1}`);
+    if (b.type === 'FLOW' && blank(b.flow_id))
+      missing.push(
+        `${t('JABVOX_WA_FLOWS.TEMPLATES_INTEGRATION.FLOW_BUTTON_LABEL')} ${i + 1}`
+      );
   });
+
+  // Carousel: 2-10 cards, cada una con su media subida.
+  if (isCarouselKind.value) {
+    if (
+      form.value.cards.length < CARD_MIN ||
+      form.value.cards.length > CARD_MAX
+    ) {
+      missing.push(t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARDS_COUNT_LABEL'));
+    }
+    form.value.cards.forEach((c, i) => {
+      if (blank(c.header_handle) && !editingTemplate.value) {
+        missing.push(
+          `${t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARD_MEDIA_LABEL')} ${i + 1}`
+        );
+      }
+    });
+  }
+
+  // Formulario: lo que Meta exige del Flow JSON antes de poder publicarlo.
+  if (isFlowKind.value) missing.push(...missingFlowFields(blank));
+
   return missing;
 });
 
@@ -727,6 +1098,22 @@ const previousWizardStep = () => {
 // Selected template shown in the detail drawer (declared before the analytics
 // computed that reads it, to avoid a forward reference).
 const detailTemplate = ref(null);
+
+// ─── Vista previa del detalle ──────────────────────────────────────────────
+// A diferencia de la previa del asistente de creación (ligada a `form`, el
+// estado en edición), esta lee directo de `detailTemplate` — lo que Meta ya
+// tiene guardado — porque desde aca no se edita nada.
+const detailBodyPreview = computed(
+  () => detailTemplate.value?.body_content || ''
+);
+
+const detailButtonsPreview = computed(() =>
+  (detailTemplate.value?.buttons_json || []).map((btn, i) => ({
+    key: `${btn.text}_${i}`,
+    text: btn.text,
+    isFlow: (btn.type || '').toUpperCase() === 'FLOW',
+  }))
+);
 
 const templateAnalytics = computed(() => {
   const raw = detailTemplate.value?.meta_json?.analytics || {};
@@ -813,14 +1200,6 @@ const performRestoreVersion = async ver => {
 // Dispatches the confirmed action from ConfirmDialog to its handler.
 const onConfirmAction = data => {
   if (data?.action === 'restoreVersion') performRestoreVersion(data.ver);
-};
-
-const duplicateTemplate = tpl => {
-  promptDialog.value?.open({
-    title: t('JABVOX_WA_TEMPLATES.DETAIL.DUPLICATE_NAME'),
-    initialValue: `${tpl.name}_copy`,
-    data: tpl,
-  });
 };
 
 const performDuplicate = async ({ value: newName, data: tpl }) => {
@@ -1403,13 +1782,11 @@ onBeforeUnmount(() => {
               </div>
             </button>
 
+            <!-- Meta es la fuente de verdad de la plantilla ya creada: desde
+                 aca solo se sincroniza su estado, nunca se edita, duplica ni
+                 borra (Meta no permite editar una plantilla aprobada, y
+                 duplicar/borrar quedan fuera de alcance de esta pantalla). -->
             <div class="mt-3 flex items-center gap-1.5 wa-card-actions">
-              <button class="wa-icon-btn" @click="openEdit(tpl)">
-                <span class="i-lucide-pencil size-3.5" />
-              </button>
-              <button class="wa-icon-btn" @click="duplicateTemplate(tpl)">
-                <span class="i-lucide-copy size-3.5" />
-              </button>
               <button class="wa-icon-btn" @click="syncTemplate(tpl)">
                 <span class="i-lucide-refresh-cw size-3.5" />
               </button>
@@ -1452,8 +1829,12 @@ onBeforeUnmount(() => {
     <!-- ── CREATE / EDIT FORM MODAL ──────────────────────────────────── -->
     <div v-if="showForm" class="fixed inset-0 z-50 flex">
       <div class="absolute inset-0 bg-black/50" @click="showForm = false" />
+      <!-- El editor de formularios necesita tres paneles (pantallas · widgets ·
+           configuración) más la previa, así que el panel se ensancha para ese
+           tipo y mantiene el ancho habitual para el resto. -->
       <div
-        class="relative ml-auto w-full md:max-w-[900px] h-full bg-n-solid-1 shadow-xl flex overflow-hidden"
+        class="relative ml-auto w-full h-full bg-n-solid-1 shadow-xl flex overflow-hidden"
+        :class="isFlowKind ? 'md:max-w-[1500px]' : 'md:max-w-[900px]'"
       >
         <!-- Left: form -->
         <div class="flex-1 flex flex-col overflow-hidden">
@@ -1520,10 +1901,34 @@ onBeforeUnmount(() => {
                     class="reset-base text-sm"
                     :class="fieldClass(formInboxId, true)"
                   >
+                    <option :value="null" disabled>
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.INBOX_PLACEHOLDER') }}
+                    </option>
                     <option v-for="i in inboxes" :key="i.id" :value="i.id">
                       {{ i.name }} {{ DASH }} {{ i.phone_number }}
                     </option>
                   </select>
+                  <p
+                    v-if="!inboxes.length"
+                    class="text-[11px] text-n-amber-11 flex items-center gap-1"
+                  >
+                    <span
+                      class="i-lucide-alert-triangle size-3"
+                      aria-hidden="true"
+                    />
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.NO_INBOXES') }}
+                  </p>
+                  <p
+                    v-else-if="formInboxId"
+                    class="text-[11px] text-n-teal-11 flex items-center gap-1"
+                  >
+                    <span class="i-lucide-check size-3" aria-hidden="true" />
+                    {{
+                      t('JABVOX_WA_TEMPLATES.CREATE.INBOX_TARGET', {
+                        name: selectedFormInboxName,
+                      })
+                    }}
+                  </p>
                 </div>
                 <div v-if="!editingTemplate" class="flex flex-col gap-1">
                   <label class="text-xs text-n-slate-11">
@@ -1577,9 +1982,174 @@ onBeforeUnmount(() => {
                   </select>
                 </div>
               </div>
+              <!-- Tipo de plantilla: Estándar / Carousel. AUTHENTICATION se
+                   deriva automáticamente al elegir esa categoría arriba, no es
+                   una opción redundante aquí (sección 5 del diseño). -->
+              <div v-if="!isAuthenticationKind" class="flex flex-col gap-1">
+                <label class="text-xs text-n-slate-11">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.KIND.LABEL') }}
+                </label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    v-for="kind in TEMPLATE_KIND_OPTIONS"
+                    :key="kind.key"
+                    type="button"
+                    class="flex items-start gap-2.5 p-3 rounded-xl border text-left transition-colors"
+                    :class="
+                      form.template_kind === kind.key
+                        ? 'border-n-brand bg-n-brand/5 ring-1 ring-n-brand'
+                        : 'border-n-weak bg-n-solid-1 hover:border-n-slate-6'
+                    "
+                    @click="form.template_kind = kind.key"
+                  >
+                    <span
+                      :class="[
+                        kind.icon,
+                        form.template_kind === kind.key
+                          ? 'text-n-brand'
+                          : 'text-n-slate-10',
+                      ]"
+                      class="size-5 shrink-0 mt-0.5"
+                      aria-hidden="true"
+                    />
+                    <span class="flex flex-col gap-0.5 min-w-0">
+                      <span
+                        class="text-sm font-medium"
+                        :class="
+                          form.template_kind === kind.key
+                            ? 'text-n-brand'
+                            : 'text-n-slate-12'
+                        "
+                      >
+                        {{ templateKindLabel(kind.key) }}
+                      </span>
+                      <span class="text-[11px] text-n-slate-10 leading-snug">
+                        {{ templateKindHint(kind.key) }}
+                      </span>
+                    </span>
+                  </button>
+                </div>
+
+                <!-- Descripción de lo que hace el tipo seleccionado -->
+                <div
+                  class="flex items-start gap-2 rounded-lg bg-n-alpha-1 p-2.5 mt-1"
+                >
+                  <span
+                    class="i-lucide-info size-3.5 text-n-slate-10 shrink-0 mt-px"
+                    aria-hidden="true"
+                  />
+                  <p class="text-[11px] text-n-slate-11 leading-relaxed">
+                    {{ templateKindDescriptionFor(form.template_kind) }}
+                  </p>
+                </div>
+              </div>
+              <p
+                v-if="isAuthenticationKind"
+                class="text-[11px] text-n-slate-10 rounded-lg bg-n-alpha-1 p-2.5"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.KIND.AUTH_AUTO_NOTE') }}
+              </p>
             </section>
 
-            <section v-if="wizardStep === 2" class="space-y-3">
+            <!-- ── AUTHENTICATION: formulario reducido, sin header/body/footer libres ── -->
+            <section
+              v-if="wizardStep === 2 && isAuthenticationKind"
+              class="space-y-3"
+            >
+              <h3
+                class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.AUTH.SECTION_TITLE') }}
+              </h3>
+              <p class="text-xs text-n-slate-10">
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.AUTH.NOTE') }}
+              </p>
+              <label class="flex items-center gap-2 text-sm text-n-slate-11">
+                <input
+                  v-model="form.auth_config.add_security_recommendation"
+                  type="checkbox"
+                  class="reset-base"
+                />
+                {{
+                  t('JABVOX_WA_TEMPLATES.CREATE.AUTH.SECURITY_RECOMMENDATION')
+                }}
+              </label>
+              <div class="flex flex-col gap-1 max-w-xs">
+                <label class="text-xs text-n-slate-11">
+                  {{
+                    t('JABVOX_WA_TEMPLATES.CREATE.AUTH.CODE_EXPIRATION_LABEL')
+                  }}
+                </label>
+                <input
+                  v-model.number="form.auth_config.code_expiration_minutes"
+                  type="number"
+                  min="1"
+                  max="90"
+                  class="reset-base text-sm wa-field wa-field-valid"
+                />
+              </div>
+              <div class="flex flex-col gap-1 max-w-xs">
+                <label class="text-xs text-n-slate-11">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.AUTH.OTP_TYPE_LABEL') }}
+                </label>
+                <select
+                  v-model="form.auth_config.otp_type"
+                  class="reset-base text-sm wa-field wa-field-valid"
+                >
+                  <option v-for="ot in OTP_TYPES" :key="ot" :value="ot">
+                    {{ otpTypeLabel(ot) }}
+                  </option>
+                </select>
+              </div>
+              <div v-if="authRequiresSupportedApps" class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs text-n-slate-11">
+                    {{
+                      t('JABVOX_WA_TEMPLATES.CREATE.AUTH.SUPPORTED_APPS_LABEL')
+                    }}
+                  </label>
+                  <button
+                    class="text-xs text-n-brand hover:underline"
+                    @click="addSupportedApp"
+                  >
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.AUTH.ADD_APP') }}
+                  </button>
+                </div>
+                <div
+                  v-for="(app, i) in form.auth_config.supported_apps"
+                  :key="i"
+                  class="flex flex-wrap gap-2 items-center p-2.5 rounded-lg bg-n-alpha-1"
+                >
+                  <input
+                    v-model="app.package_name"
+                    class="reset-base text-xs flex-1 min-w-36"
+                    :class="fieldClass(app.package_name, true)"
+                    :placeholder="
+                      t('JABVOX_WA_TEMPLATES.CREATE.AUTH.PACKAGE_NAME_PH')
+                    "
+                  />
+                  <input
+                    v-model="app.signature_hash"
+                    class="reset-base text-xs flex-1 min-w-36"
+                    :class="fieldClass(app.signature_hash, true)"
+                    :placeholder="
+                      t('JABVOX_WA_TEMPLATES.CREATE.AUTH.SIGNATURE_HASH_PH')
+                    "
+                  />
+                  <button
+                    class="text-n-ruby-11 p-1"
+                    @click="removeSupportedApp(i)"
+                  >
+                    <span class="i-lucide-trash-2 size-3.5" />
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section
+              v-if="wizardStep === 2 && !isAuthenticationKind"
+              class="space-y-3"
+            >
               <h3
                 class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
               >
@@ -1595,22 +2165,41 @@ onBeforeUnmount(() => {
                   :class="fieldClass(form.header_type)"
                 >
                   <option v-for="f in HEADER_FORMATS" :key="f" :value="f">
-                    {{
-                      f === 'NONE'
-                        ? t('JABVOX_WA_TEMPLATES.CREATE.HEADER_NONE')
-                        : f
-                    }}
+                    {{ mediaTypeLabel(f) }}
                   </option>
                 </select>
               </div>
-              <input
+              <div
                 v-if="form.header_type === 'TEXT'"
-                v-model="form.header_content"
-                class="reset-base text-sm w-full"
-                :class="fieldClass(form.header_content, true)"
-                :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.HEADER_TEXT_PH')"
-                maxlength="60"
-              />
+                class="flex flex-col gap-1"
+              >
+                <input
+                  v-model="form.header_content"
+                  class="reset-base text-sm w-full"
+                  :class="fieldClass(form.header_content, true)"
+                  :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.HEADER_TEXT_PH')"
+                  maxlength="60"
+                />
+                <span
+                  class="text-[11px] self-end"
+                  :class="
+                    counterClass(
+                      templateCounters.header.value,
+                      templateCounters.header.max
+                    )
+                  "
+                >
+                  {{ templateCounters.header.value }}/{{
+                    templateCounters.header.max
+                  }}
+                </span>
+              </div>
+              <p
+                v-else-if="form.header_type === 'LOCATION'"
+                class="text-[11px] text-n-slate-10 rounded-lg bg-n-alpha-1 p-2.5"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.HEADER_LOCATION_NOTE') }}
+              </p>
               <div v-else-if="isMediaHeader" class="flex flex-col gap-2">
                 <label class="text-xs text-n-slate-11">
                   {{ t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_FILE_LABEL') }}
@@ -1676,10 +2265,25 @@ onBeforeUnmount(() => {
                 </p>
               </div>
               <div class="flex flex-col gap-1">
-                <label class="text-xs text-n-slate-11">
-                  {{ t('JABVOX_WA_TEMPLATES.CREATE.BODY_LABEL') }}
-                  <span class="text-n-ruby-11">*</span>
-                </label>
+                <div class="flex items-center justify-between">
+                  <label class="text-xs text-n-slate-11">
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.BODY_LABEL') }}
+                    <span class="text-n-ruby-11">*</span>
+                  </label>
+                  <span
+                    class="text-[11px]"
+                    :class="
+                      counterClass(
+                        templateCounters.body.value,
+                        templateCounters.body.max
+                      )
+                    "
+                  >
+                    {{ templateCounters.body.value }}/{{
+                      templateCounters.body.max
+                    }}
+                  </span>
+                </div>
                 <textarea
                   v-model="form.body"
                   rows="5"
@@ -1687,18 +2291,373 @@ onBeforeUnmount(() => {
                   :class="fieldClass(form.body, true)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BODY_PH')"
                 />
+                <!-- Validación en vivo, paridad con el editor de Meta -->
+                <p v-if="bodyHasEdgeVar" class="text-[11px] text-n-ruby-11">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.EDGE_VAR') }}
+                </p>
+                <p
+                  v-if="bodyHasConsecutiveVars"
+                  class="text-[11px] text-n-ruby-11"
+                >
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.CONSECUTIVE_VARS') }}
+                </p>
+                <p
+                  v-if="bodyHasMixedVarTypes"
+                  class="text-[11px] text-n-ruby-11"
+                >
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.MIXED_VAR_TYPES') }}
+                </p>
+                <p
+                  v-if="!bodyHasMixedVarTypes && bodyHasNonSequentialVars"
+                  class="text-[11px] text-n-ruby-11"
+                >
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.NON_SEQUENTIAL_VARS') }}
+                </p>
+                <p v-if="invalidVars.length" class="text-[11px] text-n-ruby-11">
+                  {{ invalidVarsMessage }}
+                </p>
               </div>
               <div class="flex flex-col gap-1">
-                <label class="text-xs text-n-slate-11">{{
-                  t('JABVOX_WA_TEMPLATES.CREATE.FOOTER_LABEL')
-                }}</label>
+                <div class="flex items-center justify-between">
+                  <label class="text-xs text-n-slate-11">{{
+                    t('JABVOX_WA_TEMPLATES.CREATE.FOOTER_LABEL')
+                  }}</label>
+                  <span
+                    class="text-[11px]"
+                    :class="
+                      counterClass(
+                        templateCounters.footer.value,
+                        templateCounters.footer.max
+                      )
+                    "
+                  >
+                    {{ templateCounters.footer.value }}/{{
+                      templateCounters.footer.max
+                    }}
+                  </span>
+                </div>
                 <input
                   v-model="form.footer"
                   class="reset-base text-sm w-full"
                   :class="fieldClass(form.footer)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.FOOTER_PH')"
+                  maxlength="60"
                 />
               </div>
+              <!-- LTO: visible solo para category MARKETING y template_kind standard -->
+              <label
+                v-if="canShowLto"
+                class="flex items-center gap-2 text-sm text-n-slate-11"
+              >
+                <input
+                  v-model="form.limited_time_offer"
+                  type="checkbox"
+                  class="reset-base"
+                />
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.LTO.LABEL') }}
+              </label>
+            </section>
+
+            <!-- ── FLOW: el formulario se construye aquí mismo; al guardar, el
+                 backend lo publica en Meta y crea la plantilla enlazada ── -->
+            <section v-if="wizardStep === 2 && isFlowKind" class="space-y-3">
+              <h3
+                class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SECTION_TITLE') }}
+              </h3>
+              <!-- El texto del botón se edita en el paso de Botones, junto al
+                   resto de botones de la plantilla. -->
+              <div class="flex flex-col gap-1 max-w-sm">
+                <label class="text-xs text-n-slate-11">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.CATEGORY') }}
+                </label>
+                <select
+                  v-model="form.flow_category"
+                  class="reset-base text-sm wa-field wa-field-valid"
+                >
+                  <option v-for="fc in FLOW_CATEGORIES" :key="fc" :value="fc">
+                    {{ flowCategoryLabel(fc) }}
+                  </option>
+                </select>
+                <p class="text-[11px] text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.CATEGORY_HELP') }}
+                </p>
+              </div>
+              <InlineFlowBuilder v-model="form.flow_screens" />
+            </section>
+
+            <!-- ── CAROUSEL: editor de cards (2-10), cada una con su propio
+                 uploader de media + hasta 2 botones ── -->
+            <section
+              v-if="wizardStep === 2 && isCarouselKind"
+              class="space-y-3"
+            >
+              <div class="flex items-center justify-between">
+                <h3
+                  class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
+                >
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.SECTION_TITLE') }}
+                </h3>
+                <button
+                  v-if="form.cards.length < CARD_MAX"
+                  class="text-xs text-n-brand hover:underline"
+                  @click="addCard"
+                >
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.ADD_CARD') }}
+                </button>
+              </div>
+              <p class="text-[11px] text-n-slate-10">
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.NOTE') }}
+              </p>
+              <div
+                v-for="(card, ci) in form.cards"
+                :key="ci"
+                class="rounded-xl border border-n-weak p-3"
+              >
+                <div class="flex items-center justify-between mb-2.5">
+                  <p
+                    class="text-xs font-medium text-n-slate-12 flex items-center gap-1.5"
+                  >
+                    <span
+                      class="i-lucide-gallery-horizontal-end size-3.5 text-n-slate-10"
+                      aria-hidden="true"
+                    />
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARD_LABEL') }}
+                    {{ ci + 1 }}
+                  </p>
+                  <button class="text-n-ruby-11 p-1" @click="removeCard(ci)">
+                    <span class="i-lucide-trash-2 size-3.5" />
+                  </button>
+                </div>
+
+                <!-- Controles a la izquierda · previa de la tarjeta a la derecha -->
+                <div class="grid grid-cols-1 lg:grid-cols-[1fr_190px] gap-3">
+                  <div class="space-y-2 min-w-0">
+                    <label class="text-[11px] text-n-slate-11 block">
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.MEDIA_TYPE') }}
+                    </label>
+                    <select
+                      v-model="card.header_type"
+                      class="reset-base text-xs w-32 wa-field wa-field-valid"
+                    >
+                      <option
+                        v-for="ht in CARD_HEADER_TYPES"
+                        :key="ht"
+                        :value="ht"
+                      >
+                        {{ mediaTypeLabel(ht) }}
+                      </option>
+                    </select>
+
+                    <label class="text-[11px] text-n-slate-11 block">
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.MEDIA_FILE') }}
+                      <span class="text-n-ruby-11">*</span>
+                    </label>
+                    <input
+                      type="file"
+                      :accept="
+                        card.header_type === 'IMAGE'
+                          ? 'image/jpeg,image/png'
+                          : 'video/mp4,video/3gpp'
+                      "
+                      class="reset-base text-xs w-full rounded-lg border px-2 py-1.5 file:mr-3 file:rounded-md file:border-0 file:bg-n-brand file:text-white file:px-3 file:py-1 file:text-xs"
+                      :class="
+                        card.header_handle
+                          ? 'border-n-teal-8 bg-n-teal-2'
+                          : 'border-n-ruby-8 bg-n-ruby-2'
+                      "
+                      @change="e => onCardFileChange(e, ci)"
+                    />
+                    <p
+                      v-if="card.header_handle"
+                      class="text-[11px] text-n-teal-11 flex items-center gap-1"
+                    >
+                      <span class="i-lucide-check size-3" aria-hidden="true" />
+                      {{ t('JABVOX_WA_TEMPLATES.FORM.MEDIA_READY') }}
+                    </p>
+                    <p
+                      v-else-if="card.header_media_name"
+                      class="text-[11px] text-n-amber-11 flex items-center gap-1"
+                    >
+                      <span
+                        class="i-lucide-alert-triangle size-3"
+                        aria-hidden="true"
+                      />
+                      {{
+                        t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.NOT_UPLOADED')
+                      }}
+                    </p>
+                    <p
+                      v-else
+                      class="text-[11px] text-n-ruby-11 flex items-center gap-1"
+                    >
+                      <span class="i-lucide-circle size-3" aria-hidden="true" />
+                      {{
+                        t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.MEDIA_REQUIRED')
+                      }}
+                    </p>
+
+                    <label class="text-[11px] text-n-slate-11 block">
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARD_BODY') }}
+                    </label>
+                    <input
+                      v-model="card.body_content"
+                      class="reset-base text-xs w-full"
+                      :class="fieldClass(card.body_content)"
+                      :placeholder="
+                        t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARD_BODY_PH')
+                      "
+                    />
+                    <div class="flex items-center justify-between">
+                      <p class="text-[11px] text-n-slate-10">
+                        {{
+                          t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARD_BUTTONS')
+                        }}
+                      </p>
+                      <button
+                        v-if="card.buttons.length < 2"
+                        class="text-[11px] text-n-brand hover:underline"
+                        @click="addCardButton(card)"
+                      >
+                        {{ t('JABVOX_WA_TEMPLATES.CREATE.ADD_BUTTON') }}
+                      </button>
+                    </div>
+                    <div
+                      v-for="(btn, bi) in card.buttons"
+                      :key="bi"
+                      class="flex flex-wrap gap-2 items-center p-2 rounded-lg bg-n-alpha-1"
+                    >
+                      <select
+                        v-model="btn.type"
+                        class="reset-base text-xs w-32"
+                      >
+                        <option
+                          v-for="bt in CARD_BUTTON_TYPES"
+                          :key="bt"
+                          :value="bt"
+                        >
+                          {{ buttonTypeLabel(bt) }}
+                        </option>
+                      </select>
+                      <input
+                        v-model="btn.text"
+                        maxlength="25"
+                        class="reset-base text-xs flex-1 min-w-24"
+                        :class="fieldClass(btn.text, true)"
+                        :placeholder="
+                          t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')
+                        "
+                      />
+                      <input
+                        v-if="btn.type === 'URL'"
+                        v-model="btn.url"
+                        class="reset-base text-xs flex-1 min-w-36"
+                        :class="fieldClass(btn.url, true)"
+                        :placeholder="
+                          t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_URL')
+                        "
+                      />
+                      <input
+                        v-if="btn.type === 'PHONE_NUMBER'"
+                        v-model="btn.phone_number"
+                        maxlength="20"
+                        class="reset-base text-xs flex-1 min-w-36"
+                        :class="fieldClass(btn.phone_number, true)"
+                        :placeholder="
+                          t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_PHONE')
+                        "
+                      />
+                      <button
+                        class="text-n-ruby-11 p-1"
+                        @click="removeCardButton(card, bi)"
+                      >
+                        <span class="i-lucide-trash-2 size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Previa de la tarjeta tal como se verá en WhatsApp -->
+                  <div class="lg:sticky lg:top-2 self-start">
+                    <p
+                      class="text-[10px] uppercase tracking-wide text-n-slate-10 mb-1.5"
+                    >
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.PREVIEW') }}
+                    </p>
+                    <div
+                      class="rounded-xl overflow-hidden border border-n-weak bg-[#e5ddd5] p-2"
+                    >
+                      <div
+                        class="rounded-lg overflow-hidden bg-white shadow-sm"
+                      >
+                        <img
+                          v-if="
+                            card.header_type === 'IMAGE' &&
+                            card.header_media_preview
+                          "
+                          :src="card.header_media_preview"
+                          alt=""
+                          class="w-full h-24 object-cover"
+                        />
+                        <video
+                          v-else-if="
+                            card.header_type === 'VIDEO' &&
+                            card.header_media_preview
+                          "
+                          :src="card.header_media_preview"
+                          class="w-full h-24 object-cover"
+                          muted
+                        />
+                        <div
+                          v-else
+                          class="w-full h-24 flex flex-col items-center justify-center gap-1 bg-n-alpha-2 text-n-slate-9"
+                        >
+                          <span
+                            :class="
+                              card.header_type === 'VIDEO'
+                                ? 'i-lucide-video'
+                                : 'i-lucide-image'
+                            "
+                            class="size-5"
+                            aria-hidden="true"
+                          />
+                          <span class="text-[10px]">
+                            {{
+                              t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.NO_MEDIA')
+                            }}
+                          </span>
+                        </div>
+                        <div class="p-2">
+                          <p
+                            class="text-[11px] text-gray-800 leading-snug break-words"
+                          >
+                            {{
+                              card.body_content ||
+                              t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.NO_BODY')
+                            }}
+                          </p>
+                        </div>
+                        <div
+                          v-for="(btn, bi) in card.buttons"
+                          :key="`prev-${bi}`"
+                          class="border-t border-gray-200 py-1.5 text-center text-[11px] text-[#00a5f4] truncate px-2"
+                        >
+                          {{
+                            btn.text ||
+                            t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.NO_BUTTON')
+                          }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p
+                v-if="form.cards.length < CARD_MIN"
+                class="text-[11px] text-n-ruby-11"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.MIN_CARDS_NOTE') }}
+              </p>
             </section>
 
             <section v-if="wizardStep === 3" class="space-y-3">
@@ -1713,6 +2672,9 @@ onBeforeUnmount(() => {
               >
                 <p class="text-xs font-medium text-n-slate-11">
                   {{ t('JABVOX_WA_TEMPLATES.CREATE.VARS_TITLE') }}
+                </p>
+                <p class="text-[11px] text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.VARS_HELP') }}
                 </p>
                 <div
                   v-for="n in detectedVars"
@@ -1748,15 +2710,45 @@ onBeforeUnmount(() => {
                   {{ t('JABVOX_WA_TEMPLATES.CREATE.BUTTONS_LABEL') }}
                 </h3>
                 <button
-                  v-if="form.buttons.length < 3"
+                  v-if="!isFlowKind && form.buttons.length < 10"
                   class="text-xs text-n-brand hover:underline"
                   @click="addButton"
                 >
                   {{ t('JABVOX_WA_TEMPLATES.CREATE.ADD_BUTTON') }}
                 </button>
               </div>
+
+              <!-- Plantilla de tipo Formulario: Meta solo admite el botón que
+                   abre el Flow, así que aquí únicamente se edita su texto. -->
+              <template v-if="isFlowKind">
+                <div
+                  class="flex flex-wrap items-center gap-2 p-2.5 rounded-lg border border-n-brand/40 bg-n-brand/5"
+                >
+                  <span
+                    class="flex items-center gap-1.5 text-xs font-medium text-n-brand shrink-0"
+                  >
+                    <span
+                      class="i-lucide-clipboard-list size-3.5"
+                      aria-hidden="true"
+                    />
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TYPES.FLOW') }}
+                  </span>
+                  <input
+                    v-model="form.flow_button_text"
+                    maxlength="25"
+                    class="reset-base text-xs flex-1 min-w-32"
+                    :class="fieldClass(form.flow_button_text, true)"
+                    :placeholder="
+                      t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_TEXT_PH')
+                    "
+                  />
+                </div>
+                <p class="text-[11px] text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_LOCKED_NOTE') }}
+                </p>
+              </template>
               <div
-                v-for="(btn, i) in form.buttons"
+                v-for="(btn, i) in isFlowKind ? [] : form.buttons"
                 :key="i"
                 class="flex flex-wrap gap-2 items-center p-2.5 rounded-lg bg-n-alpha-1"
               >
@@ -1766,14 +2758,35 @@ onBeforeUnmount(() => {
                   :class="fieldClass(btn.type)"
                 >
                   <option v-for="bt in BUTTON_TYPES" :key="bt" :value="bt">
-                    {{ bt }}
+                    {{ buttonTypeLabel(bt) }}
                   </option>
                 </select>
+                <!-- Meta fija el texto del botón de cupón y rechaza cualquier
+                     otro, así que se muestra pero no se edita; lo configurable
+                     es el código que se copia. -->
+                <span
+                  v-if="btn.type === 'COPY_CODE'"
+                  class="text-xs text-n-slate-11 px-2 py-1 rounded bg-n-alpha-2 flex-1 min-w-24"
+                >
+                  {{ COPY_CODE_BUTTON_TEXT }}
+                </span>
                 <input
+                  v-else
                   v-model="btn.text"
+                  maxlength="25"
                   class="reset-base text-xs flex-1 min-w-24"
                   :class="fieldClass(btn.text, true)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')"
+                />
+                <input
+                  v-if="btn.type === 'COPY_CODE'"
+                  v-model="btn.example"
+                  maxlength="15"
+                  class="reset-base text-xs flex-1 min-w-32"
+                  :class="fieldClass(btn.example, true)"
+                  :placeholder="
+                    t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_COPY_CODE')
+                  "
                 />
                 <input
                   v-if="btn.type === 'URL'"
@@ -1783,15 +2796,60 @@ onBeforeUnmount(() => {
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_URL')"
                 />
                 <input
-                  v-if="btn.type === 'PHONE_NUMBER'"
+                  v-if="
+                    btn.type === 'PHONE_NUMBER' || btn.type === 'VOICE_CALL'
+                  "
                   v-model="btn.phone_number"
+                  maxlength="20"
                   class="reset-base text-xs flex-1 min-w-36"
                   :class="fieldClass(btn.phone_number, true)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_PHONE')"
                 />
+                <!-- Botón FLOW: selecciona un JabvoxWhatsappFlow publicado de
+                     la bandeja elegida, nunca un flow_id de texto libre. -->
+                <select
+                  v-if="btn.type === 'FLOW'"
+                  v-model="btn.flow_id"
+                  class="reset-base text-xs flex-1 min-w-48"
+                  :class="fieldClass(btn.flow_id, true)"
+                >
+                  <option value="">
+                    {{ t('JABVOX_WA_FLOWS.TEMPLATES_INTEGRATION.SELECT_FLOW') }}
+                  </option>
+                  <option
+                    v-for="wf in publishedFlowsForInbox"
+                    :key="wf.id"
+                    :value="wf.meta_flow_id"
+                  >
+                    {{ wf.name }}
+                  </option>
+                </select>
+                <p
+                  v-if="btn.type === 'FLOW' && !publishedFlowsForInbox.length"
+                  class="text-[11px] text-n-amber-11 basis-full"
+                >
+                  {{
+                    t(
+                      'JABVOX_WA_FLOWS.TEMPLATES_INTEGRATION.NO_PUBLISHED_FLOWS'
+                    )
+                  }}
+                </p>
                 <button class="text-n-ruby-11 p-1" @click="removeButton(i)">
                   <span class="i-lucide-trash-2 size-3.5" />
                 </button>
+              </div>
+              <!-- Reglas de agrupación/exclusividad/cantidad por tipo, en vivo -->
+              <div
+                v-if="buttonErrors.length"
+                class="rounded-lg border border-n-ruby-6 bg-n-ruby-2 p-3 space-y-1"
+              >
+                <p
+                  v-for="msg in buttonErrors"
+                  :key="msg"
+                  class="text-[11px] text-n-ruby-11"
+                >
+                  {{ msg }}
+                </p>
               </div>
             </section>
 
@@ -1864,6 +2922,21 @@ onBeforeUnmount(() => {
                   </li>
                 </ul>
               </div>
+              <!-- Validación en vivo (paridad con el editor de Meta): mismas
+                   reglas que corre el servidor, mostradas ANTES de enviar. -->
+              <div
+                v-if="!isAuthenticationKind && templateValidationErrors.length"
+                class="rounded-xl border border-n-ruby-6 bg-n-ruby-2 p-4 space-y-1.5"
+              >
+                <p class="text-sm font-medium text-n-ruby-11">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.VALIDATION_ERRORS_TITLE') }}
+                </p>
+                <ul class="list-disc ltr:pl-5 rtl:pr-5 text-xs text-n-ruby-11">
+                  <li v-for="msg in templateValidationErrors" :key="msg">
+                    {{ msg }}
+                  </li>
+                </ul>
+              </div>
             </section>
           </div>
           <div class="flex gap-3 px-5 py-3.5 border-t border-n-weak shrink-0">
@@ -1884,7 +2957,11 @@ onBeforeUnmount(() => {
             <button
               v-if="wizardStep === 6"
               class="px-4 py-2 text-sm rounded-lg bg-n-brand text-white disabled:opacity-50"
-              :disabled="saving || missingRequiredFields.length > 0"
+              :disabled="
+                saving ||
+                missingRequiredFields.length > 0 ||
+                (!isAuthenticationKind && !templateIsValid)
+              "
               @click="submitForm"
             >
               {{
@@ -1912,7 +2989,9 @@ onBeforeUnmount(() => {
               {{ t('JABVOX_WA_TEMPLATES.CREATE.PREVIEW_TITLE') }}
             </p>
           </div>
-          <div class="flex-1 overflow-auto p-4 flex items-start justify-center">
+          <div
+            class="flex-1 overflow-auto p-4 flex flex-col items-center gap-4"
+          >
             <div
               class="w-full max-w-[200px] bg-[#0b141a] rounded-2xl p-3 shadow-lg"
             >
@@ -1987,17 +3066,41 @@ onBeforeUnmount(() => {
                   </p>
                 </div>
                 <div
-                  v-if="form.buttons.filter(b => b.text).length"
+                  v-if="previewButtons.length"
                   class="mx-2 mb-2 mt-0.5 space-y-1"
                 >
                   <div
-                    v-for="btn in form.buttons.filter(b => b.text)"
-                    :key="btn.text"
-                    class="bg-[#2a3942] rounded py-1.5 text-center text-[11px] text-[#53bdeb] font-medium"
+                    v-for="btn in previewButtons"
+                    :key="btn.key"
+                    class="bg-[#2a3942] rounded py-1.5 text-center text-[11px] text-[#53bdeb] font-medium flex items-center justify-center gap-1"
                   >
-                    {{ btn.text }}
+                    <span
+                      v-if="btn.isFlow"
+                      class="i-lucide-clipboard-list size-3"
+                      aria-hidden="true"
+                    />
+                    <span :class="{ 'opacity-50 italic': btn.placeholder }">
+                      {{ btn.text }}
+                    </span>
                   </div>
                 </div>
+              </div>
+            </div>
+            <!-- Previa del formulario, debajo de la del mensaje: así se ve
+                 primero lo que llega al chat y luego lo que abre el botón. -->
+            <div v-if="isFlowKind && form.flow_screens.length" class="w-full">
+              <p
+                class="text-[10px] uppercase tracking-wide text-n-slate-10 mb-1.5 text-center"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.PREVIEW_TITLE') }}
+              </p>
+              <div
+                class="rounded-xl border border-n-weak overflow-hidden h-[320px]"
+              >
+                <FlowPreview
+                  :screens="form.flow_screens"
+                  :flow-name="form.name"
+                />
               </div>
             </div>
           </div>
@@ -2032,15 +3135,8 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button
-              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3"
-              @click="
-                openEdit(detailTemplate);
-                closeDetail();
-              "
-            >
-              {{ t('JABVOX_WA_TEMPLATES.ACTIONS.EDIT') }}
-            </button>
+            <!-- Meta es la fuente de verdad de esta plantilla: desde aca no
+                 se edita, solo se consulta y se sincroniza su estado. -->
             <button class="text-n-slate-11" @click="closeDetail">
               <span class="i-lucide-x size-5" />
             </button>
@@ -2049,6 +3145,7 @@ onBeforeUnmount(() => {
         <div class="flex gap-0 border-b border-n-weak px-5 shrink-0">
           <button
             v-for="dt in [
+              'preview',
               'components',
               'variables',
               'analytics',
@@ -2069,7 +3166,121 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <div class="flex-1 overflow-auto p-5">
-          <div v-if="detailTab === 'components'" class="space-y-4">
+          <div
+            v-if="detailTab === 'preview'"
+            class="flex flex-col items-center gap-4 py-4"
+          >
+            <div
+              class="w-full max-w-[220px] bg-[#0b141a] rounded-2xl p-3 shadow-lg"
+            >
+              <div
+                class="bg-[#1f2c33] rounded-xl overflow-hidden text-white text-xs"
+              >
+                <div
+                  class="bg-[#202c33] mx-2 mt-2 rounded-lg p-2.5 space-y-1.5"
+                >
+                  <div
+                    v-if="
+                      detailTemplate.header_type === 'TEXT' &&
+                      detailTemplate.header_content
+                    "
+                    class="font-semibold text-[11px] text-white/90 border-b border-white/10 pb-1.5 mb-1.5"
+                  >
+                    {{ detailTemplate.header_content }}
+                  </div>
+                  <template v-else-if="detailHeaderIsMedia">
+                    <img
+                      v-if="
+                        detailHeaderType === 'IMAGE' && detailHeaderMediaUrl
+                      "
+                      :src="detailHeaderMediaUrl"
+                      alt="header"
+                      class="max-h-28 w-full rounded object-cover mb-1.5"
+                    />
+                    <video
+                      v-else-if="
+                        detailHeaderType === 'VIDEO' && detailHeaderMediaUrl
+                      "
+                      :src="detailHeaderMediaUrl"
+                      controls
+                      class="max-h-28 w-full rounded bg-black mb-1.5"
+                    />
+                    <div
+                      v-else
+                      class="h-20 bg-white/10 rounded flex items-center justify-center text-white/40 text-[10px] mb-1.5"
+                    >
+                      {{ detailHeaderType }}
+                    </div>
+                  </template>
+                  <p
+                    class="text-[11px] leading-relaxed text-white/90 whitespace-pre-wrap"
+                  >
+                    {{
+                      detailBodyPreview ||
+                      t('JABVOX_WA_TEMPLATES.DETAIL.EMPTY_VALUE')
+                    }}
+                  </p>
+                  <p
+                    v-if="detailTemplate.footer_content"
+                    class="text-[10px] text-white/40 border-t border-white/10 pt-1 mt-1"
+                  >
+                    {{ detailTemplate.footer_content }}
+                  </p>
+                  <p class="text-right text-[9px] text-white/30">
+                    {{
+                      new Date(detailTemplate.updated_at).toLocaleTimeString(
+                        [],
+                        {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }
+                      )
+                    }}
+                  </p>
+                </div>
+                <div
+                  v-if="detailButtonsPreview.length"
+                  class="mx-2 mb-2 mt-0.5 space-y-1"
+                >
+                  <div
+                    v-for="btn in detailButtonsPreview"
+                    :key="btn.key"
+                    class="bg-[#2a3942] rounded py-1.5 text-center text-[11px] text-[#53bdeb] font-medium flex items-center justify-center gap-1"
+                  >
+                    <span
+                      v-if="btn.isFlow"
+                      class="i-lucide-clipboard-list size-3"
+                      aria-hidden="true"
+                    />
+                    {{ btn.text }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Previa del formulario, para plantillas tipo Flow. -->
+            <div
+              v-if="
+                detailTemplate.template_kind === 'flow' &&
+                detailTemplate.flow_screens?.length
+              "
+              class="w-full"
+            >
+              <p
+                class="text-[10px] uppercase tracking-wide text-n-slate-10 mb-1.5 text-center"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.PREVIEW_TITLE') }}
+              </p>
+              <div
+                class="rounded-xl border border-n-weak overflow-hidden h-[320px]"
+              >
+                <FlowPreview
+                  :screens="detailTemplate.flow_screens"
+                  :flow-name="detailTemplate.name"
+                />
+              </div>
+            </div>
+          </div>
+          <div v-else-if="detailTab === 'components'" class="space-y-4">
             <div
               v-if="detailTemplate.rejected_reason"
               class="p-3 rounded-lg bg-n-ruby-3 text-n-ruby-11 text-sm"

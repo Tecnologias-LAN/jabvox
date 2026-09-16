@@ -779,73 +779,83 @@ const menuItems = computed(() => {
           },
         ]
       : []),
-    {
-      name: 'Contacts',
-      label: t('SIDEBAR.CONTACTS'),
-      icon: 'i-lucide-contact',
-      children: [
-        {
-          name: 'All Contacts',
-          label: t('SIDEBAR.ALL_CONTACTS'),
-          to: accountScopedRoute(
-            'contacts_dashboard_index',
-            {},
-            { page: 1, search: undefined }
-          ),
-          activeOn: ['contacts_dashboard_index', 'contacts_edit'],
-        },
-        {
-          name: 'Active',
-          label: t('SIDEBAR.ACTIVE'),
-          to: accountScopedRoute('contacts_dashboard_active'),
-          activeOn: ['contacts_dashboard_active'],
-        },
-        {
-          name: 'Segments',
-          icon: 'i-lucide-group',
-          label: t('SIDEBAR.CUSTOM_VIEWS_SEGMENTS'),
-          collapsible: true,
-          showTreeLine: true,
-          children: contactCustomViews.value.map(view => ({
-            name: `${view.name}-${view.id}`,
-            label: view.name,
-            to: accountScopedRoute(
-              'contacts_dashboard_segments_index',
-              { segmentId: view.id },
-              { page: 1 }
-            ),
-            activeOn: [
-              'contacts_dashboard_segments_index',
-              'contacts_edit_segment',
+    // "Contacts" solo aparece si el módulo Leads NO está activo en la cuenta:
+    // cuando Leads está activo, absorbe toda la gestión de contactos y este
+    // ítem se oculta para no duplicar la misma información en dos pantallas.
+    ...(!isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_LEADS
+    )
+      ? [
+          {
+            name: 'Contacts',
+            label: t('SIDEBAR.CONTACTS'),
+            icon: 'i-lucide-contact',
+            children: [
+              {
+                name: 'All Contacts',
+                label: t('SIDEBAR.ALL_CONTACTS'),
+                to: accountScopedRoute(
+                  'contacts_dashboard_index',
+                  {},
+                  { page: 1, search: undefined }
+                ),
+                activeOn: ['contacts_dashboard_index', 'contacts_edit'],
+              },
+              {
+                name: 'Active',
+                label: t('SIDEBAR.ACTIVE'),
+                to: accountScopedRoute('contacts_dashboard_active'),
+                activeOn: ['contacts_dashboard_active'],
+              },
+              {
+                name: 'Segments',
+                icon: 'i-lucide-group',
+                label: t('SIDEBAR.CUSTOM_VIEWS_SEGMENTS'),
+                collapsible: true,
+                showTreeLine: true,
+                children: contactCustomViews.value.map(view => ({
+                  name: `${view.name}-${view.id}`,
+                  label: view.name,
+                  to: accountScopedRoute(
+                    'contacts_dashboard_segments_index',
+                    { segmentId: view.id },
+                    { page: 1 }
+                  ),
+                  activeOn: [
+                    'contacts_dashboard_segments_index',
+                    'contacts_edit_segment',
+                  ],
+                })),
+              },
+              {
+                name: 'Tagged With',
+                icon: 'i-lucide-tag',
+                label: t('SIDEBAR.TAGGED_WITH'),
+                collapsible: true,
+                showTreeLine: true,
+                children: labels.value.map(label => ({
+                  name: `${label.title}-${label.id}`,
+                  label: label.title,
+                  icon: h('span', {
+                    class: `size-[8px] rounded-sm`,
+                    style: { backgroundColor: label.color },
+                  }),
+                  to: accountScopedRoute(
+                    'contacts_dashboard_labels_index',
+                    { label: label.title },
+                    { page: 1, search: undefined }
+                  ),
+                  activeOn: [
+                    'contacts_dashboard_labels_index',
+                    'contacts_edit_label',
+                  ],
+                })),
+              },
             ],
-          })),
-        },
-        {
-          name: 'Tagged With',
-          icon: 'i-lucide-tag',
-          label: t('SIDEBAR.TAGGED_WITH'),
-          collapsible: true,
-          showTreeLine: true,
-          children: labels.value.map(label => ({
-            name: `${label.title}-${label.id}`,
-            label: label.title,
-            icon: h('span', {
-              class: `size-[8px] rounded-sm`,
-              style: { backgroundColor: label.color },
-            }),
-            to: accountScopedRoute(
-              'contacts_dashboard_labels_index',
-              { label: label.title },
-              { page: 1, search: undefined }
-            ),
-            activeOn: [
-              'contacts_dashboard_labels_index',
-              'contacts_edit_label',
-            ],
-          })),
-        },
-      ],
-    },
+          },
+        ]
+      : []),
     {
       name: 'Companies',
       label: t('SIDEBAR.COMPANIES'),
@@ -898,6 +908,11 @@ const menuItems = computed(() => {
           name: 'Reports WhatsApp',
           label: t('SIDEBAR.REPORTS_WHATSAPP'),
           to: accountScopedRoute('whatsapp_reports'),
+        },
+        {
+          name: 'Reports WhatsApp Templates',
+          label: t('SIDEBAR.REPORTS_WHATSAPP_TEMPLATES'),
+          to: accountScopedRoute('whatsapp_templates_reports'),
         },
       ],
     },
@@ -1258,6 +1273,30 @@ const menuItems = computed(() => {
                   'jabvox_whatsapp_templates_settings_index'
                 ),
                 activeOn: ['jabvox_whatsapp_templates_settings_index'],
+              },
+            ]
+          : []),
+        // WhatsApp Flows (formularios interactivos) es un módulo distinto de
+        // "Plantillas WA". A diferencia de templates, el backend exige
+        // jabvox_whatsapp_flows_manage en TODAS las acciones del controller,
+        // incluido el listado (BaseController#ensure_can_manage no distingue
+        // lectura de escritura) — así que se gatea igual aquí, o un agente
+        // sin el permiso vería la entrada y un 403 al abrirla.
+        ...(jabvoxCan('jabvox_whatsapp_flows_manage') &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_WHATSAPP_FLOWS
+        )
+          ? [
+              {
+                name: 'Settings Jabvox WA Flows',
+                label: t('SIDEBAR.JABVOX_WHATSAPP_FLOWS'),
+                icon: 'i-lucide-list-tree',
+                to: accountScopedRoute('jabvox_whatsapp_flows_settings_index'),
+                activeOn: [
+                  'jabvox_whatsapp_flows_settings_index',
+                  'jabvox_whatsapp_flows_builder',
+                ],
               },
             ]
           : []),

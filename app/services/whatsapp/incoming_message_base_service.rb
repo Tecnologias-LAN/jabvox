@@ -46,8 +46,15 @@ class Whatsapp::IncomingMessageBaseService
     end
   end
 
+  # Meta puede mandar VARIOS statuses en un mismo webhook (p. ej. delivered y
+  # read del mismo envío, o statuses de mensajes distintos bajo carga). Antes
+  # solo se procesaba el primero y el resto se perdía en silencio.
   def process_statuses
-    status = @processed_params[:statuses].first
+    Array(@processed_params[:statuses]).each { |status| process_single_status(status) }
+  end
+
+  def process_single_status(status)
+    return if status.blank?
     return unless find_message_by_source_id(status[:id])
 
     update_whatsapp_identifiers_from_status(status)
@@ -71,6 +78,9 @@ class Whatsapp::IncomingMessageBaseService
   # flow — a logging failure must not drop the status update.
   def record_status_event(message, status, error = nil)
     occurred_at = parse_status_timestamp(status[:timestamp])
+    pricing = status[:pricing] || {}
+    conversation = status[:conversation] || {}
+
     MessageStatusEvent.find_or_create_by!(message_id: message.id, status: status[:status]) do |event|
       event.account_id = message.account_id
       event.conversation_id = message.conversation_id
@@ -78,6 +88,13 @@ class Whatsapp::IncomingMessageBaseService
       event.occurred_at = occurred_at
       event.error_code = error && error[:code].to_s
       event.error_title = error && error[:title].to_s
+      # Meta solo manda pricing/conversation en los eventos facturables
+      # (típicamente `delivered`); en el resto quedan nulos.
+      event.pricing_category = pricing[:category].presence
+      event.pricing_billable = pricing[:billable] unless pricing[:billable].nil?
+      event.pricing_model = pricing[:pricing_model].presence
+      event.whatsapp_conversation_id = conversation[:id].presence
+      event.conversation_origin_type = conversation.dig(:origin, :type).presence
     end
   rescue StandardError => e
     Rails.logger.error "[WhatsappStatusEvent] message=#{message&.id} #{e.class}: #{e.message}"
@@ -127,6 +144,16 @@ class Whatsapp::IncomingMessageBaseService
     attach_files
     attach_location if message_type == 'location'
     @message.save!
+    record_whatsapp_flow_submission
+  end
+
+  # Structured persistence on top of the raw content_attributes['whatsapp_flow_response']
+  # set by add_flow_response_attributes (see Whatsapp::IncomingMessageServiceHelpers) —
+  # see Jabvox::WhatsappFlows::SubmissionRecorder for the resolution/degrade-gracefully
+  # logic. Never raises into the webhook: a missing flow match just means no submission
+  # row gets created, the existing raw jsonb behavior is untouched either way.
+  def record_whatsapp_flow_submission
+    Jabvox::WhatsappFlows::SubmissionRecorder.new(account).record(@message)
   end
 
   def set_contact
@@ -204,7 +231,7 @@ class Whatsapp::IncomingMessageBaseService
     content_attrs[:in_reply_to_external_id] = @in_reply_to_external_id if @in_reply_to_external_id.present?
     referral_content_attrs = referral_attributes(message)
     content_attrs[:referral] = referral_content_attrs if referral_content_attrs.present?
-    content_attrs
+    add_flow_response_attributes(content_attrs, message)
   end
 
   def attach_contact(contact)

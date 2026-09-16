@@ -128,6 +128,24 @@
       "STEP_OF": "Step {current} of {total}",
       "STEP5": "Preview & send"
     },
+    "EXTRAS": {
+      "FIXED_FOR_ALL": "These values are the same for every recipient. Only the message variables are personalized per contact.",
+      "AUTH_CODE": "Verification code",
+      "AUTH_CODE_PLACEHOLDER": "e.g. 123456",
+      "COPY_CODE": "Coupon button code",
+      "COPY_CODE_PLACEHOLDER": "e.g. SUMMER25 (max 15 characters)",
+      "LOCATION": "Header location",
+      "LATITUDE": "Latitude",
+      "LONGITUDE": "Longitude",
+      "PLACE_NAME": "Place name",
+      "ADDRESS": "Address",
+      "LTO": "Offer expiration",
+      "LTO_HELP": "WhatsApp shows a countdown until this date.",
+      "CAROUSEL": "Carousel cards",
+      "CARD": "Card {number}",
+      "CARD_MEDIA": "Image or video URL",
+      "CARD_BUTTON": "Value for button \"{label}\""
+    },
     "SEND": {
       "INBOX": "Inbox",
       "INBOX_PLACEHOLDER": "Select the inbox to send from",
@@ -232,11 +250,29 @@
         "ERROR_MESSAGE": "Error message",
         "SENT_AT": "Sent at",
         "DELIVERED": "Delivered",
-        "READ": "Read"
+        "READ": "Read",
+        "REPLIED": "Replied",
+        "REPLY_TIME": "Reply time",
+        "REPLY_TEXT": "Reply",
+        "ORIGIN": "Sent via"
+      },
+      "ORIGIN": {
+        "BULK": "Bulk",
+        "INDIVIDUAL": "Individual"
       },
       "FILTER_DELIVERED": "Delivered",
       "FILTER_READ": "Read",
-      "TOTALS_DELIVERY": "· {delivered} delivered · {read} read"
+      "FILTER_REPLIED": "Replied",
+      "FILTER_NOT_REPLIED": "Not replied",
+      "REPLIED_YES": "Replied",
+      "REPLIED_NO": "Did not reply",
+      "REPLY_SOURCE": {
+        "FLOW": "Form",
+        "BUTTON": "Button",
+        "MESSAGE": "Message"
+      },
+      "TOTALS_DELIVERY": "· {delivered} delivered · {read} read",
+      "TOTALS_REPLIED": "· {replied} replied"
     },
     "SETTINGS": {
       "WEBHOOK_URL": "n8n webhook URL",

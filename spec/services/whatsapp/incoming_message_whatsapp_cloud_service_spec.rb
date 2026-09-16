@@ -374,6 +374,94 @@ describe Whatsapp::IncomingMessageWhatsappCloudService do
         end
       end
     end
+
+    # Regression: a completed WhatsApp Flow arrived with content nil ("No hay
+    # contenido disponible" in the UI) — Meta sends the answers JSON-encoded as
+    # a STRING inside interactive.nfm_reply.response_json, and Jabvox had no
+    # handler for interactive.type == 'nfm_reply' at all (confirmed against a
+    # real production message; matches Chatwoot's own reported gap, issue #13970).
+    context 'when a WhatsApp Flow response (nfm_reply) is received' do
+      let(:flow_params) do
+        {
+          phone_number: whatsapp_channel.phone_number,
+          object: 'whatsapp_business_account',
+          entry: [{
+            changes: [{
+              value: {
+                contacts: [{ profile: { name: 'Estrada' }, wa_id: '573001112233' }],
+                messages: [{
+                  from: '573001112233',
+                  type: 'interactive',
+                  interactive: {
+                    type: 'nfm_reply',
+                    nfm_reply: {
+                      body: 'Sent',
+                      name: 'flow',
+                      response_json: '{"screen_0_Rating_0":"Excelente","screen_0_Comments_1":"Muy bueno"}'
+                    }
+                  },
+                  timestamp: '1664799904'
+                }]
+              }
+            }]
+          }]
+        }.with_indifferent_access
+      end
+
+      it 'renders the answers as readable content instead of leaving it blank' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: flow_params).perform
+
+        message = whatsapp_channel.inbox.messages.last
+        expect(message.content).to eq("Rating: Excelente\nComments: Muy bueno")
+      end
+
+      it 'stores the raw parsed answers in content_attributes for automations/API consumers' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: flow_params).perform
+
+        message = whatsapp_channel.inbox.messages.last
+        expect(message.content_attributes['whatsapp_flow_response']).to eq(
+          'screen_0_Rating_0' => 'Excelente', 'screen_0_Comments_1' => 'Muy bueno'
+        )
+      end
+
+      it 'creates the message as incoming (visible to the agent, not auto-echoed)' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: flow_params).perform
+
+        message = whatsapp_channel.inbox.messages.last
+        expect(message.incoming?).to be(true)
+      end
+    end
+
+    context 'when the interactive message has malformed response_json' do
+      let(:malformed_flow_params) do
+        {
+          phone_number: whatsapp_channel.phone_number,
+          object: 'whatsapp_business_account',
+          entry: [{
+            changes: [{
+              value: {
+                contacts: [{ profile: { name: 'Estrada' }, wa_id: '573001112233' }],
+                messages: [{
+                  from: '573001112233',
+                  type: 'interactive',
+                  interactive: { type: 'nfm_reply', nfm_reply: { body: 'Sent', name: 'flow', response_json: 'not json' } },
+                  timestamp: '1664799904'
+                }]
+              }
+            }]
+          }]
+        }.with_indifferent_access
+      end
+
+      it 'does not raise and leaves the flow response absent rather than crashing the webhook' do
+        expect do
+          described_class.new(inbox: whatsapp_channel.inbox, params: malformed_flow_params).perform
+        end.not_to raise_error
+
+        message = whatsapp_channel.inbox.messages.last
+        expect(message.content_attributes['whatsapp_flow_response']).to be_nil
+      end
+    end
   end
 
   # Métodos auxiliares para reduzir o tamanho do exemplo

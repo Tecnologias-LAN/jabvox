@@ -128,6 +128,24 @@
       "STEP_OF": "Paso {current} de {total}",
       "STEP5": "Previa y enviar"
     },
+    "EXTRAS": {
+      "FIXED_FOR_ALL": "Estos valores son los mismos para todos los destinatarios del envío. Solo las variables del mensaje se personalizan por contacto.",
+      "AUTH_CODE": "Código de verificación",
+      "AUTH_CODE_PLACEHOLDER": "Ej.: 123456",
+      "COPY_CODE": "Código del botón de cupón",
+      "COPY_CODE_PLACEHOLDER": "Ej.: VERANO25 (máx. 15 caracteres)",
+      "LOCATION": "Ubicación del encabezado",
+      "LATITUDE": "Latitud",
+      "LONGITUDE": "Longitud",
+      "PLACE_NAME": "Nombre del lugar",
+      "ADDRESS": "Dirección",
+      "LTO": "Vencimiento de la oferta",
+      "LTO_HELP": "WhatsApp muestra una cuenta regresiva hasta esta fecha.",
+      "CAROUSEL": "Tarjetas del carrusel",
+      "CARD": "Tarjeta {number}",
+      "CARD_MEDIA": "URL de la imagen o video",
+      "CARD_BUTTON": "Valor del botón «{label}»"
+    },
     "SEND": {
       "INBOX": "Bandeja",
       "INBOX_PLACEHOLDER": "Selecciona la bandeja de envío",
@@ -232,11 +250,29 @@
         "ERROR_MESSAGE": "Mensaje de error",
         "SENT_AT": "Enviado a las",
         "DELIVERED": "Entregado",
-        "READ": "Leído"
+        "READ": "Leído",
+        "REPLIED": "Respondió",
+        "REPLY_TIME": "Tiempo de respuesta",
+        "REPLY_TEXT": "Respuesta",
+        "ORIGIN": "Vía de envío"
+      },
+      "ORIGIN": {
+        "BULK": "Masivo",
+        "INDIVIDUAL": "Individual"
       },
       "FILTER_DELIVERED": "Entregados",
       "FILTER_READ": "Leídos",
-      "TOTALS_DELIVERY": "· {delivered} entregados · {read} leídos"
+      "FILTER_REPLIED": "Respondieron",
+      "FILTER_NOT_REPLIED": "No respondieron",
+      "REPLIED_YES": "Sí respondió",
+      "REPLIED_NO": "No respondió",
+      "REPLY_SOURCE": {
+        "FLOW": "Formulario",
+        "BUTTON": "Botón",
+        "MESSAGE": "Mensaje"
+      },
+      "TOTALS_DELIVERY": "· {delivered} entregados · {read} leídos",
+      "TOTALS_REPLIED": "· {replied} respondieron"
     },
     "SETTINGS": {
       "WEBHOOK_URL": "URL del webhook de n8n",

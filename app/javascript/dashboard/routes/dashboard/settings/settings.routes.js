@@ -43,6 +43,7 @@ import { routes as jabvoxEmailSettingsRoutes } from './jabvox-email/routes';
 import { routes as jabvoxFormsSettingsRoutes } from './jabvox-forms/routes';
 import { routes as jabvoxCustomizationRoutes } from './jabvox-customization/routes';
 import { routes as jabvoxWhatsappTemplatesRoutes } from './jabvox-whatsapp-templates/routes';
+import { routes as jabvoxWhatsappFlowsRoutes } from './jabvox-whatsapp-flows/routes';
 import { routes as jabvoxBulkWhatsappRoutes } from './jabvox-bulk-whatsapp/routes';
 import { routes as jabvoxWhatsappGroupsRoutes } from './jabvox-whatsapp-groups/routes';
 import { routes as jabvoxVoiceBroadcastRoutes } from './jabvox-voice-broadcast/routes';
@@ -107,6 +108,7 @@ export default {
     ...jabvoxFormsSettingsRoutes,
     ...jabvoxCustomizationRoutes,
     ...jabvoxWhatsappTemplatesRoutes,
+    ...jabvoxWhatsappFlowsRoutes,
     ...jabvoxBulkWhatsappRoutes,
     ...jabvoxWhatsappGroupsRoutes,
     ...jabvoxVoiceBroadcastRoutes,

@@ -801,5 +801,30 @@
       }
     },
     "EMPTY": "No data for the selected range."
+  },
+  "WHATSAPP_TEMPLATES_REPORTS": {
+    "HEADER_TITLE": "WhatsApp Templates",
+    "TOTAL": "{total} sends",
+    "DELIVERY": "· {delivered} delivered · {read} read",
+    "REPLIED": "· {replied} replied",
+    "ERROR": "Could not load the report.",
+    "EXPORT_CSV": "Export CSV",
+    "PAGE_INFO": "Page {page} of {totalPages}",
+    "FILTER_ALL": "All",
+    "FILTER_SENT": "Sent",
+    "FILTER_DELIVERED": "Delivered",
+    "FILTER_READ": "Read",
+    "FILTER_REPLIED": "Replied",
+    "FILTER_NOT_REPLIED": "Not replied",
+    "FILTER_FAILED": "Failed",
+    "FILTER_PENDING": "Pending",
+    "FILTERS": {
+      "TEMPLATE": "Template",
+      "ALL_TEMPLATES": "All templates",
+      "INBOX": "Inbox",
+      "ALL_INBOXES": "All inboxes",
+      "SEARCH": "Search",
+      "SEARCH_PLACEHOLDER": "Name or number..."
+    }
   }
 }

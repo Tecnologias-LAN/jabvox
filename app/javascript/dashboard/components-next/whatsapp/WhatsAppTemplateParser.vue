@@ -13,17 +13,22 @@ import { useVuelidate } from '@vuelidate/core';
 import { requiredIf } from '@vuelidate/validators';
 import { useI18n } from 'vue-i18n';
 
-import { isWhatsAppComplete } from '@chatwoot/utils';
 import Input from 'dashboard/components-next/input/Input.vue';
 import {
   buildTemplateParameters,
   allKeysRequired,
   replaceTemplateVariables,
+  isWhatsAppComplete,
   DEFAULT_LANGUAGE,
   DEFAULT_CATEGORY,
   COMPONENT_TYPES,
   MEDIA_FORMATS,
   findComponentByType,
+  isAuthenticationTemplate,
+  hasLocationHeader,
+  hasCarousel,
+  hasLimitedTimeOffer,
+  getCarouselCards,
 } from 'dashboard/helper/templateHelper';
 
 const props = defineProps({
@@ -107,8 +112,60 @@ const hasVariables = computed(() => {
   return bodyText.value?.match(/{{([^}]+)}}/g) !== null;
 });
 
+// ── Tipos que Meta soporta además del estándar ────────────────────────────
+// Cada uno pide datos propios al enviar; el backend los recibe en
+// processed_params con estas mismas claves.
+// Ver docs/whatsapp-flows/templates-sending-architecture.md.
+
+const isAuthTemplate = computed(() => isAuthenticationTemplate(props.template));
+const isLocationHeader = computed(() => hasLocationHeader(props.template));
+const isCarouselTemplate = computed(() => hasCarousel(props.template));
+const isLtoTemplate = computed(() => hasLimitedTimeOffer(props.template));
+
+// Botones de cada card que piden un valor al agente (los estáticos no).
+const carouselCards = computed(() =>
+  getCarouselCards(props.template).map((card, index) => ({
+    index,
+    buttons: (
+      (card.components || []).find(c => c.type === 'BUTTONS')?.buttons || []
+    ).map((button, buttonIndex) => ({ ...button, index: buttonIndex })),
+  }))
+);
+
+const updateLocationField = (field, value) => {
+  processedParams.value.location ??= {};
+  processedParams.value.location[field] = value;
+};
+
+const updateCardMedia = (cardIndex, value) => {
+  const card = processedParams.value.cards?.[cardIndex];
+  if (!card) return;
+  card.header ??= {};
+  card.header.media_url = value;
+};
+
+const updateCardButton = (cardIndex, buttonIndex, value) => {
+  const button =
+    processedParams.value.cards?.[cardIndex]?.buttons?.[buttonIndex];
+  if (button) button.parameter = value;
+};
+
+// El input de fecha entrega 'YYYY-MM-DDTHH:mm'; Meta espera epoch en ms.
+const updateLtoExpiration = value => {
+  const parsed = value ? new Date(value).getTime() : '';
+  processedParams.value.lto_expiration_ms = Number.isNaN(parsed) ? '' : parsed;
+};
+
 const renderedTemplate = computed(() => {
   return replaceTemplateVariables(bodyText.value, processedParams.value);
+});
+
+// FLOW buttons carry no agent-supplied parameter (see initializeTemplateParameters);
+// only URL/COPY_CODE buttons need an input here.
+const fillableButtons = computed(() => {
+  return (processedParams.value.buttons || [])
+    .map((button, index) => ({ button, index }))
+    .filter(({ button }) => button && button.type !== 'flow');
 });
 
 // Completeness validation is shared with the mobile app via @chatwoot/utils.
@@ -241,7 +298,131 @@ defineExpose({
       </div>
     </div>
 
-    <div v-if="hasVariables || hasMediaHeader">
+    <div
+      v-if="
+        hasVariables ||
+        hasMediaHeader ||
+        isAuthTemplate ||
+        isLocationHeader ||
+        isCarouselTemplate ||
+        isLtoTemplate
+      "
+    >
+      <!-- Plantilla de autenticación: Meta genera el cuerpo, solo se pide el
+           código, que viaja en el mensaje y en el botón. -->
+      <div v-if="isAuthTemplate" class="mb-4">
+        <p class="mb-2.5 text-sm font-semibold">
+          {{ $t('WHATSAPP_TEMPLATES.PARSER.AUTH_CODE_LABEL') }}
+        </p>
+        <Input
+          v-model="processedParams.auth_code"
+          type="text"
+          class="flex-1"
+          :placeholder="$t('WHATSAPP_TEMPLATES.PARSER.AUTH_CODE_PLACEHOLDER')"
+        />
+        <p class="mt-1 text-xs text-n-slate-11">
+          {{ $t('WHATSAPP_TEMPLATES.PARSER.AUTH_CODE_HELP') }}
+        </p>
+      </div>
+
+      <!-- Header de ubicación: se completa al enviar (la plantilla aprobada no
+           lleva coordenadas). -->
+      <div v-if="isLocationHeader" class="mb-4">
+        <p class="mb-2.5 text-sm font-semibold">
+          {{ $t('WHATSAPP_TEMPLATES.PARSER.LOCATION_LABEL') }}
+        </p>
+        <div class="grid grid-cols-2 gap-2 mb-2.5">
+          <Input
+            :model-value="processedParams.location?.latitude || ''"
+            type="text"
+            :placeholder="$t('WHATSAPP_TEMPLATES.PARSER.LOCATION_LATITUDE')"
+            @update:model-value="v => updateLocationField('latitude', v)"
+          />
+          <Input
+            :model-value="processedParams.location?.longitude || ''"
+            type="text"
+            :placeholder="$t('WHATSAPP_TEMPLATES.PARSER.LOCATION_LONGITUDE')"
+            @update:model-value="v => updateLocationField('longitude', v)"
+          />
+        </div>
+        <div class="flex flex-col gap-2">
+          <Input
+            :model-value="processedParams.location?.name || ''"
+            type="text"
+            :placeholder="$t('WHATSAPP_TEMPLATES.PARSER.LOCATION_NAME')"
+            @update:model-value="v => updateLocationField('name', v)"
+          />
+          <Input
+            :model-value="processedParams.location?.address || ''"
+            type="text"
+            :placeholder="$t('WHATSAPP_TEMPLATES.PARSER.LOCATION_ADDRESS')"
+            @update:model-value="v => updateLocationField('address', v)"
+          />
+        </div>
+      </div>
+
+      <!-- Oferta por tiempo limitado: Meta muestra una cuenta atrás hasta esta fecha. -->
+      <div v-if="isLtoTemplate" class="mb-4">
+        <p class="mb-2.5 text-sm font-semibold">
+          {{ $t('WHATSAPP_TEMPLATES.PARSER.LTO_LABEL') }}
+        </p>
+        <Input
+          type="datetime-local"
+          class="flex-1"
+          @update:model-value="updateLtoExpiration"
+        />
+        <p class="mt-1 text-xs text-n-slate-11">
+          {{ $t('WHATSAPP_TEMPLATES.PARSER.LTO_HELP') }}
+        </p>
+      </div>
+
+      <!-- Carousel: una tarjeta por cada una aprobada en la plantilla. -->
+      <div v-if="isCarouselTemplate" class="mb-4">
+        <p class="mb-2.5 text-sm font-semibold">
+          {{ $t('WHATSAPP_TEMPLATES.PARSER.CAROUSEL_LABEL') }}
+        </p>
+        <div
+          v-for="card in carouselCards"
+          :key="`card-${card.index}`"
+          class="p-2.5 mb-2.5 rounded-lg border border-n-weak"
+        >
+          <p class="mb-2 text-xs font-medium text-n-slate-11">
+            {{
+              $t('WHATSAPP_TEMPLATES.PARSER.CAROUSEL_CARD', {
+                number: card.index + 1,
+              })
+            }}
+          </p>
+          <Input
+            :model-value="
+              processedParams.cards?.[card.index]?.header?.media_url || ''
+            "
+            type="url"
+            class="flex-1 mb-2"
+            :placeholder="$t('WHATSAPP_TEMPLATES.PARSER.CAROUSEL_CARD_MEDIA')"
+            @update:model-value="v => updateCardMedia(card.index, v)"
+          />
+          <Input
+            v-for="button in card.buttons"
+            :key="`card-${card.index}-btn-${button.index}`"
+            :model-value="
+              processedParams.cards?.[card.index]?.buttons?.[button.index]
+                ?.parameter || ''
+            "
+            type="text"
+            class="flex-1 mb-2"
+            :placeholder="
+              $t('WHATSAPP_TEMPLATES.PARSER.CAROUSEL_CARD_BUTTON', {
+                label: button.text || button.index + 1,
+              })
+            "
+            @update:model-value="
+              v => updateCardButton(card.index, button.index, v)
+            "
+          />
+        </div>
+      </div>
+
       <div v-if="hasMediaHeader" class="mb-4">
         <p class="mb-2.5 text-sm font-semibold">
           {{
@@ -319,13 +500,16 @@ defineExpose({
         </div>
       </div>
 
-      <!-- Button Variables Section -->
-      <div v-if="processedParams.buttons">
+      <!-- Button Variables Section. FLOW buttons need no agent input — Meta
+           requires their component unconditionally, but it carries no
+           user-supplied parameter, so they're built into processedParams for
+           the send but hidden from this list. -->
+      <div v-if="fillableButtons.length">
         <p class="mb-2.5 text-sm font-semibold">
           {{ t('WHATSAPP_TEMPLATES.PARSER.BUTTON_PARAMETERS') }}
         </p>
         <div
-          v-for="(button, index) in processedParams.buttons"
+          v-for="{ index } in fillableButtons"
           :key="`button-${index}`"
           class="flex items-center mb-2.5"
         >

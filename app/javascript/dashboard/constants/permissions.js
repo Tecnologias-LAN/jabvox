@@ -41,6 +41,10 @@ export const JABVOX_PERMISSION_GROUPS = [
     permissions: ['jabvox_whatsapp_templates_manage'],
   },
   {
+    module: 'whatsapp_flows',
+    permissions: ['jabvox_whatsapp_flows_manage'],
+  },
+  {
     module: 'analytics',
     permissions: ['jabvox_analytics_access', 'jabvox_analytics_manage'],
   },

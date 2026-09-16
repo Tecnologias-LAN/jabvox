@@ -62,6 +62,7 @@ class CustomRole < ApplicationRecord
     jabvox_ai_chat_use
     jabvox_ai_chat_manage
     jabvox_whatsapp_templates_manage
+    jabvox_whatsapp_flows_manage
     jabvox_analytics_access
     jabvox_analytics_manage
     jabvox_lead_import_manage
@@ -112,6 +113,7 @@ class CustomRole < ApplicationRecord
     %w[jabvox_audio_access jabvox_audio_view_reports jabvox_audio_manage] => 'jabvox_audio_analysis',
     %w[jabvox_ai_chat_use jabvox_ai_chat_manage] => 'jabvox_ai_chat',
     %w[jabvox_whatsapp_templates_manage] => 'jabvox_whatsapp_templates',
+    %w[jabvox_whatsapp_flows_manage] => 'jabvox_whatsapp_flows',
     %w[jabvox_analytics_access jabvox_analytics_manage] => 'jabvox_analytics',
     %w[jabvox_lead_import_manage] => 'jabvox_lead_import',
     %w[jabvox_data_export_manage] => 'jabvox_data_export',

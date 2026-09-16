@@ -5,6 +5,7 @@ require 'csv'
 # Also exposes the send history and the list of selectable sender users. Admin-only.
 class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Accounts::Jabvox::BulkWhatsapp::BaseController
   include Jabvox::BulkWhatsappDeliveryStatus
+  include Jabvox::BulkWhatsappReplyStatus
   include Jabvox::BulkWhatsappAnalytics
 
   before_action :ensure_admin
@@ -32,9 +33,10 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       format.json do
         recipients = scope.limit(5000).to_a
         status_map = delivery_status_map(recipients)
+        reply_map = first_reply_map(recipients)
         render json: serialize(batch).merge(
-          delivery_summary: delivery_summary(batch),
-          recipients: recipients.map { |r| serialize_recipient(r, status_map) }
+          delivery_summary: delivery_summary(batch.recipients),
+          recipients: recipients.map { |r| serialize_recipient(r, status_map, reply_map) }
         )
       end
     end
@@ -163,12 +165,48 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       # cada {{n}} a una columna del CSV; el service resuelve los valores por fila.
       # number_column: la columna que contiene el número (elegida/confirmada en la UI).
       # header_media: media del header de la plantilla ({ media_url, media_type }).
+      # flow_button: botón FLOW de la plantilla, si tiene uno ({ index, flow_id }).
       template_name: params[:template_name], language: params[:language], text: params[:text],
       # country: de él sale el prefijo de los números del CSV que llegan sin él.
       # Opcional: sin país se conserva el comportamiento anterior.
       variable_map: variable_map_params, number_column: params[:number_column],
-      header_media: header_media_params, country: params[:country]
+      header_media: header_media_params, country: params[:country],
+      flow_button: flow_button_params, **extended_template_params
     )
+  end
+
+  # Tipos de plantilla adicionales soportados por Meta (carousel, authentication,
+  # location, oferta por tiempo limitado, cupón). Todos son fijos para el envío
+  # completo — el mapeo por columna solo aplica a las variables del cuerpo.
+  # Ver docs/whatsapp-flows/templates-sending-architecture.md.
+  def extended_template_params
+    {
+      cards: carousel_cards_params,
+      auth_code: params[:auth_code].presence,
+      location: location_params,
+      lto_expiration_ms: params[:lto_expiration_ms].presence,
+      copy_code: params[:copy_code].presence
+    }.compact
+  end
+
+  # Cards de un carousel: cada una con su media de header y los parámetros de sus botones.
+  def carousel_cards_params
+    raw = params[:cards]
+    return nil if raw.blank?
+
+    Array(raw).filter_map do |card|
+      h = card.respond_to?(:permit) ? card.permit!.to_h : card.to_h
+      h.presence
+    end.presence
+  end
+
+  # Header LOCATION: se completa al enviar (la plantilla aprobada no lo lleva).
+  def location_params
+    raw = params[:location]
+    return nil if raw.blank?
+
+    h = raw.respond_to?(:permit) ? raw.permit(:latitude, :longitude, :name, :address).to_h : raw.to_h
+    h[:latitude].present? && h[:longitude].present? ? h : nil
   end
 
   # Media del header de la plantilla (imagen/video/documento): { media_url, media_type }.
@@ -181,12 +219,25 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     h[:media_url].present? ? h : nil
   end
 
+  # Botón FLOW de la plantilla ({ index, flow_id }), leído del propio JSON de la
+  # plantilla por el frontend — el flow_token único por destinatario se genera en
+  # el servicio, no aquí.
+  def flow_button_params
+    raw = params[:flow_button]
+    return nil if raw.blank?
+
+    h = raw.respond_to?(:permit) ? raw.permit(:index, :flow_id).to_h : raw.to_h
+    h[:flow_id].present? ? h : nil
+  end
+
   def dispatch_from_leads(inbox, sender)
     Jabvox::BulkWhatsappDispatchService.prepare(
       account: Current.account, inbox: inbox, sender_user: sender, actor: current_user,
       response_email: params[:response_email], leads_selection: leads_selection_params,
       template_name: params[:template_name], language: params[:language], text: params[:text],
-      variable_map: variable_map_params, source_batch_id: params[:source_batch_id].presence
+      variable_map: variable_map_params, source_batch_id: params[:source_batch_id].presence,
+      header_media: header_media_params, flow_button: flow_button_params,
+      **extended_template_params
     )
   end
 
@@ -214,7 +265,7 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
   # params[:status] acepta uno o varios estados separados por coma (p. ej. "failed,pending").
   def filtered_recipients(batch)
     scope = batch.recipients
-    scope = filter_by_statuses(batch, scope, params[:status]) if params[:status].present?
+    scope = filter_by_statuses(batch.recipients, scope, params[:status]) if params[:status].present?
     if params[:q].present?
       q = "%#{params[:q].to_s.strip}%"
       scope = scope.where('name_jabvox ILIKE :q OR phone_number_jabvox ILIKE :q', q: q)
@@ -222,18 +273,7 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
     scope
   end
 
-  # Combina uno o varios estados (OR): la unión de los recipients que están en cualquiera
-  # de los estados pedidos, reutilizando filter_recipients_by_status por estado.
-  def filter_by_statuses(batch, scope, status_param)
-    statuses = status_param.to_s.split(',').map(&:strip).reject(&:blank?).uniq
-    return scope if statuses.empty?
-    return filter_recipients_by_status(batch, scope, statuses.first) if statuses.one?
-
-    ids = statuses.flat_map { |st| filter_recipients_by_status(batch, batch.recipients, st).pluck(:id) }.uniq
-    scope.where(id: ids)
-  end
-
-  def serialize_recipient(recipient, status_map = {})
+  def serialize_recipient(recipient, status_map = {}, reply_map = {})
     {
       id: recipient.id,
       name: recipient.name_jabvox,
@@ -245,7 +285,7 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       rendered_content: recipient.rendered_content_jabvox,
       conversation_id: recipient.conversation_id,
       sent_at: recipient.sent_at_jabvox
-    }.merge(recipient_delivery_fields(recipient, status_map))
+    }.merge(recipient_delivery_fields(recipient, status_map, reply_map))
   end
 
   def serialize(batch)

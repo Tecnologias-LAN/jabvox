@@ -47,17 +47,91 @@ class Whatsapp::TemplateProcessorService
 
   def process_enhanced_template_params(template, processed_params = nil)
     processed_params ||= template_params['processed_params']
+
+    # Las plantillas de tipo AUTHENTICATION (botón OTP) tienen una forma de envío
+    # completamente distinta: Meta genera el cuerpo, y el código viaja dos veces
+    # (body + botón). No pasa por el camino estándar de header/body/footer/botones.
+    return @template_params = authentication_components(template, processed_params) if authentication_template?(template)
+
     components = []
 
     components.concat(process_header_components(processed_params, template))
     components.concat(process_body_components(processed_params, template))
     components.concat(process_footer_components(processed_params))
     components.concat(process_button_components(processed_params))
+    # Componentes que el camino estándar no cubre (CAROUSEL, LIMITED_TIME_OFFER) y
+    # el header LOCATION, delegados al builder central compartido con Bulk/Automations.
+    components.concat(extended_components(template, processed_params))
 
     @template_params = components
   end
 
+  # ── Tipos delegados a Jabvox::WhatsappTemplates::SendComponentsBuilder ──────
+  # El builder es la única pieza que conoce la forma exacta de Meta para estos
+  # componentes; se reutiliza aquí y desde Bulk WhatsApp y Automations para no
+  # tener tres implementaciones divergentes.
+  # Ver docs/whatsapp-flows/templates-sending-architecture.md.
+
+  def authentication_template?(template)
+    buttons = Array(template['components']).find { |c| (c['type'] || '').upcase == 'BUTTONS' }
+    Array(buttons&.dig('buttons')).any? { |b| (b['type'] || '').upcase == 'OTP' }
+  end
+
+  def authentication_components(template, processed_params)
+    result = send_components_builder(template, auth_code: authentication_code(processed_params))
+    raise ArgumentError, result.error if result.errors.present?
+
+    result.components
+  end
+
+  # El código puede llegar como `auth_code`, o como el primer valor del body
+  # (el frontend manda un único campo "código a enviar" para estas plantillas).
+  def authentication_code(processed_params)
+    processed_params['auth_code'].presence ||
+      Hash(processed_params['body']).values.first.presence ||
+      Array(processed_params['buttons']).first&.dig('parameter')
+  end
+
+  # Se invoca según lo que la PLANTILLA declara, no según lo que llegó en
+  # processed_params: si la plantilla tiene CAROUSEL o LIMITED_TIME_OFFER y no
+  # se enviaron sus datos, el builder debe fallar con un error legible en vez de
+  # que Meta rechace el envío incompleto más tarde.
+  def extended_components(template, processed_params)
+    return [] unless declares_extended_component?(template)
+
+    result = send_components_builder(template, **extended_send_params(processed_params))
+    raise ArgumentError, result.error if result.errors.present?
+
+    # El builder también sabe armar body/botones; aquí solo tomamos los
+    # componentes que el camino estándar de arriba NO emitió.
+    Array(result.components).select { |c| %w[carousel limited_time_offer].include?(c[:type].to_s) }
+  end
+
+  def declares_extended_component?(template)
+    Array(template['components']).any? do |c|
+      %w[CAROUSEL LIMITED_TIME_OFFER].include?((c['type'] || '').upcase)
+    end
+  end
+
+  def extended_send_params(processed_params)
+    {
+      cards: processed_params['cards'],
+      lto_expiration_ms: processed_params['lto_expiration_ms']
+    }.compact
+  end
+
+  def send_components_builder(template, **send_params)
+    Jabvox::WhatsappTemplates::SendComponentsBuilder.call(
+      meta_components: template['components'],
+      send_params: send_params
+    )
+  end
+
   def process_header_components(processed_params, template = nil)
+    # Un header LOCATION no lleva media ni texto: se completa al enviar con
+    # lat/long/nombre/dirección. Lo arma el builder central.
+    return location_header_components(template, processed_params) if location_header?(template)
+
     header_data = processed_params['header']
     # Una plantilla con header de media (IMAGE/VIDEO/DOCUMENT) EXIGE el componente header
     # en el envío; si no llega en processed_params, lo tomamos del ejemplo aprobado de la
@@ -67,6 +141,21 @@ class Whatsapp::TemplateProcessorService
 
     header_params = build_header_params(header_data)
     header_params.present? ? [{ type: 'header', parameters: header_params }] : []
+  end
+
+  def location_header?(template)
+    return false if template.blank?
+
+    header = Array(template['components']).find { |c| (c['type'] || '').upcase == 'HEADER' }
+    (header&.dig('format') || '').upcase == 'LOCATION'
+  end
+
+  def location_header_components(template, processed_params)
+    location = processed_params['location'].presence || Hash(processed_params['header'])['location']
+    result = send_components_builder(template, location: location)
+    raise ArgumentError, result.error if result.errors.present?
+
+    Array(result.components).select { |c| c[:type].to_s == 'header' }
   end
 
   # Devuelve { media_url, media_type } del ejemplo de media aprobado de la plantilla, o nil.
@@ -117,7 +206,7 @@ class Whatsapp::TemplateProcessorService
   end
 
   def build_media_id_param(media_id, media_type)
-    { type: media_type.to_s.downcase, media_type.to_s.downcase => { id: media_id } }
+    { :type => media_type.to_s.downcase, media_type.to_s.downcase => { id: media_id } }
   end
 
   def media_url_with_type?(key, header_data)
@@ -128,7 +217,15 @@ class Whatsapp::TemplateProcessorService
     return [] if processed_params['body'].blank?
 
     named = named_format?(template, processed_params['body'])
-    body_params = processed_params['body'].filter_map do |key, value|
+    # POSITIONAL params are sent as a bare array with no index of their own — Meta
+    # matches them to {{1}}, {{2}}... purely by array position. A Ruby Hash keeps
+    # insertion order, not numeric order, so a body that arrives as
+    # {"2" => "b", "1" => "a"} (JSON from a non-frontend caller, e.g. an API
+    # client) would silently swap the values Meta sees. Sort by key numerically
+    # before building positional params; NAMED params carry their own
+    # parameter_name so order never matters for them.
+    ordered_body = named ? processed_params['body'] : sort_positional_body(processed_params['body'])
+    body_params = ordered_body.filter_map do |key, value|
       next if value.blank?
 
       if named
@@ -139,6 +236,10 @@ class Whatsapp::TemplateProcessorService
     end
 
     body_params.present? ? [{ type: 'body', parameters: body_params }] : []
+  end
+
+  def sort_positional_body(body)
+    body.sort_by { |key, _| key.to_s.to_i }
   end
 
   # ¿La plantilla usa variables NAMED? Meta a veces NO devuelve parameter_format en el
@@ -171,10 +272,14 @@ class Whatsapp::TemplateProcessorService
   end
 
   # Meta only accepts a button component when the button actually carries a
-  # runtime parameter: a URL button with a {{var}}, or a COPY_CODE coupon.
-  # Static QUICK_REPLY buttons (and any button with no parameter) must NOT emit
-  # a component — sending one triggers Meta error #131009 "Parameter value is
-  # not valid". We keep the button's real index so it maps to the right button.
+  # runtime parameter: a URL button with a {{var}}, a COPY_CODE coupon, or a
+  # FLOW button (which Meta requires unconditionally, even with no input
+  # fields — omitting it triggers "#131009 Components sub_type invalid at
+  # index: 0", confirmed against a real send in production and matching
+  # Chatwoot's own unresolved flow-support gap, github.com/chatwoot/chatwoot
+  # issue #13267). Static QUICK_REPLY buttons (and any other button with no
+  # parameter) must NOT emit a component. We keep the button's real index so
+  # it maps to the right button.
   def process_button_components(processed_params)
     return [] if processed_params['buttons'].blank?
 
@@ -193,19 +298,20 @@ class Whatsapp::TemplateProcessorService
     button_params.compact
   end
 
-  # A button needs a send-time parameter only when it's a COPY_CODE coupon or a
-  # URL button whose value is non-blank (the dynamic URL suffix). Everything
-  # else — quick replies, static URLs, phone buttons — carries no parameter.
+  # A button needs a send-time parameter when it's a COPY_CODE coupon, a FLOW
+  # button (always), or a URL button whose value is non-blank (the dynamic URL
+  # suffix). Everything else — quick replies, static URLs, phone buttons —
+  # carries no parameter.
   def dynamic_button?(button)
     type = button['type'].to_s
-    return true if type == 'copy_code'
+    return true if %w[copy_code flow].include?(type)
     return button['parameter'].to_s.strip.present? if type == 'url'
 
     false
   end
 
   def button_sub_type(button)
-    button['type'].to_s == 'copy_code' ? 'copy_code' : 'url'
+    button['type'].to_s
   end
 
   def parameter_builder

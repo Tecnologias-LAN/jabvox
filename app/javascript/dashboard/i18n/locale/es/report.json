@@ -801,5 +801,30 @@
       }
     },
     "EMPTY": "Sin datos para el rango seleccionado."
+  },
+  "WHATSAPP_TEMPLATES_REPORTS": {
+    "HEADER_TITLE": "Plantillas de WhatsApp",
+    "TOTAL": "{total} envíos",
+    "DELIVERY": "· {delivered} entregados · {read} leídos",
+    "REPLIED": "· {replied} respondieron",
+    "ERROR": "No se pudo cargar el reporte.",
+    "EXPORT_CSV": "Exportar CSV",
+    "PAGE_INFO": "Página {page} de {totalPages}",
+    "FILTER_ALL": "Todos",
+    "FILTER_SENT": "Enviados",
+    "FILTER_DELIVERED": "Entregados",
+    "FILTER_READ": "Leídos",
+    "FILTER_REPLIED": "Respondieron",
+    "FILTER_NOT_REPLIED": "No respondieron",
+    "FILTER_FAILED": "Fallidos",
+    "FILTER_PENDING": "Pendientes",
+    "FILTERS": {
+      "TEMPLATE": "Plantilla",
+      "ALL_TEMPLATES": "Todas las plantillas",
+      "INBOX": "Bandeja",
+      "ALL_INBOXES": "Todas las bandejas",
+      "SEARCH": "Buscar",
+      "SEARCH_PLACEHOLDER": "Nombre o número..."
+    }
   }
 }

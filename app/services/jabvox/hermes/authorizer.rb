@@ -114,6 +114,7 @@ class Jabvox::Hermes::Authorizer
     'jabvox_dialer' => { view: 'jabvox_dialer_use', manage: 'jabvox_dialer_manage' },
     'jabvox_sms' => { view: 'jabvox_sms_view', manage: 'jabvox_sms_manage' },
     'jabvox_whatsapp_templates' => { view: 'jabvox_whatsapp_templates_manage', manage: 'jabvox_whatsapp_templates_manage' },
+    'jabvox_whatsapp_flows' => { view: 'jabvox_whatsapp_flows_manage', manage: 'jabvox_whatsapp_flows_manage' },
     'jabvox_affiliates' => { view: 'jabvox_affiliates_manage', manage: 'jabvox_affiliates_manage' },
     'jabvox_customization' => { view: 'jabvox_custom_data_manage', manage: 'jabvox_custom_data_manage' },
     # Automatizaciones avanzadas (flujos): el controller real NO exige un permiso de custom

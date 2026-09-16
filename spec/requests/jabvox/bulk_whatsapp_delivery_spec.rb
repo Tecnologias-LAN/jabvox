@@ -28,7 +28,7 @@ RSpec.describe 'Bulk WhatsApp batch delivery status', type: :request do
     get url, headers: admin.create_new_auth_token, as: :json
     expect(response).to have_http_status(:success)
     body = response.parsed_body
-    expect(body['delivery_summary']).to eq('delivered' => 1, 'read' => 1)
+    expect(body['delivery_summary']).to eq('delivered' => 1, 'read' => 1, 'replied' => 0)
     r = body['recipients'].first
     expect(r['delivered']).to be true
     expect(r['read']).to be true

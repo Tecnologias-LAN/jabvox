@@ -67,14 +67,30 @@ module Jabvox::Flows::Nodes::WhatsappTemplateParts
     source.each_with_index.map { |b, index| button(b.is_a?(Hash) ? b.stringify_keys : {}, index) }
   end
 
+  # Meta EXIGE el componente de un botón FLOW en cada envío (aunque no lleve
+  # datos iniciales); un COPY_CODE exige el cupón. Sin ellos, un flujo que usa
+  # una plantilla con estos botones fallaba con "#131009" al ejecutarse.
   def button(button, index)
     kind = str(button['type'] || button['button_type']).upcase
     url = str(button['url'])
     text = str(button['text'] || button['label'])
     return url_button(index, text, url) if kind == 'URL' || (kind.empty? && url.present?)
-    return quick_reply(button, index, text) if kind == 'QUICK_REPLY'
 
-    plain_button(kind, index, text)
+    case kind
+    when 'QUICK_REPLY' then quick_reply(button, index, text)
+    when 'FLOW' then flow_button(button, index, text)
+    when 'COPY_CODE' then copy_code_button(index, text)
+    else plain_button(kind, index, text)
+    end
+  end
+
+  def flow_button(button, index, text)
+    { 'index' => index, 'type' => 'flow', 'text' => text,
+      'flowId' => str(button['flow_id'] || button['flowId']) }
+  end
+
+  def copy_code_button(index, text)
+    { 'index' => index, 'type' => 'copy_code', 'text' => text }
   end
 
   def plain_button(kind, index, text)

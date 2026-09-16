@@ -43,6 +43,7 @@
 #  jabvox_tickets_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_voice_broadcast_enabled_jabvox      :boolean          default(FALSE), not null
 #  jabvox_voip_enabled_jabvox                 :boolean          default(FALSE), not null
+#  jabvox_whatsapp_flows_enabled_jabvox       :boolean          default(FALSE), not null
 #  jabvox_whatsapp_groups_enabled_jabvox      :boolean          default(FALSE), not null
 #  jabvox_whatsapp_templates_enabled_jabvox   :boolean          default(FALSE), not null
 #  limits                                     :jsonb
@@ -160,6 +161,8 @@ class Account < ApplicationRecord
   has_many :jabvox_whatsapp_template_permissions, dependent: :destroy_async
   has_many :jabvox_whatsapp_templates, dependent: :destroy_async
   has_many :jabvox_whatsapp_template_logs, dependent: :destroy_async
+  has_many :jabvox_whatsapp_flows, dependent: :destroy_async
+  has_many :jabvox_whatsapp_flow_submissions, dependent: :destroy_async
   has_many :jabvox_cdr_extension_mappings, dependent: :destroy_async
   has_many :jabvox_audio_storages, dependent: :destroy_async
   has_many :jabvox_audio_pipelines, dependent: :destroy_async

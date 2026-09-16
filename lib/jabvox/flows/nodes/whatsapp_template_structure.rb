@@ -91,7 +91,17 @@ module Jabvox::Flows::Nodes::WhatsappTemplateStructure
     name = button['text'].presence || (button['index'] + 1)
     slots = button['dynamicUrl'] ? [url_slot(button, name)] : []
     slots << payload_slot(button, name) if button['hasPayload']
+    # Un botón COPY_CODE necesita el cupón a entregar; el FLOW no pide nada al
+    # usuario (su flow_token se genera en cada envío).
+    slots << copy_code_slot(button, name) if button['type'] == 'copy_code'
     slots
+  end
+
+  def copy_code_slot(button, name)
+    { 'key' => "button_#{button['index']}_copy_code", 'scope' => 'button',
+      'label' => "Código del botón «#{name}»", 'expects' => 'text',
+      'required' => true, 'buttonIndex' => button['index'],
+      'help' => 'Código que el contacto copia al pulsar el botón (máx. 15 caracteres).' }
   end
 
   def url_slot(button, name)

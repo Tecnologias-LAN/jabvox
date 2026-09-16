@@ -21,11 +21,11 @@ class Api::V1::Accounts::Jabvox::WhatsappTemplates::TemplatesController < Api::V
 
   def create
     inbox = Current.account.inboxes.find(params.require(:inbox_id))
-    result = manager.create(inbox, template_params)
+    result = create_result(inbox)
     if result[:success]
       render json: serialize(result[:template], full: true), status: :created
     else
-      render json: { error: result[:error] }, status: :unprocessable_entity
+      render json: { error: result[:error], errors: result[:errors] }, status: :unprocessable_entity
     end
   end
 
@@ -99,12 +99,46 @@ class Api::V1::Accounts::Jabvox::WhatsappTemplates::TemplatesController < Api::V
     @template = Current.account.jabvox_whatsapp_templates.find(params[:id])
   end
 
+  # Una plantilla de tipo 'flow' crea además el Flow y lo publica en Meta antes
+  # de referenciarlo, así que pasa por su propio orquestador.
+  def create_result(inbox)
+    return manager.create(inbox, template_params) unless template_params[:template_kind].to_s == 'flow'
+
+    Jabvox::WhatsappTemplates::FlowTemplateCreator
+      .new(Current.account, user: Current.user)
+      .call(inbox, template_params)
+  end
+
   def template_params
     params.permit(
       :name, :category, :language, :inbox_id,
       :header_type, :header_content, :header_handle, :body, :footer,
-      buttons: [:type, :text, :url, :phone_number]
-    ).to_h.symbolize_keys
+      :template_kind, :location_header, :limited_time_offer, :lto_text,
+      # Ejemplo por variable ({ "nombre" => "Ana" }): Meta lo usa para revisar
+      # la plantilla, así que conviene que sea realista y no genérico.
+      { var_descriptions: {} },
+      buttons: [:type, :text, :url, :phone_number, :flow_id, :navigate_screen, :example],
+      cards: [
+        :header_type, :header_handle, :body_content,
+        { buttons: [:type, :text, :url, :phone_number] }
+      ],
+      auth_config: [
+        :add_security_recommendation, :code_expiration_minutes, :otp_type,
+        { supported_apps: [:package_name, :signature_hash] }
+      ]
+    ).to_h.symbolize_keys.merge(flow_params)
+  end
+
+  # Definición del Flow cuando la plantilla se crea con su formulario en el
+  # mismo paso. screens_json es una estructura libre (pantallas > componentes >
+  # props), así que se permite entera en vez de enumerar cada campo.
+  def flow_params
+    return {} if params[:flow].blank?
+
+    {
+      flow: params[:flow].permit!.to_h.symbolize_keys,
+      flow_button_text: params[:flow_button_text]
+    }.compact
   end
 
   def filter_params
@@ -131,13 +165,27 @@ class Api::V1::Accounts::Jabvox::WhatsappTemplates::TemplatesController < Api::V
       footer_content: tpl.footer_content,
       buttons_json: tpl.buttons_json,
       variables_json: tpl.variables_json,
+      template_kind: tpl.template_kind,
+      cards_json: tpl.cards_json,
+      auth_config_json: tpl.auth_config_json,
+      location_header: tpl.location_header,
+      limited_time_offer: tpl.limited_time_offer,
       created_by_name: tpl.created_by&.name,
       created_at: tpl.created_at,
       updated_at: tpl.updated_at
     }
     base[:meta_json] = tpl.meta_json if full
     base[:version_count] = tpl.versions.count if full
+    base[:flow_screens] = flow_screens_for(tpl) if full
     base
+  end
+
+  # La vista previa del formulario de una plantilla tipo flow necesita las
+  # pantallas del Flow asociado; nil para el resto (y no se manda al JSON).
+  def flow_screens_for(tpl)
+    return nil unless tpl.template_kind == 'flow'
+
+    tpl.jabvox_whatsapp_flow&.screens_json
   end
 
   def serialize_log(log)
