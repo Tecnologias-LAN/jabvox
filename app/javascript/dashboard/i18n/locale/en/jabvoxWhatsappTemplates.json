@@ -313,6 +313,7 @@
     },
     "DETAIL": {
       "TITLE": "Template detail",
+      "PREVIEW": "Preview",
       "COMPONENTS": "Components",
       "VARIABLES": "Variables",
       "ANALYTICS": "Analytics",

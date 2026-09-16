@@ -176,7 +176,16 @@ class Api::V1::Accounts::Jabvox::WhatsappTemplates::TemplatesController < Api::V
     }
     base[:meta_json] = tpl.meta_json if full
     base[:version_count] = tpl.versions.count if full
+    base[:flow_screens] = flow_screens_for(tpl) if full
     base
+  end
+
+  # La vista previa del formulario de una plantilla tipo flow necesita las
+  # pantallas del Flow asociado; nil para el resto (y no se manda al JSON).
+  def flow_screens_for(tpl)
+    return nil unless tpl.template_kind == 'flow'
+
+    tpl.jabvox_whatsapp_flow&.screens_json
   end
 
   def serialize_log(log)

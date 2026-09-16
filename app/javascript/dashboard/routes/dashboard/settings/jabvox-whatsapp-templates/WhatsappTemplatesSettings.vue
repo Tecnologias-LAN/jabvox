@@ -468,6 +468,8 @@ const qualityLabel = q => {
 
 const detailTabLabel = dt => {
   switch (dt) {
+    case 'preview':
+      return t('JABVOX_WA_TEMPLATES.DETAIL.PREVIEW');
     case 'components':
       return t('JABVOX_WA_TEMPLATES.DETAIL.COMPONENTS');
     case 'variables':
@@ -877,33 +879,6 @@ const openCreate = () => {
   showForm.value = true;
 };
 
-const openEdit = tpl => {
-  editingTemplate.value = tpl;
-  form.value = {
-    name: tpl.name,
-    category: tpl.category,
-    language: tpl.language,
-    template_kind: tpl.template_kind || 'standard',
-    header_type: tpl.header_type || 'NONE',
-    header_content: tpl.header_content || '',
-    header_handle: '',
-    header_media_name: '',
-    header_media_preview: '',
-    body: tpl.body_content || '',
-    footer: tpl.footer_content || '',
-    buttons: (tpl.buttons_json || []).map(b => ({ ...b })),
-    var_descriptions: Object.fromEntries(
-      Object.entries(tpl.variables_json || {}).map(([k, v]) => [k, v])
-    ),
-    limited_time_offer: tpl.limited_time_offer || false,
-    auth_config: { ...emptyAuthConfig(), ...(tpl.auth_config_json || {}) },
-    cards: (tpl.cards_json || []).map(c => ({ ...emptyCard(), ...c })),
-  };
-  formInboxId.value = tpl.inbox_id;
-  wizardStep.value = 1;
-  showForm.value = true;
-};
-
 const submitForm = async () => {
   // Bloquea nombres de variable inválidos antes de gastar una petición a Meta,
   // que los rechaza con INVALID_FORMAT (espacios, mayúsculas o signos).
@@ -1124,6 +1099,22 @@ const previousWizardStep = () => {
 // computed that reads it, to avoid a forward reference).
 const detailTemplate = ref(null);
 
+// ─── Vista previa del detalle ──────────────────────────────────────────────
+// A diferencia de la previa del asistente de creación (ligada a `form`, el
+// estado en edición), esta lee directo de `detailTemplate` — lo que Meta ya
+// tiene guardado — porque desde aca no se edita nada.
+const detailBodyPreview = computed(
+  () => detailTemplate.value?.body_content || ''
+);
+
+const detailButtonsPreview = computed(() =>
+  (detailTemplate.value?.buttons_json || []).map((btn, i) => ({
+    key: `${btn.text}_${i}`,
+    text: btn.text,
+    isFlow: (btn.type || '').toUpperCase() === 'FLOW',
+  }))
+);
+
 const templateAnalytics = computed(() => {
   const raw = detailTemplate.value?.meta_json?.analytics || {};
   return {
@@ -1209,14 +1200,6 @@ const performRestoreVersion = async ver => {
 // Dispatches the confirmed action from ConfirmDialog to its handler.
 const onConfirmAction = data => {
   if (data?.action === 'restoreVersion') performRestoreVersion(data.ver);
-};
-
-const duplicateTemplate = tpl => {
-  promptDialog.value?.open({
-    title: t('JABVOX_WA_TEMPLATES.DETAIL.DUPLICATE_NAME'),
-    initialValue: `${tpl.name}_copy`,
-    data: tpl,
-  });
 };
 
 const performDuplicate = async ({ value: newName, data: tpl }) => {
@@ -1799,13 +1782,11 @@ onBeforeUnmount(() => {
               </div>
             </button>
 
+            <!-- Meta es la fuente de verdad de la plantilla ya creada: desde
+                 aca solo se sincroniza su estado, nunca se edita, duplica ni
+                 borra (Meta no permite editar una plantilla aprobada, y
+                 duplicar/borrar quedan fuera de alcance de esta pantalla). -->
             <div class="mt-3 flex items-center gap-1.5 wa-card-actions">
-              <button class="wa-icon-btn" @click="openEdit(tpl)">
-                <span class="i-lucide-pencil size-3.5" />
-              </button>
-              <button class="wa-icon-btn" @click="duplicateTemplate(tpl)">
-                <span class="i-lucide-copy size-3.5" />
-              </button>
               <button class="wa-icon-btn" @click="syncTemplate(tpl)">
                 <span class="i-lucide-refresh-cw size-3.5" />
               </button>
@@ -3154,15 +3135,8 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button
-              class="px-3 py-1.5 text-xs rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3"
-              @click="
-                openEdit(detailTemplate);
-                closeDetail();
-              "
-            >
-              {{ t('JABVOX_WA_TEMPLATES.ACTIONS.EDIT') }}
-            </button>
+            <!-- Meta es la fuente de verdad de esta plantilla: desde aca no
+                 se edita, solo se consulta y se sincroniza su estado. -->
             <button class="text-n-slate-11" @click="closeDetail">
               <span class="i-lucide-x size-5" />
             </button>
@@ -3171,6 +3145,7 @@ onBeforeUnmount(() => {
         <div class="flex gap-0 border-b border-n-weak px-5 shrink-0">
           <button
             v-for="dt in [
+              'preview',
               'components',
               'variables',
               'analytics',
@@ -3191,7 +3166,121 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <div class="flex-1 overflow-auto p-5">
-          <div v-if="detailTab === 'components'" class="space-y-4">
+          <div
+            v-if="detailTab === 'preview'"
+            class="flex flex-col items-center gap-4 py-4"
+          >
+            <div
+              class="w-full max-w-[220px] bg-[#0b141a] rounded-2xl p-3 shadow-lg"
+            >
+              <div
+                class="bg-[#1f2c33] rounded-xl overflow-hidden text-white text-xs"
+              >
+                <div
+                  class="bg-[#202c33] mx-2 mt-2 rounded-lg p-2.5 space-y-1.5"
+                >
+                  <div
+                    v-if="
+                      detailTemplate.header_type === 'TEXT' &&
+                      detailTemplate.header_content
+                    "
+                    class="font-semibold text-[11px] text-white/90 border-b border-white/10 pb-1.5 mb-1.5"
+                  >
+                    {{ detailTemplate.header_content }}
+                  </div>
+                  <template v-else-if="detailHeaderIsMedia">
+                    <img
+                      v-if="
+                        detailHeaderType === 'IMAGE' && detailHeaderMediaUrl
+                      "
+                      :src="detailHeaderMediaUrl"
+                      alt="header"
+                      class="max-h-28 w-full rounded object-cover mb-1.5"
+                    />
+                    <video
+                      v-else-if="
+                        detailHeaderType === 'VIDEO' && detailHeaderMediaUrl
+                      "
+                      :src="detailHeaderMediaUrl"
+                      controls
+                      class="max-h-28 w-full rounded bg-black mb-1.5"
+                    />
+                    <div
+                      v-else
+                      class="h-20 bg-white/10 rounded flex items-center justify-center text-white/40 text-[10px] mb-1.5"
+                    >
+                      {{ detailHeaderType }}
+                    </div>
+                  </template>
+                  <p
+                    class="text-[11px] leading-relaxed text-white/90 whitespace-pre-wrap"
+                  >
+                    {{
+                      detailBodyPreview ||
+                      t('JABVOX_WA_TEMPLATES.DETAIL.EMPTY_VALUE')
+                    }}
+                  </p>
+                  <p
+                    v-if="detailTemplate.footer_content"
+                    class="text-[10px] text-white/40 border-t border-white/10 pt-1 mt-1"
+                  >
+                    {{ detailTemplate.footer_content }}
+                  </p>
+                  <p class="text-right text-[9px] text-white/30">
+                    {{
+                      new Date(detailTemplate.updated_at).toLocaleTimeString(
+                        [],
+                        {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }
+                      )
+                    }}
+                  </p>
+                </div>
+                <div
+                  v-if="detailButtonsPreview.length"
+                  class="mx-2 mb-2 mt-0.5 space-y-1"
+                >
+                  <div
+                    v-for="btn in detailButtonsPreview"
+                    :key="btn.key"
+                    class="bg-[#2a3942] rounded py-1.5 text-center text-[11px] text-[#53bdeb] font-medium flex items-center justify-center gap-1"
+                  >
+                    <span
+                      v-if="btn.isFlow"
+                      class="i-lucide-clipboard-list size-3"
+                      aria-hidden="true"
+                    />
+                    {{ btn.text }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Previa del formulario, para plantillas tipo Flow. -->
+            <div
+              v-if="
+                detailTemplate.template_kind === 'flow' &&
+                detailTemplate.flow_screens?.length
+              "
+              class="w-full"
+            >
+              <p
+                class="text-[10px] uppercase tracking-wide text-n-slate-10 mb-1.5 text-center"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.PREVIEW_TITLE') }}
+              </p>
+              <div
+                class="rounded-xl border border-n-weak overflow-hidden h-[320px]"
+              >
+                <FlowPreview
+                  :screens="detailTemplate.flow_screens"
+                  :flow-name="detailTemplate.name"
+                />
+              </div>
+            </div>
+          </div>
+          <div v-else-if="detailTab === 'components'" class="space-y-4">
             <div
               v-if="detailTemplate.rejected_reason"
               class="p-3 rounded-lg bg-n-ruby-3 text-n-ruby-11 text-sm"

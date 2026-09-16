@@ -308,6 +308,7 @@
     },
     "DETAIL": {
       "TITLE": "Detalle de la plantilla",
+      "PREVIEW": "Vista previa",
       "COMPONENTS": "Componentes",
       "VARIABLES": "Variables",
       "ANALYTICS": "Analíticas",
