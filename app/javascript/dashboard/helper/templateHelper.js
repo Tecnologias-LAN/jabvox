@@ -156,3 +156,28 @@ export const isWhatsAppComplete = (template, processedParams) => {
     buttons: judgeableButtons,
   });
 };
+
+// @chatwoot/utils#isSendableTemplate esconde del selector de envío las
+// plantillas de autenticación y las de encabezado de ubicación, porque la
+// interfaz de Chatwoot no sabe pedir el código OTP ni las coordenadas. Jabvox sí
+// los pide (ver buildExtendedParams), así que aquí solo se mantienen las
+// exclusiones que siguen siendo ciertas:
+//   · la plantilla debe estar aprobada en Meta;
+//   · las encuestas de satisfacción tienen su propio flujo;
+//   · catálogo, listas y permiso de llamada no están implementados.
+const UNSENDABLE_COMPONENTS = [
+  'LIST',
+  'PRODUCT',
+  'CATALOG',
+  'CALL_PERMISSION_REQUEST',
+];
+
+export const isSendableTemplate = template => {
+  if (!template?.status || !template.components) return false;
+  if (template.status.toLowerCase() !== 'approved') return false;
+  if (template.name?.startsWith('customer_satisfaction_survey')) return false;
+
+  return !template.components.some(component =>
+    UNSENDABLE_COMPONENTS.includes(component.type)
+  );
+};

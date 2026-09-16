@@ -1,4 +1,5 @@
 import {
+  isSendableTemplate,
   buildTemplateParameters,
   isWhatsAppComplete,
   isAuthenticationTemplate,
@@ -203,6 +204,67 @@ describe('templateHelper — tipos extendidos', () => {
           lto_expiration_ms: 1735689600000,
         })
       ).toBe(true);
+    });
+  });
+
+  // El filtro compartido de Chatwoot escondía las de autenticación y las de
+  // ubicación porque su interfaz no sabía pedir el código ni las coordenadas;
+  // Jabvox sí, así que deben aparecer en el selector de envío.
+  describe('isSendableTemplate', () => {
+    const approved = extra => ({
+      status: 'APPROVED',
+      components: [{ type: 'BODY', text: 'Hola' }],
+      ...extra,
+    });
+
+    it('acepta una plantilla aprobada normal', () => {
+      expect(isSendableTemplate(approved())).toBe(true);
+    });
+
+    it('acepta una plantilla de autenticación', () => {
+      expect(
+        isSendableTemplate(
+          approved({
+            category: 'AUTHENTICATION',
+            components: [
+              { type: 'BODY' },
+              { type: 'BUTTONS', buttons: [{ type: 'OTP' }] },
+            ],
+          })
+        )
+      ).toBe(true);
+    });
+
+    it('acepta una plantilla con encabezado de ubicación', () => {
+      expect(
+        isSendableTemplate(
+          approved({
+            components: [
+              { type: 'HEADER', format: 'LOCATION' },
+              { type: 'BODY', text: 'Hola' },
+            ],
+          })
+        )
+      ).toBe(true);
+    });
+
+    it('rechaza una plantilla que Meta no ha aprobado', () => {
+      expect(isSendableTemplate(approved({ status: 'PENDING' }))).toBe(false);
+    });
+
+    it('rechaza las encuestas de satisfacción, que tienen su propio flujo', () => {
+      expect(
+        isSendableTemplate(approved({ name: 'customer_satisfaction_survey_1' }))
+      ).toBe(false);
+    });
+
+    it('rechaza catálogo y listas, que no están implementados', () => {
+      expect(
+        isSendableTemplate(approved({ components: [{ type: 'CATALOG' }] }))
+      ).toBe(false);
+      expect(
+        isSendableTemplate(approved({ components: [{ type: 'LIST' }] }))
+      ).toBe(false);
     });
   });
 });

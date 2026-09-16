@@ -7,7 +7,7 @@ import FBChannel from '../../api/channel/fbChannel';
 import TwilioChannel from '../../api/channel/twilioChannel';
 import WhatsappChannel from '../../api/channel/whatsappChannel';
 import { throwErrorMessage } from '../utils/api';
-import { isSendableTemplate } from '@chatwoot/utils';
+import { isSendableTemplate } from 'dashboard/helper/templateHelper';
 import AnalyticsHelper from '../../helper/AnalyticsHelper';
 import camelcaseKeys from 'camelcase-keys';
 import { ACCOUNT_EVENTS } from '../../helper/AnalyticsHelper/events';
@@ -68,7 +68,8 @@ export const getters = {
       return [];
     }
 
-    // Sendable-template filtering is shared with the mobile app via @chatwoot/utils.
+    // Filtro propio de Jabvox: el compartido esconde las plantillas de
+    // autenticación y de ubicación, que aquí sí se pueden enviar.
     return templates.filter(isSendableTemplate);
   },
   getNewConversationInboxes($state) {
