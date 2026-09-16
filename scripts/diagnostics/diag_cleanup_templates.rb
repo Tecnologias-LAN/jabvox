@@ -76,12 +76,20 @@ borradas = 0
 fallidas = []
 
 objetivo.each do |tpl|
-  # Meta borra por nombre (elimina todos los idiomas de esa plantilla).
+  # Meta admite borrar por nombre sobre el WABA o por id de la plantilla; según
+  # los permisos del token una funciona y la otra no, así que se intentan ambas.
   response = HTTParty.delete(
     "#{base}/#{waba}/message_templates",
     headers: { 'Authorization' => "Bearer #{token}" },
     query: { name: tpl['name'] }
   )
+
+  unless response.success?
+    response = HTTParty.delete(
+      "#{base}/#{tpl['id']}",
+      headers: { 'Authorization' => "Bearer #{token}" }
+    )
+  end
 
   if response.success?
     borradas += 1
@@ -97,5 +105,13 @@ end
 
 puts "\n#{'=' * 72}"
 puts "Borradas: #{borradas} de #{objetivo.size}"
-puts "Fallidas:\n  #{fallidas.join("\n  ")}" if fallidas.any?
+if fallidas.any?
+  puts "Fallidas:\n  #{fallidas.join("\n  ")}"
+  if fallidas.any? { |f| f.include?('Need permission') }
+    puts "\nEl token puede crear y leer plantillas pero no borrarlas. Opciones:"
+    puts '  · Bórralas desde WhatsApp Manager → Herramientas de la cuenta → Plantillas.'
+    puts '  · O usa un token de usuario del sistema con el permiso'
+    puts '    whatsapp_business_management sobre este WABA.'
+  end
+end
 puts '=' * 72
