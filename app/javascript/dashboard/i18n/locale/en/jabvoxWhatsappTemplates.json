@@ -172,7 +172,14 @@
         "STANDARD": "Standard",
         "CAROUSEL": "Carousel",
         "AUTHENTICATION": "Authentication",
-        "AUTH_AUTO_NOTE": "Authentication is a separate form: Meta generates the body/footer text automatically from the settings below."
+        "AUTH_AUTO_NOTE": "Authentication is a separate form: Meta generates the body/footer text automatically from the settings below.",
+        "STANDARD_HINT": "Message with text, image, video or document and buttons.",
+        "CAROUSEL_HINT": "Up to 10 swipeable cards, each with its own image and buttons.",
+        "FLOW": "Form (Flow)",
+        "FLOW_HINT": "Interactive multi-screen form inside WhatsApp.",
+        "STANDARD_DESC": "The classic template: a text message with an optional image, video or document on top and buttons below. Good for alerts, confirmations and promotions.",
+        "CAROUSEL_DESC": "One message with several cards the contact swipes through. Each card has its own image or video, text and up to two buttons. Ideal to show several products or offers at once.",
+        "FLOW_DESC": "A message with a button that opens a form inside WhatsApp: the contact answers screen by screen without leaving the chat. You build the form right here and answers arrive structured in Jabvox."
       },
       "AUTH": {
         "SECTION_TITLE": "Authentication (OTP)",
@@ -197,7 +204,16 @@
         "CARD_BUTTONS": "Card buttons (max 2)",
         "CARDS_COUNT_LABEL": "Number of cards (2-10)",
         "CARD_MEDIA_LABEL": "Card media",
-        "MIN_CARDS_NOTE": "Carousel requires at least 2 cards."
+        "MIN_CARDS_NOTE": "Carousel requires at least 2 cards.",
+        "PREVIEW": "Preview",
+        "NO_MEDIA": "No image",
+        "NO_BODY": "Card text…",
+        "NO_BUTTON": "Button",
+        "MEDIA_TYPE": "Media type",
+        "MEDIA_FILE": "Card image or video",
+        "MEDIA_REQUIRED": "This card still needs its file.",
+        "NOT_UPLOADED": "The file was not uploaded to Meta. Check the setup and try again.",
+        "CARD_BODY": "Card text (optional)"
       },
       "PREVIEW_TITLE": "Live preview",
       "SUBMIT": "Send to Meta",
@@ -227,7 +243,20 @@
       "SUBMIT_NOTE": "This action will submit the template to Meta for review keeping all current approval workflows.",
       "SUBMIT_HINT": "Ensure variable examples and buttons are valid before submission.",
       "MISSING_REQUIRED": "Required fields still missing:",
-      "HEADER_MEDIA_FILE_LABEL": "Header file"
+      "HEADER_MEDIA_FILE_LABEL": "Header file",
+      "INBOX_PLACEHOLDER": "Select the WhatsApp inbox",
+      "NO_INBOXES": "No WhatsApp Cloud inboxes configured in this account.",
+      "INBOX_TARGET": "Template will be created in: {name}",
+      "FLOW": {
+        "SECTION_TITLE": "Form opened by the button",
+        "BUTTON_TEXT": "Button text",
+        "BUTTON_TEXT_PH": "e.g. Answer survey",
+        "CATEGORY": "Form category",
+        "FIRST_SCREEN": "Start",
+        "NEW_SCREEN": "New screen",
+        "NEEDS_TERMINAL": "Mark the last screen as final so the form can be submitted.",
+        "NEEDS_FOOTER": "Missing the continue button on: {screens}."
+      }
     },
     "DETAIL": {
       "TITLE": "Template detail",

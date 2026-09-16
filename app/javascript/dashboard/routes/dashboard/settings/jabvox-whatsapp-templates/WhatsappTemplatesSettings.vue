@@ -10,6 +10,7 @@ import { wfFlowsAPI } from 'dashboard/api/jabvox/whatsappFlows';
 import { processVariable } from 'dashboard/helper/templateHelper';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import PromptDialog from './components/PromptDialog.vue';
+import InlineFlowBuilder from './components/InlineFlowBuilder.vue';
 import { useTemplateValidation } from './composables/useTemplateValidation';
 
 const { t } = useI18n();
@@ -411,6 +412,32 @@ const categoryLabel = c => {
   }
 };
 
+const templateKindHint = kind => {
+  switch (kind) {
+    case 'standard':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.STANDARD_HINT');
+    case 'carousel':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.CAROUSEL_HINT');
+    case 'flow':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.FLOW_HINT');
+    default:
+      return '';
+  }
+};
+
+const templateKindDescriptionFor = kind => {
+  switch (kind) {
+    case 'standard':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.STANDARD_DESC');
+    case 'carousel':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.CAROUSEL_DESC');
+    case 'flow':
+      return t('JABVOX_WA_TEMPLATES.CREATE.KIND.FLOW_DESC');
+    default:
+      return '';
+  }
+};
+
 const templateKindLabel = kind => {
   switch (kind) {
     case 'standard':
@@ -471,6 +498,13 @@ const syncTemplate = async tpl => {
 const showForm = ref(false);
 const editingTemplate = ref(null);
 const formInboxId = ref(null);
+
+// Nombre de la bandeja elegida, para confirmar visualmente sobre cuál se va a
+// crear la plantilla (es la que la registra en Meta bajo su WABA).
+const selectedFormInboxName = computed(() => {
+  const inbox = inboxes.value.find(i => i.id === formInboxId.value);
+  return inbox ? `${inbox.name} ${DASH} ${inbox.phone_number}` : '';
+});
 const saving = ref(false);
 // Current step of the create/edit wizard (declared here so openCreate/openEdit
 // can reset it without a forward reference).
@@ -499,8 +533,25 @@ const BUTTON_TYPES = [
 ];
 // 'authentication' se deriva automáticamente al elegir esa categoría, no es una
 // opción redundante en el selector de tipo de plantilla (sección 5 del diseño).
-const TEMPLATE_KIND_OPTIONS = ['standard', 'carousel'];
+// Cada tipo se presenta como una tarjeta con icono y una línea que explica
+// para qué sirve, en vez de un botón con solo el nombre.
+const TEMPLATE_KIND_OPTIONS = [
+  { key: 'standard', icon: 'i-lucide-message-square-text' },
+  { key: 'carousel', icon: 'i-lucide-gallery-horizontal-end' },
+  { key: 'flow', icon: 'i-lucide-clipboard-list' },
+];
 const OTP_TYPES = ['ONE_TAP', 'COPY_CODE', 'ZERO_TAP'];
+// Categorías de Flow que admite Meta (distintas de las de plantilla).
+const FLOW_CATEGORIES = [
+  'SIGN_UP',
+  'SIGN_IN',
+  'APPOINTMENT_BOOKING',
+  'LEAD_GENERATION',
+  'CONTACT_US',
+  'CUSTOMER_SUPPORT',
+  'SURVEY',
+  'OTHER',
+];
 const CARD_MIN = 2;
 const CARD_MAX = 10;
 const CARD_HEADER_TYPES = ['IMAGE', 'VIDEO'];
@@ -567,6 +618,11 @@ const emptyForm = () => ({
   limited_time_offer: false,
   auth_config: emptyAuthConfig(),
   cards: [],
+  // Formulario (WhatsApp Flow) construido junto a la plantilla, cuando el tipo
+  // elegido es 'flow'. El backend lo publica en Meta antes de crear la plantilla.
+  flow_screens: [],
+  flow_category: 'SURVEY',
+  flow_button_text: '',
 });
 const form = ref(emptyForm());
 const uploadingMedia = ref(false);
@@ -589,6 +645,7 @@ const isAuthenticationKind = computed(
   () => form.value.template_kind === 'authentication'
 );
 const isCarouselKind = computed(() => form.value.template_kind === 'carousel');
+const isFlowKind = computed(() => form.value.template_kind === 'flow');
 const isStandardKind = computed(() => form.value.template_kind === 'standard');
 
 // LTO solo visible para category MARKETING y template_kind standard.
@@ -627,16 +684,20 @@ const onCardFileChange = async (event, cardIndex) => {
     useAlert(t('JABVOX_WA_TEMPLATES.FORM.SELECT_INBOX_FIRST'));
     return;
   }
+  // La previa se pinta de inmediato desde el archivo local: así el usuario ve
+  // cómo queda la tarjeta aunque la subida a Meta falle (p. ej. si falta
+  // configurar WHATSAPP_APP_ID), en vez de quedarse con la tarjeta vacía.
+  const card = form.value.cards[cardIndex];
+  card.header_media_name = file.name;
+  card.header_media_preview = URL.createObjectURL(file);
+
   uploadingMedia.value = true;
   try {
     const { data } = await wtTemplatesAPI.uploadMedia({
       inboxId: formInboxId.value,
       file,
     });
-    const card = form.value.cards[cardIndex];
     card.header_handle = data.handle;
-    card.header_media_name = file.name;
-    card.header_media_preview = URL.createObjectURL(file);
   } catch (err) {
     useAlert(
       err?.response?.data?.error || t('JABVOX_WA_TEMPLATES.FORM.UPLOAD_ERROR')
@@ -861,6 +922,14 @@ const submitForm = async () => {
     auth_config: isAuthenticationKind.value ? form.value.auth_config : {},
     cards: isCarouselKind.value ? form.value.cards : [],
   };
+  // El backend crea y publica el Flow en Meta antes de crear la plantilla.
+  if (isFlowKind.value) {
+    payload.flow = {
+      screens_json: form.value.flow_screens,
+      category: form.value.flow_category,
+    };
+    payload.flow_button_text = form.value.flow_button_text;
+  }
   try {
     if (editingTemplate.value) {
       await wtTemplatesAPI.update(editingTemplate.value.id, payload);
@@ -1776,10 +1845,34 @@ onBeforeUnmount(() => {
                     class="reset-base text-sm"
                     :class="fieldClass(formInboxId, true)"
                   >
+                    <option :value="null" disabled>
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.INBOX_PLACEHOLDER') }}
+                    </option>
                     <option v-for="i in inboxes" :key="i.id" :value="i.id">
                       {{ i.name }} {{ DASH }} {{ i.phone_number }}
                     </option>
                   </select>
+                  <p
+                    v-if="!inboxes.length"
+                    class="text-[11px] text-n-amber-11 flex items-center gap-1"
+                  >
+                    <span
+                      class="i-lucide-alert-triangle size-3"
+                      aria-hidden="true"
+                    />
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.NO_INBOXES') }}
+                  </p>
+                  <p
+                    v-else-if="formInboxId"
+                    class="text-[11px] text-n-teal-11 flex items-center gap-1"
+                  >
+                    <span class="i-lucide-check size-3" aria-hidden="true" />
+                    {{
+                      t('JABVOX_WA_TEMPLATES.CREATE.INBOX_TARGET', {
+                        name: selectedFormInboxName,
+                      })
+                    }}
+                  </p>
                 </div>
                 <div v-if="!editingTemplate" class="flex flex-col gap-1">
                   <label class="text-xs text-n-slate-11">
@@ -1840,21 +1933,58 @@ onBeforeUnmount(() => {
                 <label class="text-xs text-n-slate-11">
                   {{ t('JABVOX_WA_TEMPLATES.CREATE.KIND.LABEL') }}
                 </label>
-                <div class="flex gap-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     v-for="kind in TEMPLATE_KIND_OPTIONS"
-                    :key="kind"
+                    :key="kind.key"
                     type="button"
-                    class="px-3 py-1.5 text-xs rounded-lg border"
+                    class="flex items-start gap-2.5 p-3 rounded-xl border text-left transition-colors"
                     :class="
-                      form.template_kind === kind
-                        ? 'border-n-brand bg-n-brand text-white'
-                        : 'border-n-weak text-n-slate-11 bg-n-solid-1'
+                      form.template_kind === kind.key
+                        ? 'border-n-brand bg-n-brand/5 ring-1 ring-n-brand'
+                        : 'border-n-weak bg-n-solid-1 hover:border-n-slate-6'
                     "
-                    @click="form.template_kind = kind"
+                    @click="form.template_kind = kind.key"
                   >
-                    {{ templateKindLabel(kind) }}
+                    <span
+                      :class="[
+                        kind.icon,
+                        form.template_kind === kind.key
+                          ? 'text-n-brand'
+                          : 'text-n-slate-10',
+                      ]"
+                      class="size-5 shrink-0 mt-0.5"
+                      aria-hidden="true"
+                    />
+                    <span class="flex flex-col gap-0.5 min-w-0">
+                      <span
+                        class="text-sm font-medium"
+                        :class="
+                          form.template_kind === kind.key
+                            ? 'text-n-brand'
+                            : 'text-n-slate-12'
+                        "
+                      >
+                        {{ templateKindLabel(kind.key) }}
+                      </span>
+                      <span class="text-[11px] text-n-slate-10 leading-snug">
+                        {{ templateKindHint(kind.key) }}
+                      </span>
+                    </span>
                   </button>
+                </div>
+
+                <!-- Descripción de lo que hace el tipo seleccionado -->
+                <div
+                  class="flex items-start gap-2 rounded-lg bg-n-alpha-1 p-2.5 mt-1"
+                >
+                  <span
+                    class="i-lucide-info size-3.5 text-n-slate-10 shrink-0 mt-px"
+                    aria-hidden="true"
+                  />
+                  <p class="text-[11px] text-n-slate-11 leading-relaxed">
+                    {{ templateKindDescriptionFor(form.template_kind) }}
+                  </p>
                 </div>
               </div>
               <p
@@ -2176,6 +2306,50 @@ onBeforeUnmount(() => {
               </label>
             </section>
 
+            <!-- ── FLOW: el formulario se construye aquí mismo; al guardar, el
+                 backend lo publica en Meta y crea la plantilla enlazada ── -->
+            <section v-if="wizardStep === 2 && isFlowKind" class="space-y-3">
+              <h3
+                class="text-xs font-semibold text-n-slate-10 uppercase tracking-wide"
+              >
+                {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SECTION_TITLE') }}
+              </h3>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1">
+                  <label class="text-xs text-n-slate-11">
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_TEXT') }}
+                    <span class="text-n-ruby-11">*</span>
+                  </label>
+                  <input
+                    v-model="form.flow_button_text"
+                    maxlength="25"
+                    class="reset-base text-sm"
+                    :class="fieldClass(form.flow_button_text, true)"
+                    :placeholder="
+                      t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_TEXT_PH')
+                    "
+                  />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <label class="text-xs text-n-slate-11">
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.CATEGORY') }}
+                  </label>
+                  <select
+                    v-model="form.flow_category"
+                    class="reset-base text-sm wa-field wa-field-valid"
+                  >
+                    <option v-for="fc in FLOW_CATEGORIES" :key="fc" :value="fc">
+                      {{ fc }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <InlineFlowBuilder
+                v-model="form.flow_screens"
+                :flow-name="form.name"
+              />
+            </section>
+
             <!-- ── CAROUSEL: editor de cards (2-10), cada una con su propio
                  uploader de media + hasta 2 botones ── -->
             <section
@@ -2202,10 +2376,16 @@ onBeforeUnmount(() => {
               <div
                 v-for="(card, ci) in form.cards"
                 :key="ci"
-                class="rounded-xl border border-n-weak p-3 space-y-2"
+                class="rounded-xl border border-n-weak p-3"
               >
-                <div class="flex items-center justify-between">
-                  <p class="text-xs font-medium text-n-slate-12">
+                <div class="flex items-center justify-between mb-2.5">
+                  <p
+                    class="text-xs font-medium text-n-slate-12 flex items-center gap-1.5"
+                  >
+                    <span
+                      class="i-lucide-gallery-horizontal-end size-3.5 text-n-slate-10"
+                      aria-hidden="true"
+                    />
                     {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARD_LABEL') }}
                     {{ ci + 1 }}
                   </p>
@@ -2213,87 +2393,226 @@ onBeforeUnmount(() => {
                     <span class="i-lucide-trash-2 size-3.5" />
                   </button>
                 </div>
-                <select
-                  v-model="card.header_type"
-                  class="reset-base text-xs w-32"
-                >
-                  <option v-for="ht in CARD_HEADER_TYPES" :key="ht" :value="ht">
-                    {{ ht }}
-                  </option>
-                </select>
-                <input
-                  type="file"
-                  :accept="
-                    card.header_type === 'IMAGE'
-                      ? 'image/jpeg,image/png'
-                      : 'video/mp4,video/3gpp'
-                  "
-                  class="reset-base text-xs w-full file:mr-3 file:rounded-md file:border-0 file:bg-n-brand file:text-white file:px-3 file:py-1 file:text-xs"
-                  @change="e => onCardFileChange(e, ci)"
-                />
-                <p
-                  v-if="card.header_handle"
-                  class="text-[11px] text-n-teal-11 flex items-center gap-1"
-                >
-                  <span class="i-lucide-check size-3" aria-hidden="true" />
-                  {{ t('JABVOX_WA_TEMPLATES.FORM.MEDIA_READY') }}
-                </p>
-                <input
-                  v-model="card.body_content"
-                  class="reset-base text-xs w-full"
-                  :placeholder="
-                    t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARD_BODY_PH')
-                  "
-                />
-                <div class="flex items-center justify-between">
-                  <p class="text-[11px] text-n-slate-10">
-                    {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARD_BUTTONS') }}
-                  </p>
-                  <button
-                    v-if="card.buttons.length < 2"
-                    class="text-[11px] text-n-brand hover:underline"
-                    @click="addCardButton(card)"
-                  >
-                    {{ t('JABVOX_WA_TEMPLATES.CREATE.ADD_BUTTON') }}
-                  </button>
-                </div>
-                <div
-                  v-for="(btn, bi) in card.buttons"
-                  :key="bi"
-                  class="flex flex-wrap gap-2 items-center p-2 rounded-lg bg-n-alpha-1"
-                >
-                  <select v-model="btn.type" class="reset-base text-xs w-32">
-                    <option
-                      v-for="bt in ['QUICK_REPLY', 'URL', 'PHONE_NUMBER']"
-                      :key="bt"
-                      :value="bt"
+
+                <!-- Controles a la izquierda · previa de la tarjeta a la derecha -->
+                <div class="grid grid-cols-1 lg:grid-cols-[1fr_190px] gap-3">
+                  <div class="space-y-2 min-w-0">
+                    <label class="text-[11px] text-n-slate-11 block">
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.MEDIA_TYPE') }}
+                    </label>
+                    <select
+                      v-model="card.header_type"
+                      class="reset-base text-xs w-32 wa-field wa-field-valid"
                     >
-                      {{ bt }}
-                    </option>
-                  </select>
-                  <input
-                    v-model="btn.text"
-                    class="reset-base text-xs flex-1 min-w-24"
-                    :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')"
-                  />
-                  <input
-                    v-if="btn.type === 'URL'"
-                    v-model="btn.url"
-                    class="reset-base text-xs flex-1 min-w-36"
-                    :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_URL')"
-                  />
-                  <input
-                    v-if="btn.type === 'PHONE_NUMBER'"
-                    v-model="btn.phone_number"
-                    class="reset-base text-xs flex-1 min-w-36"
-                    :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_PHONE')"
-                  />
-                  <button
-                    class="text-n-ruby-11 p-1"
-                    @click="removeCardButton(card, bi)"
-                  >
-                    <span class="i-lucide-trash-2 size-3.5" />
-                  </button>
+                      <option
+                        v-for="ht in CARD_HEADER_TYPES"
+                        :key="ht"
+                        :value="ht"
+                      >
+                        {{ ht }}
+                      </option>
+                    </select>
+
+                    <label class="text-[11px] text-n-slate-11 block">
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.MEDIA_FILE') }}
+                      <span class="text-n-ruby-11">*</span>
+                    </label>
+                    <input
+                      type="file"
+                      :accept="
+                        card.header_type === 'IMAGE'
+                          ? 'image/jpeg,image/png'
+                          : 'video/mp4,video/3gpp'
+                      "
+                      class="reset-base text-xs w-full rounded-lg border px-2 py-1.5 file:mr-3 file:rounded-md file:border-0 file:bg-n-brand file:text-white file:px-3 file:py-1 file:text-xs"
+                      :class="
+                        card.header_handle
+                          ? 'border-n-teal-8 bg-n-teal-2'
+                          : 'border-n-ruby-8 bg-n-ruby-2'
+                      "
+                      @change="e => onCardFileChange(e, ci)"
+                    />
+                    <p
+                      v-if="card.header_handle"
+                      class="text-[11px] text-n-teal-11 flex items-center gap-1"
+                    >
+                      <span class="i-lucide-check size-3" aria-hidden="true" />
+                      {{ t('JABVOX_WA_TEMPLATES.FORM.MEDIA_READY') }}
+                    </p>
+                    <p
+                      v-else-if="card.header_media_name"
+                      class="text-[11px] text-n-amber-11 flex items-center gap-1"
+                    >
+                      <span
+                        class="i-lucide-alert-triangle size-3"
+                        aria-hidden="true"
+                      />
+                      {{
+                        t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.NOT_UPLOADED')
+                      }}
+                    </p>
+                    <p
+                      v-else
+                      class="text-[11px] text-n-ruby-11 flex items-center gap-1"
+                    >
+                      <span class="i-lucide-circle size-3" aria-hidden="true" />
+                      {{
+                        t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.MEDIA_REQUIRED')
+                      }}
+                    </p>
+
+                    <label class="text-[11px] text-n-slate-11 block">
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARD_BODY') }}
+                    </label>
+                    <input
+                      v-model="card.body_content"
+                      class="reset-base text-xs w-full"
+                      :class="fieldClass(card.body_content)"
+                      :placeholder="
+                        t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARD_BODY_PH')
+                      "
+                    />
+                    <div class="flex items-center justify-between">
+                      <p class="text-[11px] text-n-slate-10">
+                        {{
+                          t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.CARD_BUTTONS')
+                        }}
+                      </p>
+                      <button
+                        v-if="card.buttons.length < 2"
+                        class="text-[11px] text-n-brand hover:underline"
+                        @click="addCardButton(card)"
+                      >
+                        {{ t('JABVOX_WA_TEMPLATES.CREATE.ADD_BUTTON') }}
+                      </button>
+                    </div>
+                    <div
+                      v-for="(btn, bi) in card.buttons"
+                      :key="bi"
+                      class="flex flex-wrap gap-2 items-center p-2 rounded-lg bg-n-alpha-1"
+                    >
+                      <select
+                        v-model="btn.type"
+                        class="reset-base text-xs w-32"
+                      >
+                        <option
+                          v-for="bt in ['QUICK_REPLY', 'URL', 'PHONE_NUMBER']"
+                          :key="bt"
+                          :value="bt"
+                        >
+                          {{ bt }}
+                        </option>
+                      </select>
+                      <input
+                        v-model="btn.text"
+                        maxlength="25"
+                        class="reset-base text-xs flex-1 min-w-24"
+                        :class="fieldClass(btn.text, true)"
+                        :placeholder="
+                          t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')
+                        "
+                      />
+                      <input
+                        v-if="btn.type === 'URL'"
+                        v-model="btn.url"
+                        class="reset-base text-xs flex-1 min-w-36"
+                        :class="fieldClass(btn.url, true)"
+                        :placeholder="
+                          t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_URL')
+                        "
+                      />
+                      <input
+                        v-if="btn.type === 'PHONE_NUMBER'"
+                        v-model="btn.phone_number"
+                        maxlength="20"
+                        class="reset-base text-xs flex-1 min-w-36"
+                        :class="fieldClass(btn.phone_number, true)"
+                        :placeholder="
+                          t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_PHONE')
+                        "
+                      />
+                      <button
+                        class="text-n-ruby-11 p-1"
+                        @click="removeCardButton(card, bi)"
+                      >
+                        <span class="i-lucide-trash-2 size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Previa de la tarjeta tal como se verá en WhatsApp -->
+                  <div class="lg:sticky lg:top-2 self-start">
+                    <p
+                      class="text-[10px] uppercase tracking-wide text-n-slate-10 mb-1.5"
+                    >
+                      {{ t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.PREVIEW') }}
+                    </p>
+                    <div
+                      class="rounded-xl overflow-hidden border border-n-weak bg-[#e5ddd5] p-2"
+                    >
+                      <div
+                        class="rounded-lg overflow-hidden bg-white shadow-sm"
+                      >
+                        <img
+                          v-if="
+                            card.header_type === 'IMAGE' &&
+                            card.header_media_preview
+                          "
+                          :src="card.header_media_preview"
+                          alt=""
+                          class="w-full h-24 object-cover"
+                        />
+                        <video
+                          v-else-if="
+                            card.header_type === 'VIDEO' &&
+                            card.header_media_preview
+                          "
+                          :src="card.header_media_preview"
+                          class="w-full h-24 object-cover"
+                          muted
+                        />
+                        <div
+                          v-else
+                          class="w-full h-24 flex flex-col items-center justify-center gap-1 bg-n-alpha-2 text-n-slate-9"
+                        >
+                          <span
+                            :class="
+                              card.header_type === 'VIDEO'
+                                ? 'i-lucide-video'
+                                : 'i-lucide-image'
+                            "
+                            class="size-5"
+                            aria-hidden="true"
+                          />
+                          <span class="text-[10px]">
+                            {{
+                              t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.NO_MEDIA')
+                            }}
+                          </span>
+                        </div>
+                        <div class="p-2">
+                          <p
+                            class="text-[11px] text-gray-800 leading-snug break-words"
+                          >
+                            {{
+                              card.body_content ||
+                              t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.NO_BODY')
+                            }}
+                          </p>
+                        </div>
+                        <div
+                          v-for="(btn, bi) in card.buttons"
+                          :key="`prev-${bi}`"
+                          class="border-t border-gray-200 py-1.5 text-center text-[11px] text-[#00a5f4] truncate px-2"
+                        >
+                          {{
+                            btn.text ||
+                            t('JABVOX_WA_TEMPLATES.CREATE.CAROUSEL.NO_BUTTON')
+                          }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               <p

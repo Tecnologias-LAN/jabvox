@@ -167,7 +167,14 @@
         "STANDARD": "Estándar",
         "CAROUSEL": "Carousel",
         "AUTHENTICATION": "Autenticación",
-        "AUTH_AUTO_NOTE": "Autenticación es un formulario distinto: Meta genera automáticamente el texto de cuerpo/pie a partir de la configuración de abajo."
+        "AUTH_AUTO_NOTE": "Autenticación es un formulario distinto: Meta genera automáticamente el texto de cuerpo/pie a partir de la configuración de abajo.",
+        "STANDARD_HINT": "Mensaje con texto, imagen, video o documento y botones.",
+        "CAROUSEL_HINT": "Hasta 10 tarjetas deslizables, cada una con su imagen y botones.",
+        "FLOW": "Formulario (Flow)",
+        "FLOW_HINT": "Formulario interactivo de varias pantallas dentro de WhatsApp.",
+        "STANDARD_DESC": "La plantilla clásica: un mensaje con texto y, si quieres, una imagen, video o documento arriba y botones abajo. Sirve para avisos, confirmaciones y promociones.",
+        "CAROUSEL_DESC": "Un mensaje con varias tarjetas que el contacto desliza de lado. Cada tarjeta lleva su propia imagen o video, su texto y hasta dos botones. Ideal para mostrar varios productos u ofertas a la vez.",
+        "FLOW_DESC": "Un mensaje con un botón que abre un formulario dentro de WhatsApp: el contacto responde preguntas pantalla por pantalla sin salir del chat. El formulario se arma aquí mismo y las respuestas llegan ordenadas a Jabvox."
       },
       "AUTH": {
         "SECTION_TITLE": "Autenticación (OTP)",
@@ -192,7 +199,16 @@
         "CARD_BUTTONS": "Botones de la card (máx. 2)",
         "CARDS_COUNT_LABEL": "Cantidad de cards (2-10)",
         "CARD_MEDIA_LABEL": "Medio de la card",
-        "MIN_CARDS_NOTE": "Carousel requiere al menos 2 cards."
+        "MIN_CARDS_NOTE": "Carousel requiere al menos 2 cards.",
+        "PREVIEW": "Previa",
+        "NO_MEDIA": "Sin imagen",
+        "NO_BODY": "Texto de la tarjeta…",
+        "NO_BUTTON": "Botón",
+        "MEDIA_TYPE": "Tipo de medio",
+        "MEDIA_FILE": "Imagen o video de la tarjeta",
+        "MEDIA_REQUIRED": "Falta subir el archivo de esta tarjeta.",
+        "NOT_UPLOADED": "El archivo no se subió a Meta. Revisa la configuración e inténtalo de nuevo.",
+        "CARD_BODY": "Texto de la tarjeta (opcional)"
       },
       "PREVIEW_TITLE": "Vista previa en vivo",
       "SUBMIT": "Enviar a Meta",
@@ -222,7 +238,20 @@
       "SUBMIT_NOTE": "Esta acción enviará la plantilla a Meta para su revisión, manteniendo todos los flujos de aprobación actuales.",
       "SUBMIT_HINT": "Asegúrate de que los ejemplos de variables y los botones sean válidos antes de enviar.",
       "MISSING_REQUIRED": "Faltan campos requeridos:",
-      "HEADER_MEDIA_FILE_LABEL": "Archivo del encabezado"
+      "HEADER_MEDIA_FILE_LABEL": "Archivo del encabezado",
+      "INBOX_PLACEHOLDER": "Selecciona la bandeja de WhatsApp",
+      "NO_INBOXES": "No hay bandejas de WhatsApp Cloud configuradas en esta cuenta.",
+      "INBOX_TARGET": "La plantilla se creará en: {name}",
+      "FLOW": {
+        "SECTION_TITLE": "Formulario que abre el botón",
+        "BUTTON_TEXT": "Texto del botón",
+        "BUTTON_TEXT_PH": "Ej.: Responder encuesta",
+        "CATEGORY": "Categoría del formulario",
+        "FIRST_SCREEN": "Inicio",
+        "NEW_SCREEN": "Nueva pantalla",
+        "NEEDS_TERMINAL": "Marca la última pantalla como final para que el formulario pueda cerrarse.",
+        "NEEDS_FOOTER": "Falta el botón de avance en: {screens}."
+      }
     },
     "DETAIL": {
       "TITLE": "Detalle de la plantilla",

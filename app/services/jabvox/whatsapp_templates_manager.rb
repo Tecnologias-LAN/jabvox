@@ -158,7 +158,12 @@ class Jabvox::WhatsappTemplatesManager
     return { success: false, error: 'Not a WhatsApp Cloud inbox' } unless cloud_channel?(channel)
 
     app_id = whatsapp_app_id(channel)
-    return { success: false, error: 'Falta configurar WHATSAPP_APP_ID' } if app_id.blank?
+    if app_id.blank?
+      return { success: false,
+               error: 'Para subir imágenes o videos a Meta falta configurar el App ID de tu app de Meta ' \
+                      '(WHATSAPP_APP_ID en la configuración global del Super Admin, o app_id en la ' \
+                      'configuración del canal). Lo encuentras en developers.facebook.com → tu app → Configuración → Básica.' }
+    end
 
     session_id = start_upload_session(channel, app_id, file_size, file_type)
     handle = finish_upload_session(channel, session_id, file_path)
@@ -967,12 +972,22 @@ class Jabvox::WhatsappTemplatesManager
     "#{api_base}/#{api_version}/#{channel.provider_config['business_account_id']}"
   end
 
-  # App ID de Meta, requerido por la Resumable Upload API. Se toma del canal si lo
-  # trae en provider_config; si no, del config global (misma convención que
-  # app/services/whatsapp/facebook_api_client.rb).
+  # App ID de Meta, requerido por la Resumable Upload API. Se busca, en orden:
+  # el canal (provider_config), el config global, y por último la fila de
+  # InstallationConfig directamente.
+  #
+  # Ese último paso importa: GlobalConfig cachea en Redis durante un día, así
+  # que si el valor se guardó en el Super Admin DESPUÉS de que un nil quedara
+  # cacheado, seguiría dando "falta configurar" hasta que expire la caché.
+  # Leer la fila evita ese falso negativo.
   def whatsapp_app_id(channel = nil)
     from_channel = channel&.provider_config.to_h['app_id']
-    from_channel.presence || GlobalConfigService.load('WHATSAPP_APP_ID', '')
+    return from_channel if from_channel.present?
+
+    from_global = GlobalConfigService.load('WHATSAPP_APP_ID', '')
+    return from_global if from_global.present?
+
+    InstallationConfig.find_by(name: 'WHATSAPP_APP_ID')&.value.presence
   end
 
   # Paso 1 de la Resumable Upload API: abre una sesión de subida y devuelve su id.

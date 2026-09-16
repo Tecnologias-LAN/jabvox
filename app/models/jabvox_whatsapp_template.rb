@@ -2,49 +2,52 @@
 #
 # Table name: jabvox_whatsapp_templates
 #
-#  id                 :bigint           not null, primary key
-#  auth_config_json   :jsonb            not null
-#  body_content       :text
-#  buttons_json       :jsonb            not null
-#  cards_json         :jsonb            not null
-#  category           :string           default("UTILITY"), not null
-#  footer_content     :text
-#  header_content     :text
-#  header_type        :string
-#  language           :string           default("es"), not null
-#  limited_time_offer :boolean          default(FALSE), not null
-#  location_header    :boolean          default(FALSE), not null
-#  meta_json          :jsonb            not null
-#  name               :string           not null
-#  quality_score      :string
-#  rejected_reason    :string
-#  status             :string           default("PENDING"), not null
-#  template_kind      :string           default("standard"), not null
-#  variables_json     :jsonb            not null
-#  created_at         :datetime         not null
-#  updated_at         :datetime         not null
-#  account_id         :bigint           not null
-#  created_by_id      :bigint
-#  inbox_id           :bigint           not null
-#  meta_template_id   :string
-#  phone_number_id    :string
-#  waba_id            :string
+#  id                      :bigint           not null, primary key
+#  auth_config_json        :jsonb            not null
+#  body_content            :text
+#  buttons_json            :jsonb            not null
+#  cards_json              :jsonb            not null
+#  category                :string           default("UTILITY"), not null
+#  footer_content          :text
+#  header_content          :text
+#  header_type             :string
+#  language                :string           default("es"), not null
+#  limited_time_offer      :boolean          default(FALSE), not null
+#  location_header         :boolean          default(FALSE), not null
+#  meta_json               :jsonb            not null
+#  name                    :string           not null
+#  quality_score           :string
+#  rejected_reason         :string
+#  status                  :string           default("PENDING"), not null
+#  template_kind           :string           default("standard"), not null
+#  variables_json          :jsonb            not null
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#  account_id              :bigint           not null
+#  created_by_id           :bigint
+#  inbox_id                :bigint           not null
+#  jabvox_whatsapp_flow_id :bigint
+#  meta_template_id        :string
+#  phone_number_id         :string
+#  waba_id                 :string
 #
 # Indexes
 #
-#  idx_jabvox_wa_templates_account_name_lang            (account_id,name,language)
-#  index_jabvox_whatsapp_templates_on_account_id        (account_id)
-#  index_jabvox_whatsapp_templates_on_created_by_id     (created_by_id)
-#  index_jabvox_whatsapp_templates_on_inbox_id          (inbox_id)
-#  index_jabvox_whatsapp_templates_on_meta_template_id  (meta_template_id)
-#  index_jabvox_whatsapp_templates_on_status            (status)
-#  index_jabvox_whatsapp_templates_on_template_kind     (template_kind)
+#  idx_jabvox_wa_templates_account_name_lang                   (account_id,name,language)
+#  index_jabvox_whatsapp_templates_on_account_id               (account_id)
+#  index_jabvox_whatsapp_templates_on_created_by_id            (created_by_id)
+#  index_jabvox_whatsapp_templates_on_inbox_id                 (inbox_id)
+#  index_jabvox_whatsapp_templates_on_jabvox_whatsapp_flow_id  (jabvox_whatsapp_flow_id)
+#  index_jabvox_whatsapp_templates_on_meta_template_id         (meta_template_id)
+#  index_jabvox_whatsapp_templates_on_status                   (status)
+#  index_jabvox_whatsapp_templates_on_template_kind            (template_kind)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (inbox_id => inboxes.id) ON DELETE => cascade
+#  fk_rails_...  (jabvox_whatsapp_flow_id => jabvox_whatsapp_flows.id)
 #
 class JabvoxWhatsappTemplate < ApplicationRecord
   self.table_name = 'jabvox_whatsapp_templates'
@@ -52,6 +55,8 @@ class JabvoxWhatsappTemplate < ApplicationRecord
   belongs_to :account
   belongs_to :inbox
   belongs_to :created_by, class_name: 'User', optional: true
+  # Flow que abre el botón de la plantilla, cuando se creó desde el mismo wizard.
+  belongs_to :jabvox_whatsapp_flow, class_name: 'JabvoxWhatsappFlow', optional: true
   has_many :versions, class_name: 'JabvoxWhatsappTemplateVersion', dependent: :destroy
   has_many :logs, class_name: 'JabvoxWhatsappTemplateLog', dependent: :destroy
 
@@ -62,7 +67,10 @@ class JabvoxWhatsappTemplate < ApplicationRecord
   # 'standard': texto/imagen/video/documento/location libre, con o sin botones normales.
   # 'authentication': modo OTP (body/footer generados por Meta, un solo botón OTP).
   # 'carousel': cards_json maneja el componente CAROUSEL adicional.
-  TEMPLATE_KINDS = %w[standard authentication carousel].freeze
+  # 'flow' es una plantilla estándar cuyo botón abre un WhatsApp Flow. El Flow
+  # vive en su propio registro (JabvoxWhatsappFlow) porque Meta los trata como
+  # objetos separados, pero el wizard deja crearlo en el mismo paso.
+  TEMPLATE_KINDS = %w[standard authentication carousel flow].freeze
 
   validates :name, presence: true
   validates :language, presence: true

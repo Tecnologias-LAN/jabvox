@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_15_050000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_15_060000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -3893,10 +3893,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_050000) do
     t.jsonb "auth_config_json", default: {}, null: false
     t.boolean "location_header", default: false, null: false
     t.boolean "limited_time_offer", default: false, null: false
+    t.bigint "jabvox_whatsapp_flow_id"
     t.index ["account_id", "name", "language"], name: "idx_jabvox_wa_templates_account_name_lang"
     t.index ["account_id"], name: "index_jabvox_whatsapp_templates_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_whatsapp_templates_on_created_by_id"
     t.index ["inbox_id"], name: "index_jabvox_whatsapp_templates_on_inbox_id"
+    t.index ["jabvox_whatsapp_flow_id"], name: "index_jabvox_whatsapp_templates_on_jabvox_whatsapp_flow_id"
     t.index ["meta_template_id"], name: "index_jabvox_whatsapp_templates_on_meta_template_id"
     t.index ["status"], name: "index_jabvox_whatsapp_templates_on_status"
     t.index ["template_kind"], name: "index_jabvox_whatsapp_templates_on_template_kind"
@@ -4721,6 +4723,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_050000) do
   add_foreign_key "jabvox_whatsapp_template_versions", "users", column: "created_by_id"
   add_foreign_key "jabvox_whatsapp_templates", "accounts"
   add_foreign_key "jabvox_whatsapp_templates", "inboxes", on_delete: :cascade
+  add_foreign_key "jabvox_whatsapp_templates", "jabvox_whatsapp_flows"
   add_foreign_key "jabvox_whatsapp_templates", "users", column: "created_by_id"
   add_foreign_key "user_sessions", "users"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).

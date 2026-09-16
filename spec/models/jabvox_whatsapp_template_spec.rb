@@ -60,8 +60,8 @@ RSpec.describe JabvoxWhatsappTemplate do
       expect(described_class::HEADER_TYPES).to include('LOCATION')
     end
 
-    it 'TEMPLATE_KINDS has the three supported kinds' do
-      expect(described_class::TEMPLATE_KINDS).to contain_exactly('standard', 'authentication', 'carousel')
+    it 'TEMPLATE_KINDS has the four supported kinds' do
+      expect(described_class::TEMPLATE_KINDS).to contain_exactly('standard', 'authentication', 'carousel', 'flow')
     end
   end
 
