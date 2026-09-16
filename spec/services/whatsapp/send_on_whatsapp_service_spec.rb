@@ -446,4 +446,44 @@ describe Whatsapp::SendOnWhatsappService do
       expect(flow_token_of(message)).to be_nil
     end
   end
+
+  # Si el armado del payload revienta (falta "location" en una plantilla con
+  # header LOCATION, falta "cards" en un CAROUSEL, etc.), el mensaje ya existe
+  # con status "sent" desde que se creó por la API. Sin capturar la excepción
+  # se queda así para siempre: sin source_id y sin error, "cargando" en la
+  # conversación. Confirmado en producción con un mensaje real en ese estado.
+  describe 'cuando arma el payload revienta' do
+    before { stub_request(:post, 'https://waba.360dialog.io/v1/configs/webhook') }
+
+    let!(:whatsapp_channel) do
+      create(:channel_whatsapp, sync_templates: false, message_templates: [
+               { 'name' => 'diag_location', 'status' => 'approved', 'language' => 'es',
+                 'components' => [
+                   { 'type' => 'HEADER', 'format' => 'LOCATION' },
+                   { 'type' => 'BODY', 'text' => 'Hola {{1}}' }
+                 ] }
+             ])
+    end
+    let!(:contact_inbox) { create(:contact_inbox, inbox: whatsapp_channel.inbox, source_id: '573001112233') }
+    let!(:conversation) { create(:conversation, contact_inbox: contact_inbox, inbox: whatsapp_channel.inbox) }
+
+    it 'marca el mensaje como fallido en vez de dejarlo colgado en "sent"' do
+      # Plantilla LOCATION sin processed_params.location: esto es justo lo que
+      # dispara el ArgumentError dentro de TemplateProcessorService.
+      message = create(:message, message_type: :outgoing, status: :sent, content: 'hola', conversation: conversation,
+                                 additional_attributes: {
+                                   'template_params' => {
+                                     'name' => 'diag_location', 'language' => 'es',
+                                     'processed_params' => { 'body' => { '1' => 'Estrada' } }
+                                   }
+                                 })
+
+      described_class.new(message: message).perform
+
+      message.reload
+      expect(message.status).to eq('failed')
+      expect(message.source_id).to be_nil
+      expect(message.external_error).to be_present
+    end
+  end
 end

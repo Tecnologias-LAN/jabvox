@@ -33,6 +33,15 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
     end
 
     deliver_template(name, namespace, lang_code, processed_parameters, header_media)
+  # Si algo revienta armando el payload (p. ej. falta "location" en una plantilla
+  # con header LOCATION, o "cards" en un CAROUSEL), el mensaje ya existe con
+  # status "sent" desde que se creó por la API — sin este rescue se queda así,
+  # sin source_id y sin error, "cargando" para siempre en la conversación.
+  # Confirmado en producción: msg #204 (diag_location sin processed_params.location)
+  # quedó exactamente en ese estado porque ArgumentError subía sin capturarse.
+  rescue StandardError => e
+    Rails.logger.error "[WA SendTemplate] msg=#{message.id} template=#{template_params['name']}: #{e.class} #{e.message}"
+    message.update!(status: :failed, external_error: e.message)
   end
 
   def deliver_template(name, namespace, lang_code, parameters, header_media)
