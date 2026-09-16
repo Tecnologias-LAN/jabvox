@@ -113,7 +113,7 @@ class Api::V1::Accounts::Jabvox::WhatsappTemplates::TemplatesController < Api::V
     params.permit(
       :name, :category, :language, :inbox_id,
       :header_type, :header_content, :header_handle, :body, :footer,
-      :template_kind, :location_header, :limited_time_offer,
+      :template_kind, :location_header, :limited_time_offer, :lto_text,
       # Ejemplo por variable ({ "nombre" => "Ana" }): Meta lo usa para revisar
       # la plantilla, así que conviene que sea realista y no genérico.
       { var_descriptions: {} },

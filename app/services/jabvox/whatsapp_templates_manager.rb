@@ -4,6 +4,10 @@ require 'csv'
 class Jabvox::WhatsappTemplatesManager
   # Graph API version, overridable via env to stay in step with the rest of the app.
   DEFAULT_API_VERSION = 'v22.0'.freeze
+  # Meta fija el texto del botón COPY_CODE y rechaza cualquier otro.
+  COPY_CODE_BUTTON_TEXT = 'Copiar código de oferta'.freeze
+  # Rótulo por defecto del componente de oferta por tiempo limitado.
+  DEFAULT_LTO_TEXT = 'Oferta por tiempo limitado'.freeze
   PER_PAGE = 50
 
   def initialize(account, user: nil)
@@ -467,7 +471,7 @@ class Jabvox::WhatsappTemplatesManager
     components << { type: 'FOOTER', text: params[:footer] } if params[:footer].present?
     buttons = build_buttons_component(params[:buttons])
     components << buttons if buttons
-    components << build_lto_component if lto?(params)
+    components << build_lto_component(params) if lto?(params)
     components << build_carousel_component(params[:cards]) if kind == 'carousel' && Array(params[:cards]).any?
     components
   end
@@ -571,8 +575,12 @@ class Jabvox::WhatsappTemplatesManager
       params[:category].to_s.upcase == 'MARKETING'
   end
 
-  def build_lto_component
-    { type: 'LIMITED_TIME_OFFER', limited_time_offer: { has_expiration: true } }
+  # Meta exige un `text` dentro del componente (el rótulo de la oferta que ve el
+  # contacto, p. ej. "Oferta por tiempo limitado"): sin él responde
+  # "(#100) The parameter components[n]['limited_time_offer']['text'] is required".
+  def build_lto_component(params = {})
+    text = params[:lto_text].presence || DEFAULT_LTO_TEXT
+    { type: 'LIMITED_TIME_OFFER', limited_time_offer: { text: text, has_expiration: true } }
   end
 
   # CAROUSEL: componente adicional de nivel superior con 2-10 cards, cada una su
@@ -621,6 +629,10 @@ class Jabvox::WhatsappTemplatesManager
         elsif %w[PHONE_NUMBER VOICE_CALL].include?(type)
           btn[:phone_number] = b[:phone_number] || b['phone_number']
         elsif type == 'COPY_CODE'
+          # Meta fija el texto de este botón y rechaza cualquier otro
+          # ("Text for button type 'COPY_CODE' cannot be modified"), así que se
+          # ignora lo que haya escrito el usuario. Lo editable es el código.
+          btn[:text] = COPY_CODE_BUTTON_TEXT
           btn[:example] = b[:example] || b['example'] || sample_value(nil)
         elsif type == 'FLOW'
           apply_flow_button!(btn, b)

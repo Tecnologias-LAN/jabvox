@@ -484,7 +484,12 @@ RSpec.describe Jabvox::WhatsappTemplatesManager do
       expect(stub).to have_been_requested
       sent_body = JSON.parse(WebMock::RequestRegistry.instance.requested_signatures.hash.keys.last.body)
       lto_c = sent_body['components'].find { |c| c['type'] == 'LIMITED_TIME_OFFER' }
-      expect(lto_c).to eq('type' => 'LIMITED_TIME_OFFER', 'limited_time_offer' => { 'has_expiration' => true })
+      # Meta exige `text` dentro del componente; sin él responde
+      # "(#100) The parameter ...['limited_time_offer']['text'] is required".
+      expect(lto_c).to eq(
+        'type' => 'LIMITED_TIME_OFFER',
+        'limited_time_offer' => { 'text' => 'Oferta por tiempo limitado', 'has_expiration' => true }
+      )
     end
 
     it 'does not add LIMITED_TIME_OFFER when category is not MARKETING' do

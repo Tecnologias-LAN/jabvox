@@ -21,8 +21,17 @@ account = Account.find(account_id)
 inbox = account.inboxes.find { |i| i.channel.is_a?(Channel::Whatsapp) && i.channel.provider == 'whatsapp_cloud' }
 abort('No encontré una bandeja de WhatsApp Cloud en esta cuenta.') if inbox.nil?
 
-stamp   = Time.now.to_i
 manager = Jabvox::WhatsappTemplatesManager.new(account)
+
+# Nombres correlativos (prueba04, prueba05, …) continuando desde el último que
+# exista en la cuenta, para no chocar con los de una corrida anterior.
+usados = account.jabvox_whatsapp_templates.where("name LIKE 'prueba%'").pluck(:name)
+siguiente = (usados.filter_map { |n| n[/\Aprueba(\d+)/, 1]&.to_i }.max || 3) + 1
+nombre = lambda do
+  n = format('prueba%<n>02d', n: siguiente)
+  siguiente += 1
+  n
+end
 
 puts '=' * 72
 puts "Cuenta: #{account.name} (##{account.id})  ·  Bandeja: #{inbox.name} (##{inbox.id})"
@@ -32,64 +41,34 @@ puts '=' * 72
 published_flow = account.jabvox_whatsapp_flows.where(status: 'published').where.not(meta_flow_id: nil).last
 
 casos = {
-  'texto' => {
-    name: "diag_texto_#{stamp}", category: 'UTILITY', language: 'es',
-    body: 'Hola {{nombre}}, tu pedido {{pedido}} ya fue despachado.',
-    footer: 'Gracias por comprar con nosotros',
-    var_descriptions: { 'nombre' => 'Ana', 'pedido' => 'A-1234' }
-  },
-  'texto_posicional' => {
-    name: "diag_posicional_#{stamp}", category: 'UTILITY', language: 'es',
-    body: 'Hola {{1}}, tu cita quedó para el {{2}}.',
-    var_descriptions: { '1' => 'Ana', '2' => '5 de mayo' }
-  },
-  'botones' => {
-    name: "diag_botones_#{stamp}", category: 'UTILITY', language: 'es',
-    body: 'Hola {{nombre}}, ¿confirmas tu cita?',
-    var_descriptions: { 'nombre' => 'Ana' },
-    buttons: [
-      { type: 'QUICK_REPLY', text: 'Confirmar' },
-      { type: 'QUICK_REPLY', text: 'Cancelar' }
-    ]
-  },
-  'url_y_telefono' => {
-    name: "diag_url_tel_#{stamp}", category: 'MARKETING', language: 'es',
-    body: 'Hola {{nombre}}, mira nuestras ofertas de hoy.',
-    var_descriptions: { 'nombre' => 'Ana' },
-    buttons: [
-      { type: 'URL', text: 'Ver ofertas', url: 'https://jabvox.co/ofertas' },
-      { type: 'PHONE_NUMBER', text: 'Llamar', phone_number: '+573054463029' }
-    ]
-  },
+  # Ya verificados contra Meta en la corrida anterior (texto, botones, URL/
+  # teléfono, ubicación y autenticación): se omiten para no ensuciar el WABA.
+  # Aquí quedan los que fallaron y los de formulario.
   'copy_code' => {
-    name: "diag_cupon_#{stamp}", category: 'MARKETING', language: 'es',
+    name: nombre.call, category: 'MARKETING', language: 'es',
     body: 'Hola {{nombre}}, tenemos un cupón para ti.',
     var_descriptions: { 'nombre' => 'Ana' },
-    buttons: [{ type: 'COPY_CODE', text: 'Copiar cupón', example: 'VERANO25' }]
-  },
-  'location' => {
-    name: "diag_location_#{stamp}", category: 'UTILITY', language: 'es',
-    header_type: 'LOCATION',
-    body: 'Hola {{nombre}}, tu pedido sale desde esta sede.',
-    var_descriptions: { 'nombre' => 'Ana' }
+    buttons: [{ type: 'COPY_CODE', text: 'lo que sea', example: 'VERANO25' }]
   },
   'lto' => {
-    name: "diag_lto_#{stamp}", category: 'MARKETING', language: 'es',
+    name: nombre.call, category: 'MARKETING', language: 'es',
     body: 'Hola {{nombre}}, oferta por tiempo limitado.',
     var_descriptions: { 'nombre' => 'Ana' },
     limited_time_offer: true,
-    buttons: [{ type: 'COPY_CODE', text: 'Copiar cupón', example: 'FLASH50' }]
+    buttons: [{ type: 'COPY_CODE', text: 'lo que sea', example: 'FLASH50' }]
   },
-  'authentication' => {
-    name: "diag_auth_#{stamp}", category: 'AUTHENTICATION', language: 'es',
-    template_kind: 'authentication',
-    auth_config: { add_security_recommendation: true, code_expiration_minutes: 10, otp_type: 'COPY_CODE' }
-  },
-  'flow' => {
-    name: "diag_flow_tpl_#{stamp}", category: 'MARKETING', language: 'es',
+  'flow_1' => {
+    name: nombre.call, category: 'MARKETING', language: 'es',
     body: 'Hola {{nombre}}, cuéntanos tu experiencia.',
     var_descriptions: { 'nombre' => 'Ana' },
     buttons: [{ type: 'FLOW', text: 'Responder', flow_id: published_flow&.meta_flow_id }]
+  },
+  'flow_2' => {
+    name: nombre.call, category: 'UTILITY', language: 'es',
+    body: 'Hola {{nombre}}, completa estos datos para agendar tu cita.',
+    footer: 'Tecnologias LAN',
+    var_descriptions: { 'nombre' => 'Ana' },
+    buttons: [{ type: 'FLOW', text: 'Agendar', flow_id: published_flow&.meta_flow_id }]
   }
 }
 
@@ -107,7 +86,7 @@ casos.each do |kind, params|
   puts "TIPO: #{kind}"
   puts '─' * 72
 
-  if kind == 'flow' && published_flow.blank?
+  if kind.start_with?('flow') && published_flow.blank?
     puts 'OMITIDO: no hay ningún Flow publicado en esta cuenta para enlazar.'
     resultados[kind] = 'omitido (sin Flow publicado)'
     next
@@ -153,6 +132,7 @@ puts "\n#{'=' * 72}"
 puts 'RESUMEN'
 puts '=' * 72
 resultados.each { |kind, estado| puts format('%<kind>-18s %<estado>s', kind: kind, estado: estado) }
-puts "\nLas plantillas creadas empiezan por 'diag_' y quedan en tu WABA."
-puts 'Bórralas desde WhatsApp Manager cuando termines.'
+puts "\nLas plantillas creadas empiezan por 'prueba' y quedan en tu WABA."
+puts 'Para borrarlas:'
+puts "  rails runner scripts/diagnostics/diag_cleanup_templates.rb #{account.id} prueba --force"
 puts '=' * 72

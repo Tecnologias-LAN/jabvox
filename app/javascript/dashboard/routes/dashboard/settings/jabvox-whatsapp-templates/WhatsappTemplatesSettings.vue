@@ -542,6 +542,9 @@ const buttonTypeLabel = type =>
 // Dentro de una card de carrusel Meta solo admite estos tres.
 const CARD_BUTTON_TYPES = ['QUICK_REPLY', 'URL', 'PHONE_NUMBER'];
 
+// Meta fija el texto del botón de cupón: lo rechaza si se cambia.
+const COPY_CODE_BUTTON_TEXT = 'Copiar código de oferta';
+
 const otpTypeLabel = type => t(`JABVOX_WA_TEMPLATES.CREATE.OTP_TYPES.${type}`);
 
 const mediaTypeLabel = type =>
@@ -2811,15 +2814,31 @@ onBeforeUnmount(() => {
                     {{ buttonTypeLabel(bt) }}
                   </option>
                 </select>
+                <!-- Meta fija el texto del botón de cupón y rechaza cualquier
+                     otro, así que se muestra pero no se edita; lo configurable
+                     es el código que se copia. -->
+                <span
+                  v-if="btn.type === 'COPY_CODE'"
+                  class="text-xs text-n-slate-11 px-2 py-1 rounded bg-n-alpha-2 flex-1 min-w-24"
+                >
+                  {{ COPY_CODE_BUTTON_TEXT }}
+                </span>
                 <input
+                  v-else
                   v-model="btn.text"
                   maxlength="25"
                   class="reset-base text-xs flex-1 min-w-24"
                   :class="fieldClass(btn.text, true)"
+                  :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')"
+                />
+                <input
+                  v-if="btn.type === 'COPY_CODE'"
+                  v-model="btn.example"
+                  maxlength="15"
+                  class="reset-base text-xs flex-1 min-w-32"
+                  :class="fieldClass(btn.example, true)"
                   :placeholder="
-                    btn.type === 'COPY_CODE'
-                      ? t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_COPY_CODE')
-                      : t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')
+                    t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_COPY_CODE')
                   "
                 />
                 <input

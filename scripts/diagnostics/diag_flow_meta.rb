@@ -55,10 +55,10 @@ name = "diag_flow_#{Time.now.to_i}"
 
 # ── 1. Crear el Flow ────────────────────────────────────────────────────────
 created = show('1) POST /{WABA}/flows (crear)', HTTParty.post(
-  "#{base}/#{waba}/flows",
-  headers: { 'Authorization' => "Bearer #{token}", 'Content-Type' => 'application/json' },
-  body: { name: name, categories: ['SURVEY'] }.to_json
-))
+                                                  "#{base}/#{waba}/flows",
+                                                  headers: { 'Authorization' => "Bearer #{token}", 'Content-Type' => 'application/json' },
+                                                  body: { name: name, categories: ['SURVEY'] }.to_json
+                                                ))
 
 flow_id = created.parsed_response.is_a?(Hash) ? created.parsed_response['id'] : nil
 if flow_id.blank?
@@ -77,7 +77,7 @@ flow_json = {
         children: [
           { type: 'TextHeading', text: 'Prueba de diagnóstico' },
           { type: 'TextArea', name: 'comentario', label: 'Comentario' },
-          { type: 'Footer', label: 'Enviar', 'on-click-action' => { name: 'complete' } }
+          { :type => 'Footer', :label => 'Enviar', 'on-click-action' => { name: 'complete' } }
         ]
       }
     }
@@ -94,11 +94,11 @@ tempfile.rewind
 
 puts "\n########## VARIANTE A: HTTParty multipart (lo que usa Jabvox hoy) ##########"
 show('2A) POST /{FLOW_ID}/assets', HTTParty.post(
-  "#{base}/#{flow_id}/assets",
-  headers: { 'Authorization' => "Bearer #{token}" },
-  multipart: true,
-  body: { name: 'flow.json', asset_type: 'FLOW_JSON', file: File.open(tempfile.path, 'rb') }
-))
+                                     "#{base}/#{flow_id}/assets",
+                                     headers: { 'Authorization' => "Bearer #{token}" },
+                                     multipart: true,
+                                     body: { name: 'flow.json', asset_type: 'FLOW_JSON', file: File.open(tempfile.path, 'rb') }
+                                   ))
 
 puts "\n########## VARIANTE B: curl (multipart correcto del sistema) ##########"
 cmd = [
@@ -134,15 +134,15 @@ puts res.body.to_s[0, 900]
 
 # ── 3. Estado y publicación ─────────────────────────────────────────────────
 show('3) GET /{FLOW_ID} (estado y errores de validación)', HTTParty.get(
-  "#{base}/#{flow_id}",
-  headers: { 'Authorization' => "Bearer #{token}" },
-  query: { fields: 'id,name,status,categories,validation_errors' }
-))
+                                                             "#{base}/#{flow_id}",
+                                                             headers: { 'Authorization' => "Bearer #{token}" },
+                                                             query: { fields: 'id,name,status,categories,validation_errors' }
+                                                           ))
 
 show('4) POST /{FLOW_ID}/publish', HTTParty.post(
-  "#{base}/#{flow_id}/publish",
-  headers: { 'Authorization' => "Bearer #{token}" }
-))
+                                     "#{base}/#{flow_id}/publish",
+                                     headers: { 'Authorization' => "Bearer #{token}" }
+                                   ))
 
 tempfile.close
 tempfile.unlink
