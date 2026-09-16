@@ -52,6 +52,13 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           port: ${{ secrets.VM_SSH_PORT }}
           script_stop: true
+          # Sin PTY, `sudo -n systemctl restart ...` fallaba con "interactive
+          # authentication is required"/"a password is required" pese a que la
+          # regla NOPASSWD estaba bien (probado manualmente por SSH normal, que
+          # sí asigna TTY, una y otra vez sin error) — ssh-action corre el script
+          # dentro de un contenedor vía una librería SSH en Go que no pide
+          # terminal a menos que se le indique explícitamente.
+          request_pty: true
           script: |
             sudo -u jabvox bash -lc '
               set -e
