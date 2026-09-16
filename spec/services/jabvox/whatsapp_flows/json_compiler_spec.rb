@@ -133,6 +133,25 @@ RSpec.describe Jabvox::WhatsappFlows::JsonCompiler do
     expect(radio[:'on-select-action']['name']).to eq('data_exchange')
   end
 
+  # Meta no ignora una propiedad vacía: rechaza el Flow entero al publicarlo con
+  # "Property 'init-value' is not allowed in 'TextInput' component".
+  it 'omits props the user left blank' do
+    with_blanks = [
+      { 'id' => 'unica', 'title' => 'Única', 'terminal' => true, 'order' => 0, 'components' => [
+        { 'type' => 'TextInput',
+          'props' => { 'name' => 'comentario', 'label' => 'C', 'init_value' => '', 'required' => false,
+                       'helper_text' => nil } },
+        { 'type' => 'Footer', 'props' => { 'label' => 'Enviar', 'action' => { 'name' => 'complete' } } }
+      ] }
+    ]
+    input = described_class.new(with_blanks).call[:screens].first[:layout][:children].first[:children].first
+
+    expect(input).not_to have_key(:'init-value')
+    expect(input).not_to have_key(:'helper-text')
+    # `false` es un valor legítimo, no un vacío.
+    expect(input[:required]).to be(false)
+  end
+
   it 'does not emit a routing_model or endpoint_uri (v1 supports only endpoint-less flows)' do
     expect(compiled).not_to have_key(:routing_model)
     expect(compiled).not_to have_key(:endpoint_uri)

@@ -133,9 +133,18 @@ class Jabvox::WhatsappFlows::JsonCompiler
         next
       end
 
+      # Una propiedad que el usuario dejó en blanco no se manda: Meta rechaza el
+      # Flow al publicarlo ("Property 'init-value' is not allowed"), no la ignora.
+      next if blank_prop?(value)
+
       meta_key = Jabvox::WhatsappFlows::ComponentCatalog.meta_prop_key(key)
       out[meta_key.to_sym] = compile_value(value)
     end
+  end
+
+  # Solo se descartan los vacíos: `false` y `0` son valores legítimos.
+  def blank_prop?(value)
+    value.nil? || value == '' || (value.is_a?(Array) && value.empty?)
   end
 
   # Meta espera el destino de un `navigate` como objeto
