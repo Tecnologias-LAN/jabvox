@@ -13,6 +13,8 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
   end
 
   def send_template_message
+    persist_flow_tokens!
+
     processor = Whatsapp::TemplateProcessorService.new(
       channel: channel,
       template_params: template_params,
@@ -30,16 +32,21 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
       return
     end
 
+    deliver_template(name, namespace, lang_code, processed_parameters, header_media)
+  end
+
+  def deliver_template(name, namespace, lang_code, parameters, header_media)
     message_id = channel.send_template(message.conversation.contact_inbox.source_id, {
                                          name: name,
                                          namespace: namespace,
                                          lang_code: lang_code,
-                                         parameters: processed_parameters
+                                         parameters: parameters
                                        }, message)
-    message.update!(source_id: message_id) if message_id.present?
+    return if message_id.blank?
 
+    message.update!(source_id: message_id)
     # Muestra el media del header en la conversación de Jabvox (no solo el texto).
-    attach_template_header_media(header_media) if message_id.present?
+    attach_template_header_media(header_media)
   end
 
   # Si la plantilla tiene header de media (imagen/video/documento), descarga esa media y
@@ -83,5 +90,26 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
 
   def template_params
     message.additional_attributes && message.additional_attributes['template_params']
+  end
+
+  # Asigna un flow_token a cada botón de formulario que no lo traiga y lo guarda
+  # en el mensaje ANTES de armar el payload, que es lo que permite reconocer de
+  # qué envío viene la respuesta cuando Meta la manda por el webhook (ver
+  # Jabvox::BulkWhatsappFlowReply y SubmissionRecorder, que lo buscan aquí).
+  # Generarlo más adelante lo enviaba a Meta sin persistirlo, y la respuesta
+  # llegaba sin poder correlacionarse.
+  def persist_flow_tokens!
+    buttons = template_params&.dig('processed_params', 'buttons')
+    return if buttons.blank?
+
+    pending = buttons.select { |b| needs_flow_token?(b) }
+    return if pending.empty?
+
+    pending.each { |button| button['flow_token'] = SecureRandom.hex(16) }
+    message.save!
+  end
+
+  def needs_flow_token?(button)
+    button.is_a?(Hash) && button['type'].to_s == 'flow' && button['flow_token'].blank?
   end
 end

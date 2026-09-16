@@ -396,4 +396,54 @@ describe Whatsapp::SendOnWhatsappService do
       end
     end
   end
+
+  # El flow_token identifica de qué envío viene la respuesta del formulario.
+  # Antes se generaba al armar el payload, así que viajaba a Meta pero no se
+  # guardaba, y la respuesta llegaba sin poder atribuirse a este mensaje.
+  describe 'flow_token de un botón de formulario' do
+    before { stub_request(:post, 'https://waba.360dialog.io/v1/configs/webhook') }
+
+    let!(:whatsapp_channel) { create(:channel_whatsapp, sync_templates: false) }
+    let!(:contact_inbox) { create(:contact_inbox, inbox: whatsapp_channel.inbox, source_id: '573001112233') }
+    let!(:conversation) { create(:conversation, contact_inbox: contact_inbox, inbox: whatsapp_channel.inbox) }
+
+    def build_message(buttons)
+      create(:message, message_type: :outgoing, content: 'hola', conversation: conversation,
+                       additional_attributes: {
+                         'template_params' => {
+                           'name' => 'tpl', 'language' => 'es',
+                           'processed_params' => { 'buttons' => buttons }
+                         }
+                       })
+    end
+
+    def flow_token_of(message)
+      message.reload.additional_attributes
+             .dig('template_params', 'processed_params', 'buttons', 0, 'flow_token')
+    end
+
+    it 'lo guarda en el mensaje antes de enviarlo' do
+      message = build_message([{ 'type' => 'flow' }])
+
+      described_class.new(message: message).send(:persist_flow_tokens!)
+
+      expect(flow_token_of(message)).to be_present
+    end
+
+    it 'respeta el que ya venía, para no romper la correlación' do
+      message = build_message([{ 'type' => 'flow', 'flow_token' => 'token-existente' }])
+
+      described_class.new(message: message).send(:persist_flow_tokens!)
+
+      expect(flow_token_of(message)).to eq('token-existente')
+    end
+
+    it 'no toca los botones que no son de formulario' do
+      message = build_message([{ 'type' => 'url', 'parameter' => 'abc' }])
+
+      described_class.new(message: message).send(:persist_flow_tokens!)
+
+      expect(flow_token_of(message)).to be_nil
+    end
+  end
 end
