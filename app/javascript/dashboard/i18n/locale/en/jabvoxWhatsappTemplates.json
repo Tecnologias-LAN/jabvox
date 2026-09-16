@@ -259,7 +259,7 @@
         "PREVIEW_TITLE": "Form opened by the button",
         "NEXT_BUTTON": "Next",
         "SUBMIT_BUTTON": "Submit",
-        "BUTTON_DEFAULT": "Open form",
+        "BUTTON_DEFAULT": "Write the button label",
         "CATEGORY_HELP": "Tells Meta what the form is for. It does not change what the contact sees.",
         "CATEGORIES": {
           "SURVEY": "Survey",

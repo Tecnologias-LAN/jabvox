@@ -254,7 +254,7 @@
         "PREVIEW_TITLE": "Formulario que abre el botón",
         "NEXT_BUTTON": "Siguiente",
         "SUBMIT_BUTTON": "Enviar",
-        "BUTTON_DEFAULT": "Abrir formulario",
+        "BUTTON_DEFAULT": "Escribe el texto del botón",
         "CATEGORY_HELP": "Le dice a Meta para qué sirve el formulario. No cambia lo que ve el contacto.",
         "CATEGORIES": {
           "SURVEY": "Encuesta",

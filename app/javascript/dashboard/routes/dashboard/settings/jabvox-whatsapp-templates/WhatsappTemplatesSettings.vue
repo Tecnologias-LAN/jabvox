@@ -674,10 +674,17 @@ const isFlowKind = computed(() => form.value.template_kind === 'flow');
 // Flow publicado), así que se agrega aquí para que la previa no salga sin él.
 const previewButtons = computed(() => {
   if (isFlowKind.value) {
-    const text =
-      form.value.flow_button_text ||
-      t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_DEFAULT');
-    return [{ key: 'flow', text, isFlow: true }];
+    // Mientras no se escriba el texto se marca como pendiente, para no
+    // confundir un relleno de la previa con lo que se enviará a Meta.
+    const written = form.value.flow_button_text;
+    return [
+      {
+        key: 'flow',
+        text: written || t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_DEFAULT'),
+        isFlow: true,
+        placeholder: !written,
+      },
+    ];
   }
   return form.value.buttons
     .filter(b => b.text)
@@ -3132,7 +3139,9 @@ onBeforeUnmount(() => {
                       class="i-lucide-clipboard-list size-3"
                       aria-hidden="true"
                     />
-                    {{ btn.text }}
+                    <span :class="{ 'opacity-50 italic': btn.placeholder }">
+                      {{ btn.text }}
+                    </span>
                   </div>
                 </div>
               </div>
