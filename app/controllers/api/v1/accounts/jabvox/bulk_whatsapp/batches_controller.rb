@@ -171,8 +171,42 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       # Opcional: sin país se conserva el comportamiento anterior.
       variable_map: variable_map_params, number_column: params[:number_column],
       header_media: header_media_params, country: params[:country],
-      flow_button: flow_button_params
+      flow_button: flow_button_params, **extended_template_params
     )
+  end
+
+  # Tipos de plantilla adicionales soportados por Meta (carousel, authentication,
+  # location, oferta por tiempo limitado, cupón). Todos son fijos para el envío
+  # completo — el mapeo por columna solo aplica a las variables del cuerpo.
+  # Ver docs/whatsapp-flows/templates-sending-architecture.md.
+  def extended_template_params
+    {
+      cards: carousel_cards_params,
+      auth_code: params[:auth_code].presence,
+      location: location_params,
+      lto_expiration_ms: params[:lto_expiration_ms].presence,
+      copy_code: params[:copy_code].presence
+    }.compact
+  end
+
+  # Cards de un carousel: cada una con su media de header y los parámetros de sus botones.
+  def carousel_cards_params
+    raw = params[:cards]
+    return nil if raw.blank?
+
+    Array(raw).filter_map do |card|
+      h = card.respond_to?(:permit) ? card.permit!.to_h : card.to_h
+      h.presence
+    end.presence
+  end
+
+  # Header LOCATION: se completa al enviar (la plantilla aprobada no lo lleva).
+  def location_params
+    raw = params[:location]
+    return nil if raw.blank?
+
+    h = raw.respond_to?(:permit) ? raw.permit(:latitude, :longitude, :name, :address).to_h : raw.to_h
+    h[:latitude].present? && h[:longitude].present? ? h : nil
   end
 
   # Media del header de la plantilla (imagen/video/documento): { media_url, media_type }.
@@ -202,7 +236,8 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
       response_email: params[:response_email], leads_selection: leads_selection_params,
       template_name: params[:template_name], language: params[:language], text: params[:text],
       variable_map: variable_map_params, source_batch_id: params[:source_batch_id].presence,
-      header_media: header_media_params, flow_button: flow_button_params
+      header_media: header_media_params, flow_button: flow_button_params,
+      **extended_template_params
     )
   end
 

@@ -42,7 +42,21 @@
       "COUPON_CODE": "Enter coupon code (max 15 chars)",
       "MEDIA_URL_LABEL": "Enter {type} URL",
       "DOCUMENT_NAME_PLACEHOLDER": "Enter document filename (e.g., Invoice_2025.pdf)",
-      "BUTTON_PARAMETER": "Enter button parameter"
+      "BUTTON_PARAMETER": "Enter button parameter",
+      "AUTH_CODE_LABEL": "Código de verificación",
+      "AUTH_CODE_PLACEHOLDER": "Ej.: 123456",
+      "AUTH_CODE_HELP": "El mismo código aparece en el mensaje y en el botón para copiarlo.",
+      "LOCATION_LABEL": "Ubicación del encabezado",
+      "LOCATION_LATITUDE": "Latitud",
+      "LOCATION_LONGITUDE": "Longitud",
+      "LOCATION_NAME": "Nombre del lugar",
+      "LOCATION_ADDRESS": "Dirección",
+      "LTO_LABEL": "Vencimiento de la oferta",
+      "LTO_HELP": "WhatsApp muestra una cuenta regresiva hasta esta fecha.",
+      "CAROUSEL_LABEL": "Tarjetas del carrusel",
+      "CAROUSEL_CARD": "Tarjeta {number}",
+      "CAROUSEL_CARD_MEDIA": "URL de la imagen o video",
+      "CAROUSEL_CARD_BUTTON": "Valor del botón «{label}»"
     }
   }
 }

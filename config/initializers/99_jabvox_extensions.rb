@@ -22,6 +22,7 @@ Rails.application.config.to_prepare do
   Account.prepend Jabvox::AccountCustomizationFeature
   Account.prepend Jabvox::AccountAnalyticsFeature
   Account.prepend Jabvox::AccountWhatsappTemplatesFeature
+  Account.prepend Jabvox::AccountWhatsappFlowsFeature
   Account.prepend Jabvox::AccountTasksFeature
   Account.prepend Jabvox::AccountBulkWhatsappFeature
   Account.prepend Jabvox::AccountWhatsappGroupsFeature

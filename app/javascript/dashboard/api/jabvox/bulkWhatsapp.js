@@ -1,6 +1,57 @@
 /* global axios */
 import ApiClient from '../ApiClient';
 
+// Serializa los campos de los tipos de plantilla extendidos en un FormData
+// (el envío por CSV es multipart). Las claves son las mismas que espera
+// Jabvox::BulkWhatsappDispatchService y que usa el envío 1:1, para que ambos
+// caminos hablen el mismo formato.
+// Ver docs/whatsapp-flows/templates-sending-architecture.md.
+const appendExtrasToFormData = (formData, extras = {}) => {
+  const { authCode, location, ltoExpirationMs, copyCode, cards } = extras || {};
+  if (authCode) formData.append('auth_code', authCode);
+  if (copyCode) formData.append('copy_code', copyCode);
+  if (ltoExpirationMs) formData.append('lto_expiration_ms', ltoExpirationMs);
+  if (location?.latitude && location?.longitude) {
+    formData.append('location[latitude]', location.latitude);
+    formData.append('location[longitude]', location.longitude);
+    if (location.name) formData.append('location[name]', location.name);
+    if (location.address)
+      formData.append('location[address]', location.address);
+  }
+  (cards || []).forEach((card, index) => {
+    if (card?.header?.media_url) {
+      formData.append(
+        `cards[${index}][header][media_url]`,
+        card.header.media_url
+      );
+    }
+    (card?.buttons || []).forEach((button, buttonIndex) => {
+      if (!button?.parameter) return;
+      formData.append(
+        `cards[${index}][buttons][${buttonIndex}][index]`,
+        buttonIndex
+      );
+      formData.append(
+        `cards[${index}][buttons][${buttonIndex}][parameter]`,
+        button.parameter
+      );
+    });
+  });
+};
+
+// Misma información que appendExtrasToFormData, pero como objeto JSON plano
+// (el envío desde leads va en JSON, no multipart).
+const extrasAsJson = (extras = {}) => {
+  const { authCode, location, ltoExpirationMs, copyCode, cards } = extras || {};
+  return {
+    auth_code: authCode || undefined,
+    copy_code: copyCode || undefined,
+    lto_expiration_ms: ltoExpirationMs || undefined,
+    location: location?.latitude && location?.longitude ? location : undefined,
+    cards: cards?.length ? cards : undefined,
+  };
+};
+
 // Bulk WhatsApp module: config (webhook URL), sender users, send history, and CSV upload.
 class JabvoxBulkWhatsappAPI extends ApiClient {
   constructor() {
@@ -122,6 +173,7 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     headerMedia,
     flowButton,
     country,
+    extras,
   }) {
     const formData = new FormData();
     formData.append('file', file);
@@ -145,6 +197,9 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
       formData.append('flow_button[index]', flowButton.index);
       formData.append('flow_button[flow_id]', flowButton.flow_id);
     }
+    // Tipos de plantilla adicionales (auth/location/carousel/oferta/cupón). Son
+    // fijos para todo el envío: el mapeo por columna solo aplica al cuerpo.
+    appendExtrasToFormData(formData, extras);
     // variable_map es un objeto { "1": "columna" }: se serializa como variable_map[1]=columna.
     Object.entries(variableMap || {}).forEach(([n, col]) => {
       if (col) formData.append(`variable_map[${n}]`, col);
@@ -169,6 +224,7 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
     sourceBatchId,
     headerMedia,
     flowButton,
+    extras,
   }) {
     return axios.post(`${this.url}/batches`, {
       source: 'leads',
@@ -185,6 +241,7 @@ class JabvoxBulkWhatsappAPI extends ApiClient {
       source_batch_id: sourceBatchId,
       header_media: headerMedia?.media_url ? headerMedia : undefined,
       flow_button: flowButton?.flow_id ? flowButton : undefined,
+      ...extrasAsJson(extras),
     });
   }
 }

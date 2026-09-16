@@ -422,6 +422,7 @@
     "JABVOX_VOIP": "VoIP",
     "JABVOX_CDR": "CDR Settings",
     "JABVOX_WHATSAPP_TEMPLATES": "WA Templates",
+    "JABVOX_WHATSAPP_FLOWS": "WhatsApp Flows",
     "JABVOX_BULK_WHATSAPP": "Bulk WhatsApp",
     "JABVOX_WHATSAPP_GROUPS": "WhatsApp Groups",
     "JABVOX_VOICE_BROADCAST": "Voice Broadcast",

@@ -103,7 +103,16 @@ class Api::V1::Accounts::Jabvox::WhatsappTemplates::TemplatesController < Api::V
     params.permit(
       :name, :category, :language, :inbox_id,
       :header_type, :header_content, :header_handle, :body, :footer,
-      buttons: [:type, :text, :url, :phone_number]
+      :template_kind, :location_header, :limited_time_offer,
+      buttons: [:type, :text, :url, :phone_number, :flow_id, :navigate_screen, :example],
+      cards: [
+        :header_type, :header_handle, :body_content,
+        { buttons: [:type, :text, :url, :phone_number] }
+      ],
+      auth_config: [
+        :add_security_recommendation, :code_expiration_minutes, :otp_type,
+        { supported_apps: [:package_name, :signature_hash] }
+      ]
     ).to_h.symbolize_keys
   end
 
@@ -131,6 +140,11 @@ class Api::V1::Accounts::Jabvox::WhatsappTemplates::TemplatesController < Api::V
       footer_content: tpl.footer_content,
       buttons_json: tpl.buttons_json,
       variables_json: tpl.variables_json,
+      template_kind: tpl.template_kind,
+      cards_json: tpl.cards_json,
+      auth_config_json: tpl.auth_config_json,
+      location_header: tpl.location_header,
+      limited_time_offer: tpl.limited_time_offer,
       created_by_name: tpl.created_by&.name,
       created_at: tpl.created_at,
       updated_at: tpl.updated_at

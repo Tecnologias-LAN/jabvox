@@ -74,6 +74,7 @@ import jabvoxCustomization from './jabvoxCustomization.json';
 import jabvoxClickToCall from './jabvoxClickToCall.json';
 import jabvoxSoftphone from './jabvoxSoftphone.json';
 import jabvoxWhatsappTemplates from './jabvoxWhatsappTemplates.json';
+import jabvoxWhatsappFlows from './jabvoxWhatsappFlows.json';
 import jabvoxBulkWhatsapp from './jabvoxBulkWhatsapp.json';
 import jabvoxWhatsappGroups from './jabvoxWhatsappGroups.json';
 import jabvoxVoiceBroadcast from './jabvoxVoiceBroadcast.json';
@@ -159,6 +160,7 @@ export default {
   ...jabvoxClickToCall,
   ...jabvoxSoftphone,
   ...jabvoxWhatsappTemplates,
+  ...jabvoxWhatsappFlows,
   ...jabvoxBulkWhatsapp,
   ...jabvoxWhatsappGroups,
   ...jabvoxVoiceBroadcast,

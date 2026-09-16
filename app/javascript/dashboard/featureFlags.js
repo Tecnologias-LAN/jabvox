@@ -67,6 +67,7 @@ export const FEATURE_FLAGS = {
   JABVOX_FORMS: 'jabvox_forms',
   JABVOX_CDR: 'jabvox_cdr',
   JABVOX_WHATSAPP_TEMPLATES: 'jabvox_whatsapp_templates',
+  JABVOX_WHATSAPP_FLOWS: 'jabvox_whatsapp_flows',
   JABVOX_AUDIO_ANALYSIS: 'jabvox_audio_analysis',
   JABVOX_CUSTOMIZATION: 'jabvox_customization',
   JABVOX_CLICK_TO_CALL: 'jabvox_click_to_call',

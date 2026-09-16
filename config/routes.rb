@@ -595,6 +595,20 @@ Rails.application.routes.draw do
                 end
               end
             end
+            namespace :whatsapp_flows do
+              resources :flows, path: '', except: [] do
+                collection { get :categories }
+                member do
+                  post :validate
+                  post :publish
+                  post :sync
+                  post :duplicate
+                  get :versions
+                  get :submissions
+                  get :metrics
+                end
+              end
+            end
             namespace :cdr do
               resource :config, only: [:show, :update], controller: 'configs'
               post 'config/test', to: 'configs#test'

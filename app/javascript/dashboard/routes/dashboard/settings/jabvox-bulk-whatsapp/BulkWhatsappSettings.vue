@@ -10,6 +10,7 @@ import LeadsPickerTab from './LeadsPickerTab.vue';
 import BatchReportDialog from './components/BatchReportDialog.vue';
 import AnalyticsTab from './components/AnalyticsTab.vue';
 import TemplatePreview from './components/TemplatePreview.vue';
+import TemplateExtraFields from './components/TemplateExtraFields.vue';
 import countries from 'shared/constants/countries.js';
 
 const { t } = useI18n();
@@ -164,6 +165,17 @@ const csvHeaderMedia = computed(() => {
   if (!['IMAGE', 'VIDEO', 'DOCUMENT'].includes(fmt)) return null;
   if (!csvHeaderMediaUrl.value) return null;
   return { media_url: csvHeaderMediaUrl.value, media_type: fmt.toLowerCase() };
+});
+
+// Campos de los tipos de plantilla no estándar (código OTP, ubicación,
+// carrusel, oferta por tiempo limitado, cupón). Son fijos para toda la
+// audiencia; los rellena TemplateExtraFields y viajan en el envío.
+const csvExtras = ref({});
+
+// Al cambiar de plantilla se descartan: los campos de una no aplican a otra
+// (p. ej. las tarjetas de un carrusel con distinto número de cards).
+watch(csvTemplateName, () => {
+  csvExtras.value = {};
 });
 
 // Botón FLOW de la plantilla (si tiene uno): { index, flow_id }. Meta exige el
@@ -423,6 +435,7 @@ const resetForm = () => {
   csvVariableMap.value = {};
   csvNumberColumn.value = '';
   csvCountry.value = '';
+  csvExtras.value = {};
   if (fileInput.value) fileInput.value.value = '';
   resetWizard();
 };
@@ -482,6 +495,7 @@ const onSend = async () => {
       headerMedia: csvHeaderMedia.value,
       flowButton: csvFlowButton.value,
       country: csvCountry.value,
+      extras: csvExtras.value,
     });
     useAlert(t('JABVOX_BULK_WA.SEND.SUCCESS'));
     resetForm();
@@ -839,6 +853,15 @@ onMounted(() => {
               }}
             </span>
           </div>
+
+          <!-- Campos que exigen los tipos de plantilla no estándar (código OTP,
+               ubicación, carrusel, oferta, cupón). Se auto-oculta si la
+               plantilla elegida no necesita ninguno. -->
+          <TemplateExtraFields
+            v-if="source === 'csv' && csvSelectedTemplate"
+            v-model="csvExtras"
+            :template="csvSelectedTemplate"
+          />
         </section>
 
         <!-- Leads source: pasos 2 (mensaje/plantilla) · 3 (audiencia) · 4 (previa) -->

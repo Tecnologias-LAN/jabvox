@@ -48,10 +48,11 @@ class Jabvox::BulkWhatsappDispatchService
     new(**args).prepare
   end
 
-  def initialize(account:, inbox:, sender_user:, actor:, response_email: '', csv_io: nil,
+  def initialize(account:, inbox:, sender_user:, actor:, response_email: '', csv_io: nil, # rubocop:disable Metrics/ParameterLists
                  file_name: '', leads_selection: nil, template_name: nil, language: nil, text: nil,
                  variable_map: nil, source_batch_id: nil, number_column: nil, header_media: nil,
-                 country: nil, flow_button: nil)
+                 country: nil, flow_button: nil, cards: nil, auth_code: nil, location: nil,
+                 lto_expiration_ms: nil, copy_code: nil)
     @account = account
     @inbox = inbox
     @sender_user = sender_user
@@ -81,6 +82,15 @@ class Jabvox::BulkWhatsappDispatchService
     # arma el envío final hacia Meta, así que aquí solo viaja la info necesaria para que
     # pueda construir { type: 'button', sub_type: 'flow', index, parameters: [...] }.
     @flow_button = normalize_flow_button(flow_button)
+    # Tipos de plantilla adicionales que Meta soporta. Todos son FIJOS para el
+    # envío completo (iguales para cada destinatario), igual que @header_media:
+    # el mapeo por columna del CSV solo aplica a las variables del cuerpo.
+    # Ver docs/whatsapp-flows/templates-sending-architecture.md sección 3.
+    @cards = normalize_hash_list(cards)
+    @auth_code = auth_code.to_s.strip.presence
+    @location = normalize_plain_hash(location)
+    @lto_expiration_ms = lto_expiration_ms.presence
+    @copy_code = copy_code.to_s.strip.presence
   end
 
   def prepare
@@ -446,7 +456,21 @@ class Jabvox::BulkWhatsappDispatchService
     # concreto en el futuro). n8n arma { type: 'button', sub_type: 'flow', index,
     # parameters: [{ type: 'action', action: { flow_token, flow_action_data: {} } }] }.
     params['buttons'] = [flow_button_param] if @flow_button.present?
+    params['buttons'] = [copy_code_button_param] if @copy_code.present?
+    # Tipos extendidos: viajan en processed_params con las MISMAS claves que usa
+    # el canal 1:1 (Whatsapp::TemplateProcessorService), para que n8n y Rails
+    # hablen el mismo formato y no diverjan otra vez.
+    params['cards'] = @cards if @cards.present?
+    params['auth_code'] = @auth_code if @auth_code.present?
+    params['location'] = @location if @location.present?
+    params['lto_expiration_ms'] = @lto_expiration_ms if @lto_expiration_ms.present?
     params
+  end
+
+  # El cupón de un botón COPY_CODE es fijo para todo el envío (no se mapea por
+  # destinatario): Meta lo entrega tal cual al portapapeles del usuario.
+  def copy_code_button_param
+    { 'index' => 0, 'type' => 'copy_code', 'parameter' => @copy_code }
   end
 
   def flow_button_param
@@ -502,6 +526,19 @@ class Jabvox::BulkWhatsappDispatchService
     { 'index' => h['index'].to_i, 'flow_id' => h['flow_id'].to_s.strip }.tap do |out|
       return nil if out['flow_id'].blank?
     end
+  end
+
+  # Hash "plano" con claves string (params de Rails o hash normal), o nil si viene vacío.
+  def normalize_plain_hash(value)
+    return nil if value.blank?
+
+    (value.respond_to?(:to_unsafe_h) ? value.to_unsafe_h : value).to_h.transform_keys(&:to_s).presence
+  end
+
+  # Lista de hashes con claves string (p. ej. las cards de un carousel), o nil.
+  def normalize_hash_list(value)
+    list = Array(value).filter_map { |item| normalize_plain_hash(item) }
+    list.presence
   end
 
   # ¿La URL es el ejemplo interno que Meta guarda en la plantilla aprobada? Esas URLs

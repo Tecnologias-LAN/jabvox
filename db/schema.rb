@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_15_020000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_15_050000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -145,6 +145,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_020000) do
     t.boolean "jabvox_softphone_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_ai_chat_provisioning_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_auto_renew", default: false, null: false
+    t.boolean "jabvox_whatsapp_flows_enabled_jabvox", default: false, null: false
     t.index ["jabvox_plan_id"], name: "index_accounts_on_jabvox_plan_id"
     t.index ["status"], name: "index_accounts_on_status"
   end
@@ -3721,6 +3722,78 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_020000) do
     t.index ["account_id"], name: "index_jabvox_voip_configs_on_account_id", unique: true
   end
 
+  create_table "jabvox_whatsapp_flow_answers", force: :cascade do |t|
+    t.bigint "jabvox_whatsapp_flow_submission_id", null: false
+    t.string "screen_id", null: false
+    t.string "component_id", null: false
+    t.string "component_name", null: false
+    t.string "component_type", null: false
+    t.text "value_text"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["component_name"], name: "index_jabvox_whatsapp_flow_answers_on_component_name"
+    t.index ["jabvox_whatsapp_flow_submission_id"], name: "idx_jabvox_wa_flow_answers_on_submission_id"
+  end
+
+  create_table "jabvox_whatsapp_flow_submissions", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "jabvox_whatsapp_flow_id", null: false
+    t.integer "jabvox_whatsapp_flow_version", null: false
+    t.bigint "contact_id", null: false
+    t.bigint "conversation_id"
+    t.bigint "message_id"
+    t.string "flow_token", null: false
+    t.string "status", default: "completed", null: false
+    t.jsonb "raw_response_json", default: {}, null: false
+    t.datetime "completed_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "flow_token"], name: "idx_jabvox_wa_flow_subs_account_flow_token", unique: true
+    t.index ["account_id", "jabvox_whatsapp_flow_id"], name: "idx_jabvox_wa_flow_subs_account_flow"
+    t.index ["account_id"], name: "index_jabvox_whatsapp_flow_submissions_on_account_id"
+    t.index ["contact_id"], name: "index_jabvox_whatsapp_flow_submissions_on_contact_id"
+    t.index ["conversation_id"], name: "index_jabvox_whatsapp_flow_submissions_on_conversation_id"
+    t.index ["jabvox_whatsapp_flow_id"], name: "idx_on_jabvox_whatsapp_flow_id_750a893b45"
+    t.index ["message_id"], name: "index_jabvox_whatsapp_flow_submissions_on_message_id"
+  end
+
+  create_table "jabvox_whatsapp_flow_versions", force: :cascade do |t|
+    t.bigint "jabvox_whatsapp_flow_id", null: false
+    t.integer "version", default: 1, null: false
+    t.jsonb "screens_json", default: [], null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_jabvox_whatsapp_flow_versions_on_created_by_id"
+    t.index ["jabvox_whatsapp_flow_id", "version"], name: "idx_jabvox_wa_flow_versions_flow_version"
+    t.index ["jabvox_whatsapp_flow_id"], name: "index_jabvox_whatsapp_flow_versions_on_jabvox_whatsapp_flow_id"
+  end
+
+  create_table "jabvox_whatsapp_flows", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.string "waba_id", null: false
+    t.string "name", null: false
+    t.string "category", null: false
+    t.text "description"
+    t.string "status", default: "draft", null: false
+    t.string "meta_flow_id"
+    t.string "meta_status"
+    t.jsonb "screens_json", default: [], null: false
+    t.jsonb "validation_errors_json", default: [], null: false
+    t.jsonb "meta_json", default: {}, null: false
+    t.datetime "published_at"
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "meta_flow_id"], name: "idx_jabvox_wa_flows_account_meta_flow_id"
+    t.index ["account_id", "name"], name: "idx_jabvox_wa_flows_account_name"
+    t.index ["account_id"], name: "index_jabvox_whatsapp_flows_on_account_id"
+    t.index ["created_by_id"], name: "index_jabvox_whatsapp_flows_on_created_by_id"
+    t.index ["inbox_id"], name: "index_jabvox_whatsapp_flows_on_inbox_id"
+    t.index ["status"], name: "index_jabvox_whatsapp_flows_on_status"
+  end
+
   create_table "jabvox_whatsapp_group_members", force: :cascade do |t|
     t.integer "whatsapp_group_id", null: false
     t.integer "account_id", null: false
@@ -3815,12 +3888,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_020000) do
     t.bigint "created_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "template_kind", default: "standard", null: false
+    t.jsonb "cards_json", default: [], null: false
+    t.jsonb "auth_config_json", default: {}, null: false
+    t.boolean "location_header", default: false, null: false
+    t.boolean "limited_time_offer", default: false, null: false
     t.index ["account_id", "name", "language"], name: "idx_jabvox_wa_templates_account_name_lang"
     t.index ["account_id"], name: "index_jabvox_whatsapp_templates_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_whatsapp_templates_on_created_by_id"
     t.index ["inbox_id"], name: "index_jabvox_whatsapp_templates_on_inbox_id"
     t.index ["meta_template_id"], name: "index_jabvox_whatsapp_templates_on_meta_template_id"
     t.index ["status"], name: "index_jabvox_whatsapp_templates_on_status"
+    t.index ["template_kind"], name: "index_jabvox_whatsapp_templates_on_template_kind"
   end
 
   create_table "labels", force: :cascade do |t|
@@ -3888,7 +3967,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_020000) do
     t.string "error_code"
     t.string "error_title"
     t.datetime "created_at", null: false
+    t.string "pricing_category"
+    t.boolean "pricing_billable"
+    t.string "pricing_model"
+    t.string "whatsapp_conversation_id"
+    t.string "conversation_origin_type"
     t.index ["account_id", "occurred_at"], name: "idx_message_status_events_account_time"
+    t.index ["account_id", "pricing_category"], name: "idx_message_status_events_account_pricing"
     t.index ["inbox_id"], name: "idx_message_status_events_inbox"
     t.index ["message_id", "status"], name: "idx_message_status_events_unique", unique: true
   end
@@ -4616,6 +4701,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_020000) do
   add_foreign_key "jabvox_user_extensions", "accounts"
   add_foreign_key "jabvox_user_extensions", "users"
   add_foreign_key "jabvox_voip_configs", "accounts"
+  add_foreign_key "jabvox_whatsapp_flow_answers", "jabvox_whatsapp_flow_submissions"
+  add_foreign_key "jabvox_whatsapp_flow_submissions", "accounts"
+  add_foreign_key "jabvox_whatsapp_flow_submissions", "contacts"
+  add_foreign_key "jabvox_whatsapp_flow_submissions", "conversations"
+  add_foreign_key "jabvox_whatsapp_flow_submissions", "jabvox_whatsapp_flows"
+  add_foreign_key "jabvox_whatsapp_flow_submissions", "messages"
+  add_foreign_key "jabvox_whatsapp_flow_versions", "jabvox_whatsapp_flows"
+  add_foreign_key "jabvox_whatsapp_flow_versions", "users", column: "created_by_id"
+  add_foreign_key "jabvox_whatsapp_flows", "accounts"
+  add_foreign_key "jabvox_whatsapp_flows", "inboxes"
+  add_foreign_key "jabvox_whatsapp_flows", "users", column: "created_by_id"
   add_foreign_key "jabvox_whatsapp_template_logs", "accounts"
   add_foreign_key "jabvox_whatsapp_template_logs", "jabvox_whatsapp_templates"
   add_foreign_key "jabvox_whatsapp_template_logs", "users"

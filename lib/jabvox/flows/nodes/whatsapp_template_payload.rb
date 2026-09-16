@@ -47,9 +47,27 @@ module Jabvox::Flows::Nodes::WhatsappTemplatePayload
   def button_components(button, resolved)
     index = button['index']
     return [url_button(index, resolved)] if button['dynamicUrl']
+    # Meta exige el componente de un botón FLOW en TODOS los envíos, lleve o no
+    # datos iniciales (omitirlo da "#131009 Components sub_type invalid").
+    return [flow_button(index)] if button['type'] == 'flow'
+    return [copy_code_button(index, resolved)] if button['type'] == 'copy_code'
     return [] unless button['hasPayload']
 
     [quick_reply_button(index, resolved)]
+  end
+
+  # flow_token único por envío: permite correlacionar después la respuesta del
+  # Flow con este mensaje concreto.
+  def flow_button(index)
+    { 'type' => 'button', 'sub_type' => 'flow', 'index' => index,
+      'parameters' => [{ 'type' => 'action',
+                         'action' => { 'flow_token' => SecureRandom.hex(16), 'flow_action_data' => {} } }] }
+  end
+
+  def copy_code_button(index, resolved)
+    { 'type' => 'button', 'sub_type' => 'copy_code', 'index' => index,
+      'parameters' => [{ 'type' => 'coupon_code',
+                         'coupon_code' => resolved["button_#{index}_copy_code"].to_s }] }
   end
 
   def url_button(index, resolved)

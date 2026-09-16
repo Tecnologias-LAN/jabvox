@@ -1276,6 +1276,30 @@ const menuItems = computed(() => {
               },
             ]
           : []),
+        // WhatsApp Flows (formularios interactivos) es un módulo distinto de
+        // "Plantillas WA". A diferencia de templates, el backend exige
+        // jabvox_whatsapp_flows_manage en TODAS las acciones del controller,
+        // incluido el listado (BaseController#ensure_can_manage no distingue
+        // lectura de escritura) — así que se gatea igual aquí, o un agente
+        // sin el permiso vería la entrada y un 403 al abrirla.
+        ...(jabvoxCan('jabvox_whatsapp_flows_manage') &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_WHATSAPP_FLOWS
+        )
+          ? [
+              {
+                name: 'Settings Jabvox WA Flows',
+                label: t('SIDEBAR.JABVOX_WHATSAPP_FLOWS'),
+                icon: 'i-lucide-list-tree',
+                to: accountScopedRoute('jabvox_whatsapp_flows_settings_index'),
+                activeOn: [
+                  'jabvox_whatsapp_flows_settings_index',
+                  'jabvox_whatsapp_flows_builder',
+                ],
+              },
+            ]
+          : []),
         ...(jabvoxCan('jabvox_bulk_whatsapp_send') &&
         isFeatureEnabledonAccount.value(
           accountId.value,

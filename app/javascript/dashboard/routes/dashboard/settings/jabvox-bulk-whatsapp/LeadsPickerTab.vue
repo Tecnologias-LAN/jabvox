@@ -7,6 +7,7 @@ import leadsAPI from 'dashboard/api/jabvox/leads';
 import bulkWhatsappAPI from 'dashboard/api/jabvox/bulkWhatsapp';
 import { processVariable } from 'dashboard/helper/templateHelper';
 import TemplatePreview from './components/TemplatePreview.vue';
+import TemplateExtraFields from './components/TemplateExtraFields.vue';
 
 const props = defineProps({
   inboxId: { type: [Number, String], default: '' },
@@ -167,6 +168,14 @@ const variableMap = ref({});
 const selectedTemplate = computed(() =>
   inboxTemplates.value.find(tp => tp.name === templateName.value)
 );
+
+// Campos de los tipos de plantilla no estándar (código OTP, ubicación,
+// carrusel, oferta, cupón). Fijos para toda la audiencia, igual que el media
+// del header. Se descartan al cambiar de plantilla.
+const templateExtras = ref({});
+watch(templateName, () => {
+  templateExtras.value = {};
+});
 
 // Tipo de header de la plantilla (para el resumen del paso 2).
 const templateHeader = computed(() => {
@@ -492,6 +501,7 @@ const onSend = async () => {
         props.mode === 'template' ? templateHeaderMedia.value : undefined,
       flowButton:
         props.mode === 'template' ? templateFlowButton.value : undefined,
+      extras: props.mode === 'template' ? templateExtras.value : undefined,
     });
     useAlert(t('JABVOX_BULK_WA.SEND.SUCCESS'));
     clearSelection();
@@ -1142,6 +1152,16 @@ onMounted(() => {
             {{ t('JABVOX_BULK_WA.SEND.VARS_COUNT', templateVariables.length) }}
           </span>
         </div>
+
+        <!-- Campos que exigen los tipos de plantilla no estándar (código OTP,
+             ubicación, carrusel, oferta, cupón). Se auto-oculta si la plantilla
+             elegida no necesita ninguno. -->
+        <TemplateExtraFields
+          v-if="selectedTemplate"
+          v-model="templateExtras"
+          :template="selectedTemplate"
+          class="mt-3"
+        />
       </template>
 
       <!-- Text mode -->

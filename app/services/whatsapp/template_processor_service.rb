@@ -47,17 +47,91 @@ class Whatsapp::TemplateProcessorService
 
   def process_enhanced_template_params(template, processed_params = nil)
     processed_params ||= template_params['processed_params']
+
+    # Las plantillas de tipo AUTHENTICATION (botón OTP) tienen una forma de envío
+    # completamente distinta: Meta genera el cuerpo, y el código viaja dos veces
+    # (body + botón). No pasa por el camino estándar de header/body/footer/botones.
+    return @template_params = authentication_components(template, processed_params) if authentication_template?(template)
+
     components = []
 
     components.concat(process_header_components(processed_params, template))
     components.concat(process_body_components(processed_params, template))
     components.concat(process_footer_components(processed_params))
     components.concat(process_button_components(processed_params))
+    # Componentes que el camino estándar no cubre (CAROUSEL, LIMITED_TIME_OFFER) y
+    # el header LOCATION, delegados al builder central compartido con Bulk/Automations.
+    components.concat(extended_components(template, processed_params))
 
     @template_params = components
   end
 
+  # ── Tipos delegados a Jabvox::WhatsappTemplates::SendComponentsBuilder ──────
+  # El builder es la única pieza que conoce la forma exacta de Meta para estos
+  # componentes; se reutiliza aquí y desde Bulk WhatsApp y Automations para no
+  # tener tres implementaciones divergentes.
+  # Ver docs/whatsapp-flows/templates-sending-architecture.md.
+
+  def authentication_template?(template)
+    buttons = Array(template['components']).find { |c| (c['type'] || '').upcase == 'BUTTONS' }
+    Array(buttons&.dig('buttons')).any? { |b| (b['type'] || '').upcase == 'OTP' }
+  end
+
+  def authentication_components(template, processed_params)
+    result = send_components_builder(template, auth_code: authentication_code(processed_params))
+    raise ArgumentError, result.error if result.errors.present?
+
+    result.components
+  end
+
+  # El código puede llegar como `auth_code`, o como el primer valor del body
+  # (el frontend manda un único campo "código a enviar" para estas plantillas).
+  def authentication_code(processed_params)
+    processed_params['auth_code'].presence ||
+      Hash(processed_params['body']).values.first.presence ||
+      Array(processed_params['buttons']).first&.dig('parameter')
+  end
+
+  # Se invoca según lo que la PLANTILLA declara, no según lo que llegó en
+  # processed_params: si la plantilla tiene CAROUSEL o LIMITED_TIME_OFFER y no
+  # se enviaron sus datos, el builder debe fallar con un error legible en vez de
+  # que Meta rechace el envío incompleto más tarde.
+  def extended_components(template, processed_params)
+    return [] unless declares_extended_component?(template)
+
+    result = send_components_builder(template, **extended_send_params(processed_params))
+    raise ArgumentError, result.error if result.errors.present?
+
+    # El builder también sabe armar body/botones; aquí solo tomamos los
+    # componentes que el camino estándar de arriba NO emitió.
+    Array(result.components).select { |c| %w[carousel limited_time_offer].include?(c[:type].to_s) }
+  end
+
+  def declares_extended_component?(template)
+    Array(template['components']).any? do |c|
+      %w[CAROUSEL LIMITED_TIME_OFFER].include?((c['type'] || '').upcase)
+    end
+  end
+
+  def extended_send_params(processed_params)
+    {
+      cards: processed_params['cards'],
+      lto_expiration_ms: processed_params['lto_expiration_ms']
+    }.compact
+  end
+
+  def send_components_builder(template, **send_params)
+    Jabvox::WhatsappTemplates::SendComponentsBuilder.call(
+      meta_components: template['components'],
+      send_params: send_params
+    )
+  end
+
   def process_header_components(processed_params, template = nil)
+    # Un header LOCATION no lleva media ni texto: se completa al enviar con
+    # lat/long/nombre/dirección. Lo arma el builder central.
+    return location_header_components(template, processed_params) if location_header?(template)
+
     header_data = processed_params['header']
     # Una plantilla con header de media (IMAGE/VIDEO/DOCUMENT) EXIGE el componente header
     # en el envío; si no llega en processed_params, lo tomamos del ejemplo aprobado de la
@@ -67,6 +141,21 @@ class Whatsapp::TemplateProcessorService
 
     header_params = build_header_params(header_data)
     header_params.present? ? [{ type: 'header', parameters: header_params }] : []
+  end
+
+  def location_header?(template)
+    return false if template.blank?
+
+    header = Array(template['components']).find { |c| (c['type'] || '').upcase == 'HEADER' }
+    (header&.dig('format') || '').upcase == 'LOCATION'
+  end
+
+  def location_header_components(template, processed_params)
+    location = processed_params['location'].presence || Hash(processed_params['header'])['location']
+    result = send_components_builder(template, location: location)
+    raise ArgumentError, result.error if result.errors.present?
+
+    Array(result.components).select { |c| c[:type].to_s == 'header' }
   end
 
   # Devuelve { media_url, media_type } del ejemplo de media aprobado de la plantilla, o nil.
@@ -117,7 +206,7 @@ class Whatsapp::TemplateProcessorService
   end
 
   def build_media_id_param(media_id, media_type)
-    { type: media_type.to_s.downcase, media_type.to_s.downcase => { id: media_id } }
+    { :type => media_type.to_s.downcase, media_type.to_s.downcase => { id: media_id } }
   end
 
   def media_url_with_type?(key, header_data)

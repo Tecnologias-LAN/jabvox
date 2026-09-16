@@ -1,0 +1,157 @@
+{
+  "JABVOX_WA_FLOWS": {
+    "CONFIRM": {
+      "OK": "OK",
+      "CANCEL": "Cancel"
+    },
+    "CATEGORIES": {
+      "SIGN_UP": "Sign up",
+      "SIGN_IN": "Sign in",
+      "APPOINTMENT_BOOKING": "Appointment booking",
+      "LEAD_GENERATION": "Lead generation",
+      "CONTACT_US": "Contact us",
+      "CUSTOMER_SUPPORT": "Customer support",
+      "SURVEY": "Survey",
+      "OTHER": "Other"
+    },
+    "STATUS": {
+      "DRAFT": "Draft",
+      "VALIDATING": "Validating",
+      "READY": "Ready",
+      "PUBLISHED": "Published",
+      "SYNC_FAILED": "Sync failed"
+    },
+    "LIST": {
+      "HEADER": {
+        "TITLE": "WhatsApp Flows",
+        "SUBTITLE": "Build interactive WhatsApp forms (surveys, sign-ups, booking) without writing JSON by hand.",
+        "CREATE": "Create Flow"
+      },
+      "EMPTY_TITLE": "No Flows yet",
+      "EMPTY_BODY": "Create your first interactive WhatsApp form: screens, fields and navigation, all from the visual builder.",
+      "EMPTY_CTA": "Create your first Flow",
+      "NO_INBOX": "No inbox",
+      "SCREENS_COUNT": "screens",
+      "ERROR": "Something went wrong. Please try again.",
+      "DUPLICATED": "Flow duplicated as a draft.",
+      "SYNCED": "Status synced with Meta.",
+      "PUBLISHED": "Flow published to Meta.",
+      "DELETED": "Flow deleted.",
+      "DELETE_CONFIRM_TITLE": "Delete Flow",
+      "DELETE_CONFIRM_BODY": "Delete the Flow \"{name}\"? This cannot be undone.",
+      "ACTIONS": {
+        "OPEN": "Open",
+        "METRICS": "View metrics",
+        "DUPLICATE": "Duplicate",
+        "SYNC": "Sync with Meta",
+        "PUBLISH": "Publish",
+        "DELETE": "Delete"
+      },
+      "METRICS": {
+        "TITLE": "Metrics for {name}",
+        "TOTAL_SUBMISSIONS": "Submissions received",
+        "LAST_SUBMISSION": "Last submission",
+        "NONE_YET": "None yet"
+      }
+    },
+    "BUILDER": {
+      "NAME_PLACEHOLDER": "Flow name",
+      "SAVED": "Draft saved.",
+      "PUBLISHED": "Flow published to Meta.",
+      "NAME_REQUIRED": "Give the Flow a name before saving.",
+      "SAVE_BEFORE_VALIDATE": "Save the Flow as a draft before validating it.",
+      "SAVE_BEFORE_PUBLISH": "Save the Flow as a draft before publishing it.",
+      "ERROR_LOAD": "Could not load the Flow.",
+      "ERROR_SAVE": "Could not save the Flow.",
+      "ERROR_PUBLISH": "Could not publish the Flow.",
+      "TABS": {
+        "BUILDER": "Editor",
+        "JSON": "JSON",
+        "VALIDATION": "Validation"
+      },
+      "ACTIONS": {
+        "VALIDATE": "Validate",
+        "SAVE_DRAFT": "Save draft",
+        "PUBLISH": "Publish"
+      },
+      "SCREENS": {
+        "TITLE": "Screens",
+        "ADD": "Add screen",
+        "EMPTY": "No screens yet.",
+        "UNTITLED": "New screen",
+        "START_BADGE": "Start",
+        "TERMINAL_BADGE": "End",
+        "HAS_ERRORS": "This screen has validation errors",
+        "COMPONENT_COUNT": "{count} component(s)",
+        "MOVE_UP": "Move up",
+        "MOVE_DOWN": "Move down",
+        "DUPLICATE": "Duplicate screen",
+        "REMOVE": "Remove screen",
+        "NEW_TITLE_PROMPT": "Title for the new screen",
+        "REMOVE_CONFIRM_TITLE": "Remove screen",
+        "REMOVE_CONFIRM_BODY": "Remove this screen and all of its components? This cannot be undone.",
+        "SELECT_OR_CREATE": "Select a screen or create a new one to start editing.",
+        "PROPS_TITLE": "Flow title"
+      },
+      "SCREEN_EDITOR": {
+        "TITLE_PLACEHOLDER": "Screen title",
+        "IS_TERMINAL": "Terminal screen",
+        "ID_LABEL": "ID",
+        "NO_COMPONENTS": "No components yet. Add one from the palette.",
+        "SELECT_COMPONENT": "Select a component to edit its properties.",
+        "URL_PLACEHOLDER": "https://example.com"
+      },
+      "PALETTE": {
+        "SCREEN_LIMIT_REACHED": "This screen reached the 50-component limit."
+      },
+      "PROPS": {
+        "YES": "Yes",
+        "ACTION_NAVIGATE": "Go to another screen",
+        "ACTION_COMPLETE": "Complete the Flow",
+        "ACTION_OPEN_URL": "Open external link",
+        "SELECT_SCREEN": "Select a screen…",
+        "OPTION_ID": "Value",
+        "OPTION_TITLE": "Display text",
+        "ADD_OPTION": "Add option"
+      },
+      "VARIABLES": {
+        "PICKER_TITLE": "Insert variable",
+        "SYSTEM_GROUP": "Contact variables",
+        "SCREENS_GROUP": "Answers from previous screens",
+        "NONE_AVAILABLE": "No variables available yet."
+      },
+      "PREVIEW": {
+        "TITLE": "Preview",
+        "RESTART": "Restart simulation",
+        "UNTITLED_FLOW": "Untitled Flow",
+        "EMPTY": "Add a screen to see the preview.",
+        "COMPLETED": "Flow completed",
+        "CONTINUE": "Continue",
+        "SELECT_PLACEHOLDER": "Select…"
+      },
+      "JSON_VIEW": {
+        "TITLE": "Generated JSON (read-only)",
+        "HINT": "Local preview — the authoritative JSON is compiled server-side on publish.",
+        "CHECK_HAS_SCREENS": "Has at least one screen",
+        "CHECK_TERMINAL": "Has a terminal screen",
+        "CHECK_IDS": "All screens have an ID",
+        "CHECK_FOOTER": "All screens have a button (Footer)"
+      },
+      "VALIDATION": {
+        "TITLE": "Validation",
+        "RUNNING": "Validating…",
+        "NOT_RUN": "This Flow hasn't been validated yet. Click \"Validate\" to check it.",
+        "NO_ERRORS": "Valid JSON. No errors found.",
+        "SCREEN_LABEL": "Screen",
+        "COMPONENT_LABEL": "Component",
+        "GO_TO_FIELD": "Go to field"
+      }
+    },
+    "TEMPLATES_INTEGRATION": {
+      "FLOW_BUTTON_LABEL": "WhatsApp Flow",
+      "SELECT_FLOW": "Select a published Flow…",
+      "NO_PUBLISHED_FLOWS": "This inbox has no published Flows yet.",
+      "SELECT_INBOX_FIRST": "Select an inbox first."
+    }
+  }
+}
