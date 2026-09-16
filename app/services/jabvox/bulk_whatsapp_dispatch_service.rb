@@ -198,16 +198,28 @@ class Jabvox::BulkWhatsappDispatchService
       @total_rows = ids.size
       { 'kind' => 'leads', 'lead_ids' => ids, 'selection' => @leads_selection,
         'template_name' => @template_name, 'language' => @language, 'text' => @text,
-        'variable_map' => @variable_map, 'header_media' => @header_media,
-        'flow_button' => @flow_button }
+        'variable_map' => @variable_map, **extended_params_snapshot }
     else
       # CSV: la plantilla/idioma vienen de la UI; el archivo solo aporta las filas
       # (número, nombre y columnas de variables). El variable_map mapea {{n}} -> columna.
       { 'kind' => 'csv', 'rows' => parse_rows,
         'template_name' => @template_name, 'language' => @language, 'text' => @text,
-        'variable_map' => @variable_map, 'header_media' => @header_media,
-        'flow_button' => @flow_button }
+        'variable_map' => @variable_map, **extended_params_snapshot }
     end
+  end
+
+  # Todo lo que el envío completo necesita además de body/variables: header_media
+  # y flow_button ya viajaban aquí; cards/auth_code/location/lto_expiration_ms/
+  # copy_code (los tipos de plantilla extendidos) se quedaban fuera del snapshot,
+  # así que `deliver!` —que corre en background reconstruyendo el service solo con
+  # lo que hay en este hash— nunca los recibía: un envío con header LOCATION,
+  # AUTHENTICATION, CAROUSEL, LTO o COPY_CODE salía siempre sin ese dato aunque el
+  # usuario lo hubiera llenado en el formulario. Confirmado con un batch real
+  # (id 18): processed_params llegó a n8n solo con "body", sin "location".
+  def extended_params_snapshot
+    { 'header_media' => @header_media, 'flow_button' => @flow_button,
+      'cards' => @cards, 'auth_code' => @auth_code, 'location' => @location,
+      'lto_expiration_ms' => @lto_expiration_ms, 'copy_code' => @copy_code }
   end
 
   def resolved_lead_ids
@@ -337,11 +349,25 @@ class Jabvox::BulkWhatsappDispatchService
   # ── Phase 2 helpers: expand snapshot -> messages ────────────────────────────
   def expand_messages(payload)
     payload = (payload || {}).with_indifferent_access
-    # header_media/flow_button viajan en el snapshot (deliver! reconstruye el service sin ellos).
-    @header_media ||= normalize_header_media(payload[:header_media])
-    @flow_button ||= normalize_flow_button(payload[:flow_button])
+    restore_extended_params!(payload)
     payload[:kind] == 'leads' ? messages_from_leads(payload) : messages_from_csv(payload)
   end
+
+  # Todo lo del envío completo viaja en el snapshot: deliver! reconstruye el
+  # service en background sin los argumentos originales del constructor, así
+  # que sin esto @location/@cards/@auth_code/@lto_expiration_ms/@copy_code
+  # quedarían en nil aunque el usuario los haya llenado (ver extended_params_snapshot).
+  # rubocop:disable Metrics/CyclomaticComplexity, Naming/MemoizedInstanceVariableName
+  def restore_extended_params!(payload)
+    @header_media ||= normalize_header_media(payload[:header_media])
+    @flow_button ||= normalize_flow_button(payload[:flow_button])
+    @cards ||= normalize_hash_list(payload[:cards])
+    @auth_code ||= payload[:auth_code].to_s.strip.presence
+    @location ||= normalize_plain_hash(payload[:location])
+    @lto_expiration_ms ||= payload[:lto_expiration_ms].presence
+    @copy_code ||= payload[:copy_code].to_s.strip.presence
+  end
+  # rubocop:enable Metrics/CyclomaticComplexity, Naming/MemoizedInstanceVariableName
 
   # CSV: cada fila -> un mensaje. La plantilla/idioma salen del snapshot (elegidos en
   # la UI, no del archivo); los {{n}} se resuelven mapeando el variable_map contra las

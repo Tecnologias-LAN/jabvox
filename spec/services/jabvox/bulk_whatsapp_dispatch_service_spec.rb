@@ -80,4 +80,68 @@ RSpec.describe Jabvox::BulkWhatsappDispatchService do
       expect(token).not_to be_expired
     end
   end
+
+  # `prepare` (fase 1, en el request) construye el snapshot que se persiste en el
+  # batch; `deliver!` (fase 2, en background) reconstruye el service SOLO con ese
+  # snapshot, sin los argumentos originales del constructor. Si un dato no viaja
+  # en el snapshot, deliver! nunca lo tiene — exactamente lo que le pasaba a
+  # cards/auth_code/location/lto_expiration_ms/copy_code (confirmado con un envío
+  # real: processed_params llegó a n8n solo con "body", sin "location").
+  describe 'los datos de los tipos de plantilla extendidos sobreviven a fase 1 -> fase 2' do
+    # Servicio "de fase 2": solo recibe lo que build_payload_snapshot guardó,
+    # como hace deliver! de verdad (BulkWhatsappDeliveryJob.perform).
+    def service_from_snapshot(snapshot)
+      described_class.new(account: account, inbox: inbox, sender_user: user, actor: user)
+                     .tap { |s| s.send(:restore_extended_params!, snapshot.with_indifferent_access) }
+    end
+
+    it 'la ubicación (header LOCATION) llega intacta a fase 2' do
+      original = described_class.new(account: account, inbox: inbox, sender_user: user, actor: user,
+                                     location: { latitude: '6.24', longitude: '-75.58', name: 'Sede' })
+      snapshot = original.send(:extended_params_snapshot)
+
+      expect(snapshot['location']).to eq('latitude' => '6.24', 'longitude' => '-75.58', 'name' => 'Sede')
+
+      restored = service_from_snapshot(snapshot)
+      params = restored.send(:resolve_params, {}, {})
+      expect(params['location']).to eq('latitude' => '6.24', 'longitude' => '-75.58', 'name' => 'Sede')
+    end
+
+    it 'el código de autenticación llega intacto a fase 2' do
+      original = described_class.new(account: account, inbox: inbox, sender_user: user, actor: user,
+                                     auth_code: '483920')
+      restored = service_from_snapshot(original.send(:extended_params_snapshot))
+
+      expect(restored.send(:resolve_params, {}, {})['auth_code']).to eq('483920')
+    end
+
+    it 'las cards del carrusel llegan intactas a fase 2' do
+      cards = [{ header: { media_url: 'https://x.com/a.jpg' }, buttons: [{ index: 0, parameter: 'si' }] }]
+      original = described_class.new(account: account, inbox: inbox, sender_user: user, actor: user, cards: cards)
+      restored = service_from_snapshot(original.send(:extended_params_snapshot))
+
+      expect(restored.send(:resolve_params, {}, {})['cards']).to eq(
+        [{ 'header' => { 'media_url' => 'https://x.com/a.jpg' }, 'buttons' => [{ 'index' => 0, 'parameter' => 'si' }] }]
+      )
+    end
+
+    it 'la oferta por tiempo limitado llega intacta a fase 2' do
+      original = described_class.new(account: account, inbox: inbox, sender_user: user, actor: user,
+                                     lto_expiration_ms: 1_893_456_000_000)
+      restored = service_from_snapshot(original.send(:extended_params_snapshot))
+
+      expect(restored.send(:resolve_params, {}, {})['lto_expiration_ms']).to eq(1_893_456_000_000)
+    end
+
+    it 'header_media y flow_button (ya funcionaban) siguen llegando bien' do
+      original = described_class.new(account: account, inbox: inbox, sender_user: user, actor: user,
+                                     header_media: { media_url: 'https://x.com/h.jpg', media_type: 'image' },
+                                     flow_button: { index: 0, flow_id: '999' })
+      restored = service_from_snapshot(original.send(:extended_params_snapshot))
+
+      params = restored.send(:resolve_params, {}, {})
+      expect(params['header']).to eq('media_url' => 'https://x.com/h.jpg', 'media_type' => 'image')
+      expect(params['buttons']).to be_present
+    end
+  end
 end
