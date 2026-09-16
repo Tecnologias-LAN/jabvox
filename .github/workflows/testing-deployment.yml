@@ -93,21 +93,60 @@ jobs:
             '
 
             # --- STEP 5: RESTART APPLICATION ---
+            # `sudo -n systemctl restart ...` NO propaga error de forma fiable a
+            # `set -e` (visto en un deploy real: 21 fallos de "interactive
+            # authentication is required" seguidos y el script igual llegó a
+            # "Deployment Complete!" — el código nuevo quedó en disco pero el
+            # proceso viejo siguió corriendo en memoria hasta un reinicio manual).
+            # Por eso cada reinicio se confirma aparte, comprobando que el
+            # servicio quede "active" — si no, el deploy falla en rojo.
             echo "Restarting services..."
-            sudo -n /usr/bin/systemctl restart jabvox-web.1.service
-            sudo -n /usr/bin/systemctl restart jabvox-worker.1.service
-            # AMI listener (dialer + click-to-call live events). Restart so it
-            # picks up new code; "|| true" keeps the deploy green if the unit
-            # isn't installed on this host yet.
-            sudo -n /usr/bin/systemctl restart chatwoot-ami-listener.service || true
+            RESTART_FAILED=0
+
+            restart_required() {
+              # Servicio obligatorio: si no reinicia, el deploy debe fallar.
+              sudo -n /usr/bin/systemctl restart "$1"
+              if ! sudo -n /usr/bin/systemctl is-active --quiet "$1"; then
+                echo "::error::No se pudo reiniciar $1 (revisa sudoers en el host)"
+                RESTART_FAILED=1
+              else
+                echo "OK: $1 reiniciado"
+              fi
+            }
+
+            restart_optional() {
+              # Servicio opcional: puede no estar instalado en este host todavía.
+              # Solo se avisa (no se falla el deploy) si systemctl lo reconoce
+              # pero el reinicio no aplicó — eso sí sería un problema de permisos,
+              # a diferencia de "unit not found" (no instalado, se ignora).
+              sudo -n /usr/bin/systemctl restart "$1" 2>/dev/null || true
+              if sudo -n /usr/bin/systemctl list-unit-files "$1" &>/dev/null \
+                 && sudo -n /usr/bin/systemctl list-unit-files "$1" | grep -q "$1"; then
+                if sudo -n /usr/bin/systemctl is-active --quiet "$1"; then
+                  echo "OK: $1 reiniciado"
+                else
+                  echo "::warning::$1 está instalado pero no quedó activo tras el reinicio"
+                fi
+              fi
+            }
+
+            restart_required jabvox-web.1.service
+            restart_required jabvox-worker.1.service
+
+            # AMI listener (dialer + click-to-call live events).
+            restart_optional chatwoot-ami-listener.service
             for s in 0 1 2 3 4 5 6 7; do
-              sudo -n /usr/bin/systemctl restart chatwoot-ami-listener@$s.service || true
+              restart_optional "chatwoot-ami-listener@$s.service"
             done
 
             # Workers Sidekiq aislados por servicio (ver deploy/workers/README.md).
-            # "|| true" para no romper el deploy en hosts donde aún no se instalaron.
             for w in export lead-import meta ami cdr media analytics broadcast click-to-call automations payments sms; do
-              sudo -n /usr/bin/systemctl restart chatwoot-worker-$w.service || true
+              restart_optional "chatwoot-worker-$w.service"
             done
+
+            if [ "$RESTART_FAILED" -eq 1 ]; then
+              echo "::error::El deploy actualizó el código pero NO reinició todos los servicios obligatorios."
+              exit 1
+            fi
 
             echo "Deployment Complete!"
