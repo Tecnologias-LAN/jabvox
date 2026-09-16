@@ -154,7 +154,7 @@
       "FOOTER_LABEL": "Footer",
       "FOOTER_PH": "Optional footer note",
       "VARS_TITLE": "Detected variables",
-      "VAR_DESC_PH": "Description (e.g. Customer name)",
+      "VAR_DESC_PH": "Sample value (e.g. Jane Doe)",
       "BUTTONS_LABEL": "Buttons (max 10)",
       "ADD_BUTTON": "+ Add button",
       "BUTTON_TYPE": "Type",
@@ -307,7 +307,8 @@
         "VIDEO": "Video",
         "DOCUMENT": "Document",
         "LOCATION": "Location"
-      }
+      },
+      "VARS_HELP": "Meta reviews the template using these values, so use realistic examples of what will be sent."
     },
     "DETAIL": {
       "TITLE": "Template detail",

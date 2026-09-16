@@ -9,6 +9,8 @@ class Jabvox::WhatsappTemplatesManager
   def initialize(account, user: nil)
     @account = account
     @user = user
+    # Ejemplos por variable; los llena build_components desde los params.
+    @variable_examples = {}
   end
 
   def list(filters: {}, page: 1, per_page: PER_PAGE)
@@ -450,6 +452,10 @@ class Jabvox::WhatsappTemplatesManager
   # See developers.facebook.com/docs/whatsapp/business-management-api/message-templates.
   # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
   def build_components(params)
+    # Ejemplos por variable que el usuario escribió en el asistente; los lee
+    # sample_value al armar los `example` que Meta exige.
+    @variable_examples = (params[:var_descriptions] || {}).to_h.transform_keys(&:to_s)
+
     kind = template_kind_for(params)
     return build_authentication_components(params) if kind == 'authentication'
 
@@ -881,9 +887,15 @@ class Jabvox::WhatsappTemplatesManager
     named_tokens?(texts.compact.flat_map { |t| tokens(t) })
   end
 
-  # A harmless sample value Meta accepts for placeholder {{n}} during approval.
-  def sample_value(_placeholder)
-    'ejemplo'
+  # Valor de ejemplo de una variable, que Meta usa para revisar la plantilla.
+  # Se toma el que escribió el usuario en el asistente; si no dio ninguno, se
+  # usa el propio nombre de la variable ({{nombre}} -> "nombre"), que orienta
+  # mejor la revisión que un "ejemplo" genérico para todas.
+  def sample_value(placeholder)
+    from_user = @variable_examples[placeholder.to_s].presence
+    return from_user if from_user
+
+    placeholder.to_s =~ /\A\d+\z/ ? 'ejemplo' : placeholder.to_s.tr('_', ' ')
   end
 
   def extract_variables(text)

@@ -130,6 +130,49 @@ RSpec.describe Jabvox::WhatsappTemplatesManager do
     end
   end
 
+  # Meta usa el `example` para revisar la plantilla, así que un "ejemplo"
+  # genérico para todas las variables da peores aprobaciones que un valor
+  # realista. Contrastado contra una plantilla aprobada real, que lleva
+  # "Nombre" como ejemplo de {{nombre}}.
+  describe 'ejemplos de las variables del cuerpo' do
+    def body_example(params)
+      components = manager.send(:build_components, params)
+      components.find { |c| c[:type] == 'BODY' }[:example]
+    end
+
+    it 'usa el ejemplo que escribió el usuario para cada variable' do
+      example = body_example(
+        body: 'Hola {{nombre}}, tu pedido {{pedido}} va en camino',
+        var_descriptions: { 'nombre' => 'Ana', 'pedido' => 'A-1234' }
+      )
+
+      expect(example[:body_text_named_params]).to eq(
+        [{ param_name: 'nombre', example: 'Ana' },
+         { param_name: 'pedido', example: 'A-1234' }]
+      )
+    end
+
+    it 'cae al nombre de la variable cuando el usuario no dio ejemplo' do
+      example = body_example(body: 'Hola {{nombre_cliente}}, gracias por escribir')
+
+      expect(example[:body_text_named_params]).to eq(
+        [{ param_name: 'nombre_cliente', example: 'nombre cliente' }]
+      )
+    end
+
+    it 'mantiene un ejemplo genérico para variables posicionales sin valor' do
+      example = body_example(body: 'Hola {{1}}, gracias por escribir')
+
+      expect(example[:body_text]).to eq([['ejemplo']])
+    end
+
+    it 'usa el ejemplo del usuario también en variables posicionales' do
+      example = body_example(body: 'Hola {{1}}, gracias', var_descriptions: { '1' => 'Ana' })
+
+      expect(example[:body_text]).to eq([['Ana']])
+    end
+  end
+
   describe 'server-side validation (new, sección 3 del diseño de cobertura completa)' do
     describe 'body validation' do
       it 'rejects a body over 1024 characters before calling Meta' do

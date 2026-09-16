@@ -950,6 +950,9 @@ const submitForm = async () => {
       ? []
       : form.value.buttons.filter(b => b.text),
     inbox_id: formInboxId.value,
+    // Ejemplo por variable: Meta lo usa para revisar la plantilla, así que se
+    // envía lo que el usuario escribió en el paso de variables.
+    var_descriptions: form.value.var_descriptions || {},
     limited_time_offer: canShowLto.value
       ? form.value.limited_time_offer
       : false,
@@ -2719,6 +2722,9 @@ onBeforeUnmount(() => {
               >
                 <p class="text-xs font-medium text-n-slate-11">
                   {{ t('JABVOX_WA_TEMPLATES.CREATE.VARS_TITLE') }}
+                </p>
+                <p class="text-[11px] text-n-slate-10">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.VARS_HELP') }}
                 </p>
                 <div
                   v-for="n in detectedVars"

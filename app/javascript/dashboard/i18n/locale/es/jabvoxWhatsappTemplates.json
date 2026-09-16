@@ -149,7 +149,7 @@
       "FOOTER_LABEL": "Pie de página",
       "FOOTER_PH": "Nota opcional del pie de página",
       "VARS_TITLE": "Variables detectadas",
-      "VAR_DESC_PH": "Descripción (ej. Nombre del cliente)",
+      "VAR_DESC_PH": "Valor de ejemplo (ej. Ana Pérez)",
       "BUTTONS_LABEL": "Botones (máx. 10)",
       "ADD_BUTTON": "+ Agregar botón",
       "BUTTON_TYPE": "Tipo",
@@ -302,7 +302,8 @@
         "VIDEO": "Video",
         "DOCUMENT": "Documento",
         "LOCATION": "Ubicación"
-      }
+      },
+      "VARS_HELP": "Meta revisa la plantilla con estos valores, así que escribe ejemplos reales de lo que se enviará."
     },
     "DETAIL": {
       "TITLE": "Detalle de la plantilla",
