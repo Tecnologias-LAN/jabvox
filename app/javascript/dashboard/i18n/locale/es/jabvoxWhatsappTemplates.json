@@ -280,7 +280,8 @@
         "WIDGET_COUNT": "{count} elemento(s)",
         "BUTTON_LOCKED_NOTE": "Esta plantilla abre un formulario, así que Meta solo admite este botón. Puedes cambiarle el texto.",
         "EMPTY_SCREEN": "Esta pantalla aún no tiene contenido.",
-        "SCREEN_NAME_HELP": "Se muestra en la parte superior de la pantalla dentro de WhatsApp."
+        "SCREEN_NAME_HELP": "Se muestra en la parte superior de la pantalla dentro de WhatsApp.",
+        "SCREEN_HAS_ERRORS": "Esta pantalla tiene datos por completar"
       },
       "BUTTON_TYPES": {
         "QUICK_REPLY": "Respuesta rápida",

@@ -36,6 +36,26 @@ module Jabvox::WhatsappFlows::ComponentCatalog
 
   MAX_COMPONENTS_PER_SCREEN = 50
 
+  # Largo máximo de cada texto, según la referencia de componentes de Meta.
+  # Espejo de MAX_LENGTHS en widgetValidation.js, que avisa de lo mismo en el
+  # editor mientras se escribe.
+  MAX_LENGTHS = {
+    'TextHeading' => { 'text' => 80 },
+    'TextSubheading' => { 'text' => 80 },
+    'TextBody' => { 'text' => 4096 },
+    'TextCaption' => { 'text' => 409 },
+    'TextInput' => { 'label' => 20, 'helper_text' => 80 },
+    'TextArea' => { 'label' => 20, 'helper_text' => 80 },
+    'RadioButtonsGroup' => { 'label' => 30 },
+    'CheckboxGroup' => { 'label' => 30 },
+    'Dropdown' => { 'label' => 20 },
+    'ChipsSelector' => { 'label' => 80 },
+    'DatePicker' => { 'label' => 40, 'helper_text' => 80 },
+    'OptIn' => { 'label' => 120 },
+    'EmbeddedLink' => { 'text' => 25 },
+    'Footer' => { 'label' => 35 }
+  }.freeze
+
   # snake_case builder prop key => kebab-case Meta Flow JSON key. Only entries that
   # actually differ need listing; JsonCompiler falls back to the raw key otherwise.
   #

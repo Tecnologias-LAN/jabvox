@@ -11,7 +11,7 @@ import { processVariable } from 'dashboard/helper/templateHelper';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import PromptDialog from './components/PromptDialog.vue';
 import InlineFlowBuilder from './components/InlineFlowBuilder.vue';
-import { getComponentMeta } from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/componentCatalog';
+import { validateFlow } from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/widgetValidation';
 import FlowPreview from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/components/FlowPreview.vue';
 import { useTemplateValidation } from './composables/useTemplateValidation';
 
@@ -1007,66 +1007,25 @@ const fieldClass = (value, required = false) => {
 // Required-field checklist: drives the submit gate and the pending list shown
 // on the final step. Once a header type is chosen, its content is required —
 // removing the header is done by picking NONE, not by leaving it empty.
-// Requisitos del formulario, separados para no engordar el check general.
-// Reflejan lo que Meta valida al publicar un Flow: pantallas con id y título,
-// un botón de avance por pantalla, una pantalla final, y campos con nombre.
+// Requisitos del formulario. Las reglas de cada widget (obligatorios, largos,
+// límites de opciones, destinos de navegación) viven en widgetValidation.js,
+// que es lo mismo que marca en rojo el editor mientras se arma el formulario.
 const missingFlowFields = blank => {
   const missing = [];
-  const label = t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SECTION_TITLE');
 
   if (blank(form.value.flow_button_text)) {
     missing.push(t('JABVOX_WA_TEMPLATES.CREATE.FLOW.BUTTON_TEXT'));
   }
   const screens = form.value.flow_screens || [];
   if (!screens.length) {
-    missing.push(label);
+    missing.push(t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SECTION_TITLE'));
     return missing;
   }
   if (!screens.some(s => s.terminal)) {
     missing.push(t('JABVOX_WA_TEMPLATES.CREATE.FLOW.NEEDS_TERMINAL'));
   }
 
-  screens.forEach(screen => {
-    const name = screen.title || screen.id;
-    const components = screen.components || [];
-    const footers = components.filter(c => c.type === 'Footer');
-
-    if (!footers.length) {
-      missing.push(
-        `${name}: ${t('JABVOX_WA_TEMPLATES.CREATE.FLOW.MISSING_FOOTER')}`
-      );
-    }
-    footers.forEach(f => {
-      if (blank(f.props?.label)) {
-        missing.push(
-          `${name}: ${t('JABVOX_WA_TEMPLATES.CREATE.FLOW.MISSING_FOOTER_LABEL')}`
-        );
-      }
-      // Un botón que navega debe saber a dónde; Meta rechaza un destino vacío.
-      if (
-        f.props?.action?.name === 'navigate' &&
-        blank(f.props?.action?.next)
-      ) {
-        missing.push(
-          `${name}: ${t('JABVOX_WA_TEMPLATES.CREATE.FLOW.MISSING_NEXT')}`
-        );
-      }
-    });
-    // Todo campo que captura datos necesita nombre (es la clave de la respuesta)
-    // y etiqueta visible.
-    components.forEach(c => {
-      const meta = getComponentMeta(c.type);
-      if (!meta) return;
-      (meta.fields || []).forEach(field => {
-        if (!field.required) return;
-        const value = c.props?.[field.key];
-        const empty = Array.isArray(value) ? !value.length : blank(value);
-        if (empty) missing.push(`${name} · ${meta.label}: ${field.label}`);
-      });
-    });
-  });
-
-  return missing;
+  return missing.concat(validateFlow(screens).messages);
 };
 
 const missingRequiredFields = computed(() => {

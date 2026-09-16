@@ -163,4 +163,27 @@ RSpec.describe Jabvox::WhatsappFlows::Validator do
     expect(result[:valid]).to be(false)
     expect(result[:errors].map { |e| e[:message] }.join).to match(/duplicado/)
   end
+
+  # El editor ya avisa de estas dos, pero el backend es la última barrera antes
+  # de que Meta rechace el Flow con un error que no dice en qué widget ocurrió.
+  def screen_with(component)
+    [{ 'id' => 'unica', 'title' => 'Única', 'terminal' => true, 'order' => 0,
+       'components' => [component, footer('Enviar', { 'name' => 'complete' })] }]
+  end
+
+  it 'rejects a field name that is not a valid identifier' do
+    invalid = { 'id' => 'c1', 'type' => 'TextInput', 'props' => { 'name' => 'mi campo', 'label' => 'X' } }
+    result = described_class.new(flow_with(screen_with(invalid))).call
+
+    expect(result[:valid]).to be(false)
+    expect(result[:errors].map { |e| e[:message] }.join).to match(/Nombre de campo inválido/)
+  end
+
+  it 'rejects text longer than what Meta accepts for the component' do
+    too_long = { 'id' => 'c1', 'type' => 'TextInput', 'props' => { 'name' => 'campo', 'label' => 'x' * 21 } }
+    result = described_class.new(flow_with(screen_with(too_long))).call
+
+    expect(result[:valid]).to be(false)
+    expect(result[:errors].map { |e| e[:message] }.join).to match(/máximo 20 caracteres/)
+  end
 end

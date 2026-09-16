@@ -285,7 +285,8 @@
         "WIDGET_COUNT": "{count} element(s)",
         "BUTTON_LOCKED_NOTE": "This template opens a form, so Meta only allows this button. You can change its label.",
         "EMPTY_SCREEN": "This screen has no content yet.",
-        "SCREEN_NAME_HELP": "Shown at the top of the screen inside WhatsApp."
+        "SCREEN_NAME_HELP": "Shown at the top of the screen inside WhatsApp.",
+        "SCREEN_HAS_ERRORS": "This screen has missing details"
       },
       "BUTTON_TYPES": {
         "QUICK_REPLY": "Quick reply",

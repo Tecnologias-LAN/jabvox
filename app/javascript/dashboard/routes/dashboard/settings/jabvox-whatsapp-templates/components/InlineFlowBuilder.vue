@@ -32,6 +32,7 @@ import {
   COMPONENT_CATEGORIES,
   MAX_COMPONENTS_PER_SCREEN,
 } from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/componentCatalog';
+import { validateFlow } from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/widgetValidation';
 import ComponentPropsEditor from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/components/ComponentPropsEditor.vue';
 
 const props = defineProps({
@@ -39,7 +40,7 @@ const props = defineProps({
   modelValue: { type: Array, default: () => [] },
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'validity']);
 
 const { t } = useI18n();
 
@@ -140,6 +141,36 @@ watch(selectedScreenId, () => {
 
 const componentLabel = type => getComponentMeta(type)?.label || type;
 const componentIcon = type => getComponentMeta(type)?.icon || 'i-lucide-square';
+
+// ─── Validación en vivo ────────────────────────────────────────────────────
+// Se avisa mientras se arma el formulario, no al publicar: un error de Meta
+// llega como "Property 'init-value' is not allowed" sin decir en qué widget.
+
+const validation = computed(() => validateFlow(orderedScreens.value));
+
+// Errores del widget abierto, para marcar su campo en rojo.
+const selectedComponentErrors = computed(
+  () =>
+    validation.value.byScreen[selectedScreenId.value]?.[
+      selectedComponentId.value
+    ] || []
+);
+
+const screenErrors = screenId =>
+  validation.value.byScreen[screenId]?.screen || [];
+
+const hasErrors = screenId => Boolean(validation.value.byScreen[screenId]);
+
+const componentHasErrors = (screenId, componentId) =>
+  Boolean(validation.value.byScreen[screenId]?.[componentId]);
+
+// El wizard usa esto para no dejar avanzar con un formulario que Meta
+// rechazaría.
+watch(
+  () => validation.value.valid,
+  valid => emit('validity', valid),
+  { immediate: true }
+);
 
 // Widgets agrupados por categoría para la lista de "agregar".
 const widgetGroups = computed(() =>
@@ -333,7 +364,13 @@ defineExpose({ issues });
               >
                 {{ index + 1 }}. {{ screen.title }}
               </span>
-              <span v-if="screen.terminal" class="fb-badge shrink-0">
+              <span
+                v-if="hasErrors(screen.id)"
+                class="i-lucide-alert-circle size-3.5 shrink-0 fb-error-icon"
+                :title="t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SCREEN_HAS_ERRORS')"
+                aria-hidden="true"
+              />
+              <span v-else-if="screen.terminal" class="fb-badge shrink-0">
                 {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.FINAL_BADGE') }}
               </span>
             </div>
@@ -390,12 +427,27 @@ defineExpose({ issues });
           <input
             v-if="selectedScreen"
             :value="selectedScreen.title"
-            class="reset-base text-xs w-full wa-field wa-field-valid"
+            class="reset-base text-xs w-full wa-field"
+            :class="
+              selectedScreen.title ? 'wa-field-valid' : 'wa-field-invalid'
+            "
             :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SCREEN_NAME')"
             @input="renameScreen($event.target.value)"
           />
           <p class="text-[10px] text-n-slate-10 mt-1">
             {{ t('JABVOX_WA_TEMPLATES.CREATE.FLOW.SCREEN_NAME_HELP') }}
+          </p>
+          <!-- Lo que le falta a la pantalla para que Meta la acepte -->
+          <p
+            v-for="issue in screenErrors(selectedScreenId)"
+            :key="issue"
+            class="text-[10px] mt-1 flex items-start gap-1 fb-error-text"
+          >
+            <span
+              class="i-lucide-alert-circle size-3 shrink-0 mt-px"
+              aria-hidden="true"
+            />
+            {{ issue }}
           </p>
         </div>
 
@@ -446,6 +498,10 @@ defineExpose({ issues });
                 class="fb-widget px-2.5 py-2 cursor-pointer flex items-center gap-2"
                 :class="{
                   'fb-widget-active': component.id === selectedComponentId,
+                  'fb-widget-error': componentHasErrors(
+                    selectedScreenId,
+                    component.id
+                  ),
                 }"
                 @click="selectedComponentId = component.id"
               >
@@ -457,6 +513,11 @@ defineExpose({ issues });
                 <span class="text-xs truncate flex-1 text-n-slate-12">
                   {{ componentLabel(component.type) }}
                 </span>
+                <span
+                  v-if="componentHasErrors(selectedScreenId, component.id)"
+                  class="i-lucide-alert-circle size-3.5 shrink-0 fb-error-icon"
+                  aria-hidden="true"
+                />
                 <button
                   type="button"
                   class="fb-mini-btn fb-actions"
@@ -556,6 +617,7 @@ defineExpose({ issues });
             :screens="orderedScreens"
             :current-screen-id="selectedScreenId"
             :is-first-screen="isFirstScreen"
+            :field-errors="selectedComponentErrors"
             :other-screens="
               orderedScreens.filter(s => s.id !== selectedScreenId)
             "
@@ -623,6 +685,43 @@ defineExpose({ issues });
   border-color: var(--color-woot);
   box-shadow: 0 0 0 1px var(--color-woot) inset;
   background: color-mix(in srgb, var(--color-woot) 6%, transparent);
+}
+
+/* Validación: mismos rojo y verde que el resto del asistente de plantillas,
+   para que un widget al que le falta algo se vea antes de intentar publicar. */
+.fb-widget-error {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.04);
+}
+.fb-widget-error.fb-widget-active {
+  box-shadow: 0 0 0 1px #ef4444 inset;
+}
+.fb-error-icon {
+  color: #ef4444;
+}
+.fb-error-text {
+  color: #ef4444;
+}
+.wa-field {
+  border: 1px solid var(--color-border-weak, var(--color-border));
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--color-background);
+  color: var(--color-body);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.wa-field:focus {
+  outline: none;
+  border-color: var(--color-woot);
+}
+.wa-field-invalid {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.04);
+}
+.wa-field-valid {
+  border-color: #22c55e;
 }
 
 /* Botón "+" entre elementos: discreto hasta que se pasa el cursor */

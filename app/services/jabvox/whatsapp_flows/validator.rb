@@ -89,7 +89,29 @@ class Jabvox::WhatsappFlows::Validator
     end
 
     validate_options_limit(screen_id, component_id, type, props)
+    validate_field_name(screen_id, component_id, props)
+    validate_max_lengths(screen_id, component_id, type, props)
     validate_variable_references(screen_id, component_id, props, known_names)
+  end
+
+  # El nombre del campo es la clave de la respuesta y va en las referencias
+  # ${form.campo}, así que Meta exige que sea un identificador.
+  def validate_field_name(screen_id, component_id, props)
+    name = props['name'] || props[:name]
+    return if name.blank? || name.to_s.match?(/\A[a-zA-Z_][a-zA-Z0-9_]*\z/)
+
+    add_error(screen_id, component_id, 'name',
+              "Nombre de campo inválido '#{name}': solo letras, números y guion bajo, empezando por una letra")
+  end
+
+  def validate_max_lengths(screen_id, component_id, type, props)
+    (Catalog::MAX_LENGTHS[type.to_s] || {}).each do |field, limit|
+      value = props[field] || props[field.to_sym]
+      next unless value.is_a?(String) && value.length > limit
+
+      add_error(screen_id, component_id, field,
+                "'#{field}' admite máximo #{limit} caracteres (tiene #{value.length})")
+    end
   end
 
   def validate_options_limit(screen_id, component_id, type, props)

@@ -14,11 +14,14 @@ class Jabvox::WhatsappFlows::JsonCompiler
     TextInput TextArea RadioButtonsGroup CheckboxGroup Dropdown
     ChipsSelector DatePicker OptIn
   ].freeze
-  # Props que Meta rechaza según el componente (ver unsupported_prop?).
-  UNSUPPORTED_PROPS = {
-    'TextInput' => %w[init_value],
-    'TextArea' => %w[init_value]
-  }.freeze
+  # Props que Meta solo admite en componentes FUERA de un Form, y aquí todos van
+  # dentro (ver compile_screen). Dentro del Form el valor inicial se declara en
+  # `init-values` del propio Form, no en el hijo.
+  PROPS_NOT_ALLOWED_IN_FORM = %w[init_value error_message].freeze
+  COMPONENTS_INSIDE_FORM = %w[
+    TextInput TextArea RadioButtonsGroup CheckboxGroup Dropdown
+    ChipsSelector DatePicker CalendarPicker OptIn
+  ].freeze
 
   def initialize(flow_or_screens)
     @screens = flow_or_screens.respond_to?(:screens_json) ? flow_or_screens.screens_json : flow_or_screens
@@ -151,12 +154,11 @@ class Jabvox::WhatsappFlows::JsonCompiler
     value.nil? || value == '' || (value.is_a?(Array) && value.empty?)
   end
 
-  # Propiedades que Meta no acepta en un Flow sin endpoint como los de Jabvox:
-  # `init-value` precarga el campo con un dato que vendría del endpoint, así que
-  # sin él Meta responde "Property 'init-value' is not allowed in 'TextInput'".
-  # Ya no se ofrece en el editor, pero los formularios guardados antes la traen.
+  # Meta responde "Property 'init-value' is not allowed in 'TextInput' component"
+  # y rechaza el Flow entero. Ya no se ofrecen en el editor, pero los
+  # formularios guardados antes las traen.
   def unsupported_prop?(type, key)
-    UNSUPPORTED_PROPS[type.to_s]&.include?(key.to_s) || false
+    COMPONENTS_INSIDE_FORM.include?(type.to_s) && PROPS_NOT_ALLOWED_IN_FORM.include?(key.to_s)
   end
 
   # Meta espera el destino de un `navigate` como objeto
