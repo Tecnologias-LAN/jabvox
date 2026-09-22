@@ -51,6 +51,16 @@ const availableLabels = computed(() =>
   (accountLabels.value || []).filter(l => !leadLabels.value.includes(l.title))
 );
 
+// Cruza los títulos del lead con las etiquetas de la cuenta para obtener el OBJETO completo
+// (con color), igual que useConversationLabels. Un título sin match en la cuenta (etiqueta
+// borrada) se muestra con color neutro para no perderlo.
+const activeLeadLabels = computed(() =>
+  (leadLabels.value || []).map(title => {
+    const found = (accountLabels.value || []).find(l => l.title === title);
+    return found || { title, color: '#8c8c8c' };
+  })
+);
+
 const fetchLeadLabels = async () => {
   if (!lead.value?.id) return;
   try {
@@ -302,7 +312,6 @@ const saveAll = async () => {
         identification: editForm.value.identification,
       },
       campaign_name: editForm.value.campaign_name,
-      assignee_id: editForm.value.assignee_id,
       custom_fields: editForm.value.custom,
     });
     await store.dispatch('jabvoxLeads/fetchLead', leadId.value);
@@ -312,6 +321,26 @@ const saveAll = async () => {
     useAlert(t('JABVOX_LEADS.DETAIL.CUSTOM_FIELDS_ERROR'));
   } finally {
     isSavingFields.value = false;
+  }
+};
+
+// Asignar el lead a un agente al instante (como las etiquetas, sin editar+guardar). El value
+// vacío desasigna. update_details con solo assignee_id no pisa los demás campos (son
+// condicionales en backend) y sincroniza el assignee a las conversaciones abiertas.
+const isSavingAssignee = ref(false);
+const assignLead = async value => {
+  if (!lead.value || isSavingAssignee.value) return;
+  isSavingAssignee.value = true;
+  try {
+    await store.dispatch('jabvoxLeads/updateLeadDetails', {
+      id: lead.value.id,
+      assignee_id: value === '' ? null : Number(value),
+    });
+    await store.dispatch('jabvoxLeads/fetchLead', leadId.value);
+  } catch {
+    useAlert(t('JABVOX_LEADS.DETAIL.CUSTOM_FIELDS_ERROR'));
+  } finally {
+    isSavingAssignee.value = false;
   }
 };
 
@@ -1146,24 +1175,24 @@ onBeforeUnmount(() => {
                 {{ lead.inbox_name || '—' }}
               </dd>
             </div>
-            <!-- Assignee (editable) -->
+            <!-- Assignee: dropdown que guarda al instante (como las etiquetas, sin editar+guardar) -->
             <div class="flex items-center gap-2 px-3 py-2.5">
               <dt class="text-xs text-n-slate-10 w-24 shrink-0">
                 {{ t('JABVOX_LEADS.DETAIL.INFO.ASSIGNEE') }}
               </dt>
               <select
-                v-if="isEditing"
-                v-model="editForm.assignee_id"
                 class="reset-base flex-1 rounded-lg border border-n-weak bg-n-solid-1 text-sm text-n-slate-12 px-2.5 py-1.5 focus:outline-none focus:border-n-slate-7 transition-colors"
+                :value="lead.lead_assignee_id ?? ''"
+                :disabled="isSavingAssignee"
+                @change="assignLead($event.target.value)"
               >
-                <option :value="null">—</option>
+                <option value="">
+                  {{ t('JABVOX_LEADS.DETAIL.INFO.UNASSIGNED') }}
+                </option>
                 <option v-for="a in assignees" :key="a.id" :value="a.id">
                   {{ a.name }}
                 </option>
               </select>
-              <dd v-else class="text-sm text-n-slate-12 flex-1 text-right">
-                {{ lead.assignee_name || '—' }}
-              </dd>
             </div>
             <!-- Etiquetas (aplicadas a las conversaciones del contacto) -->
             <div class="flex items-start gap-2 px-3 py-2.5">
@@ -1172,24 +1201,18 @@ onBeforeUnmount(() => {
               </dt>
               <div class="flex-1 flex flex-col gap-2 items-end">
                 <div class="flex flex-wrap gap-1.5 justify-end">
+                  <woot-label
+                    v-for="label in activeLeadLabels"
+                    :key="label.title"
+                    :title="label.title"
+                    :color="label.color"
+                    variant="smooth"
+                    small
+                    show-close
+                    @remove="removeLeadLabel(label.title)"
+                  />
                   <span
-                    v-for="label in leadLabels"
-                    :key="label"
-                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-n-alpha-2 text-xs text-n-slate-12"
-                  >
-                    {{ label }}
-                    <button
-                      type="button"
-                      class="text-n-slate-10 hover:text-n-ruby-11"
-                      :disabled="isSavingLabels"
-                      :aria-label="t('JABVOX_LEADS.DETAIL.LABELS.REMOVE')"
-                      @click="removeLeadLabel(label)"
-                    >
-                      <span class="i-lucide-x size-3" />
-                    </button>
-                  </span>
-                  <span
-                    v-if="!leadLabels.length"
+                    v-if="!activeLeadLabels.length"
                     class="text-sm text-n-slate-10"
                   >
                     —

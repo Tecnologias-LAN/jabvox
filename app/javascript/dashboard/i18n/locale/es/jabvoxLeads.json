@@ -177,6 +177,7 @@
         "CAMPAIGN": "Campaña",
         "INBOX": "Bandeja",
         "ASSIGNEE": "Asignado a",
+        "UNASSIGNED": "Sin asignar",
         "MANAGEMENT_STATE": "Última gestión",
         "AFFILIATE": "Afiliado",
         "CREATED_AT": "Fecha de registro",

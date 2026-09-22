@@ -177,6 +177,7 @@
         "CAMPAIGN": "Campaign",
         "INBOX": "Inbox",
         "ASSIGNEE": "Assigned to",
+        "UNASSIGNED": "Unassigned",
         "MANAGEMENT_STATE": "Last activity",
         "AFFILIATE": "Affiliate",
         "CREATED_AT": "Registration date",

@@ -191,13 +191,19 @@ module Jabvox
       end
 
       # ---------------------------------------------------------------- Tokens de Hermes de la cuenta
+      # Devuelve el action_token EN CLARO de cada Hermes de la cuenta: el aprovisionador es la
+      # superficie administrativa que configura/inyecta esos tokens en los gateways. Es una
+      # concesión deliberada, acotada por: (1) solo un super admin genera el token del
+      # aprovisionador, (2) requiere el permiso hermes_tokens/view, (3) IP allowlisted + firma
+      # anti-replay, (4) queda registrado en la auditoría del provisioner. Aun así, el
+      # action_token NO se registra en el log (la auditoría sanea claves 'token').
       def list_hermes_tokens(params)
         account = h.find_account!(params['account_id'])
-        # NUNCA se devuelve el action_token en claro (es una credencial cifrada): solo
-        # metadatos + si existe o no. Ligar/rotar el token se hace desde el Super Admin.
         { account_id: account.id, hermes: account.jabvox_hermes_connections.map do |c|
           { id: c.id, name: c.name_jabvox, hermes_agent: c.hermes_agent_name_jabvox,
-            base_url: c.base_url_jabvox, has_action_token: c.action_token_jabvox.present? }
+            base_url: c.base_url_jabvox, allowed_ips: Array(c.allowed_ips_jabvox),
+            has_action_token: c.action_token_jabvox.present?,
+            action_token: c.action_token_jabvox }
         end }
       end
 

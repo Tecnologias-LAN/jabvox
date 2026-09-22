@@ -67,6 +67,18 @@ class SuperAdmin::HermesInstancesController < SuperAdmin::ApplicationController
     end
   end
 
+  # Rota el action_token (Hermes → Jabvox) de una conexión: genera uno nuevo e invalida el
+  # anterior de inmediato. La conexión se busca DENTRO de la cuenta (nunca por id global). El
+  # token nuevo se muestra una vez en el panel (flash) para copiarlo al gateway de Hermes.
+  def rotate_action_token
+    conn = account.jabvox_hermes_connections.find_by(id: params[:connection_id])
+    return redirect_back_with(false, 'Conexión no encontrada', nil) if conn.nil?
+
+    conn.rotate_action_token!
+    flash[:revealed_token] = { 'connection_id' => conn.id, 'token' => conn.action_token_jabvox }
+    redirect_back_with(true, nil, "Token renovado para «#{conn.name_jabvox}». Cópialo ahora.")
+  end
+
   private
 
   def account
@@ -89,8 +101,11 @@ class SuperAdmin::HermesInstancesController < SuperAdmin::ApplicationController
     {
       account_id: acc.id, account_name: acc.name, linked: linked,
       connections: acc.jabvox_hermes_connections.order(:name_jabvox).map do |conn|
+        # Este es el panel del super admin (autenticado): a diferencia de la API de cuenta,
+        # aquí SÍ se muestra el action_token para poder configurarlo/rotarlo en el gateway.
         { id: conn.id, name: conn.name_jabvox, base_url: conn.base_url_jabvox,
-          allowed_ips: Array(conn.allowed_ips_jabvox) }
+          allowed_ips: Array(conn.allowed_ips_jabvox),
+          action_token: conn.action_token_jabvox, has_action_token: conn.action_token_jabvox.present? }
       end
     }
   end

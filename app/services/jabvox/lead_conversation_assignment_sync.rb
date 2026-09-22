@@ -22,13 +22,13 @@ module Jabvox
       @account = account
     end
 
-    # Sync a single lead to a user (or nil to leave conversations as-is on
-    # unassign — we intentionally DO NOT unassign conversations when a lead is
-    # unassigned, to avoid yanking active work away from an agent mid-chat).
+    # Sync a single lead to a user. Passing nil UNASSIGNS the contact's open
+    # conversations too (the lead and its conversations must stay in sync in both
+    # directions: assigning follows the new owner, unassigning clears them).
     def sync_lead(lead, user)
-      return 0 if lead.nil? || user.nil? || lead.contact_id.blank?
+      return 0 if lead.nil? || lead.contact_id.blank?
 
-      reassign_open_conversations(lead.contact_id, user.id)
+      reassign_open_conversations(lead.contact_id, user&.id)
     end
 
     # Sync many leads to the same user in one pass. Returns the number of
@@ -44,10 +44,10 @@ module Jabvox
 
     def reassign_open_conversations(contact_id, user_id)
       count = 0
-      # NOTE: `where.not(assignee_id: user_id)` alone would SKIP unassigned
-      # (NULL) conversations, because in SQL `NULL <> user_id` is NULL, not
-      # true. We must explicitly include NULL so freshly-unassigned
-      # conversations are picked up — that's the main case to fix.
+      # `IS DISTINCT FROM` compara correctamente incluso con NULL (a diferencia de
+      # `<>`, que da NULL frente a NULL). Así funciona en ambos sentidos:
+      #   - asignar a un agente: recoge las que estén sin asignar o con otro agente;
+      #   - desasignar (user_id nil): recoge las que TENGAN algún agente, para limpiarlas.
       @account.conversations
               .where(contact_id: contact_id, status: :open)
               .where('assignee_id IS DISTINCT FROM ?', user_id)

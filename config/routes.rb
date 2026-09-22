@@ -1364,6 +1364,7 @@ Rails.application.routes.draw do
           post :link_account          # activar el aprovisionador en esta cuenta
           post :unlink_account
           post :update_allowed_ips    # allowlist de IPs del Hermes de esta cuenta
+          post :rotate_action_token   # renovar el action_token de una conexión de la cuenta
         end
       end
       # Widget de Soporte global (burbuja "Soporte" del dashboard): token + HMAC.
