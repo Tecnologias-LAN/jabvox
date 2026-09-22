@@ -102,13 +102,20 @@ class Webhooks::Jabvox::HermesAgentController < ActionController::API
   # antiguo de token-de-agente (sin conexión asociada), que no tiene allowlist y por tanto
   # ya no puede usarse para ejecutar: dejarlo pasar sería una puerta trasera que anula esta
   # verificación entera.
+  #
+  # Se valida la IP de la conexión TCP DIRECTA (request.remote_addr = REMOTE_ADDR de Rack),
+  # NO request.remote_ip: este último deriva de X-Forwarded-For y sería falsificable por
+  # cabeceras. Hermes llega directo a Jabvox (sin proxy intermedio), así que remote_addr es la
+  # IP real del Hermes y no puede suplantarse con un header.
   def authorize_source_ip!
     return head :forbidden if @connection.nil?
-    return if @connection.ip_allowed?(request.remote_ip)
+
+    source_ip = request.remote_addr
+    return if @connection.ip_allowed?(source_ip)
 
     Rails.logger.warn(
       "[HermesAgent] IP no autorizada connection_id=#{@connection.id} " \
-      "account_id=#{@account&.id} ip=#{request.remote_ip}"
+      "account_id=#{@account&.id} ip=#{source_ip}"
     )
     head :forbidden
   end

@@ -21,7 +21,11 @@ const showSidebar = ref(false); // mobile drawer
 
 // ─── view / date state ───────────────────────────────────────────────────────
 const viewMode = ref('month'); // month | week | day
-const currentDate = ref(new Date(today.getFullYear(), today.getMonth(), 1));
+// Arranca en HOY (no en el día 1 del mes): así al cambiar a semana/día sin pulsar "Hoy" se
+// muestra la semana/día actual. La vista mes igual sale bien porque hoy cae dentro del mes.
+const currentDate = ref(
+  new Date(today.getFullYear(), today.getMonth(), today.getDate())
+);
 
 // ─── modal state ─────────────────────────────────────────────────────────────
 const showModal = ref(false);
@@ -76,10 +80,46 @@ const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(k =>
   t(`JABVOX_CALENDAR.DAYS.${k}`)
 );
 
-const currentMonthLabel = computed(
-  () =>
-    `${MONTH_NAMES[currentDate.value.getMonth()]} ${currentDate.value.getFullYear()}`
-);
+// Los 7 días de la semana de currentDate (de domingo a sábado). Definido antes que
+// currentMonthLabel porque el label de la vista semana lo usa.
+const weekDays = computed(() => {
+  const d = new Date(currentDate.value);
+  const sunday = new Date(d);
+  sunday.setDate(d.getDate() - d.getDay());
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(sunday);
+    date.setDate(sunday.getDate() + i);
+    return date;
+  });
+});
+
+// Etiqueta del período según la vista activa: mes ("Septiembre 2026"), semana ("14 – 20 sep
+// 2026") o día ("martes, 16 sep 2026"). Antes SIEMPRE mostraba "Mes Año", así que en semana/
+// día no reflejaba dónde estabas.
+const currentMonthLabel = computed(() => {
+  const d = currentDate.value;
+  if (viewMode.value === 'day') {
+    return d.toLocaleDateString('es', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+  if (viewMode.value === 'week') {
+    const days = weekDays.value;
+    const start = days[0];
+    const end = days[6];
+    const fmt = (dt, withYear) =>
+      dt.toLocaleDateString('es', {
+        day: 'numeric',
+        month: 'short',
+        ...(withYear ? { year: 'numeric' } : {}),
+      });
+    return `${fmt(start, start.getFullYear() !== end.getFullYear())} – ${fmt(end, true)}`;
+  }
+  return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+});
 
 const calendarDays = computed(() => {
   const year = currentDate.value.getFullYear();
@@ -105,17 +145,6 @@ const calendarDays = computed(() => {
   return cells;
 });
 
-const weekDays = computed(() => {
-  const d = new Date(currentDate.value);
-  const sunday = new Date(d);
-  sunday.setDate(d.getDate() - d.getDay());
-  return Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(sunday);
-    date.setDate(sunday.getDate() + i);
-    return date;
-  });
-});
-
 function eventsForDate(date) {
   const key = toDateKey(date);
   return filteredEvents.value.filter(
@@ -130,13 +159,24 @@ function isToday(date) {
 // ─── navigation ──────────────────────────────────────────────────────────────
 function shift(dir) {
   const d = new Date(currentDate.value);
-  if (viewMode.value === 'month') d.setMonth(d.getMonth() + dir);
-  else if (viewMode.value === 'week') d.setDate(d.getDate() + 7 * dir);
+  if (viewMode.value === 'month') {
+    // Navegar por meses desde el día 1 evita el desborde de setMonth cuando el día actual
+    // (p. ej. 31) no existe en el mes destino.
+    currentDate.value = new Date(d.getFullYear(), d.getMonth() + dir, 1);
+    return;
+  }
+  if (viewMode.value === 'week') d.setDate(d.getDate() + 7 * dir);
   else d.setDate(d.getDate() + dir);
   currentDate.value = d;
 }
 function goToday() {
-  currentDate.value = new Date(today.getFullYear(), today.getMonth(), 1);
+  // Ir al DÍA de hoy real (no al día 1 del mes): en vista día/semana debe posicionarse en
+  // hoy y su semana. La vista mes igual muestra el mes correcto porque cae dentro de él.
+  currentDate.value = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
 }
 
 // ─── fetch ─────────────────────────────────────────────────────────────────

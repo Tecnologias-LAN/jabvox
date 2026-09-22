@@ -32,8 +32,10 @@ class JabvoxTaskStage < ApplicationRecord
   belongs_to :account
   belongs_to :board, class_name: 'JabvoxTaskBoard'
 
+  # stage_id es NOT NULL: una tarea no puede quedar sin stage. Al borrar un stage se destruyen
+  # sus tareas (nullify violaría la FK NOT NULL y reventaba el borrado del board — 500).
   has_many :tasks, class_name: 'JabvoxTask', foreign_key: :stage_id,
-                   dependent: :nullify, inverse_of: :stage
+                   dependent: :destroy, inverse_of: :stage
   has_many :automations, class_name: 'JabvoxTaskStageAutomation', foreign_key: :stage_id,
                          dependent: :destroy, inverse_of: :stage
   # Automations on other stages that move tasks INTO this stage lose their

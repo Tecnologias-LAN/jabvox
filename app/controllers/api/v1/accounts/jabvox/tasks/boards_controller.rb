@@ -33,6 +33,9 @@ class Api::V1::Accounts::Jabvox::Tasks::BoardsController < Api::V1::Accounts::Ja
   def destroy
     @board.destroy!
     head :no_content
+  rescue ActiveRecord::RecordNotDestroyed, ActiveRecord::InvalidForeignKey, ActiveRecord::StatementInvalid => e
+    Rails.logger.error("[Tasks::Boards] no se pudo eliminar el tablero #{@board.id}: #{e.class}: #{e.message}")
+    render json: { error: 'No se pudo eliminar el tablero.' }, status: :unprocessable_entity
   end
 
   private

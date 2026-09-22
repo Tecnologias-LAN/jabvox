@@ -35,8 +35,9 @@ json.assignee_id conv[:assignee_id]
 json.assignee_name conv[:assignee_name]
 # assignee_id de la CONVERSACIÓN sale arriba (conv[:assignee_id]); este es el del
 # LEAD, que puede diferir. Se usa al crear una conversación por plantilla para
-# heredar el dueño del lead.
+# heredar el dueño del lead, y en el detalle para el selector de "Asignado a".
 json.lead_assignee_id lead.assignee_id
+json.lead_assignee_name lead.assignee&.name
 json.conversation_id conv[:conversation_id]
 json.conversation_display_id conv[:conversation_display_id]
 json.last_management_state conv[:last_management_state]

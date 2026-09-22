@@ -105,6 +105,28 @@
                     <% end %>
                   </div>
                 <% end %>
+                <%# Token de acción (Hermes → Jabvox): se muestra para configurarlo en el
+                    gateway de Hermes y se puede renovar. Es el panel del super admin. %>
+                <div style="display:flex; align-items:center; gap:6px; margin:0 0 12px; padding-left:126px;">
+                  <span style="color:#6b7280; font-size:12px;">Token:</span>
+                  <% if conn[:action_token].present? %>
+                    <% tid = "tok-#{inst[:account_id]}-#{conn[:id]}" %>
+                    <%# Oculto por defecto; el ojo alterna mostrar/ocultar. `user-select:all`
+                        selecciona todo al hacer clic para copiar fácil cuando está visible. %>
+                    <code id="<%= tid %>" data-token="<%= conn[:action_token] %>"
+                          style="font-size:12px; background:#f3f4f6; padding:3px 6px; border-radius:4px; user-select:all; max-width:260px; overflow:auto; white-space:nowrap;">••••••••••••••••</code>
+                    <button type="button" title="Mostrar / ocultar" aria-label="Mostrar u ocultar token"
+                            onclick="(function(b){var c=document.getElementById('<%= tid %>');var shown=c.dataset.shown==='1';c.textContent=shown?'••••••••••••••••':c.dataset.token;c.dataset.shown=shown?'0':'1';b.textContent=shown?'👁':'🙈';})(this)"
+                            style="border:1px solid #d1d5db; background:#fff; border-radius:4px; padding:3px 7px; cursor:pointer; font-size:13px; line-height:1;">👁</button>
+                  <% else %>
+                    <span style="color:#d97706; font-size:12px;">sin token</span>
+                  <% end %>
+                  <%= button_to 'Renovar', rotate_action_token_super_admin_hermes_instance_path(inst[:account_id]),
+                        method: :post, params: { connection_id: conn[:id] },
+                        class: 'button button--secondary', form_class: 'inline-block',
+                        style: 'font-size:12px; padding:4px 10px;',
+                        data: { confirm: '¿Renovar el token? El anterior dejará de funcionar de inmediato y hay que actualizar el gateway de Hermes.' } %>
+                </div>
               <% end %>
             <% end %>
           </td>
