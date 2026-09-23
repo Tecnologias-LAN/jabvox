@@ -15,8 +15,8 @@ module Jabvox::Hermes::ServiceHandlers
   # --- Handlers de dominio (account SIEMPRE = @account, nunca del LLM) ---
 
   # Etiquetas
-  def list_labels(_params)
-    @account.labels.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |l| { id: l.id, title: l.title, color: l.color } }
+  def list_labels(params)
+    @account.labels.limit(capped_limit(params)).map { |l| { id: l.id, title: l.title, color: l.color } }
   end
 
   def create_label(params)
@@ -31,8 +31,8 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # Bandejas (solo lectura)
-  def list_inboxes(_params)
-    @account.inboxes.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |i| { id: i.id, name: i.name, channel_type: i.channel_type } }
+  def list_inboxes(params)
+    @account.inboxes.limit(capped_limit(params)).map { |i| { id: i.id, name: i.name, channel_type: i.channel_type } }
   end
 
   # Contactos
@@ -59,8 +59,24 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # Conversaciones + mensajes
-  def conversations_meta(_params)
-    { open: @account.conversations.open.count, total: @account.conversations.count }
+  # Métricas de conversaciones. Sin fechas da el total histórico de la cuenta; con
+  # since/until acota el periodo, que es lo que permite responder "cuántas hubo el último
+  # mes" o comparar un año contra otro. `inbox_id` acota a una bandeja.
+  def conversations_meta(params)
+    scope = @account.conversations
+    scope = scope.where(inbox_id: params[:inbox_id]) if params[:inbox_id].to_i.positive?
+    scope = filter_by_date(scope, params, column: :last_activity_at)
+    by_status = scope.group(:status).count
+    messages = @account.messages.where(conversation_id: scope.select(:id))
+    {
+      total: by_status.values.sum, by_status: by_status,
+      open: by_status['open'].to_i, resolved: by_status['resolved'].to_i,
+      messages_total: messages.count,
+      messages_incoming: messages.where(message_type: :incoming).count,
+      messages_outgoing: messages.where(message_type: :outgoing).count,
+      contacts_involved: scope.distinct.count(:contact_id),
+      since: params[:since].presence, until: params[:until].presence
+    }
   end
 
   # Resuelve una conversación por el DISPLAY_ID (el número visible por cuenta, que es el que
@@ -87,6 +103,9 @@ module Jabvox::Hermes::ServiceHandlers
     scope = scope.where(inbox_id: params[:inbox_id]) if params[:inbox_id].to_i.positive?
     scope = scope.where(contact_id: params[:contact_id]) if params[:contact_id].to_i.positive?
     scope = scope.where('conversations.id < ?', params[:before_id]) if params[:before_id].to_i.positive?
+    # Rango de fechas sobre la ÚLTIMA ACTIVIDAD, no la creación: "las conversaciones del
+    # último mes" significa las que se movieron en ese periodo, no las que nacieron en él.
+    scope = filter_by_date(scope, params, column: :last_activity_at)
     limit = params[:limit].to_i
     limit = 25 unless limit.positive?
     limit = [limit, Jabvox::Hermes::ServiceLayer::MAX_ROWS].min
@@ -158,8 +177,8 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # Automatizaciones
-  def list_automation_rules(_params)
-    @account.automation_rules.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |r| { id: r.id, name: r.name, active: r.active } }
+  def list_automation_rules(params)
+    @account.automation_rules.limit(capped_limit(params)).map { |r| { id: r.id, name: r.name, active: r.active } }
   end
 
   def create_automation_rule(params)
@@ -210,8 +229,8 @@ module Jabvox::Hermes::ServiceHandlers
   # Hermes se integra como un webhook (no como AgentBot de Jabvox). Jabvox dispara
   # message_created hacia el Hermes de la cuenta; el Hermes responde vía reply_conversation.
 
-  def list_webhooks(_params)
-    @account.webhooks.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |w| webhook_view(w) }
+  def list_webhooks(params)
+    @account.webhooks.limit(capped_limit(params)).map { |w| webhook_view(w) }
   end
 
   # Webhook Hermes para TODAS las bandejas (account_type). La URL la FIJA Jabvox al endpoint
@@ -300,8 +319,8 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # Gestiones (management states)
-  def list_management_states(_params)
-    @account.jabvox_management_states.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS)
+  def list_management_states(params)
+    @account.jabvox_management_states.limit(capped_limit(params))
             .map { |s| { id: s.id, name: s.name_jabvox, color: s.color_jabvox } }
   end
 
@@ -317,8 +336,8 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # Dialer
-  def list_dialer_campaigns(_params)
-    @account.jabvox_dialer_campaigns.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS)
+  def list_dialer_campaigns(params)
+    @account.jabvox_dialer_campaigns.limit(capped_limit(params))
             .map { |c| { id: c.id, name: c.name_jabvox, status: c.status_jabvox } }
   end
 
@@ -339,8 +358,9 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # Masivos (SMS)
-  def list_sms_campaigns(_params)
-    @account.jabvox_sms_campaigns.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |c| sms_view(c) }
+  def list_sms_campaigns(params)
+    scope = filter_by_date(@account.jabvox_sms_campaigns, params)
+    scope.limit(capped_limit(params)).map { |c| sms_view(c) }
   end
 
   def create_sms_campaign(params)
@@ -395,8 +415,9 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # --- Análisis de Audio (solo lectura) ---
-  def list_audio_jobs(_params)
-    @account.jabvox_audio_jobs.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |j|
+  def list_audio_jobs(params)
+    scope = filter_by_date(@account.jabvox_audio_jobs, params)
+    scope.order(created_at: :desc).limit(capped_limit(params)).map do |j|
       { id: j.id, status: j.status, total: j.total_count, processed: j.processed_count,
         passed: j.passed_count, failed: j.failed_count, created_at: j.created_at }
     end
@@ -409,21 +430,21 @@ module Jabvox::Hermes::ServiceHandlers
       pipeline_id: j.pipeline_id, created_at: j.created_at }
   end
 
-  def list_audio_pipelines(_params)
-    @account.jabvox_audio_pipelines.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |p|
+  def list_audio_pipelines(params)
+    @account.jabvox_audio_pipelines.order(:id).limit(capped_limit(params)).map do |p|
       { id: p.id, name: p.try(:name_jabvox) || p.try(:name) }
     end
   end
 
   # --- Analytics / BD externas (solo lectura; sin credenciales) ---
-  def list_analytics_data_sources(_params)
-    @account.jabvox_analytics_data_sources.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |d|
+  def list_analytics_data_sources(params)
+    @account.jabvox_analytics_data_sources.order(:id).limit(capped_limit(params)).map do |d|
       { id: d.id, name: d.name_jabvox, engine: d.engine_jabvox, database: d.database_jabvox }
     end
   end
 
-  def list_analytics_dashboards(_params)
-    @account.jabvox_analytics_dashboards.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |d|
+  def list_analytics_dashboards(params)
+    @account.jabvox_analytics_dashboards.order(:id).limit(capped_limit(params)).map do |d|
       { id: d.id, name: d.try(:name_jabvox) || d.try(:name) }
     end
   end
@@ -440,16 +461,21 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # --- Tareas (solo lectura) ---
-  def list_tasks(_params)
-    @account.jabvox_tasks.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |t|
-      { id: t.id, title: t.try(:title_jabvox) || t.try(:title), stage_id: t.try(:stage_id),
-        assignee_id: t.try(:assignee_id), created_at: t.created_at }
-    end
+  # Tareas de un tablero/columna/responsable. Sin filtros devuelve las más recientes de toda
+  # la cuenta; con `board_id` solo las de ese tablero (antes traía todas, daba igual lo que
+  # se pidiera). Incluye el nombre de la columna y del responsable para que el agente pueda
+  # responder "en qué estado está" y "quién la tiene" sin una segunda consulta.
+  def list_tasks(params)
+    scope = @account.jabvox_tasks.includes(:stage, :assignee)
+    scope = filter_by(scope, params, :board_id, :stage_id, :assignee_id)
+    scope = filter_by_date(scope, params)
+    scope.order(created_at: :desc).limit(capped_limit(params)).map { |t| task_view(t) }
   end
 
   # --- Calendario (solo lectura) ---
-  def list_calendar_events(_params)
-    @account.jabvox_calendar_events.order(start_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |e|
+  def list_calendar_events(params)
+    scope = filter_by_date(@account.jabvox_calendar_events, params, column: :start_at)
+    scope.order(start_at: :desc).limit(capped_limit(params)).map do |e|
       { id: e.id, title: e.title, start_at: e.start_at, end_at: e.end_at }
     end
   end
@@ -494,8 +520,8 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # === Carpetas de Analytics ===
-  def list_analytics_folders(_params)
-    @account.jabvox_analytics_folders.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |f|
+  def list_analytics_folders(params)
+    @account.jabvox_analytics_folders.order(:id).limit(capped_limit(params)).map do |f|
       { id: f.id, name: f.try(:name_jabvox) || f.try(:name) }
     end
   end
@@ -512,9 +538,9 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # === Reportes cruzados (join entre varias BD externas) ===
-  def list_analytics_cross_reports(_params)
+  def list_analytics_cross_reports(params)
     JabvoxAnalyticsCrossReport.where(account_id: @account.id).order(:id)
-                              .limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS)
+                              .limit(capped_limit(params))
                               .map { |r| { id: r.id, name: r.try(:name_jabvox) || r.try(:name) } }
   end
 
@@ -664,8 +690,8 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # === Importar leads (pull desde BD externa) ===
-  def list_lead_import_sources(_params)
-    @account.jabvox_lead_sources.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |s|
+  def list_lead_import_sources(params)
+    @account.jabvox_lead_sources.order(:id).limit(capped_limit(params)).map do |s|
       { id: s.id, name: s.try(:name_jabvox), engine: s.try(:engine_jabvox), table: s.try(:table_jabvox) }
     end
   end
@@ -688,8 +714,8 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # === Exportar datos ===
-  def list_data_export_targets(_params)
-    @account.jabvox_export_targets.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |t|
+  def list_data_export_targets(params)
+    @account.jabvox_export_targets.order(:id).limit(capped_limit(params)).map do |t|
       { id: t.id, name: t.try(:name_jabvox), engine: t.try(:engine_jabvox), enabled: t.try(:enabled_jabvox) }
     end
   end
@@ -713,8 +739,8 @@ module Jabvox::Hermes::ServiceHandlers
       items: o.jabvox_order_items.map { |i| { name: i.name_snapshot, qty: i.quantity, total: i.line_total.to_s } } }
   end
 
-  def list_products(_params)
-    @account.jabvox_products.order(:name_jabvox).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |p|
+  def list_products(params)
+    @account.jabvox_products.order(:name_jabvox).limit(capped_limit(params)).map do |p|
       { id: p.id, name: p.name_jabvox, price: p.try(:price_jabvox)&.to_s, type: p.try(:product_type_jabvox) }
     end
   end
@@ -725,14 +751,30 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # === Módulos varios (solo lectura) ===
-  def list_task_boards(_params)
-    @account.jabvox_task_boards.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |b|
-      { id: b.id, name: b.try(:name_jabvox) || b.try(:name) }
+  # Tableros de tareas. Con `id` devuelve SOLO ese tablero (el agente preguntaba por uno y
+  # recibía todos). Incluye sus columnas para que pueda razonar sobre el flujo sin otra
+  # llamada, y el conteo de tareas por columna.
+  def list_task_boards(params)
+    scope = @account.jabvox_task_boards.includes(:stages)
+    scope = scope.where(id: params[:id]) if params[:id].present?
+    scope.order(:id).limit(capped_limit(params)).map do |b|
+      { id: b.id, name: b.try(:name_jabvox) || b.try(:name), stages: board_stages(b) }
     end
   end
 
-  def list_tickets(_params)
-    @account.jabvox_tickets.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |t|
+  def board_stages(board)
+    stages = board.try(:stages)
+    return [] if stages.blank?
+
+    counts = @account.jabvox_tasks.where(board_id: board.id).group(:stage_id).count
+    stages.map do |s|
+      { id: s.id, name: s.try(:name_jabvox) || s.try(:name), tasks_count: counts[s.id].to_i }
+    end
+  end
+
+  def list_tickets(params)
+    scope = filter_by_date(@account.jabvox_tickets, params)
+    scope.order(created_at: :desc).limit(capped_limit(params)).map do |t|
       { id: t.id, title: t.title_jabvox, status: t.status_jabvox, priority: t.priority_jabvox,
         created_at: t.created_at }
     end
@@ -744,14 +786,14 @@ module Jabvox::Hermes::ServiceHandlers
       description: t.description_jabvox, category_id: t.ticket_category_id }
   end
 
-  def list_kanban_funnels(_params)
-    @account.jabvox_kanban_funnels.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |f|
+  def list_kanban_funnels(params)
+    @account.jabvox_kanban_funnels.order(:id).limit(capped_limit(params)).map do |f|
       { id: f.id, name: f.try(:name_jabvox) || f.try(:name) }
     end
   end
 
-  def list_flows(_params)
-    @account.jabvox_flows.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |f| flow_view(f) }
+  def list_flows(params)
+    @account.jabvox_flows.order(:id).limit(capped_limit(params)).map { |f| flow_view(f) }
   end
 
   def get_flow(params)
@@ -909,15 +951,16 @@ module Jabvox::Hermes::ServiceHandlers
     { blocking: result.try(:blocking?), issues: issues }
   end
 
-  def list_bulk_whatsapp_batches(_params)
-    @account.jabvox_bulk_whatsapp_batches.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |b|
+  def list_bulk_whatsapp_batches(params)
+    scope = filter_by_date(@account.jabvox_bulk_whatsapp_batches, params)
+    scope.order(created_at: :desc).limit(capped_limit(params)).map do |b|
       { id: b.id, status: b.try(:status_jabvox), total: b.try(:total_rows_jabvox),
         sent: b.try(:sent_count_jabvox), created_at: b.created_at }
     end
   end
 
-  def list_whatsapp_templates(_params)
-    @account.jabvox_whatsapp_templates.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |t| whatsapp_template_view(t) }
+  def list_whatsapp_templates(params)
+    @account.jabvox_whatsapp_templates.order(:id).limit(capped_limit(params)).map { |t| whatsapp_template_view(t) }
   end
 
   # Reutiliza el mismo manager que el controller (Jabvox::WhatsappTemplatesManager), que
@@ -994,8 +1037,8 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # === Grupos de WhatsApp ===
-  def list_whatsapp_groups(_params)
-    @account.jabvox_whatsapp_groups.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |g| whatsapp_group_view(g) }
+  def list_whatsapp_groups(params)
+    @account.jabvox_whatsapp_groups.order(:id).limit(capped_limit(params)).map { |g| whatsapp_group_view(g) }
   end
 
   def get_whatsapp_group(params)
@@ -1032,8 +1075,9 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # === Voice Broadcast (gestión de campañas; el backend hace la marcación real) ===
-  def list_voice_broadcasts(_params)
-    JabvoxVoiceBroadcast.for_account(@account.id).ordered.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |b| voice_broadcast_view(b) }
+  def list_voice_broadcasts(params)
+    scope = filter_by_date(JabvoxVoiceBroadcast.for_account(@account.id).ordered, params)
+    scope.limit(capped_limit(params)).map { |b| voice_broadcast_view(b) }
   end
 
   def get_voice_broadcast(params)
@@ -1142,27 +1186,32 @@ module Jabvox::Hermes::ServiceHandlers
       language: t.try(:language), status: t.try(:status_jabvox) || t.try(:status), inbox_id: t.try(:inbox_id) }
   end
 
-  def list_affiliates(_params)
-    @account.jabvox_affiliates.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |a|
+  def list_affiliates(params)
+    @account.jabvox_affiliates.order(:id).limit(capped_limit(params)).map do |a|
       { id: a.id, name: a.try(:name_jabvox) || a.try(:name) }
     end
   end
 
-  def list_campaigns(_params)
-    @account.jabvox_campaigns.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |c|
+  def list_campaigns(params)
+    @account.jabvox_campaigns.order(:id).limit(capped_limit(params)).map do |c|
       { id: c.id, name: c.try(:name_jabvox) || c.try(:name) }
     end
   end
 
-  def list_cdr_records(_params)
-    JabvoxCdrRecord.where(account_id: @account.id).order(calldate: :desc)
-                   .limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |r|
+  # Registros de llamadas. `calldate` es datetime naive del PBX, así que el rango se compara
+  # sobre esa misma columna (no created_at) para que "el último mes" signifique la fecha de
+  # la llamada y no la de ingesta.
+  def list_cdr_records(params)
+    scope = JabvoxCdrRecord.where(account_id: @account.id)
+    scope = filter_by(scope, params, :disposition, :src, :dst)
+    scope = filter_by_date(scope, params, column: :calldate)
+    scope.order(calldate: :desc).limit(capped_limit(params)).map do |r|
       { id: r.id, src: r.src, dst: r.dst, disposition: r.disposition, duration: r.duration, calldate: r.calldate }
     end
   end
 
-  def list_custom_tables(_params)
-    @account.jabvox_custom_tables.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |t|
+  def list_custom_tables(params)
+    @account.jabvox_custom_tables.order(:id).limit(capped_limit(params)).map do |t|
       { id: t.id, name: t.try(:name_jabvox), kind: t.try(:kind_jabvox), linked_to: t.try(:linked_to_jabvox) }
     end
   end
@@ -1214,8 +1263,9 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # --- Plantillas de correo ---
-  def list_email_templates(_params)
-    @account.jabvox_email_templates.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |t| email_template_view(t) }
+  def list_email_templates(params)
+    scope = filter_by_date(@account.jabvox_email_templates, params)
+    scope.order(created_at: :desc).limit(capped_limit(params)).map { |t| email_template_view(t) }
   end
 
   def create_email_template(params)
@@ -1266,8 +1316,8 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # --- Formularios ---
-  def list_forms(_params)
-    @account.jabvox_forms.order(:id).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |f| form_view(f) }
+  def list_forms(params)
+    @account.jabvox_forms.order(:id).limit(capped_limit(params)).map { |f| form_view(f) }
   end
 
   def get_form(params)
@@ -1335,9 +1385,13 @@ module Jabvox::Hermes::ServiceHandlers
     task_view(t)
   end
 
+  # Incluye los NOMBRES de columna y responsable, no solo los ids: el agente necesita poder
+  # decir "está en Pendiente, asignada a Ana" sin encadenar dos consultas más.
   def task_view(task)
     { id: task.id, title: task.title_jabvox, board_id: task.board_id, stage_id: task.stage_id,
-      assignee_id: task.assignee_id, priority: task.priority_jabvox, status: task.status_jabvox, due_at: task.due_at_jabvox }
+      stage_name: task.try(:stage)&.name_jabvox,
+      assignee_id: task.assignee_id, assignee_name: task.try(:assignee)&.name,
+      priority: task.priority_jabvox, status: task.status_jabvox, due_at: task.due_at_jabvox }
   end
 
   def create_task_board(params)
@@ -1429,8 +1483,9 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # --- Chat interno de equipo ---
-  def list_internal_chats(_params)
-    internal_chat_scope.order(updated_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |c| internal_chat_view(c) }
+  def list_internal_chats(params)
+    scope = filter_by_date(internal_chat_scope, params, column: :updated_at)
+    scope.order(updated_at: :desc).limit(capped_limit(params)).map { |c| internal_chat_view(c) }
   end
 
   def create_internal_chat(params)
@@ -1597,8 +1652,8 @@ module Jabvox::Hermes::ServiceHandlers
       pending: ccs.where(status_jabvox: 'pending').count, completed: ccs.where(status_jabvox: 'completed').count }
   end
 
-  def list_dialer_states(_params)
-    @account.jabvox_dialer_states.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |s| dialer_state_view(s) }
+  def list_dialer_states(params)
+    @account.jabvox_dialer_states.limit(capped_limit(params)).map { |s| dialer_state_view(s) }
   end
 
   def create_dialer_state(params)
@@ -1615,8 +1670,9 @@ module Jabvox::Hermes::ServiceHandlers
     { id: s.id, name: s.name, color: s.color, position: s.position, is_active: s.is_active }
   end
 
-  def list_dialer_call_logs(_params)
-    @account.jabvox_dialer_call_logs.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |log|
+  def list_dialer_call_logs(params)
+    scope = filter_by_date(@account.jabvox_dialer_call_logs, params)
+    scope.order(created_at: :desc).limit(capped_limit(params)).map do |log|
       { id: log.id, phone: log.phone_jabvox, status: log.status_jabvox, duration: log.try(:duration_jabvox),
         agent_id: log.agent_id_jabvox, campaign_id: log.jabvox_dialer_campaign_id, typification_id: log.typification_id }
     end
@@ -1636,8 +1692,9 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # --- Click-to-call ---
-  def list_click_to_call_logs(_params)
-    @account.jabvox_call_logs.order(created_at: :desc).limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map do |l|
+  def list_click_to_call_logs(params)
+    scope = filter_by_date(@account.jabvox_call_logs, params)
+    scope.order(created_at: :desc).limit(capped_limit(params)).map do |l|
       { id: l.id, phone_number: l.phone_number, status: l.status, note: l.note,
         typification_id: l.typification_id, contact_id: l.contact_id, conversation_id: l.conversation_id }
     end
@@ -2206,12 +2263,8 @@ module Jabvox::Hermes::ServiceHandlers
   # Aplica el rango de fechas (since/until, ISO) a un scope de reporte. Sin fechas,
   # devuelve el scope intacto. Tolerante a formatos inválidos (los ignora).
   def apply_report_dates(scope, params, table)
-    if params[:since].present?
-      scope = scope.where("#{table}.created_at >= ?", Time.zone.parse(params[:since].to_s).beginning_of_day)
-    end
-    if params[:until].present?
-      scope = scope.where("#{table}.created_at <= ?", Time.zone.parse(params[:until].to_s).end_of_day)
-    end
+    scope = scope.where("#{table}.created_at >= ?", Time.zone.parse(params[:since].to_s).beginning_of_day) if params[:since].present?
+    scope = scope.where("#{table}.created_at <= ?", Time.zone.parse(params[:until].to_s).end_of_day) if params[:until].present?
     scope
   rescue ArgumentError, TypeError
     scope

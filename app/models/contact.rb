@@ -4,24 +4,26 @@
 #
 # Table name: contacts
 #
-#  id                    :integer          not null, primary key
-#  additional_attributes :jsonb
-#  blocked               :boolean          default(FALSE), not null
-#  contact_type          :integer          default("visitor")
-#  country_code          :string           default("")
-#  custom_attributes     :jsonb
-#  email                 :string
-#  identifier            :string
-#  last_activity_at      :datetime
-#  last_name             :string           default("")
-#  location              :string           default("")
-#  middle_name           :string           default("")
-#  name                  :string           default("")
-#  phone_number          :string
-#  created_at            :datetime         not null
-#  updated_at            :datetime         not null
-#  account_id            :integer          not null
-#  company_id            :bigint
+#  id                        :integer          not null, primary key
+#  additional_attributes     :jsonb
+#  blocked                   :boolean          default(FALSE), not null
+#  contact_type              :integer          default("visitor")
+#  country_code              :string           default("")
+#  custom_attributes         :jsonb
+#  email                     :string
+#  identifier                :string
+#  last_activity_at          :datetime
+#  last_name                 :string           default("")
+#  location                  :string           default("")
+#  middle_name               :string           default("")
+#  name                      :string           default("")
+#  phone_country_code_jabvox :string
+#  phone_national_jabvox     :string
+#  phone_number              :string
+#  created_at                :datetime         not null
+#  updated_at                :datetime         not null
+#  account_id                :integer          not null
+#  company_id                :bigint
 #
 # Indexes
 #

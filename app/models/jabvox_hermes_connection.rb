@@ -12,6 +12,7 @@
 #
 #  id                       :bigint           not null, primary key
 #  action_token_jabvox      :text
+#  allowed_ips_jabvox       :string           default([]), not null, is an Array
 #  base_url_jabvox          :string           not null
 #  hermes_agent_name_jabvox :string           not null
 #  last_check_at_jabvox     :datetime

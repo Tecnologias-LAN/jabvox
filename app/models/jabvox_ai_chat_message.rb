@@ -7,6 +7,7 @@
 #  metadata_jabvox   :jsonb
 #  role_jabvox       :string(20)       not null
 #  session_id_jabvox :string(100)      not null
+#  status_jabvox     :string
 #  created_at        :datetime         not null
 #  updated_at        :datetime         not null
 #  account_id        :bigint           not null
@@ -16,6 +17,7 @@
 #
 #  idx_jabvox_ai_chat_messages_session          (account_id,user_id,session_id_jabvox)
 #  idx_jabvox_ai_chat_messages_user             (account_id,user_id)
+#  idx_jabvox_ai_chat_on_session_status         (session_id_jabvox,status_jabvox)
 #  index_jabvox_ai_chat_messages_on_account_id  (account_id)
 #  index_jabvox_ai_chat_messages_on_user_id     (user_id)
 #
@@ -32,6 +34,10 @@ class JabvoxAiChatMessage < ApplicationRecord
 
   validates :session_id_jabvox, presence: true, length: { maximum: 100 }
   validates :role_jabvox, presence: true, inclusion: { in: ROLES }
+  # Estado del turno: al volver al chat indica si sigue en curso, si espera aprobación o si
+  # terminó. nil = mensajes anteriores a la columna.
+  STATUSES = %w[streaming waiting_approval completed interrupted failed].freeze
+  validates :status_jabvox, inclusion: { in: STATUSES }, allow_nil: true
   validates :content_jabvox, presence: true
 
   scope :for_session, ->(session_id) { where(session_id_jabvox: session_id).order(:created_at) }

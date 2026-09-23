@@ -4,24 +4,30 @@
 #
 # Table name: jabvox_affiliate_imports
 #
-#  id                  :bigint           not null, primary key
-#  filename            :string
-#  import_type         :integer          default("manual"), not null
-#  rows_duplicated     :integer          default(0), not null
-#  rows_failed         :integer          default(0), not null
-#  rows_ok             :integer          default(0), not null
-#  rows_total          :integer          default(0), not null
-#  created_at          :datetime         not null
-#  updated_at          :datetime         not null
-#  account_id          :bigint           not null
-#  created_by_id       :bigint
-#  jabvox_affiliate_id :bigint           not null
+#  id                   :bigint           not null, primary key
+#  campaign_name_jabvox :string
+#  completed_at         :datetime
+#  country_jabvox       :string           default(""), not null
+#  error_message        :string
+#  filename             :string
+#  import_type          :integer          default("manual"), not null
+#  rows_duplicated      :integer          default(0), not null
+#  rows_failed          :integer          default(0), not null
+#  rows_ok              :integer          default(0), not null
+#  rows_total           :integer          default(0), not null
+#  status               :integer          default("processing"), not null
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  account_id           :bigint           not null
+#  created_by_id        :bigint
+#  jabvox_affiliate_id  :bigint           not null
 #
 # Indexes
 #
-#  index_jabvox_affiliate_imports_on_account_id           (account_id)
-#  index_jabvox_affiliate_imports_on_created_by_id        (created_by_id)
-#  index_jabvox_affiliate_imports_on_jabvox_affiliate_id  (jabvox_affiliate_id)
+#  index_jabvox_affiliate_imports_on_account_id             (account_id)
+#  index_jabvox_affiliate_imports_on_affiliate_and_created  (jabvox_affiliate_id,created_at)
+#  index_jabvox_affiliate_imports_on_created_by_id          (created_by_id)
+#  index_jabvox_affiliate_imports_on_jabvox_affiliate_id    (jabvox_affiliate_id)
 #
 # Foreign Keys
 #

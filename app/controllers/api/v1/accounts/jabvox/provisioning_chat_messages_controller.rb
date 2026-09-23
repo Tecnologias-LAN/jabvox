@@ -14,25 +14,54 @@
 class Api::V1::Accounts::Jabvox::ProvisioningChatMessagesController < Api::V1::Accounts::Jabvox::BaseController
   include ActionController::Live
   include JabvoxPermissions
+  include JabvoxProvisioningChatSessions
+  include JabvoxProvisioningChatRunControl
+  include JabvoxProvisioningChatStreamFrames
+  include JabvoxChatTurnPersistence
 
   jabvox_feature 'jabvox_ai_chat_provisioning'
   # Todas las acciones exigen el permiso de gestión (crear MCPs es una acción sensible).
   before_action -> { jabvox_authorize!('jabvox_ai_chat_provisioning_manage') }
 
+  # Mensajes de UNA conversación. Sin session_id devuelve la más reciente, para que al
+  # entrar al chat se vea la última conversación en vez de todo mezclado.
   def index
-    msgs = Current.account.jabvox_provisioning_chat_messages.chronological.limit(200)
+    sid = params[:session_id].presence || latest_session_id
+    return render(json: []) if sid.blank?
+
+    msgs = Current.account.jabvox_provisioning_chat_messages.in_session(sid).chronological.limit(200)
     render json: msgs.map { |m| serialize(m) }
+  end
+
+  # Lista de conversaciones para la barra lateral.
+  def sessions
+    render json: JabvoxProvisioningChatMessage.sessions_for(Current.account.id)
+  end
+
+  # Modelos que ofrece el aprovisionador, para el picker.
+  def model_options
+    render json: { data: relay.model_options }
+  end
+
+  # Borra una conversación completa de esta cuenta.
+  def destroy_session
+    sid = params[:session_id].to_s
+    return render(json: { error: 'session_id requerido' }, status: :unprocessable_entity) if sid.blank?
+
+    count = Current.account.jabvox_provisioning_chat_messages.in_session(sid).destroy_all.size
+    render json: { deleted: count }
   end
 
   def create
     content = params[:content].to_s.strip
     return render(json: { error: 'content requerido' }, status: :unprocessable_entity) if content.blank?
 
-    persist('user', content)
+    sid = resolved_session_id
+    persist('user', content, session_id: sid)
     result = Jabvox::ProvisioningChatService.new(
       account: Current.account, user: Current.user
     ).handle(content)
-    assistant = persist('assistant', result[:reply], metadata: result[:metadata] || {})
+    assistant = persist('assistant', result[:reply], metadata: result[:metadata] || {}, session_id: sid)
     render json: serialize(assistant)
   end
 
@@ -49,14 +78,24 @@ class Api::V1::Accounts::Jabvox::ProvisioningChatMessagesController < Api::V1::A
     end
 
     set_sse_headers
-    persist('user', content) # se guarda antes: no se pierde si sale del módulo
+    @session_id = resolved_session_id
+    # El historial se lee ANTES de guardar el mensaje nuevo, para no duplicarlo: el actual
+    # se añade aparte en el relay.
+    history = session_history(@session_id)
+    persist('user', content, session_id: @session_id) # se guarda antes: no se pierde si sale del módulo
     @stream_full = +''
     @stream_tools = []
     @stream_started = true
-    run_provisioner_stream(content)
+    # La fila del asistente se crea YA, vacía y en estado 'streaming': a partir de aquí el
+    # turno existe en BD aunque el cliente cierre o el proceso muera a mitad.
+    start_assistant_turn!(session_id: @session_id)
+    # El cliente necesita saber en qué sesión quedó el mensaje (sobre todo si era nueva).
+    write_sse("event: session\ndata: #{{ session_id: @session_id }.to_json}\n\n")
+    run_provisioner_stream(content, history: history, hermes_session_id: hermes_session_id_for(@session_id))
     persist_assistant_stream!
   rescue StandardError => e
     Rails.logger.warn("[ProvisioningChatStream] #{e.class}: #{e.message}")
+    @stream_failed = true
     write_sse("data: #{{ error: e.message }.to_json}\n\n")
   ensure
     persist_assistant_stream! # persiste SIEMPRE, aunque el cliente abortara el HTTP
@@ -104,80 +143,71 @@ class Api::V1::Accounts::Jabvox::ProvisioningChatMessagesController < Api::V1::A
 
   # Abre el stream hacia el aprovisionador y, por cada frame: acumula texto y tools (para
   # persistir lo parcial si el cliente corta) y lo reenvía al navegador.
-  def run_provisioner_stream(content)
-    relay = Jabvox::Hermes::ProvisionerChatRelay.new(account: Current.account, user: Current.user)
-    relay.stream_message(content, on_chunk: lambda { |chunk|
-      capture_tool_frame(chunk)
-      @stream_full << extract_delta_text(chunk) if @stream_full
-      write_sse(chunk)
-    })
+  def run_provisioner_stream(content, history: [], hermes_session_id: nil)
+    relay.stream_message(
+      content, history: history, llm_overrides: llm_overrides, session_id: hermes_session_id,
+               on_chunk: lambda { |chunk|
+                 capture_run_frame(chunk)
+                 capture_tool_frame(chunk)
+                 capture_turn_state(chunk)
+                 @stream_full << extract_delta_text(chunk) if @stream_full
+                 # Vuelca el parcial cada tanto: si el turno se corta aquí, lo ya recibido
+                 # queda en BD en vez de perderse.
+                 flush_assistant_turn(@stream_full, tools: @stream_tools.presence)
+                 write_sse(chunk)
+               }
+    )
   end
 
-  # Persiste el mensaje del asistente UNA sola vez (idempotente) con el texto y tools
-  # acumulados. Se llama en el flujo normal y en el ensure: @persisted evita duplicar.
-  def persist_assistant_stream! # rubocop:disable Metrics/CyclomaticComplexity
+  # La sesión de Hermes de esta conversación, para que los turnos compartan contexto del lado
+  # del agente y /model tenga a qué sesión aplicarse. Se guarda en la metadata del último
+  # mensaje que la conoció.
+  def hermes_session_id_for(session_id)
+    Current.account.jabvox_provisioning_chat_messages
+           .in_session(session_id)
+           .where("metadata ->> 'hermes_session_id' IS NOT NULL")
+           .recent_first
+           .limit(1)
+           .pick(Arel.sql("metadata ->> 'hermes_session_id'"))
+  end
+
+  # Cierra el turno del asistente (idempotente: @persisted evita repetirlo entre el flujo
+  # normal y el ensure). La fila ya existe desde start_assistant_turn!, así que aquí solo se
+  # fija el texto final y el estado — NUNCA se descarta el mensaje, ni aunque venga vacío:
+  # un turno sin respuesta es justo lo que el usuario necesita ver al volver.
+  def persist_assistant_stream!
     return if @persisted || !@stream_started
 
     @persisted = true
-    text = @stream_full.to_s
-    return if text.strip.empty? && @stream_tools.blank?
-
-    metadata = { via: 'provisioner' }
-    metadata[:tools] = @stream_tools if @stream_tools.present?
-    content = text.strip.empty? ? '_(herramientas ejecutadas)_' : text
-    persist('assistant', content, metadata: metadata)
+    finish_assistant_turn!(@stream_full.to_s, tools: @stream_tools.presence,
+                                              status: final_turn_status, extra_metadata: { error: @run_error }.compact)
   rescue StandardError => e
     Rails.logger.warn("[ProvisioningChatStream] persist failed: #{e.class}: #{e.message}")
   end
 
-  # Detecta frames "event: hermes.tool.progress\ndata: {json}" y acumula la tool en
-  # @stream_tools (dedup por toolCallId, merge para no perder el comando). Igual que el Chat IA.
-  def capture_tool_frame(chunk)
-    return unless chunk.to_s.include?('hermes.tool.progress')
+  # Cómo terminó el turno: esperando aprobación (el agente pidió permiso y nadie respondió
+  # todavía), fallido, interrumpido (el cliente cortó sin que llegara el fin del run) o
+  # completado.
+  def final_turn_status
+    return JabvoxChatTurnPersistence::STATUS_WAITING_APPROVAL if @awaiting_approval
+    return JabvoxChatTurnPersistence::STATUS_FAILED if @stream_failed
+    return JabvoxChatTurnPersistence::STATUS_INTERRUPTED unless @run_completed || @stream_full.to_s.strip.present?
 
-    in_tool = false
-    chunk.to_s.each_line do |line|
-      s = line.strip
-      if s.start_with?('event:')
-        in_tool = s.include?('hermes.tool.progress')
-      elsif in_tool && s.start_with?('data:')
-        record_tool(s.sub(/\Adata:\s*/, ''))
-        in_tool = false
-      end
-    end
+    JabvoxChatTurnPersistence::STATUS_COMPLETED
   end
 
-  def record_tool(json_str) # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
-    return if json_str.blank?
-
-    tool = JSON.parse(json_str)
-    return unless tool.is_a?(Hash)
-
-    key = tool['toolCallId'] || tool['id'] || tool['tool']
-    return if key.blank?
-
-    idx = @stream_tools.index { |t| (t['toolCallId'] || t['id'] || t['tool']) == key }
-    idx ? @stream_tools[idx] = @stream_tools[idx].merge(tool.compact) : @stream_tools << tool
-  rescue JSON::ParserError
-    nil
-  end
-
-  # Extrae el texto (choices[].delta.content) de un chunk SSE para acumular la respuesta.
-  def extract_delta_text(chunk)
-    out = +''
-    chunk.to_s.each_line do |line|
-      next unless line.start_with?('data:')
-
-      data = line.sub('data:', '').strip
-      next if data.empty? || data == '[DONE]'
-
-      begin
-        out << JSON.parse(data).dig('choices', 0, 'delta', 'content').to_s
-      rescue JSON::ParserError
-        next
-      end
-    end
-    out
+  # run_id y sesión de Hermes se guardan con el mensaje: sin ellos no se pueden responder
+  # aprobaciones, hacer steer ni fijar el modelo en turnos posteriores.
+  def stream_metadata
+    {
+      via: 'provisioner',
+      tools: @stream_tools.presence,
+      run_id: @run_id.presence,
+      hermes_session_id: @hermes_session_id.presence,
+      # Si el run falló del lado de Hermes, el motivo viaja con el turno para que el usuario
+      # vea por qué no hubo respuesta en vez de un mensaje vacío.
+      error: @run_error.presence
+    }.compact
   end
 
   def write_sse(chunk)
@@ -186,14 +216,28 @@ class Api::V1::Accounts::Jabvox::ProvisioningChatMessagesController < Api::V1::A
     nil # el cliente cerró la conexión
   end
 
-  def persist(role, content, metadata: {})
+  # Nombres de columna que usa JabvoxChatTurnPersistence (difieren entre los dos chats).
+  def content_column = :content
+  def metadata_column = :metadata
+
+  # Crea la fila del asistente del turno en curso.
+  def build_assistant_message(status:, content:, session_id:)
     Current.account.jabvox_provisioning_chat_messages.create!(
-      user: Current.user, role: role, content: content, metadata: metadata
+      user: Current.user, role: 'assistant', content: content.presence || '…',
+      session_id: session_id, status_jabvox: status, metadata: stream_metadata
+    )
+  end
+
+  def persist(role, content, metadata: {}, session_id: nil)
+    Current.account.jabvox_provisioning_chat_messages.create!(
+      user: Current.user, role: role, content: content, metadata: metadata,
+      session_id: session_id || @session_id || resolved_session_id
     )
   end
 
   def serialize(msg)
     { id: msg.id, role: msg.role, content: msg.content, metadata: msg.metadata,
-      created_at: msg.created_at }
+      session_id: msg.session_id, status: msg.status_jabvox, created_at: msg.created_at,
+      updated_at: msg.updated_at }
   end
 end

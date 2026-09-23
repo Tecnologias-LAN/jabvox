@@ -41,10 +41,11 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- Conversaciones + mensajes — core ---
     'get_conversations_meta' => { permission: 'read', method: :get, path: 'conversations/meta',
-                                  mcp: 'jabvox_core', feature: 'core' },
+                                  params: { since: :string, until: :string, inbox_id: :integer }, mcp: 'jabvox_core', feature: 'core' },
     # Lista conversaciones con filtros (estado, inbox, contacto) y paginación por cursor.
     'list_conversations' => { permission: 'read', method: :get, path: 'conversations',
                               params: { status: :string, inbox_id: :integer, contact_id: :integer,
+                                        since: :string, until: :string,
                                         before_id: :integer, limit: :integer },
                               mcp: 'jabvox_core', feature: 'core' },
     'get_conversation_messages' => { permission: 'read', method: :get, path: 'conversations/:id/messages',
@@ -116,6 +117,7 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- Envíos masivos: SMS (jabvox_sms) ---
     'get_sms_campaigns' => { permission: 'read', method: :get, path: 'jabvox/sms_campaigns',
+                             params: { since: :string, until: :string, limit: :integer },
                              mcp: 'jabvox_sms', feature: 'jabvox_sms' },
     'create_sms_campaign' => { permission: 'create', method: :post, path: 'jabvox/sms_campaigns',
                                params: { name: :string, message: :string },
@@ -126,6 +128,7 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- Reportes de la cuenta (solo lectura) ---
     'get_report_summary' => { permission: 'read', method: :get, path: 'jabvox/reports/agents',
+                              params: { since: :string, until: :string },
                               mcp: 'analytics', feature: 'core' },
     'get_agents_report' => { permission: 'read', method: :get, path: 'jabvox/reports/agents',
                              params: { since: :string, until: :string }, mcp: 'analytics', feature: 'core' },
@@ -143,6 +146,7 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- Análisis de Audio (módulo jabvox_audio_analysis) ---
     'get_audio_jobs' => { permission: 'read', method: :get, path: 'jabvox/audio/jobs',
+                          params: { status: :string, since: :string, until: :string, limit: :integer },
                           mcp: 'jabvox_core', feature: 'jabvox_audio_analysis' },
     'get_audio_job' => { permission: 'read', method: :get, path: 'jabvox/audio/jobs/:id',
                          params: { id: :integer }, mcp: 'jabvox_core', feature: 'jabvox_audio_analysis' },
@@ -249,28 +253,34 @@ module Jabvox::Hermes::ToolRegistry
     'get_order' => { permission: 'read', method: :get, path: 'jabvox/orders/:id',
                      params: { id: :integer }, mcp: 'jabvox_core', feature: 'jabvox_products' },
     'get_products' => { permission: 'read', method: :get, path: 'jabvox/products',
+                        params: { limit: :integer },
                         mcp: 'jabvox_core', feature: 'jabvox_products' },
     'get_product' => { permission: 'read', method: :get, path: 'jabvox/products/:id',
                        params: { id: :integer }, mcp: 'jabvox_core', feature: 'jabvox_products' },
 
     # --- Tareas (módulo jabvox_tasks) ---
     'get_tasks' => { permission: 'read', method: :get, path: 'jabvox/tasks',
+                     params: { board_id: :integer, stage_id: :integer, assignee_id: :integer, since: :string, until: :string, limit: :integer },
                      mcp: 'jabvox_core', feature: 'jabvox_tasks' },
     'get_task_boards' => { permission: 'read', method: :get, path: 'jabvox/tasks/boards',
+                           params: { id: :integer, limit: :integer },
                            mcp: 'jabvox_core', feature: 'jabvox_tasks' },
 
     # --- Calendario (módulo jabvox_calendar) ---
     'get_calendar_events' => { permission: 'read', method: :get, path: 'jabvox/calendar/events',
+                               params: { since: :string, until: :string, limit: :integer },
                                mcp: 'jabvox_core', feature: 'jabvox_calendar' },
 
     # --- Tickets (módulo jabvox_tickets) ---
     'get_tickets' => { permission: 'read', method: :get, path: 'jabvox/tickets',
+                       params: { status_jabvox: :string, priority_jabvox: :string, since: :string, until: :string, limit: :integer },
                        mcp: 'jabvox_core', feature: 'jabvox_tickets' },
     'get_ticket' => { permission: 'read', method: :get, path: 'jabvox/tickets/:id',
                       params: { id: :integer }, mcp: 'jabvox_core', feature: 'jabvox_tickets' },
 
     # --- Kanban (módulo jabvox_kanban) ---
     'get_kanban_funnels' => { permission: 'read', method: :get, path: 'jabvox/kanban_funnels',
+                              params: { id: :integer, limit: :integer },
                               mcp: 'jabvox_core', feature: 'jabvox_kanban' },
 
     # --- Flows / automatizaciones avanzadas (módulo jabvox_advanced_automations) ---
@@ -317,6 +327,7 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- Envíos masivos WhatsApp (módulo jabvox_bulk_whatsapp) ---
     'get_bulk_whatsapp_batches' => { permission: 'read', method: :get, path: 'jabvox/bulk_whatsapp/batches',
+                                     params: { since: :string, until: :string, limit: :integer },
                                      mcp: 'jabvox_core', feature: 'jabvox_bulk_whatsapp' },
 
     # --- Plantillas WhatsApp (módulo jabvox_whatsapp_templates) ---
@@ -379,6 +390,7 @@ module Jabvox::Hermes::ToolRegistry
     # Hermes GESTIONA campañas (crear/editar/iniciar/pausar); el backend hace la marcación
     # real. NUNCA toca AMI/VoIP ni origina llamadas a mano.
     'get_voice_broadcasts' => { permission: 'read', method: :get, path: 'jabvox/voice_broadcasts',
+                                params: { since: :string, until: :string, limit: :integer },
                                 mcp: 'jabvox_core', feature: 'jabvox_voice_broadcast' },
     'get_voice_broadcast' => { permission: 'read', method: :get, path: 'jabvox/voice_broadcasts/:id',
                                params: { id: :integer }, mcp: 'jabvox_core', feature: 'jabvox_voice_broadcast' },
@@ -409,6 +421,7 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- Afiliados (módulo jabvox_affiliates) ---
     'get_affiliates' => { permission: 'read', method: :get, path: 'jabvox/affiliates',
+                          params: { id: :integer, limit: :integer },
                           mcp: 'jabvox_core', feature: 'jabvox_affiliates' },
 
     # --- Campañas de leads (gateadas por el módulo jabvox_leads) ---
@@ -417,6 +430,7 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- CDR (módulo jabvox_cdr) ---
     'get_cdr_records' => { permission: 'read', method: :get, path: 'jabvox/cdr/records',
+                           params: { since: :string, until: :string, disposition: :string, src: :string, dst: :string, limit: :integer },
                            mcp: 'jabvox_core', feature: 'jabvox_cdr' },
 
     # --- Tablas personalizadas (gateadas por el módulo jabvox_customization) ---
@@ -440,6 +454,7 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- Plantillas de correo (jabvox_email) ---
     'get_email_templates' => { permission: 'read', method: :get, path: 'jabvox/email_templates',
+                               params: { since: :string, until: :string, limit: :integer },
                                mcp: 'jabvox_core', feature: 'jabvox_email' },
     'create_email_template' => { permission: 'create', method: :post, path: 'jabvox/email_templates',
                                  params: { name: :string, subject: :string, body: :string, active: :boolean },
@@ -517,6 +532,7 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- Chat interno de equipo (jabvox_internal_chat) ---
     'get_internal_chats' => { permission: 'read', method: :get, path: 'jabvox/internal_chats',
+                              params: { since: :string, until: :string, limit: :integer },
                               mcp: 'jabvox_core', feature: 'jabvox_internal_chat' },
     'create_internal_chat' => { permission: 'create', method: :post, path: 'jabvox/internal_chats',
                                 params: { chat_type: :string, name: :string, member_ids: :json, user_id: :integer },
@@ -579,6 +595,7 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- Click-to-call (jabvox_click_to_call) ---
     'get_click_to_call_logs' => { permission: 'read', method: :get, path: 'jabvox/click_to_call/call_logs',
+                                  params: { since: :string, until: :string, limit: :integer },
                                   mcp: 'jabvox_core', feature: 'jabvox_click_to_call' },
     'typify_click_to_call' => { permission: 'write', method: :patch, path: 'jabvox/click_to_call/call_logs/:id',
                                 params: { id: :integer, typification_id: :integer, note: :string },
@@ -675,53 +692,137 @@ module Jabvox::Hermes::ToolRegistry
     'update_order_status_config' => { permission: 'write', method: :patch, path: 'jabvox/order_status_configs/:id',
                                       params: { id: :integer, key_jabvox: :string, label_jabvox: :string, sort_order_jabvox: :integer, color_jabvox: :string },
                                       mcp: 'jabvox_core', feature: 'jabvox_products' },
-    'create_currency' => { permission: 'create', method: :post, path: 'jabvox/currencies',
-                           params: { symbol_jabvox: :string, name_jabvox: :string, active_jabvox: :boolean },
-                           mcp: 'jabvox_core', feature: 'jabvox_products' },
-    'update_currency' => { permission: 'write', method: :patch, path: 'jabvox/currencies/:id',
-                           params: { id: :integer, symbol_jabvox: :string, name_jabvox: :string, active_jabvox: :boolean },
-                           mcp: 'jabvox_core', feature: 'jabvox_products' },
-    'create_item_type' => { permission: 'create', method: :post, path: 'jabvox/item_types',
-                            params: { name_jabvox: :string, active_jabvox: :boolean }, mcp: 'jabvox_core', feature: 'jabvox_products' },
-    'update_item_type' => { permission: 'write', method: :patch, path: 'jabvox/item_types/:id',
-                            params: { id: :integer, name_jabvox: :string, active_jabvox: :boolean }, mcp: 'jabvox_core', feature: 'jabvox_products' },
-    'create_unit_of_measure' => { permission: 'create', method: :post, path: 'jabvox/units_of_measure',
-                                  params: { name_jabvox: :string, abbreviation_jabvox: :string, active_jabvox: :boolean },
-                                  mcp: 'jabvox_core', feature: 'jabvox_products' },
-    'update_unit_of_measure' => { permission: 'write', method: :patch, path: 'jabvox/units_of_measure/:id',
-                                  params: { id: :integer, name_jabvox: :string, abbreviation_jabvox: :string, active_jabvox: :boolean },
-                                  mcp: 'jabvox_core', feature: 'jabvox_products' },
-    'create_tax_rate' => { permission: 'create', method: :post, path: 'jabvox/tax_rates',
-                           params: { name_jabvox: :string, percentage_jabvox: :string, active_jabvox: :boolean },
-                           mcp: 'jabvox_core', feature: 'jabvox_products' },
-    'update_tax_rate' => { permission: 'write', method: :patch, path: 'jabvox/tax_rates/:id',
-                           params: { id: :integer, name_jabvox: :string, percentage_jabvox: :string, active_jabvox: :boolean },
-                           mcp: 'jabvox_core', feature: 'jabvox_products' },
+    'get_units_of_measure' => { permission: 'read', method: :get, path: 'jabvox/units_of_measure',
+                                params: { active_jabvox: :boolean, limit: :integer },
+                                mcp: 'jabvox_core', feature: 'core' },
 
-    # --- Leads (jabvox_leads) ---
-    'bulk_assign_leads' => { permission: 'write', method: :post, path: 'jabvox/leads/bulk_assign',
-                             params: { lead_ids: :json, assignee_id: :integer }, mcp: 'jabvox_leads', feature: 'jabvox_leads' },
-    'bulk_unassign_leads' => { permission: 'write', method: :post, path: 'jabvox/leads/bulk_unassign',
-                               params: { lead_ids: :json }, mcp: 'jabvox_leads', feature: 'jabvox_leads' },
-    'update_lead_details' => { permission: 'write', method: :patch, path: 'jabvox/leads/:id/details',
-                               params: { id: :integer, contact: :json, campaign_name: :string, assignee_id: :integer, custom_fields: :json },
-                               mcp: 'jabvox_leads', feature: 'jabvox_leads' },
-    'update_lead_custom_fields' => { permission: 'write', method: :patch, path: 'jabvox/leads/:id/custom_fields',
-                                     params: { id: :integer, custom_fields: :json }, mcp: 'jabvox_leads', feature: 'jabvox_leads' },
-    'claim_lead' => { permission: 'write', method: :post, path: 'jabvox/leads/:id/claim',
-                      params: { id: :integer }, mcp: 'jabvox_leads', feature: 'jabvox_leads' },
-    'sync_lead_contacts' => { permission: 'write', method: :post, path: 'jabvox/leads/sync_contacts',
-                              mcp: 'jabvox_leads', feature: 'jabvox_leads' },
+    # --- Visibilidad de campos y extensiones de agente ---
+    'get_field_visibilities' => { permission: 'read', method: :get, path: 'jabvox/field_visibilities',
+                                  params: { user_id: :integer, field_name: :string, limit: :integer },
+                                  mcp: 'jabvox_core', feature: 'jabvox_customization' },
+    'update_field_visibility' => { permission: 'write', method: :patch, path: 'jabvox/field_visibilities',
+                                   params: { user_id: :integer, field_name: :string, can_view: :boolean },
+                                   mcp: 'jabvox_core', feature: 'jabvox_customization' },
+    'get_user_extensions' => { permission: 'read', method: :get, path: 'jabvox/user_extensions',
+                               params: { user_id: :integer, limit: :integer }, mcp: 'jabvox_core', feature: 'jabvox_dialer' },
+    'update_user_extension' => { permission: 'write', method: :patch, path: 'jabvox/user_extensions',
+                                 params: { user_id: :integer, extension: :string },
+                                 mcp: 'jabvox_core', feature: 'jabvox_dialer' },
 
-    # --- Afiliados (jabvox_affiliates) ---
-    'create_affiliate' => { permission: 'create', method: :post, path: 'jabvox/affiliates',
-                            params: { name: :string, active: :boolean }, mcp: 'jabvox_core', feature: 'jabvox_affiliates' },
-    'update_affiliate' => { permission: 'write', method: :patch, path: 'jabvox/affiliates/:id',
-                            params: { id: :integer, name: :string, active: :boolean }, mcp: 'jabvox_core', feature: 'jabvox_affiliates' },
-    'regenerate_affiliate_token' => { permission: 'write', method: :post, path: 'jabvox/affiliates/:id/regenerate_token',
-                                      params: { id: :integer }, mcp: 'jabvox_core', feature: 'jabvox_affiliates' },
-    'regenerate_affiliate_code' => { permission: 'write', method: :post, path: 'jabvox/affiliates/:id/regenerate_code',
-                                     params: { id: :integer }, mcp: 'jabvox_core', feature: 'jabvox_affiliates' }
+    # --- Configuración de canales (solo lectura: nunca exponen credenciales) ---
+    'get_smtp_config' => { permission: 'read', method: :get, path: 'jabvox/smtp_config',
+                           mcp: 'jabvox_core', feature: 'jabvox_email' },
+    'get_voip_config' => { permission: 'read', method: :get, path: 'jabvox/voip_config',
+                           mcp: 'jabvox_core', feature: 'jabvox_dialer' },
+    # --- Saldo IA / LiteLLM ---
+    'get_ai_balance' => { permission: 'read', method: :get, path: 'jabvox/ai_balance',
+                          mcp: 'jabvox_core', feature: 'jabvox_saldo' },
+    'get_ai_balance_movements' => { permission: 'read', method: :get, path: 'jabvox/ai_balance/movements',
+                                    params: { since: :string, until: :string, kind_jabvox: :string, limit: :integer },
+                                    mcp: 'jabvox_core', feature: 'jabvox_saldo' },
+    'refresh_ai_balance' => { permission: 'write', method: :post, path: 'jabvox/ai_balance/refresh',
+                              mcp: 'jabvox_core', feature: 'jabvox_saldo' },
+    'get_saldo_configs' => { permission: 'read', method: :get, path: 'jabvox/saldo_configs',
+                             params: { limit: :integer }, mcp: 'jabvox_core', feature: 'jabvox_saldo' },
+    # --- Lista blanca de IP ---
+    'get_ip_whitelists' => { permission: 'read', method: :get, path: 'jabvox/ip_whitelists',
+                             params: { is_active: :boolean, limit: :integer }, mcp: 'jabvox_core', feature: 'core' },
+    'create_ip_whitelist' => { permission: 'create', method: :post, path: 'jabvox/ip_whitelists',
+                               params: { ip: :string, comment: :string, is_active: :boolean },
+                               mcp: 'jabvox_core', feature: 'core' },
+    'update_ip_whitelist' => { permission: 'write', method: :patch, path: 'jabvox/ip_whitelists/:id',
+                               params: { id: :integer, ip: :string, comment: :string, is_active: :boolean },
+                               mcp: 'jabvox_core', feature: 'core' },
+    # --- Horarios de atención ---
+    'get_working_hours' => { permission: 'read', method: :get, path: 'jabvox/working_hours',
+                             params: { inbox_id: :integer, limit: :integer }, mcp: 'jabvox_core', feature: 'core' },
+    'update_working_hour' => { permission: 'write', method: :patch, path: 'jabvox/working_hours',
+                               params: { inbox_id: :integer, day_of_week: :integer, closed_all_day: :boolean,
+                                         open_all_day: :boolean, open_hour: :integer, open_minutes: :integer,
+                                         close_hour: :integer, close_minutes: :integer },
+                               mcp: 'jabvox_core', feature: 'core' },
+    # --- Macros ---
+    'get_macros' => { permission: 'read', method: :get, path: 'macros',
+                      params: { visibility: :string, limit: :integer }, mcp: 'jabvox_core', feature: 'core' },
+    'get_macro' => { permission: 'read', method: :get, path: 'macros/:id',
+                     params: { id: :integer }, mcp: 'jabvox_core', feature: 'core' },
+    'create_macro' => { permission: 'create', method: :post, path: 'macros',
+                        params: { name: :string, visibility: :string, actions: :json },
+                        mcp: 'jabvox_core', feature: 'core' },
+    'update_macro' => { permission: 'write', method: :patch, path: 'macros/:id',
+                        params: { id: :integer, name: :string, visibility: :string, actions: :json },
+                        mcp: 'jabvox_core', feature: 'core' },
+    # --- Equipos y agentes ---
+    'get_teams' => { permission: 'read', method: :get, path: 'teams',
+                     params: { limit: :integer }, mcp: 'jabvox_core', feature: 'core' },
+    'get_team' => { permission: 'read', method: :get, path: 'teams/:id',
+                    params: { id: :integer }, mcp: 'jabvox_core', feature: 'core' },
+    'create_team' => { permission: 'create', method: :post, path: 'teams',
+                       params: { name: :string, description: :string, allow_auto_assign: :boolean },
+                       mcp: 'jabvox_core', feature: 'core' },
+    'update_team' => { permission: 'write', method: :patch, path: 'teams/:id',
+                       params: { id: :integer, name: :string, description: :string, allow_auto_assign: :boolean },
+                       mcp: 'jabvox_core', feature: 'core' },
+    'get_agents' => { permission: 'read', method: :get, path: 'agents',
+                      params: { role: :string, limit: :integer }, mcp: 'jabvox_core', feature: 'core' },
+    # --- Etiquetas de una conversación ---
+    'get_conversation_labels' => { permission: 'read', method: :get, path: 'conversations/:id/labels',
+                                   params: { id: :integer }, mcp: 'jabvox_core', feature: 'core' },
+    'add_conversation_label' => { permission: 'write', method: :post, path: 'conversations/:id/labels',
+                                  params: { id: :integer, label: :string }, mcp: 'jabvox_core', feature: 'core' },
+    'remove_conversation_label' => { permission: 'write', method: :patch, path: 'conversations/:id/labels/remove',
+                                     params: { id: :integer, label: :string }, mcp: 'jabvox_core', feature: 'core' },
+    # --- Kanban: tablero, tarjetas y automatizaciones de columna ---
+    'get_kanban_stages' => { permission: 'read', method: :get, path: 'jabvox/kanban_stages',
+                             params: { funnel_id: :integer, limit: :integer },
+                             mcp: 'jabvox_core', feature: 'jabvox_kanban' },
+    'get_kanban_board' => { permission: 'read', method: :get, path: 'jabvox/kanban_board',
+                            params: { funnel_id: :integer }, mcp: 'jabvox_core', feature: 'jabvox_kanban' },
+    'get_kanban_stage_cards' => { permission: 'read', method: :get, path: 'jabvox/kanban_stages/:stage_id/cards',
+                                  params: { stage_id: :integer, limit: :integer },
+                                  mcp: 'jabvox_core', feature: 'jabvox_kanban' },
+    'move_kanban_card' => { permission: 'write', method: :patch, path: 'jabvox/kanban_cards/move',
+                            params: { conversation_id: :integer, stage_id: :integer },
+                            mcp: 'jabvox_core', feature: 'jabvox_kanban' },
+    'get_kanban_stage_automations' => { permission: 'read', method: :get, path: 'jabvox/kanban_stage_automations',
+                                        params: { jabvox_kanban_stage_id: :integer, active: :boolean, limit: :integer },
+                                        mcp: 'jabvox_core', feature: 'jabvox_kanban' },
+    'create_kanban_stage_automation' => { permission: 'create', method: :post, path: 'jabvox/kanban_stage_automations',
+                                          params: { stage_id: :integer, name: :string, automation_type: :string,
+                                                    channel_type: :string, message_body: :string, inbox_id: :integer,
+                                                    trigger_hours: :integer, target_stage_id: :integer,
+                                                    email_template_id: :integer, sms_provider_id: :integer,
+                                                    active: :boolean },
+                                          mcp: 'jabvox_core', feature: 'jabvox_kanban' },
+    'update_kanban_stage_automation' => { permission: 'write', method: :patch,
+                                          path: 'jabvox/kanban_stage_automations/:id',
+                                          params: { id: :integer, name: :string, automation_type: :string,
+                                                    channel_type: :string, message_body: :string, inbox_id: :integer,
+                                                    trigger_hours: :integer, target_stage_id: :integer,
+                                                    email_template_id: :integer, sms_provider_id: :integer,
+                                                    active: :boolean },
+                                          mcp: 'jabvox_core', feature: 'jabvox_kanban' },
+    # --- Calendario: personas externas (listado) ---
+    'get_calendar_external_people' => { permission: 'read', method: :get, path: 'jabvox/calendar/external_people',
+                                        params: { limit: :integer }, mcp: 'jabvox_core', feature: 'jabvox_calendar' },
+    # --- Catálogos ---
+    'get_typifications' => { permission: 'read', method: :get, path: 'jabvox/typifications',
+                             params: { is_active: :boolean, limit: :integer }, mcp: 'jabvox_core', feature: 'jabvox_leads' },
+    'create_typification' => { permission: 'create', method: :post, path: 'jabvox/typifications',
+                               params: { name: :string, description: :string, is_active: :boolean },
+                               mcp: 'jabvox_core', feature: 'jabvox_leads' },
+    'update_typification' => { permission: 'write', method: :patch, path: 'jabvox/typifications/:id',
+                               params: { id: :integer, name: :string, description: :string, is_active: :boolean },
+                               mcp: 'jabvox_core', feature: 'jabvox_leads' },
+    'get_currencies' => { permission: 'read', method: :get, path: 'jabvox/currencies',
+                          params: { active_jabvox: :boolean, limit: :integer },
+                          mcp: 'jabvox_core', feature: 'jabvox_products' },
+    'get_sms_providers' => { permission: 'read', method: :get, path: 'jabvox/sms_providers',
+                             params: { active: :boolean, limit: :integer }, mcp: 'jabvox_sms', feature: 'jabvox_sms' },
+    'get_sms_messages' => { permission: 'read', method: :get, path: 'jabvox/sms_messages',
+                            params: { jabvox_sms_campaign_id: :integer, status: :string, contact_id: :integer,
+                                      since: :string, until: :string, limit: :integer },
+                            mcp: 'jabvox_sms', feature: 'jabvox_sms' }
   }.freeze
 
   # Métodos HTTP y permisos prohibidos por política. Ninguna tool puede borrar.
@@ -929,7 +1030,6 @@ module Jabvox::Hermes::ToolRegistry
     'update_order' => 'Edita un pedido/cotización (estado, notas, ítems).',
     'send_order_to_alegra' => 'Envía un pedido a Alegra (facturación).',
     'create_currency' => 'Crea una moneda (símbolo, nombre).',
-    'update_currency' => 'Edita una moneda.',
     'create_discount' => 'Crea un descuento (nombre, porcentaje).',
     'update_discount' => 'Edita un descuento.',
     'create_item_type' => 'Crea un tipo de ítem.',
@@ -937,7 +1037,6 @@ module Jabvox::Hermes::ToolRegistry
     'create_tax_rate' => 'Crea una tasa de impuesto (nombre, porcentaje).',
     'update_tax_rate' => 'Edita una tasa de impuesto.',
     'create_unit_of_measure' => 'Crea una unidad de medida (nombre, abreviatura).',
-    'update_unit_of_measure' => 'Edita una unidad de medida.',
     'create_order_status_config' => 'Crea un estado de pedido (clave, etiqueta, color).',
     'update_order_status_config' => 'Edita un estado de pedido.',
     # Tareas
@@ -1008,6 +1107,50 @@ module Jabvox::Hermes::ToolRegistry
     'create_affiliate' => 'Crea un afiliado (nombre).',
     'update_affiliate' => 'Edita un afiliado.',
     'regenerate_affiliate_code' => 'Regenera el código de un afiliado.',
+    'get_ai_balance' => 'Saldo de IA de la cuenta (LiteLLM): presupuesto del plan, saldo comprado, gasto y disponible.',
+    'get_ai_balance_movements' => 'Movimientos del saldo de IA (recargas, consumo, ajustes) en un rango de fechas (since/until).',
+    'refresh_ai_balance' => 'Relee el gasto de IA contra el proveedor y devuelve el saldo actualizado. No mueve dinero.',
+    'get_saldo_configs' => 'Configuraciones de saldo del panel (sin credenciales).',
+    'get_ip_whitelists' => 'Lista blanca de IPs autorizadas de la cuenta.',
+    'create_ip_whitelist' => 'Autoriza una IP nueva (ip, comentario).',
+    'update_ip_whitelist' => 'Edita una IP autorizada. Para retirarla usa is_active: false (no se borra).',
+    'get_working_hours' => 'Horario de atención por bandeja y día (0=domingo … 6=sábado).',
+    'update_working_hour' => 'Cambia el horario de UN día de una bandeja (inbox_id + day_of_week).',
+    'get_macros' => 'Macros de la cuenta (secuencias de acciones reutilizables).',
+    'get_macro' => 'Detalle de una macro con sus acciones.',
+    'create_macro' => 'Crea una macro (name, visibility: global|personal, actions).',
+    'update_macro' => 'Edita una macro.',
+    'get_teams' => 'Equipos de la cuenta.',
+    'get_team' => 'Detalle de un equipo con sus miembros.',
+    'create_team' => 'Crea un equipo.',
+    'update_team' => 'Edita un equipo.',
+    'get_agents' => 'Agentes de la cuenta con su rol y disponibilidad — para saber a quién asignar.',
+    'get_conversation_labels' => 'Etiquetas de una conversación, con desde cuándo las tiene (days_applied).',
+    'add_conversation_label' => 'Pone una etiqueta a una conversación.',
+    'remove_conversation_label' => 'Quita una etiqueta de una conversación (la etiqueta sigue existiendo en la cuenta).',
+    'get_kanban_stages' => 'Columnas de un embudo kanban, con su orden y auto-avance.',
+    'get_kanban_board' => 'Vista del tablero kanban: cada columna con cuántas tarjetas tiene.',
+    'get_kanban_stage_cards' => 'Conversaciones colocadas en una columna del kanban, con contacto y estado.',
+    'move_kanban_card' => 'Mueve una conversación a otra columna del embudo (queda registrado quién la movió).',
+    'get_kanban_stage_automations' => 'Automatizaciones configuradas en las columnas del kanban.',
+    'create_kanban_stage_automation' => 'Crea una automatización de columna. automation_type: send_message | move_after_hours | move_if_inactive. channel_type (solo con send_message): inbox | email | sms.',
+    'update_kanban_stage_automation' => 'Edita una automatización de columna (mismos valores que create). Para desactivarla usa active: false.',
+    'get_calendar_external_people' => 'Personas externas registradas en el calendario.',
+    'get_typifications' => 'Tipificaciones de la cuenta.',
+    'create_typification' => 'Crea una tipificación.',
+    'update_typification' => 'Edita una tipificación. Para retirarla usa is_active: false.',
+    'get_currencies' => 'Monedas configuradas.',
+    'update_currency' => 'Edita una moneda.',
+    'get_units_of_measure' => 'Unidades de medida configuradas.',
+    'update_unit_of_measure' => 'Edita una unidad de medida.',
+    'get_field_visibilities' => 'Qué campos puede ver cada agente.',
+    'update_field_visibility' => 'Cambia si un agente puede ver un campo (user_id, field_name, can_view).',
+    'get_user_extensions' => 'Extensión SIP de cada agente — a qué extensión marcar.',
+    'update_user_extension' => 'Asigna o cambia la extensión SIP de un agente.',
+    'get_smtp_config' => 'Configuración SMTP de la cuenta (sin la contraseña: solo has_password).',
+    'get_voip_config' => 'Configuración VoIP/Asterisk de la cuenta (sin la contraseña).',
+    'get_sms_providers' => 'Proveedores SMS configurados (sin credenciales).',
+    'get_sms_messages' => 'Mensajes SMS enviados, con filtros por campaña, estado y rango de fechas.',
     'regenerate_affiliate_token' => 'Regenera el token de un afiliado.',
     # WhatsApp Masivo
     'get_bulk_whatsapp_batch' => 'Obtiene un lote de envío masivo de WhatsApp por id (estado, total, enviados).',
@@ -1043,9 +1186,32 @@ module Jabvox::Hermes::ToolRegistry
       function: {
         name: tool_name,
         description: DESCRIPTIONS[tool_name] || tool_name.tr('_', ' '),
-        parameters: { type: 'object', properties: props, required: (spec[:params] || {}).keys.map(&:to_s) }
+        parameters: { type: 'object', properties: props, required: required_params(spec) }
       }
     }
+  end
+
+  # Parámetros REALMENTE obligatorios: los que el path interpola (`conversations/:id/messages`
+  # necesita `id`) y, para una búsqueda, su texto.
+  #
+  # Antes se marcaban TODOS como required, así que una tool de listado con filtros opcionales
+  # (list_conversations: status, inbox_id, contact_id, before_id, limit) le pedía al modelo los
+  # cinco. Ante esa exigencia imposible el LLM improvisaba nombres de parámetro —
+  # `query` en vez de `q`, `conversation_id` en vez de `id` — y el handler, que solo acepta los
+  # de la whitelist, los ignoraba y devolvía la lista SIN FILTRAR. De ahí que el agente
+  # "no encontrara" un contacto que sí existe.
+  # Campos sin los que una escritura no tiene sentido (create_label sin `title`, o
+  # reply_conversation sin `content`, fallan en el handler). Se marcan obligatorios solo en
+  # POST/PUT/PATCH: en un GET los mismos nombres son filtros de búsqueda opcionales.
+  WRITE_REQUIRED_PARAMS = %w[title content name].freeze
+  WRITE_METHODS = %i[post put patch].freeze
+
+  def required_params(spec)
+    names = (spec[:params] || {}).keys.map(&:to_s)
+    required = names & spec[:path].to_s.scan(/:(\w+)/).flatten
+    required |= ['q'] if names.include?('q')
+    required |= (names & WRITE_REQUIRED_PARAMS) if WRITE_METHODS.include?(spec[:method])
+    required
   end
 
   def json_type(type)

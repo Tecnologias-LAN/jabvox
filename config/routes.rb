@@ -776,6 +776,14 @@ Rails.application.routes.draw do
                 get :my_access
                 get :sessions
                 post :stream
+                get :sessions
+                get :model_options
+                delete :destroy_session
+                # Control de sesión del agente (API de runs de Hermes).
+                post :approve
+                post :steer
+                post :stop_run
+                post :set_model
               end
             end
             # Storages (buckets) — se conservan porque el Response Bot los comparte vía

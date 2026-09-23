@@ -12,6 +12,30 @@
     "THINKING": "Hermes está pensando…",
     "LOADING": "Cargando…",
     "EMPTY": "Aún no hay mensajes. Escribe algo para comenzar.",
+    "APPROVAL": {
+      "TITLE": "El agente pide autorización para ejecutar esto",
+      "TIMEOUT_HINT": "Si no respondes en 5 minutos se toma como denegado y el comando no se ejecuta.",
+      "CHOICE": {
+        "ONCE": "Permitir una vez",
+        "SESSION": "Permitir en esta sesión",
+        "ALWAYS": "Permitir siempre",
+        "DENY": "Denegar"
+      }
+    },
+    "STEER": {
+      "NO_RUN": "No hay una ejecución en curso a la que enviar guía.",
+      "EMPTY": "Escribe la guía después de /steer. Ejemplo: /steer céntrate en la cuenta 2",
+      "SENT": "Guía enviada al agente: {text}"
+    },
+    "MODEL_CMD": {
+      "USAGE": "Uso: /model <modelo> [proveedor]. Ejemplo: /model gpt-5.5 custom",
+      "NO_SESSION": "Todavía no hay sesión de Hermes. Envía un mensaje primero.",
+      "SET": "Modelo fijado: {model} (proveedor: {provider})"
+    },
+    "NEW_CONVERSATION": "Nueva conversación",
+    "NO_CONVERSATIONS": "Sin conversaciones",
+    "DELETE_CONVERSATION": "Eliminar conversación",
+    "DEFAULT_MODEL": "Modelo por defecto",
     "RELOAD": "Actualizar estado",
     "STATUS": {
       "LABEL": "Estado del aprovisionamiento",
@@ -36,8 +60,15 @@
       "LOAD_STATUS": "No se pudo cargar el estado del aprovisionamiento.",
       "LOAD_MESSAGES": "No se pudo cargar el historial de mensajes.",
       "SEND": "No se pudo enviar el mensaje.",
-      "PROVISION": "No se pudo iniciar el aprovisionamiento."
+      "PROVISION": "No se pudo iniciar el aprovisionamiento.",
+      "APPROVAL": "No se pudo responder la solicitud de autorización."
     },
-    "SIDEBAR_LABEL": "Chat Aprovisionador"
+    "SIDEBAR_LABEL": "Chat Aprovisionador",
+    "TURN_STATUS": {
+      "STREAMING": "En proceso…",
+      "WAITING_APPROVAL": "Esperando tu autorización",
+      "INTERRUPTED": "Se interrumpió",
+      "FAILED": "Falló"
+    }
   }
 }

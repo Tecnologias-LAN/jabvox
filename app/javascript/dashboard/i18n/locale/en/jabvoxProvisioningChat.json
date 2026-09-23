@@ -12,6 +12,10 @@
     "THINKING": "Hermes is thinking…",
     "LOADING": "Loading…",
     "EMPTY": "No messages yet. Type something to get started.",
+    "NEW_CONVERSATION": "New conversation",
+    "NO_CONVERSATIONS": "No conversations",
+    "DELETE_CONVERSATION": "Delete conversation",
+    "DEFAULT_MODEL": "Default model",
     "RELOAD": "Refresh status",
     "STATUS": {
       "LABEL": "Provisioning status",
@@ -36,8 +40,35 @@
       "LOAD_STATUS": "Could not load the provisioning status.",
       "LOAD_MESSAGES": "Could not load the message history.",
       "SEND": "Could not send the message.",
-      "PROVISION": "Could not start provisioning."
+      "PROVISION": "Could not start provisioning.",
+      "APPROVAL": "Could not respond to the authorization request."
     },
-    "SIDEBAR_LABEL": "Provisioning Chat"
+    "SIDEBAR_LABEL": "Provisioning Chat",
+    "APPROVAL": {
+      "TITLE": "The agent is asking for permission to run this",
+      "TIMEOUT_HINT": "If you do not respond within 5 minutes it counts as denied and the command will not run.",
+      "CHOICE": {
+        "ONCE": "Allow once",
+        "SESSION": "Allow this session",
+        "ALWAYS": "Always allow",
+        "DENY": "Deny"
+      }
+    },
+    "STEER": {
+      "NO_RUN": "There is no active run to steer.",
+      "EMPTY": "Type the guidance after /steer. Example: /steer focus on account 2",
+      "SENT": "Guidance sent to the agent: {text}"
+    },
+    "MODEL_CMD": {
+      "USAGE": "Usage: /model <model> [provider]. Example: /model gpt-5.5 custom",
+      "NO_SESSION": "No Hermes session yet. Send a message first.",
+      "SET": "Model set: {model} (provider: {provider})"
+    },
+    "TURN_STATUS": {
+      "STREAMING": "In progress…",
+      "WAITING_APPROVAL": "Waiting for your approval",
+      "INTERRUPTED": "Interrupted",
+      "FAILED": "Failed"
+    }
   }
 }

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_15_060000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_23_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1040,9 +1040,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_060000) do
     t.jsonb "metadata_jabvox", default: {}
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "status_jabvox"
     t.index ["account_id", "user_id", "session_id_jabvox"], name: "idx_jabvox_ai_chat_messages_session"
     t.index ["account_id", "user_id"], name: "idx_jabvox_ai_chat_messages_user"
     t.index ["account_id"], name: "index_jabvox_ai_chat_messages_on_account_id"
+    t.index ["session_id_jabvox", "status_jabvox"], name: "idx_jabvox_ai_chat_on_session_status"
     t.index ["user_id"], name: "index_jabvox_ai_chat_messages_on_user_id"
   end
 
@@ -2647,6 +2649,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_060000) do
     t.index ["jabvox_kanban_funnel_id"], name: "index_jabvox_kanban_stages_on_jabvox_kanban_funnel_id"
   end
 
+
   create_table "jabvox_lead_source_records", force: :cascade do |t|
     t.bigint "lead_source_id", null: false
     t.bigint "account_id", null: false
@@ -2954,8 +2957,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_060000) do
     t.jsonb "metadata", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "session_id", null: false
+    t.string "status_jabvox"
     t.index ["account_id", "created_at"], name: "idx_on_account_id_created_at_0050c7615e"
+    t.index ["account_id", "session_id", "created_at"], name: "idx_jabvox_prov_chat_on_account_session_created"
     t.index ["account_id"], name: "index_jabvox_provisioning_chat_messages_on_account_id"
+    t.index ["session_id", "status_jabvox"], name: "idx_jabvox_prov_chat_on_session_status"
     t.index ["user_id"], name: "index_jabvox_provisioning_chat_messages_on_user_id"
   end
 

@@ -1,6 +1,7 @@
 # rubocop:disable Metrics/ClassLength
 class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::BaseController
   include ActionController::Live
+  include JabvoxChatTurnPersistence
   include JabvoxPermissions
 
   before_action :check_feature_enabled
@@ -117,12 +118,16 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     @stream_full = +''
     @stream_tools = []
     @stream_ctx = { session_id: session_id, conn: conn }
+    # La fila del asistente se crea YA (vacía, 'streaming'): a partir de aquí el turno existe
+    # en BD aunque el cliente cierre o el proceso muera, así el historial nunca queda mudo.
+    start_assistant_turn!(session_id: session_id, conn: conn)
     # El texto y las tools se acumulan DENTRO del stream (on_chunk), no con el valor de
     # retorno, para no perder lo parcial si el cliente aborta a mitad. No re-sumamos aquí.
     stream_via_connection(conn, session_id)
     persist_stream_result!
   rescue StandardError => e
     Rails.logger.warn("[AiChatStream] #{e.class}: #{e.message}")
+    @stream_failed = true
     write_sse("data: #{{ error: e.message }.to_json}\n\n")
   ensure
     # Persiste SIEMPRE, incluso si el cliente abortó el HTTP (Stop) y no volvimos del stream.
@@ -141,7 +146,16 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     return if @persisted || @stream_ctx.blank?
 
     @persisted = true
-    persist_assistant_message(@stream_ctx[:session_id], @stream_ctx[:conn], @stream_full, @stream_tools)
+    # NUNCA se descarta el turno: aunque venga vacío se cierra con su estado, que es lo que
+    # permite ver al volver si se interrumpió o si terminó sin responder.
+    status = if @stream_failed
+               JabvoxChatTurnPersistence::STATUS_FAILED
+             elsif @stream_full.to_s.strip.empty? && @stream_tools.blank?
+               JabvoxChatTurnPersistence::STATUS_INTERRUPTED
+             else
+               JabvoxChatTurnPersistence::STATUS_COMPLETED
+             end
+    finish_assistant_turn!(@stream_full.to_s, tools: @stream_tools.presence, status: status)
   rescue StandardError => e
     Rails.logger.warn("[AiChatStream] persist failed: #{e.class}: #{e.message}")
   end
@@ -202,6 +216,8 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     client.chat_stream(messages, llm_overrides: llm_overrides, on_chunk: lambda { |chunk|
       capture_tool_frame(chunk)
       @stream_full << extract_delta_text(chunk) if @stream_full
+      # Vuelca el parcial cada tanto: si el turno se corta aquí, lo recibido queda en BD.
+      flush_assistant_turn(@stream_full, tools: @stream_tools.presence)
       write_sse(chunk)
     })
   end
@@ -330,6 +346,22 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
   # Guarda la respuesta del asistente al terminar (o al cortarse) el stream, incluyendo las
   # herramientas ejecutadas (para que reaparezcan al reabrir el chat). No guarda si no hubo
   # ni texto ni tools (turno vacío).
+  # Nombres de columna que usa JabvoxChatTurnPersistence (difieren del chat aprovisionador).
+  def content_column = :content_jabvox
+  def metadata_column = :metadata_jabvox
+
+  # Crea la fila del asistente del turno en curso (vacía, estado 'streaming').
+  def build_assistant_message(status:, content:, session_id:, conn: nil)
+    metadata = {}
+    metadata[:agent] = conn.name_jabvox if conn.respond_to?(:name_jabvox)
+    metadata[:connection_id] = conn.id if conn.respond_to?(:id)
+    JabvoxAiChatMessage.create!(
+      account: Current.account, user: current_user, session_id_jabvox: session_id,
+      role_jabvox: 'assistant', content_jabvox: content.presence || '…',
+      status_jabvox: status, metadata_jabvox: metadata
+    )
+  end
+
   def persist_assistant_message(session_id, conn, full_text, tools = [])
     text = full_text.to_s
     return if text.strip.empty? && tools.blank?
@@ -381,7 +413,7 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
 
   def message_json(m)
     { id: m.id, session_id: m.session_id_jabvox, role: m.role_jabvox, content: m.content_jabvox, metadata: m.metadata_jabvox,
-      created_at: m.created_at }
+      status: m.status_jabvox, created_at: m.created_at, updated_at: m.updated_at }
   end
 end
 # rubocop:enable Metrics/ClassLength

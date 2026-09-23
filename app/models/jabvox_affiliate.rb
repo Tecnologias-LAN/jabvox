@@ -9,6 +9,7 @@
 #  active       :boolean          default(TRUE), not null
 #  auth_token   :string           not null
 #  name         :string           not null
+#  owned_jabvox :boolean          default(FALSE), not null
 #  portal_slug  :string           not null
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null
@@ -21,6 +22,7 @@
 #  index_jabvox_affiliates_on_account_id_and_active  (account_id,active)
 #  index_jabvox_affiliates_on_auth_token             (auth_token) UNIQUE
 #  index_jabvox_affiliates_on_portal_slug            (portal_slug) UNIQUE
+#  index_jabvox_affiliates_one_owned_per_account     (account_id) UNIQUE WHERE (owned_jabvox = true)
 #
 # Foreign Keys
 #

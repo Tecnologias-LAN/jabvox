@@ -310,9 +310,68 @@ class Jabvox::Hermes::ServiceLayer
     'POST jabvox/affiliates' => :create_affiliate,
     'PATCH jabvox/affiliates/:id' => :update_affiliate,
     'POST jabvox/affiliates/:id/regenerate_token' => :regenerate_affiliate_token,
-    'POST jabvox/affiliates/:id/regenerate_code' => :regenerate_affiliate_code
+    'POST jabvox/affiliates/:id/regenerate_code' => :regenerate_affiliate_code,
+    # Saldo IA (LiteLLM)
+    'GET jabvox/ai_balance' => :get_ai_balance,
+    'GET jabvox/ai_balance/movements' => :get_ai_balance_movements,
+    'POST jabvox/ai_balance/refresh' => :refresh_ai_balance,
+    'GET jabvox/saldo_configs' => :list_saldo_configs,
+    # Lista blanca de IP
+    'GET jabvox/ip_whitelists' => :list_ip_whitelists,
+    'POST jabvox/ip_whitelists' => :create_ip_whitelist,
+    'PATCH jabvox/ip_whitelists/:id' => :update_ip_whitelist,
+    # Horarios de atención
+    'GET jabvox/working_hours' => :get_working_hours,
+    'PATCH jabvox/working_hours' => :update_working_hour,
+    # Macros
+    'GET macros' => :list_macros,
+    'GET macros/:id' => :get_macro,
+    'POST macros' => :create_macro,
+    'PATCH macros/:id' => :update_macro,
+    # Equipos y agentes
+    'GET teams' => :list_teams,
+    'GET teams/:id' => :get_team,
+    'POST teams' => :create_team,
+    'PATCH teams/:id' => :update_team,
+    'GET agents' => :list_agents,
+    # Etiquetas de conversación
+    'GET conversations/:id/labels' => :get_conversation_labels,
+    'POST conversations/:id/labels' => :add_conversation_label,
+    'PATCH conversations/:id/labels/remove' => :remove_conversation_label,
+    # Kanban: tablero, tarjetas y automatizaciones de columna
+    'GET jabvox/kanban_stages' => :list_kanban_stages,
+    'GET jabvox/kanban_board' => :get_kanban_board,
+    'GET jabvox/kanban_stages/:stage_id/cards' => :get_kanban_stage_cards,
+    'PATCH jabvox/kanban_cards/move' => :move_kanban_card,
+    'GET jabvox/kanban_stage_automations' => :list_kanban_stage_automations,
+    'POST jabvox/kanban_stage_automations' => :create_kanban_stage_automation,
+    'PATCH jabvox/kanban_stage_automations/:id' => :update_kanban_stage_automation,
+    # Calendario: personas externas (listado)
+    'GET jabvox/calendar/external_people' => :list_calendar_external_people,
+    # Catálogos y configuración
+    'GET jabvox/typifications' => :list_typifications,
+    'POST jabvox/typifications' => :create_typification,
+    'PATCH jabvox/typifications/:id' => :update_typification,
+    'GET jabvox/currencies' => :list_currencies,
+    'POST jabvox/currencies' => :create_currency,
+    'PATCH jabvox/currencies/:id' => :update_currency,
+    'GET jabvox/units_of_measure' => :list_units_of_measure,
+    'POST jabvox/units_of_measure' => :create_unit_of_measure,
+    'PATCH jabvox/units_of_measure/:id' => :update_unit_of_measure,
+    'GET jabvox/field_visibilities' => :list_field_visibilities,
+    'PATCH jabvox/field_visibilities' => :update_field_visibility,
+    'GET jabvox/user_extensions' => :list_user_extensions,
+    'PATCH jabvox/user_extensions' => :update_user_extension,
+    'GET jabvox/smtp_config' => :get_smtp_config,
+    'GET jabvox/voip_config' => :get_voip_config,
+    'GET jabvox/sms_providers' => :list_sms_providers,
+    'GET jabvox/sms_messages' => :list_sms_messages
   }.freeze
 
   # Los handlers de dominio viven en ServiceHandlers (para mantener el dispatch pequeño).
+  include Jabvox::Hermes::ListFilters
   include Jabvox::Hermes::ServiceHandlers
+  include Jabvox::Hermes::ServiceHandlersPlatform
+  include Jabvox::Hermes::ServiceHandlersKanban
+  include Jabvox::Hermes::ServiceHandlersConfig
 end
