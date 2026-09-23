@@ -14,6 +14,12 @@ module Jabvox
       OPEN_TIMEOUT = 5
       TIMEOUT = 30
       MAX_ATTEMPTS = 4
+      # Presupuesto total para TODAS las llamadas de una misma instancia. Un endpoint que
+      # encadena varias (listar páginas de keys + modelos + info del team) podía tardar, en
+      # el peor caso de reintentos, decenas de minutos: bastaba un proveedor lento para
+      # colgar el request y dejar un worker de Puma ocupado todo ese tiempo.
+      # Al agotarse, las llamadas siguientes fallan de inmediato en vez de reintentar.
+      DEFAULT_BUDGET = 20
 
       ConfigurationError = Class.new(StandardError)
       # El cliente se quedó sin saldo: requiere recarga, NO reintento.
@@ -28,9 +34,19 @@ module Jabvox
         def success? = success
       end
 
-      def initialize(config: nil, adapter: nil)
+      # `budget_seconds:` acota el tiempo total que esta instancia puede gastar hablando con
+      # el proveedor. nil = sin límite (para jobs en segundo plano, donde tardar no bloquea
+      # a nadie). En un request web se deja el valor por defecto.
+      def initialize(config: nil, adapter: nil, budget_seconds: DEFAULT_BUDGET)
         @config = config || JabvoxAiProviderConfig.instance
         @adapter = adapter || default_adapter
+        @budget_seconds = budget_seconds
+        @deadline = budget_seconds ? monotonic_now + budget_seconds : nil
+      end
+
+      # ¿Se agotó el presupuesto de tiempo de esta instancia?
+      def budget_exhausted?
+        @deadline.present? && monotonic_now >= @deadline
       end
 
       # --- Teams (saldo del cliente) ---
@@ -160,19 +176,42 @@ module Jabvox
       # Reintenta solo errores transitorios (5xx, rate limit). El saldo agotado (BudgetExceeded)
       # se propaga de inmediato sin reintentar.
       def with_retries
+        return timed_out_result if budget_exhausted?
+
         last = nil
         MAX_ATTEMPTS.times do |n|
           resp = yield
-          return build_result(resp) if resp[:status] == 200
-
-          raise BudgetExceededError, resp[:body_text] if budget_exceeded?(resp)
-
-          return Result.new(success: false, error: error_message(resp), status: resp[:status]) unless transient?(resp[:status])
+          outcome = classify(resp)
+          return outcome unless outcome.nil?
 
           last = resp
+          # No reintentar si ya no queda presupuesto: prolongar la espera solo empeora el
+          # bloqueo del request que está esperando.
+          return timed_out_result if budget_exhausted?
+
           sleep(backoff(n)) unless n == MAX_ATTEMPTS - 1
         end
         Result.new(success: false, error: error_message(last), status: last&.dig(:status))
+      end
+
+      # Devuelve el Result definitivo para esta respuesta, o nil si procede reintentar.
+      def classify(resp)
+        return build_result(resp) if resp[:status] == 200
+
+        raise BudgetExceededError, resp[:body_text] if budget_exceeded?(resp)
+        return nil if transient?(resp[:status])
+
+        Result.new(success: false, error: error_message(resp), status: resp[:status])
+      end
+
+      def timed_out_result
+        Result.new(success: false, status: 504,
+                   error: 'El proveedor de IA tardó demasiado en responder. Inténtalo de nuevo.')
+      end
+
+      # Reloj monotónico: no se ve afectado por cambios de hora del sistema.
+      def monotonic_now
+        Process.clock_gettime(Process::CLOCK_MONOTONIC)
       end
 
       def budget_exceeded?(resp)

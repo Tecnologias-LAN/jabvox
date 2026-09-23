@@ -19,10 +19,10 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
     @account_options = account_options
     @orphans = JabvoxAiProviderAccount.orphans.order(:team_alias_jabvox, :id).limit(200)
     # Catálogo de modelos del proveedor, para el selector de modelos por team.
-    @available_models = @config.configured? ? Jabvox::AiProvider::Client.new(config: @config).model_names : []
+    @available_models = @config.configured? ? client.model_names : []
     # Diagnóstico de un team concreto (?inspect_team=<id>): qué ve Jabvox realmente en el
     # proveedor. Sirve para entender por qué una key creada fuera no aparece en la cuenta.
-    @inspection = Jabvox::AiProvider::TeamInspector.new(config: @config).call(params[:inspect_team]) if params[:inspect_team].present?
+    @inspection = Jabvox::AiProvider::TeamInspector.new(config: @config, client: client).call(params[:inspect_team]) if params[:inspect_team].present?
   end
 
   # Fija los modelos a los que puede acceder el team de una cuenta. Vacío = todos.
@@ -195,12 +195,18 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
     end
   end
 
+  # UN cliente por request, con presupuesto de tiempo: esta pantalla encadena varias
+  # llamadas (catálogo de modelos + diagnóstico) y un proveedor lento no debe colgarla.
+  def client
+    @client ||= Jabvox::AiProvider::Client.new(config: JabvoxAiProviderConfig.instance)
+  end
+
   # Rechaza modelos que el proveedor no expone. Si el proxy no reporta catálogo, no se
   # bloquea nada (no inventar una restricción sobre información que no tenemos).
   def unknown_models_error(models)
     return nil if models.empty?
 
-    catalog = Jabvox::AiProvider::Client.new.model_names
+    catalog = client.model_names
     return nil if catalog.empty?
 
     unknown = models - catalog
@@ -210,7 +216,7 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
   # Escribe los modelos en el proveedor y refleja el resultado localmente.
   # Devuelve el mensaje de error, o nil si fue bien.
   def apply_team_models(provider_account, models)
-    resp = Jabvox::AiProvider::Client.new.update_team_models(provider_account.team_id_jabvox, models)
+    resp = client.update_team_models(provider_account.team_id_jabvox, models)
     return "No se pudieron asignar los modelos: #{resp.error}" unless resp.success?
 
     provider_account.update(remote_models_jabvox: models, synced_at_jabvox: Time.current)

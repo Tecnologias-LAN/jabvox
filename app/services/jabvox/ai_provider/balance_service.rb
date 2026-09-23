@@ -17,7 +17,9 @@ module Jabvox
 
       def initialize(account, client: nil)
         @account = account
-        @client = client || Jabvox::AiProvider::Client.new
+        # Sin presupuesto de tiempo: corre en jobs, donde tardar no bloquea a ningún
+        # usuario y cortar a medias dejaría el saldo desincronizado con el proveedor.
+        @client = client || Jabvox::AiProvider::Client.new(budget_seconds: nil)
       end
 
       # Asigna/renueva el plan: fija el saldo del plan al presupuesto del plan y garantiza el

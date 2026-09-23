@@ -32,7 +32,9 @@ module Jabvox
       end
 
       def initialize(client: nil)
-        @client = client || Jabvox::AiProvider::Client.new
+        # Sin presupuesto: la sincronización recorre todos los teams del proveedor y puede
+        # tardar legítimamente; se lanza desde el Super Admin, no desde una pantalla de usuario.
+        @client = client || Jabvox::AiProvider::Client.new(budget_seconds: nil)
       end
 
       # Trae todo de LiteLLM y lo refleja localmente.

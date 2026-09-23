@@ -69,17 +69,31 @@ const selectableModels = computed(() =>
   teamModels.value.length ? teamModels.value : availableModels.value
 );
 
+// Si el proveedor no responde, la lista de keys falla pero el saldo ya está cargado. Se
+// avisa de forma concreta en vez de decir "no se pudo cargar el saldo" con el saldo visible.
+const keysError = ref(false);
+
 const fetchAll = async () => {
   loading.value = true;
+  keysError.value = false;
   try {
     const { data } = await aiBudgetAPI.get();
     balance.value = data || { connected: false };
-    if (connected.value) await refreshKeys();
   } catch (e) {
     useAlert(t('JABVOX_AI_BUDGET.LOAD_ERROR'));
-  } finally {
     loading.value = false;
+    return;
   }
+
+  // El saldo ya se pintó: un fallo aquí no debe borrarlo ni bloquear la pantalla.
+  if (connected.value) {
+    try {
+      await refreshKeys();
+    } catch (e) {
+      keysError.value = true;
+    }
+  }
+  loading.value = false;
 };
 
 const createKey = async () => {
@@ -486,6 +500,26 @@ onMounted(fetchAll);
 
           <!-- Lista de keys -->
           <div class="flex flex-col gap-4">
+            <!-- El proveedor no respondió: el saldo sí es válido, las keys no cargaron -->
+            <div
+              v-if="keysError"
+              class="flex flex-wrap items-center gap-3 rounded-2xl border border-n-amber-6 bg-n-amber-2 px-4 py-3"
+            >
+              <span
+                class="i-lucide-triangle-alert size-5 shrink-0 text-n-amber-11"
+              />
+              <p class="min-w-0 flex-1 text-sm leading-relaxed text-n-slate-12">
+                {{ t('JABVOX_AI_BUDGET.KEYS_ERROR') }}
+              </p>
+              <Button
+                icon="i-lucide-refresh-cw"
+                variant="faded"
+                size="sm"
+                :label="t('JABVOX_AI_BUDGET.RETRY')"
+                @click="fetchAll"
+              />
+            </div>
+
             <!-- Sin keys todavía -->
             <div
               v-if="!keys.length"

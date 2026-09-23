@@ -209,6 +209,28 @@ describe('AiBudgetSettings — estados', () => {
     expect(list).toEqual([]);
   });
 
+  it('si las keys fallan, el saldo sigue visible y avisa de forma concreta', async () => {
+    // El saldo carga bien pero /keys falla (proveedor lento). Antes decía "no se pudo
+    // cargar el saldo" con el saldo delante, y dejaba la pantalla a medias.
+    mockGet.mockResolvedValue({
+      data: { connected: true, total_budget_usd: 20, cached_spend_usd: 5 },
+    });
+    mockKeys.mockRejectedValue(new Error('502'));
+
+    const wrapper = mount(AiBudgetSettings, {
+      global: { stubs, mocks: { $t: k => k }, plugins: [], provide: {} },
+    });
+    await new Promise(resolve => {
+      setTimeout(resolve, 0);
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.keysError).toBe(true);
+    // El saldo se pintó igualmente.
+    expect(wrapper.html()).toContain('$20.00');
+    expect(wrapper.html()).toContain('did not respond in time');
+  });
+
   it('filtra las keys por nombre', async () => {
     const wrapper = await mountWith({ connected: true, total_budget_usd: 20 }, [
       { alias: 'produccion', token_id: 'tok-1' },

@@ -10,16 +10,19 @@ class Api::V1::Accounts::Jabvox::AiBudgetController < Api::V1::Accounts::Jabvox:
   include JabvoxPermissions
 
   # El proxy limita `size` a 100. MAX_KEY_PAGES acota el recorrido para que un team con
-  # muchísimas keys no cuelgue la petición.
+  # muchísimas keys no cuelgue la petición (5 páginas = 500 keys, de sobra por cuenta).
   KEYS_PAGE_SIZE = 100
-  MAX_KEY_PAGES = 20
+  MAX_KEY_PAGES = 5
 
   before_action :ensure_admin
 
   # GET saldo de la cuenta (sin secretos). Refresca el gasto desde el proveedor si hay team.
+  # El gasto se refresca contra el proveedor, pero con el cliente ACOTADO del request: si
+  # el proveedor está lento, se devuelve el último gasto cacheado en vez de dejar al usuario
+  # esperando. El saldo se ve siempre; como mucho, unos minutos desactualizado.
   def show
     pa = provider_account
-    Jabvox::AiProvider::BalanceService.new(Current.account).refresh_spend! if pa&.team_id_jabvox.present?
+    Jabvox::AiProvider::BalanceService.new(Current.account, client: client).refresh_spend! if pa&.team_id_jabvox.present?
     render json: (pa&.reload&.summary || empty_summary)
   end
 
@@ -32,10 +35,11 @@ class Api::V1::Accounts::Jabvox::AiBudgetController < Api::V1::Accounts::Jabvox:
     pa = provider_account
     return render json: { keys: [], available_models: [], team_models: [] } if pa.nil? || pa.team_id_jabvox.blank?
 
-    client = Jabvox::AiProvider::Client.new
     rows, error = fetch_all_keys(client, pa.team_id_jabvox)
     return render json: { error: error }, status: :bad_gateway if error
 
+    # Los modelos son accesorios: si el proveedor no responde a tiempo, se devuelven vacíos
+    # en vez de tumbar la pantalla entera (las keys, que es lo importante, ya están).
     render json: { keys: rows,
                    available_models: client.model_names,
                    team_models: team_models(client, pa.team_id_jabvox) }
@@ -52,7 +56,7 @@ class Api::V1::Accounts::Jabvox::AiBudgetController < Api::V1::Accounts::Jabvox:
     error = budget_error(pa, max_usd) || models_error(pa, params[:models])
     return render json: { error: error }, status: :unprocessable_entity if error
 
-    resp = Jabvox::AiProvider::Client.new.generate_key(**new_key_params(pa, max_usd))
+    resp = client.generate_key(**new_key_params(pa, max_usd))
     return render json: { error: resp.error }, status: :bad_gateway unless resp.success?
 
     # La key en claro SOLO aquí. El cliente la guarda o la usa; Jabvox no la persiste.
@@ -62,12 +66,12 @@ class Api::V1::Accounts::Jabvox::AiBudgetController < Api::V1::Accounts::Jabvox:
 
   # POST bloquea una virtual key del team (deja de aceptar peticiones).
   def block_key
-    with_own_key { |token| Jabvox::AiProvider::Client.new.block_key(token) }
+    with_own_key { |token| client.block_key(token) }
   end
 
   # POST desbloquea una virtual key del team.
   def unblock_key
-    with_own_key { |token| Jabvox::AiProvider::Client.new.unblock_key(token) }
+    with_own_key { |token| client.unblock_key(token) }
   end
 
   # POST cambia el tope (max_budget) y/o los modelos de una virtual key del team.
@@ -79,7 +83,7 @@ class Api::V1::Accounts::Jabvox::AiBudgetController < Api::V1::Accounts::Jabvox:
     return render json: { error: error }, status: :unprocessable_entity if error
 
     with_own_key do |token|
-      Jabvox::AiProvider::Client.new.update_key(
+      client.update_key(
         token,
         max_budget_usd: max_usd.present? ? max_usd.to_f : nil,
         models: models.nil? ? nil : Array(models).map(&:to_s)
@@ -88,6 +92,13 @@ class Api::V1::Accounts::Jabvox::AiBudgetController < Api::V1::Accounts::Jabvox:
   end
 
   private
+
+  # UN solo cliente por request: comparte el presupuesto de tiempo entre todas las llamadas
+  # que haga esta petición. Con una instancia nueva por llamada, el tope se multiplicaba y
+  # un proveedor lento podía volver a bloquear el worker durante minutos.
+  def client
+    @client ||= Jabvox::AiProvider::Client.new
+  end
 
   # Parámetros de la key nueva. El team sale SIEMPRE del registro de la cuenta (servidor),
   # nunca de params: así una cuenta no puede crear keys en el team de otra.
@@ -147,7 +158,6 @@ class Api::V1::Accounts::Jabvox::AiBudgetController < Api::V1::Accounts::Jabvox:
   # Modelos que la cuenta puede asignar: los del team si está restringido, si no, el
   # catálogo completo del proxy.
   def allowed_models_for(provider_account)
-    client = Jabvox::AiProvider::Client.new
     allowed = team_models(client, provider_account&.team_id_jabvox)
     allowed.presence || client.model_names
   end
@@ -201,15 +211,14 @@ class Api::V1::Accounts::Jabvox::AiBudgetController < Api::V1::Accounts::Jabvox:
   end
 
   # ¿El token pertenece al team de la cuenta? Se compara contra la lista real del proveedor.
+  # Recorre TODAS las páginas: mirar solo la primera hacía que una key legítima de la cuenta
+  # que cayera en la página 2 se rechazara como ajena (el admin no podía bloquearla).
   def team_key?(provider_account, token)
-    resp = Jabvox::AiProvider::Client.new.list_keys(provider_account.team_id_jabvox)
-    return false unless resp.success?
+    rows, error = fetch_all_keys(client, provider_account.team_id_jabvox)
+    # Ante un fallo del proveedor se deniega: nunca autorizar sobre información incompleta.
+    return false if error
 
-    raw = resp.data.is_a?(Hash) ? (resp.data['keys'] || []) : Array(resp.data)
-    Array(raw).any? do |k|
-      candidates = k.is_a?(Hash) ? [k['token'], k['token_id'], k['key_name']] : [k]
-      candidates.compact.map(&:to_s).include?(token)
-    end
+    rows.any? { |k| k[:token_id].to_s == token }
   end
 
   def ensure_admin

@@ -214,6 +214,28 @@ RSpec.describe 'Api::V1::Accounts::Jabvox::AiBudget', type: :request do
       expect(response).to have_http_status(:success)
     end
 
+    it 'permite bloquear una key propia que cae fuera de la primera página' do
+      # La comprobación de pertenencia miraba solo la primera página: una key legítima en la
+      # página 2 se rechazaba como ajena y el admin no podía gestionarla.
+      tokens = Array.new(3) { |i| key_of('team-propio', "k#{i}") }
+      allow_any_instance_of(Jabvox::AiProvider::Client).to(receive(:list_keys) # rubocop:disable RSpec/AnyInstance
+        .and_wrap_original { |m, team, **| m.call(team, page: 1, size: 1) })
+
+      block(tokens.last)
+
+      expect(response).to have_http_status(:success)
+    end
+
+    it 'deniega si el proveedor falla: nunca autoriza sobre información incompleta' do
+      token = key_of('team-propio', 'mia')
+      allow_any_instance_of(Jabvox::AiProvider::Client).to receive(:list_keys) # rubocop:disable RSpec/AnyInstance
+        .and_return(Jabvox::AiProvider::Client::Result.new(success: false, error: 'proxy caído'))
+
+      block(token)
+
+      expect(response).to have_http_status(:not_found)
+    end
+
     it 'NO permite bloquear la key de otra cuenta aunque se conozca su token' do
       ajena = key_of('team-ajeno', 'ajena')
 

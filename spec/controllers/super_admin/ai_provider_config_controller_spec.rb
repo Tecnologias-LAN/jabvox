@@ -106,7 +106,7 @@ RSpec.describe 'Super Admin AI Provider Config', type: :request do
         post '/super_admin/ai_provider_config/set_team_models',
              params: { provider_account_id: row.id, models: ['mock/model-a'] }
 
-        expect(flash[:notice]).to match(/acceso a mock\/model-a/)
+        expect(flash[:notice]).to match(%r{acceso a mock/model-a})
         expect(row.reload.remote_models_jabvox).to eq(['mock/model-a'])
       end
 
