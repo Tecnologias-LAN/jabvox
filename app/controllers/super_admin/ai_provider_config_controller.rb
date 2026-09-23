@@ -18,6 +18,30 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
     @rows = load_account_rows
     @account_options = account_options
     @orphans = JabvoxAiProviderAccount.orphans.order(:team_alias_jabvox, :id).limit(200)
+    # Catálogo de modelos del proveedor, para el selector de modelos por team.
+    @available_models = @config.configured? ? Jabvox::AiProvider::Client.new(config: @config).model_names : []
+    # Diagnóstico de un team concreto (?inspect_team=<id>): qué ve Jabvox realmente en el
+    # proveedor. Sirve para entender por qué una key creada fuera no aparece en la cuenta.
+    @inspection = Jabvox::AiProvider::TeamInspector.new(config: @config).call(params[:inspect_team]) if params[:inspect_team].present?
+  end
+
+  # Fija los modelos a los que puede acceder el team de una cuenta. Vacío = todos.
+  def set_team_models
+    provider_account = JabvoxAiProviderAccount.find(params[:provider_account_id])
+    return redirect_tab('accounts', 'Ese team aún no existe en el proveedor.', :alert) if provider_account.team_id_jabvox.blank?
+
+    models = Array(params[:models]).map(&:to_s).reject(&:blank?)
+    # Aunque el Super Admin puede todo, un nombre de modelo inexistente dejaría al team sin
+    # acceso a ninguno (LiteLLM lo interpreta como restricción a un modelo que no existe).
+    error = unknown_models_error(models) || apply_team_models(provider_account, models)
+    return redirect_tab('accounts', error, :alert) if error
+
+    redirect_tab('accounts', models_saved_message(provider_account, models))
+  rescue ActiveRecord::RecordNotFound
+    redirect_tab('accounts', 'No existe ese team.', :alert)
+  rescue StandardError => e
+    Rails.logger.error("[AiProviderConfig] modelos: #{e.class}: #{e.message}")
+    redirect_tab('accounts', 'No se pudieron asignar los modelos.', :alert)
   end
 
   # Trae TODO de LiteLLM y lo refleja en Jabvox: importa los teams que no existían aquí,
@@ -169,6 +193,33 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
       pa = provider_accounts[acc.id]
       { account: acc, plan: acc.jabvox_plan, provider_account: pa, connected: pa&.team_id_jabvox.present? }
     end
+  end
+
+  # Rechaza modelos que el proveedor no expone. Si el proxy no reporta catálogo, no se
+  # bloquea nada (no inventar una restricción sobre información que no tenemos).
+  def unknown_models_error(models)
+    return nil if models.empty?
+
+    catalog = Jabvox::AiProvider::Client.new.model_names
+    return nil if catalog.empty?
+
+    unknown = models - catalog
+    unknown.empty? ? nil : "El proveedor no expone estos modelos: #{unknown.join(', ')}."
+  end
+
+  # Escribe los modelos en el proveedor y refleja el resultado localmente.
+  # Devuelve el mensaje de error, o nil si fue bien.
+  def apply_team_models(provider_account, models)
+    resp = Jabvox::AiProvider::Client.new.update_team_models(provider_account.team_id_jabvox, models)
+    return "No se pudieron asignar los modelos: #{resp.error}" unless resp.success?
+
+    provider_account.update(remote_models_jabvox: models, synced_at_jabvox: Time.current)
+    nil
+  end
+
+  def models_saved_message(provider_account, models)
+    label = models.empty? ? 'todos los modelos' : models.join(', ')
+    "Team #{provider_account.team_id_jabvox}: acceso a #{label}."
   end
 
   # Opciones del selector de cuentas: [etiqueta, id]. Sustituye al campo numérico a ciegas.

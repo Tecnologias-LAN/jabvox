@@ -18,6 +18,12 @@ const creating = ref(false);
 const newKeyAlias = ref('');
 const newKeyBudget = ref('');
 const search = ref('');
+// Catálogo de modelos del proveedor y modelos a los que está limitado el team.
+const availableModels = ref([]);
+const teamModels = ref([]);
+// Modelos elegidos al crear una key, y al editar una existente.
+const newKeyModels = ref([]);
+const editModels = ref([]);
 // La key recién creada se muestra UNA vez; se limpia al recargar.
 const createdKey = ref(null);
 
@@ -54,7 +60,14 @@ const usageBarClass = computed(() => {
 const refreshKeys = async () => {
   const res = await aiBudgetAPI.keys();
   keys.value = res.data?.keys || [];
+  availableModels.value = res.data?.available_models || [];
+  teamModels.value = res.data?.team_models || [];
 };
+
+// Modelos que la cuenta puede asignar: los del team si está restringido, si no, todos.
+const selectableModels = computed(() =>
+  teamModels.value.length ? teamModels.value : availableModels.value
+);
 
 const fetchAll = async () => {
   loading.value = true;
@@ -75,10 +88,12 @@ const createKey = async () => {
   try {
     const payload = { key_alias: newKeyAlias.value || undefined };
     if (newKeyBudget.value) payload.max_budget_usd = Number(newKeyBudget.value);
+    if (newKeyModels.value.length) payload.models = newKeyModels.value;
     const { data } = await aiBudgetAPI.createKey(payload);
     createdKey.value = data.key;
     newKeyAlias.value = '';
     newKeyBudget.value = '';
+    newKeyModels.value = [];
     useAlert(t('JABVOX_AI_BUDGET.KEY_CREATED'));
     // Refrescar la lista (sin la key en claro).
     await refreshKeys();
@@ -88,6 +103,13 @@ const createKey = async () => {
   } finally {
     creating.value = false;
   }
+};
+
+// Alterna un modelo en una lista de selección (crear o editar).
+const toggleModel = (list, model) => {
+  const i = list.indexOf(model);
+  if (i === -1) list.push(model);
+  else list.splice(i, 1);
 };
 
 const copyCreatedKey = async () => {
@@ -160,20 +182,25 @@ const editBudget = k => {
   if (!k.token_id) return;
   targetKey.value = k;
   budgetValue.value = k.max_budget != null ? String(k.max_budget) : '';
+  editModels.value = [...(k.models || [])];
   budgetDialog.value?.open();
 };
 
 const confirmBudget = () => {
   const k = targetKey.value;
-  const value = Number(budgetValue.value);
   if (!k?.token_id) return;
-  if (!Number.isFinite(value) || value <= 0) {
+
+  // El tope es opcional: se puede editar solo los modelos. Pero si se escribe, debe valer.
+  const raw = String(budgetValue.value).trim();
+  const value = raw === '' ? null : Number(raw);
+  if (value !== null && (!Number.isFinite(value) || value <= 0)) {
     useAlert(t('JABVOX_AI_BUDGET.KEY_ACTION_ERROR'));
     return;
   }
+
   runKeyAction(
     k.token_id,
-    () => aiBudgetAPI.updateKey(k.token_id, value),
+    () => aiBudgetAPI.updateKey(k.token_id, value, editModels.value),
     'updated'
   );
   budgetDialog.value?.close();
@@ -387,6 +414,32 @@ onMounted(fetchAll);
                   @keydown.enter="createKey"
                 />
               </div>
+              <!-- Modelos de la key: sin selección hereda los del team -->
+              <div v-if="selectableModels.length">
+                <p class="mb-2 text-sm font-medium text-n-slate-12">
+                  {{ t('JABVOX_AI_BUDGET.MODELS') }}
+                </p>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="m in selectableModels"
+                    :key="m"
+                    type="button"
+                    class="rounded-lg border px-2.5 py-1 text-xs transition-colors"
+                    :class="
+                      newKeyModels.includes(m)
+                        ? 'border-n-brand bg-n-alpha-2 text-n-slate-12'
+                        : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+                    "
+                    @click="toggleModel(newKeyModels, m)"
+                  >
+                    {{ m }}
+                  </button>
+                </div>
+                <p class="mt-2 text-xs text-n-slate-10">
+                  {{ t('JABVOX_AI_BUDGET.MODELS_HINT') }}
+                </p>
+              </div>
+
               <div class="flex justify-end">
                 <Button
                   icon="i-lucide-plus"
@@ -500,6 +553,12 @@ onMounted(fetchAll);
                     <p class="truncate text-sm font-medium text-n-slate-12">
                       {{ k.alias || '—' }}
                     </p>
+                    <p
+                      v-if="k.models && k.models.length"
+                      class="truncate text-xs text-n-slate-10"
+                    >
+                      {{ k.models.join(', ') }}
+                    </p>
                     <p class="text-xs tabular-nums text-n-slate-10 sm:hidden">
                       {{ moneyOrDash(k.spend) }}
                       <span v-if="k.max_budget != null">
@@ -592,14 +651,40 @@ onMounted(fetchAll);
       :confirm-button-label="t('JABVOX_AI_BUDGET.EDIT_BUDGET')"
       @confirm="confirmBudget"
     >
-      <Input
-        v-model="budgetValue"
-        type="number"
-        min="0"
-        step="0.01"
-        :label="t('JABVOX_AI_BUDGET.EDIT_BUDGET_PROMPT')"
-        placeholder="USD"
-      />
+      <div class="flex flex-col gap-4">
+        <Input
+          v-model="budgetValue"
+          type="number"
+          min="0"
+          step="0.01"
+          :label="t('JABVOX_AI_BUDGET.EDIT_BUDGET_PROMPT')"
+          placeholder="USD"
+        />
+        <div v-if="selectableModels.length">
+          <p class="mb-2 text-sm font-medium text-n-slate-12">
+            {{ t('JABVOX_AI_BUDGET.EDIT_MODELS') }}
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="m in selectableModels"
+              :key="m"
+              type="button"
+              class="rounded-lg border px-2.5 py-1 text-xs transition-colors"
+              :class="
+                editModels.includes(m)
+                  ? 'border-n-brand bg-n-alpha-2 text-n-slate-12'
+                  : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+              "
+              @click="toggleModel(editModels, m)"
+            >
+              {{ m }}
+            </button>
+          </div>
+          <p class="mt-2 text-xs text-n-slate-10">
+            {{ t('JABVOX_AI_BUDGET.MODELS_HINT') }}
+          </p>
+        </div>
+      </div>
     </Dialog>
   </div>
 </template>

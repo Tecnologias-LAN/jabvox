@@ -46,6 +46,13 @@
     "TEAM_LABEL": "Team",
     "SEARCH_KEYS": "Search by name…",
     "NO_RESULTS": "No key matches your search.",
-    "ACTIONS_MENU": "Actions"
+    "ACTIONS_MENU": "Actions",
+    "MODELS": "Models",
+    "MODELS_ALL": "All team models",
+    "MODELS_HINT": "No selection = the key uses the team's models.",
+    "EDIT_MODELS": "Key models",
+    "TEAM_MODELS": "Available models",
+    "TEAM_MODELS_ALL": "This account has access to every model on the provider.",
+    "NO_MODELS": "The provider reported no available models."
   }
 }

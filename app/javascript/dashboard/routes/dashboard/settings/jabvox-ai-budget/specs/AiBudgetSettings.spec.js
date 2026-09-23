@@ -36,9 +36,15 @@ const stubs = {
   Dialog: { template: '<div><slot /></div>' },
 };
 
-const mountWith = async (balance, keys = []) => {
+const mountWith = async (balance, keys = [], models = {}) => {
   mockGet.mockResolvedValue({ data: balance });
-  mockKeys.mockResolvedValue({ data: { keys } });
+  mockKeys.mockResolvedValue({
+    data: {
+      keys,
+      available_models: models.available || [],
+      team_models: models.team || [],
+    },
+  });
   const wrapper = mount(AiBudgetSettings, {
     global: {
       stubs,
@@ -159,6 +165,48 @@ describe('AiBudgetSettings — estados', () => {
     });
 
     expect(wrapper.html()).toContain('bg-n-ruby-9');
+  });
+
+  it('muestra los modelos asignados a cada key', async () => {
+    const wrapper = await mountWith(
+      { connected: true, total_budget_usd: 20 },
+      [{ alias: 'k1', token_id: 'tok-1', models: ['gpt-4o', 'claude-sonnet'] }],
+      { available: ['gpt-4o', 'claude-sonnet', 'otro'] }
+    );
+
+    expect(wrapper.html()).toContain('gpt-4o, claude-sonnet');
+  });
+
+  it('solo ofrece los modelos del team cuando el team está restringido', async () => {
+    const wrapper = await mountWith(
+      { connected: true, total_budget_usd: 20 },
+      [{ alias: 'k1', token_id: 'tok-1' }],
+      { available: ['gpt-4o', 'claude-sonnet', 'otro'], team: ['gpt-4o'] }
+    );
+
+    // El team limita a gpt-4o: los demás no deben poder asignarse.
+    expect(wrapper.vm.selectableModels).toEqual(['gpt-4o']);
+  });
+
+  it('ofrece todos los modelos del proveedor si el team no restringe', async () => {
+    const wrapper = await mountWith(
+      { connected: true, total_budget_usd: 20 },
+      [{ alias: 'k1', token_id: 'tok-1' }],
+      { available: ['gpt-4o', 'claude-sonnet'], team: [] }
+    );
+
+    expect(wrapper.vm.selectableModels).toEqual(['gpt-4o', 'claude-sonnet']);
+  });
+
+  it('toggleModel añade y quita modelos de la selección', async () => {
+    const wrapper = await mountWith({ connected: true, total_budget_usd: 20 });
+    const list = [];
+
+    wrapper.vm.toggleModel(list, 'gpt-4o');
+    expect(list).toEqual(['gpt-4o']);
+
+    wrapper.vm.toggleModel(list, 'gpt-4o');
+    expect(list).toEqual([]);
   });
 
   it('filtra las keys por nombre', async () => {

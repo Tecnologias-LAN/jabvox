@@ -101,13 +101,31 @@ module Jabvox
       def unblock_key(key) = post('/key/unblock', key: key)
 
       # Actualiza una key existente (merge patch: lo que no se envía conserva su valor).
-      def update_key(key, max_budget_usd: nil)
+      # `models: []` sí se envía: significa "sin restricción", distinto de no tocarlo (nil).
+      def update_key(key, max_budget_usd: nil, models: nil)
         body = { key: key }
         body[:max_budget] = max_budget_usd unless max_budget_usd.nil?
+        body[:models] = Array(models).map(&:to_s) unless models.nil?
         post('/key/update', **body)
       end
 
       def models_info = get('/model/info')
+
+      # Nombres de los modelos que expone el proxy, ordenados y sin duplicados.
+      # /model/info responde { "data": [ { "model_name": "...", ... } ] } (verificado en
+      # proxy_server.py: _model_info_json_response envuelve siempre en "data").
+      def model_names
+        resp = models_info
+        return [] unless resp.success?
+
+        rows = resp.data.is_a?(Hash) ? resp.data['data'] : resp.data
+        Array(rows).filter_map { |m| m['model_name'].to_s.presence if m.is_a?(Hash) }.uniq.sort
+      end
+
+      # Fija los modelos a los que puede acceder el team. [] = sin restricción (todos).
+      def update_team_models(team_id, models)
+        post('/team/update', team_id: team_id, models: Array(models).map(&:to_s))
+      end
 
       # --- Normalización de la respuesta de /team/list ---
       # Devuelve siempre un Array de Hash, sin importar si el proxy respondió un array plano

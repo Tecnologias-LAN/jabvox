@@ -46,6 +46,13 @@
     "TEAM_LABEL": "Team",
     "SEARCH_KEYS": "Buscar por nombre…",
     "NO_RESULTS": "Ninguna key coincide con la búsqueda.",
-    "ACTIONS_MENU": "Acciones"
+    "ACTIONS_MENU": "Acciones",
+    "MODELS": "Modelos",
+    "MODELS_ALL": "Todos los del team",
+    "MODELS_HINT": "Sin selección = la key usa los modelos del team.",
+    "EDIT_MODELS": "Modelos de la key",
+    "TEAM_MODELS": "Modelos disponibles",
+    "TEAM_MODELS_ALL": "Esta cuenta tiene acceso a todos los modelos del proveedor.",
+    "NO_MODELS": "El proveedor no reportó modelos disponibles."
   }
 }

@@ -1379,6 +1379,7 @@ Rails.application.routes.draw do
           post :sync_provider  # traer TODO del proveedor (LiteLLM) e importarlo
           post :link_account   # ligar un team huérfano a una cuenta
           post :unlink_account # desligar un team de su cuenta (el team sigue en el proveedor)
+          post :set_team_models # fijar a qué modelos accede el team de una cuenta
         end
       end
       # API Provisioner (Hermes): token único, IP allowlist y checklist de permisos.

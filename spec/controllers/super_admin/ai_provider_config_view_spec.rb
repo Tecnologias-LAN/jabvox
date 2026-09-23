@@ -55,6 +55,43 @@ RSpec.describe 'Super Admin AI Provider Config — vista', type: :request do
     expect(render_accounts_tab).to include('Filtrar por nombre o #id')
   end
 
+  it 'el diagnóstico de un team no imprime la key en claro, solo el hash truncado' do
+    inspection = {
+      team_id: 'team-x', total_count: 1, total_pages: 1, team_models: ['mock/model-a'],
+      keys: [{ alias: 'mia', team_id: 'team-x', models: ['mock/model-a'],
+               spend: 1.5, max_budget: 10, blocked: false,
+               token: 'abcdef123456' }]
+    }
+
+    html = ApplicationController.render(
+      template: 'super_admin/ai_provider_config/show', layout: false,
+      assigns: { config: config, summary: config.safe_summary, tab: 'accounts', rows: [],
+                 account_options: [], orphans: [], available_models: ['mock/model-a'],
+                 inspection: inspection }
+    )
+
+    expect(html).to include('mia')
+    expect(html).to include('abcdef123456')
+    # El hash llega truncado desde el servicio; nunca una key sk-... completa.
+    expect(html).not_to match(/sk-[A-Za-z0-9_-]{10,}/)
+  end
+
+  it 'ofrece el selector de modelos por team cuando hay catálogo' do
+    linked = JabvoxAiProviderAccount.create!(account: account_one, team_id_jabvox: 'team-m',
+                                             remote_models_jabvox: ['mock/model-a'])
+    rows = [{ account: account_one, plan: nil, provider_account: linked, connected: true }]
+
+    html = ApplicationController.render(
+      template: 'super_admin/ai_provider_config/show', layout: false,
+      assigns: { config: config, summary: config.safe_summary, tab: 'accounts', rows: rows,
+                 account_options: [], orphans: [],
+                 available_models: ['mock/model-a', 'mock/model-b'] }
+    )
+
+    expect(html).to include('Guardar modelos')
+    expect(html).to include('mock/model-b')
+  end
+
   it 'nunca imprime la master key' do
     config.update!(master_key_jabvox: 'sk-secretisima-12345', base_url_jabvox: 'https://proxy.example.com')
 

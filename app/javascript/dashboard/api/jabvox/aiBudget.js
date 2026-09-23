@@ -29,11 +29,14 @@ class JabvoxAiBudgetAPI extends ApiClient {
     return axios.post(`${this.url}/unblock_key`, { token_id: tokenId });
   }
 
-  updateKey(tokenId, maxBudgetUsd) {
-    return axios.post(`${this.url}/update_key`, {
-      token_id: tokenId,
-      max_budget_usd: maxBudgetUsd,
-    });
+  // `models` omitido = no se toca; [] = sin restricción (hereda los del team).
+  updateKey(tokenId, maxBudgetUsd, models) {
+    const payload = { token_id: tokenId };
+    if (maxBudgetUsd !== undefined && maxBudgetUsd !== null) {
+      payload.max_budget_usd = maxBudgetUsd;
+    }
+    if (models !== undefined) payload.models = models;
+    return axios.post(`${this.url}/update_key`, payload);
   }
 }
 

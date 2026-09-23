@@ -180,6 +180,73 @@
       </div>
     <% end %>
 
+    <!-- Diagnóstico: qué keys ve Jabvox realmente en un team del proveedor -->
+    <div style="margin-bottom:24px; padding:16px; border:1px solid #e5e7eb; border-radius:8px;">
+      <h2 style="font-size:15px; font-weight:600; margin:0 0 4px;">Inspeccionar un team</h2>
+      <p style="font-size:12px; color:#6b7280; margin:0 0 12px;">
+        Lista las virtual keys que el proveedor devuelve para un team, con el team al que
+        pertenece cada una. Útil cuando una key creada directamente en el proveedor no
+        aparece en la pantalla de la cuenta.
+      </p>
+      <%= form_with url: super_admin_ai_provider_config_path, method: :get, local: true do |f| %>
+        <%= hidden_field_tag :tab, 'accounts' %>
+        <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+          <div>
+            <label style="display:block; font-size:12px; color:#374151; margin-bottom:4px;">ID del team</label>
+            <%= text_field_tag :inspect_team, params[:inspect_team], placeholder: 'team_...', style: 'min-width:320px; font-family:monospace;' %>
+          </div>
+          <%= submit_tag 'Inspeccionar', class: 'button', name: nil %>
+        </div>
+      <% end %>
+
+      <% if @inspection.present? %>
+        <div style="margin-top:14px; font-size:13px;">
+          <% if @inspection[:error].present? %>
+            <p style="color:#b91c1c; margin:0;">Error: <%= @inspection[:error] %></p>
+          <% else %>
+            <p style="color:#374151; margin:0 0 8px;">
+              El proveedor reporta <strong><%= @inspection[:total_count] %></strong> key(s)
+              en <strong><%= @inspection[:total_pages] %></strong> página(s).
+              Modelos del team:
+              <strong><%= @inspection[:team_models].presence&.join(', ') || 'todos (sin restricción)' %></strong>
+            </p>
+            <% if @inspection[:keys].empty? %>
+              <p style="color:#b45309; margin:0;">El proveedor no devolvió ninguna key para ese team.</p>
+            <% else %>
+              <table class="w-full" style="font-size:12px;">
+                <thead>
+                  <tr style="text-align:left; border-bottom:1px solid #e5e7eb;">
+                    <th style="padding:6px;">Nombre</th>
+                    <th style="padding:6px;">Team de la key</th>
+                    <th style="padding:6px;">Modelos</th>
+                    <th style="padding:6px; text-align:right;">Gastado</th>
+                    <th style="padding:6px;">Hash</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @inspection[:keys].each do |k| %>
+                    <tr style="border-bottom:1px solid #f3f4f6;">
+                      <td style="padding:6px;"><%= k[:alias].presence || '(sin nombre)' %></td>
+                      <td style="padding:6px; font-family:monospace;">
+                        <% if k[:team_id].to_s == @inspection[:team_id] %>
+                          <span style="color:#16a34a;">✓ coincide</span>
+                        <% else %>
+                          <span style="color:#b45309;"><%= k[:team_id].presence || '(sin team)' %></span>
+                        <% end %>
+                      </td>
+                      <td style="padding:6px;"><%= k[:models].presence&.join(', ') || 'hereda del team' %></td>
+                      <td style="padding:6px; text-align:right;">$<%= format('%.4f', k[:spend].to_f) %></td>
+                      <td style="padding:6px; font-family:monospace; color:#6b7280;"><%= k[:token] %>…</td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            <% end %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+
     <h2 style="font-size:15px; font-weight:600; margin:0 0 8px;">Cuentas con plan de IA</h2>
     <%= render 'super_admin/ai_provider_config/accounts_table', mode: :manage %>
   <% end %>

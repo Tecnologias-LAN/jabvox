@@ -118,6 +118,74 @@ RSpec.describe 'Api::V1::Accounts::Jabvox::AiBudget', type: :request do
     end
   end
 
+  describe 'GET keys — trae TODAS las del team' do
+    before { JabvoxAiProviderAccount.create!(account: account, team_id_jabvox: 'team-k') }
+
+    def list_keys
+      get "/api/v1/accounts/#{account.id}/jabvox/ai_budget/keys",
+          headers: admin.create_new_auth_token, as: :json
+    end
+
+    it 'incluye keys creadas fuera de Jabvox (directamente en el proveedor)' do
+      mock.seed_team(team_id: 'team-k')
+      # Simula una key creada desde la UI del proveedor, no por Jabvox.
+      mock.request(:post, '/key/generate',
+                   body: { 'team_id' => 'team-k', 'key_alias' => 'creada-en-litellm' })
+
+      list_keys
+
+      aliases = response.parsed_body['keys'].map { |k| k['alias'] }
+      expect(aliases).to include('creada-en-litellm')
+    end
+
+    it 'recorre todas las páginas: no se queda en la primera' do
+      mock.seed_team(team_id: 'team-k')
+      # Más keys que el tamaño de página, para forzar el paginado.
+      3.times { |i| mock.request(:post, '/key/generate', body: { 'team_id' => 'team-k', 'key_alias' => "k#{i}" }) }
+      allow_any_instance_of(Jabvox::AiProvider::Client).to(receive(:list_keys) # rubocop:disable RSpec/AnyInstance
+        .and_wrap_original { |m, team, **| m.call(team, page: 1, size: 1) })
+
+      list_keys
+
+      # Con size=1 y 3 keys, sin paginar solo llegaría 1.
+      expect(response.parsed_body['keys'].size).to be > 1
+    end
+
+    it 'expone el catálogo de modelos del proveedor y los del team' do
+      mock.seed_team(team_id: 'team-k', models: ['mock/model-a'])
+
+      list_keys
+
+      expect(response.parsed_body['available_models']).to include('mock/model-a')
+      expect(response.parsed_body['team_models']).to eq(['mock/model-a'])
+    end
+  end
+
+  describe 'modelos por key' do
+    before { JabvoxAiProviderAccount.create!(account: account, team_id_jabvox: 'team-m') }
+
+    it 'rechaza un modelo que el team no tiene permitido' do
+      mock.seed_team(team_id: 'team-m', models: ['mock/model-a'])
+
+      post "/api/v1/accounts/#{account.id}/jabvox/ai_budget/create_key",
+           params: { key_alias: 'x', models: ['modelo-prohibido'] },
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['error']).to match(/no permitidos/)
+    end
+
+    it 'acepta un modelo permitido por el team' do
+      mock.seed_team(team_id: 'team-m', models: ['mock/model-a'])
+
+      post "/api/v1/accounts/#{account.id}/jabvox/ai_budget/create_key",
+           params: { key_alias: 'x', models: ['mock/model-a'] },
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+    end
+  end
+
   describe 'gestión de keys — aislamiento entre cuentas' do
     let(:otra_cuenta) { create(:account, jabvox_ai_chat_enabled_jabvox: true) }
 

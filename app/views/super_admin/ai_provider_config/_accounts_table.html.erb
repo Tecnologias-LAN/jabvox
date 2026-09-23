@@ -10,7 +10,10 @@
       <th style="padding:8px; text-align:right;">Total</th>
       <th style="padding:8px; text-align:right;">Gastado</th>
       <th style="padding:8px; text-align:right;">Restante</th>
-      <% if mode == :manage %><th style="padding:8px;">Acciones</th><% end %>
+      <% if mode == :manage %>
+        <th style="padding:8px;">Acciones</th>
+        <th style="padding:8px;">Modelos</th>
+      <% end %>
     </tr>
   </thead>
   <tbody>
@@ -53,13 +56,44 @@
               <%= button_to 'Desligar', unlink_account_super_admin_ai_provider_config_path(provider_account_id: pa.id),
                     method: :post, class: 'button', form_class: 'inline-block',
                     data: { confirm: "¿Desligar el team de la cuenta #{row[:account].id}? El team seguirá existiendo en el proveedor." } %>
+              <%= link_to 'Inspeccionar',
+                    super_admin_ai_provider_config_path(tab: 'accounts', inspect_team: pa.team_id_jabvox),
+                    class: 'button', style: 'margin-left:6px;' %>
+            <% end %>
+          </td>
+          <!-- Modelos del team: vacío = todos los del proveedor -->
+          <td style="padding:8px; min-width:260px;">
+            <% if row[:connected] %>
+              <% if Array(@available_models).any? %>
+                <%= form_with url: set_team_models_super_admin_ai_provider_config_path, method: :post, local: true do |f| %>
+                  <%= f.hidden_field :provider_account_id, value: pa.id %>
+                  <%= f.select :models,
+                        options_for_select(@available_models, Array(pa.remote_models_jabvox)),
+                        {},
+                        { multiple: true, size: [[@available_models.size, 5].min, 3].max,
+                          style: 'width:240px; font-size:12px;' } %>
+                  <div style="margin-top:4px;">
+                    <%= f.submit 'Guardar modelos', class: 'button' %>
+                  </div>
+                  <p style="font-size:11px; color:#6b7280; margin:4px 0 0;">
+                    Ninguno seleccionado = acceso a todos.
+                  </p>
+                <% end %>
+              <% else %>
+                <span style="font-size:12px; color:#6b7280;">
+                  <%= Array(pa.remote_models_jabvox).presence&.join(', ') || 'Todos' %>
+                  <br><em>(conecta el proveedor para editarlos)</em>
+                </span>
+              <% end %>
+            <% else %>
+              <span style="color:#6b7280;">—</span>
             <% end %>
           </td>
         <% end %>
       </tr>
     <% end %>
     <% if Array(@rows).empty? %>
-      <tr><td colspan="<%= mode == :manage ? 9 : 8 %>" style="padding:16px; color:#6b7280;">No hay cuentas con planes que incluyan saldo de IA. Pon "Ai budget in usd" en un plan.</td></tr>
+      <tr><td colspan="<%= mode == :manage ? 10 : 8 %>" style="padding:16px; color:#6b7280;">No hay cuentas con planes que incluyan saldo de IA. Pon "Ai budget in usd" en un plan.</td></tr>
     <% end %>
   </tbody>
 </table>

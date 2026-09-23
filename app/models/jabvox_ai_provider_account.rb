@@ -16,20 +16,25 @@
 #  cached_spend_jabvox           :decimal(15, 6)
 #  last_error_jabvox             :string
 #  last_reset_period_jabvox      :string
+#  origin_jabvox                 :string           default("jabvox"), not null
 #  plan_budget_cents_jabvox      :integer          default(0), not null
 #  purchased_budget_cents_jabvox :integer          default(0), not null
+#  remote_blocked_jabvox         :boolean          default(FALSE), not null
+#  remote_max_budget_jabvox      :decimal(15, 6)
+#  remote_models_jabvox          :jsonb            not null
 #  spend_updated_at_jabvox       :datetime
 #  status_jabvox                 :string           default("active"), not null
 #  synced_at_jabvox              :datetime
+#  team_alias_jabvox             :string
 #  team_id_jabvox                :string
 #  created_at                    :datetime         not null
 #  updated_at                    :datetime         not null
-#  account_id                    :bigint           not null
+#  account_id                    :bigint
 #
 # Indexes
 #
-#  index_jabvox_ai_provider_accounts_on_account_id      (account_id) UNIQUE
-#  index_jabvox_ai_provider_accounts_on_team_id_jabvox  (team_id_jabvox)
+#  idx_ai_provider_accounts_account  (account_id) UNIQUE WHERE (account_id IS NOT NULL)
+#  idx_ai_provider_accounts_team     (team_id_jabvox) UNIQUE WHERE ((team_id_jabvox IS NOT NULL) AND ((team_id_jabvox)::text <> ''::text))
 #
 # Foreign Keys
 #

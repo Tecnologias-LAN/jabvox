@@ -10,6 +10,27 @@ RSpec.describe 'Super Admin AI Provider Config', type: :request do
   # pruebas no tocan ningún proxy real.
   before { Jabvox::AiProvider::MockAdapter.reset! }
 
+  describe 'seguridad de endpoints' do
+    let!(:row) { JabvoxAiProviderAccount.create!(team_id_jabvox: 'team-sec') }
+
+    # Todas las acciones de escritura viven tras authenticate_super_admin!. Sin sesión deben
+    # redirigir a login y NO ejecutar nada.
+    it 'rechaza set_team_models sin sesión de super admin' do
+      post '/super_admin/ai_provider_config/set_team_models',
+           params: { provider_account_id: row.id, models: ['x'] }
+
+      expect(response).to have_http_status(:redirect)
+      expect(response.location).to include('sign_in')
+      expect(row.reload.remote_models_jabvox).to eq([])
+    end
+
+    it 'rechaza el diagnóstico de un team sin sesión de super admin' do
+      get '/super_admin/ai_provider_config', params: { tab: 'accounts', inspect_team: 'team-sec' }
+
+      expect(response.location).to include('sign_in')
+    end
+  end
+
   describe 'sin autenticar' do
     it 'rechaza sincronizar' do
       post '/super_admin/ai_provider_config/sync_provider'
@@ -65,6 +86,36 @@ RSpec.describe 'Super Admin AI Provider Config', type: :request do
 
         expect(orphan.reload).to be_orphan
         expect(flash[:alert]).to match(/ya está ligada/)
+      end
+    end
+
+    describe 'POST set_team_models' do
+      let!(:row) { JabvoxAiProviderAccount.create!(account: account, team_id_jabvox: 'team-mod') }
+
+      before { Jabvox::AiProvider::MockAdapter.instance.seed_team(team_id: 'team-mod') }
+
+      it 'rechaza un modelo que el proveedor no expone' do
+        post '/super_admin/ai_provider_config/set_team_models',
+             params: { provider_account_id: row.id, models: ['modelo-inventado'] }
+
+        expect(flash[:alert]).to match(/no expone estos modelos/)
+        expect(row.reload.remote_models_jabvox).to eq([])
+      end
+
+      it 'asigna un modelo válido del catálogo' do
+        post '/super_admin/ai_provider_config/set_team_models',
+             params: { provider_account_id: row.id, models: ['mock/model-a'] }
+
+        expect(flash[:notice]).to match(/acceso a mock\/model-a/)
+        expect(row.reload.remote_models_jabvox).to eq(['mock/model-a'])
+      end
+
+      it 'sin selección deja el team con acceso a todos' do
+        post '/super_admin/ai_provider_config/set_team_models',
+             params: { provider_account_id: row.id, models: [] }
+
+        expect(flash[:notice]).to match(/todos los modelos/)
+        expect(row.reload.remote_models_jabvox).to eq([])
       end
     end
 
