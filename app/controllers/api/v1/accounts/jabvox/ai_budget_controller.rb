@@ -33,15 +33,19 @@ class Api::V1::Accounts::Jabvox::AiBudgetController < Api::V1::Accounts::Jabvox:
   # proveedor: se recorren todas las páginas (el proxy pagina a 100 como máximo).
   def keys
     pa = provider_account
-    return render json: { keys: [], available_models: [], team_models: [] } if pa.nil? || pa.team_id_jabvox.blank?
+    return render json: { keys: [], available_models: [], model_catalog: [], team_models: [] } if pa.nil? || pa.team_id_jabvox.blank?
 
     rows, error = fetch_all_keys(client, pa.team_id_jabvox)
     return render json: { error: error }, status: :bad_gateway if error
 
     # Los modelos son accesorios: si el proveedor no responde a tiempo, se devuelven vacíos
     # en vez de tumbar la pantalla entera (las keys, que es lo importante, ya están).
+    catalog = client.model_catalog
     render json: { keys: rows,
-                   available_models: client.model_names,
+                   # Lista plana (compatibilidad) + catálogo con el proveedor de cada modelo,
+                   # para poder agrupar y elegir modelos sueltos, no proveedores enteros.
+                   available_models: catalog.pluck(:name),
+                   model_catalog: catalog,
                    team_models: team_models(client, pa.team_id_jabvox) }
   end
 

@@ -131,11 +131,23 @@ module Jabvox
       # /model/info responde { "data": [ { "model_name": "...", ... } ] } (verificado en
       # proxy_server.py: _model_info_json_response envuelve siempre en "data").
       def model_names
+        model_catalog.pluck(:name)
+      end
+
+      # Catálogo con el PROVEEDOR de cada modelo, para poder elegir modelos sueltos
+      # ('gpt-4') y no solo proveedores enteros ('openai'):
+      #   [{ name: 'gpt-4', provider: 'openai' }, ...]
+      #
+      # El proveedor se toma de `model_info.litellm_provider` (campo requerido en el tipo
+      # de LiteLLM) y, si faltara, del prefijo de `litellm_params.model` ("openai/gpt-4").
+      def model_catalog
         resp = models_info
         return [] unless resp.success?
 
         rows = resp.data.is_a?(Hash) ? resp.data['data'] : resp.data
-        Array(rows).filter_map { |m| m['model_name'].to_s.presence if m.is_a?(Hash) }.uniq.sort
+        Array(rows).filter_map { |row| catalog_entry(row) }
+                   .uniq { |m| m[:name] }
+                   .sort_by { |m| [m[:provider], m[:name]] }
       end
 
       # Fija los modelos a los que puede acceder el team. [] = sin restricción (todos).
@@ -156,6 +168,34 @@ module Jabvox
       end
 
       private
+
+      # Una entrada del catálogo, o nil si la fila no trae nombre de modelo.
+      def catalog_entry(row)
+        return nil unless row.is_a?(Hash)
+
+        name = row['model_name'].to_s.presence
+        return nil if name.nil?
+
+        { name: name, provider: extract_provider(row, name) }
+      end
+
+      # Proveedor del modelo, por orden de fiabilidad:
+      #   1. model_info.litellm_provider (lo que declara el propio LiteLLM)
+      #   2. prefijo de litellm_params.model ("openai/gpt-4" → "openai")
+      #   3. prefijo del propio model_name, si viene con forma "proveedor/modelo"
+      # Si nada de eso existe, se agrupa bajo "otros" en vez de perder el modelo.
+      def extract_provider(row, name)
+        info = row['model_info']
+        declared = info.is_a?(Hash) ? info['litellm_provider'].to_s.presence : nil
+        return declared if declared
+
+        params = row['litellm_params']
+        raw = params.is_a?(Hash) ? params['model'].to_s : ''
+        from_params = raw.include?('/') ? raw.split('/').first.presence : nil
+        return from_params if from_params
+
+        name.include?('/') ? name.split('/').first : 'otros'
+      end
 
       def default_adapter
         # Override inyectable (tests): permite forzar el Mock aunque el proveedor esté

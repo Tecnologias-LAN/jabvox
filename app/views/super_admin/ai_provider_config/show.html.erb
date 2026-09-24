@@ -251,6 +251,25 @@
     <%= render 'super_admin/ai_provider_config/accounts_table', mode: :manage %>
   <% end %>
 
+  <!-- "todos" por proveedor: marca o desmarca de golpe los modelos de ese proveedor,
+       sin dejar de poder elegirlos uno a uno. -->
+  <% if @tab == 'accounts' %>
+    <script>
+      (function () {
+        document.querySelectorAll('[data-jabvox-toggle-provider]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var group = btn.closest('[data-jabvox-provider-group]');
+            if (!group) return;
+            var boxes = group.querySelectorAll('input[type="checkbox"]');
+            // Si ya están todos marcados, el botón los desmarca.
+            var allChecked = Array.prototype.every.call(boxes, function (b) { return b.checked; });
+            Array.prototype.forEach.call(boxes, function (b) { b.checked = !allChecked; });
+          });
+        });
+      })();
+    </script>
+  <% end %>
+
   <!-- Buscador de cuentas: convierte cada <select> de cuentas en un combo filtrable.
        Sin dependencias: se apoya en un <datalist> espejo y valida contra las opciones
        reales, de modo que solo se pueda enviar un id de cuenta existente. -->

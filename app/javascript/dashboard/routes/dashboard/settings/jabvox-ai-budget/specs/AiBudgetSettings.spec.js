@@ -42,6 +42,7 @@ const mountWith = async (balance, keys = [], models = {}) => {
     data: {
       keys,
       available_models: models.available || [],
+      model_catalog: models.catalog || [],
       team_models: models.team || [],
     },
   });
@@ -196,6 +197,85 @@ describe('AiBudgetSettings — estados', () => {
     );
 
     expect(wrapper.vm.selectableModels).toEqual(['gpt-4o', 'claude-sonnet']);
+  });
+
+  it('agrupa los modelos por proveedor, no como un bloque único', async () => {
+    const wrapper = await mountWith(
+      { connected: true, total_budget_usd: 20 },
+      [],
+      {
+        available: ['gpt-4', 'gpt-4o', 'claude-sonnet'],
+        catalog: [
+          { name: 'gpt-4', provider: 'openai' },
+          { name: 'gpt-4o', provider: 'openai' },
+          { name: 'claude-sonnet', provider: 'anthropic' },
+        ],
+      }
+    );
+
+    const groups = wrapper.vm.modelsByProvider;
+    expect(groups.map(g => g.provider)).toEqual(['anthropic', 'openai']);
+    expect(groups.find(g => g.provider === 'openai').models).toEqual([
+      'gpt-4',
+      'gpt-4o',
+    ]);
+  });
+
+  it('permite elegir un solo modelo de un proveedor, no el proveedor entero', async () => {
+    const wrapper = await mountWith(
+      { connected: true, total_budget_usd: 20 },
+      [],
+      {
+        available: ['gpt-4', 'gpt-4o'],
+        catalog: [
+          { name: 'gpt-4', provider: 'openai' },
+          { name: 'gpt-4o', provider: 'openai' },
+        ],
+      }
+    );
+    const list = [];
+
+    wrapper.vm.toggleModel(list, 'gpt-4');
+
+    expect(list).toEqual(['gpt-4']);
+    expect(list).not.toContain('gpt-4o');
+  });
+
+  it('toggleProvider marca y desmarca todos los modelos de ese proveedor', async () => {
+    const wrapper = await mountWith(
+      { connected: true, total_budget_usd: 20 },
+      [],
+      {
+        available: ['gpt-4', 'gpt-4o'],
+        catalog: [
+          { name: 'gpt-4', provider: 'openai' },
+          { name: 'gpt-4o', provider: 'openai' },
+        ],
+      }
+    );
+    const list = [];
+    const openai = ['gpt-4', 'gpt-4o'];
+
+    wrapper.vm.toggleProvider(list, openai);
+    expect(list.sort()).toEqual(['gpt-4', 'gpt-4o']);
+
+    wrapper.vm.toggleProvider(list, openai);
+    expect(list).toEqual([]);
+  });
+
+  it('agrupa bajo "otros" los modelos del team que no están en el catálogo', async () => {
+    const wrapper = await mountWith(
+      { connected: true, total_budget_usd: 20 },
+      [],
+      {
+        available: ['gpt-4', 'modelo-suelto'],
+        catalog: [{ name: 'gpt-4', provider: 'openai' }],
+        team: ['gpt-4', 'modelo-suelto'],
+      }
+    );
+
+    const otros = wrapper.vm.modelsByProvider.find(g => g.provider === 'otros');
+    expect(otros.models).toEqual(['modelo-suelto']);
   });
 
   it('toggleModel añade y quita modelos de la selección', async () => {
