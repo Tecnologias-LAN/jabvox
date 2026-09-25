@@ -110,8 +110,14 @@ class Api::V1::Accounts::Jabvox::ContactDetailController < Api::V1::Accounts::Ja
     catalog.custom_field_defs
   end
 
+  # `visible_to` aplica la misma restricción por rol que la lista de contactos: un admin ve
+  # todo; un agente solo los contactos que tiene asignados o con los que le une una
+  # conversación suya. Sin esto el scope era solo de cuenta, así que un agente podía leer
+  # por URL el detalle completo —conversaciones, gestiones, pedidos y registros— de un
+  # contacto que la lista le oculta.
   def find_contact
     Current.account.contacts
+           .visible_to(Current.account_user)
            .includes(:jabvox_campaign, :jabvox_affiliate, :assignee)
            .find(params[:id])
   end

@@ -33,7 +33,7 @@ class Api::V1::Accounts::Jabvox::ContactsListController < Api::V1::Accounts::Jab
 
   # Cambia la etapa del ciclo de vida de un contacto (prospecto → interesado → …).
   def update_lifecycle
-    contact = Current.account.contacts.find(params[:id])
+    contact = writable_contacts.find(params[:id])
     contact.advance_lifecycle!(params[:lifecycle_stage], by: Current.user)
     render json: serialize(contact)
   rescue ArgumentError => e
@@ -52,7 +52,7 @@ class Api::V1::Accounts::Jabvox::ContactsListController < Api::V1::Accounts::Jab
     assignee = nil if assignee && !Current.account.users.exists?(id: assignee)
     # update_all a propósito: es una sola columna ya validada arriba y puede tocar cientos
     # de filas; cargarlas una a una para disparar callbacks haría la acción inusable.
-    updated = Current.account.contacts.where(id: ids).update_all( # rubocop:disable Rails/SkipsModelValidations
+    updated = writable_contacts.where(id: ids).update_all( # rubocop:disable Rails/SkipsModelValidations
       assignee_id: assignee, updated_at: Time.current
     )
     render json: { updated: updated, assignee_id: assignee }
@@ -75,6 +75,15 @@ class Api::V1::Accounts::Jabvox::ContactsListController < Api::V1::Accounts::Jab
       account: Current.account, user: Current.user,
       is_admin: view_all_contacts?, filters: params
     ).scope
+  end
+
+  # Los contactos sobre los que este usuario puede actuar: la MISMA regla que filtra el
+  # índice. Sin esto la lista ocultaba un contacto pero sus acciones seguían aceptándolo
+  # por id, así que un agente podía cambiar la etapa o reasignar contactos que no ve.
+  def writable_contacts
+    return Current.account.contacts if view_all_contacts?
+
+    Current.account.contacts.visible_to(Current.account_user)
   end
 
   # Misma regla que tenía la lista de leads: admin o permiso explícito ve todos; el resto

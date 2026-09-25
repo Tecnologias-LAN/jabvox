@@ -48,6 +48,40 @@ RSpec.describe 'Jabvox contact detail', type: :request do
     end
   end
 
+  # La lista de contactos filtra por rol con `visible_to`; el detalle no lo hacía, así que
+  # un agente podía leer por URL la ficha completa de un contacto que la lista le oculta.
+  describe 'visibilidad por rol' do
+    let(:agent) { create(:user, account: account, role: :agent) }
+    let(:ajeno) { create(:contact, account: account, name: 'Ajeno') }
+
+    it 'no deja a un agente abrir un contacto que no le corresponde' do
+      get detail_url(ajeno.id), headers: agent.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it 'deja a un agente abrir un contacto que tiene asignado' do
+      propio = create(:contact, account: account, assignee: agent)
+
+      get detail_url(propio.id), headers: agent.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+    end
+
+    it 'deja a un administrador abrir cualquier contacto' do
+      get detail_url(ajeno.id), headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+    end
+
+    it 'tampoco deja a un agente guardar campos de un contacto ajeno' do
+      patch update_url(ajeno.id), params: { custom_fields: { origen: 'web' } },
+                                  headers: agent.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe 'PATCH update_custom_fields' do
     it 'guarda una fecha normalizada a ISO' do
       column('fecha_cierre', 'date')
