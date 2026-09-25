@@ -637,7 +637,11 @@
       "SINGULAR_DESCRIPTION": "This will permanently delete the selected contact. This action cannot be undone.",
       "CONFIRM_MULTIPLE": "Delete contacts",
       "CONFIRM_SINGLE": "Eliminar contacto"
-    }
+    },
+    "ASSIGN_AGENT": "Asignar a",
+    "UNASSIGN": "Sin asignar",
+    "ASSIGN_AGENT_SUCCESS": "Contactos asignados.",
+    "ASSIGN_AGENT_FAILED": "No se pudo asignar."
   },
   "COMPOSE_NEW_CONVERSATION": {
     "CONTACT_SEARCH": {

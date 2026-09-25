@@ -296,28 +296,6 @@ module Jabvox::Hermes::ServiceHandlers
     prefix.sub(/:\d+/, ":#{port}") + "/#{path}"
   end
 
-  # Leads
-  def search_leads(params)
-    scope = @account.jabvox_leads
-    q = params[:q].to_s.strip
-    if q.present?
-      # Busca por los datos del CONTACTO del lead (nombre/email/teléfono), no por un campo
-      # inexistente. También por lead_number si es numérico.
-      scope = scope.joins(:contact)
-                   .where('contacts.name ILIKE :q OR contacts.email ILIKE :q OR contacts.phone_number ILIKE :q',
-                          q: "%#{q}%")
-      scope = scope.or(@account.jabvox_leads.where(lead_number: q.to_i)) if q.match?(/\A\d+\z/)
-    end
-    scope.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |l| lead_view(l) }
-  rescue StandardError
-    # Si el join/or falla por alguna razón, cae a búsqueda simple sin romper.
-    @account.jabvox_leads.limit(Jabvox::Hermes::ServiceLayer::MAX_ROWS).map { |l| lead_view(l) }
-  end
-
-  def get_lead(params)
-    lead_view(@account.jabvox_leads.find(params[:id]))
-  end
-
   # Gestiones (management states)
   def list_management_states(params)
     @account.jabvox_management_states.limit(capped_limit(params))
@@ -407,11 +385,6 @@ module Jabvox::Hermes::ServiceHandlers
 
   def contact_view(contact)
     { id: contact.id, name: contact.name, email: contact.email, phone_number: contact.phone_number }
-  end
-
-  def lead_view(lead)
-    { id: lead.id, label: lead.try(:label), lead_number: lead.try(:lead_number),
-      is_sold: lead.try(:is_sold_jabvox) }
   end
 
   # --- Análisis de Audio (solo lectura) ---
@@ -1421,24 +1394,6 @@ module Jabvox::Hermes::ServiceHandlers
     { id: s.id, board_id: s.board_id, name: s.name_jabvox, color: s.color_jabvox }
   end
 
-  def create_task_lead_contact(params)
-    c = @account.jabvox_task_lead_contacts.new(params.slice(:jabvox_lead_id, :name_jabvox, :role_jabvox, :email_jabvox,
-                                                            :phone_jabvox, :description_jabvox, :position_jabvox).compact_blank)
-    c.created_by = @user
-    c.save!
-    task_lead_contact_view(c)
-  end
-
-  def update_task_lead_contact(params)
-    c = @account.jabvox_task_lead_contacts.find(params[:id])
-    c.update!(params.slice(:name_jabvox, :role_jabvox, :email_jabvox, :phone_jabvox, :description_jabvox, :position_jabvox).compact_blank)
-    task_lead_contact_view(c)
-  end
-
-  def task_lead_contact_view(c)
-    { id: c.id, jabvox_lead_id: c.jabvox_lead_id, name: c.name_jabvox, role: c.role_jabvox, email: c.email_jabvox, phone: c.phone_jabvox }
-  end
-
   # --- Calendario ---
   def create_calendar_event(params)
     attrs = params.slice(:title, :description, :note, :all_day, :event_type, :status, :color, :contact_id).compact_blank
@@ -1539,13 +1494,13 @@ module Jabvox::Hermes::ServiceHandlers
   # --- Kanban ---
   def create_kanban_funnel(params)
     f = @account.jabvox_kanban_funnels.create!(params.slice(:name_jabvox, :description_jabvox, :position_jabvox,
-                                                            :active_jabvox, :include_own_leads_jabvox).compact_blank)
+                                                            :active_jabvox, :include_own_contacts_jabvox).compact_blank)
     kanban_funnel_view(f)
   end
 
   def update_kanban_funnel(params)
     f = @account.jabvox_kanban_funnels.find(params[:id])
-    f.update!(params.slice(:name_jabvox, :description_jabvox, :position_jabvox, :active_jabvox, :include_own_leads_jabvox).compact_blank)
+    f.update!(params.slice(:name_jabvox, :description_jabvox, :position_jabvox, :active_jabvox, :include_own_contacts_jabvox).compact_blank)
     kanban_funnel_view(f)
   end
 
@@ -1614,23 +1569,26 @@ module Jabvox::Hermes::ServiceHandlers
     { ok: true, campaign_id: c.id, contact_id: params[:contact_id].to_i, status: cc.status_jabvox }
   end
 
-  # NO-DESTRUCTIVO: añade el lead a la lista de exclusión (el motor ya no lo marca) y
+  # NO-DESTRUCTIVO: añade el contacto a la lista de exclusión (el motor ya no lo marca) y
   # cierra la fila pendiente marcándola 'completed' en vez de borrarla. Hermes nunca borra.
+  #
+  # La lista guarda ids de CONTACTO: es lo que compara el filtro del marcador. Antes este
+  # handler traducía el contacto a su lead, que era un rodeo innecesario incluso entonces.
   def exclude_dialer_lead(params)
     c = @account.jabvox_dialer_campaigns.find(params[:id])
-    lead = @account.jabvox_leads.find_by(contact_id: params[:contact_id].to_i)
-    raise Jabvox::Hermes::ServiceLayer::UnknownAction, 'lead no encontrado' unless lead
+    contact = @account.contacts.find_by(id: params[:contact_id].to_i)
+    raise Jabvox::Hermes::ServiceLayer::UnknownAction, 'contacto no encontrado' unless contact
 
-    add_lead_to_exclusion(c, lead.id)
-    cc = c.jabvox_dialer_campaign_contacts.find_by(contact_id: params[:contact_id].to_i)
+    add_contact_to_exclusion(c, contact.id)
+    cc = c.jabvox_dialer_campaign_contacts.find_by(contact_id: contact.id)
     cc.update!(status_jabvox: 'completed') if cc && cc.status_jabvox == 'pending'
-    { ok: true, campaign_id: c.id, contact_id: params[:contact_id].to_i }
+    { ok: true, campaign_id: c.id, contact_id: contact.id }
   end
 
-  # Añade un lead a la lista de exclusión de la campaña (idempotente).
-  def add_lead_to_exclusion(campaign, lead_id)
+  # Añade un contacto a la lista de exclusión de la campaña (idempotente).
+  def add_contact_to_exclusion(campaign, contact_id)
     excluded = Array(campaign.excluded_lead_ids_jabvox).map(&:to_i)
-    excluded << lead_id unless excluded.include?(lead_id)
+    excluded << contact_id unless excluded.include?(contact_id)
     campaign.update!(excluded_lead_ids_jabvox: excluded.uniq)
   end
 
@@ -2039,110 +1997,6 @@ module Jabvox::Hermes::ServiceHandlers
     { id: t.id, name: t.name_jabvox, percentage: t.percentage_jabvox&.to_s, active: t.active_jabvox }
   end
 
-  # --- Leads (acciones) ---
-  def bulk_assign_leads(params)
-    assignee = @account.users.find(params[:assignee_id])
-    leads = @account.jabvox_leads.where(id: Array(params[:lead_ids]))
-    count = leads.count
-    leads.update_all(assignee_id: assignee.id) # rubocop:disable Rails/SkipsModelValidations
-    Jabvox::LeadConversationAssignmentSync.new(@account).sync_leads(leads.to_a, assignee)
-    ActionCable.server.broadcast("account_#{@account.id}",
-                                 { event: 'jabvox.leads_assigned', data: { account_id: @account.id, assignee_id: assignee.id, count: count } })
-    { assigned: count }
-  end
-
-  def bulk_unassign_leads(params)
-    leads = @account.jabvox_leads.where(id: Array(params[:lead_ids]))
-    count = leads.count
-    leads.update_all(assignee_id: nil) # rubocop:disable Rails/SkipsModelValidations
-    { unassigned: count }
-  end
-
-  def update_lead_details(params)
-    lead = @account.jabvox_leads.find(params[:id])
-    ActiveRecord::Base.transaction do
-      update_lead_contact_fields(lead, params[:contact])
-      update_lead_assignee(lead, params) if params.key?(:assignee_id)
-      update_lead_campaign(lead, params[:campaign_name]) if params.key?(:campaign_name)
-      apply_lead_custom_fields(lead, params[:custom_fields]) if params[:custom_fields].present?
-    end
-    { id: lead.id }
-  rescue ActiveRecord::RecordInvalid => e
-    { error: e.record.errors.full_messages.join(', ') }
-  end
-
-  def update_lead_custom_fields(params)
-    lead = @account.jabvox_leads.find(params[:id])
-    raw = params[:custom_fields].respond_to?(:to_h) ? params[:custom_fields].to_h : {}
-    result = Jabvox::LeadCustomFieldsSanitizer.new(@account, lead.custom_fields_jabvox, raw).call
-    return { error: result.errors.join(', ') } unless result.valid?
-
-    lead.update!(custom_fields_jabvox: result.data)
-    { id: lead.id, custom_fields_jabvox: lead.custom_fields_jabvox }
-  end
-
-  def claim_lead(params)
-    lead = @account.jabvox_leads.find(params[:id])
-    lead.update!(assignee_id: @user.id)
-    Jabvox::LeadConversationAssignmentSync.new(@account).sync_lead(lead, @user)
-    { id: lead.id, assignee_id: @user.id }
-  end
-
-  def sync_lead_contacts(_params)
-    existing = JabvoxLead.where(account_id: @account.id).select(:contact_id)
-    missing_ids = @account.contacts.where.not(id: existing).pluck(:id)
-    return { synced: 0 } if missing_ids.empty?
-
-    now = Time.current
-    next_number = (JabvoxLead.where(account_id: @account.id).maximum(:lead_number) || 0) + 1
-    synced = 0
-    missing_ids.each_slice(1000) do |slice|
-      rows = slice.map do |contact_id|
-        { account_id: @account.id, contact_id: contact_id, lead_number: next_number,
-          custom_fields_jabvox: {}, created_at: now, updated_at: now }.tap { next_number += 1 }
-      end
-      result = JabvoxLead.insert_all(rows, unique_by: %i[account_id contact_id]) # rubocop:disable Rails/SkipsModelValidations
-      synced += result.rows.size
-    end
-    { synced: synced }
-  end
-
-  def update_lead_contact_fields(lead, contact_params)
-    return if contact_params.blank? || lead.contact.blank?
-
-    cp = contact_params.respond_to?(:to_h) ? contact_params.to_h.symbolize_keys : {}
-    attrs = cp.slice(:phone_number, :email).compact
-    additional = lead.contact.additional_attributes || {}
-    changed = false
-    { country: 'country', identification: 'jabvox_identification_number' }.each do |k, attr_key|
-      next unless cp.key?(k)
-
-      additional = additional.merge(attr_key => cp[k].to_s.strip)
-      changed = true
-    end
-    lead.contact.additional_attributes = additional if changed
-    lead.contact.update!(attrs) if attrs.present? || changed
-  end
-
-  def update_lead_assignee(lead, params)
-    assignee = params[:assignee_id].present? ? @account.users.find(params[:assignee_id]) : nil
-    lead.update!(assignee: assignee)
-    Jabvox::LeadConversationAssignmentSync.new(@account).sync_lead(lead, assignee)
-  end
-
-  def update_lead_campaign(lead, campaign_name)
-    campaign = campaign_name.present? ? JabvoxCampaign.find_or_create_by!(account: @account, name_jabvox: campaign_name.strip) : nil
-    lead.update!(jabvox_campaign: campaign)
-  rescue ActiveRecord::RecordInvalid
-    nil
-  end
-
-  def apply_lead_custom_fields(lead, custom_fields)
-    raw = custom_fields.respond_to?(:to_h) ? custom_fields.to_h : {}
-    result = Jabvox::LeadCustomFieldsSanitizer.new(@account, lead.custom_fields_jabvox, raw).call
-    lead.update!(custom_fields_jabvox: result.data) if result.valid?
-  end
-
   # --- Afiliados ---
   def create_affiliate(params)
     affiliate_view(@account.jabvox_affiliates.create!({ name: params[:name], active: params[:active] }.compact))
@@ -2175,13 +2029,6 @@ module Jabvox::Hermes::ServiceHandlers
   # "solo admin envía en nombre de otro"). Nunca se infiere del LLM.
   def admin_account_user?
     @account.account_users.find_by(user_id: @user.id)&.administrator?
-  end
-
-  # A quién enviar el masivo: todos los que matcheen el filtro, o una lista explícita.
-  def bulk_leads_selection(params)
-    { all: ActiveModel::Type::Boolean.new.cast(params[:all]),
-      lead_ids: Array(params[:lead_ids]), excluded_ids: Array(params[:excluded_ids]),
-      filters: params[:filters].is_a?(Hash) ? params[:filters] : {} }
   end
 
   # --- Helpers WhatsApp Grupos ---

@@ -54,7 +54,6 @@ class Jabvox::Flows::Registry
     Jabvox::Flows::Nodes::Jabvox::LeadSetCustomFieldsNode,
     Jabvox::Flows::Nodes::Jabvox::LeadAssignNode,
     Jabvox::Flows::Nodes::Jabvox::LeadUnassignNode,
-    Jabvox::Flows::Nodes::Jabvox::LeadSyncContactsNode,
     Jabvox::Flows::Nodes::Jabvox::ConversationCreateNode,
     Jabvox::Flows::Nodes::Jabvox::ConversationAssignNode,
     Jabvox::Flows::Nodes::Jabvox::ConversationToggleStatusNode,

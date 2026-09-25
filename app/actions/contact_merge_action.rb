@@ -32,16 +32,35 @@ class ContactMergeAction
   end
 
   # Si el contacto base YA tiene su propio lead (el caso común: ambos contactos se
-  # crearon por separado y cada uno disparó su propio Jabvox::ContactLeadsIntegration),
-  # mover el lead del mergee al mismo account_id+contact_id violaría el índice único
-  # index_jabvox_leads_on_account_id_and_contact_id. En ese caso se conserva el lead del
-  # base y el del mergee queda para que merge_and_remove_mergee_contact lo borre más abajo
-  # (ese borrado usa DELETE, no UPDATE, así que no colisiona).
-  def merge_leads
-    return unless defined?(JabvoxLead)
-    return if JabvoxLead.exists?(contact_id: @base_contact.id)
+  # Datos comerciales de Jabvox al fusionar: los del contacto BASE mandan y solo se rellena
+  # lo que tenga vacío, igual que hace el resto del merge con los atributos.
+  #
+  # Antes esto movía la fila de `jabvox_leads` del mergee al base; al vivir esos datos en el
+  # propio contacto, lo que corresponde es completarlos campo a campo.
+  JABVOX_MERGE_FIELDS = %i[jabvox_campaign_id jabvox_affiliate_id assignee_id became_lead_at_jabvox].freeze
 
-    JabvoxLead.where(contact_id: @mergee_contact.id).update_all(contact_id: @base_contact.id)
+  def merge_leads
+    attrs = fill_blank_jabvox_fields
+    attrs[:is_sold_jabvox] = true if @mergee_contact.is_sold_jabvox? && !@base_contact.is_sold_jabvox?
+    attrs.merge!(merged_custom_fields)
+
+    @base_contact.update!(attrs) if attrs.any?
+  end
+
+  def fill_blank_jabvox_fields
+    JABVOX_MERGE_FIELDS.each_with_object({}) do |field, attrs|
+      next if @base_contact[field].present? || @mergee_contact[field].blank?
+
+      attrs[field] = @mergee_contact[field]
+    end
+  end
+
+  # Los campos personalizados se fusionan con los del base ganando, para no perder lo que
+  # cada uno tuviera por separado.
+  def merged_custom_fields
+    base = @base_contact.custom_fields_jabvox || {}
+    merged = (@mergee_contact.custom_fields_jabvox || {}).merge(base)
+    merged == base ? {} : { custom_fields_jabvox: merged }
   end
 
   def merge_conversations
@@ -69,12 +88,10 @@ class ContactMergeAction
     merged_attributes = mergee_contact_attributes.deep_merge(base_contact_attributes)
 
     contact = @mergee_contact.reload
-    lead_ids = JabvoxLead.where(contact_id: contact.id).pluck(:id)
     JabvoxKanbanConversationStage.where(conversation_id: contact.conversations.select(:id)).or(
-      JabvoxKanbanConversationStage.where(jabvox_lead_id: lead_ids)
+      JabvoxKanbanConversationStage.where(contact_id: contact.id)
     ).delete_all
     JabvoxCalendarEvent.where(contact_id: contact.id).delete_all
-    JabvoxLead.where(id: lead_ids).delete_all
     JabvoxSmsMessage.where(contact_id: contact.id).delete_all
     contact.destroy!
     Rails.configuration.dispatcher.dispatch(CONTACT_MERGED, Time.zone.now, contact: @base_contact,

@@ -77,7 +77,7 @@ class Jabvox::TaskWebhookService
         priority: @task.priority_jabvox,
         stage: @task.stage&.name_jabvox,
         board: @task.board&.name_jabvox,
-        lead_id: @task.jabvox_lead_id,
+        lead_id: @task.contact_id,
         due_at: @task.due_at_jabvox
       },
       account_id: @account.id,

@@ -14,6 +14,8 @@ const props = defineProps({
   currentPage: { type: Number, default: 1 },
   totalItems: { type: Number, default: 100 },
   itemsPerPage: { type: Number, default: 15 },
+  // Tamaños entre los que el usuario puede elegir en el pie de la lista.
+  perPageOptions: { type: Array, default: () => [] },
   activeSort: { type: String, default: '' },
   activeOrdering: { type: String, default: '' },
   activeSegment: { type: Object, default: null },
@@ -27,6 +29,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   'update:currentPage',
+  'update:itemsPerPage',
   'update:sort',
   'search',
   'applyFilter',
@@ -122,7 +125,9 @@ const showPagination = computed(() => {
           :total-items="totalItems"
           class="max-w-[67rem]"
           :items-per-page="itemsPerPage"
+          :per-page-options="perPageOptions"
           @update:current-page="updateCurrentPage"
+          @update:items-per-page="emit('update:itemsPerPage', $event)"
         />
       </footer>
     </div>

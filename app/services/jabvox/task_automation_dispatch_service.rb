@@ -78,13 +78,13 @@ class Jabvox::TaskAutomationDispatchService
     end
   end
 
+  # Los contactos-de-tarea vivían en jabvox_task_lead_contacts, tabla retirada con Leads. El
+  # destinatario es ahora el propio contacto de la tarea.
   def lead_contact_recipients
     return [] unless @lead
 
-    @account.jabvox_task_lead_contacts.where(jabvox_lead_id: @lead.id).map do |c|
-      Recipient.new(label: c.name_jabvox, email: c.email_jabvox,
-                    phone: c.phone_jabvox, contact: nil)
-    end
+    [Recipient.new(label: @lead.name, email: @lead.email,
+                   phone: @lead.phone_number, contact: @lead)]
   end
 
   def manual_recipient

@@ -33,7 +33,6 @@ const emit = defineEmits(['close']);
 // enables it. Modules NOT listed here have no per-account toggle (they are always
 // available), so they are never filtered out.
 const MODULE_FEATURE_FLAG = {
-  leads: FEATURE_FLAGS.JABVOX_LEADS,
   kanban: FEATURE_FLAGS.JABVOX_KANBAN,
   tasks: FEATURE_FLAGS.JABVOX_TASKS,
   cdr: FEATURE_FLAGS.JABVOX_CDR,

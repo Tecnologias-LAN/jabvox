@@ -11,10 +11,11 @@ import filterQueryGenerator from 'dashboard/helper/filterQueryGenerator';
 import ContactsListLayout from 'dashboard/components-next/Contacts/ContactsListLayout.vue';
 import ContactEmptyState from 'dashboard/components-next/Contacts/EmptyState/ContactEmptyState.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
-import ContactsList from 'dashboard/components-next/Contacts/Pages/ContactsList.vue';
+import ContactsTable from 'dashboard/components-next/Contacts/Pages/ContactsTable.vue';
 import ContactsBulkActionBar from '../components/ContactsBulkActionBar.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import BulkActionsAPI from 'dashboard/api/bulkActions';
+import contactsListAPI from 'dashboard/api/jabvox/contactsList';
 
 const DEFAULT_SORT_FIELD = 'last_activity_at';
 const DEBOUNCE_DELAY = 300;
@@ -190,10 +191,21 @@ const updatePageParam = (page, search = '') => {
 const buildSortAttr = () =>
   `${sortState.activeOrdering}${sortState.activeSort}`;
 
+// Cuántos contactos por página. Se recuerda por cuenta: es una preferencia del usuario,
+// no algo que deba reiniciarse en cada visita.
+const PER_PAGE_OPTIONS = [15, 25, 50, 100];
+const perPageKey = () => `jabvox_contacts_per_page_${route.params.accountId}`;
+const readStoredPerPage = () => {
+  const saved = Number(localStorage.getItem(perPageKey()));
+  return PER_PAGE_OPTIONS.includes(saved) ? saved : 15;
+};
+const itemsPerPage = ref(readStoredPerPage());
+
 const getCommonFetchParams = (page = 1) => ({
   page,
   sortAttr: buildSortAttr(),
   label: activeLabel.value,
+  perPage: itemsPerPage.value,
 });
 
 const fetchContacts = async (page = 1, options = {}) => {
@@ -326,6 +338,18 @@ const fetchContactsBasedOnContext = async (page, options = {}) => {
   });
 };
 
+// Al cambiar el tamaño se vuelve a la página 1: mantener la página actual mostraría un
+// rango que ya no existe con el nuevo tamaño.
+const updateItemsPerPage = value => {
+  itemsPerPage.value = value;
+  try {
+    localStorage.setItem(perPageKey(), String(value));
+  } catch {
+    // Sin localStorage la elección dura lo que la sesión.
+  }
+  fetchContactsBasedOnContext(1);
+};
+
 const onPageChange = page =>
   fetchContactsBasedOnContext(page, { clearSelection: false });
 
@@ -346,6 +370,23 @@ const assignLabels = async labels => {
     await fetchContactsBasedOnContext(pageNumber.value);
   } catch (error) {
     useAlert(t('CONTACTS_BULK_ACTIONS.ASSIGN_LABELS_FAILED'));
+  } finally {
+    isBulkActionLoading.value = false;
+  }
+};
+
+// Asigna responsable a los contactos seleccionados (null = desasignar).
+const assignAgent = async assigneeId => {
+  if (!selectedContactIds.value.length) return;
+
+  isBulkActionLoading.value = true;
+  try {
+    await contactsListAPI.bulkAssign(selectedContactIds.value, assigneeId);
+    useAlert(t('CONTACTS_BULK_ACTIONS.ASSIGN_AGENT_SUCCESS'));
+    clearSelection();
+    await fetchContactsBasedOnContext(pageNumber.value);
+  } catch (error) {
+    useAlert(t('CONTACTS_BULK_ACTIONS.ASSIGN_AGENT_FAILED'));
   } finally {
     isBulkActionLoading.value = false;
   }
@@ -471,6 +512,8 @@ watch(searchQuery, value => {
 });
 
 onMounted(async () => {
+  // Sin esto el selector "Asignar a" sale vacío: el store de agentes no se llena solo.
+  store.dispatch('agents/get');
   if (!activeSegmentId.value) {
     if (searchQuery.value) {
       await searchContacts(searchQuery.value, pageNumber.value, false, {
@@ -502,6 +545,8 @@ onMounted(async () => {
       :current-page="currentPage"
       :total-items="totalItems"
       :show-pagination-footer="!isFetchingList && hasContacts && !isSearchView"
+      :items-per-page="itemsPerPage"
+      :per-page-options="PER_PAGE_OPTIONS"
       :active-sort="sortState.activeSort"
       :active-ordering="sortState.activeOrdering"
       :active-segment="activeSegment"
@@ -511,6 +556,7 @@ onMounted(async () => {
       :use-infinite-scroll="isSearchView"
       :has-more="hasMore"
       :is-loading-more="isLoadingMore"
+      @update:items-per-page="updateItemsPerPage"
       @update:current-page="onPageChange"
       @search="
         value => searchContacts(value, 1, false, { clearSelection: false })
@@ -536,6 +582,7 @@ onMounted(async () => {
           @toggle-all="toggleSelectAll"
           @clear-selection="clearSelection"
           @assign-labels="assignLabels"
+          @assign-agent="assignAgent"
           @remove-labels="removeLabels"
           @delete-selected="openBulkDeleteDialog"
         />
@@ -558,7 +605,7 @@ onMounted(async () => {
         </div>
 
         <div v-else class="flex flex-col gap-4 pt-4 pb-6">
-          <ContactsList
+          <ContactsTable
             :contacts="contacts"
             :selected-contact-ids="selectedContactIds"
             @toggle-contact="toggleContactSelection"

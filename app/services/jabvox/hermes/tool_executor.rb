@@ -25,7 +25,6 @@ class Jabvox::Hermes::ToolExecutor
     'jabvox_calendar' => 'Calendario',
     'jabvox_tasks' => 'Tareas',
     'jabvox_bulk_whatsapp' => 'Envíos masivos de WhatsApp',
-    'jabvox_leads' => 'Leads',
     'jabvox_kanban' => 'Kanban'
   }.freeze
 

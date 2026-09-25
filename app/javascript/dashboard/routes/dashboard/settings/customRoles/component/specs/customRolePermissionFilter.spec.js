@@ -6,7 +6,6 @@ import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 // modules always show; keep a disabled group visible if the edited role already
 // holds one of its permissions (so grants aren't silently dropped).
 const MODULE_FEATURE_FLAG = {
-  leads: FEATURE_FLAGS.JABVOX_LEADS,
   kanban: FEATURE_FLAGS.JABVOX_KANBAN,
   tasks: FEATURE_FLAGS.JABVOX_TASKS,
   cdr: FEATURE_FLAGS.JABVOX_CDR,
@@ -46,7 +45,8 @@ describe('CustomRole permission filtering by enabled modules', () => {
     const groups = filterGroups([]);
     const modules = groupModules(groups);
     // Mapped modules must be hidden
-    expect(modules).not.toContain('leads');
+    // 'contacts' no tiene flag de módulo: se muestra siempre.
+    expect(modules).toContain('contacts');
     expect(modules).not.toContain('dialer');
     expect(modules).not.toContain('cdr');
     // Unmapped modules (no account toggle) always show
@@ -57,12 +57,9 @@ describe('CustomRole permission filtering by enabled modules', () => {
   });
 
   it('shows only the enabled modules', () => {
-    const groups = filterGroups([
-      FEATURE_FLAGS.JABVOX_LEADS,
-      FEATURE_FLAGS.JABVOX_DIALER,
-    ]);
+    const groups = filterGroups([FEATURE_FLAGS.JABVOX_DIALER]);
     const modules = groupModules(groups);
-    expect(modules).toContain('leads');
+    expect(modules).toContain('contacts');
     expect(modules).toContain('dialer');
     expect(modules).not.toContain('cdr');
     expect(modules).not.toContain('kanban');

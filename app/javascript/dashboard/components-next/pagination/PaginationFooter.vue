@@ -18,12 +18,17 @@ const props = defineProps({
     type: Number,
     default: 16,
   },
+  // Si viene con opciones, se muestra el selector de cuántos elementos por página.
+  perPageOptions: {
+    type: Array,
+    default: () => [],
+  },
   currentPageInfo: {
     type: String,
     default: '',
   },
 });
-const emit = defineEmits(['update:currentPage']);
+const emit = defineEmits(['update:currentPage', 'update:itemsPerPage']);
 const { t } = useI18n();
 const { formatCompactNumber, formatFullNumber } = useNumberFormatter();
 
@@ -77,6 +82,17 @@ const pageInfo = computed(() => {
       <span class="min-w-0 text-body-main line-clamp-1 text-n-slate-11">
         {{ currentPageInformation }}
       </span>
+      <select
+        v-if="perPageOptions.length"
+        :value="itemsPerPage"
+        class="reset-base text-xs rounded-lg border border-n-weak bg-n-background px-2 py-1 text-n-slate-11 cursor-pointer"
+        :aria-label="$t('PAGINATION_FOOTER.PER_PAGE')"
+        @change="emit('update:itemsPerPage', Number($event.target.value))"
+      >
+        <option v-for="opt in perPageOptions" :key="opt" :value="opt">
+          {{ $t('PAGINATION_FOOTER.PER_PAGE_OPTION', { count: opt }) }}
+        </option>
+      </select>
     </div>
     <div class="flex items-center gap-2">
       <Button

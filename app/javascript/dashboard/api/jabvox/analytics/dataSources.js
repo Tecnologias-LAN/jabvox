@@ -37,6 +37,11 @@ class JabvoxAnalyticsDataSourcesAPI extends ApiClient {
     return axios.post(`${this.url}/test_connection`, { data_source: data });
   }
 
+  // Conteo de tablas y vistas, para mostrarlo en la tarjeta de la fuente.
+  stats(id) {
+    return axios.get(`${this.url}/${id}/stats`);
+  }
+
   schema(id) {
     return axios.get(`${this.url}/${id}/schema`);
   }

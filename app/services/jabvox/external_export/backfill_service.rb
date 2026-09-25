@@ -57,7 +57,6 @@ class Jabvox::ExternalExport::BackfillService
   # table rows/columns, the lead↔source link on leads) doesn't N+1 over large
   # tables during backfill.
   EAGER_LOADS = {
-    'JabvoxLead' => :jabvox_lead_source_records,
     'Message' => :conversation,
     'JabvoxDialerCallLog' => :jabvox_dialer_campaign_contact,
     'Note' => :contact,

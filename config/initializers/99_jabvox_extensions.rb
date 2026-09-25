@@ -1,7 +1,7 @@
 Rails.application.config.to_prepare do
   Conversation.include Jabvox::KanbanConversationHooks
-  # Assigning a conversation also assigns (and creates, if missing) the contact's lead.
-  Conversation.include Jabvox::ConversationLeadAssignment
+  # Asignar una conversación asigna también el contacto: es lo que filtra la lista y Kanban.
+  Conversation.include Jabvox::ConversationContactAssignment
   Account.prepend Jabvox::AccountKanbanFeature
   Account.prepend Jabvox::AccountProductsFeature
   Account.prepend Jabvox::AccountVoipFeature
@@ -9,7 +9,6 @@ Rails.application.config.to_prepare do
   Account.prepend Jabvox::AccountSmsFeature
   Account.prepend Jabvox::AccountAiChatFeature
   Account.prepend Jabvox::AccountDialerFeature
-  Account.prepend Jabvox::AccountLeadsFeature
   Account.prepend Jabvox::AccountAffiliatesFeature
   Account.prepend Jabvox::AccountCalendarFeature
   Account.prepend Jabvox::AccountInternalChatFeature
@@ -31,7 +30,6 @@ Rails.application.config.to_prepare do
   Notification.prepend Jabvox::TicketNotificationSupport
   Account.prepend Jabvox::AccountLeadImportFeature
   Account.prepend Jabvox::AccountDataExportFeature
-  Account.prepend Jabvox::AccountLeadDeleteFeature
   Account.prepend Jabvox::AccountAdvancedAutomationsFeature
   Account.prepend Jabvox::AccountSoftphoneFeature
   Account.prepend Jabvox::AccountAiChatProvisioningFeature
@@ -46,7 +44,7 @@ Rails.application.config.to_prepare do
   # Backfill Audio <-> AI Chat storages when both modules become enabled.
   Account.include Jabvox::AccountStorageSync
 
-  Contact.include Jabvox::ContactLeadsIntegration
+  Contact.include Jabvox::ContactIdentifierFallback
   Note.include Jabvox::NoteManagementAnswers
   # Records label apply/remove intervals per conversation for the WhatsApp report.
   Conversation.include Jabvox::ConversationLabelLogging

@@ -2,7 +2,7 @@
 # let's break this logic and clean this up in future
 
 class DataImportJob < ApplicationJob
-  include Jabvox::DataImportLeads
+  include Jabvox::DataImportCampaigns
   include Jabvox::DataImportIdentity
 
   # Cola AISLADA e INTERACTIVA de importaciones: un CSV de 50k filas de una
@@ -35,8 +35,8 @@ class DataImportJob < ApplicationJob
     contacts, rejected_contacts, campaign_names = parse_csv_and_build_contacts
 
     import_contacts(contacts)
-    create_jabvox_leads(contacts, campaign_names) if @data_import.account.jabvox_leads_enabled_jabvox?
-    # Una fila omitida por duplicada SÍ se procesó (se decidió no tocar el lead
+    create_jabvox_leads(contacts, campaign_names)
+    # Una fila omitida por duplicada SÍ se procesó (se decidió no tocar el contacto
     # existente): cuenta como procesada, no como rechazada, igual que antes de
     # separar los duplicados del resto de rechazos.
     update_data_import_status(contacts.length + jabvox_skipped_duplicates,

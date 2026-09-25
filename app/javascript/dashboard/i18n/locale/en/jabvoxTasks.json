@@ -128,65 +128,65 @@
       }
     },
     "AUTOMATION": {
-        "TITLE": "Automations",
-        "ADD": "New automation",
-        "EMPTY": "No automations yet. Create one to send a recurring email, SMS or message.",
-        "NEW_TITLE": "New automation",
-        "EDIT_TITLE": "Edit automation",
-        "NAME": "Name",
-        "NAME_PLACEHOLDER": "e.g. Follow-up reminder",
-        "CHANNEL_LABEL": "Channel",
-        "CHANNEL": {
-          "EMAIL": "Email",
-          "SMS": "SMS",
-          "INBOX": "Message"
-        },
-        "RECURRENCE": "Recurrence",
-        "EVERY_WORD": "Every",
-        "EVERY": "Every {count} {unit}",
-        "UNIT": {
-          "DAY": "day | days",
-          "WEEK": "week | weeks",
-          "MONTH": "month | months"
-        },
-        "RECIPIENTS": "Recipients",
-        "RECIPIENT": {
-          "LEAD": "Lead",
-          "ASSIGNEES": "Assignees",
-          "LEAD_CONTACTS": "Lead contacts",
-          "MANUAL": "Manual address"
-        },
-        "MANUAL_EMAIL": "Destination email",
-        "MANUAL_PHONE": "Destination phone",
-        "EMAIL_TEMPLATE": "Email template",
-        "EMAIL_TEMPLATE_NONE": "No template (write below)",
-        "SUBJECT": "Subject",
-        "INBOX": "Inbox",
-        "SMS_PROVIDER": "SMS provider",
-        "BODY": "Message",
-        "BODY_PLACEHOLDER": "Write your message…",
-        "VARS_HINT": "Variables: {'{{task_title}}'}, {'{{lead_name}}'}, {'{{board_name}}'}, {'{{stage_name}}'}",
-        "NEED_RECIPIENT": "Choose at least one recipient",
-        "NEXT_RUN": "Next run",
-        "RUNS_COUNT": "no runs | 1 run | {count} runs",
-        "RUN_NOW": "Send now",
-        "RUN_DONE": "Automation dispatched",
-        "TOGGLE": "Activate / pause",
-        "EDIT": "Edit",
-        "DELETE": "Delete",
-        "DELETE_CONFIRM": "Delete this automation?",
-        "SAVE": "Save",
-        "CANCEL": "Cancel",
-        "ERROR": "Something went wrong with the automation.",
-        "LOG_TITLE": "Recent dispatches",
-        "SENT_TO": "sent to {count} recipient | sent to {count} recipients",
-        "STATUS": {
-          "SENT": "Sent",
-          "PARTIAL": "Partial",
-          "FAILED": "Failed",
-          "SKIPPED": "Skipped"
-        },
-        "CARD_BADGE": "{count} active automation | {count} active automations"
+      "TITLE": "Automations",
+      "ADD": "New automation",
+      "EMPTY": "No automations yet. Create one to send a recurring email, SMS or message.",
+      "NEW_TITLE": "New automation",
+      "EDIT_TITLE": "Edit automation",
+      "NAME": "Name",
+      "NAME_PLACEHOLDER": "e.g. Follow-up reminder",
+      "CHANNEL_LABEL": "Channel",
+      "CHANNEL": {
+        "EMAIL": "Email",
+        "SMS": "SMS",
+        "INBOX": "Message"
+      },
+      "RECURRENCE": "Recurrence",
+      "EVERY_WORD": "Every",
+      "EVERY": "Every {count} {unit}",
+      "UNIT": {
+        "DAY": "day | days",
+        "WEEK": "week | weeks",
+        "MONTH": "month | months"
+      },
+      "RECIPIENTS": "Recipients",
+      "RECIPIENT": {
+        "LEAD": "Lead",
+        "ASSIGNEES": "Assignees",
+        "LEAD_CONTACTS": "Lead contacts",
+        "MANUAL": "Manual address"
+      },
+      "MANUAL_EMAIL": "Destination email",
+      "MANUAL_PHONE": "Destination phone",
+      "EMAIL_TEMPLATE": "Email template",
+      "EMAIL_TEMPLATE_NONE": "No template (write below)",
+      "SUBJECT": "Subject",
+      "INBOX": "Inbox",
+      "SMS_PROVIDER": "SMS provider",
+      "BODY": "Message",
+      "BODY_PLACEHOLDER": "Write your message…",
+      "VARS_HINT": "Variables: {'{{task_title}}'}, {'{{lead_name}}'}, {'{{board_name}}'}, {'{{stage_name}}'}",
+      "NEED_RECIPIENT": "Choose at least one recipient",
+      "NEXT_RUN": "Next run",
+      "RUNS_COUNT": "no runs | 1 run | {count} runs",
+      "RUN_NOW": "Send now",
+      "RUN_DONE": "Automation dispatched",
+      "TOGGLE": "Activate / pause",
+      "EDIT": "Edit",
+      "DELETE": "Delete",
+      "DELETE_CONFIRM": "Delete this automation?",
+      "SAVE": "Save",
+      "CANCEL": "Cancel",
+      "ERROR": "Something went wrong with the automation.",
+      "LOG_TITLE": "Recent dispatches",
+      "SENT_TO": "sent to {count} recipient | sent to {count} recipients",
+      "STATUS": {
+        "SENT": "Sent",
+        "PARTIAL": "Partial",
+        "FAILED": "Failed",
+        "SKIPPED": "Skipped"
+      },
+      "CARD_BADGE": "{count} active automation | {count} active automations"
     },
     "LEAD_FILTER": {
       "LABEL": "Filter by lead",
@@ -196,10 +196,10 @@
       "CLEAR": "Clear"
     },
     "LEAD_SELECT": {
-      "PLACEHOLDER": "Search a lead…",
+      "PLACEHOLDER": "Search a contact…",
       "LOADING": "Searching…",
-      "EMPTY": "No leads found.",
-      "CLEAR": "Clear lead"
+      "EMPTY": "No contacts found.",
+      "CLEAR": "Clear contact"
     },
     "AGENT_SELECT": {
       "PLACEHOLDER": "Search an agent…",

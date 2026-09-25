@@ -52,7 +52,6 @@ const REPORT_ITEMS = [
 // USAGE items an agent may see when the module is active (flag-only, NO perm gate).
 const USAGE_FLAG_ONLY = [
   "name: 'Jabvox Kanban'",
-  "name: 'Leads'",
   "name: 'Jabvox AI Chat'",
   "name: 'Jabvox Dialer'",
 ];

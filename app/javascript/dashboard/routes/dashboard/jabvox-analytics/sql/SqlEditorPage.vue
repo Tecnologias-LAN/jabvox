@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import { useAlert } from 'dashboard/composables';
 import { useAnalyticsDataSourcesStore } from 'dashboard/stores/jabvox/analytics/dataSources';
 import { useAnalyticsQueryStore } from 'dashboard/stores/jabvox/analytics/query';
@@ -14,6 +15,7 @@ import AnalyticsDataTable from '../data-sources/AnalyticsDataTable.vue';
 import SqlValidationFeedback from './SqlValidationFeedback.vue';
 
 const { t } = useI18n();
+const route = useRoute();
 const dsStore = useAnalyticsDataSourcesStore();
 const queryStore = useAnalyticsQueryStore();
 const dashboardsStore = useAnalyticsDashboardsStore();
@@ -88,6 +90,20 @@ const canExecute = computed(() =>
   Boolean(selectedDsId.value && sql.value.trim())
 );
 
+// Motivo por el que no se puede ejecutar, para decirlo en vez de dejar el botón gris.
+const blockedReason = computed(() => {
+  if (!dataSources.value.length)
+    return t('JABVOX_ANALYTICS.SQL.NO_DATA_SOURCES');
+  if (!selectedDsId.value) return t('JABVOX_ANALYTICS.SQL.PICK_DATA_SOURCE');
+  if (!sql.value.trim()) return t('JABVOX_ANALYTICS.SQL.WRITE_QUERY');
+  return '';
+});
+
+const dataSourcesRoute = computed(() => ({
+  name: 'jabvox_analytics_data_sources',
+  params: { accountId: route.params.accountId },
+}));
+
 const validate = async () => {
   if (!canExecute.value) return;
   try {
@@ -127,6 +143,22 @@ const controlClass =
     />
 
     <template v-else>
+      <!-- Sin fuentes configuradas los botones quedaban grises SIN explicación y parecía
+           que la pantalla estaba rota. Se avisa y se enlaza a donde se crean. -->
+      <div
+        v-if="!dataSources.length"
+        class="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-n-amber-6 bg-n-amber-2 px-3 py-2 text-sm text-n-amber-11"
+      >
+        <span class="i-lucide-triangle-alert size-4 shrink-0" />
+        <span>{{ t('JABVOX_ANALYTICS.SQL.NO_DATA_SOURCES') }}</span>
+        <router-link
+          :to="dataSourcesRoute"
+          class="font-medium underline underline-offset-2"
+        >
+          {{ t('JABVOX_ANALYTICS.SQL.NO_DATA_SOURCES_CTA') }}
+        </router-link>
+      </div>
+
       <div class="mb-4 max-w-sm">
         <label class="mb-1 block text-sm font-medium text-n-slate-12">
           {{ t('JABVOX_ANALYTICS.DASHBOARDS.FORM.DATA_SOURCE') }}
@@ -158,7 +190,7 @@ const controlClass =
         placeholder="SELECT * FROM ..."
       />
 
-      <div class="mt-3 flex items-center gap-3">
+      <div class="mt-3 flex flex-wrap items-center gap-3">
         <button
           type="button"
           class="inline-flex items-center gap-2 rounded-lg bg-n-alpha-2 px-3 py-2 text-sm font-medium text-n-slate-12 disabled:cursor-not-allowed disabled:opacity-50"
@@ -193,6 +225,15 @@ const controlClass =
           <span class="i-lucide-layout-dashboard size-4" />
           {{ t('JABVOX_ANALYTICS.SQL.SAVE_TO_DASHBOARD') }}
         </button>
+
+        <!-- Por qué no se puede ejecutar, en vez de dejar el botón gris sin explicación -->
+        <span
+          v-if="blockedReason"
+          class="inline-flex items-center gap-1.5 text-xs text-n-slate-10"
+        >
+          <span class="i-lucide-info size-3.5 shrink-0" />
+          {{ blockedReason }}
+        </span>
       </div>
 
       <div v-if="validation" class="mt-3">

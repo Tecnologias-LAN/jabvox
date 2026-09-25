@@ -3,8 +3,10 @@
 # jabvox.lead.list — legacy (oculto): lo sustituye jabvox.lead.search modo
 # "Listar todos". Conserva su salida original `{ leads, count }`.
 class Jabvox::Flows::Nodes::Jabvox::LeadListNode < Jabvox::Flows::Nodes::Jabvox::LeadSearchNode
-  type 'jabvox.lead.list'
-  label 'Listar Leads'
+  type 'jabvox.contact.list'
+  # Tipo anterior: los flujos guardados lo siguen usando.
+  aliases 'jabvox.lead.list'
+  label 'Listar Contactos'
   items_path 'leads'
 
   # Página de la lista original. Se conserva para que los flujos guardados que
@@ -12,7 +14,9 @@ class Jabvox::Flows::Nodes::Jabvox::LeadListNode < Jabvox::Flows::Nodes::Jabvox:
   PER_PAGE = 50
 
   def perform
-    leads = filtered_scope.ordered.limit(PER_PAGE).offset((page - 1) * PER_PAGE).to_a
+    # Antes se usaba el scope `ordered` de JabvoxLead (por lead_number). Ese campo
+    # desapareció con la tabla, así que el orden estable es por id, su equivalente.
+    leads = filtered_scope.order(id: :asc).limit(PER_PAGE).offset((page - 1) * PER_PAGE).to_a
     { 'leads' => leads.map { |l| slim(l) }, 'count' => leads.length,
       'page' => page, 'truncated' => leads.length == PER_PAGE }
   end

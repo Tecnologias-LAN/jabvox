@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
-import leadsAPI from 'dashboard/api/jabvox/leads';
+import contactsListAPI from 'dashboard/api/jabvox/contactsList';
 import bulkWhatsappAPI from 'dashboard/api/jabvox/bulkWhatsapp';
 import { processVariable } from 'dashboard/helper/templateHelper';
 import TemplatePreview from './components/TemplatePreview.vue';
@@ -386,14 +386,13 @@ watch(
 const loadLeads = async () => {
   loading.value = true;
   try {
-    const { data } = await leadsAPI.getAll({
+    const { data } = await contactsListAPI.getAll({
       ...activeFilters.value,
       page: page.value,
       per_page: PER_PAGE,
     });
-    // The leads index responds with { data: [...], meta: { total }, filter_options }.
-    const list = Array.isArray(data?.data) ? data.data : data;
-    leads.value = Array.isArray(list) ? list : [];
+    // La lista de contactos responde { contacts: [...], meta: { total }, filter_options }.
+    leads.value = Array.isArray(data?.contacts) ? data.contacts : [];
     total.value = data?.meta?.total ?? leads.value.length;
     if (data?.filter_options) filterOptions.value = data.filter_options;
   } catch {

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useMapGetter } from 'dashboard/composables/store';
 
 import BulkSelectBar from 'dashboard/components-next/bulkSelect/BulkSelectBar.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -26,11 +27,14 @@ const emit = defineEmits([
   'clearSelection',
   'assignLabels',
   'removeLabels',
+  'assignAgent',
   'toggleAll',
   'deleteSelected',
 ]);
 
 const { t } = useI18n();
+// Agentes de la cuenta para el selector "Asignar a".
+const agents = useMapGetter('agents/getVerifiedAgents');
 
 const selectedCount = computed(() => props.selectedContactIds.length);
 const totalVisibleContacts = computed(() => props.visibleContactIds.length);
@@ -74,6 +78,16 @@ const handleAssignLabels = labels => {
   emit('assignLabels', labels);
 };
 
+// Asignar responsable: 'none' desasigna. El select se vuelve a dejar vacío para que el
+// texto "Asignar a" siga visible tras la acción.
+const handleAssignAgent = event => {
+  const value = event.target.value;
+  if (!value) return;
+
+  emit('assignAgent', value === 'none' ? null : Number(value));
+  event.target.value = '';
+};
+
 const handleRemoveLabels = labels => {
   emit('removeLabels', labels);
 };
@@ -115,6 +129,23 @@ const handleRemoveLabels = labels => {
             :disabled="!selectedCount"
             @remove="handleRemoveLabels"
           />
+          <!-- Asignar responsable a los contactos seleccionados -->
+          <select
+            class="reset-base text-xs rounded-lg border border-n-weak bg-n-background px-2 py-1 text-n-slate-11 max-w-[150px]"
+            :disabled="!selectedCount || isLoading"
+            value=""
+            @change="handleAssignAgent($event)"
+          >
+            <option value="">
+              {{ t('CONTACTS_BULK_ACTIONS.ASSIGN_AGENT') }}
+            </option>
+            <option value="none">
+              {{ t('CONTACTS_BULK_ACTIONS.UNASSIGN') }}
+            </option>
+            <option v-for="a in agents" :key="a.id" :value="a.id">
+              {{ a.name }}
+            </option>
+          </select>
           <div class="w-px h-3 bg-n-weak rounded-lg" />
           <Policy :permissions="['administrator']">
             <Button

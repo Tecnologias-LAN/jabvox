@@ -1,7 +1,6 @@
 class Api::V1::Accounts::Jabvox::CampaignsController < Api::V1::Accounts::BaseController
   include JabvoxPermissions
 
-  before_action :check_leads_enabled
   before_action :ensure_module_permission
   before_action :set_campaign, only: [:update, :destroy]
 
@@ -44,13 +43,4 @@ class Api::V1::Accounts::Jabvox::CampaignsController < Api::V1::Accounts::BaseCo
     params.require(:campaign).permit(:name_jabvox)
   end
 
-  def check_leads_enabled
-    return if Current.account.jabvox_leads_enabled_jabvox?
-
-    if action_name == 'index'
-      render json: []
-    else
-      render json: { error: 'Leads module not enabled' }, status: :forbidden
-    end
-  end
 end

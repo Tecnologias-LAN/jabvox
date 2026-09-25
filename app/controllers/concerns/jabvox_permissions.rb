@@ -8,7 +8,7 @@
 #
 # Usage in a controller (include the concern):
 #   include JabvoxPermissions
-#   before_action -> { jabvox_authorize!('jabvox_leads_assign') }, only: :bulk_assign
+#   before_action -> { jabvox_authorize!('jabvox_contacts_assign') }, only: :bulk_assign
 #   scope = jabvox_can?('jabvox_leads_view_all') ? all_leads : own_leads
 #
 # Usage in a service / anywhere (module method):
@@ -18,11 +18,23 @@ module JabvoxPermissions
 
   # Shared predicate, callable directly on the module (services, jobs, models).
   # Admins pass everything; otherwise the user's custom role must grant the key.
+  # Permisos renombrados al unificar Leads en Contactos. Se consulta también el nombre
+  # antiguo para que un rol que no alcanzó la migración (p. ej. una cuenta creada entre el
+  # despliegue y el db:migrate) siga concediendo lo mismo en vez de quedarse sin acceso.
+  LEGACY_PERMISSION_ALIASES = {
+    'jabvox_contacts_view_all' => 'jabvox_leads_view_all',
+    'jabvox_contacts_manage' => 'jabvox_leads_manage',
+    'jabvox_contacts_delete' => 'jabvox_leads_delete'
+  }.freeze
+
   def self.user_grants_permission?(account_user, key)
     return false if account_user.nil?
     return true if account_user.administrator?
 
-    account_user.custom_role&.grants?(key) || false
+    role = account_user.custom_role
+    return false if role.nil?
+
+    role.grants?(key) || role.grants?(LEGACY_PERMISSION_ALIASES[key.to_s]) || false
   end
 
   # True if the current request's user may exercise `key`.

@@ -91,12 +91,6 @@ module Jabvox::Hermes::ToolRegistry
     'create_hermes_inbox_webhook' => { permission: 'create', method: :post, path: 'webhooks/inbox',
                                        params: { inbox_id: :integer }, mcp: 'jabvox_core', feature: 'core' },
 
-    # --- Leads (módulo leads) ---
-    'search_leads' => { permission: 'read', method: :get, path: 'jabvox/leads',
-                        params: { q: :string }, mcp: 'jabvox_leads', feature: 'core' },
-    'get_lead' => { permission: 'read', method: :get, path: 'jabvox/leads/:id',
-                    params: { id: :integer }, mcp: 'jabvox_leads', feature: 'core' },
-
     # --- Gestiones (management states) ---
     'get_management_states' => { permission: 'read', method: :get, path: 'jabvox/management_states',
                                  mcp: 'jabvox_management', feature: 'core' },
@@ -424,9 +418,9 @@ module Jabvox::Hermes::ToolRegistry
                           params: { id: :integer, limit: :integer },
                           mcp: 'jabvox_core', feature: 'jabvox_affiliates' },
 
-    # --- Campañas de leads (gateadas por el módulo jabvox_leads) ---
+    # --- Campañas (catálogo de la cuenta) ---
     'get_campaigns' => { permission: 'read', method: :get, path: 'jabvox/campaigns',
-                         mcp: 'jabvox_core', feature: 'jabvox_leads' },
+                         mcp: 'jabvox_core', feature: 'core' },
 
     # --- CDR (módulo jabvox_cdr) ---
     'get_cdr_records' => { permission: 'read', method: :get, path: 'jabvox/cdr/records',
@@ -482,7 +476,7 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- Tareas (jabvox_tasks) ---
     'create_task' => { permission: 'create', method: :post, path: 'jabvox/tasks',
-                       params: { title_jabvox: :string, board_id: :integer, stage_id: :integer, jabvox_lead_id: :integer,
+                       params: { title_jabvox: :string, board_id: :integer, stage_id: :integer, contact_id: :integer,
                                  assignee_id: :integer, description_jabvox: :string, priority_jabvox: :string,
                                  status_jabvox: :string, due_at_jabvox: :string },
                        mcp: 'jabvox_core', feature: 'jabvox_tasks' },
@@ -504,14 +498,6 @@ module Jabvox::Hermes::ToolRegistry
     'update_task_stage' => { permission: 'write', method: :patch, path: 'jabvox/task_stages/:id',
                              params: { id: :integer, name_jabvox: :string, color_jabvox: :string, position_jabvox: :integer },
                              mcp: 'jabvox_core', feature: 'jabvox_tasks' },
-    'create_task_lead_contact' => { permission: 'create', method: :post, path: 'jabvox/task_lead_contacts',
-                                    params: { jabvox_lead_id: :integer, name_jabvox: :string, role_jabvox: :string,
-                                              email_jabvox: :string, phone_jabvox: :string, description_jabvox: :string, position_jabvox: :integer },
-                                    mcp: 'jabvox_core', feature: 'jabvox_tasks' },
-    'update_task_lead_contact' => { permission: 'write', method: :patch, path: 'jabvox/task_lead_contacts/:id',
-                                    params: { id: :integer, name_jabvox: :string, role_jabvox: :string, email_jabvox: :string,
-                                              phone_jabvox: :string, description_jabvox: :string, position_jabvox: :integer },
-                                    mcp: 'jabvox_core', feature: 'jabvox_tasks' },
 
     # --- Calendario (jabvox_calendar) ---
     'create_calendar_event' => { permission: 'create', method: :post, path: 'jabvox/calendar/events',
@@ -545,11 +531,11 @@ module Jabvox::Hermes::ToolRegistry
     # --- Kanban (jabvox_kanban) ---
     'create_kanban_funnel' => { permission: 'create', method: :post, path: 'jabvox/kanban_funnels',
                                 params: { name_jabvox: :string, description_jabvox: :string, position_jabvox: :integer,
-                                          active_jabvox: :boolean, include_own_leads_jabvox: :boolean },
+                                          active_jabvox: :boolean, include_own_contacts_jabvox: :boolean },
                                 mcp: 'jabvox_core', feature: 'jabvox_kanban' },
     'update_kanban_funnel' => { permission: 'write', method: :patch, path: 'jabvox/kanban_funnels/:id',
                                 params: { id: :integer, name_jabvox: :string, description_jabvox: :string, position_jabvox: :integer,
-                                          active_jabvox: :boolean, include_own_leads_jabvox: :boolean },
+                                          active_jabvox: :boolean, include_own_contacts_jabvox: :boolean },
                                 mcp: 'jabvox_core', feature: 'jabvox_kanban' },
     'create_kanban_stage' => { permission: 'create', method: :post, path: 'jabvox/kanban_stages',
                                params: { kanban_funnel_id: :integer, name_jabvox: :string, description_jabvox: :string,
@@ -807,13 +793,13 @@ module Jabvox::Hermes::ToolRegistry
                                         params: { limit: :integer }, mcp: 'jabvox_core', feature: 'jabvox_calendar' },
     # --- Catálogos ---
     'get_typifications' => { permission: 'read', method: :get, path: 'jabvox/typifications',
-                             params: { is_active: :boolean, limit: :integer }, mcp: 'jabvox_core', feature: 'jabvox_leads' },
+                             params: { is_active: :boolean, limit: :integer }, mcp: 'jabvox_core', feature: 'core' },
     'create_typification' => { permission: 'create', method: :post, path: 'jabvox/typifications',
                                params: { name: :string, description: :string, is_active: :boolean },
-                               mcp: 'jabvox_core', feature: 'jabvox_leads' },
+                               mcp: 'jabvox_core', feature: 'core' },
     'update_typification' => { permission: 'write', method: :patch, path: 'jabvox/typifications/:id',
                                params: { id: :integer, name: :string, description: :string, is_active: :boolean },
-                               mcp: 'jabvox_core', feature: 'jabvox_leads' },
+                               mcp: 'jabvox_core', feature: 'core' },
     'get_currencies' => { permission: 'read', method: :get, path: 'jabvox/currencies',
                           params: { active_jabvox: :boolean, limit: :integer },
                           mcp: 'jabvox_core', feature: 'jabvox_products' },
@@ -848,8 +834,8 @@ module Jabvox::Hermes::ToolRegistry
     jabvox_advanced_automations jabvox_affiliates jabvox_ai_chat jabvox_ai_chat_provisioning
     jabvox_analytics jabvox_audio_analysis jabvox_bulk_whatsapp jabvox_calendar jabvox_call_source
     jabvox_cdr jabvox_click_to_call jabvox_customization jabvox_data_export jabvox_dialer
-    jabvox_email jabvox_forms jabvox_internal_chat jabvox_kanban jabvox_lead_delete
-    jabvox_lead_import jabvox_leads jabvox_products jabvox_saldo jabvox_sms
+    jabvox_email jabvox_forms jabvox_internal_chat jabvox_kanban
+    jabvox_lead_import jabvox_products jabvox_saldo jabvox_sms
     jabvox_softphone jabvox_tasks jabvox_tickets jabvox_voice_broadcast jabvox_voip
     jabvox_whatsapp_groups jabvox_whatsapp_templates
   ].freeze
@@ -966,8 +952,6 @@ module Jabvox::Hermes::ToolRegistry
     'create_hermes_webhook' => 'Crea/asegura el webhook a nivel de cuenta hacia el propio Hermes (message_created).',
     'create_hermes_inbox_webhook' => 'Crea/asegura el webhook de UNA bandeja (inbox_id) hacia el propio Hermes.',
     'create_api_inbox' => 'Crea una bandeja de tipo API (name, webhook_url).',
-    'search_leads' => 'Busca leads por texto (q): nombre, email, teléfono o número de lead.',
-    'get_lead' => 'Obtiene un lead por id.',
     'get_management_states' => 'Lista los estados de gestión de la cuenta.',
     'create_management_state' => 'Crea un estado de gestión (name).',
     'update_management_state' => 'Edita un estado de gestión.',
@@ -976,13 +960,7 @@ module Jabvox::Hermes::ToolRegistry
     'assign_conversation' => 'Asigna una conversación a un agente (assignee_id) y/o equipo (team_id).',
     'update_conversation_status' => 'Cambia el estado de una conversación: open/resolved/pending/snoozed (snoozed_until).',
     # Leads avanzado
-    'bulk_assign_leads' => 'Asigna en lote varios leads (lead_ids) a un agente (assignee_id).',
-    'bulk_unassign_leads' => 'Quita la asignación en lote de varios leads (lead_ids).',
-    'claim_lead' => 'Un agente toma para sí un lead (por id).',
     'get_campaigns' => 'Lista las campañas de leads de la cuenta.',
-    'sync_lead_contacts' => 'Sincroniza los contactos de los leads con la libreta de contactos.',
-    'update_lead_custom_fields' => 'Actualiza los campos personalizados de un lead (custom_fields).',
-    'update_lead_details' => 'Actualiza los datos de un lead (contacto, campaña, responsable, campos).',
     # Análisis de audio
     'get_audio_job' => 'Obtiene un trabajo de análisis de audio por id.',
     'get_audio_pipelines' => 'Lista los pipelines de análisis de audio.',
@@ -1047,8 +1025,6 @@ module Jabvox::Hermes::ToolRegistry
     'update_task_board' => 'Edita un tablero de tareas.',
     'create_task_stage' => 'Crea una etapa dentro de un tablero de tareas.',
     'update_task_stage' => 'Edita una etapa de tareas.',
-    'create_task_lead_contact' => 'Crea un contacto asociado a un lead para tareas.',
-    'update_task_lead_contact' => 'Edita un contacto de lead para tareas.',
     # Tickets
     'get_tickets' => 'Lista los tickets de la cuenta.',
     'get_ticket' => 'Obtiene un ticket por id.',

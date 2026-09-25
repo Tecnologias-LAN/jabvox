@@ -4,8 +4,10 @@
 # jabvox.lead.search modo by_date, con la salida original
 # `{ entity, field, targetDate, leads, count }`.
 class Jabvox::Flows::Nodes::Jabvox::LeadFindByDateNode < Jabvox::Flows::Nodes::Jabvox::LeadSearchNode
-  type 'jabvox.lead.find_by_date'
-  label 'Buscar leads por campo de fecha'
+  type 'jabvox.contact.find_by_date'
+  # Tipo anterior: los flujos guardados lo siguen usando.
+  aliases 'jabvox.lead.find_by_date'
+  label 'Buscar Contactos por fecha'
   items_path 'leads'
 
   MATCHES = %w[today in_days days_ago].freeze

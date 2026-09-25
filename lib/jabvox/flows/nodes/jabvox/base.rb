@@ -21,15 +21,17 @@ class Jabvox::Flows::Nodes::Jabvox::Base < Jabvox::Flows::Nodes::Base
     return contact if contact
 
     fail_with!("El contacto #{contact_id} no existe en esta cuenta. Comprueba que sea el ID INTERNO " \
-               'del contacto (no el número de lead).')
+               'del contacto.')
   end
 
-  def find_lead!(raw, label = 'el ID del lead')
-    lead_id = require_id!(raw, label)
-    lead = account.jabvox_leads.find_by(id: lead_id)
-    return lead if lead
+  # Se conserva el nombre porque lo usan nodos y flujos guardados, pero lo que resuelve es
+  # un CONTACTO: es lo único que queda tras retirar Leads.
+  def find_lead!(raw, label = 'el ID del contacto')
+    contact_id = require_id!(raw, label)
+    contact = account.contacts.find_by(id: contact_id)
+    return contact if contact
 
-    fail_with!("El lead #{lead_id} no existe en esta cuenta.")
+    fail_with!("El contacto #{contact_id} no existe en esta cuenta.")
   end
 
   def find_inbox!(raw, label = 'la bandeja')

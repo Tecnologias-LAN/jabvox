@@ -44,7 +44,6 @@ class JabvoxAffiliate < ApplicationRecord
   encrypts :auth_token, deterministic: true
 
   belongs_to :account
-  has_many :jabvox_leads, dependent: :nullify
   has_many :jabvox_affiliate_imports, dependent: :destroy
   has_many :jabvox_affiliate_ip_whitelists, dependent: :destroy
 

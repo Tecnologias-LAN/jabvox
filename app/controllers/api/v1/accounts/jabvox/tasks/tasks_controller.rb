@@ -6,9 +6,13 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
 
   # Filterable by board, lead, and date range (board view + calendar view + per-lead filter).
   def index
-    tasks = scoped.includes(:stage, :jabvox_lead, :assignee, :assignees, :automations)
+    tasks = scoped.includes(:stage, :contact, :assignee, :assignees, :automations)
     tasks = tasks.where(board_id: params[:board_id]) if params[:board_id].present?
-    tasks = tasks.where(jabvox_lead_id: params[:lead_id]) if params[:lead_id].present?
+    # Se filtra por contacto; `lead_id` se sigue aceptando por compatibilidad con enlaces
+    # y llamadas antiguas, resolviéndolo al contacto correspondiente.
+    tasks = tasks.where(contact_id: params[:contact_id]) if params[:contact_id].present?
+    # `lead_id` es hoy el id del contacto: se acepta como alias para los enlaces guardados.
+    tasks = tasks.where(contact_id: params[:lead_id]) if params[:lead_id].present?
     tasks = filter_by_date(tasks)
     render json: tasks.ordered.map { |t| serialize(t) }
   end
@@ -34,9 +38,10 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
     before = task_snapshot(@task)
     if @task.update(task_params)
       apply_assignees(@task) if assignee_ids_param
-      # Reload stage/lead so their names reflect the new ids when logging the change.
+      # Se recargan etapa y contacto para que sus nombres reflejen los ids nuevos al
+      # registrar el cambio.
       @task.association(:stage).reload
-      @task.association(:jabvox_lead).reload
+      @task.association(:contact).reload
       log_field_changes(@task, before)
       render json: serialize(@task.reload)
     else
@@ -90,16 +95,21 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
     tasks
   end
 
-  # Note: assignee_ids is intentionally NOT permitted here. It's a has_many-through
+  # NOTE: assignee_ids is intentionally NOT permitted here. It's a has_many-through
   # association writer, so letting it through task_params would make AR build join rows
   # without account_id (which is NOT NULL) and raise RecordInvalid. Assignees are synced
   # separately in #apply_assignees, which sets account_id explicitly.
   def task_params
-    params.require(:task).permit(
-      :board_id, :stage_id, :jabvox_lead_id, :assignee_id, :title_jabvox,
+    permitted = params.require(:task).permit(
+      :board_id, :stage_id, :contact_id, :jabvox_lead_id, :assignee_id, :title_jabvox,
       :description_jabvox, :priority_jabvox, :status_jabvox, :due_at_jabvox, :position_jabvox,
       due_dates_jabvox: []
     )
+    # `jabvox_lead_id` se sigue aceptando como alias de `contact_id`: el frontend guardado y
+    # las integraciones existentes lo envían, y tras retirar Leads ambos son el contacto.
+    legacy = permitted.delete(:jabvox_lead_id)
+    permitted[:contact_id] = legacy if legacy.present? && permitted[:contact_id].blank?
+    permitted
   end
 
   # Raw assignee_ids from the request (nil if the key was not sent, so update leaves them alone).
@@ -130,7 +140,7 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
       title: task.title_jabvox, description: task.description_jabvox,
       status: task.status_jabvox, priority: task.priority_jabvox,
       due_at: task.due_at_jabvox,
-      lead_id: task.jabvox_lead_id, lead_name: lead_label(task.jabvox_lead),
+      lead_id: task.contact_id, lead_name: lead_label(task.contact),
       stage_id: task.stage_id, stage_name: task.stage&.name_jabvox
     }
   end
@@ -184,24 +194,26 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
   end
 
   def log_lead_change(task, before)
-    return if before[:lead_id] == task.jabvox_lead_id
+    return if before[:lead_id] == task.contact_id
 
     task.log_activity(:lead_changed, current_user,
-                      from: before[:lead_name], to: lead_label(task.jabvox_lead))
+                      from: before[:lead_name], to: lead_label(task.contact))
   end
 
-  # Readable name for a lead (its contact name, or "Lead #<number>", or em dash when none).
-  def lead_label(lead)
-    return '—' if lead.nil?
+  # Nombre legible del contacto de la tarea (o raya cuando no tiene).
+  def lead_label(contact)
+    return '—' if contact.nil?
 
-    lead.contact&.name.presence || "Lead ##{lead.lead_number}"
+    contact.name.presence || "Contacto ##{contact.id}"
   end
 
   def serialize(task)
     {
       id: task.id, board_id: task.board_id, stage_id: task.stage_id,
-      jabvox_lead_id: task.jabvox_lead_id,
-      lead_name: task.jabvox_lead&.contact&.name || (task.jabvox_lead && "Lead ##{task.jabvox_lead.lead_number}"),
+      # Se conservan las claves de salida: el frontend de Tareas las usa. Ahora llevan el
+      # contacto, que es lo que queda tras retirar Leads.
+      jabvox_lead_id: task.contact_id,
+      lead_name: task.contact && lead_label(task.contact),
       assignee_id: task.assignee_id, assignee_name: task.assignee&.name,
       assignees: task.assignees.map { |u| { id: u.id, name: u.name, thumbnail: u.avatar_url } },
       title_jabvox: task.title_jabvox, description_jabvox: task.description_jabvox,

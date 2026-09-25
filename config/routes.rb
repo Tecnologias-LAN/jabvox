@@ -524,35 +524,37 @@ Rails.application.routes.draw do
                 patch :mark_read
               end
             end
-            resources :leads, only: [:index, :show] do
-              collection do
-                post :sync_contacts
-                patch :bulk_assign
-                patch :bulk_unassign
-                delete :bulk_destroy
-                get :matching_lead_ids
-                get 'for_contact/:contact_id', action: :for_contact, as: :for_contact
-                patch 'for_contact/:contact_id', action: :update_contact_lead, as: :update_contact_lead
-                get 'detail_for_contact/:contact_id', action: :lead_detail, as: :lead_detail_for_contact
-                # Catálogo de los 4 estados del ciclo de vida, leído de BD.
-                get :lifecycle_stages
+            # Lista unificada de contactos (sustituye a la de leads; ambas conviven
+            # mientras se migran los módulos).
+            # Detalle completo de un contacto: conversaciones por bandeja, gestiones,
+            # pedidos y registros (lo que antes daba el detalle de lead).
+            resources :contact_detail, only: [:show], controller: 'contact_detail' do
+              member do
+                get :managements
+                get :orders
+                get :records
+                post :create_management
+                patch :update_custom_fields
               end
-              # Multi-row custom tables for a lead. The path id is the TABLE id
-              # (a lead can have many rows per table); the specific row is passed
-              # as row_id in the body/query for update/destroy.
+            end
+            # Registros del contacto: las filas de las tablas personalizadas de varias filas
+            # (Asesorías, Casos…). El id de la ruta es el de la TABLA; la fila concreta va
+            # como row_id, porque un contacto puede tener muchas filas por tabla.
+            scope 'contacts/:contact_id' do
               get 'custom_table_rows', to: 'custom_table_rows#index'
               post 'custom_table_rows/:id', to: 'custom_table_rows#create'
               patch 'custom_table_rows/:id', to: 'custom_table_rows#update'
               delete 'custom_table_rows/:id', to: 'custom_table_rows#destroy'
+            end
+            resources :contacts_list, only: [:index], controller: 'contacts_list' do
               member do
-                patch :custom_fields
-                patch :update_details
-                patch :claim
-                # Etiquetas del lead (se aplican a las conversaciones del contacto).
-                get :labels
-                post :labels, action: :update_labels
-                # Cambia el estado del ciclo de vida (Prospecto/Interesado/Cliente/Inactivo).
-                patch :lifecycle_stage, action: :update_lifecycle_stage
+                patch :update_lifecycle
+              end
+              collection do
+                patch :bulk_assign
+                # Catálogo de etapas del ciclo de vida, para los selectores que lo necesiten
+                # sin tener que pedir la lista entera de contactos.
+                get :lifecycle_stages
               end
             end
             resources :lead_campaigns, controller: 'campaigns'
@@ -898,7 +900,6 @@ Rails.application.routes.draw do
                   member { post :run_now }
                 end
               end
-              resources :lead_contacts
             end
 
             # Bulk WhatsApp (mass template send via CSV -> n8n webhook) module
@@ -1000,6 +1001,7 @@ Rails.application.routes.draw do
                 member do
                   post :test_connection
                   get :schema
+                  get :stats
                   get :preview
                   get :column_values
                   post :query
@@ -1414,10 +1416,6 @@ Rails.application.routes.draw do
       end
       resources :jabvox_saldo_configs, only: [:index, :new, :create, :destroy]
       resources :jabvox_ticket_helpdesk_configs
-      resources :jabvox_deleted_leads, only: [:index, :show] do
-        member { post :restore }
-      end
-
       resources :accounts, only: [:index, :new, :create, :show, :edit, :update, :destroy] do
         post :seed, on: :member
         post :reset_cache, on: :member

@@ -44,7 +44,7 @@ class Agents::DestroyJob < ApplicationJob
 
   def nullify_jabvox_assignments(account, user)
     # rubocop:disable Rails/SkipsModelValidations
-    account.jabvox_leads.where(assignee_id: user.id).update_all(assignee_id: nil)
+    account.contacts.where(assignee_id: user.id).update_all(assignee_id: nil)
     account.jabvox_tasks.where(assignee_id: user.id).update_all(assignee_id: nil)
     # rubocop:enable Rails/SkipsModelValidations
   end

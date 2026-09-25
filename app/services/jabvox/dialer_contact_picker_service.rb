@@ -57,12 +57,11 @@ module Jabvox
     LOCK_NAMESPACE = 0x4A42 # "JB"
 
     def base_scope
-      DialerLeadsFilterService.for_campaign(@account, @campaign, require_phone: true)
-                              .scope.includes(:contact)
+      DialerContactsFilterService.for_campaign(@account, @campaign, require_phone: true).scope
     end
 
-    # Historical behavior: any matching lead, at random (a lead may be dialed
-    # again on later passes — the last-management filter decides eligibility).
+    # Cualquier contacto que case, al azar (puede volver a marcarse en pasadas
+    # posteriores — el filtro de última gestión decide la elegibilidad).
     # Excluye los contactos con una llamada EN CURSO (campaign_contact en
     # 'calling') para que dos agentes no marquen al mismo cliente a la vez: el
     # advisory lock serializa el pick, pero sin esta exclusión el siguiente pick
@@ -72,7 +71,7 @@ module Jabvox
       calling_ids = @campaign.jabvox_dialer_campaign_contacts
                              .where(status_jabvox: 'calling').where.not(contact_id: nil)
                              .pluck(:contact_id)
-      scope = scope.where.not(jabvox_leads: { contact_id: calling_ids }) if calling_ids.any?
+      scope = scope.where.not(id: calling_ids) if calling_ids.any?
       scope.order('RANDOM()').first
     end
 
@@ -82,7 +81,7 @@ module Jabvox
     #    (e.g. no_answer/busy/failed) and that haven't hit max_retries — oldest
     #    attempt first, so retries land at the END of the queue.
     # A lead is "done" (never re-picked) once it answers, completes, or exhausts
-    # its retries. Returns the JabvoxLead to dial, or nil.
+    # sus reintentos. Devuelve el Contact a marcar, o nil.
     def pick_one_by_one
       fresh = fresh_lead
       return fresh if fresh
@@ -90,16 +89,16 @@ module Jabvox
       retry_lead
     end
 
-    # Leads with no campaign-contact row yet.
+    # Contactos que aún no tienen fila de campaña.
     def fresh_lead
       dialed_ids = @campaign.jabvox_dialer_campaign_contacts
                             .where.not(contact_id: nil).distinct.pluck(:contact_id)
       scope = base_scope
-      scope = scope.where.not(jabvox_leads: { contact_id: dialed_ids }) if dialed_ids.any?
-      scope.order('jabvox_leads.id ASC').first
+      scope = scope.where.not(id: dialed_ids) if dialed_ids.any?
+      scope.order('contacts.id ASC').first
     end
 
-    # Leads eligible for a retry, oldest attempt first (they go last).
+    # Contactos elegibles para reintento, el intento más antiguo primero (van al final).
     def retry_lead
       statuses = Array(@campaign.retry_statuses_jabvox)
       return nil if statuses.empty?
@@ -120,8 +119,8 @@ module Jabvox
       cc = cc.first
       return nil if cc.nil?
 
-      # Only re-dial if the lead still passes the campaign filters and has a phone.
-      base_scope.find_by(contact_id: cc.contact_id)
+      # Solo se re-marca si el contacto sigue pasando los filtros y tiene teléfono.
+      base_scope.find_by(id: cc.contact_id)
     end
   end
 end

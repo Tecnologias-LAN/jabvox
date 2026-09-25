@@ -151,6 +151,6 @@ class JabvoxVoiceBroadcast < ApplicationRecord
   # filtrado PROPIO del Voice Broadcast (independiente del marcador), así el conteo del
   # formulario = lo que se marca.
   def target_leads_scope
-    Jabvox::VoiceBroadcast::LeadsFilterService.new(account, lead_filters_hash).scope
+    Jabvox::VoiceBroadcast::ContactsFilterService.new(account, lead_filters_hash).scope
   end
 end

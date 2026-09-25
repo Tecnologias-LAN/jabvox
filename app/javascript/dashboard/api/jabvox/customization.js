@@ -8,6 +8,11 @@ const buttonsClient = new ApiClient('jabvox/quick_buttons', {
   accountScoped: true,
 });
 
+const contactRowsUrl = contactId =>
+  new ApiClient(`jabvox/contacts/${contactId}/custom_table_rows`, {
+    accountScoped: true,
+  }).url;
+
 export default {
   // Tables
   getTables: () => axios.get(tablesClient.url),
@@ -41,40 +46,20 @@ export default {
   deleteRow: (tableId, rowId) =>
     axios.delete(`${tablesClient.url}/${tableId}/data/${rowId}`),
 
-  // Lead custom fields (JSONB inline on jabvox_leads)
-  updateLeadCustomFields: (leadId, customFields) => {
-    const leadsClient = new ApiClient(`jabvox/leads/${leadId}/custom_fields`, {
-      accountScoped: true,
-    });
-    return axios.patch(leadsClient.url, { custom_fields: customFields });
-  },
-
-  // Multi-row tables (Asesorías, Casos…) attached to a lead. Each row is an
-  // independent record; a lead can have many per table.
-  getLeadTableRows: leadId => {
-    const c = new ApiClient(`jabvox/leads/${leadId}/custom_table_rows`, {
-      accountScoped: true,
-    });
-    return axios.get(c.url);
-  },
-  createLeadTableRow: (leadId, tableId, data) => {
-    const c = new ApiClient(`jabvox/leads/${leadId}/custom_table_rows`, {
-      accountScoped: true,
-    });
-    return axios.post(`${c.url}/${tableId}`, { data });
-  },
-  updateLeadTableRow: (leadId, tableId, rowId, data) => {
-    const c = new ApiClient(`jabvox/leads/${leadId}/custom_table_rows`, {
-      accountScoped: true,
-    });
-    return axios.patch(`${c.url}/${tableId}`, { row_id: rowId, data });
-  },
-  deleteLeadTableRow: (leadId, tableId, rowId) => {
-    const c = new ApiClient(`jabvox/leads/${leadId}/custom_table_rows`, {
-      accountScoped: true,
-    });
-    return axios.delete(`${c.url}/${tableId}`, { params: { row_id: rowId } });
-  },
+  // Tablas de varias filas (Asesorías, Casos…) ligadas al CONTACTO. Cada fila es un
+  // registro independiente; un contacto puede tener muchas por tabla.
+  getContactTableRows: contactId => axios.get(contactRowsUrl(contactId)),
+  createContactTableRow: (contactId, tableId, data) =>
+    axios.post(`${contactRowsUrl(contactId)}/${tableId}`, { data }),
+  updateContactTableRow: (contactId, tableId, rowId, data) =>
+    axios.patch(`${contactRowsUrl(contactId)}/${tableId}`, {
+      row_id: rowId,
+      data,
+    }),
+  deleteContactTableRow: (contactId, tableId, rowId) =>
+    axios.delete(`${contactRowsUrl(contactId)}/${tableId}`, {
+      params: { row_id: rowId },
+    }),
 
   // Quick Buttons
   getButtons: () => axios.get(buttonsClient.url),

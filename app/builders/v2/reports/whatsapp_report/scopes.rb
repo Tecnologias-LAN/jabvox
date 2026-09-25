@@ -1,6 +1,6 @@
 # Conversation/message scopes and the filter chain (labels, batch, business) for
 # the WhatsApp report. Business filters delegate to the injection-safe
-# Jabvox::LeadsFilterService. Split out of the builder to keep it focused.
+# Jabvox::ContactsFilterService. Split out of the builder to keep it focused.
 module V2::Reports::WhatsappReport::Scopes
   def conversations
     @conversations ||= filter_by_template(
@@ -131,14 +131,14 @@ module V2::Reports::WhatsappReport::Scopes
   end
 
   # Business filters (campaign, affiliate, country, management state, sales…) via
-  # the shared leads filter: resolves the matching leads → their contact_ids →
-  # conversations of those contacts.
+  # the shared contacts filter: resolves the matching contacts → conversations of
+  # those contacts.
   def filter_by_business(scope)
     business = params[:business].presence
     return scope if business.blank?
 
-    contact_ids = Jabvox::LeadsFilterService.new(account: account, user: nil, is_admin: true, filters: business)
-                                            .scope.pluck(:contact_id).compact.uniq
+    contact_ids = Jabvox::ContactsFilterService.new(account: account, user: nil, is_admin: true, filters: business)
+                                               .scope.pluck(:id).compact.uniq
     return scope.none if contact_ids.empty?
 
     scope.where(contact_id: contact_ids)

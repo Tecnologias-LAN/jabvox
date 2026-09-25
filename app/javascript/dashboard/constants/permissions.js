@@ -4,12 +4,12 @@
 // create/edit-role form.
 export const JABVOX_PERMISSION_GROUPS = [
   {
-    module: 'leads',
+    module: 'contacts',
     permissions: [
-      'jabvox_leads_view_all',
-      'jabvox_leads_assign',
-      'jabvox_leads_edit',
-      'jabvox_leads_delete',
+      'jabvox_contacts_view_all',
+      'jabvox_contacts_assign',
+      'jabvox_contacts_edit',
+      'jabvox_contacts_delete',
     ],
   },
   {

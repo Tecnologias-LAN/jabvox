@@ -28,8 +28,8 @@ const deleteDialog = ref(null);
 
 // Leads table first, then the rest.
 const sortedTables = computed(() => {
-  const leads = tables.value.filter(tbl => tbl.linked_to_jabvox === 'leads');
-  const rest = tables.value.filter(tbl => tbl.linked_to_jabvox !== 'leads');
+  const leads = tables.value.filter(tbl => tbl.linked_to_jabvox === 'contacts');
+  const rest = tables.value.filter(tbl => tbl.linked_to_jabvox !== 'contacts');
   return [...leads, ...rest];
 });
 
@@ -37,7 +37,7 @@ const tableOptions = computed(() =>
   sortedTables.value.map(tbl => ({
     value: tbl.id,
     label:
-      tbl.linked_to_jabvox === 'leads'
+      tbl.linked_to_jabvox === 'contacts'
         ? t('JABVOX_CUSTOMIZATION.COLUMNS.LEADS_OPTION')
         : tbl.name_jabvox,
   }))
@@ -47,7 +47,7 @@ const selectedTable = computed(() =>
   tables.value.find(tbl => tbl.id === selectedTableId.value)
 );
 const isLeads = computed(
-  () => selectedTable.value?.linked_to_jabvox === 'leads'
+  () => selectedTable.value?.linked_to_jabvox === 'contacts'
 );
 const columns = computed(() => selectedTable.value?.columns || []);
 

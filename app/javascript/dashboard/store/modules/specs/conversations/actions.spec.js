@@ -745,6 +745,25 @@ describe('#addMentions', () => {
       });
     });
 
+    // Pasar un objeto sin `messages` (por ejemplo `{ id }` construido a mano en vez de la
+    // conversación normalizada del store) hace que `data.messages[0]` lance, el catch se lo
+    // trague y SET_CHAT_DATA_FETCHED nunca se emita: quien monte MessagesView se queda con
+    // el spinner girando para siempre. Esta prueba fija ese contrato.
+    it('should not mark data as fetched when the conversation has no messages array', async () => {
+      const localCommit = vi.fn();
+      const localDispatch = vi.fn().mockResolvedValue();
+
+      await actions.setActiveChat(
+        { commit: localCommit, dispatch: localDispatch },
+        { data: { id: 42 } }
+      );
+
+      expect(localCommit).not.toHaveBeenCalledWith(
+        types.SET_CHAT_DATA_FETCHED,
+        42
+      );
+    });
+
     it('should not dispatch fetchPreviousMessages if dataFetched is already set', async () => {
       const localCommit = vi.fn();
       const localDispatch = vi.fn();

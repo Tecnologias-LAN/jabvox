@@ -26,10 +26,7 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
     end
     orders = orders.includes(:contact, conversation: [:assignee]).order(created_at: :desc)
 
-    contact_ids = orders.filter_map(&:contact_id).uniq
-    leads_by_contact = contact_ids.any? ? JabvoxLead.where(account: Current.account, contact_id: contact_ids).index_by(&:contact_id) : {}
-
-    render json: { orders: orders.map { |o| serialize_order(o, leads_by_contact) } }
+    render json: { orders: orders.map { |o| serialize_order(o) } }
   end
 
   def agents
@@ -506,13 +503,14 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
     columns
   end
 
-  def serialize_order(order, leads_by_contact = {})
+  def serialize_order(order)
     contact = order.contact
     assignee = order.conversation&.assignee
-    lead = leads_by_contact[order.contact_id]
     {
       id: order.id,
-      lead_id: lead&.id,
+      # Se conserva la clave por compatibilidad con el frontend del reporte; ahora es el id
+      # del contacto, el único identificador que queda tras retirar Leads.
+      lead_id: order.contact_id,
       doc_type: order.doc_type,
       status: order.status,
       total: order.total.to_s,

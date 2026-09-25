@@ -66,6 +66,14 @@ class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Acc
     ds_error(e)
   end
 
+  # Conteo de tablas/vistas de la fuente, para mostrarlo junto a "Ver tablas" sin tener que
+  # abrir el explorador. Sale del esquema YA cacheado, así que no añade consultas a la base.
+  def stats
+    render json: Jabvox::Analytics::SchemaStats.new(@data_source).call
+  rescue StandardError => e
+    ds_error(e)
+  end
+
   def preview
     outcome = execution_service.preview(
       table: params.require(:table), page: params[:page] || 1, per_page: params[:per_page] || 100,
@@ -200,7 +208,7 @@ class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Acc
 
   def sanitized(error)
     Rails.logger.error "[Analytics::DataSources] #{error.class}: #{error.message}"
-    'No se pudo completar la operación contra la fuente de datos'
+    Jabvox::Analytics::DbErrorMessage.new(error).call
   end
 
   def ds_error(error)

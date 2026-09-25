@@ -5,13 +5,15 @@ class Api::V1::Jabvox::AffiliatePortal::LeadsController < Api::V1::Jabvox::Affil
 
   def index
     page = (params[:page] || 1).to_i
-    leads = @current_account.jabvox_leads
+    # El afiliado ve sus CONTACTOS: afiliado y campaña viven ya en el propio contacto.
+    # El JSON de respuesta se conserva idéntico (incluida la clave `lead_number`, ahora
+    # vacía) para no romper integraciones del portal que ya estén en uso.
+    leads = @current_account.contacts
                             .where(jabvox_affiliate_id: @current_affiliate.id)
-                            .includes(:contact)
-                            .order(lead_number: :asc)
+                            .order(created_at: :asc)
                             .page(page).per(PER_PAGE)
 
-    contact_ids = leads.map(&:contact_id)
+    contact_ids = leads.map(&:id)
     mgmt_data = contact_ids.any? ? fetch_management_data(contact_ids) : {}
     orders_data = contact_ids.any? ? fetch_orders_data(contact_ids) : {}
 
@@ -55,12 +57,14 @@ class Api::V1::Jabvox::AffiliatePortal::LeadsController < Api::V1::Jabvox::Affil
   private
 
   def serialize_lead(lead, mgmt_data, orders_data)
-    c = lead.contact
+    c = lead
     mgmt = mgmt_data[c.id] || {}
     orders = orders_data[c.id] || {}
     {
       id: lead.id,
-      lead_number: lead.lead_number,
+      # Se conserva la clave para no romper el portal; el número de lead desapareció con
+      # la unificación.
+      lead_number: nil,
       name: c.name,
       email: c.email,
       phone_number: c.phone_number,

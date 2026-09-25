@@ -207,13 +207,15 @@ module Jabvox
         end }
       end
 
-      # ---------------------------------------------------------------- Leads
+      # ------------------------------------------------------------- Contactos
+      # Se conserva el nombre de la operación y la clave `leads` de la respuesta para no
+      # romper al provisionador ya desplegado; lo que lista son contactos.
       def list_leads(params)
         account = h.find_account!(params['account_id'])
-        scope = account.jabvox_leads.order(created_at: :desc)
+        scope = account.contacts.order(created_at: :desc)
         page = [params['page'].to_i, 1].max
-        { account_id: account.id, leads: scope.limit(50).offset((page - 1) * 50).map do |l|
-          { id: l.id, name: l.try(:name), phone: l.try(:phone), email: l.try(:email) }
+        { account_id: account.id, leads: scope.limit(50).offset((page - 1) * 50).map do |c|
+          { id: c.id, name: c.name, phone: c.phone_number, email: c.email }
         end, page: page }
       end
 

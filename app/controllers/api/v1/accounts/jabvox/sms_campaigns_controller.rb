@@ -86,7 +86,7 @@ class Api::V1::Accounts::Jabvox::SmsCampaignsController < Api::V1::Accounts::Jab
   end
 
   def filter_leads(filter_params) # rubocop:disable Metrics/MethodLength
-    leads = Current.account.jabvox_leads
+    leads = Current.account.contacts
 
     jabvox_cid = filter_params[:jabvox_campaign_id].presence
     leads = leads.where(jabvox_campaign_id: jabvox_cid.to_i) if jabvox_cid
@@ -99,7 +99,7 @@ class Api::V1::Accounts::Jabvox::SmsCampaignsController < Api::V1::Accounts::Jab
       contact_ids_in_inboxes = Current.account.conversations
                                       .where(inbox_id: inbox_ids)
                                       .select(:contact_id)
-      leads = leads.where(contact_id: contact_ids_in_inboxes)
+      leads = leads.where(id: contact_ids_in_inboxes)
     end
 
     leads
@@ -115,9 +115,7 @@ class Api::V1::Accounts::Jabvox::SmsCampaignsController < Api::V1::Accounts::Jab
         jabvox_campaign_id: campaign.jabvox_campaign_id,
         affiliate_ids: campaign.affiliate_ids_sms,
         inbox_ids: campaign.inbox_ids_sms
-      ).joins(:contact)
-       .where.not(contacts: { phone_number: [nil, ''] })
-       .map(&:contact)
+      ).where.not(phone_number: [nil, '']).to_a
     else
       contact_ids = campaign.contact_ids || []
       Current.account.contacts

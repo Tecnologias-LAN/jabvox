@@ -6,7 +6,7 @@
 #
 # Filters (all optional): from/to, inbox_id, agent_ids[], team_id, labels[],
 # status, priority, business_hours, sla_seconds, batch_uuid (ties the report to a
-# bulk-send lot), plus business filters delegated to Jabvox::LeadsFilterService.
+# bulk-send lot), plus business filters delegated to Jabvox::ContactsFilterService.
 #
 # Times are reported as median + average + p90 (median is the headline — the
 # long tails skew the average). "read"/"delivered" rely on Meta read receipts:

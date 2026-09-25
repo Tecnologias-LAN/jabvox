@@ -124,65 +124,65 @@
       }
     },
     "AUTOMATION": {
-        "TITLE": "Automatizaciones",
-        "ADD": "Nueva automatización",
-        "EMPTY": "Aún no hay automatizaciones. Crea una para enviar un correo, SMS o mensaje recurrente.",
-        "NEW_TITLE": "Nueva automatización",
-        "EDIT_TITLE": "Editar automatización",
-        "NAME": "Nombre",
-        "NAME_PLACEHOLDER": "Ej. Recordatorio de seguimiento",
-        "CHANNEL_LABEL": "Canal",
-        "CHANNEL": {
-          "EMAIL": "Correo",
-          "SMS": "SMS",
-          "INBOX": "Mensaje"
-        },
-        "RECURRENCE": "Recurrencia",
-        "EVERY_WORD": "Cada",
-        "EVERY": "Cada {count} {unit}",
-        "UNIT": {
-          "DAY": "día | días",
-          "WEEK": "semana | semanas",
-          "MONTH": "mes | meses"
-        },
-        "RECIPIENTS": "Destinatarios",
-        "RECIPIENT": {
-          "LEAD": "Lead",
-          "ASSIGNEES": "Responsables",
-          "LEAD_CONTACTS": "Contactos del lead",
-          "MANUAL": "Dirección manual"
-        },
-        "MANUAL_EMAIL": "Correo de destino",
-        "MANUAL_PHONE": "Teléfono de destino",
-        "EMAIL_TEMPLATE": "Plantilla de correo",
-        "EMAIL_TEMPLATE_NONE": "Sin plantilla (escribe abajo)",
-        "SUBJECT": "Asunto",
-        "INBOX": "Bandeja de entrada",
-        "SMS_PROVIDER": "Proveedor de SMS",
-        "BODY": "Mensaje",
-        "BODY_PLACEHOLDER": "Escribe tu mensaje…",
-        "VARS_HINT": "Variables: {'{{task_title}}'}, {'{{lead_name}}'}, {'{{board_name}}'}, {'{{stage_name}}'}",
-        "NEED_RECIPIENT": "Elige al menos un destinatario",
-        "NEXT_RUN": "Próxima ejecución",
-        "RUNS_COUNT": "sin ejecuciones | 1 ejecución | {count} ejecuciones",
-        "RUN_NOW": "Enviar ahora",
-        "RUN_DONE": "Automatización enviada",
-        "TOGGLE": "Activar / pausar",
-        "EDIT": "Editar",
-        "DELETE": "Eliminar",
-        "DELETE_CONFIRM": "¿Eliminar esta automatización?",
-        "SAVE": "Guardar",
-        "CANCEL": "Cancelar",
-        "ERROR": "Algo salió mal con la automatización.",
-        "LOG_TITLE": "Envíos recientes",
-        "SENT_TO": "enviado a {count} destinatario | enviado a {count} destinatarios",
-        "STATUS": {
-          "SENT": "Enviado",
-          "PARTIAL": "Parcial",
-          "FAILED": "Fallido",
-          "SKIPPED": "Omitido"
-        },
-        "CARD_BADGE": "{count} automatización activa | {count} automatizaciones activas"
+      "TITLE": "Automatizaciones",
+      "ADD": "Nueva automatización",
+      "EMPTY": "Aún no hay automatizaciones. Crea una para enviar un correo, SMS o mensaje recurrente.",
+      "NEW_TITLE": "Nueva automatización",
+      "EDIT_TITLE": "Editar automatización",
+      "NAME": "Nombre",
+      "NAME_PLACEHOLDER": "Ej. Recordatorio de seguimiento",
+      "CHANNEL_LABEL": "Canal",
+      "CHANNEL": {
+        "EMAIL": "Correo",
+        "SMS": "SMS",
+        "INBOX": "Mensaje"
+      },
+      "RECURRENCE": "Recurrencia",
+      "EVERY_WORD": "Cada",
+      "EVERY": "Cada {count} {unit}",
+      "UNIT": {
+        "DAY": "día | días",
+        "WEEK": "semana | semanas",
+        "MONTH": "mes | meses"
+      },
+      "RECIPIENTS": "Destinatarios",
+      "RECIPIENT": {
+        "LEAD": "Lead",
+        "ASSIGNEES": "Responsables",
+        "LEAD_CONTACTS": "Contactos del lead",
+        "MANUAL": "Dirección manual"
+      },
+      "MANUAL_EMAIL": "Correo de destino",
+      "MANUAL_PHONE": "Teléfono de destino",
+      "EMAIL_TEMPLATE": "Plantilla de correo",
+      "EMAIL_TEMPLATE_NONE": "Sin plantilla (escribe abajo)",
+      "SUBJECT": "Asunto",
+      "INBOX": "Bandeja de entrada",
+      "SMS_PROVIDER": "Proveedor de SMS",
+      "BODY": "Mensaje",
+      "BODY_PLACEHOLDER": "Escribe tu mensaje…",
+      "VARS_HINT": "Variables: {'{{task_title}}'}, {'{{lead_name}}'}, {'{{board_name}}'}, {'{{stage_name}}'}",
+      "NEED_RECIPIENT": "Elige al menos un destinatario",
+      "NEXT_RUN": "Próxima ejecución",
+      "RUNS_COUNT": "sin ejecuciones | 1 ejecución | {count} ejecuciones",
+      "RUN_NOW": "Enviar ahora",
+      "RUN_DONE": "Automatización enviada",
+      "TOGGLE": "Activar / pausar",
+      "EDIT": "Editar",
+      "DELETE": "Eliminar",
+      "DELETE_CONFIRM": "¿Eliminar esta automatización?",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "ERROR": "Algo salió mal con la automatización.",
+      "LOG_TITLE": "Envíos recientes",
+      "SENT_TO": "enviado a {count} destinatario | enviado a {count} destinatarios",
+      "STATUS": {
+        "SENT": "Enviado",
+        "PARTIAL": "Parcial",
+        "FAILED": "Fallido",
+        "SKIPPED": "Omitido"
+      },
+      "CARD_BADGE": "{count} automatización activa | {count} automatizaciones activas"
     },
     "LEAD_FILTER": {
       "LABEL": "Filtrar por lead",
@@ -192,10 +192,10 @@
       "CLEAR": "Limpiar"
     },
     "LEAD_SELECT": {
-      "PLACEHOLDER": "Buscar un lead…",
+      "PLACEHOLDER": "Buscar un contacto…",
       "LOADING": "Buscando…",
-      "EMPTY": "No se encontraron leads.",
-      "CLEAR": "Quitar lead"
+      "EMPTY": "No se encontraron contactos.",
+      "CLEAR": "Quitar contacto"
     },
     "AGENT_SELECT": {
       "PLACEHOLDER": "Buscar un agente…",

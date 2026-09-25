@@ -61,7 +61,7 @@ class Jabvox::Analytics::Adapters::PostgresAdapter < Jabvox::Analytics::Adapters
 
   def execute(sql, binds: [], row_limit: nil)
     cap = row_cap(row_limit)
-    wrapped = "SELECT * FROM (#{sql}) AS jabvox_sub LIMIT #{cap}"
+    wrapped = "SELECT * FROM (#{subquery_body(sql)}) AS jabvox_sub LIMIT #{cap}"
     started = monotonic_ms
     with_client do |conn|
       result = binds.any? ? conn.exec_params(wrapped, binds) : conn.exec(wrapped)

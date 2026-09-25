@@ -119,10 +119,10 @@ class Jabvox::AffiliateLeadImporter
         additional_attributes: { 'country_code' => @country_iso, 'city' => identity[:city] }.compact,
         custom_attributes: {}
       )
-      lead = JabvoxLead.find_or_initialize_by(account: @account, contact: contact)
-      lead.jabvox_affiliate = @affiliate
-      lead.jabvox_campaign = campaign if campaign
-      lead.save!
+      # El contacto es la fuente de verdad: afiliado y campaña se guardan aquí.
+      contact.jabvox_affiliate = @affiliate
+      contact.jabvox_campaign = campaign if campaign
+      contact.save!
     end
     contact
   end

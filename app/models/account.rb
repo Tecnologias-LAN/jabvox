@@ -199,7 +199,6 @@ class Account < ApplicationRecord
   has_many :jabvox_dialer_call_logs, dependent: :destroy_async
   has_many :jabvox_field_visibilities, dependent: :destroy_async
   has_many :jabvox_campaigns, dependent: :destroy_async
-  has_many :jabvox_leads, dependent: :destroy_async
   has_many :jabvox_affiliates, dependent: :destroy_async
   has_many :jabvox_affiliate_imports, dependent: :destroy_async
   has_many :jabvox_calendar_events, dependent: :destroy_async
@@ -257,7 +256,6 @@ class Account < ApplicationRecord
   has_many :jabvox_conversation_label_logs, class_name: 'JabvoxConversationLabelLog', dependent: :delete_all
   has_many :jabvox_lead_sources, dependent: :destroy
   has_many :jabvox_lead_source_records, dependent: :delete_all
-  has_many :jabvox_deleted_leads, dependent: :delete_all
   has_many :jabvox_export_targets, dependent: :destroy
   has_many :jabvox_export_sync_logs, dependent: :delete_all
   has_many :portals, dependent: :destroy_async, class_name: '::Portal'

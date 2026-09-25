@@ -58,8 +58,16 @@
         "EMAIL_TEMPLATE_LABEL": "Plantilla de correo",
         "EMAIL_TEMPLATE_FORMAT": " — ",
         "SMS_PROVIDER_LABEL": "Proveedor de SMS",
-        "ACTIVE_LABEL": "Activa"
-      }
+        "ACTIVE_LABEL": "Activa",
+        "TYPE_MOVE_NO_INCOMING": "Mover si no hay mensajes de entrada",
+        "TYPE_MOVE_NO_OUTGOING": "Mover si no hay mensajes de salida",
+        "TRIGGER_LABEL": "Tiempo sin actividad",
+        "UNIT_CHOOSE": "Elegir unidad…",
+        "UNIT_MINUTES": "Minutos",
+        "UNIT_HOURS": "Horas"
+      },
+      "DISPLAY_NO_INCOMING": "→ {target} si no entra nada en {delay}",
+      "DISPLAY_NO_OUTGOING": "→ {target} si no se escribe en {delay}"
     },
     "DISPLAY_INACTIVE": "→ {target} (sin notas {hours}h)",
     "MOVE_ERROR": "No se pudo mover la conversación. Inténtalo de nuevo.",
@@ -123,7 +131,9 @@
           "ERROR": "Ocurrió un error. Inténtalo de nuevo.",
           "SECTION_GENERAL": "General",
           "SECTION_SOURCES": "Origen de leads",
-          "ACTIVE_HINT": "Los embudos inactivos no aparecen en el tablero."
+          "ACTIVE_HINT": "Los embudos inactivos no aparecen en el tablero.",
+          "STAGES_LABEL": "Por estado del contacto",
+          "STAGES_HINT": "El embudo recoge los contactos que estén en las etapas marcadas."
         },
         "SEARCH_PLACEHOLDER": "Buscar embudos...",
         "COUNT": "{count} embudos",
@@ -183,7 +193,9 @@
       "DELETE": "Eliminar",
       "EDIT": "Editar"
     },
-    "SUBTITLE": "Arrastra las tarjetas entre etapas para gestionar tu pipeline"
+    "SUBTITLE": "Arrastra las tarjetas entre etapas para gestionar tu pipeline",
+    "FULL_INFO": "Ver todo",
+    "STAGE_UPDATE_ERROR": "No se pudo cambiar el estado del contacto."
   },
   "CANCEL": "Cancelar"
 }

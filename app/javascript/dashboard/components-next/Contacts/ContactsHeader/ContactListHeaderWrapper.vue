@@ -28,7 +28,6 @@ import DeleteSegmentDialog from 'dashboard/components-next/Contacts/ContactsForm
 import ContactsFilter from 'dashboard/components-next/filter/ContactsFilter.vue';
 
 const props = defineProps({
-  showSearch: { type: Boolean, default: true },
   searchValue: { type: String, default: '' },
   activeSort: { type: String, default: 'last_activity_at' },
   activeOrdering: { type: String, default: '' },
@@ -280,7 +279,8 @@ defineExpose({
 
 <template>
   <ContactsHeader
-    :show-search="showSearch"
+    :show-search="false"
+    :show-legacy-filters="false"
     :search-value="searchValue"
     :active-sort="activeSort"
     :active-ordering="activeOrdering"

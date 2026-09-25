@@ -1,42 +1,147 @@
 /* global axios */
 import ApiClient from '../ApiClient';
 
-const client = new ApiClient('jabvox/leads', { accountScoped: true });
+// Capa de compatibilidad tras retirar Leads: cada método apunta al endpoint de CONTACTOS
+// equivalente y devuelve la misma forma que antes, para que las pantallas que aún la
+// importan (plantillas, marcador, selector de tareas, envío masivo) sigan funcionando sin
+// tocarlas una a una.
+//
+// Un "lead id" es hoy el id del contacto: la tabla intermedia desapareció y ambos coinciden.
+const contactsList = new ApiClient('jabvox/contacts_list', {
+  accountScoped: true,
+});
+const contactDetail = new ApiClient('jabvox/contact_detail', {
+  accountScoped: true,
+});
+const contacts = new ApiClient('contacts', { accountScoped: true });
+
+// Valores planos con el formato que esperaban las pantallas de plantillas: los campos
+// personalizados van prefijados con `custom:`, los estándar por su nombre.
+const legacyFields = contact => {
+  if (!contact) return {};
+  const fields = {
+    name: contact.name || '',
+    email: contact.email || '',
+    phone_number: contact.phone_number || '',
+  };
+  Object.entries(contact.custom_fields || {}).forEach(([key, value]) => {
+    fields[`custom:${key}`] = value;
+  });
+  return fields;
+};
+
+// Da forma de "lead" a un contacto, con las claves que esperan las pantallas antiguas.
+const asLead = contact =>
+  contact && {
+    ...contact,
+    // El número de lead ya no existe; el id del contacto ocupa su lugar.
+    lead_number: contact.id,
+    contact_id: contact.id,
+    contact,
+  };
 
 export default {
-  getAll: (params = {}) => axios.get(client.url, { params }),
-  getById: id => axios.get(`${client.url}/${id}`),
-  // All lead ids matching the given filters (whole result, not one page), for
-  // "select all filter" bulk actions. Same filter params as getAll.
+  getAll: (params = {}) =>
+    axios.get(contactsList.url, { params }).then(res => ({
+      ...res,
+      data: {
+        ...res.data,
+        leads: (res.data.contacts || []).map(asLead),
+      },
+    })),
+
+  getById: id =>
+    axios
+      .get(`${contactDetail.url}/${id}`)
+      .then(res => ({ ...res, data: asLead(res.data.contact) })),
+
+  // Todos los ids que casan con los filtros (no solo una página), para las acciones en lote
+  // del tipo "seleccionar todo el filtro".
   matchingIds: (params = {}) =>
-    axios.get(`${client.url}/matching_lead_ids`, { params }),
-  syncContacts: () => axios.post(`${client.url}/sync_contacts`),
+    axios
+      .get(contactsList.url, { params: { ...params, per_page: 'all' } })
+      .then(res => ({
+        ...res,
+        data: { ids: (res.data.contacts || []).map(c => c.id) },
+      })),
+
   bulkAssign: (leadIds, assigneeId) =>
-    axios.patch(`${client.url}/bulk_assign`, {
-      lead_ids: leadIds,
+    axios.patch(`${contactsList.url}/bulk_assign`, {
+      contact_ids: leadIds,
       assignee_id: assigneeId,
     }),
+
   bulkUnassign: leadIds =>
-    axios.patch(`${client.url}/bulk_unassign`, { lead_ids: leadIds }),
-  bulkDestroy: leadIds =>
-    axios.delete(`${client.url}/bulk_destroy`, { data: { lead_ids: leadIds } }),
-  forContact: contactId => axios.get(`${client.url}/for_contact/${contactId}`),
-  // Full lead detail (contact + lead + inbox + custom fields) for one contact,
-  // shown in the conversation sidebar's lead info panel.
-  detailForContact: contactId =>
-    axios.get(`${client.url}/detail_for_contact/${contactId}`),
-  updateContactLead: (contactId, campaignName) =>
-    axios.patch(`${client.url}/for_contact/${contactId}`, {
-      campaign_name: campaignName,
+    axios.patch(`${contactsList.url}/bulk_assign`, {
+      contact_ids: leadIds,
+      assignee_id: null,
     }),
-  // Unified edit of the lead detail panel.
-  updateDetails: (id, payload) =>
-    axios.patch(`${client.url}/${id}/update_details`, payload),
-  // Asigna el lead y sus conversaciones abiertas al agente actual (tras enviar
-  // plantilla, para que la conversación quede visible en su bandeja).
-  claim: id => axios.patch(`${client.url}/${id}/claim`),
-  // Etiquetas del lead (aplicadas a las conversaciones abiertas del contacto).
-  getLabels: id => axios.get(`${client.url}/${id}/labels`),
-  updateLabels: (id, labels) =>
-    axios.post(`${client.url}/${id}/labels`, { labels }),
+
+  bulkDestroy: leadIds =>
+    axios.post(`${contacts.url}/bulk_destroy`, { contact_ids: leadIds }),
+
+  // `fields` conserva el formato que esperaban las pantallas: los campos personalizados
+  // llegan con el prefijo `custom:`, junto a los campos estándar del contacto.
+  forContact: contactId =>
+    axios.get(`${contactDetail.url}/${contactId}`).then(res => ({
+      ...res,
+      data: {
+        ...asLead(res.data.contact),
+        custom_field_defs: res.data.custom_field_defs || [],
+        fields: legacyFields(res.data.contact),
+      },
+    })),
+
+  // Detalle completo de un contacto, que es lo que pinta el panel lateral de la conversación.
+  // `lead` lleva los nombres ya resueltos (campaña, afiliado, responsable) porque ese panel
+  // los pinta directamente, sin volver a consultarlos.
+  detailForContact: contactId =>
+    axios.get(`${contactDetail.url}/${contactId}`).then(res => {
+      const contact = res.data.contact || {};
+      const firstInbox = (res.data.conversations || [])[0]?.inbox;
+      const extra = contact.additional_attributes || {};
+      return {
+        ...res,
+        data: {
+          ...res.data,
+          // El panel lee estos campos PLANOS; en el contacto viven dentro de
+          // additional_attributes, así que se aplanan aquí (si no, salían siempre vacíos).
+          contact: {
+            ...contact,
+            phone: contact.phone_number,
+            identification: extra.jabvox_identification_number || '',
+            contact_type: extra.jabvox_contact_type || '',
+            country: extra.country || extra.country_code || '',
+            city: extra.city || '',
+            bio: extra.description || '',
+            company_name: extra.company_name || '',
+          },
+          lead: {
+            ...asLead(contact),
+            campaign_name: contact.campaign?.name || '',
+            affiliate_name: contact.affiliate?.name || '',
+            assignee_name: contact.assignee?.name || '',
+          },
+          inbox_name: firstInbox?.name || '',
+          custom_fields: (res.data.custom_field_defs || []).map(def => ({
+            key: def.key,
+            label: def.label,
+            value: (contact.custom_fields || {})[def.key] || '',
+          })),
+        },
+      };
+    }),
+
+  updateContactLead: (contactId, campaignName) =>
+    axios.patch(`${contacts.url}/${contactId}`, {
+      jabvox_campaign_name: campaignName,
+    }),
+
+  updateDetails: (id, payload) => axios.patch(`${contacts.url}/${id}`, payload),
+
+  // Campos personalizados y etapa del ciclo de vida.
+  updateCustomFields: (id, customFields) =>
+    axios.patch(`${contactDetail.url}/${id}/update_custom_fields`, {
+      custom_fields: customFields,
+    }),
 };

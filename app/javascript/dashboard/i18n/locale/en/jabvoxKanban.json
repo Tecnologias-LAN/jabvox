@@ -58,8 +58,16 @@
         "EMAIL_TEMPLATE_LABEL": "Email template",
         "EMAIL_TEMPLATE_FORMAT": " — ",
         "SMS_PROVIDER_LABEL": "SMS Provider",
-        "ACTIVE_LABEL": "Active"
-      }
+        "ACTIVE_LABEL": "Active",
+        "TYPE_MOVE_NO_INCOMING": "Move if no incoming messages",
+        "TYPE_MOVE_NO_OUTGOING": "Move if no outgoing messages",
+        "TRIGGER_LABEL": "Time without activity",
+        "UNIT_CHOOSE": "Choose unit…",
+        "UNIT_MINUTES": "Minutes",
+        "UNIT_HOURS": "Hours"
+      },
+      "DISPLAY_NO_INCOMING": "→ {target} if nothing arrives in {delay}",
+      "DISPLAY_NO_OUTGOING": "→ {target} if nothing is sent in {delay}"
     },
     "DISPLAY_INACTIVE": "→ {target} (no notes {hours}h)",
     "MOVE_ERROR": "Failed to move conversation. Please try again.",
@@ -123,7 +131,9 @@
           "ERROR": "An error occurred. Please try again.",
           "SECTION_GENERAL": "General",
           "SECTION_SOURCES": "Origen de leads",
-          "ACTIVE_HINT": "Los embudos inactivos no aparecen en el tablero."
+          "ACTIVE_HINT": "Los embudos inactivos no aparecen en el tablero.",
+          "STAGES_LABEL": "By contact stage",
+          "STAGES_HINT": "The funnel picks up contacts in the selected stages."
         },
         "SEARCH_PLACEHOLDER": "Buscar embudos...",
         "COUNT": "{count} embudos",
@@ -183,7 +193,9 @@
       "DELETE": "Eliminar",
       "EDIT": "Editar"
     },
-    "SUBTITLE": "Arrastra las tarjetas entre etapas para gestionar tu pipeline"
+    "SUBTITLE": "Arrastra las tarjetas entre etapas para gestionar tu pipeline",
+    "FULL_INFO": "View all",
+    "STAGE_UPDATE_ERROR": "Could not update the contact stage."
   },
   "CANCEL": "Cancel"
 }

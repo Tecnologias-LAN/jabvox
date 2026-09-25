@@ -10,7 +10,8 @@ json.updated_at funnel.updated_at
 json.inbox_ids funnel.jabvox_kanban_funnel_inboxes.pluck(:inbox_id)
 json.campaign_ids funnel.jabvox_kanban_funnel_campaigns.pluck(:jabvox_campaign_id)
 json.affiliate_ids funnel.jabvox_kanban_funnel_affiliates.pluck(:jabvox_affiliate_id)
-json.include_own_leads funnel.include_own_leads_jabvox
+json.include_own_contacts funnel.include_own_contacts_jabvox
+json.lifecycle_stages_jabvox funnel.lifecycle_stages_jabvox
 
 json.stages funnel.jabvox_kanban_stages.ordered do |stage|
   json.id stage.id

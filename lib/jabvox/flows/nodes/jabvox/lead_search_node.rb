@@ -4,8 +4,10 @@
 # normalizan la salida a `{ mode, count, leads: [...] }`, de modo que un bucle
 # sobre `{{node.<id>.items}}` funciona igual venga de donde venga.
 class Jabvox::Flows::Nodes::Jabvox::LeadSearchNode < Jabvox::Flows::Nodes::Jabvox::Base
-  type 'jabvox.lead.search'
-  label 'Buscar leads'
+  type 'jabvox.contact.search'
+  # Tipo anterior: los flujos guardados lo siguen usando.
+  aliases 'jabvox.lead.search'
+  label 'Buscar Contactos'
   items_path 'leads'
 
   # Tope de seguridad. `limit` es OPCIONAL: dejarlo vacío aplica este tope, NUNCA
@@ -30,8 +32,10 @@ class Jabvox::Flows::Nodes::Jabvox::LeadSearchNode < Jabvox::Flows::Nodes::Jabvo
     @limit ||= int_or(param(:limit), SAFETY_LIMIT, min: 1, max: SAFETY_LIMIT)
   end
 
+  # Los "leads" son hoy CONTACTOS: la tabla jabvox_leads ya no existe y campaña, afiliado,
+  # responsable y campos personalizados viven en el propio contacto.
   def base_scope
-    account.jabvox_leads.includes(:contact, :jabvox_campaign, :jabvox_affiliate, :assignee)
+    account.contacts.includes(:jabvox_campaign, :jabvox_affiliate, :assignee)
   end
 
   def result(mode, leads, extra = {})
@@ -41,11 +45,14 @@ class Jabvox::Flows::Nodes::Jabvox::LeadSearchNode < Jabvox::Flows::Nodes::Jabvo
 
   # Forma COMPACTA y común a los 6 modos, para que sean intercambiables al
   # iterar con el bucle.
+  # Se conservan las claves de salida ('id', 'contact_id', 'lead_number'…) aunque ya no haya
+  # lead: las automatizaciones ya construidas las referencian y cambiarlas las rompería.
+  # Ahora `id` y `contact_id` son el mismo valor, y `lead_number` viaja vacío.
   def slim(lead)
-    contact = lead.contact
-    { 'id' => lead.id, 'lead_number' => lead.lead_number,
+    contact = lead
+    { 'id' => lead.id, 'lead_number' => nil,
       'contact' => contact_view(contact),
-      'contact_id' => lead.contact_id,
+      'contact_id' => lead.id,
       # Se publica en la fila para poder ramificar dentro del bucle sin filtrar.
       'has_phone' => contact&.phone_number.present?,
       'campaign' => lead.jabvox_campaign&.name_jabvox,
@@ -64,9 +71,11 @@ class Jabvox::Flows::Nodes::Jabvox::LeadSearchNode < Jabvox::Flows::Nodes::Jabvo
     result('by_id', [lead], 'lead' => slim(lead))
   end
 
+  # El número de lead desapareció con la tabla. Los flujos guardados que lo usaban siguen
+  # funcionando tratándolo como id de contacto, que es el único identificador que queda.
   def by_lead_number
     number = first_filled(param(:leadNumber), param(:leadId))
-    base_scope.find_by(lead_number: number.to_i) if number.present?
+    base_scope.find_by(id: number.to_i) if number.present?
   end
 
   def missing_lead_message
@@ -103,7 +112,7 @@ class Jabvox::Flows::Nodes::Jabvox::LeadSearchNode < Jabvox::Flows::Nodes::Jabvo
   end
 
   def field_scope(field, operator, value)
-    column = Arel.sql("jabvox_leads.custom_fields_jabvox->>#{ActiveRecord::Base.connection.quote(field)}")
+    column = Arel.sql("contacts.custom_fields_jabvox->>#{ActiveRecord::Base.connection.quote(field)}")
     case operator
     when 'equals' then base_scope.where("#{column} = ?", value)
     when 'empty' then base_scope.where("#{column} IS NULL OR #{column} = ''")
@@ -127,7 +136,7 @@ class Jabvox::Flows::Nodes::Jabvox::LeadSearchNode < Jabvox::Flows::Nodes::Jabvo
   # El campo es texto libre en JSON, así que la comparación se hace en Ruby:
   # empujarla a SQL exigiría que TODAS las filas tuvieran una fecha parseable.
   def date_matches(field, target, full_date)
-    base_scope.where.not('jabvox_leads.custom_fields_jabvox->>? IS NULL', field)
+    base_scope.where.not('contacts.custom_fields_jabvox->>? IS NULL', field)
               .limit(SAFETY_LIMIT).select do |lead|
       stored = parse_date(lead.custom_fields_jabvox.to_h[field])
       next false if stored.nil?

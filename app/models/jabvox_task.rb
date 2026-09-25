@@ -17,22 +17,21 @@
 #  account_id         :bigint           not null
 #  assignee_id        :bigint
 #  board_id           :bigint           not null
+#  contact_id         :bigint
 #  created_by_id      :bigint
-#  jabvox_lead_id     :bigint
 #  stage_id           :bigint           not null
 #
 # Indexes
 #
-#  index_jabvox_tasks_on_account_id                     (account_id)
-#  index_jabvox_tasks_on_account_id_and_board_id        (account_id,board_id)
-#  index_jabvox_tasks_on_account_id_and_due_at_jabvox   (account_id,due_at_jabvox)
-#  index_jabvox_tasks_on_account_id_and_jabvox_lead_id  (account_id,jabvox_lead_id)
-#  index_jabvox_tasks_on_assignee_id                    (assignee_id)
-#  index_jabvox_tasks_on_board_id                       (board_id)
-#  index_jabvox_tasks_on_created_by_id                  (created_by_id)
-#  index_jabvox_tasks_on_jabvox_lead_id                 (jabvox_lead_id)
-#  index_jabvox_tasks_on_stage_id                       (stage_id)
-#  index_jabvox_tasks_on_stage_id_and_position_jabvox   (stage_id,position_jabvox)
+#  index_jabvox_tasks_on_account_id                    (account_id)
+#  index_jabvox_tasks_on_account_id_and_board_id       (account_id,board_id)
+#  index_jabvox_tasks_on_account_id_and_contact_id     (account_id,contact_id)
+#  index_jabvox_tasks_on_account_id_and_due_at_jabvox  (account_id,due_at_jabvox)
+#  index_jabvox_tasks_on_assignee_id                   (assignee_id)
+#  index_jabvox_tasks_on_board_id                      (board_id)
+#  index_jabvox_tasks_on_created_by_id                 (created_by_id)
+#  index_jabvox_tasks_on_stage_id                      (stage_id)
+#  index_jabvox_tasks_on_stage_id_and_position_jabvox  (stage_id,position_jabvox)
 #
 # Foreign Keys
 #
@@ -40,7 +39,6 @@
 #  fk_rails_...  (assignee_id => users.id)
 #  fk_rails_...  (board_id => jabvox_task_boards.id)
 #  fk_rails_...  (created_by_id => users.id)
-#  fk_rails_...  (jabvox_lead_id => jabvox_leads.id)
 #  fk_rails_...  (stage_id => jabvox_task_stages.id)
 #
 class JabvoxTask < ApplicationRecord
@@ -52,7 +50,9 @@ class JabvoxTask < ApplicationRecord
   belongs_to :account
   belongs_to :board, class_name: 'JabvoxTaskBoard'
   belongs_to :stage, class_name: 'JabvoxTaskStage'
-  belongs_to :jabvox_lead, class_name: 'JabvoxLead', optional: true
+  # `contact` sustituye a `jabvox_lead`. La asociación vieja sigue mientras queden filas
+  # antiguas apuntando por lead.
+  belongs_to :contact, optional: true
   # Legacy single-assignee column, kept as the "primary assignee" mirror of #assignees.first.
   belongs_to :assignee, class_name: 'User', optional: true
   belongs_to :created_by, class_name: 'User', optional: true
@@ -88,7 +88,7 @@ class JabvoxTask < ApplicationRecord
 
   # Columns whose change should re-sync the task's calendar events.
   CALENDAR_RELEVANT = %w[due_at_jabvox due_dates_jabvox title_jabvox description_jabvox
-                         status_jabvox jabvox_lead_id assignee_id].freeze
+                         status_jabvox contact_id assignee_id].freeze
 
   # Fire stage automations when the card lands in a (new) stage — on create and whenever
   # stage_id changes — mirroring the kanban conversation-stage hook.

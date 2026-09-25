@@ -2,7 +2,11 @@
 import { computed, ref, onBeforeMount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { getInboxIconByType } from 'dashboard/helper/inbox';
-import { dynamicTime, shortTimestamp } from 'shared/helpers/timeHelper';
+import {
+  dynamicTime,
+  shortTimestamp,
+  exactTimestamp,
+} from 'shared/helpers/timeHelper';
 import {
   snoozedReopenTimeToTimestamp,
   shortenSnoozeTime,
@@ -58,8 +62,9 @@ const hasSlaThreshold = computed(() => {
 });
 
 const lastActivityAt = computed(() => {
-  const timestamp = props.inboxItem?.lastActivityAt;
-  return timestamp ? shortTimestamp(dynamicTime(timestamp)) : '';
+  // Hora exacta en vez de tiempo transcurrido ("10:37 PM" en lugar de "12h"): se lee la hora
+  // real sin tener que calcularla.
+  return exactTimestamp(props.inboxItem?.lastActivityAt);
 });
 
 const menuItems = computed(() => [

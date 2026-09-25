@@ -55,18 +55,17 @@ class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::Ba
     @column = @table.jabvox_custom_columns.find(params[:id])
   end
 
-  # Values live in jsonb payloads (row data_jabvox and, for lead-linked
-  # tables, jabvox_leads.custom_fields_jabvox). Definitions and stored values
-  # only stay consistent if keys are pruned/renamed alongside the column;
-  # otherwise every lead keeps orphaned keys forever.
+  # Los valores viven en jsonb (data_jabvox de cada fila y, en la tabla ligada a contactos,
+  # contacts.custom_fields_jabvox). Definición y valores solo siguen coherentes si la clave se
+  # borra/renombra junto con la columna; si no, cada contacto conserva claves huérfanas.
   # rubocop:disable Rails/SkipsModelValidations
   def purge_stored_key(key)
     @table.jabvox_custom_table_rows
           .where('jsonb_exists(data_jabvox, :key)', key: key)
           .update_all(['data_jabvox = data_jabvox - :key', { key: key }])
-    return unless @table.linked_to_jabvox == 'leads'
+    return unless @table.linked_to_jabvox == 'contacts'
 
-    Current.account.jabvox_leads
+    Current.account.contacts
            .where('jsonb_exists(custom_fields_jabvox, :key)', key: key)
            .update_all(['custom_fields_jabvox = custom_fields_jabvox - :key', { key: key }])
   end
@@ -76,9 +75,9 @@ class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::Ba
           .where('jsonb_exists(data_jabvox, :old)', old: old_key)
           .update_all(['data_jabvox = (data_jabvox - :old) || jsonb_build_object(:new, data_jabvox -> :old)',
                        { old: old_key, new: new_key }])
-    return unless @table.linked_to_jabvox == 'leads'
+    return unless @table.linked_to_jabvox == 'contacts'
 
-    Current.account.jabvox_leads
+    Current.account.contacts
            .where('jsonb_exists(custom_fields_jabvox, :old)', old: old_key)
            .update_all(['custom_fields_jabvox = (custom_fields_jabvox - :old) || ' \
                         'jsonb_build_object(:new, custom_fields_jabvox -> :old)',
@@ -104,7 +103,7 @@ class Api::V1::Accounts::Jabvox::CustomColumnsController < Api::V1::Accounts::Ba
   end
 
   def each_campaign_with_filter_key(key)
-    return unless @table.linked_to_jabvox == 'leads'
+    return unless @table.linked_to_jabvox == 'contacts'
 
     Current.account.jabvox_dialer_campaigns.find_each do |campaign|
       custom = (campaign.lead_filters_jabvox || {})['custom']

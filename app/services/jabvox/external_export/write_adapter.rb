@@ -65,8 +65,8 @@ class Jabvox::ExternalExport::WriteAdapter
 
   # Opens ONE connection and yields it, so a batch of writes (backfill) reuses a
   # single connection instead of opening one per row. Use with #upsert_row_on.
-  def with_connection(&block)
-    with_client(&block)
+  def with_connection(&)
+    with_client(&)
   end
 
   # Upsert using an already-open client (batch path). Same SQL as #upsert_row.
@@ -92,7 +92,7 @@ class Jabvox::ExternalExport::WriteAdapter
   def batch_upsert_sql(table, cols, row_count, conflict_key)
     ncols = cols.size
     tuples = Array.new(row_count) do |ri|
-      "(#{Array.new(ncols) { |ci| bind(ri * ncols + ci) }.join(', ')})"
+      "(#{Array.new(ncols) { |ci| bind((ri * ncols) + ci) }.join(', ')})"
     end
     head = "INSERT INTO #{qi(table)} (#{cols.map { |c| qi(c) }.join(', ')}) VALUES #{tuples.join(', ')}"
     if @engine == 'postgresql'
@@ -189,12 +189,12 @@ class Jabvox::ExternalExport::WriteAdapter
   # Runs the SSRF guard and connects to a VALIDATED IP (not the raw hostname), so
   # DNS rebinding between the check and the connect can't redirect us to an
   # internal address. The hostname is still passed for TLS certificate/SNI.
-  def with_client
+  def with_client(&)
     validated_ips = Jabvox::ExternalExport.guard!(@target)
     safe_ip = validated_ips.first
     case @engine
-    when 'postgresql' then with_pg(safe_ip) { |c| yield c }
-    when 'mysql', 'mariadb' then with_mysql(safe_ip) { |c| yield c }
+    when 'postgresql' then with_pg(safe_ip, &)
+    when 'mysql', 'mariadb' then with_mysql(safe_ip, &)
     else raise ConnectionError, "Motor no soportado: #{@engine}"
     end
   end
@@ -212,7 +212,11 @@ class Jabvox::ExternalExport::WriteAdapter
     params[:hostaddr] = safe_ip if safe_ip.present?
     conn = PG.connect(**params)
     # Cap server-side statement time so a remote lock can't hang the worker.
-    conn.exec("SET statement_timeout = #{timeout_s * 1000}") rescue nil
+    begin
+      conn.exec("SET statement_timeout = #{timeout_s * 1000}")
+    rescue StandardError
+      nil
+    end
     yield conn
   rescue PG::Error => e
     raise ConnectionError, e.message

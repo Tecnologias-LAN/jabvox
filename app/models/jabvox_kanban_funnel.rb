@@ -2,22 +2,24 @@
 #
 # Table name: jabvox_kanban_funnels
 #
-#  id                       :bigint           not null, primary key
-#  active_jabvox            :boolean          default(TRUE), not null
-#  description_jabvox       :text
-#  include_own_leads_jabvox :boolean          default(FALSE), not null
-#  name_jabvox              :string           not null
-#  position_jabvox          :integer          default(0), not null
-#  created_at               :datetime         not null
-#  updated_at               :datetime         not null
-#  account_id               :bigint           not null
-#  created_by_id            :bigint
+#  id                          :bigint           not null, primary key
+#  active_jabvox               :boolean          default(TRUE), not null
+#  description_jabvox          :text
+#  include_own_contacts_jabvox :boolean          default(FALSE), not null
+#  lifecycle_stages_jabvox     :string           default([]), not null, is an Array
+#  name_jabvox                 :string           not null
+#  position_jabvox             :integer          default(0), not null
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  account_id                  :bigint           not null
+#  created_by_id               :bigint
 #
 # Indexes
 #
 #  index_jabvox_kanban_funnels_on_account_id                  (account_id)
 #  index_jabvox_kanban_funnels_on_account_id_and_name_jabvox  (account_id,name_jabvox) UNIQUE
 #  index_jabvox_kanban_funnels_on_created_by_id               (created_by_id)
+#  index_jabvox_kanban_funnels_on_lifecycle_stages_jabvox     (lifecycle_stages_jabvox) USING gin
 #
 # Foreign Keys
 #

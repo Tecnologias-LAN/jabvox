@@ -11,7 +11,7 @@ import {
   dialerCallLogsAPI,
 } from 'dashboard/api/jabvox/dialer';
 import { typificationsAPI } from 'dashboard/api/jabvox/clickToCall';
-import leadsAPI from 'dashboard/api/jabvox/leads';
+import contactDetailAPI from 'dashboard/api/jabvox/contactDetail';
 import messageAPI from 'dashboard/api/inbox/message';
 import DialerWrapupForm from 'dashboard/routes/dashboard/jabvox-dialer/components/DialerWrapupForm.vue';
 import { useDialerLiveSession } from 'dashboard/composables/jabvox/useDialerLiveSession';
@@ -166,12 +166,13 @@ const loadLeadCustomFields = async contactId => {
   if (!contactId) return;
   loadingLeadFields.value = true;
   try {
-    const { data } = await leadsAPI.forContact(contactId);
+    // El detalle del contacto trae las definiciones de campos personalizados y sus valores.
+    const { data } = await contactDetailAPI.show(contactId);
     const defs = data.custom_field_defs || [];
-    const values = data.fields || {};
+    const values = data.contact?.custom_fields || {};
     leadCustomFields.value = defs.map(d => ({
       label: d.label || d.key,
-      value: values[`custom:${d.key}`] || '',
+      value: values[d.key] || '',
     }));
   } catch {
     leadCustomFields.value = [];
@@ -1227,7 +1228,7 @@ const setDialerState = async state => {
                 {{ t('JABVOX_DIALER.CALL.CUSTOM_TABLES') }}
               </h3>
               <JabvoxLeadTableRows
-                :lead-id="(activeCall || lastCall).lead_id"
+                :contact-id="(activeCall || lastCall).contact_id"
               />
             </div>
 

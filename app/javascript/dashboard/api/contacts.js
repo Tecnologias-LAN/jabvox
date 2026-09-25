@@ -1,8 +1,13 @@
 /* global axios */
 import ApiClient from './ApiClient';
 
-export const buildContactParams = (page, sortAttr, label, search) => {
+export const buildContactParams = (page, sortAttr, label, search, perPage) => {
   let params = `include_contact_inboxes=false&page=${page}&sort=${sortAttr}`;
+  // El tamaño de página lo elige el usuario en el pie de la lista; el backend lo valida
+  // contra su lista de valores permitidos.
+  if (perPage) {
+    params = `${params}&per_page=${perPage}`;
+  }
   if (search) {
     params = `${params}&q=${search}`;
   }
@@ -17,12 +22,13 @@ class ContactAPI extends ApiClient {
     super('contacts', { accountScoped: true });
   }
 
-  get(page, sortAttr = 'name', label = '') {
+  get(page, sortAttr = 'name', label = '', perPage = null) {
     let requestURL = `${this.url}?${buildContactParams(
       page,
       sortAttr,
       label,
-      ''
+      '',
+      perPage
     )}`;
     return axios.get(requestURL);
   }

@@ -14,7 +14,6 @@
 #  account_id      :bigint           not null
 #  contact_id      :bigint
 #  conversation_id :bigint
-#  jabvox_lead_id  :bigint
 #  typification_id :bigint
 #  user_id         :bigint           not null
 #
@@ -23,7 +22,6 @@
 #  index_jabvox_call_logs_on_account_id       (account_id)
 #  index_jabvox_call_logs_on_contact_id       (contact_id)
 #  index_jabvox_call_logs_on_conversation_id  (conversation_id)
-#  index_jabvox_call_logs_on_jabvox_lead_id   (jabvox_lead_id)
 #  index_jabvox_call_logs_on_typification_id  (typification_id)
 #  index_jabvox_call_logs_on_uniqueid         (uniqueid)
 #  index_jabvox_call_logs_on_user_id          (user_id)
@@ -33,7 +31,6 @@
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (contact_id => contacts.id)
 #  fk_rails_...  (conversation_id => conversations.id)
-#  fk_rails_...  (jabvox_lead_id => jabvox_leads.id)
 #  fk_rails_...  (typification_id => jabvox_typifications.id)
 #  fk_rails_...  (user_id => users.id)
 #

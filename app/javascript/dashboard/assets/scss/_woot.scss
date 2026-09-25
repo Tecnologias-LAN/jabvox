@@ -46,6 +46,12 @@ body {
   width: 100%;
 }
 
+// Fondo EXTERIOR del panel flotante (ver .jv-app en Dashboard.vue): visible
+// solo en los margenes que deja la tarjeta principal, arriba/izquierda/derecha.
+body {
+  background: var(--jv-page-bg, #e9ebee);
+}
+
 .tooltip {
   @apply bg-n-solid-2 text-n-slate-12 py-1 px-2 z-40 text-xs rounded-md max-w-96;
 }

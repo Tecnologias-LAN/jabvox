@@ -1,20 +1,20 @@
 class Api::V1::Accounts::Jabvox::CustomTableRowsController < Api::V1::Accounts::BaseController
   before_action :check_customization_enabled
-  before_action :set_lead
+  before_action :set_owner
 
-  # GET /jabvox/leads/:lead_id/custom_table_rows
+  # GET .../custom_table_rows
   # Returns the MULTI-row tables (Asesorías, Casos…) with their columns and this
-  # lead's rows. The single "Leads" system table is edited via the inline
+  # record's rows. The single system table is edited via the inline
   # custom_fields endpoint, so it's excluded here.
   def index
-    tables = Current.account.jabvox_custom_tables.multi_for_leads.ordered.includes(:jabvox_custom_columns)
-    rows_by_table = @lead.jabvox_custom_table_rows.group_by(&:jabvox_custom_table_id)
+    tables = Current.account.jabvox_custom_tables.multi_for_contacts.ordered.includes(:jabvox_custom_columns)
+    rows_by_table = @owner.jabvox_custom_table_rows.group_by(&:jabvox_custom_table_id)
 
     render json: tables.map { |table| table_payload(table, rows_by_table[table.id] || []) }
   end
 
-  # POST /jabvox/leads/:lead_id/custom_table_rows/:id  (id = table id)
-  # Adds a NEW row to a multi-kind table (e.g. a new asesoría/caso for the lead).
+  # POST .../custom_table_rows/:id  (id = table id)
+  # Adds a NEW row to a multi-kind table (e.g. a new asesoría/caso).
   def create
     table = find_table
     return render_single_table_error unless table.multi?
@@ -22,7 +22,7 @@ class Api::V1::Accounts::Jabvox::CustomTableRowsController < Api::V1::Accounts::
     result = Jabvox::CustomRowDataSanitizer.new(table, row_params).call
     return render json: { errors: result.errors }, status: :unprocessable_entity unless result.valid?
 
-    row = @lead.jabvox_custom_table_rows.create!(jabvox_custom_table: table, data_jabvox: result.data)
+    row = @owner.jabvox_custom_table_rows.create!(jabvox_custom_table: table, data_jabvox: result.data)
     render json: row_json(row), status: :created
   end
 
@@ -45,13 +45,13 @@ class Api::V1::Accounts::Jabvox::CustomTableRowsController < Api::V1::Accounts::
     render json: row_json(row)
   end
 
-  # DELETE /jabvox/leads/:lead_id/custom_table_rows/:id?row_id=  (id = table id)
+  # DELETE .../custom_table_rows/:id?row_id=  (id = table id)
   # Removes one row from a multi-kind table.
   def destroy
     table = find_table
     return render_single_table_error unless table.multi?
 
-    row = @lead.jabvox_custom_table_rows.find_by!(jabvox_custom_table_id: table.id, id: params[:row_id])
+    row = @owner.jabvox_custom_table_rows.find_by!(jabvox_custom_table_id: table.id, id: params[:row_id])
     row.destroy!
     head :no_content
   end
@@ -95,9 +95,9 @@ class Api::V1::Accounts::Jabvox::CustomTableRowsController < Api::V1::Accounts::
   # For single tables, upsert the one row; for multi, edit the row named by row_id.
   def target_row(table)
     if table.multi?
-      @lead.jabvox_custom_table_rows.find_by!(jabvox_custom_table_id: table.id, id: params[:row_id])
+      @owner.jabvox_custom_table_rows.find_by!(jabvox_custom_table_id: table.id, id: params[:row_id])
     else
-      @lead.jabvox_custom_table_rows.find_or_initialize_by(jabvox_custom_table: table)
+      @owner.jabvox_custom_table_rows.find_or_initialize_by(jabvox_custom_table: table)
     end
   end
 
@@ -125,8 +125,10 @@ class Api::V1::Accounts::Jabvox::CustomTableRowsController < Api::V1::Accounts::
     render json: { error: 'Customization module not enabled' }, status: :forbidden
   end
 
-  def set_lead
-    @lead = Current.account.jabvox_leads.find(params[:lead_id])
+  # Las filas cuelgan del contacto. `lead_id` se sigue aceptando como alias de `contact_id`
+  # para las rutas antiguas que aún lo envíen.
+  def set_owner
+    @owner = Current.account.contacts.find(params[:contact_id].presence || params[:lead_id])
   end
 
   def row_params
