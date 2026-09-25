@@ -97,10 +97,35 @@ const stageOptions = computed(() =>
 const hasJabvoxChanges = computed(() => {
   if (stage.value !== props.lifecycleStage) return true;
   if (assigneeId.value !== (props.assignee?.id ?? '')) return true;
-  return props.customFieldDefs.some(
-    def => (fields.value[def.key] ?? '') !== (props.customFields[def.key] ?? '')
-  );
+  // Un multiselect guarda una lista: comparar por referencia siempre daría "cambió".
+  return props.customFieldDefs.some(def => {
+    const actual = fields.value[def.key] ?? '';
+    const original = props.customFields[def.key] ?? '';
+    if (Array.isArray(actual) || Array.isArray(original)) {
+      return JSON.stringify(actual) !== JSON.stringify(original);
+    }
+    return String(actual) !== String(original);
+  });
 });
+
+// Un multiselect guarda una lista; el resto, un valor suelto.
+const isChecked = (key, option) => {
+  const value = fields.value[key];
+  return Array.isArray(value) ? value.includes(option) : false;
+};
+
+const toggleMulti = (key, option) => {
+  const current = Array.isArray(fields.value[key])
+    ? [...fields.value[key]]
+    : [];
+  const idx = current.indexOf(option);
+  if (idx === -1) current.push(option);
+  else current.splice(idx, 1);
+  fields.value = { ...fields.value, [key]: current };
+};
+
+const fieldClass =
+  'w-full h-8 rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 px-2';
 
 const handleFormUpdate = updated => {
   Object.assign(contactData.value, updated);
@@ -263,10 +288,14 @@ const handleAvatarDelete = async () => {
               class="flex flex-col w-full gap-1"
             >
               <label class="text-xs text-n-slate-11">{{ def.label }}</label>
+
+              <!-- Cada tipo de columna con su control: una fecha se elige en un
+                   calendario, un sí/no con un desplegable y una lista con sus opciones.
+                   Antes todos salían como texto salvo un tipo "number" inexistente. -->
               <select
-                v-if="def.options?.length"
+                v-if="def.column_type === 'select'"
                 v-model="fields[def.key]"
-                class="w-full h-8 rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 px-2"
+                :class="fieldClass"
               >
                 <option value="">
                   {{ t('JABVOX_CONTACTS.DETAIL.CUSTOM_FIELD_NONE') }}
@@ -275,11 +304,77 @@ const handleAvatarDelete = async () => {
                   {{ o }}
                 </option>
               </select>
+
+              <div
+                v-else-if="def.column_type === 'multiselect'"
+                class="flex flex-wrap gap-2"
+              >
+                <label
+                  v-for="o in def.options"
+                  :key="o"
+                  class="flex items-center gap-1.5 text-sm text-n-slate-12 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    class="rounded accent-n-brand"
+                    :checked="isChecked(def.key, o)"
+                    @change="toggleMulti(def.key, o)"
+                  />
+                  {{ o }}
+                </label>
+              </div>
+
+              <select
+                v-else-if="def.column_type === 'boolean'"
+                v-model="fields[def.key]"
+                :class="fieldClass"
+              >
+                <option value="">
+                  {{ t('JABVOX_CONTACTS.DETAIL.CUSTOM_FIELD_NONE') }}
+                </option>
+                <option value="true">
+                  {{ t('JABVOX_CONTACTS.DETAIL.CUSTOM_FIELD_YES') }}
+                </option>
+                <option value="false">
+                  {{ t('JABVOX_CONTACTS.DETAIL.CUSTOM_FIELD_NO') }}
+                </option>
+              </select>
+
+              <input
+                v-else-if="def.column_type === 'date'"
+                v-model="fields[def.key]"
+                type="date"
+                :class="fieldClass"
+              />
+
+              <input
+                v-else-if="def.column_type === 'integer'"
+                v-model="fields[def.key]"
+                type="number"
+                step="1"
+                :class="fieldClass"
+              />
+
+              <input
+                v-else-if="def.column_type === 'float'"
+                v-model="fields[def.key]"
+                type="number"
+                step="any"
+                :class="fieldClass"
+              />
+
+              <textarea
+                v-else-if="def.column_type === 'textarea'"
+                v-model="fields[def.key]"
+                rows="3"
+                class="w-full rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 px-2 py-1.5 resize-y"
+              />
+
               <input
                 v-else
                 v-model="fields[def.key]"
-                :type="def.column_type === 'number' ? 'number' : 'text'"
-                class="w-full h-8 rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 px-2"
+                type="text"
+                :class="fieldClass"
               />
             </div>
           </div>

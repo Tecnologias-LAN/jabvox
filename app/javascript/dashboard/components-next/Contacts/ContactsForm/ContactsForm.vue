@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { required, email } from '@vuelidate/validators';
 import { useVuelidate } from '@vuelidate/core';
@@ -51,8 +51,20 @@ const loadCampaigns = async () => {
   }
 };
 
+// Se lanza al crear el componente, no en onMounted, porque el watch de abajo es
+// `immediate` y necesita saber si el módulo está activo antes de pedir nada.
+const campaignsLoaded = loadCampaigns();
+
 // Campaña actual del contacto, para preseleccionarla en el desplegable.
+//
+// Solo se pide si la cuenta tiene el módulo de campañas: sin él no hay desplegable que
+// preseleccionar, así que la petición no aportaría nada. Se espera a `loadCampaigns`
+// porque el watch de abajo es `immediate` y corre antes del onMounted; sin esperar, esto
+// salía disparado en cada tarjeta de la lista aunque el módulo estuviera apagado.
 const loadLeadCampaign = async contactId => {
+  await campaignsLoaded;
+  if (!leadsModuleEnabled.value) return;
+
   try {
     const { data } = await contactDetailAPI.show(contactId);
     currentCampaignName.value = data?.contact?.campaign?.name || '';
@@ -307,8 +319,6 @@ const resetValidation = () => {
 const resetForm = () => {
   Object.assign(state, defaultState);
 };
-
-onMounted(loadCampaigns);
 
 watch(
   () => props.contactData?.id,

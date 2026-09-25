@@ -803,6 +803,11 @@ Rails.application.routes.draw do
                 get :status
                 post :provision
                 post :stream
+                # El controlador ya servía estas tres, pero no estaban enrutadas: el chat
+                # pedía la lista de conversaciones y los modelos y recibía 404.
+                get :sessions
+                get :model_options
+                delete :destroy_session
               end
             end
             # Estado del Consumer (Chat IA) + sync de modelos con el Hermes de la cuenta.

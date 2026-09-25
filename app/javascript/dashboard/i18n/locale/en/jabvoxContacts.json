@@ -110,6 +110,8 @@
       },
       "CUSTOM_FIELDS": "Custom fields",
       "CUSTOM_FIELD_NONE": "No value",
+      "CUSTOM_FIELD_YES": "Yes",
+      "CUSTOM_FIELD_NO": "No",
       "SAVE_JABVOX": "Save Jabvox fields",
       "UNASSIGNED": "Unassigned"
     },

@@ -29,13 +29,16 @@ class Api::V1::Accounts::Jabvox::SmsCampaignsController < Api::V1::Accounts::Jab
     head :no_content
   end
 
+  # Cuántos contactos alcanzaría la campaña con los filtros actuales, y de ésos cuántos
+  # tienen teléfono (los únicos a los que se les puede mandar un SMS).
+  #
+  # El teléfono está en el propio contacto. Antes esto hacía `joins(:contact)` porque
+  # filtraba leads, y cada lead colgaba de un contacto; al pasar a contactos esa asociación
+  # dejó de existir y la consulta reventaba con 500.
   def lead_count
-    leads = filter_leads(params)
-    total = leads.count
-    with_phone = leads.joins(:contact)
-                      .where.not(contacts: { phone_number: [nil, ''] })
-                      .count
-    render json: { total_count: total, with_phone_count: with_phone }
+    contacts = filter_contacts(params)
+    render json: { total_count: contacts.count,
+                   with_phone_count: contacts.where.not(phone_number: [nil, '']).count }
   end
 
   def send_bulk
@@ -85,24 +88,34 @@ class Api::V1::Accounts::Jabvox::SmsCampaignsController < Api::V1::Accounts::Jab
     )
   end
 
-  def filter_leads(filter_params) # rubocop:disable Metrics/MethodLength
-    leads = Current.account.contacts
+  # Los tres filtros del formulario de campaña, cada uno opcional: campaña comercial,
+  # afiliados y bandejas. Un filtro ausente no restringe nada.
+  def filter_contacts(filter_params)
+    contacts = Current.account.contacts
+    contacts = by_campaign(contacts, filter_params[:jabvox_campaign_id])
+    contacts = by_affiliates(contacts, filter_params[:affiliate_ids])
+    by_inboxes(contacts, filter_params[:inbox_ids])
+  end
 
-    jabvox_cid = filter_params[:jabvox_campaign_id].presence
-    leads = leads.where(jabvox_campaign_id: jabvox_cid.to_i) if jabvox_cid
+  def by_campaign(scope, campaign_id)
+    campaign_id.presence ? scope.where(jabvox_campaign_id: campaign_id.to_i) : scope
+  end
 
-    affiliate_ids = Array(filter_params[:affiliate_ids]).compact.map(&:to_i).select(&:positive?)
-    leads = leads.where(jabvox_affiliate_id: affiliate_ids) if affiliate_ids.any?
+  def by_affiliates(scope, affiliate_ids)
+    ids = positive_ids(affiliate_ids)
+    ids.any? ? scope.where(jabvox_affiliate_id: ids) : scope
+  end
 
-    inbox_ids = Array(filter_params[:inbox_ids]).compact.map(&:to_i).select(&:positive?)
-    if inbox_ids.any?
-      contact_ids_in_inboxes = Current.account.conversations
-                                      .where(inbox_id: inbox_ids)
-                                      .select(:contact_id)
-      leads = leads.where(id: contact_ids_in_inboxes)
-    end
+  # Contactos que tienen al menos una conversación en alguna de las bandejas elegidas.
+  def by_inboxes(scope, inbox_ids)
+    ids = positive_ids(inbox_ids)
+    return scope if ids.empty?
 
-    leads
+    scope.where(id: Current.account.conversations.where(inbox_id: ids).select(:contact_id))
+  end
+
+  def positive_ids(values)
+    Array(values).compact.map(&:to_i).select(&:positive?)
   end
 
   def resolve_contacts(campaign)
@@ -111,7 +124,7 @@ class Api::V1::Accounts::Jabvox::SmsCampaignsController < Api::V1::Accounts::Jab
                   campaign.affiliate_ids_sms.any?
 
     if has_filters
-      filter_leads(
+      filter_contacts(
         jabvox_campaign_id: campaign.jabvox_campaign_id,
         affiliate_ids: campaign.affiliate_ids_sms,
         inbox_ids: campaign.inbox_ids_sms

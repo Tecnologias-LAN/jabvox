@@ -47,6 +47,8 @@ class Api::V1::Accounts::Jabvox::ContactDetailController < Api::V1::Accounts::Ja
     contact.advance_lifecycle!(params[:lifecycle_stage], by: Current.user) if lifecycle_change?(contact)
     contact.update!(custom_fields_jabvox: merged_custom_fields(contact), **assignee_change)
     render json: { contact: contact_view(contact.reload) }
+  rescue Jabvox::CustomFieldsCoercion::Error => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   # Nueva gestión desde la ficha. Se guarda como nota del contacto —no como mensaje— porque
@@ -83,21 +85,12 @@ class Api::V1::Accounts::Jabvox::ContactDetailController < Api::V1::Accounts::Ja
       Jabvox::ContactLifecycle::LIFECYCLE_STAGES.include?(stage)
   end
 
-  # Solo se aceptan las claves que la cuenta tiene configuradas como campo personalizado:
-  # así el cliente no puede inyectar claves arbitrarias en el jsonb. El resto de lo que ya
-  # había (historial del ciclo de vida, por ejemplo) se conserva.
+  # La conversión por tipo vive en su propio objeto: es lógica de dominio (qué es una fecha
+  # válida, qué opciones admite un select), no de transporte.
   def merged_custom_fields(contact)
-    current = contact.custom_fields_jabvox || {}
-    incoming = params[:custom_fields]
-    return current if incoming.blank?
-
-    incoming = incoming.to_unsafe_h if incoming.respond_to?(:to_unsafe_h)
-    allowed = custom_field_defs.pluck(:key)
-    current.merge(incoming.to_h.slice(*allowed).transform_values { |v| clamp_field(v) })
-  end
-
-  def clamp_field(value)
-    value.is_a?(String) ? value.first(2000) : value
+    Jabvox::CustomFieldsCoercion
+      .new(Current.account)
+      .merge_into(contact.custom_fields_jabvox, params[:custom_fields])
   end
 
   def management_content

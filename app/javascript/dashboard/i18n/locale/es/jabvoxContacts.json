@@ -110,6 +110,8 @@
       },
       "CUSTOM_FIELDS": "Campos personalizados",
       "CUSTOM_FIELD_NONE": "Sin valor",
+      "CUSTOM_FIELD_YES": "Sí",
+      "CUSTOM_FIELD_NO": "No",
       "SAVE_JABVOX": "Guardar campos Jabvox",
       "UNASSIGNED": "Sin asignar"
     },
