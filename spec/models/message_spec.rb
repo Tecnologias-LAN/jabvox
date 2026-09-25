@@ -152,6 +152,22 @@ RSpec.describe Message do
     it 'returns push event payload' do
       expect(push_event_data).to eq(expected_data)
     end
+
+    # `contact_inbox` es obligatorio en el modelo pero la columna admite NULL: al borrar una
+    # bandeja, contact_inboxes y conversations se destruyen en jobs distintos
+    # (`destroy_async`), así que una conversación puede quedar apuntando a un contact_inbox
+    # ya borrado. Sin protección esto tumbaba con un 500 la lista ENTERA de conversaciones,
+    # no solo la fila rota, porque el serializador las recorre todas.
+    context 'when the conversation lost its contact inbox' do
+      # update_column a propósito: la validación impide justo el estado que hay que
+      # reproducir, que es el que la base de datos sí permite.
+      before { message.conversation.update_column(:contact_inbox_id, nil) } # rubocop:disable Rails/SkipsModelValidations
+
+      it 'does not raise and reports a null source_id' do
+        expect { message.reload.push_event_data }.not_to raise_error
+        expect(message.reload.push_event_data[:conversation][:contact_inbox]).to eq(source_id: nil)
+      end
+    end
   end
 
   describe 'message create event' do

@@ -160,12 +160,20 @@ class Message < ApplicationRecord
     merge_sender_attributes(data)
   end
 
+  # `contact_inbox` es obligatorio en el modelo pero la columna admite NULL, así que una
+  # conversación puede quedar apuntando a un contact_inbox que ya no existe. Pasó de verdad:
+  # al migrar un WhatsApp de Evolution a la API oficial y borrar la bandeja vieja, sus
+  # contact_inboxes se fueron con ella y 4.064 conversaciones quedaron colgando.
+  #
+  # Sin el `&.` eso tumbaba con un 500 la lista ENTERA de conversaciones —no solo la fila
+  # rota— porque el serializador las recorre todas y una excepción aborta la respuesta
+  # completa. La vista ya trata este caso así para `hmac_verified`.
   def conversation_push_event_data
     {
       assignee_id: conversation.assignee_id,
       unread_count: conversation.unread_incoming_messages.count,
       last_activity_at: conversation.last_activity_at.to_i,
-      contact_inbox: { source_id: conversation.contact_inbox.source_id }
+      contact_inbox: { source_id: conversation.contact_inbox&.source_id }
     }
   end
 
