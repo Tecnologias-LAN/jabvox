@@ -40,6 +40,10 @@ const isDone = computed(() => props.task.statusJabvox === 'done');
 // Number of active recurring automations on this task (shown as a small badge).
 const automationsCount = computed(() => props.task.activeAutomationsCount || 0);
 
+// Una tarea repetitiva se marca en la tarjeta: al completarla nace la siguiente, y eso
+// conviene saberlo antes de cerrarla.
+const isRecurring = computed(() => Boolean(props.task.recurrenceUnitJabvox));
+
 // Responsibles to show on the card: prefer the multi-assignee list, fall back to legacy single.
 const assigneeNames = computed(() => {
   const list = props.task.assignees;
@@ -115,6 +119,13 @@ const onDragStart = event => {
       >
         <span class="i-lucide-zap size-4 scale-75" aria-hidden="true" />
         {{ automationsCount }}
+      </span>
+      <span
+        v-if="isRecurring"
+        class="inline-flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 bg-n-teal-3 text-n-teal-11"
+        :title="t('JABVOX_TASKS.RECURRENCE.BADGE')"
+      >
+        <span class="i-lucide-repeat size-4 scale-75" aria-hidden="true" />
       </span>
     </div>
   </div>

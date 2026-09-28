@@ -8,15 +8,23 @@ class Jabvox::TaskTimeAutomationsService
       .where(automation_type_jabvox: %w[move_after_hours move_if_inactive])
       .where.not(target_stage_id: nil)
       .where.not(trigger_hours_jabvox: nil)
+      .includes(:account, :target_stage)
       .find_each { |auto| process(auto) }
   end
 
   private
 
   def process(auto)
+    # La cuenta no se da por supuesta a partir de la etapa: se filtra explícitamente. Así,
+    # aunque una automatización antigua apunte a una etapa de otra cuenta, no puede arrastrar
+    # tareas ajenas. La validación del modelo impide crear nuevas así; esto cubre las ya
+    # guardadas.
+    return unless auto.account&.feature_enabled?('jabvox_tasks')
+    return unless auto.target_stage&.account_id == auto.account_id
+
     cutoff = auto.trigger_hours_jabvox.to_i.hours.ago
     JabvoxTask
-      .where(stage_id: auto.stage_id, status_jabvox: 'open')
+      .where(account_id: auto.account_id, stage_id: auto.stage_id, status_jabvox: 'open')
       .where(updated_at: ..cutoff)
       .find_each do |task|
       task.update!(stage_id: auto.target_stage_id)

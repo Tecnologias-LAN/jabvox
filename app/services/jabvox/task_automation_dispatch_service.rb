@@ -15,7 +15,10 @@ class Jabvox::TaskAutomationDispatchService
     @automation = automation
     @account = automation.account
     @task = automation.task
-    @lead = @task.jabvox_lead
+    # Tras retirar Leads el contacto cuelga directamente de la tarea. Se conserva el
+    # nombre `lead` en los destinatarios y en las plantillas porque es lo que ya tienen
+    # guardado las automatizaciones existentes.
+    @lead = @task.contact
   end
 
   # Sends to every resolved recipient and returns the created run.
@@ -65,7 +68,7 @@ class Jabvox::TaskAutomationDispatchService
   end
 
   def lead_recipients
-    contact = @lead&.contact
+    contact = @lead
     return [] unless contact
 
     [Recipient.new(label: contact.name, email: contact.email,
@@ -168,7 +171,7 @@ class Jabvox::TaskAutomationDispatchService
       'task_title' => @task.title_jabvox.to_s,
       'board_name' => @task.board&.name_jabvox.to_s,
       'stage_name' => @task.stage&.name_jabvox.to_s,
-      'lead_name' => @lead&.contact&.name.to_s
+      'lead_name' => @lead&.name.to_s
     }
     Liquid::Template.parse(text).render(vars)
   rescue Liquid::Error

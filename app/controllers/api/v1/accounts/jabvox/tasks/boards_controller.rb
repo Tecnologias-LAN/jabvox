@@ -2,6 +2,9 @@ class Api::V1::Accounts::Jabvox::Tasks::BoardsController < Api::V1::Accounts::Ja
   before_action :set_board, only: %i[show update destroy]
   # Managing boards is custom-role gated; standard agents keep historical behavior, admins pass.
   before_action -> { jabvox_gate!('jabvox_tasks_manage') }, only: %i[create update destroy]
+  # Borrar solo el administrador: un tablero o una columna arrastran en cascada
+  # todas sus tareas, y eso no se delega en ningún rol.
+  before_action :ensure_admin_for_destroy!, only: %i[destroy]
 
   def index
     render json: scoped.ordered.map { |b| serialize(b) }

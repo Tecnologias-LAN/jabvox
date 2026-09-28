@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { stageClass } from 'dashboard/helper/jabvox/lifecycleStage';
 import { useAlert } from 'dashboard/composables';
 import contactsListAPI from 'dashboard/api/jabvox/contactsList';
 import countries from 'shared/constants/countries.js';
@@ -345,14 +346,8 @@ function cellValue(contact, column) {
   return CELL[column.id]?.(contact, x) ?? '—';
 }
 
-// Etapa: pastilla plana y ancha, no un círculo.
-const STAGE_STYLES = {
-  prospecto: 'bg-n-slate-3 text-n-slate-11 border-n-slate-6',
-  interesado: 'bg-n-amber-3 text-n-amber-11 border-n-amber-6',
-  cliente: 'bg-n-teal-3 text-n-teal-11 border-n-teal-6',
-  inactivo: 'bg-n-alpha-2 text-n-slate-10 border-n-weak',
-};
-const stageClass = stage => STAGE_STYLES[stage] || STAGE_STYLES.prospecto;
+// Etapa: pastilla plana y ancha, no un círculo. Los colores salen del helper compartido
+// para que el detalle del Kanban pinte exactamente la misma pastilla.
 const stageOf = contact => extra(contact).lifecycle_stage || 'prospecto';
 
 async function changeStage(contact, stage) {

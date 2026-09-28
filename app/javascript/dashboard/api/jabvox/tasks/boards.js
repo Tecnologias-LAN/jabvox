@@ -45,6 +45,14 @@ class JabvoxTasksBoardsAPI extends ApiClient {
   destroyStage(boardId, stageId) {
     return axios.delete(`${this.url}/${boardId}/stages/${stageId}`);
   }
+
+  // Nuevo orden de las columnas del tablero. El backend deriva la posición del índice en
+  // la lista, así que aquí solo viajan los ids en el orden deseado.
+  reorderStages(boardId, stageIds) {
+    return axios.post(`${this.url}/${boardId}/stages/reorder`, {
+      stage_ids: stageIds,
+    });
+  }
 }
 
 export default new JabvoxTasksBoardsAPI();

@@ -10,6 +10,7 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import ContactLabels from 'dashboard/components-next/Contacts/ContactLabels/ContactLabels.vue';
 import ContactsForm from 'dashboard/components-next/Contacts/ContactsForm/ContactsForm.vue';
 import contactDetailAPI from 'dashboard/api/jabvox/contactDetail';
+import { stageClass } from 'dashboard/helper/jabvox/lifecycleStage';
 
 // Columna izquierda de la ficha: los datos del contacto en una sola pasada, compacta y con
 // scroll propio.
@@ -238,7 +239,8 @@ const handleAvatarDelete = async () => {
       </label>
       <select
         v-model="stage"
-        class="w-full h-8 rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 px-2"
+        :class="stageClass(stage || 'prospecto')"
+        class="w-full h-8 rounded-lg border text-sm font-medium px-2"
       >
         <option v-for="opt in stageOptions" :key="opt.value" :value="opt.value">
           {{ opt.label }}

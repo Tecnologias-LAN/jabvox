@@ -48,13 +48,15 @@
         "SAVE": "Guardar",
         "CANCEL": "Cancelar"
       },
-      "DELETE": "Eliminar etapa",
-      "DELETE_CONFIRM": "¿Eliminar esta etapa? Primero deben moverse sus tareas.",
+      "DELETE": "Eliminar columna",
+      "DELETE_CONFIRM": "¿Eliminar la columna «{name}»?",
       "AUTOMATIONS": "Automatizaciones",
       "CREATED": "Etapa creada",
       "UPDATED": "Etapa actualizada",
-      "DELETED": "Etapa eliminada",
-      "ERROR": "Algo salió mal con la etapa."
+      "DELETED": "Columna eliminada",
+      "ERROR": "No se pudo eliminar la columna",
+      "DELETE_CONFIRM_WITH_TASKS": "¿Eliminar la columna «{name}»? Se borrarán también sus {count} tareas.",
+      "REORDER_ERROR": "No se pudo reordenar las columnas"
     },
     "TASK": {
       "FORM": {
@@ -109,6 +111,11 @@
       "NOT_FOUND": "Tarea no encontrada.",
       "NO_ASSIGNEES": "Nadie asignado.",
       "HISTORY": {
+        "COMMENT_PLACEHOLDER": "Escribe cómo va la resolución…",
+        "COMMENT_HINT": "Ctrl+Enter para enviar",
+        "COMMENT_SEND": "Comentar",
+        "COMMENT_ERROR": "No se pudo guardar el comentario",
+        "RECURRENCE_CREATED": "se creó la siguiente repetición",
         "TITLE": "Historial",
         "EMPTY": "Aún no hay actividad.",
         "CREATED": "creó la tarea",
@@ -120,8 +127,16 @@
         "DUE_DATE_CHANGED": "actualizó la fecha de vencimiento",
         "LEAD_CHANGED": "cambió el lead de {from} a {to}",
         "ASSIGNEE_ADDED": "agregó a {name} como responsable",
-        "ASSIGNEE_REMOVED": "quitó a {name} como responsable"
-      }
+        "ASSIGNEE_REMOVED": "quitó a {name} como responsable",
+        "STATUS_CHANGED_PREFIX": "cambió el estado de",
+        "STATUS_CHANGED_TO": "a"
+      },
+      "COMMENTS": {
+        "TITLE": "Comentarios de resolución",
+        "EMPTY": "Aún no hay comentarios. Escribe cómo va la resolución."
+      },
+      "REOPEN": "Reabrir",
+      "MARK_DONE": "Marcar completada"
     },
     "AUTOMATION": {
       "TITLE": "Automatizaciones",
@@ -236,9 +251,17 @@
       "CREATED": "Contacto creado",
       "UPDATED": "Contacto actualizado",
       "DELETED": "Contacto eliminado",
-      "ERROR": "Algo salió mal con el contacto."
+      "ERROR": "Algo salió mal con el contacto.",
+      "COLLAPSE": "Ocultar panel"
     },
     "AUTOMATIONS": {
+      "DRAWER_TITLE": "Automatizaciones del tablero",
+      "SHORT": "Automatizaciones",
+      "CLOSE": "Cerrar",
+      "ACTIVE_COUNT": "{count} activas en total",
+      "STAGE_SUMMARY": "{active} activas de {total}",
+      "STAGE_NONE": "Sin automatizaciones",
+      "NO_STAGES": "Este tablero aún no tiene columnas.",
       "TITLE": "Automatizaciones de etapa",
       "SUBTITLE": "Ejecuta una acción cuando las tareas entran a esta etapa.",
       "EMPTY": "Aún no hay automatizaciones para esta etapa.",
@@ -272,8 +295,7 @@
       "CREATED": "Automatización creada",
       "UPDATED": "Automatización actualizada",
       "DELETED": "Automatización eliminada",
-      "ERROR": "Algo salió mal con la automatización.",
-      "CLOSE": "Cerrar"
+      "ERROR": "Algo salió mal con la automatización."
     },
     "CALENDAR": {
       "PREV": "Mes anterior",
@@ -285,6 +307,30 @@
     "EMPTY_STATE": {
       "TITLE": "Aún no hay nada aquí",
       "BODY": "No hay nada que mostrar."
+    },
+    "STAGE_ROLE": {
+      "initial": "Inicial",
+      "done": "Completada",
+      "inactive": "Inactiva",
+      "LABEL": "Papel de la columna",
+      "NONE": "Columna normal",
+      "HELP": "Marca qué columna recibe las tareas nuevas, cuál es la de completadas y cuál la de inactivas."
+    },
+    "RECURRENCE": {
+      "LABEL": "Se repite",
+      "NONE": "No se repite",
+      "day": "Cada día",
+      "week": "Cada semana",
+      "month": "Cada mes",
+      "year": "Cada año",
+      "EVERY": "Cada {count} {unit}",
+      "UNTIL": "Hasta",
+      "HELP": "Al completarla se crea la siguiente con la fecha desplazada.",
+      "BADGE": "Repetitiva"
+    },
+    "COMMON": {
+      "DELETE": "Eliminar",
+      "CANCEL": "Cancelar"
     }
   }
 }

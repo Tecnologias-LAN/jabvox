@@ -52,13 +52,15 @@
         "SAVE": "Save",
         "CANCEL": "Cancel"
       },
-      "DELETE": "Delete stage",
-      "DELETE_CONFIRM": "Delete this stage? Its tasks must be moved first.",
+      "DELETE": "Delete column",
+      "DELETE_CONFIRM": "Delete the column “{name}”?",
       "AUTOMATIONS": "Automations",
       "CREATED": "Stage created",
       "UPDATED": "Stage updated",
-      "DELETED": "Stage deleted",
-      "ERROR": "Something went wrong with the stage."
+      "DELETED": "Column deleted",
+      "ERROR": "Could not delete the column",
+      "DELETE_CONFIRM_WITH_TASKS": "Delete the column “{name}”? Its {count} tasks will be deleted too.",
+      "REORDER_ERROR": "Could not reorder the columns"
     },
     "TASK": {
       "FORM": {
@@ -113,6 +115,11 @@
       "NOT_FOUND": "Task not found.",
       "NO_ASSIGNEES": "No one assigned.",
       "HISTORY": {
+        "COMMENT_PLACEHOLDER": "Write how the resolution is going…",
+        "COMMENT_HINT": "Ctrl+Enter to send",
+        "COMMENT_SEND": "Comment",
+        "COMMENT_ERROR": "Could not save the comment",
+        "RECURRENCE_CREATED": "created the next occurrence",
         "TITLE": "History",
         "EMPTY": "No activity yet.",
         "CREATED": "created the task",
@@ -124,8 +131,16 @@
         "DUE_DATE_CHANGED": "updated the due date",
         "LEAD_CHANGED": "changed the lead from {from} to {to}",
         "ASSIGNEE_ADDED": "added {name} as assignee",
-        "ASSIGNEE_REMOVED": "removed {name} as assignee"
-      }
+        "ASSIGNEE_REMOVED": "removed {name} as assignee",
+        "STATUS_CHANGED_PREFIX": "changed the status from",
+        "STATUS_CHANGED_TO": "to"
+      },
+      "COMMENTS": {
+        "TITLE": "Resolution comments",
+        "EMPTY": "No comments yet. Write how the resolution is going."
+      },
+      "REOPEN": "Reopen",
+      "MARK_DONE": "Mark as done"
     },
     "AUTOMATION": {
       "TITLE": "Automations",
@@ -240,9 +255,17 @@
       "CREATED": "Contact created",
       "UPDATED": "Contact updated",
       "DELETED": "Contact deleted",
-      "ERROR": "Something went wrong with the contact."
+      "ERROR": "Something went wrong with the contact.",
+      "COLLAPSE": "Hide panel"
     },
     "AUTOMATIONS": {
+      "DRAWER_TITLE": "Board automations",
+      "SHORT": "Automations",
+      "CLOSE": "Close",
+      "ACTIVE_COUNT": "{count} active in total",
+      "STAGE_SUMMARY": "{active} active of {total}",
+      "STAGE_NONE": "No automations",
+      "NO_STAGES": "This board has no columns yet.",
       "TITLE": "Stage automations",
       "SUBTITLE": "Run an action when tasks enter this stage.",
       "EMPTY": "No automations for this stage yet.",
@@ -276,8 +299,7 @@
       "CREATED": "Automation created",
       "UPDATED": "Automation updated",
       "DELETED": "Automation deleted",
-      "ERROR": "Something went wrong with the automation.",
-      "CLOSE": "Close"
+      "ERROR": "Something went wrong with the automation."
     },
     "CALENDAR": {
       "PREV": "Previous month",
@@ -289,6 +311,26 @@
     "EMPTY_STATE": {
       "TITLE": "Nothing here yet",
       "BODY": "There is nothing to show."
+    },
+    "STAGE_ROLE": {
+      "initial": "Initial",
+      "done": "Done",
+      "inactive": "Inactive",
+      "LABEL": "Column role",
+      "NONE": "Regular column",
+      "HELP": "Mark which column receives new tasks, which is the done one and which is the inactive one."
+    },
+    "RECURRENCE": {
+      "LABEL": "Repeats",
+      "NONE": "Does not repeat",
+      "day": "Every day",
+      "week": "Every week",
+      "month": "Every month",
+      "year": "Every year",
+      "EVERY": "Every {count} {unit}",
+      "UNTIL": "Until",
+      "HELP": "Completing it creates the next one with the date shifted.",
+      "BADGE": "Recurring"
     }
   }
 }

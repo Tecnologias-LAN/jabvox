@@ -890,6 +890,8 @@ Rails.application.routes.draw do
             namespace :tasks do
               resources :boards do
                 resources :stages, only: [:index, :create, :update, :destroy] do
+                  # Reordenar columnas arrastrándolas en el tablero.
+                  collection { post :reorder }
                   resources :automations, only: [:index, :create, :update, :destroy],
                                           controller: 'stage_automations'
                 end
@@ -898,6 +900,8 @@ Rails.application.routes.draw do
                 member do
                   post :move
                   get :activities
+                  # Comentario de resolución: se añade al historial de la tarea.
+                  post :comment
                   get :automation_runs
                 end
                 resources :automations, only: %i[index create update destroy],

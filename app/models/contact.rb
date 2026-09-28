@@ -90,9 +90,22 @@ class Contact < ApplicationRecord
   has_many :jabvox_custom_table_rows, dependent: :delete_all
   # Enlace anti-duplicados con la importación desde base de datos externa (external_id).
   has_many :jabvox_lead_source_records, class_name: 'JabvoxLeadSourceRecord', dependent: :delete_all
+  # Estas tres tienen clave foránea SIN on_delete, así que una fila cualquiera impedía
+  # borrar el contacto con un ForeignKeyViolation. El controlador ya limpiaba calendario y
+  # SMS a mano, pero no llamadas ni formularios de WhatsApp: el borrado fallaba en cuanto
+  # el contacto tenía una llamada registrada. Declararlo aquí lo cubre venga de donde venga
+  # el borrado, no solo desde esa acción del controlador.
+  has_many :jabvox_call_logs, class_name: 'JabvoxCallLog', dependent: :delete_all
+  has_many :jabvox_whatsapp_flow_submissions, class_name: 'JabvoxWhatsappFlowSubmission', dependent: :delete_all
+  has_many :jabvox_calendar_events, class_name: 'JabvoxCalendarEvent', dependent: :delete_all
   before_validation :prepare_contact_attributes
   after_create_commit :dispatch_create_event, :ip_lookup
   after_update_commit :dispatch_update_event
+  # El responsable del contacto arrastra a sus conversaciones ABIERTAS: si el comercial
+  # cambia, quien atiende lo que está vivo cambia con él. Las resueltas se dejan como
+  # están —son historial de quién atendió qué— y va en el modelo, no en el controlador,
+  # para que valga igual desde la ficha que desde la asignación masiva.
+  after_update_commit :sync_assignee_to_open_conversations, if: :saved_change_to_assignee_id?
   after_destroy_commit :dispatch_destroy_event
   before_save :sync_contact_attributes
 
@@ -218,6 +231,13 @@ class Contact < ApplicationRecord
   end
 
   private
+
+  # `update_all` a propósito: puede tocar decenas de conversaciones y cargarlas una a una
+  # para disparar callbacks dejaría la petición colgada. Es un solo campo ya validado.
+  def sync_assignee_to_open_conversations
+    conversations.where(status: :open)
+                 .update_all(assignee_id: assignee_id, updated_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
+  end
 
   def ip_lookup
     return unless account.feature_enabled?('ip_lookup')

@@ -14,6 +14,7 @@ import JabvoxLeadRecordsByContact from 'dashboard/components/widgets/conversatio
 import JabvoxConversationNotes from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationNotes.vue';
 import ContactChatPanel from 'dashboard/components-next/Contacts/Pages/ContactChatPanel.vue';
 import contactDetailAPI from 'dashboard/api/jabvox/contactDetail';
+import { stageClass } from 'dashboard/helper/jabvox/lifecycleStage';
 import contactsListAPI from 'dashboard/api/jabvox/contactsList';
 import JabvoxLeadInfoByContact from 'dashboard/components/widgets/conversation/jabvox/JabvoxLeadInfoByContact.vue';
 
@@ -306,7 +307,8 @@ watch(contactId, id => loadContactConversations(id), { immediate: true });
               v-if="contactId"
               :value="lifecycleStage"
               :disabled="isSavingStage"
-              class="rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-[11px] px-1.5 py-0.5 text-slate-700 dark:text-slate-200 disabled:opacity-50"
+              :class="stageClass(lifecycleStage || 'prospecto')"
+              class="rounded-md border text-[11px] px-1.5 py-0.5 font-medium disabled:opacity-50"
               @change="changeLifecycleStage($event.target.value)"
             >
               <option

@@ -32,10 +32,30 @@ class JabvoxTaskActivity < ApplicationRecord
   self.record_timestamps = false
 
   # Recognized activity kinds. Free-form metadata carries the specifics (from/to, names…).
+  # Tipos reconocidos. El metadata libre lleva los detalles (from/to, nombres, texto...).
+  #
+  # `comment` es el único que escribe una persona: el resto los genera el sistema al
+  # cambiar un campo. Guardar el comentario aquí y no en una tabla aparte hace que la
+  # conversación de resolución y los cambios de la tarea se lean en un mismo hilo, que es
+  # como se sigue un caso.
+  COMMENT = 'comment'.freeze
   ACTIONS = %w[
-    created stage_changed status_changed priority_changed
-    due_date_changed assignee_added assignee_removed lead_changed updated
+    created stage_changed status_changed priority_changed due_date_changed
+    title_changed description_changed assignee_added assignee_removed
+    lead_changed recurrence_created comment
   ].freeze
+
+  MAX_COMMENT_LENGTH = 5000
+
+  scope :comments, -> { where(action_jabvox: COMMENT) }
+
+  def comment?
+    action_jabvox == COMMENT
+  end
+
+  def body
+    metadata_jabvox['body'].to_s
+  end
 
   belongs_to :account
   belongs_to :task, class_name: 'JabvoxTask'

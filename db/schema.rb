@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_24_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -3351,8 +3351,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_130000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "created_by_id"
+    t.string "role_jabvox"
     t.index ["account_id"], name: "index_jabvox_task_stages_on_account_id"
     t.index ["board_id", "position_jabvox"], name: "index_jabvox_task_stages_on_board_id_and_position_jabvox"
+    t.index ["board_id", "role_jabvox"], name: "index_jabvox_task_stages_on_board_and_role", unique: true, where: "(role_jabvox IS NOT NULL)"
     t.index ["board_id"], name: "index_jabvox_task_stages_on_board_id"
     t.index ["created_by_id"], name: "index_jabvox_task_stages_on_created_by_id"
   end
@@ -3391,13 +3393,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_130000) do
     t.datetime "updated_at", null: false
     t.jsonb "due_dates_jabvox", default: [], null: false
     t.bigint "contact_id"
+    t.string "recurrence_unit_jabvox"
+    t.integer "recurrence_count_jabvox", default: 1, null: false
+    t.datetime "recurrence_until_jabvox"
+    t.bigint "recurrence_parent_id"
+    t.datetime "reminder_sent_at_jabvox"
     t.index ["account_id", "board_id"], name: "index_jabvox_tasks_on_account_id_and_board_id"
     t.index ["account_id", "contact_id"], name: "index_jabvox_tasks_on_account_id_and_contact_id"
     t.index ["account_id", "due_at_jabvox"], name: "index_jabvox_tasks_on_account_id_and_due_at_jabvox"
+    t.index ["account_id", "recurrence_unit_jabvox"], name: "index_jabvox_tasks_on_account_and_recurrence", where: "(recurrence_unit_jabvox IS NOT NULL)"
     t.index ["account_id"], name: "index_jabvox_tasks_on_account_id"
     t.index ["assignee_id"], name: "index_jabvox_tasks_on_assignee_id"
     t.index ["board_id"], name: "index_jabvox_tasks_on_board_id"
     t.index ["created_by_id"], name: "index_jabvox_tasks_on_created_by_id"
+    t.index ["recurrence_parent_id"], name: "index_jabvox_tasks_on_recurrence_parent_id"
     t.index ["stage_id", "position_jabvox"], name: "index_jabvox_tasks_on_stage_id_and_position_jabvox"
     t.index ["stage_id"], name: "index_jabvox_tasks_on_stage_id"
   end
@@ -4634,6 +4643,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_130000) do
   add_foreign_key "jabvox_tasks", "accounts"
   add_foreign_key "jabvox_tasks", "jabvox_task_boards", column: "board_id"
   add_foreign_key "jabvox_tasks", "jabvox_task_stages", column: "stage_id"
+  add_foreign_key "jabvox_tasks", "jabvox_tasks", column: "recurrence_parent_id", on_delete: :nullify
   add_foreign_key "jabvox_tasks", "users", column: "assignee_id"
   add_foreign_key "jabvox_tasks", "users", column: "created_by_id"
   add_foreign_key "jabvox_tax_rates", "accounts"

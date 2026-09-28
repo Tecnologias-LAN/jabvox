@@ -59,6 +59,12 @@ const toDatetimeLocal = value => {
   return local.toISOString().slice(0, 16);
 };
 
+// Recurrencia: vacío = tarea normal. Al completarla se crea la siguiente.
+const RECURRENCE_UNITS = ['day', 'week', 'month', 'year'];
+const recurrenceUnit = ref('');
+const recurrenceCount = ref(1);
+const recurrenceUntil = ref('');
+
 const initialDueDates = value => {
   const list = value?.dueDatesJabvox;
   if (Array.isArray(list) && list.length) {
@@ -82,6 +88,9 @@ watch(
       ? value.assignees.map(a => a.id)
       : [value?.assigneeId].filter(Boolean);
     dueDates.value = initialDueDates(value);
+    recurrenceUnit.value = value?.recurrenceUnitJabvox || '';
+    recurrenceCount.value = value?.recurrenceCountJabvox || 1;
+    recurrenceUntil.value = toDatetimeLocal(value?.recurrenceUntilJabvox);
   },
   { immediate: true }
 );
@@ -113,6 +122,15 @@ const onSubmit = () => {
     .sort();
   payload.due_dates_jabvox = isoDates;
   payload.due_at_jabvox = isoDates.length ? isoDates[0] : null;
+
+  payload.recurrence_unit_jabvox = recurrenceUnit.value || null;
+  payload.recurrence_count_jabvox = recurrenceUnit.value
+    ? Math.max(1, Number(recurrenceCount.value) || 1)
+    : 1;
+  payload.recurrence_until_jabvox =
+    recurrenceUnit.value && recurrenceUntil.value
+      ? new Date(recurrenceUntil.value).toISOString()
+      : null;
 
   emit('submit', payload);
 };
@@ -268,6 +286,52 @@ const onDelete = () => {
           </button>
           <p class="text-[11px] text-n-slate-10">
             {{ t('JABVOX_TASKS.TASK.FORM.DUE_DATES_HINT') }}
+          </p>
+        </div>
+
+        <!-- Repetición: la tarea vuelve a aparecer al completarla. El intervalo y la
+             fecha tope solo se piden cuando ya se eligió que se repite. -->
+        <div class="flex flex-col gap-2">
+          <label class="text-xs font-medium text-n-slate-11">
+            {{ t('JABVOX_TASKS.RECURRENCE.LABEL') }}
+          </label>
+          <div class="flex flex-wrap items-center gap-2">
+            <select
+              v-model="recurrenceUnit"
+              class="h-9 rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 px-2"
+            >
+              <option value="">
+                {{ t('JABVOX_TASKS.RECURRENCE.NONE') }}
+              </option>
+              <option
+                v-for="unit in RECURRENCE_UNITS"
+                :key="unit"
+                :value="unit"
+              >
+                {{ t(`JABVOX_TASKS.RECURRENCE.${unit}`) }}
+              </option>
+            </select>
+
+            <template v-if="recurrenceUnit">
+              <input
+                v-model.number="recurrenceCount"
+                type="number"
+                min="1"
+                step="1"
+                class="h-9 w-20 rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 px-2"
+              />
+              <label class="text-xs text-n-slate-11">
+                {{ t('JABVOX_TASKS.RECURRENCE.UNTIL') }}
+              </label>
+              <input
+                v-model="recurrenceUntil"
+                type="datetime-local"
+                class="h-9 rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 px-2"
+              />
+            </template>
+          </div>
+          <p v-if="recurrenceUnit" class="text-[11px] text-n-slate-10">
+            {{ t('JABVOX_TASKS.RECURRENCE.HELP') }}
           </p>
         </div>
 

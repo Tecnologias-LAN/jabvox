@@ -38,6 +38,11 @@ class JabvoxTasksAPI extends ApiClient {
     return axios.get(`${this.url}/${id}/activities`);
   }
 
+  // Comentario de resolución: entra en el mismo historial que los cambios de campos.
+  comment(id, body) {
+    return axios.post(`${this.url}/${id}/comment`, { body });
+  }
+
   // Dispatch log of the task's recurring automations (what was sent).
   automationRuns(id) {
     return axios.get(`${this.url}/${id}/automation_runs`);

@@ -227,3 +227,10 @@ jabvox_provisioner_nonce_purge_job:
   cron: '*/15 * * * *'
   class: 'Jabvox::Provisioner::NoncePurgeJob'
   queue: scheduled_jobs
+
+# Jabvox Tasks: recordatorio de lo que vence y apartado de lo vencido sin completar.
+# A las 7:00 para que el aviso llegue al empezar la jornada, no de madrugada.
+jabvox_task_due_sweeper_job:
+  cron: '0 7 * * *'
+  class: 'Jabvox::TaskDueSweeperJob'
+  queue: scheduled_jobs

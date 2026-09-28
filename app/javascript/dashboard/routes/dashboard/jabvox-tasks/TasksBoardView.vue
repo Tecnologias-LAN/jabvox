@@ -6,6 +6,7 @@ import { useAlert } from 'dashboard/composables';
 import { useStoreGetters } from 'dashboard/composables/store';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import TaskBoard from './board/TaskBoard.vue';
+import BoardAutomationsDrawer from './board/BoardAutomationsDrawer.vue';
 import LeadContactsPanel from './LeadContactsPanel.vue';
 import LeadSelect from './components/LeadSelect.vue';
 import TasksCalendar from './calendar/TasksCalendar.vue';
@@ -19,6 +20,18 @@ const store = useTasksStore();
 
 const view = ref('board');
 const appliedLeadId = ref(null);
+const taskBoardRef = ref(null);
+const showAutomations = ref(false);
+
+// Las automatizaciones del tablero se abren desde el rayo de la barra. El cajón solo
+// lista; configurar sigue siendo el diálogo por etapa que ya existía, que vive dentro
+// de TaskBoard.
+const boardStages = computed(() => taskBoardRef.value?.stages || []);
+
+const openStageAutomations = stage => {
+  showAutomations.value = false;
+  taskBoardRef.value?.openAutomations(stage);
+};
 
 const accountId = computed(() => getters.getCurrentAccountId.value);
 const boardId = computed(() => route.params.boardId || null);
@@ -107,6 +120,22 @@ watch(view, value => {
               />
             </div>
 
+            <button
+              v-if="view === 'board'"
+              type="button"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-n-weak text-sm text-n-slate-11 hover:bg-n-alpha-1 shrink-0"
+              :title="t('JABVOX_TASKS.AUTOMATIONS.DRAWER_TITLE')"
+              @click="showAutomations = true"
+            >
+              <span
+                class="i-lucide-zap size-4 text-n-amber-11"
+                aria-hidden="true"
+              />
+              <span class="hidden sm:inline">
+                {{ t('JABVOX_TASKS.AUTOMATIONS.SHORT') }}
+              </span>
+            </button>
+
             <div
               class="flex items-center gap-1 p-0.5 rounded-lg bg-n-alpha-1 shrink-0"
             >
@@ -136,6 +165,7 @@ watch(view, value => {
 
           <TaskBoard
             v-else-if="view === 'board'"
+            ref="taskBoardRef"
             :key="boardId"
             :board-id="boardId"
           />
@@ -151,5 +181,13 @@ watch(view, value => {
     </div>
 
     <LeadContactsPanel v-if="boardId" />
+
+    <BoardAutomationsDrawer
+      v-if="showAutomations"
+      :board-id="boardId"
+      :stages="boardStages"
+      @close="showAutomations = false"
+      @configure="openStageAutomations"
+    />
   </div>
 </template>

@@ -5,7 +5,7 @@ class Jabvox::TaskAutomationsDispatchService
   def perform(now = Time.current)
     JabvoxTaskAutomation
       .due(now)
-      .includes(:account, task: %i[board stage assignees jabvox_lead])
+      .includes(:account, task: %i[board stage assignees contact])
       .find_each { |automation| process(automation) }
   end
 
