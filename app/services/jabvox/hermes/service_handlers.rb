@@ -19,8 +19,13 @@ module Jabvox::Hermes::ServiceHandlers
     @account.labels.limit(capped_limit(params)).map { |l| { id: l.id, title: l.title, color: l.color } }
   end
 
+  # show_on_sidebar has no DB default and defaults to false/nil, so a Label created
+  # without it never shows in the sidebar's Etiquetas menu (Sidebar.vue's
+  # getLabelsOnSidebar filters strictly on this column) — confirmed against production:
+  # the label existed, had a color, and applied fine to conversations, but was invisible
+  # in the menu. The web "Nueva etiqueta" form always sends true; match that here.
   def create_label(params)
-    label = @account.labels.create!(title: params[:title])
+    label = @account.labels.create!(title: params[:title], show_on_sidebar: true)
     { id: label.id, title: label.title }
   end
 

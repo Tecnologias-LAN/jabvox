@@ -227,12 +227,14 @@ module Jabvox::Hermes::ServiceHandlersPlatform
   # that's invisible everywhere the UI reads account.labels (the picker itself, colors in
   # get_conversation_labels above) — confirmed against production: the tagging persisted
   # correctly, but it never showed up in the Etiquetas menu because no Label row existed.
+  # show_on_sidebar also needs to be set explicitly (see create_label) or the freshly
+  # created Label exists but still won't show in the sidebar menu.
   def add_conversation_label(params)
     conv = find_conversation!(params[:id])
     title = params[:label].to_s.strip
     raise Jabvox::Hermes::ServiceLayer::UnknownAction, 'falta la etiqueta' if title.blank?
 
-    @account.labels.find_or_create_by!(title: title.downcase)
+    @account.labels.find_or_create_by!(title: title.downcase) { |l| l.show_on_sidebar = true }
     conv.add_labels([title])
     { id: conv.display_id, labels: conv.reload.label_list }
   end
