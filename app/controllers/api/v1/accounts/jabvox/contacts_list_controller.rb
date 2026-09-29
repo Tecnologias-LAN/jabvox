@@ -9,6 +9,10 @@
 # Vive aparte del ContactsController de Chatwoot a propósito: aquel sirve al núcleo (búsqueda,
 # segmentos, import) y no conviene mezclarle la lógica comercial de Jabvox.
 class Api::V1::Accounts::Jabvox::ContactsListController < Api::V1::Accounts::Jabvox::BaseController
+  # Contactos es del núcleo, no un módulo: sin esto heredaba el flag por defecto
+  # (`jabvox_kanban`) al retirarse el de Leads, y una cuenta sin Kanban recibía 403 al
+  # abrir su propia lista de contactos. El acceso sigue acotado por rol.
+  jabvox_feature :none
   include JabvoxPermissions
 
   PER_PAGE_OPTIONS = [25, 50, 100].freeze

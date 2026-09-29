@@ -38,6 +38,19 @@ const { currentAccount, isCloudFeatureEnabled } = useAccount();
 const store = useStore();
 
 const currentCampaignName = ref('');
+
+// Un contacto real trae, además del id, alguno de los datos propios de contacto. Lo que
+// llega desde una conversación (un usuario/agente como remitente) no los tiene.
+const isKnownContact = computed(() => {
+  const d = props.contactData;
+  if (!d?.id) return false;
+  return (
+    'phoneNumber' in d ||
+    'additionalAttributes' in d ||
+    'contactType' in d ||
+    'lifecycleStage' in d
+  );
+});
 const leadsModuleEnabled = ref(false);
 const campaigns = ref([]);
 
@@ -65,11 +78,23 @@ const loadLeadCampaign = async contactId => {
   await campaignsLoaded;
   if (!leadsModuleEnabled.value) return;
 
+  // La lista ya envía `campaign` (con null si el contacto no tiene ninguna), así que
+  // basta con que la clave esté presente para no pedir nada más.
+  if (props.contactData && 'campaign' in props.contactData) {
+    currentCampaignName.value = props.contactData.campaign?.name || '';
+    return;
+  }
+
+  // Solo se pide el detalle si el id es de un contacto que esta pantalla conoce. El
+  // formulario también se monta con objetos que no son contactos —el remitente de una
+  // conversación puede ser el AGENTE—, y pedir su id devolvía un 404 por cada tarjeta.
+  if (!isKnownContact.value) return;
+
   try {
     const { data } = await contactDetailAPI.show(contactId);
     currentCampaignName.value = data?.contact?.campaign?.name || '';
   } catch {
-    // silently ignore
+    // Sin la campaña el desplegable queda vacío; el resto de la ficha funciona igual.
   }
 };
 
