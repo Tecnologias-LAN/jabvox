@@ -67,7 +67,7 @@ const filters = ref(emptyFilters());
 // Campos personalizados: { clave: [valores] }. Solo seleccionables, nunca texto libre.
 const customFilters = ref({});
 // Ids que pasan los filtros; null = sin filtrar (se muestran todos los de la página).
-const filteredIds = ref(null);
+const filteredRows = ref(null);
 
 const customFieldDefs = computed(() => filterOptions.value.custom_fields || []);
 
@@ -193,12 +193,15 @@ async function loadEnrichment() {
   }
 }
 
-const extra = contact => enrichment.value[contact.id] || {};
+// Con filtro activo las filas ya vienen completas del servidor, así que ellas mandan; el
+// enriquecimiento solo hace falta para la página normal, que trae el contacto base.
+const extra = contact =>
+  (filteredRows.value !== null ? contact : enrichment.value[contact.id]) || {};
 
 // Pide al backend qué contactos pasan los filtros y se cruza con la página actual.
 async function applyFilters() {
   if (!activeFilterCount.value) {
-    filteredIds.value = null;
+    filteredRows.value = null;
     showFilters.value = false;
     return;
   }
@@ -215,7 +218,10 @@ async function applyFilters() {
   });
   try {
     const { data } = await contactsListAPI.getAll(params);
-    filteredIds.value = (data.contacts || []).map(c => c.id);
+    // Se guardan las FILAS que devuelve el servidor, no solo sus ids: cruzarlas con la
+    // página ya cargada dejaba fuera todo lo que estuviera en otra página, y el filtro
+    // parecía no encontrar nada aunque los contactos existieran.
+    filteredRows.value = data.contacts || [];
     showFilters.value = false;
   } catch (error) {
     useAlert(error?.response?.data?.error || t('JABVOX_CONTACTS.ERROR.LOAD'));
@@ -225,7 +231,7 @@ async function applyFilters() {
 function clearFilters() {
   filters.value = emptyFilters();
   customFilters.value = {};
-  filteredIds.value = null;
+  filteredRows.value = null;
 }
 
 function toggleCustomValue(key, value) {
@@ -362,11 +368,8 @@ async function changeStage(contact, stage) {
 
 // Filas visibles: todas, o solo las que pasan el filtro aplicado.
 const visibleContacts = computed(() => {
-  let rows = props.contacts;
-  if (filteredIds.value !== null) {
-    const allowed = new Set(filteredIds.value);
-    rows = rows.filter(c => allowed.has(c.id));
-  }
+  // Con filtro activo mandan las filas del servidor; sin él, la página actual.
+  let rows = filteredRows.value !== null ? filteredRows.value : props.contacts;
   if (!sortBy.value) return rows;
 
   // Orden por la columna pulsada. Se compara el texto que se ve, para que a-z signifique

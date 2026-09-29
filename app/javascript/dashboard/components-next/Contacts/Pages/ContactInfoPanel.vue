@@ -167,6 +167,13 @@ const saveJabvoxFields = async ({ silent = false } = {}) => {
   }
 };
 
+// El responsable se aplica en cuanto se elige. Va por el mismo endpoint que el resto de
+// campos de Jabvox, así que el backend sincroniza sus conversaciones igual que si se
+// hubiera guardado con el botón.
+const saveAssigneeNow = async () => {
+  await saveJabvoxFields();
+};
+
 // Guarda las dos mitades de la ficha: los campos de Chatwoot y los propios de Jabvox.
 // Van en dos peticiones porque son dos endpoints distintos, pero para quien usa la
 // pantalla es un solo guardado.
@@ -262,9 +269,13 @@ const handleAvatarDelete = async () => {
       <label class="text-xs font-medium text-n-slate-11">
         {{ t('JABVOX_CONTACTS.COLUMNS.ASSIGNEE') }}
       </label>
+      <!-- El responsable se guarda al elegirlo, sin esperar al botón: es una acción de un
+           solo gesto y arrastra también las conversaciones del contacto. -->
       <select
         v-model="assigneeId"
-        class="w-full h-8 rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 px-2"
+        :disabled="isSavingJabvox"
+        class="w-full h-8 rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 px-2 disabled:opacity-60"
+        @change="saveAssigneeNow"
       >
         <option value="">
           {{ t('JABVOX_CONTACTS.DETAIL.UNASSIGNED') }}
