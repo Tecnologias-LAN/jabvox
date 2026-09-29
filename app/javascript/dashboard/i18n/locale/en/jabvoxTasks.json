@@ -336,7 +336,8 @@
     },
     "ASSIGNEE_COPY": {
       "TITLE": "Copy to the assignee's board",
-      "HINT": "When an assignee is set, a copy of the task is created on their personal board.",
+      "HINT": "When an assignee is set, a copy of the task is created on their personal board. The agent only needs to own a board.",
+      "TARGETS_HINT": "Optional: only if an assignee owns several boards and you want to pick which one.",
       "ON": "Enabled",
       "OFF": "Disabled",
       "PICK_OWNER": "Assignee...",
@@ -344,7 +345,7 @@
       "ADD": "Add",
       "REMOVE": "Remove",
       "ERROR": "Could not save the configuration",
-      "NO_OWNED_BOARDS": "No boards have an owner yet. Set an owner on a board to copy tasks to it."
+      "NO_OWNED_BOARDS": "No agent owns a board yet. Set an owner in the board settings so it can receive copies."
     }
   }
 }

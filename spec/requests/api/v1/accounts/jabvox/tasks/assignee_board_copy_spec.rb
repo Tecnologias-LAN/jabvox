@@ -73,10 +73,54 @@ RSpec.describe 'Jabvox task assignee board copy', type: :request do
       expect { task.sync_assignees!([agent.id]) }.not_to(change { personal.tasks.count })
     end
 
-    it 'no copia a un responsable sin destino configurado' do
+    it 'copia al tablero propio del responsable sin configurar destino' do
+      # El destino se deduce: si el agente tiene tablero, ese es el suyo. Exigir una fila
+      # de configuración hacía que la automatización no hiciera nada y sin decir por qué.
       task = new_task
 
-      expect { task.sync_assignees!([agent.id]) }.not_to(change { personal.tasks.count })
+      expect { task.sync_assignees!([agent.id]) }
+        .to change { personal.tasks.count }.by(1)
+    end
+
+    it 'respeta el destino configurado cuando el responsable tiene varios tableros' do
+      second = account.jabvox_task_boards.create!(name_jabvox: 'Otro de Ana',
+                                                  created_by_id: admin.id, owner_id: agent.id)
+      second.stages.create!(account_id: account.id, name_jabvox: 'Por hacer',
+                            role_jabvox: 'initial', position_jabvox: 0)
+      JabvoxTaskAssigneeBoardTarget.create!(account: account, source_board: source,
+                                            owner: agent, target_board: second)
+      task = new_task
+
+      expect { task.sync_assignees!([agent.id]) }.to change { second.tasks.count }.by(1)
+      expect(personal.tasks.count).to eq(0)
+    end
+
+    it 'no copia a un responsable que no tiene ningún tablero propio' do
+      no_board = create(:user, account: account, role: :agent)
+      task = new_task
+
+      expect { task.sync_assignees!([no_board.id]) }.not_to change(JabvoxTask, :count)
+    end
+
+    it 'no copia al responsable cuyo destino es el propio tablero de origen' do
+      # Ya tiene la tarea delante: copiársela le dejaría dos iguales en la misma pantalla.
+      source.update!(owner_id: agent.id)
+      JabvoxTaskAssigneeBoardTarget.create!(account: account, source_board: source,
+                                            owner: agent, target_board: source)
+      task = new_task
+
+      expect { task.sync_assignees!([agent.id]) }.not_to change(JabvoxTask, :count)
+    end
+
+    it 'copia también al dueño del tablero de origen aunque no sea responsable' do
+      other_agent = create(:user, account: account, role: :agent)
+      source.update!(owner_id: agent.id)
+      configure_target!
+      task = new_task
+
+      expect { task.sync_assignees!([other_agent.id]) }
+        .to change { personal.tasks.count }.by(1)
+      expect(personal.tasks.last.assignee_id).to eq(agent.id)
     end
 
     it 'no encadena copias: la copia no vuelve a copiarse' do

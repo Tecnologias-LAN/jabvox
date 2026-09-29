@@ -720,7 +720,7 @@ onMounted(() => {
               <select
                 v-else-if="col.id === 'lifecycle'"
                 :value="stageOf(contact)"
-                class="reset-base w-full max-w-[130px] text-xs rounded-md border px-2 py-1 cursor-pointer"
+                class="reset-base w-full min-w-[150px] text-xs rounded-md border pl-2 pr-6 py-1 cursor-pointer"
                 :class="stageClass(stageOf(contact))"
                 @click.stop
                 @change="changeStage(contact, $event.target.value)"

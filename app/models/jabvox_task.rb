@@ -125,6 +125,10 @@ class JabvoxTask < ApplicationRecord
   # después de marcar "hecho" sobra. Va antes de crear la repetición para que el historial
   # quede en orden.
   after_commit :move_to_role_stage, on: :update, if: :saved_change_to_status_jabvox?
+  # Y el camino inverso: arrastrar la tarjeta a la columna de completadas la cierra, y
+  # sacarla de ahí la reabre. Sin esto quedaba en la columna de terminadas pero contando
+  # como pendiente, y el barrido de vencidas podía mandarla a inactiva.
+  after_commit :sync_status_from_stage, on: :update, if: :saved_change_to_stage_id?
   after_commit :create_next_occurrence, on: :update, if: :just_completed?
 
   # Replace the task's assignees with the given user ids (scoped to this account's users).
@@ -198,7 +202,7 @@ class JabvoxTask < ApplicationRecord
   # mover. Tampoco se toca si ya está donde debe.
   def move_to_role_stage
     role = status_jabvox == 'done' ? 'done' : 'initial'
-    target = board.stages.find_by(role_jabvox: role)
+    target = role == 'done' ? board.done_stage : board.initial_stage
     return if target.nil? || stage_id == target.id
 
     from = stage
@@ -207,6 +211,28 @@ class JabvoxTask < ApplicationRecord
                                       reason: "status_#{status_jabvox}")
   rescue StandardError => e
     Rails.logger.error "[JabvoxTask##{id}] no se pudo mover a la columna de #{role}: #{e.message}"
+  end
+
+  # Arrastrar la tarjeta también cambia el estado, para que columna y estado no se
+  # contradigan. Solo actúa sobre la columna marcada como completada: las intermedias no
+  # dicen nada del estado.
+  def sync_status_from_stage
+    done_id = board.done_stage&.id
+    return if done_id.nil?
+
+    entered_done = stage_id == done_id
+    # Entrar en la columna de completadas cierra; salir de ella reabre. Un movimiento
+    # entre columnas intermedias no dice nada del estado y se deja como está.
+    return if entered_done == (status_jabvox == 'done')
+
+    apply_status_from_stage(entered_done ? 'done' : 'open')
+  rescue StandardError => e
+    Rails.logger.error "[JabvoxTask##{id}] no se pudo sincronizar el estado: #{e.message}"
+  end
+
+  def apply_status_from_stage(desired)
+    update_column(:status_jabvox, desired) # rubocop:disable Rails/SkipsModelValidations
+    log_activity(:status_changed, nil, to: desired, reason: 'stage_moved')
   end
 
   # Si la copia falla no debe tumbar el guardado de la tarea que sí se completó: se

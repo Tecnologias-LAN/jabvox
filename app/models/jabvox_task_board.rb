@@ -55,4 +55,15 @@ class JabvoxTaskBoard < ApplicationRecord
 
   scope :active, -> { where(is_active_jabvox: true) }
   scope :ordered, -> { order(:position_jabvox, :name_jabvox) }
+
+  # Dónde nace una tarea: la columna marcada como inicial y, si nadie la marcó, la primera
+  # por posición. Es el criterio que comparten el alta, las copias y las recurrencias.
+  def initial_stage
+    stages.find_by(role_jabvox: 'initial') || stages.order(:position_jabvox, :id).first
+  end
+
+  # Dónde aterriza al completarse. Sin columna marcada, no hay a dónde moverla.
+  def done_stage
+    stages.find_by(role_jabvox: 'done')
+  end
 end

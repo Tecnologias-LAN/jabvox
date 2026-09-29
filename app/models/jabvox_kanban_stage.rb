@@ -37,7 +37,10 @@ class JabvoxKanbanStage < ApplicationRecord
   belongs_to :jabvox_kanban_funnel
   belongs_to :account
   belongs_to :auto_advance_target_stage, class_name: 'JabvoxKanbanStage', optional: true
-  has_many :jabvox_kanban_conversation_stages, dependent: :nullify
+  # `jabvox_kanban_stage_id` es NOT NULL: una tarjeta no puede quedar sin etapa. Con
+  # :nullify, borrar el embudo reventaba con violación de FK y devolvía un 500 —la tarjeta
+  # se va con su etapa, que es lo que ya hace JabvoxTaskStage.
+  has_many :jabvox_kanban_conversation_stages, dependent: :destroy
   has_many :jabvox_kanban_stage_automations, dependent: :destroy
   # References from other rows pointing INTO this stage (as automation target
   # or auto-advance destination) are cleared instead of blocking the deletion.

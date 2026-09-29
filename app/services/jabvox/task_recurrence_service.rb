@@ -63,7 +63,7 @@ class Jabvox::TaskRecurrenceService
   # Nace en la etapa inicial del tablero; si nadie marcó cuál es, en la primera.
   def initial_stage
     board = @task.board
-    board.stages.find_by(role_jabvox: 'initial') || board.stages.order(:position_jabvox).first
+    board.initial_stage
   end
 
   def build_next(next_due)

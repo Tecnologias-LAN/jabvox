@@ -30,6 +30,11 @@ module Jabvox::ContactLifecycle
     # Una venta implica que el contacto ya es cliente: se mantienen coherentes para que el
     # filtro por etapa no contradiga a la marca de venta.
     before_save :promote_to_cliente_when_sold
+
+    # Al cambiar de etapa, el contacto sale de los embudos que solo lo tenían por la etapa
+    # anterior. Va en el modelo y no en el controlador para que valga venga de donde venga
+    # el cambio (ficha, lista, API, consola o automatización).
+    after_commit :sync_kanban_lifecycle, on: :update, if: :saved_change_to_lifecycle_stage_jabvox?
   end
 
   # Avanza la etapa dejando constancia de quién y cuándo, para poder auditar el embudo.
@@ -45,6 +50,13 @@ module Jabvox::ContactLifecycle
   end
 
   private
+
+  # Una retirada fallida no puede tumbar el guardado del contacto: se registra y se sigue.
+  def sync_kanban_lifecycle
+    Jabvox::KanbanLifecycleSync.new(self).perform
+  rescue StandardError => e
+    Rails.logger.error("[jabvox] sync kanban por etapa falló contact=#{id}: #{e.class}")
+  end
 
   def promote_to_cliente_when_sold
     return unless is_sold_jabvox? && lifecycle_stage_jabvox != 'cliente'
