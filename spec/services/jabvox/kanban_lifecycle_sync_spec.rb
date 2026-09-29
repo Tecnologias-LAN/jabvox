@@ -70,6 +70,21 @@ RSpec.describe Jabvox::KanbanLifecycleSync, type: :model do
     expect { contact.advance_lifecycle!('inactivo') }.not_to(change { cards_in(funnel) })
   end
 
+  it 'editar el embudo retira las tarjetas que ya no le corresponden' do
+    funnel = funnel_with_card(lifecycle_stages_jabvox: %w[cliente interesado])
+
+    expect { funnel.update!(lifecycle_stages_jabvox: ['interesado']) }
+      .to change { cards_in(funnel) }.from(1).to(0)
+  end
+
+  it 'editar el embudo conserva a quien sigue encajando' do
+    contact.update!(lifecycle_stage_jabvox: 'interesado')
+    funnel = funnel_with_card(lifecycle_stages_jabvox: %w[cliente interesado])
+
+    expect { funnel.update!(lifecycle_stages_jabvox: ['interesado']) }
+      .not_to(change { cards_in(funnel) })
+  end
+
   it 'no deja tarjetas de otras cuentas al alcance' do
     other = create(:account)
     other.update!(jabvox_kanban_enabled_jabvox: true)

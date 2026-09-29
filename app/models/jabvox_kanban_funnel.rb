@@ -47,6 +47,26 @@ class JabvoxKanbanFunnel < ApplicationRecord
   scope :active, -> { where(active_jabvox: true) }
   scope :ordered, -> { order(:position_jabvox, :created_at) }
 
+  # Cambiar las etapas del embudo retira las tarjetas que ya no le corresponden. Sin esto,
+  # quitar "cliente" de un embudo dejaba dentro a los clientes ya colocados y el tablero
+  # contradecía su propia configuración.
+  after_commit :purge_contacts_outside_stages, on: :update, if: :saved_change_to_lifecycle_stages_jabvox?
+
+  private
+
+  # Solo se van los que estaban SOLO por la etapa: quien además entra por bandeja, campaña,
+  # afiliado o "propios" sigue perteneciendo al embudo.
+  def purge_contacts_outside_stages
+    contact_ids = jabvox_kanban_conversation_stages.where.not(contact_id: nil).distinct.pluck(:contact_id)
+    return if contact_ids.empty?
+
+    account.contacts.where(id: contact_ids).find_each do |contact|
+      Jabvox::KanbanLifecycleSync.new(contact).perform
+    end
+  rescue StandardError => e
+    Rails.logger.error("[jabvox] purga del embudo #{id} falló: #{e.class}")
+  end
+
   def first_stage
     jabvox_kanban_stages.order(:position_jabvox).first
   end

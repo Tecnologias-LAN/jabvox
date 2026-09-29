@@ -6,6 +6,10 @@
 # Sustituye a lo que antes daba el detalle de lead. Todo cuelga del contacto, que ya lleva
 # campaña, afiliado, responsable, etapa del ciclo de vida y campos personalizados.
 class Api::V1::Accounts::Jabvox::ContactDetailController < Api::V1::Accounts::Jabvox::BaseController
+  # Contactos es del núcleo, no un módulo: sin esto heredaba el flag por defecto
+  # (`jabvox_kanban`) al retirarse el de Leads, y una cuenta sin Kanban recibía 403 al
+  # abrir su propia lista de contactos. El acceso sigue acotado por rol.
+  jabvox_feature :none
   include JabvoxPermissions
 
   MAX_ROWS = 50

@@ -38,13 +38,17 @@ RSpec.describe Jabvox::LabelSyncService do
     expect(otra.reload.label_list).to match_array(%w[vip])
   end
 
-  # Una conversación resuelta es historial: con qué se cerró el caso no se reescribe.
-  it 'no toca las conversaciones resueltas' do
+  # Filtrar por una etiqueta debe encontrar también lo ya cerrado: la etiqueta describe al
+  # contacto, no el estado en que quedó la conversación. El cambio deja rastro en el
+  # historial de cada una, así que sigue sabiéndose quién lo hizo.
+  it 'alcanza las conversaciones resueltas y pospuestas' do
     resuelta = conversation(status: :resolved)
+    pospuesta = conversation(status: :pending)
 
     contact.update_labels(%w[vip])
 
-    expect(resuelta.reload.label_list).to be_empty
+    expect(resuelta.reload.label_list).to match_array(%w[vip])
+    expect(pospuesta.reload.label_list).to match_array(%w[vip])
   end
 
   it 'alcanza conversaciones de bandejas distintas' do
