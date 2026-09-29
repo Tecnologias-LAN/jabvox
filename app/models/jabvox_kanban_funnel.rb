@@ -52,10 +52,14 @@ class JabvoxKanbanFunnel < ApplicationRecord
   # contradecía su propia configuración.
   after_commit :purge_contacts_outside_stages, on: :update, if: :saved_change_to_lifecycle_stages_jabvox?
 
-  private
+  def first_stage
+    jabvox_kanban_stages.order(:position_jabvox).first
+  end
 
   # Solo se van los que estaban SOLO por la etapa: quien además entra por bandeja, campaña,
-  # afiliado o "propios" sigue perteneciendo al embudo.
+  # afiliado o "propios" sigue perteneciendo al embudo. Va al final, en la zona privada
+  # existente: un `private` a media clase dejaba privados los métodos de debajo —entre
+  # ellos `first_stage`, que el tablero llama— y la pantalla devolvía 500.
   def purge_contacts_outside_stages
     contact_ids = jabvox_kanban_conversation_stages.where.not(contact_id: nil).distinct.pluck(:contact_id)
     return if contact_ids.empty?
@@ -65,9 +69,5 @@ class JabvoxKanbanFunnel < ApplicationRecord
     end
   rescue StandardError => e
     Rails.logger.error("[jabvox] purga del embudo #{id} falló: #{e.class}")
-  end
-
-  def first_stage
-    jabvox_kanban_stages.order(:position_jabvox).first
   end
 end

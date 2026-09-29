@@ -13,7 +13,6 @@ import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import CompanySelector from 'dashboard/components-next/Companies/CompanySelector.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import PhoneNumberInput from 'dashboard/components-next/phonenumberinput/PhoneNumberInput.vue';
-import contactDetailAPI from 'dashboard/api/jabvox/contactDetail';
 import { campaignsAPI } from 'dashboard/api/jabvox/campaigns';
 
 const props = defineProps({
@@ -39,18 +38,6 @@ const store = useStore();
 
 const currentCampaignName = ref('');
 
-// Un contacto real trae, además del id, alguno de los datos propios de contacto. Lo que
-// llega desde una conversación (un usuario/agente como remitente) no los tiene.
-const isKnownContact = computed(() => {
-  const d = props.contactData;
-  if (!d?.id) return false;
-  return (
-    'phoneNumber' in d ||
-    'additionalAttributes' in d ||
-    'contactType' in d ||
-    'lifecycleStage' in d
-  );
-});
 const leadsModuleEnabled = ref(false);
 const campaigns = ref([]);
 
@@ -70,32 +57,16 @@ const campaignsLoaded = loadCampaigns();
 
 // Campaña actual del contacto, para preseleccionarla en el desplegable.
 //
-// Solo se pide si la cuenta tiene el módulo de campañas: sin él no hay desplegable que
-// preseleccionar, así que la petición no aportaría nada. Se espera a `loadCampaigns`
-// porque el watch de abajo es `immediate` y corre antes del onMounted; sin esperar, esto
-// salía disparado en cada tarjeta de la lista aunque el módulo estuviera apagado.
-const loadLeadCampaign = async contactId => {
+// Se toma de lo que YA trae el contacto; no se consulta al servidor. Este formulario se
+// monta una vez por tarjeta de la lista, y también con objetos que no son contactos —el
+// remitente de una conversación puede ser el agente—, así que pedir el detalle hacía una
+// petición por tarjeta y llenaba la consola de 404. Si el dato no viene, el desplegable
+// queda vacío hasta abrir la ficha completa, que sí carga el detalle.
+const loadLeadCampaign = async () => {
   await campaignsLoaded;
   if (!leadsModuleEnabled.value) return;
 
-  // La lista ya envía `campaign` (con null si el contacto no tiene ninguna), así que
-  // basta con que la clave esté presente para no pedir nada más.
-  if (props.contactData && 'campaign' in props.contactData) {
-    currentCampaignName.value = props.contactData.campaign?.name || '';
-    return;
-  }
-
-  // Solo se pide el detalle si el id es de un contacto que esta pantalla conoce. El
-  // formulario también se monta con objetos que no son contactos —el remitente de una
-  // conversación puede ser el AGENTE—, y pedir su id devolvía un 404 por cada tarjeta.
-  if (!isKnownContact.value) return;
-
-  try {
-    const { data } = await contactDetailAPI.show(contactId);
-    currentCampaignName.value = data?.contact?.campaign?.name || '';
-  } catch {
-    // Sin la campaña el desplegable queda vacío; el resto de la ficha funciona igual.
-  }
+  currentCampaignName.value = props.contactData?.campaign?.name || '';
 };
 
 const FORM_CONFIG = {
@@ -350,7 +321,7 @@ watch(
   id => {
     if (id) {
       prepareStateBasedOnProps();
-      loadLeadCampaign(id);
+      loadLeadCampaign();
     }
   },
   { immediate: true }
