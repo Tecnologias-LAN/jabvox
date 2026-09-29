@@ -244,9 +244,13 @@ const automationDisplay = auto => {
     }
     return t('JABVOX_KANBAN.AUTOMATIONS_PANEL.FORM.TYPE_SEND_MESSAGE');
   }
-  const targetName =
+  // El nombre de la columna lo escribe el usuario: si trae llaves, vue-i18n las lee como
+  // placeholder anidado al interpolarlo y lanza "Not allowed nest placeholder", que
+  // reventaba el panel entero al abrir una automatización.
+  const targetName = (
     otherStages.value.find(s => s.id === auto.target_stage_id)?.name_jabvox ||
-    '?';
+    '?'
+  ).replace(/[{}]/g, '');
   const amount = auto.trigger_value_jabvox ?? auto.trigger_hours;
   const unitKey =
     (auto.trigger_unit_jabvox || 'hours') === 'minutes' ? 'm' : 'h';
