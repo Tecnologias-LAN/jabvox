@@ -265,8 +265,11 @@ const storageKey = () => `jabvox_contact_columns_${route.params.accountId}`;
 function loadColumnConfig() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey()) || 'null');
-    if (Array.isArray(saved) && saved.length === DEFAULT_COLUMNS.length) {
-      columnConfig.value = saved;
+    // Cualquier cantidad entre 1 y el tope vale. Antes se exigía que fueran EXACTAMENTE
+    // diez —herencia de cuando el panel eran diez huecos fijos—, así que elegir tres
+    // columnas se descartaba al recargar y volvían a salir todas.
+    if (Array.isArray(saved) && saved.length >= 1) {
+      columnConfig.value = saved.slice(0, MAX_COLUMNS);
     }
   } catch {
     // Un valor corrupto no debe impedir abrir la pantalla.
@@ -342,11 +345,21 @@ const countryName = code =>
   countries.find(c => c.id === code || c.name === code)?.name || code || '—';
 
 // Resolución de celda por mapa: evita una cadena de v-if por columna y fila.
+// Las filas llegan de dos sitios con formatos distintos: el store de Chatwoot las da en
+// camelCase (phoneNumber) y el filtro las trae del backend en snake_case (phone_number).
+// Leer solo una forma dejaba la columna vacía según de dónde viniera la fila.
+const pick = (c, ...keys) =>
+  keys.map(k => c?.[k]).find(v => v != null && v !== '');
+
 const CELL = {
   name: c => c.name || '—',
-  phone: c => c.phone_number || '—',
+  phone: c => pick(c, 'phone_number', 'phoneNumber') || '—',
   email: c => c.email || '—',
-  country: (c, x) => countryName(x.country || c.additional_attributes?.country),
+  country: (c, x) =>
+    countryName(
+      x.country ||
+        pick(c, 'additional_attributes', 'additionalAttributes')?.country
+    ),
   campaign: (c, x) => x.campaign?.name || '—',
   affiliate: (c, x) => x.affiliate?.name || '—',
   assignee: (c, x) => x.assignee?.name || '—',
