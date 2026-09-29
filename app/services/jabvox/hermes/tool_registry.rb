@@ -22,7 +22,8 @@ module Jabvox::Hermes::ToolRegistry
     'create_label' => { permission: 'create', method: :post, path: 'labels',
                         params: { title: :string }, mcp: 'jabvox_core', feature: 'core' },
     'update_label' => { permission: 'write', method: :patch, path: 'labels/:id',
-                        params: { id: :integer, title: :string }, mcp: 'jabvox_core', feature: 'core' },
+                        params: { id: :integer, title: :string, show_on_sidebar: :boolean },
+                        mcp: 'jabvox_core', feature: 'core' },
 
     # --- Bandejas (inboxes) — core, solo lectura (crear inbox es sensible/infra) ---
     'get_inboxes' => { permission: 'read', method: :get, path: 'inboxes', mcp: 'jabvox_core', feature: 'core' },

@@ -31,8 +31,10 @@ module Jabvox::Hermes::ServiceHandlers
 
   def update_label(params)
     label = @account.labels.find(params[:id])
-    label.update!(title: params[:title])
-    { id: label.id, title: label.title }
+    attrs = { title: params[:title] }
+    attrs[:show_on_sidebar] = params[:show_on_sidebar] unless params[:show_on_sidebar].nil?
+    label.update!(attrs)
+    { id: label.id, title: label.title, show_on_sidebar: label.show_on_sidebar }
   end
 
   # Bandejas (solo lectura)
