@@ -35,6 +35,11 @@ module Jabvox::ContactLifecycle
     # anterior. Va en el modelo y no en el controlador para que valga venga de donde venga
     # el cambio (ficha, lista, API, consola o automatización).
     after_commit :sync_kanban_lifecycle, on: :update, if: :saved_change_to_lifecycle_stage_jabvox?
+
+    # Asignar el contacto arrastra sus conversaciones abiertas. El sentido contrario ya lo
+    # cubre Jabvox::ConversationContactAssignment; juntos mantienen ambos lados de acuerdo
+    # venga el cambio de la ficha, la lista, el marcador o la API.
+    after_commit :sync_conversations_assignee, on: :update, if: :saved_change_to_assignee_id?
   end
 
   # Avanza la etapa dejando constancia de quién y cuándo, para poder auditar el embudo.
@@ -50,6 +55,14 @@ module Jabvox::ContactLifecycle
   end
 
   private
+
+  # El servicio ya evita escribir donde el responsable coincide, así que la vuelta desde
+  # ConversationContactAssignment no reabre este callback: el contacto no cambia.
+  def sync_conversations_assignee
+    Jabvox::ContactConversationAssignmentSync.new(account).sync_contact(self, assignee)
+  rescue StandardError => e
+    Rails.logger.error("[jabvox] sync de conversaciones falló contact=#{id}: #{e.class}")
+  end
 
   # Una retirada fallida no puede tumbar el guardado del contacto: se registra y se sigue.
   def sync_kanban_lifecycle
