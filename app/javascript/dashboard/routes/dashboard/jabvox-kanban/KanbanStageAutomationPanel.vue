@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
+import { backendMessage } from 'dashboard/helper/jabvox/backendMessage';
 import { useMapGetter } from 'dashboard/composables/store';
 
 const props = defineProps({
@@ -188,12 +189,13 @@ const onSave = async () => {
   } catch (e) {
     // El backend responde 422 con `message` (ver render_record_invalid). Leer solo
     // `error` dejaba el motivo invisible y parecía que el guardado no hacía nada.
-    const data = e?.response?.data;
+    //
+    // El mensaje va SANEADO: useAlert lo pasa por vue-i18n, que trata `{...}` como
+    // placeholder y lanza "Not allowed nest placeholder" si el texto del backend trae
+    // llaves (un campo JSON, un hash en el error de validación). Esa excepción rompía
+    // el guardado entero en vez de mostrar el aviso.
     useAlert(
-      data?.message ||
-        data?.error ||
-        data?.errors?.join?.(', ') ||
-        t('JABVOX_KANBAN.AUTOMATIONS_PANEL.SAVE_ERROR')
+      backendMessage(e) || t('JABVOX_KANBAN.AUTOMATIONS_PANEL.SAVE_ERROR')
     );
   }
 };

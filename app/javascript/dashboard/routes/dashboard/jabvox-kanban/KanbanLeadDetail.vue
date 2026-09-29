@@ -113,9 +113,11 @@ const loadContactConversations = async id => {
   }
 };
 
-const contactId = computed(
-  () => props.conversation.contact?.id || props.conversation.meta?.sender?.id
-);
+// Solo `contact.id`: `meta.sender` NO es de fiar aquí. En una conversación cargada por el
+// store de Chatwoot el remitente puede ser el AGENTE, y se pedía su id a contact_detail
+// como si fuera un contacto —de ahí los 404 con ids de usuario (bots, agentes de prueba)—.
+// El tablero, además, solo emite `contact`, así que el respaldo nunca podía acertar.
+const contactId = computed(() => props.conversation.contact?.id || null);
 
 const changeLifecycleStage = async stage => {
   if (!stage || stage === lifecycleStage.value || isSavingStage.value) return;

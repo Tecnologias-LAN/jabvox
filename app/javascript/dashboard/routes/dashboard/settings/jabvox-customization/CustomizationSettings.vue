@@ -32,7 +32,9 @@ const tabs = [
 onMounted(async () => {
   await Promise.all([
     store.dispatch('jabvoxCustomization/fetchTables'),
-    store.dispatch('jabvoxCustomization/fetchButtons'),
+    // force: la pantalla de ajustes relee siempre, para ver lo que se haya cambiado
+    // desde otra pestaña.
+    store.dispatch('jabvoxCustomization/fetchButtons', { force: true }),
   ]);
 });
 </script>

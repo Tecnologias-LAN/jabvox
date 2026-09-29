@@ -31,9 +31,9 @@ const resolveUrl = url => {
 
 onMounted(() => {
   try {
-    if (!buttons.value.length) {
-      store.dispatch('jabvoxCustomization/fetchButtons');
-    }
+    // El store decide si hace falta pedirlos: comprobar aquí por longitud repetía la
+    // petición en cada tarjeta cuando la cuenta no tiene botones configurados.
+    store.dispatch('jabvoxCustomization/fetchButtons');
   } catch {
     // store not ready yet
   }

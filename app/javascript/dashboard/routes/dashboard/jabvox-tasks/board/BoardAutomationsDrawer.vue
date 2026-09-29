@@ -1,9 +1,10 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import { backendMessage } from 'dashboard/helper/jabvox/backendMessage';
 
 // Automatizaciones del tablero entero, en un cajón que se abre desde el rayo de la barra.
 //
@@ -94,10 +95,7 @@ const addTarget = async (ownerId, targetBoardId) => {
     });
     targets.value = [...targets.value, row];
   } catch (e) {
-    useAlert(
-      e?.response?.data?.errors?.join?.(', ') ||
-        t('JABVOX_TASKS.ASSIGNEE_COPY.ERROR')
-    );
+    useAlert(backendMessage(e) || t('JABVOX_TASKS.ASSIGNEE_COPY.ERROR'));
   }
 };
 
@@ -110,10 +108,7 @@ const changeTarget = async (row, targetBoardId) => {
       item.id === row.id ? updated : item
     );
   } catch (e) {
-    useAlert(
-      e?.response?.data?.errors?.join?.(', ') ||
-        t('JABVOX_TASKS.ASSIGNEE_COPY.ERROR')
-    );
+    useAlert(backendMessage(e) || t('JABVOX_TASKS.ASSIGNEE_COPY.ERROR'));
   }
 };
 
@@ -136,8 +131,18 @@ const onAdd = async () => {
   newBoardId.value = '';
 };
 
+// El tablero puede llegar después de montarse el cajón (se abre con v-if mientras el
+// store aún carga). Con solo leerlo en onMounted, el interruptor se quedaba en `false`
+// aunque el tablero lo tuviera activado, y parecía que no respondía.
+watch(
+  () => props.board?.copyToAssigneeBoardJabvox,
+  value => {
+    copyEnabled.value = Boolean(value);
+  },
+  { immediate: true }
+);
+
 onMounted(async () => {
-  copyEnabled.value = Boolean(props.board?.copyToAssigneeBoardJabvox);
   await loadCopyConfig();
   const entries = await Promise.all(
     props.stages.map(async stage => {
@@ -306,6 +311,13 @@ const ROLE_STYLES = {
           </div>
 
           <template v-if="copyEnabled">
+            <p
+              v-if="ownerOptions.length"
+              class="text-[11px] text-n-slate-10 pt-1"
+            >
+              {{ t('JABVOX_TASKS.ASSIGNEE_COPY.TARGETS_HINT') }}
+            </p>
+
             <div
               v-for="row in targets"
               :key="row.id"

@@ -3,6 +3,10 @@ import api from '../../../api/jabvox/customization';
 const state = {
   tables: [],
   buttons: [],
+  // Los botones se piden una sola vez por sesión. Sin esta marca, una cuenta SIN botones
+  // deja la lista vacía para siempre y cada tarjeta del kanban vuelve a pedirlos: seis
+  // tarjetas visibles eran seis peticiones idénticas por render.
+  buttonsLoaded: false,
   uiFlags: {
     isFetchingTables: false,
     isFetchingButtons: false,
@@ -42,6 +46,7 @@ const mutations = {
   },
   SET_BUTTONS(s, buttons) {
     s.buttons = buttons;
+    s.buttonsLoaded = true;
   },
   ADD_BUTTON(s, button) {
     s.buttons = [...s.buttons, button];
@@ -127,7 +132,10 @@ const actions = {
     }
   },
 
-  async fetchButtons({ commit }) {
+  // `force` para la pantalla de ajustes, que sí necesita releer tras guardar.
+  async fetchButtons({ commit, state: s }, { force = false } = {}) {
+    if (!force && (s.buttonsLoaded || s.uiFlags.isFetchingButtons)) return;
+
     commit('SET_UI_FLAGS', { isFetchingButtons: true });
     try {
       const { data } = await api.getButtons();

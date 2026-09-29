@@ -29,21 +29,44 @@ class Jabvox::TaskAssigneeBoardCopyService
     @task.source_task_id.nil? && @task.board&.copy_to_assignee_board_jabvox?
   end
 
-  # Solo los responsables que además son dueños de tablero y tienen destino configurado
-  # en este tablero de origen.
+  # A quién se le copia: los responsables de la tarea y, además, el dueño del tablero de
+  # origen —que debe enterarse de lo que se abre en su tablero aunque no sea responsable—.
+  #
+  # El destino se DEDUCE: si el usuario es dueño de un tablero, ese es el suyo y no hay
+  # nada que configurar. La tabla de destinos solo hace falta para desempatar cuando es
+  # dueño de varios; sin fila, se usa el primero por posición. Antes era obligatoria y, al
+  # faltar, la copia no ocurría sin decir por qué.
+  #
+  # Se excluye el tablero de origen: quien ya tiene la tarea delante no necesita una copia
+  # en la misma pantalla.
   def targets_by_owner
-    owner_ids = @task.task_assignees.pluck(:user_id)
-    return {} if owner_ids.empty?
+    candidate_ids = (@task.task_assignees.pluck(:user_id) + [@task.board.owner_id]).compact.uniq
+    return {} if candidate_ids.empty?
 
-    @task.board.assignee_board_targets
-         .where(owner_id: owner_ids)
-         .includes(:target_board)
-         .index_by(&:owner_id)
+    configured = @task.board.assignee_board_targets
+                      .where(owner_id: candidate_ids)
+                      .includes(:target_board)
+                      .index_by(&:owner_id)
+
+    candidate_ids.each_with_object({}) do |owner_id, result|
+      board = configured[owner_id]&.target_board || default_board_for(owner_id)
+      next if board.nil? || board.id == @task.board_id
+
+      result[owner_id] = board
+    end
   end
 
-  def copy_for(owner_id, target)
-    board = target.target_board
-    # El destino pudo cambiar de dueño o de cuenta después de configurarse.
+  # Tablero propio del usuario cuando no hay destino configurado. Con varios, el primero
+  # por posición: elegir otro es lo que resuelve la tabla de destinos.
+  def default_board_for(owner_id)
+    JabvoxTaskBoard
+      .where(account_id: @task.account_id, owner_id: owner_id)
+      .order(:position_jabvox, :id)
+      .first
+  end
+
+  def copy_for(owner_id, board)
+    # El destino pudo cambiar de cuenta después de configurarse.
     return if board.nil? || board.account_id != @task.account_id
     return if board.id == @task.board_id
     return if already_copied?(board)
@@ -60,7 +83,7 @@ class Jabvox::TaskAssigneeBoardCopyService
   end
 
   def initial_stage(board)
-    board.stages.find_by(role_jabvox: 'initial') || board.stages.order(:position_jabvox).first
+    board.initial_stage
   end
 
   def create_copy(board, stage, owner_id)
