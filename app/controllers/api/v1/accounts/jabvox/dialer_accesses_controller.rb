@@ -214,38 +214,38 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
     # llamada perdida / cliente escuchando silencio. Verificamos el registro SIP real
     # (PJSIPShowContacts) con cache corto para no consultar el PBX en cada poll.
     unless agent_extension_registered?(config, agent[:extension].to_s)
-      Rails.logger.info "🔕 [Dialer] Softphone del agente NO registrado, no se marca | " \
+      Rails.logger.info '🔕 [Dialer] Softphone del agente NO registrado, no se marca | ' \
                         "ext=#{agent[:extension]} usuario=#{current_user.id} cuenta=#{Current.account.id}"
       return render json: { queued: false, message: 'Softphone not registered', softphone_offline: true }
     end
 
-    # Atomically pick + reserve the lead so two concurrent agents on the same
-    # campaign can never grab the same one. The block resolves the dial number;
-    # returning nil marks the reserved row as failed and we skip to the next call.
+    # Reserva atómica del contacto para que dos agentes de la misma campaña no puedan
+    # marcar al mismo. El bloque resuelve el número; devolver nil marca la fila reservada
+    # como fallida y se pasa a la siguiente llamada.
     skip_reason = nil
     lead, contact = Jabvox::DialerContactPickerService.new(Current.account, campaign).pick_and_reserve do |picked|
       phone = Jabvox::DialNumberResolver.resolve(
         lead: picked, field: campaign.dial_field_jabvox, prefix: campaign.dial_prefix_jabvox
       ).to_s
       if phone.blank?
-        skip_reason = 'Lead sin número en el campo configurado'
+        skip_reason = 'Contacto sin número en el campo configurado'
         nil
       else
         # NO fijar attempts_jabvox aquí: el picker es la única fuente de verdad
         # del contador (lo incrementa en pick_and_reserve). Fijarlo a 0 aquí lo
         # reseteaba en cada marcación y max_retries nunca se aplicaba.
-        { name_jabvox: picked.contact.name.to_s, phone_jabvox: phone,
+        { name_jabvox: picked.name.to_s, phone_jabvox: phone,
           status_jabvox: 'calling' }
       end
     end
 
     unless lead
-      Rails.logger.info "📭 [Dialer] Sin leads disponibles | campaña=#{campaign.name_jabvox} (id=#{campaign.id}) | " \
+      Rails.logger.info "📭 [Dialer] Sin contactos disponibles | campaña=#{campaign.name_jabvox} (id=#{campaign.id}) | " \
                         "filtro=#{campaign.management_state_ids_jabvox.inspect}"
       return render json: { queued: false, message: 'No pending contacts' }
     end
     if skip_reason
-      Rails.logger.info "📭 [Dialer] #{skip_reason} | lead=#{lead.id}"
+      Rails.logger.info "📭 [Dialer] #{skip_reason} | contacto=#{lead.id}"
       return render json: { queued: false, message: skip_reason }
     end
 
@@ -409,14 +409,15 @@ class Api::V1::Accounts::Jabvox::DialerAccessesController < Api::V1::Accounts::J
   def assign_lead_to_agent(contact, user)
     return unless contact.contact_id
 
-    lead = Current.account.jabvox_leads.find_by(contact_id: contact.contact_id)
-    return unless lead
+    crm_contact = Current.account.contacts.find_by(id: contact.contact_id)
+    return unless crm_contact
 
     # rubocop:disable Rails/SkipsModelValidations
-    lead.update_columns(assignee_id: user.id, updated_at: Time.current)
+    crm_contact.update_columns(assignee_id: user.id, updated_at: Time.current)
     # rubocop:enable Rails/SkipsModelValidations
-    # The agent who took the call now owns the lead — its open conversations follow.
-    Jabvox::LeadConversationAssignmentSync.new(Current.account).sync_lead(lead, user)
+    # El agente que atendió la llamada pasa a ser el responsable del contacto: sus
+    # conversaciones abiertas lo siguen.
+    Jabvox::ContactConversationAssignmentSync.new(Current.account).sync_contact(crm_contact, user)
   rescue StandardError => e
     Rails.logger.error("[Dialer] assign_lead_to_agent failed | lead_contact=#{contact.contact_id} #{e.class}: #{e.message}")
   end

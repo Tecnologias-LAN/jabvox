@@ -12,11 +12,11 @@ class Api::V1::Accounts::Jabvox::ClickToCall::CallsController < Api::V1::Account
       )
     end
 
-    phone, contact, lead, conversation = resolve_target
+    phone, contact, conversation = resolve_target
     return render_error('No se encontró un número para llamar') if phone.blank?
 
     call_log = Current.account.jabvox_call_logs.create!(
-      user: current_user, contact: contact, jabvox_lead: lead, conversation: conversation,
+      user: current_user, contact: contact, conversation: conversation,
       phone_number: phone, extension: extension, status: 'calling', called_at: Time.current
     )
 
@@ -53,34 +53,27 @@ class Api::V1::Accounts::Jabvox::ClickToCall::CallsController < Api::V1::Account
     Current.account.jabvox_user_extensions.find_by(user_id: current_user.id)&.extension_jabvox
   end
 
-  # Returns [phone, contact, lead, conversation]. The number to dial comes from
-  # the VoIP config's dial_field (default: the contact's phone_number); a custom
-  # field is read from the lead and normalized with the configured prefix.
+  # Devuelve [phone, contact, conversation]. El número a marcar sale del dial_field de la
+  # configuración VoIP (por defecto, el teléfono del contacto); un campo personalizado se lee
+  # del propio contacto y se normaliza con el prefijo configurado.
+  #
+  # `lead_id` se sigue aceptando como alias de `contact_id` para las llamadas que aún lo
+  # envíen: tras retirar Leads, ambos identifican al mismo contacto.
   def resolve_target
     config = Current.account.jabvox_voip_config
-    if params[:lead_id].present?
-      lead = Current.account.jabvox_leads.find_by(id: params[:lead_id])
-      return [dial_number(lead, lead&.contact, config), lead&.contact, lead, nil]
-    end
-
-    contact = Current.account.contacts.find_by(id: params[:contact_id]) if params[:contact_id].present?
+    contact_id = params[:contact_id].presence || params[:lead_id].presence
+    contact = Current.account.contacts.find_by(id: contact_id) if contact_id
     conversation = Current.account.conversations.find_by(display_id: params[:conversation_id]) if params[:conversation_id].present?
     contact ||= conversation&.contact
-    # Custom dial fields live on the lead, so resolve the contact's lead if any.
-    lead = contact ? Current.account.jabvox_leads.find_by(contact_id: contact.id) : nil
-    [dial_number(lead, contact, config), contact, nil, conversation]
+    [dial_number(contact, config), contact, conversation]
   end
 
-  # Number to dial for click-to-call. Uses the configured dial_field/prefix when
-  # a lead is available; otherwise falls back to the contact's phone number.
-  def dial_number(lead, contact, config)
-    if lead
-      Jabvox::DialNumberResolver.resolve(
-        lead: lead, field: config&.dial_field_jabvox, prefix: config&.dial_prefix_jabvox
-      )
-    else
-      Jabvox::PhoneNormalizer.for_dialing(contact&.phone_number).presence
-    end
+  def dial_number(contact, config)
+    return nil unless contact
+
+    Jabvox::DialNumberResolver.resolve(
+      lead: contact, field: config&.dial_field_jabvox, prefix: config&.dial_prefix_jabvox
+    )
   end
 
   def render_error(message)

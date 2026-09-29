@@ -58,11 +58,6 @@ const isShopifyFeatureEnabled = computed(
 );
 
 const { isCloudFeatureEnabled } = useAccount();
-// Show the Jabvox lead info panel only when the leads module is enabled for the
-// account (its endpoint 403s otherwise).
-const isJabvoxLeadsEnabled = computed(() =>
-  isCloudFeatureEnabled(FEATURE_FLAGS.JABVOX_LEADS)
-);
 
 const isLinearFeatureEnabled = computed(() =>
   isCloudFeatureEnabled(FEATURE_FLAGS.LINEAR)
@@ -153,9 +148,10 @@ onMounted(() => {
     />
     <ContactInfo :contact="contact" :channel-type="channelType" />
     <div class="px-2 pb-8 list-group">
-      <!-- Jabvox: ficha completa del lead SIEMPRE como primer acordeón (fuera del
-           Draggable, igual que el panel de registros Jabvox del final). -->
-      <div v-if="contactId && isJabvoxLeadsEnabled" class="mb-3">
+      <!-- Jabvox: ficha completa del contacto SIEMPRE como primer acordeón (fuera del
+           Draggable, igual que el panel de registros Jabvox del final). Ya no depende de
+           ningún módulo: los datos viven en el propio contacto. -->
+      <div v-if="contactId" class="mb-3">
         <AccordionItem
           :title="$t('CONVERSATION_SIDEBAR.ACCORDION.LEAD_INFO')"
           :is-open="isContactSidebarItemOpen('is_lead_info_open')"
@@ -339,16 +335,21 @@ onMounted(() => {
         </template>
       </Draggable>
 
-      <!-- Lead records: multi-row custom tables (Asesorías, Casos…) -->
-      <AccordionItem
-        v-if="hasJabvoxMultiTables && contactId"
-        :title="$t('JABVOX_CUSTOMIZATION.LEAD_ROWS.TAB')"
-        :is-open="isContactSidebarItemOpen('is_jabvox_records_open')"
-        compact
-        @toggle="value => toggleSidebarUIState('is_jabvox_records_open', value)"
-      >
-        <JabvoxLeadRecordsByContact :contact-id="contactId" />
-      </AccordionItem>
+      <!-- Registros: tablas personalizadas de varias filas (Asesorías, Casos…).
+           `mt-3` para que no quede pegado al último acordeón del Draggable, que separa los
+           suyos con gap-3 pero no deja margen al final. -->
+      <div v-if="hasJabvoxMultiTables && contactId" class="mt-3">
+        <AccordionItem
+          :title="$t('JABVOX_CUSTOMIZATION.LEAD_ROWS.TAB')"
+          :is-open="isContactSidebarItemOpen('is_jabvox_records_open')"
+          compact
+          @toggle="
+            value => toggleSidebarUIState('is_jabvox_records_open', value)
+          "
+        >
+          <JabvoxLeadRecordsByContact :contact-id="contactId" />
+        </AccordionItem>
+      </div>
     </div>
   </div>
 </template>

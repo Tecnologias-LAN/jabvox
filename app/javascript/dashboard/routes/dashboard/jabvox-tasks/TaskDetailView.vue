@@ -3,14 +3,17 @@ import { ref, computed, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useStoreGetters } from 'dashboard/composables/store';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import AgentSelect from './components/AgentSelect.vue';
 import LeadSelect from './components/LeadSelect.vue';
 import TaskAutomationsPanel from './components/TaskAutomationsPanel.vue';
+import TaskComments from './components/TaskComments.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 
 const { t } = useI18n();
+const { isAdmin } = useAdmin();
 const route = useRoute();
 const router = useRouter();
 const getters = useStoreGetters();
@@ -18,6 +21,8 @@ const store = useTasksStore();
 
 const task = ref(null);
 const activities = ref([]);
+const commentBody = ref('');
+const isCommenting = ref(false);
 const isLoading = ref(true);
 const isEditing = ref(false);
 const isSaving = ref(false);
@@ -38,6 +43,17 @@ const STATUS_KEYS = {
   open: 'JABVOX_TASKS.TASK.STATUS_OPEN',
   done: 'JABVOX_TASKS.TASK.STATUS_DONE',
 };
+// El historial guarda el estado en crudo ('open'/'done'): aquí se traduce y se pinta.
+// Amarillo mientras está abierta, verde cuando se completó.
+const STATUS_STYLE = {
+  open: 'bg-n-amber-3 text-n-amber-11',
+  done: 'bg-n-teal-3 text-n-teal-11',
+};
+const statusText = value =>
+  STATUS_KEYS[value] ? t(STATUS_KEYS[value]) : value;
+const statusChip = value =>
+  STATUS_STYLE[value] || 'bg-n-alpha-2 text-n-slate-11';
+
 const PRIORITY_CLASS = {
   low: 'bg-n-alpha-1 text-n-slate-10',
   normal: 'bg-n-blue-3 text-n-blue-11',
@@ -45,6 +61,8 @@ const PRIORITY_CLASS = {
   urgent: 'bg-n-ruby-9 text-white',
 };
 const ACTIVITY_ICON = {
+  comment: 'i-lucide-message-square',
+  recurrence_created: 'i-lucide-repeat',
   created: 'i-lucide-sparkles',
   title_changed: 'i-lucide-type',
   description_changed: 'i-lucide-align-left',
@@ -132,11 +150,6 @@ const activityText = activity => {
         from: m.from,
         to: m.to,
       });
-    case 'status_changed':
-      return t('JABVOX_TASKS.TASK.HISTORY.STATUS_CHANGED', {
-        from: m.from,
-        to: m.to,
-      });
     case 'priority_changed':
       return t('JABVOX_TASKS.TASK.HISTORY.PRIORITY_CHANGED', {
         from: m.from,
@@ -175,6 +188,23 @@ const load = async () => {
 };
 
 // Copy the loaded task into the editable form and enter edit mode.
+// Enviar un comentario no recarga el historial entero: la respuesta ya trae la actividad
+// creada, así que se inserta arriba, que es donde va por ser la más reciente.
+const submitComment = async () => {
+  const body = commentBody.value.trim();
+  if (!body || isCommenting.value) return;
+  isCommenting.value = true;
+  try {
+    const activity = await store.addTaskComment(taskId.value, body);
+    activities.value = [activity, ...activities.value];
+    commentBody.value = '';
+  } catch {
+    useAlert(t('JABVOX_TASKS.TASK.HISTORY.COMMENT_ERROR'));
+  } finally {
+    isCommenting.value = false;
+  }
+};
+
 const startEdit = () => {
   const tk = task.value;
   form.title_jabvox = tk.titleJabvox || '';
@@ -313,9 +343,28 @@ watch(taskId, () => load(), { immediate: true });
           </button>
         </template>
         <template v-else>
+          <!-- Estado actual + acción en un solo control: la pastilla dice cómo está
+               (amarillo abierta, verde completada) y el botón qué pasa al pulsarlo.
+               Antes ponía "Completada" estando abierta, que se leía como el estado. -->
+          <span
+            class="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-lg"
+            :class="statusChip(task.statusJabvox)"
+          >
+            <span
+              :class="isDone ? 'i-lucide-circle-check' : 'i-lucide-circle-dot'"
+              class="size-3.5"
+              aria-hidden="true"
+            />
+            {{ statusText(task.statusJabvox) }}
+          </span>
           <button
             type="button"
-            class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-n-weak text-n-slate-11 hover:bg-n-alpha-2 transition-colors"
+            class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+            :class="
+              isDone
+                ? 'border-n-weak text-n-slate-11 hover:bg-n-alpha-2'
+                : 'border-n-teal-6 text-n-teal-11 hover:bg-n-teal-3'
+            "
             @click="toggleDone"
           >
             <span
@@ -327,11 +376,14 @@ watch(taskId, () => load(), { immediate: true });
             />
             {{
               isDone
-                ? t('JABVOX_TASKS.TASK.STATUS_OPEN')
-                : t('JABVOX_TASKS.TASK.STATUS_DONE')
+                ? t('JABVOX_TASKS.TASK.REOPEN')
+                : t('JABVOX_TASKS.TASK.MARK_DONE')
             }}
           </button>
+          <!-- Borrar es solo del administrador: se oculta en vez de dejar un botón que
+               siempre responde 403. -->
           <button
+            v-if="isAdmin"
             type="button"
             class="inline-flex items-center justify-center size-8 rounded-lg text-n-ruby-11 hover:bg-n-alpha-2 transition-colors"
             :title="t('JABVOX_TASKS.TASK.DELETE')"
@@ -621,8 +673,16 @@ watch(taskId, () => load(), { immediate: true });
             </div>
           </section>
 
-          <!-- Automations (only meaningful once the task exists) -->
-          <TaskAutomationsPanel v-if="!isEditing" :task-id="task.id" />
+          <!-- Comentarios de resolución: debajo de los detalles, que es donde se sigue
+               el caso. Los mismos comentarios salen también en el historial. -->
+          <TaskComments
+            v-if="!isEditing"
+            v-model="commentBody"
+            :activities="activities"
+            :is-sending="isCommenting"
+            :format-date="formatDate"
+            @submit="submitComment"
+          />
         </div>
 
         <!-- Activity timeline -->
@@ -660,8 +720,36 @@ watch(taskId, () => load(), { immediate: true });
                     aria-hidden="true"
                   />
                 </span>
-                <div class="min-w-0 pt-0.5">
-                  <p class="text-sm text-n-slate-12 break-words">
+                <div class="min-w-0 pt-0.5 flex-1">
+                  <p
+                    v-if="activity.action === 'comment'"
+                    class="text-sm text-n-slate-12 break-words whitespace-pre-line rounded-lg bg-n-alpha-1 px-2.5 py-2"
+                  >
+                    {{ activity.metadata?.body }}
+                  </p>
+                  <!-- El cambio de estado se arma aquí y no en activityText porque
+                       lleva dos pastillas de color, y una cadena traducida no puede
+                       llevar marcado dentro. -->
+                  <p
+                    v-else-if="activity.action === 'status_changed'"
+                    class="text-sm text-n-slate-12 break-words flex flex-wrap items-center gap-1"
+                  >
+                    {{ t('JABVOX_TASKS.TASK.HISTORY.STATUS_CHANGED_PREFIX') }}
+                    <span
+                      class="px-1.5 py-0.5 rounded text-[11px] font-medium"
+                      :class="statusChip(activity.metadata?.from)"
+                    >
+                      {{ statusText(activity.metadata?.from) }}
+                    </span>
+                    {{ t('JABVOX_TASKS.TASK.HISTORY.STATUS_CHANGED_TO') }}
+                    <span
+                      class="px-1.5 py-0.5 rounded text-[11px] font-medium"
+                      :class="statusChip(activity.metadata?.to)"
+                    >
+                      {{ statusText(activity.metadata?.to) }}
+                    </span>
+                  </p>
+                  <p v-else class="text-sm text-n-slate-12 break-words">
                     {{ activityText(activity) }}
                   </p>
                   <p class="text-[11px] text-n-slate-10 mt-0.5">
@@ -687,6 +775,14 @@ watch(taskId, () => load(), { immediate: true });
               </p>
             </div>
           </section>
+
+          <!-- Automatizaciones de esta tarea (recordatorios recurrentes). Van aquí, no en
+               la columna principal: son configuración, no el trabajo de la tarea. -->
+          <TaskAutomationsPanel
+            v-if="!isEditing"
+            :task-id="task.id"
+            class="mt-4"
+          />
         </aside>
       </div>
     </div>

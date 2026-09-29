@@ -39,9 +39,7 @@ class JabvoxModulesField < Administrate::Field::Base
     [:jabvox_advanced_automations_enabled_jabvox, 'Automatizaciones Avanzadas', :ai],
     [:jabvox_analytics_enabled_jabvox, 'Analytics', :ai],
     # CRM y Gestión
-    [:jabvox_leads_enabled_jabvox, 'Leads', :crm],
-    [:jabvox_lead_import_enabled_jabvox, 'Importar Leads', :crm],
-    [:jabvox_lead_delete_enabled_jabvox, 'Eliminar Leads', :crm],
+    [:jabvox_lead_import_enabled_jabvox, 'Importar Contactos', :crm],
     [:jabvox_kanban_enabled_jabvox, 'Kanban', :crm],
     [:jabvox_tasks_enabled_jabvox, 'Tareas', :crm],
     [:jabvox_tickets_enabled_jabvox, 'Tickets', :crm],

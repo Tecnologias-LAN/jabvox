@@ -1,4 +1,6 @@
 module Filters::FilterHelper
+  include Filters::ContactAttributeFilters
+
   def build_condition_query(model_filters, query_hash, current_index)
     current_filter = model_filters[query_hash['attribute_key']]
 
@@ -35,6 +37,10 @@ module Filters::FilterHelper
     case current_filter['attribute_type']
     when 'additional_attributes'
       handle_additional_attributes(query_hash, filter_operator_value, current_filter['data_type'])
+    when 'contact_attribute'
+      handle_contact_attribute(current_filter, query_hash, filter_operator_value)
+    when 'contact_jsonb_attribute'
+      handle_contact_jsonb_attribute(current_filter, query_hash, filter_operator_value)
     else
       handle_standard_attributes(current_filter, query_hash, current_index, filter_operator_value)
     end

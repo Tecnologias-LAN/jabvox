@@ -55,6 +55,7 @@
     "TEAM_MODELS_ALL": "This account has access to every model on the provider.",
     "NO_MODELS": "The provider reported no available models.",
     "KEYS_ERROR": "Could not load the virtual keys: the provider did not respond in time. Your balance is up to date.",
-    "RETRY": "Retry"
+    "RETRY": "Retry",
+    "SELECT_ALL": "all"
   }
 }

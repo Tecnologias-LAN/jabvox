@@ -27,10 +27,23 @@ class Jabvox::Flows::Nodes::Base
       @node_outputs = values.flatten
     end
 
-    # Registra el tipo en un Engine::Registry.
+    # Tipos ANTIGUOS que este nodo sigue atendiendo. Renombrar un tipo dejaría rotas las
+    # automatizaciones ya guardadas, que llevan el nombre viejo dentro de su grafo: el alias
+    # las mantiene funcionando mientras las nuevas se construyen con el nombre actual.
+    def aliases(*values)
+      @node_aliases = values.flatten
+    end
+
+    def node_aliases
+      @node_aliases || []
+    end
+
+    # Registra el tipo (y sus alias) en un Engine::Registry.
     def register_on(registry)
-      registry.register(@node_type, handler: method(:call), items_path: @node_items_path,
-                                    outputs: @node_outputs || [], label: @node_label)
+      ([@node_type] + node_aliases).each do |type|
+        registry.register(type, handler: method(:call), items_path: @node_items_path,
+                                outputs: @node_outputs || [], label: @node_label)
+      end
     end
 
     def call(ctx, node, params)

@@ -239,18 +239,28 @@ onMounted(() => {
 
 <template>
   <section class="rounded-2xl border border-n-weak bg-n-solid-1 p-5 shadow-sm">
+    <!-- El título cede espacio y el botón no se encoge: en la columna lateral (320px)
+         el texto largo del botón desbordaba la tarjeta. -->
     <div class="flex items-center justify-between gap-2 mb-4">
-      <h3 class="flex items-center gap-2 text-sm font-semibold text-n-slate-12">
-        <span class="i-lucide-zap size-4 text-n-slate-10" aria-hidden="true" />
-        {{ t('JABVOX_TASKS.AUTOMATION.TITLE') }}
+      <h3
+        class="flex items-center gap-2 min-w-0 text-sm font-semibold text-n-slate-12"
+      >
+        <span
+          class="i-lucide-zap size-4 text-n-slate-10 shrink-0"
+          aria-hidden="true"
+        />
+        <span class="truncate">{{ t('JABVOX_TASKS.AUTOMATION.TITLE') }}</span>
       </h3>
       <button
         type="button"
-        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
+        class="inline-flex items-center gap-1 shrink-0 px-2 py-1.5 text-xs font-medium rounded-lg bg-n-alpha-2 text-n-slate-11 hover:bg-n-alpha-3 transition-colors"
+        :title="t('JABVOX_TASKS.AUTOMATION.ADD')"
         @click="openCreate"
       >
-        <span class="i-lucide-plus size-3.5" aria-hidden="true" />
-        {{ t('JABVOX_TASKS.AUTOMATION.ADD') }}
+        <span class="i-lucide-plus size-3.5 shrink-0" aria-hidden="true" />
+        <span class="truncate max-w-[9rem]">
+          {{ t('JABVOX_TASKS.AUTOMATION.ADD') }}
+        </span>
       </button>
     </div>
 

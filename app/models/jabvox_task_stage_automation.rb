@@ -42,6 +42,8 @@
 #  fk_rails_...  (target_stage_id => jabvox_task_stages.id)
 #
 class JabvoxTaskStageAutomation < ApplicationRecord
+  include Jabvox::AccountScopedReferences
+
   self.table_name = 'jabvox_task_stage_automations'
 
   AUTOMATION_TYPES = %w[send_message webhook move_after_hours move_if_inactive].freeze
@@ -59,6 +61,11 @@ class JabvoxTaskStageAutomation < ApplicationRecord
                                 foreign_key: :automation_id, dependent: :delete_all, inverse_of: :automation
 
   encrypts :webhook_secret_jabvox if Jabvox.encryption_configured?
+
+  # Todo lo que esta automatización apunta tiene que ser de su misma cuenta: sin esto se
+  # podía enviar por la bandeja de otro cliente, gastar su saldo de SMS, renderizar sus
+  # plantillas o mover tareas a su tablero.
+  validates_account_scope :inbox, :email_template, :sms_provider, :target_stage
 
   validates :automation_type_jabvox, inclusion: { in: AUTOMATION_TYPES }
   validates :channel_type_jabvox, inclusion: { in: CHANNEL_TYPES }, allow_nil: true

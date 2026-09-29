@@ -18,17 +18,24 @@ module Jabvox
 
     PHONE_FIELD = 'phone'
 
-    # lead: a JabvoxLead (responds to #contact and #custom_fields_jabvox).
+    # `lead` es hoy un Contact (antes un JabvoxLead). Se acepta cualquiera de los dos: un
+    # Contact responde a #phone_number directamente, un lead llega a él por #contact.
     def resolve(lead:, field:, prefix: nil)
       key = sanitize_field(field)
 
       if key.blank? || key == PHONE_FIELD
-        # Contact phone is stored E.164 with "+": just strip formatting.
-        Jabvox::PhoneNormalizer.for_dialing(lead&.contact&.phone_number).presence
+        # El teléfono se guarda en E.164 con "+": basta con quitar el formato.
+        Jabvox::PhoneNormalizer.for_dialing(phone_of(lead)).presence
       else
         raw = (lead&.custom_fields_jabvox || {})[key]
         Jabvox::PhoneNormalizer.normalize(raw, prefix)
       end
+    end
+
+    def phone_of(record)
+      return record.phone_number if record.respond_to?(:phone_number)
+
+      record&.contact&.phone_number
     end
 
     # Same as resolve but from an already-known raw value (used when the caller

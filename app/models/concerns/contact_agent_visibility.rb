@@ -25,10 +25,11 @@ module ContactAgentVisibility
       user_id = account_user.user_id
       conversation_contact_ids = Conversation.where(account_id: account_user.account_id, assignee_id: user_id)
                                              .select(:contact_id)
-      lead_contact_ids = JabvoxLead.where(account_id: account_user.account_id, assignee_id: user_id)
-                                   .select(:contact_id)
 
-      where(id: conversation_contact_ids).or(where(id: lead_contact_ids))
+      # Dos vías: el contacto le está asignado directamente, o lo está una de sus
+      # conversaciones. Antes la primera vía miraba el responsable del lead; al retirar
+      # Leads ese dato vive en el propio contacto.
+      where(id: conversation_contact_ids).or(where(assignee_id: user_id))
     end
   end
 end

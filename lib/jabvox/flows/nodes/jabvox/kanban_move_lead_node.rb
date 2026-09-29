@@ -3,8 +3,10 @@
 # jabvox.kanban.move_lead — coloca el lead en una etapa del embudo. `leadId` es
 # el ID INTERNO del lead, no el número "#5" de pantalla.
 class Jabvox::Flows::Nodes::Jabvox::KanbanMoveLeadNode < Jabvox::Flows::Nodes::Jabvox::KanbanBase
-  type 'jabvox.kanban.move_lead'
-  label 'Mover lead en Kanban'
+  type 'jabvox.kanban.move_contact'
+  # Tipo anterior: los flujos guardados lo siguen usando.
+  aliases 'jabvox.kanban.move_lead'
+  label 'Mover Contacto en Kanban'
 
   def perform
     funnel = find_funnel!(param(:funnelId))

@@ -22,7 +22,6 @@
 #
 class JabvoxCampaign < ApplicationRecord
   belongs_to :account
-  has_many :jabvox_leads, dependent: :nullify
 
   validates :name_jabvox, presence: true, uniqueness: { scope: :account_id }
   validates :account_id, presence: true

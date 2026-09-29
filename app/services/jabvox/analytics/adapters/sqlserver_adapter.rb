@@ -77,7 +77,7 @@ class Jabvox::Analytics::Adapters::SqlserverAdapter < Jabvox::Analytics::Adapter
   def execute(sql, binds: [], row_limit: nil)
     cap = row_cap(row_limit)
     # No LIMIT in T-SQL: cap with TOP over the (already-validated) subquery.
-    wrapped = "SELECT TOP (#{cap}) * FROM (#{sql}) AS jabvox_sub"
+    wrapped = "SELECT TOP (#{cap}) * FROM (#{subquery_body(sql)}) AS jabvox_sub"
     started = monotonic_ms
     with_client do |client|
       bound = apply_binds(wrapped, binds)

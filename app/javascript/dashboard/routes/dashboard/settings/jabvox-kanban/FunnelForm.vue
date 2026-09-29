@@ -11,6 +11,7 @@ import Switch from 'dashboard/components-next/switch/Switch.vue';
 import SectionCard from './components/SectionCard.vue';
 import leadCampaignsAPI from 'dashboard/api/jabvox/leadCampaigns';
 import affiliatesAPI from 'dashboard/api/jabvox/affiliates';
+import contactsListAPI from 'dashboard/api/jabvox/contactsList';
 
 const store = useStore();
 const route = useRoute();
@@ -22,6 +23,7 @@ const uiFlags = useMapGetter('jabvoxKanban/getUIFlags');
 const inboxes = useMapGetter('inboxes/getInboxes');
 
 const campaigns = ref([]);
+const lifecycleStages = ref([]);
 const affiliates = ref([]);
 
 const isEditing = computed(() => !!route.params.funnelId);
@@ -39,16 +41,23 @@ const form = ref({
   inbox_ids: [],
   campaign_ids: [],
   affiliate_ids: [],
-  include_own_leads: false,
+  lifecycle_stages_jabvox: [],
+  include_own_contacts: false,
 });
 
 onMounted(async () => {
-  const [, , campaignsResult, affiliatesResult] = await Promise.allSettled([
-    store.dispatch('jabvoxKanban/fetchFunnels'),
-    store.dispatch('inboxes/get'),
-    leadCampaignsAPI.getAll(),
-    affiliatesAPI.getAll(),
-  ]);
+  const [, , campaignsResult, affiliatesResult, stagesResult] =
+    await Promise.allSettled([
+      store.dispatch('jabvoxKanban/fetchFunnels'),
+      store.dispatch('inboxes/get'),
+      leadCampaignsAPI.getAll(),
+      affiliatesAPI.getAll(),
+      contactsListAPI.lifecycleStages(),
+    ]);
+  lifecycleStages.value =
+    stagesResult.status === 'fulfilled'
+      ? stagesResult.value?.data?.lifecycle_stages || []
+      : [];
   campaigns.value =
     campaignsResult.status === 'fulfilled' &&
     Array.isArray(campaignsResult.value?.data)
@@ -68,7 +77,9 @@ onMounted(async () => {
       inbox_ids: existingFunnel.value.inbox_ids || [],
       campaign_ids: existingFunnel.value.campaign_ids || [],
       affiliate_ids: existingFunnel.value.affiliate_ids || [],
-      include_own_leads: existingFunnel.value.include_own_leads ?? false,
+      lifecycle_stages_jabvox:
+        existingFunnel.value.lifecycle_stages_jabvox || [],
+      include_own_contacts: existingFunnel.value.include_own_contacts ?? false,
     };
   }
 });
@@ -82,6 +93,8 @@ const toggleIn = (list, id) => {
 const isInboxSelected = id => form.value.inbox_ids.includes(id);
 const isCampaignSelected = id => form.value.campaign_ids.includes(id);
 const isAffiliateSelected = id => form.value.affiliate_ids.includes(id);
+const isLifecycleSelected = id =>
+  form.value.lifecycle_stages_jabvox.includes(id);
 
 const isSubmitting = computed(
   () => uiFlags.value.isCreatingFunnel || uiFlags.value.isUpdatingFunnel
@@ -99,7 +112,10 @@ const onSubmit = async () => {
         name_jabvox: form.value.name_jabvox.trim(),
         description_jabvox: form.value.description_jabvox,
         active_jabvox: form.value.active_jabvox,
-        include_own_leads_jabvox: form.value.include_own_leads,
+        include_own_contacts_jabvox: form.value.include_own_contacts,
+        // Va DENTRO de `funnel`: el backend lo lee de params[:funnel], y mandarlo al
+        // nivel raíz hacía que se descartara y el embudo quedara sin etapas.
+        lifecycle_stages_jabvox: form.value.lifecycle_stages_jabvox,
       },
       inbox_ids: form.value.inbox_ids,
       campaign_ids: form.value.campaign_ids,
@@ -277,6 +293,34 @@ const onCancel = () => router.push({ name: 'jabvox_kanban_funnels_index' });
             </p>
           </div>
 
+          <!-- Etapa del contacto: sustituye a la distinción "es lead / no es lead" y permite
+               embudos como "reactivación de inactivos" sin depender de bandeja ni campaña. -->
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-n-slate-12">
+              {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.STAGES_LABEL') }}
+            </label>
+            <div
+              class="flex flex-col gap-1 rounded-xl border border-n-weak p-2"
+            >
+              <label
+                v-for="stage in lifecycleStages"
+                :key="stage.id"
+                class="flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer hover:bg-n-alpha-1 text-sm text-n-slate-12"
+              >
+                <input
+                  type="checkbox"
+                  :checked="isLifecycleSelected(stage.id)"
+                  class="rounded accent-n-brand"
+                  @change="toggleIn('lifecycle_stages_jabvox', stage.id)"
+                />
+                {{ stage.name }}
+              </label>
+            </div>
+            <p class="text-xs text-n-slate-10">
+              {{ t('JABVOX_KANBAN.SETTINGS.FUNNELS.FORM.STAGES_HINT') }}
+            </p>
+          </div>
+
           <!-- Affiliates -->
           <div class="flex flex-col gap-2">
             <label class="text-sm font-medium text-n-slate-12">
@@ -289,7 +333,7 @@ const onCancel = () => router.push({ name: 'jabvox_kanban_funnels_index' });
                 class="flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer hover:bg-n-alpha-1 text-sm font-medium text-n-slate-12"
               >
                 <input
-                  v-model="form.include_own_leads"
+                  v-model="form.include_own_contacts"
                   type="checkbox"
                   class="rounded accent-n-brand"
                 />

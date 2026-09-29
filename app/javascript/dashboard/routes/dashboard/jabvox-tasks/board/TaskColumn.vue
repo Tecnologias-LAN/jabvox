@@ -19,6 +19,8 @@ const emit = defineEmits([
   'detailTask',
   'addTask',
   'editStage',
+  'deleteStage',
+  'reorderStage',
   'openAutomations',
   'dropTask',
 ]);
@@ -26,7 +28,46 @@ const emit = defineEmits([
 const { t } = useI18n();
 const { isAdmin } = useAdmin();
 
+// Colores del papel de la columna, iguales a los del cajón de automatizaciones.
+const ROLE_STYLES = {
+  initial: 'bg-n-slate-3 text-n-slate-11',
+  done: 'bg-n-teal-3 text-n-teal-11',
+  inactive: 'bg-n-ruby-3 text-n-ruby-11',
+};
+
 const isDragOver = ref(false);
+// Arrastre de la COLUMNA (desde su cabecera). El dato lleva prefijo porque las tarjetas
+// ya usan dataTransfer con el id pelado: sin distinguirlos, soltar una columna sobre otra
+// se interpretaría como mover una tarjeta.
+const STAGE_PREFIX = 'stage:';
+const isStageDragOver = ref(false);
+
+const onStageDragStart = event => {
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', `${STAGE_PREFIX}${props.stage.id}`);
+};
+
+const onStageDragOver = event => {
+  if (!event.dataTransfer.types.includes('text/plain')) return;
+  event.preventDefault();
+  isStageDragOver.value = true;
+};
+
+const onStageDragLeave = () => {
+  isStageDragOver.value = false;
+};
+
+const onStageDrop = event => {
+  isStageDragOver.value = false;
+  const raw = event.dataTransfer.getData('text/plain');
+  if (!raw.startsWith(STAGE_PREFIX)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const draggedId = parseInt(raw.slice(STAGE_PREFIX.length), 10);
+  if (draggedId && draggedId !== props.stage.id) {
+    emit('reorderStage', { draggedId, targetId: props.stage.id });
+  }
+};
 
 const onDragOver = event => {
   event.preventDefault();
@@ -42,6 +83,7 @@ const onDrop = event => {
   event.preventDefault();
   isDragOver.value = false;
   const raw = event.dataTransfer.getData('text/plain');
+  if (raw.startsWith(STAGE_PREFIX)) return;
   const taskId = parseInt(raw, 10);
   if (taskId) {
     emit('dropTask', { taskId, stageId: props.stage.id });
@@ -53,8 +95,19 @@ const onDrop = event => {
   <div
     class="flex flex-col w-[300px] shrink-0 rounded-xl bg-n-solid-2 border border-n-weak h-full"
   >
+    <!-- La cabecera es el asa: se arrastra la columna desde aquí, no desde su cuerpo,
+         para no chocar con el arrastre de tarjetas. -->
     <div
-      class="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-n-weak shrink-0"
+      class="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-n-weak shrink-0 transition-colors"
+      :class="[
+        isAdmin ? 'cursor-grab active:cursor-grabbing' : '',
+        isStageDragOver ? 'bg-n-alpha-2' : '',
+      ]"
+      :draggable="isAdmin"
+      @dragstart="onStageDragStart"
+      @dragover="onStageDragOver"
+      @dragleave="onStageDragLeave"
+      @drop="onStageDrop"
     >
       <div class="flex items-center gap-2 min-w-0">
         <span
@@ -69,6 +122,15 @@ const onDrop = event => {
           class="text-xs font-medium text-n-slate-10 bg-n-alpha-1 rounded-full px-1.5"
         >
           {{ tasks.length }}
+        </span>
+        <!-- Papel de la columna: qué hace el sistema con ella (dónde nacen las tareas,
+             cuál cierra, cuál recoge lo vencido). -->
+        <span
+          v-if="stage.roleJabvox"
+          class="text-[10px] font-medium rounded px-1.5 py-0.5 shrink-0"
+          :class="ROLE_STYLES[stage.roleJabvox]"
+        >
+          {{ t(`JABVOX_TASKS.STAGE_ROLE.${stage.roleJabvox}`) }}
         </span>
       </div>
       <div class="flex items-center gap-1">
@@ -89,6 +151,15 @@ const onDrop = event => {
           @click="emit('editStage', stage)"
         >
           <span class="i-lucide-pencil size-4" aria-hidden="true" />
+        </button>
+        <button
+          v-if="isAdmin"
+          type="button"
+          class="flex items-center justify-center p-1 rounded text-n-ruby-11 hover:bg-n-alpha-2"
+          :title="t('JABVOX_TASKS.STAGE.DELETE')"
+          @click="emit('deleteStage', stage)"
+        >
+          <span class="i-lucide-trash-2 size-4" aria-hidden="true" />
         </button>
       </div>
     </div>

@@ -4,8 +4,10 @@
 # jabvox.lead.search modo by_field, con la salida original
 # `{ field, operator, value, leads, count }`.
 class Jabvox::Flows::Nodes::Jabvox::LeadFindByFieldNode < Jabvox::Flows::Nodes::Jabvox::LeadSearchNode
-  type 'jabvox.lead.find_by_field'
-  label 'Buscar leads por campo'
+  type 'jabvox.contact.find_by_field'
+  # Tipo anterior: los flujos guardados lo siguen usando.
+  aliases 'jabvox.lead.find_by_field'
+  label 'Buscar Contactos por campo'
   items_path 'leads'
 
   def perform

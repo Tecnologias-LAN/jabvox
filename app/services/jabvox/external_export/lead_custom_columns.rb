@@ -4,7 +4,7 @@
 # single opaque jsonb column.
 #
 # The source of truth for WHICH columns exist is the account's single lead-linked
-# custom table (JabvoxCustomTable.for_leads) and its ordered JabvoxCustomColumns —
+# custom table (JabvoxCustomTable.for_contacts) and its ordered JabvoxCustomColumns —
 # NOT the raw jsonb keys (which are heterogeneous across historical imports).
 #
 # When reading a lead's value for a column we tolerate legacy keys: some old rows
@@ -56,7 +56,7 @@ class Jabvox::ExternalExport::LeadCustomColumns
   def custom_columns
     return @custom_columns if defined?(@custom_columns)
 
-    table = @account.jabvox_custom_tables.for_leads.first
+    table = @account.jabvox_custom_tables.for_contacts.first
     cols = table ? table.jabvox_custom_columns.ordered.to_a : []
     # Never let a custom field named like a secret (password, token…) reintroduce
     # sensitive data past the column-name filter applied to real columns.

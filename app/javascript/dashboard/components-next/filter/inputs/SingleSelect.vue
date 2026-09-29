@@ -187,6 +187,13 @@ const toggleSelected = option => {
             {{ t('COMBOBOX.EMPTY_SEARCH_RESULTS', { searchTerm: searchTerm }) }}
           </DropdownItem>
         </template>
+        <!-- En búsqueda asíncrona y sin texto todavía no se ha consultado nada: decir "no
+             se encontraron resultados" es engañoso, lo que toca es invitar a escribir. -->
+        <template v-else-if="asyncSearch">
+          <DropdownItem disabled>
+            {{ t('COMBOBOX.TYPE_TO_SEARCH') }}
+          </DropdownItem>
+        </template>
         <template v-else>
           <DropdownItem disabled>
             {{ t('COMBOBOX.EMPTY_STATE') }}

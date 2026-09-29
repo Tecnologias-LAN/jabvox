@@ -39,13 +39,13 @@ class JabvoxCustomTable < ApplicationRecord
 
   scope :ordered, -> { order(:position_jabvox, :name_jabvox) }
   # The single system table for inline lead fields.
-  scope :for_leads, -> { where(linked_to_jabvox: 'leads', kind_jabvox: 'single') }
+  scope :for_contacts, -> { where(linked_to_jabvox: 'contacts', kind_jabvox: 'single') }
   scope :standalone, -> { where(linked_to_jabvox: nil) }
-  # Multi-row tables (Asesorías, Casos…). They are NOT linked_to 'leads' (that
+  # Tablas multi-fila (Asesorías, Casos…). NO están vinculadas a 'contacts' (eso
   # slot is reserved for the single system table and is unique per account);
   # instead each of their ROWS carries a jabvox_lead_id, so a lead's detail can
   # show them. This keeps them clear of the single-leads-table unique index.
-  scope :multi_for_leads, -> { where(kind_jabvox: 'multi') }
+  scope :multi_for_contacts, -> { where(kind_jabvox: 'multi') }
 
   def multi?
     kind_jabvox == 'multi'
@@ -53,6 +53,6 @@ class JabvoxCustomTable < ApplicationRecord
 
   # The locked system table (inline lead fields) — never a multi table.
   def system_leads_table?
-    linked_to_jabvox == 'leads' && !multi?
+    linked_to_jabvox == 'contacts' && !multi?
   end
 end

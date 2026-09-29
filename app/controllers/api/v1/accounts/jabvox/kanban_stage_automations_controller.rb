@@ -50,7 +50,8 @@ class Api::V1::Accounts::Jabvox::KanbanStageAutomationsController < Api::V1::Acc
     params.require(:automation).permit(
       :name, :automation_type, :channel_type,
       :inbox_id, :jabvox_email_template_id, :jabvox_sms_provider_id,
-      :message_body, :trigger_hours, :target_stage_id, :active
+      :message_body, :trigger_hours, :target_stage_id, :active,
+      :trigger_value_jabvox, :trigger_unit_jabvox
     )
   end
 end

@@ -127,7 +127,7 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
                 end
 
     # rubocop:disable Rails/SkipsModelValidations
-    Current.account.jabvox_leads.where(assignee_id: agent.id).update_all(assignee_id: target_id)
+    Current.account.contacts.where(assignee_id: agent.id).update_all(assignee_id: target_id)
     Current.account.jabvox_tasks.where(assignee_id: agent.id).update_all(assignee_id: target_id)
     # rubocop:enable Rails/SkipsModelValidations
   end

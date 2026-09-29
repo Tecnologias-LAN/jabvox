@@ -44,6 +44,26 @@ const AUTOMATION_TYPES = computed(() => [
     value: 'move_if_inactive',
     label: t('JABVOX_KANBAN.AUTOMATIONS_PANEL.FORM.TYPE_MOVE_IF_INACTIVE'),
   },
+  {
+    value: 'move_if_no_incoming',
+    label: t('JABVOX_KANBAN.AUTOMATIONS_PANEL.FORM.TYPE_MOVE_NO_INCOMING'),
+  },
+  {
+    value: 'move_if_no_outgoing',
+    label: t('JABVOX_KANBAN.AUTOMATIONS_PANEL.FORM.TYPE_MOVE_NO_OUTGOING'),
+  },
+]);
+
+// Unidad del disparo por tiempo: minutos u horas, sin valor por defecto impuesto.
+const TRIGGER_UNITS = computed(() => [
+  {
+    value: 'minutes',
+    label: t('JABVOX_KANBAN.AUTOMATIONS_PANEL.FORM.UNIT_MINUTES'),
+  },
+  {
+    value: 'hours',
+    label: t('JABVOX_KANBAN.AUTOMATIONS_PANEL.FORM.UNIT_HOURS'),
+  },
 ]);
 
 const emptyForm = () => ({
@@ -54,7 +74,8 @@ const emptyForm = () => ({
   jabvox_email_template_id: null,
   jabvox_sms_provider_id: null,
   message_body: '',
-  trigger_hours: null,
+  trigger_value_jabvox: null,
+  trigger_unit_jabvox: '',
   target_stage_id: null,
   active: true,
 });
@@ -65,7 +86,12 @@ const isSendMessage = computed(
   () => form.value.automation_type === 'send_message'
 );
 const isMovement = computed(() =>
-  ['move_after_hours', 'move_if_inactive'].includes(form.value.automation_type)
+  [
+    'move_after_hours',
+    'move_if_inactive',
+    'move_if_no_incoming',
+    'move_if_no_outgoing',
+  ].includes(form.value.automation_type)
 );
 
 const applyChannelKey = key => {
@@ -131,7 +157,11 @@ const openEdit = auto => {
     jabvox_email_template_id: auto.jabvox_email_template_id,
     jabvox_sms_provider_id: auto.jabvox_sms_provider_id,
     message_body: auto.message_body || '',
-    trigger_hours: auto.trigger_hours ?? null,
+    // Las creadas antes de existir la unidad solo tienen trigger_hours: se leen como horas.
+    trigger_value_jabvox:
+      auto.trigger_value_jabvox ?? auto.trigger_hours ?? null,
+    trigger_unit_jabvox:
+      auto.trigger_unit_jabvox || (auto.trigger_hours ? 'hours' : ''),
     target_stage_id: auto.target_stage_id ?? null,
     active: auto.active,
   };
@@ -156,8 +186,14 @@ const onSave = async () => {
     useAlert(t('JABVOX_KANBAN.AUTOMATIONS_PANEL.SAVE'));
     showForm.value = false;
   } catch (e) {
+    // El backend responde 422 con `message` (ver render_record_invalid). Leer solo
+    // `error` dejaba el motivo invisible y parecía que el guardado no hacía nada.
+    const data = e?.response?.data;
     useAlert(
-      e?.response?.data?.error || t('JABVOX_KANBAN.AUTOMATIONS_PANEL.SAVE')
+      data?.message ||
+        data?.error ||
+        data?.errors?.join?.(', ') ||
+        t('JABVOX_KANBAN.AUTOMATIONS_PANEL.SAVE_ERROR')
     );
   }
 };
@@ -209,13 +245,29 @@ const automationDisplay = auto => {
   const targetName =
     otherStages.value.find(s => s.id === auto.target_stage_id)?.name_jabvox ||
     '?';
+  const amount = auto.trigger_value_jabvox ?? auto.trigger_hours;
+  const unitKey =
+    (auto.trigger_unit_jabvox || 'hours') === 'minutes' ? 'm' : 'h';
+  const delay = amount ? `${amount}${unitKey}` : '';
   if (type === 'move_after_hours') {
-    return `→ ${targetName} (${auto.trigger_hours}h)`;
+    return `→ ${targetName} (${delay})`;
   }
   if (type === 'move_if_inactive') {
     return t('JABVOX_KANBAN.AUTOMATIONS_PANEL.DISPLAY_INACTIVE', {
       target: targetName,
-      hours: auto.trigger_hours,
+      hours: delay,
+    });
+  }
+  if (type === 'move_if_no_incoming') {
+    return t('JABVOX_KANBAN.AUTOMATIONS_PANEL.DISPLAY_NO_INCOMING', {
+      target: targetName,
+      delay,
+    });
+  }
+  if (type === 'move_if_no_outgoing') {
+    return t('JABVOX_KANBAN.AUTOMATIONS_PANEL.DISPLAY_NO_OUTGOING', {
+      target: targetName,
+      delay,
     });
   }
   return type;
@@ -513,18 +565,35 @@ const badgeClass = auto => {
                 <label
                   class="block text-xs font-medium text-slate-600 dark:text-slate-300"
                 >
-                  {{
-                    $t(
-                      'JABVOX_KANBAN.AUTOMATIONS_PANEL.FORM.TRIGGER_HOURS_LABEL'
-                    )
-                  }}
+                  {{ $t('JABVOX_KANBAN.AUTOMATIONS_PANEL.FORM.TRIGGER_LABEL') }}
                 </label>
-                <input
-                  v-model.number="form.trigger_hours"
-                  type="number"
-                  min="1"
-                  class="w-32 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
-                />
+                <!-- Cantidad + unidad. La unidad no trae valor por defecto: se elige
+                     explícitamente para que nadie configure minutos creyendo que son horas. -->
+                <div class="flex flex-wrap items-center gap-2">
+                  <input
+                    v-model.number="form.trigger_value_jabvox"
+                    type="number"
+                    min="1"
+                    class="w-24 min-w-0 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
+                  />
+                  <select
+                    v-model="form.trigger_unit_jabvox"
+                    class="flex-1 min-w-[8rem] rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-woot-500"
+                  >
+                    <option value="">
+                      {{
+                        $t('JABVOX_KANBAN.AUTOMATIONS_PANEL.FORM.UNIT_CHOOSE')
+                      }}
+                    </option>
+                    <option
+                      v-for="unit in TRIGGER_UNITS"
+                      :key="unit.value"
+                      :value="unit.value"
+                    >
+                      {{ unit.label }}
+                    </option>
+                  </select>
+                </div>
               </div>
 
               <div class="space-y-1">

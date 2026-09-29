@@ -35,7 +35,6 @@
     "PERMISSIONS": {
       "MODULES": {
         "GENERAL": "General",
-        "LEADS": "Leads",
         "KANBAN": "Kanban",
         "TASKS": "Tareas",
         "CDR": "Reportes de llamadas (CDR)",
@@ -72,7 +71,8 @@
         "REPORTS": "Reportes",
         "SALES_REPORTS": "Reportes de ventas",
         "FLOWS": "Automatizaciones (Flujos)",
-        "AI_CHAT_PROVISIONING": "Aprovisionamiento de Chat IA"
+        "AI_CHAT_PROVISIONING": "Aprovisionamiento de Chat IA",
+        "CONTACTS": "Contactos"
       },
       "CONVERSATION_MANAGE": "Manage all conversations",
       "CONVERSATION_UNASSIGNED_MANAGE": "Manage unassigned conversations and those assigned to them",

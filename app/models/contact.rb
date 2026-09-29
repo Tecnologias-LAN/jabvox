@@ -6,14 +6,18 @@
 #
 #  id                        :integer          not null, primary key
 #  additional_attributes     :jsonb
+#  became_lead_at_jabvox     :datetime
 #  blocked                   :boolean          default(FALSE), not null
 #  contact_type              :integer          default("visitor")
 #  country_code              :string           default("")
 #  custom_attributes         :jsonb
+#  custom_fields_jabvox      :jsonb            not null
 #  email                     :string
 #  identifier                :string
+#  is_sold_jabvox            :boolean          default(FALSE), not null
 #  last_activity_at          :datetime
 #  last_name                 :string           default("")
+#  lifecycle_stage_jabvox    :string           default("prospecto"), not null
 #  location                  :string           default("")
 #  middle_name               :string           default("")
 #  name                      :string           default("")
@@ -23,28 +27,36 @@
 #  created_at                :datetime         not null
 #  updated_at                :datetime         not null
 #  account_id                :integer          not null
+#  assignee_id               :bigint
 #  company_id                :bigint
+#  jabvox_affiliate_id       :bigint
+#  jabvox_campaign_id        :bigint
 #
 # Indexes
 #
-#  index_contacts_on_account_id                          (account_id)
-#  index_contacts_on_account_id_and_contact_type         (account_id,contact_type)
-#  index_contacts_on_account_id_and_last_activity_at     (account_id,last_activity_at DESC NULLS LAST)
-#  index_contacts_on_blocked                             (blocked)
-#  index_contacts_on_company_id                          (company_id)
-#  index_contacts_on_lower_email_account_id              (lower((email)::text), account_id)
-#  index_contacts_on_name_email_phone_number_identifier  (name,email,phone_number,identifier) USING gin
-#  index_contacts_on_nonempty_fields                     (account_id,email,phone_number,identifier) WHERE (((email)::text <> ''::text) OR ((phone_number)::text <> ''::text) OR ((identifier)::text <> ''::text))
-#  index_contacts_on_phone_number_and_account_id         (phone_number,account_id)
-#  index_resolved_contact_account_id                     (account_id) WHERE (((email)::text <> ''::text) OR ((phone_number)::text <> ''::text) OR ((identifier)::text <> ''::text))
-#  uniq_email_per_account_contact                        (email,account_id) UNIQUE
-#  uniq_identifier_per_account_contact                   (identifier,account_id) UNIQUE
+#  index_contacts_on_account_id                             (account_id)
+#  index_contacts_on_account_id_and_contact_type            (account_id,contact_type)
+#  index_contacts_on_account_id_and_jabvox_affiliate_id     (account_id,jabvox_affiliate_id)
+#  index_contacts_on_account_id_and_jabvox_campaign_id      (account_id,jabvox_campaign_id)
+#  index_contacts_on_account_id_and_last_activity_at        (account_id,last_activity_at DESC NULLS LAST)
+#  index_contacts_on_account_id_and_lifecycle_stage_jabvox  (account_id,lifecycle_stage_jabvox)
+#  index_contacts_on_assignee_id                            (assignee_id)
+#  index_contacts_on_blocked                                (blocked)
+#  index_contacts_on_company_id                             (company_id)
+#  index_contacts_on_custom_fields_jabvox                   (custom_fields_jabvox) USING gin
+#  index_contacts_on_is_sold_jabvox                         (is_sold_jabvox)
+#  index_contacts_on_lower_email_account_id                 (lower((email)::text), account_id)
+#  index_contacts_on_name_email_phone_number_identifier     (name,email,phone_number,identifier) USING gin
+#  index_contacts_on_nonempty_fields                        (account_id,email,phone_number,identifier) WHERE (((email)::text <> ''::text) OR ((phone_number)::text <> ''::text) OR ((identifier)::text <> ''::text))
+#  index_contacts_on_phone_number_and_account_id            (phone_number,account_id)
+#  index_resolved_contact_account_id                        (account_id) WHERE (((email)::text <> ''::text) OR ((phone_number)::text <> ''::text) OR ((identifier)::text <> ''::text))
+#  uniq_email_per_account_contact                           (email,account_id) UNIQUE
+#  uniq_identifier_per_account_contact                      (identifier,account_id) UNIQUE
 #
 
 # rubocop:enable Layout/LineLength
 
-# rubocop:disable Metrics/ClassLength -- una línea sobre el límite tras añadir
-# has_many :jabvox_leads, necesaria para que borrar un contacto no viole la FK.
+# rubocop:disable Metrics/ClassLength
 class Contact < ApplicationRecord
   include Avatarable
   include AvailabilityStatusable
@@ -56,6 +68,7 @@ class Contact < ApplicationRecord
   # Mantiene phone_country_code_jabvox / phone_national_jabvox derivados del E.164
   # de phone_number, que sigue siendo la identidad del contacto.
   include Jabvox::ContactPhoneParts
+  include Jabvox::ContactLifecycle
 
   validates :account_id, presence: true
   validates :email, allow_blank: true, uniqueness: { scope: [:account_id], case_sensitive: false },
@@ -75,11 +88,24 @@ class Contact < ApplicationRecord
   # Contact-linked custom rows go away with the contact (the FK is also
   # ON DELETE CASCADE, so a bulk delete_all can't be blocked either).
   has_many :jabvox_custom_table_rows, dependent: :delete_all
-  # Sin esta relación, borrar un contacto fallaba con violación de FK.
-  has_many :jabvox_leads, dependent: :destroy
+  # Enlace anti-duplicados con la importación desde base de datos externa (external_id).
+  has_many :jabvox_lead_source_records, class_name: 'JabvoxLeadSourceRecord', dependent: :delete_all
+  # Estas tres tienen clave foránea SIN on_delete, así que una fila cualquiera impedía
+  # borrar el contacto con un ForeignKeyViolation. El controlador ya limpiaba calendario y
+  # SMS a mano, pero no llamadas ni formularios de WhatsApp: el borrado fallaba en cuanto
+  # el contacto tenía una llamada registrada. Declararlo aquí lo cubre venga de donde venga
+  # el borrado, no solo desde esa acción del controlador.
+  has_many :jabvox_call_logs, class_name: 'JabvoxCallLog', dependent: :delete_all
+  has_many :jabvox_whatsapp_flow_submissions, class_name: 'JabvoxWhatsappFlowSubmission', dependent: :delete_all
+  has_many :jabvox_calendar_events, class_name: 'JabvoxCalendarEvent', dependent: :delete_all
   before_validation :prepare_contact_attributes
   after_create_commit :dispatch_create_event, :ip_lookup
   after_update_commit :dispatch_update_event
+  # El responsable del contacto arrastra a sus conversaciones ABIERTAS: si el comercial
+  # cambia, quien atiende lo que está vivo cambia con él. Las resueltas se dejan como
+  # están —son historial de quién atendió qué— y va en el modelo, no en el controlador,
+  # para que valga igual desde la ficha que desde la asignación masiva.
+  after_update_commit :sync_assignee_to_open_conversations, if: :saved_change_to_assignee_id?
   after_destroy_commit :dispatch_destroy_event
   before_save :sync_contact_attributes
 
@@ -205,6 +231,13 @@ class Contact < ApplicationRecord
   end
 
   private
+
+  # `update_all` a propósito: puede tocar decenas de conversaciones y cargarlas una a una
+  # para disparar callbacks dejaría la petición colgada. Es un solo campo ya validado.
+  def sync_assignee_to_open_conversations
+    conversations.where(status: :open)
+                 .update_all(assignee_id: assignee_id, updated_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
+  end
 
   def ip_lookup
     return unless account.feature_enabled?('ip_lookup')

@@ -55,6 +55,7 @@
     "TEAM_MODELS_ALL": "Esta cuenta tiene acceso a todos los modelos del proveedor.",
     "NO_MODELS": "El proveedor no reportó modelos disponibles.",
     "KEYS_ERROR": "No se pudieron cargar las virtual keys: el proveedor no respondió a tiempo. Tu saldo sí está actualizado.",
-    "RETRY": "Reintentar"
+    "RETRY": "Reintentar",
+    "SELECT_ALL": "todos"
   }
 }

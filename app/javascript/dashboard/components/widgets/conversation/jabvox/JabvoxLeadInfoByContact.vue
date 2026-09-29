@@ -47,16 +47,13 @@ const contactTypeLabel = computed(() =>
     : t('JABVOX_LEAD_INFO.TYPE_PERSON')
 );
 
-// Fixed "Información" rows, same order and labels as the lead detail page. Every
-// row is always rendered (with "—" when empty). `wide` fields (long values like
-// email/bio) span the full width so they never get clipped.
+// Filas fijas de "Información". Cada una se pinta siempre (con "—" si está vacía); las
+// marcadas `wide` ocupan todo el ancho para que un valor largo no se corte.
+//
+// NO se repiten nombre, teléfono ni email: la cabecera del panel (ContactInfo) ya los
+// muestra arriba, y además allí son EDITABLES y llevan enlace mailto:/tel:. Aquí solo va lo
+// que esa cabecera no cubre.
 const infoRows = computed(() => [
-  { label: t('JABVOX_LEAD_INFO.PHONE'), value: contact.value.phone },
-  {
-    label: t('JABVOX_LEAD_INFO.EMAIL'),
-    value: contact.value.email,
-    wide: true,
-  },
   {
     label: t('JABVOX_LEAD_INFO.DOCUMENT'),
     value: contact.value.identification,

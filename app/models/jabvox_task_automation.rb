@@ -52,6 +52,8 @@
 #  fk_rails_...  (task_id => jabvox_tasks.id)
 #
 class JabvoxTaskAutomation < ApplicationRecord
+  include Jabvox::AccountScopedReferences
+
   self.table_name = 'jabvox_task_automations'
 
   CHANNELS = %w[email sms inbox].freeze
@@ -66,8 +68,12 @@ class JabvoxTaskAutomation < ApplicationRecord
   belongs_to :created_by, class_name: 'User', optional: true
 
   has_many :runs, -> { order(run_at_jabvox: :desc) }, class_name: 'JabvoxTaskAutomationRun',
-                                                       foreign_key: :automation_id,
-                                                       inverse_of: :automation, dependent: :destroy
+                                                      foreign_key: :automation_id,
+                                                      inverse_of: :automation, dependent: :destroy
+
+  # Misma razón que en las automatizaciones de etapa: las FKs salientes viajan en el
+  # formulario y hay que comprobar que son de esta cuenta.
+  validates_account_scope :inbox, :email_template, :sms_provider
 
   validates :channel_jabvox, inclusion: { in: CHANNELS }
   validates :interval_unit_jabvox, inclusion: { in: UNITS }

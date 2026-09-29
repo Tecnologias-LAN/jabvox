@@ -7,6 +7,7 @@
 #  color_jabvox    :string           default("#6b7280"), not null
 #  name_jabvox     :string           not null
 #  position_jabvox :integer          default(0), not null
+#  role_jabvox     :string
 #  created_at      :datetime         not null
 #  updated_at      :datetime         not null
 #  account_id      :bigint           not null
@@ -16,6 +17,7 @@
 # Indexes
 #
 #  index_jabvox_task_stages_on_account_id                    (account_id)
+#  index_jabvox_task_stages_on_board_and_role                (board_id,role_jabvox) UNIQUE WHERE (role_jabvox IS NOT NULL)
 #  index_jabvox_task_stages_on_board_id                      (board_id)
 #  index_jabvox_task_stages_on_board_id_and_position_jabvox  (board_id,position_jabvox)
 #  index_jabvox_task_stages_on_created_by_id                 (created_by_id)
@@ -27,6 +29,14 @@
 #  fk_rails_...  (created_by_id => users.id)
 #
 class JabvoxTaskStage < ApplicationRecord
+  # Papel de la etapa en el flujo. NULL = columna intermedia normal.
+  #   initial  — donde nace una tarea (y donde reaparece una recurrente)
+  #   done     — completada
+  #   inactive — se dejó vencer sin hacer
+  # Solo puede haber una de cada por tablero (índice único parcial en la migración).
+  ROLES = %w[initial done inactive].freeze
+
+  validates :role_jabvox, inclusion: { in: ROLES }, allow_blank: true
   self.table_name = 'jabvox_task_stages'
 
   belongs_to :account

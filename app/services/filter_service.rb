@@ -21,26 +21,38 @@ class FilterService
 
   def perform; end
 
+  # Operador -> método que arma su fragmento SQL y deja el valor en @filter_values.
+  FILTER_OPERATIONS = {
+    'equal_to' => :equality_filter_query, 'not_equal_to' => :equality_filter_query,
+    'contains' => :ilike_filter_query, 'does_not_contain' => :ilike_filter_query,
+    'starts_with' => :starts_with_filter_query,
+    'is_present' => :presence_filter_query, 'is_not_present' => :presence_filter_query,
+    'is_greater_than' => :lt_gt_filter_query, 'is_less_than' => :lt_gt_filter_query,
+    'days_before' => :days_before_filter_query
+  }.freeze
+
   def filter_operation(query_hash, current_index)
-    case query_hash[:filter_operator]
-    when 'equal_to', 'not_equal_to'
-      @filter_values["value_#{current_index}"] = filter_values(query_hash)
-      equals_to_filter_string(query_hash[:filter_operator], current_index)
-    when 'contains', 'does_not_contain'
-      @filter_values["value_#{current_index}"] = values_for_ilike(query_hash)
-      ilike_filter_string(query_hash[:filter_operator], current_index)
-    when 'is_present'
-      @filter_values["value_#{current_index}"] = 'IS NOT NULL'
-    when 'is_not_present'
-      @filter_values["value_#{current_index}"] = 'IS NULL'
-    when 'is_greater_than', 'is_less_than'
-      lt_gt_filter_query(query_hash, current_index)
-    when 'days_before'
-      days_before_filter_query(query_hash, current_index)
-    else
-      @filter_values["value_#{current_index}"] = filter_values(query_hash).to_s
-      "= :value_#{current_index}"
-    end
+    handler = FILTER_OPERATIONS[query_hash[:filter_operator]] || :default_filter_query
+    send(handler, query_hash, current_index)
+  end
+
+  def equality_filter_query(query_hash, current_index)
+    @filter_values["value_#{current_index}"] = filter_values(query_hash)
+    equals_to_filter_string(query_hash[:filter_operator], current_index)
+  end
+
+  def ilike_filter_query(query_hash, current_index)
+    @filter_values["value_#{current_index}"] = values_for_ilike(query_hash)
+    ilike_filter_string(query_hash[:filter_operator], current_index)
+  end
+
+  def presence_filter_query(query_hash, current_index)
+    @filter_values["value_#{current_index}"] = query_hash[:filter_operator] == 'is_present' ? 'IS NOT NULL' : 'IS NULL'
+  end
+
+  def default_filter_query(query_hash, current_index)
+    @filter_values["value_#{current_index}"] = filter_values(query_hash).to_s
+    "= :value_#{current_index}"
   end
 
   def filter_values(query_hash)
@@ -65,6 +77,18 @@ class FilterService
     else
       query_hash['values']
     end
+  end
+
+  # `starts_with` lo ofrece el YAML (teléfono) pero no estaba cableado en filter_operation:
+  # caía al `else`, que hace igualdad exacta, así que nunca encontraba nada.
+  def starts_with_filter_query(query_hash, current_index)
+    @filter_values["value_#{current_index}"] = values_for_starts_with(query_hash)
+    "ILIKE ANY (ARRAY[:value_#{current_index}])"
+  end
+
+  # Prefijo para `starts_with`: solo comodín al final.
+  def values_for_starts_with(query_hash)
+    Array(query_hash['values']).map { |item| "#{item.to_s.strip}%" }
   end
 
   def values_for_ilike(query_hash)
@@ -99,7 +123,10 @@ class FilterService
 
   def days_before_filter_query(query_hash, current_index)
     date = Time.zone.today - query_hash['values'][0].to_i.days
-    updated_query_hash = query_hash.with_indifferent_access.merge(
+    # `to_unsafe_h` porque query_hash llega como ActionController::Parameters, que NO responde
+    # a with_indifferent_access: sin esto el filtro "días antes" reventaba con 500.
+    raw = query_hash.respond_to?(:to_unsafe_h) ? query_hash.to_unsafe_h : query_hash
+    updated_query_hash = raw.with_indifferent_access.merge(
       values: [date.strftime],
       filter_operator: 'is_less_than'
     )

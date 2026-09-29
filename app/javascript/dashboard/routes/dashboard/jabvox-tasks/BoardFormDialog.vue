@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import AgentSelect from './components/AgentSelect.vue';
 
 const props = defineProps({
   board: {
@@ -16,6 +17,9 @@ const { t } = useI18n();
 const name = ref('');
 const description = ref('');
 const isActive = ref(true);
+// Dueño del tablero: lo convierte en "tablero personal" de ese usuario y lo hace
+// elegible como destino de la copia por responsable.
+const ownerId = ref(null);
 
 const isEdit = computed(() => Boolean(props.board));
 
@@ -25,6 +29,7 @@ watch(
     name.value = value?.nameJabvox || '';
     description.value = value?.descriptionJabvox || '';
     isActive.value = value ? value.isActiveJabvox !== false : true;
+    ownerId.value = value?.ownerId ?? null;
   },
   { immediate: true }
 );
@@ -35,6 +40,7 @@ const onSubmit = () => {
     name_jabvox: name.value.trim(),
     description_jabvox: description.value,
     is_active_jabvox: isActive.value,
+    owner_id: ownerId.value ? Number(ownerId.value) : null,
   });
 };
 </script>
@@ -80,6 +86,16 @@ const onSubmit = () => {
             :placeholder="t('JABVOX_TASKS.BOARDS.FORM.DESCRIPTION_PLACEHOLDER')"
             class="w-full px-3 py-2 text-sm rounded-lg bg-n-alpha-1 border border-n-weak text-n-slate-12 focus:outline-none focus:border-n-strong"
           />
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-n-slate-11">
+            {{ t('JABVOX_TASKS.BOARDS.FORM.OWNER') }}
+          </label>
+          <AgentSelect v-model="ownerId" />
+          <p class="text-xs text-n-slate-10">
+            {{ t('JABVOX_TASKS.BOARDS.FORM.OWNER_HINT') }}
+          </p>
         </div>
 
         <label class="flex items-center gap-2 text-sm text-n-slate-11">

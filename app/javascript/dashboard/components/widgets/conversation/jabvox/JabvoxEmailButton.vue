@@ -1,6 +1,8 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useMapGetter } from 'dashboard/composables/store';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { emailTemplatesAPI } from 'dashboard/api/jabvox/email';
 
 const props = defineProps({
@@ -10,6 +12,16 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+
+// Igual que el de SMS: sin el módulo de correo activo, el botón no aparece.
+const accountId = useMapGetter('getCurrentAccountId');
+const isFeatureEnabledonAccount = useMapGetter(
+  'accounts/isFeatureEnabledonAccount'
+);
+const isEnabled = computed(() =>
+  isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.JABVOX_EMAIL)
+);
+
 const open = ref(false);
 const templates = ref([]);
 const selectedId = ref(null);
@@ -53,7 +65,7 @@ async function send() {
 </script>
 
 <template>
-  <div class="relative">
+  <div v-if="isEnabled" class="relative">
     <button
       v-if="showLabel"
       class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-woot-500 hover:bg-woot-600 text-white text-sm font-medium transition-colors"

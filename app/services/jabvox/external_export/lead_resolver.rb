@@ -1,14 +1,15 @@
-# Resolves the lead/contact links that some exported rows need but don't carry
-# on their own table:
+# Resuelve los enlaces que algunas filas exportadas necesitan pero no llevan en su propia
+# tabla:
 #
-# - contact_id -> lead_id (for conversations, messages, notes, dialer calls).
-# - uniqueid   -> [lead_id, contact_id] for CDR rows, matched against the call
-#   logs that DO carry the link (JabvoxCallLog for click-to-call/manual, and
-#   JabvoxDialerCallLog -> campaign contact for the dialer).
+# - contact_id -> lead_id (para conversaciones, mensajes, notas y llamadas del marcador).
 #
-# Without a preloaded map it queries per call (fine for the single-row real-time
-# path); with one (backfill) it's a hash lookup. Both maps are built once and
-# memoized.
+# - uniqueid   -> [lead_id, contact_id] para las filas de CDR, cruzadas contra los registros
+#   de llamada que SÍ llevan el enlace (JabvoxCallLog para click-to-call/manual, y
+#   JabvoxDialerCallLog -> contacto de campaña para el marcador).
+#
+# Tras retirar Leads, `lead_id` ES el id del contacto: la columna se conserva en el esquema
+# exportado porque ya existe en las bases de datos de los clientes y sus consultas la usan.
+# Quitarla rompería esas integraciones; dejarla vacía perdería el enlace.
 class Jabvox::ExternalExport::LeadResolver
   attr_reader :account_id
 
@@ -17,20 +18,16 @@ class Jabvox::ExternalExport::LeadResolver
     @map = map
   end
 
-  # Preload the whole account's contact->lead map in one query (backfill path).
+  # Ya no hace falta precargar mapa alguno: lead_id y contact_id son el mismo valor. Se
+  # conserva la firma para no tocar a quien la llama.
   def self.preloaded(account_id)
-    map = JabvoxLead.where(account_id: account_id)
-                    .where.not(contact_id: nil)
-                    .pluck(:contact_id, :id)
-                    .to_h
-    new(account_id, map: map)
+    new(account_id)
   end
 
   def lead_id_for(contact_id)
     return nil if contact_id.blank?
-    return @map[contact_id] if @map
 
-    JabvoxLead.where(account_id: @account_id, contact_id: contact_id).pick(:id)
+    contact_id
   end
 
   # uniqueid -> [lead_id, contact_id] for CDR rows.
@@ -48,12 +45,12 @@ class Jabvox::ExternalExport::LeadResolver
 
   def build_cdr_map
     map = {}
-    # click-to-call / manual: JabvoxCallLog has uniqueid + lead + contact directly.
+    # click-to-call / manual: JabvoxCallLog lleva uniqueid + contacto directamente.
     JabvoxCallLog.where(account_id: @account_id)
                  .where.not(uniqueid: [nil, ''])
-                 .pluck(:uniqueid, :jabvox_lead_id, :contact_id)
-                 .each { |uid, lead, contact| map[uid] ||= [lead, contact] }
-    # dialer: JabvoxDialerCallLog has uniqueid_jabvox; lead/contact via campaign contact.
+                 .pluck(:uniqueid, :contact_id)
+                 .each { |uid, contact| map[uid] ||= [contact, contact] }
+    # marcador: JabvoxDialerCallLog lleva uniqueid_jabvox; el contacto, vía contacto de campaña.
     JabvoxDialerCallLog
       .where(account_id: @account_id)
       .where.not(uniqueid_jabvox: [nil, ''])

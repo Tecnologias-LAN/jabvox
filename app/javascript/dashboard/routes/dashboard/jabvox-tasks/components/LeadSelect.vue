@@ -3,7 +3,8 @@ import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useDebounceFn } from '@vueuse/core';
 import { OnClickOutside } from '@vueuse/components';
-import leadsAPI from 'dashboard/api/jabvox/leads';
+import contactsListAPI from 'dashboard/api/jabvox/contactsList';
+import contactDetailAPI from 'dashboard/api/jabvox/contactDetail';
 
 const props = defineProps({
   modelValue: {
@@ -20,14 +21,17 @@ const open = ref(false);
 const search = ref('');
 const isLoading = ref(false);
 const leads = ref([]);
-// The currently selected lead, kept so we can render its label even when it is
-// not part of the latest search results.
+// El contacto elegido, guardado aparte para poder pintar su etiqueta aunque no esté en los
+// últimos resultados de búsqueda.
 const selectedLead = ref(null);
 
+// Se muestra el nombre y, como desambiguador, el teléfono o el id. Antes era el número de
+// lead, que desapareció con la tabla.
 const leadLabel = lead => {
   if (!lead) return '';
-  const name = lead.contact?.name || '';
-  return `#${lead.lead_number} · ${name}`;
+  const name = lead.name || '';
+  const hint = lead.phone_number || `#${lead.id}`;
+  return name ? `${name} · ${hint}` : `#${lead.id}`;
 };
 
 const selectedLabel = computed(() =>
@@ -37,8 +41,8 @@ const selectedLabel = computed(() =>
 const fetchLeads = async term => {
   isLoading.value = true;
   try {
-    const { data } = await leadsAPI.getAll({ q: term });
-    leads.value = data?.data || [];
+    const { data } = await contactsListAPI.getAll({ q: term, per_page: 25 });
+    leads.value = data?.contacts || [];
   } catch {
     leads.value = [];
   } finally {
@@ -86,8 +90,8 @@ const resolveSelected = async id => {
     return;
   }
   try {
-    const { data } = await leadsAPI.getById(id);
-    selectedLead.value = data || null;
+    const { data } = await contactDetailAPI.show(id);
+    selectedLead.value = data?.contact || null;
   } catch {
     selectedLead.value = null;
   }
@@ -158,10 +162,10 @@ watch(
               {{ leadLabel(lead) }}
             </span>
             <span
-              v-if="lead.contact?.email"
+              v-if="lead.email"
               class="text-[11px] text-n-slate-10 truncate"
             >
-              {{ lead.contact.email }}
+              {{ lead.email }}
             </span>
           </button>
         </template>

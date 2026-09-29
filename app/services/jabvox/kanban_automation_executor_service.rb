@@ -21,8 +21,8 @@ class Jabvox::KanbanAutomationExecutorService
   def resolve_contact
     if @cs.conversation_id.present?
       @cs.conversation&.contact
-    elsif @cs.jabvox_lead_id.present?
-      @cs.jabvox_lead&.contact
+    elsif @cs.contact_id.present?
+      @cs.contact
     end
   end
 

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { required, email } from '@vuelidate/validators';
 import { useVuelidate } from '@vuelidate/core';
@@ -7,12 +7,13 @@ import { splitName } from '@chatwoot/utils';
 import countries from 'shared/constants/countries.js';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useAccount } from 'dashboard/composables/useAccount';
+import { useStore } from 'dashboard/composables/store';
 import Input from 'dashboard/components-next/input/Input.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import CompanySelector from 'dashboard/components-next/Companies/CompanySelector.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import PhoneNumberInput from 'dashboard/components-next/phonenumberinput/PhoneNumberInput.vue';
-import leadsAPI from 'dashboard/api/jabvox/leads';
+import contactDetailAPI from 'dashboard/api/jabvox/contactDetail';
 import { campaignsAPI } from 'dashboard/api/jabvox/campaigns';
 
 const props = defineProps({
@@ -34,6 +35,7 @@ const emit = defineEmits(['update']);
 
 const { t } = useI18n();
 const { currentAccount, isCloudFeatureEnabled } = useAccount();
+const store = useStore();
 
 const currentCampaignName = ref('');
 const leadsModuleEnabled = ref(false);
@@ -49,10 +51,23 @@ const loadCampaigns = async () => {
   }
 };
 
+// Se lanza al crear el componente, no en onMounted, porque el watch de abajo es
+// `immediate` y necesita saber si el módulo está activo antes de pedir nada.
+const campaignsLoaded = loadCampaigns();
+
+// Campaña actual del contacto, para preseleccionarla en el desplegable.
+//
+// Solo se pide si la cuenta tiene el módulo de campañas: sin él no hay desplegable que
+// preseleccionar, así que la petición no aportaría nada. Se espera a `loadCampaigns`
+// porque el watch de abajo es `immediate` y corre antes del onMounted; sin esperar, esto
+// salía disparado en cada tarjeta de la lista aunque el módulo estuviera apagado.
 const loadLeadCampaign = async contactId => {
+  await campaignsLoaded;
+  if (!leadsModuleEnabled.value) return;
+
   try {
-    const res = await leadsAPI.forContact(contactId);
-    currentCampaignName.value = res.data?.campaign_name || '';
+    const { data } = await contactDetailAPI.show(contactId);
+    currentCampaignName.value = data?.contact?.campaign?.name || '';
   } catch {
     // silently ignore
   }
@@ -113,10 +128,10 @@ const onCampaignBlur = async () => {
   const contactId = state.id;
   if (!contactId) return;
   try {
-    await leadsAPI.updateContactLead(
-      contactId,
-      currentCampaignName.value || null
-    );
+    await store.dispatch('contacts/update', {
+      id: contactId,
+      jabvox_campaign_name: currentCampaignName.value || '',
+    });
   } catch {
     // silently ignore
   }
@@ -305,8 +320,6 @@ const resetForm = () => {
   Object.assign(state, defaultState);
 };
 
-onMounted(loadCampaigns);
-
 watch(
   () => props.contactData?.id,
   id => {
@@ -450,6 +463,11 @@ defineExpose({
         </option>
       </select>
     </div>
+
+    <!-- Hueco para lo que deba ir entre los datos y las redes sociales — la ficha unificada
+         mete aquí los campos personalizados de la cuenta. Las redes quedan siempre al final
+         por ser lo que menos se consulta al gestionar un contacto. -->
+    <slot name="before-social" />
 
     <div class="flex flex-col items-start gap-2">
       <span class="py-1 text-sm font-medium text-n-slate-12">

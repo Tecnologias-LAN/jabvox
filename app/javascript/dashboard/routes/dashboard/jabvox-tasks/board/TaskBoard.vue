@@ -76,11 +76,28 @@ const onTaskSubmit = async payload => {
   }
 };
 
+// El mismo diálogo confirma tareas y columnas, así que el dato lleva de qué se trata.
 const onTaskDelete = task => {
   confirmDialog.value?.open({
     title: t('JABVOX_TASKS.TASK.DELETE'),
     description: t('JABVOX_TASKS.TASK.DELETE_CONFIRM'),
-    data: task.id,
+    data: { kind: 'task', id: task.id },
+  });
+};
+
+// Borrar una columna se lleva sus tareas por delante (el backend las borra en cascada),
+// así que la confirmación dice cuántas son en vez de un aviso genérico.
+const onStageDelete = stage => {
+  const count = tasksForStage(stage.id).length;
+  confirmDialog.value?.open({
+    title: t('JABVOX_TASKS.STAGE.DELETE'),
+    description: count
+      ? t('JABVOX_TASKS.STAGE.DELETE_CONFIRM_WITH_TASKS', {
+          name: stage.nameJabvox,
+          count,
+        })
+      : t('JABVOX_TASKS.STAGE.DELETE_CONFIRM', { name: stage.nameJabvox }),
+    data: { kind: 'stage', id: stage.id },
   });
 };
 
@@ -93,6 +110,20 @@ const doTaskDelete = async taskId => {
   } catch {
     useAlert(t('JABVOX_TASKS.TASK.ERROR'));
   }
+};
+
+const doStageDelete = async stageId => {
+  try {
+    await store.deleteStage(props.boardId, stageId);
+    useAlert(t('JABVOX_TASKS.STAGE.DELETED'));
+  } catch {
+    useAlert(t('JABVOX_TASKS.STAGE.ERROR'));
+  }
+};
+
+const onConfirmDelete = payload => {
+  if (payload?.kind === 'stage') return doStageDelete(payload.id);
+  return doTaskDelete(payload?.id ?? payload);
 };
 
 const onDropTask = async ({ taskId, stageId }) => {
@@ -136,11 +167,32 @@ const onStageSubmit = async payload => {
   }
 };
 
+// Reordenar columnas: la arrastrada se inserta en el hueco de la que recibe el soltar,
+// y el orden resultante se manda entero. El backend deriva la posición del índice, así
+// que aquí no se calculan números.
+const onReorderStage = async ({ draggedId, targetId }) => {
+  const ids = stages.value.map(s => s.id);
+  const from = ids.indexOf(draggedId);
+  const to = ids.indexOf(targetId);
+  if (from === -1 || to === -1 || from === to) return;
+
+  ids.splice(to, 0, ids.splice(from, 1)[0]);
+  try {
+    await store.reorderStages(props.boardId, ids);
+  } catch {
+    useAlert(t('JABVOX_TASKS.STAGE.REORDER_ERROR'));
+  }
+};
+
 // Automations ---------------------------------------------------------
 const openAutomations = stage => {
   automationsStage.value = stage;
   showAutomationsDialog.value = true;
 };
+
+// La barra superior del tablero abre el mismo diálogo desde el rayo, para no tener que
+// entrar columna por columna.
+defineExpose({ openAutomations, stages });
 </script>
 
 <template>
@@ -172,6 +224,8 @@ const openAutomations = stage => {
           @detail-task="openTaskDetail"
           @add-task="openCreateTask"
           @edit-stage="openEditStage"
+          @delete-stage="onStageDelete"
+          @reorder-stage="onReorderStage"
           @open-automations="openAutomations"
           @drop-task="onDropTask"
         />
@@ -215,6 +269,6 @@ const openAutomations = stage => {
       @close="showAutomationsDialog = false"
     />
 
-    <ConfirmDialog ref="confirmDialog" @confirm="doTaskDelete" />
+    <ConfirmDialog ref="confirmDialog" @confirm="onConfirmDelete" />
   </div>
 </template>

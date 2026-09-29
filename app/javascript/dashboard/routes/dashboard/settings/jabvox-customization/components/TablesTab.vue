@@ -27,7 +27,7 @@ const formDialog = ref(null);
 const deleteDialog = ref(null);
 
 const leadsTable = computed(
-  () => tables.value.find(tbl => tbl.linked_to_jabvox === 'leads') || null
+  () => tables.value.find(tbl => tbl.linked_to_jabvox === 'contacts') || null
 );
 
 const filtered = computed(() => {
@@ -78,7 +78,7 @@ const handleSubmit = async ({ mode, id, values }) => {
 };
 
 const toggleLeadsLink = async table => {
-  const isLinked = table.linked_to_jabvox === 'leads';
+  const isLinked = table.linked_to_jabvox === 'contacts';
   if (!isLinked && leadsTable.value && leadsTable.value.id !== table.id) {
     useAlert(t('JABVOX_CUSTOMIZATION.TABLES.LEADS_LINK_CONFLICT'));
     return;
@@ -86,7 +86,7 @@ const toggleLeadsLink = async table => {
   try {
     await store.dispatch('jabvoxCustomization/updateTable', {
       id: table.id,
-      linked_to_jabvox: isLinked ? null : 'leads',
+      linked_to_jabvox: isLinked ? null : 'contacts',
     });
     useAlert(t('JABVOX_CUSTOMIZATION.TABLES.SAVE_SUCCESS'));
   } catch {
@@ -265,7 +265,7 @@ const onImportFile = async event => {
               </p>
             </div>
             <Label
-              v-if="table.linked_to_jabvox === 'leads'"
+              v-if="table.linked_to_jabvox === 'contacts'"
               :label="t('JABVOX_CUSTOMIZATION.COLUMNS.LEADS_HINT')"
               color="iris"
               compact
@@ -305,15 +305,17 @@ const onImportFile = async event => {
             <div v-else class="flex items-center gap-1">
               <Button
                 :icon="
-                  table.linked_to_jabvox === 'leads'
+                  table.linked_to_jabvox === 'contacts'
                     ? 'i-lucide-user-check'
                     : 'i-lucide-user'
                 "
                 variant="ghost"
-                :color="table.linked_to_jabvox === 'leads' ? 'blue' : 'slate'"
+                :color="
+                  table.linked_to_jabvox === 'contacts' ? 'blue' : 'slate'
+                "
                 size="sm"
                 :title="
-                  table.linked_to_jabvox === 'leads'
+                  table.linked_to_jabvox === 'contacts'
                     ? t('JABVOX_CUSTOMIZATION.TABLES.UNLINK_LEADS')
                     : t('JABVOX_CUSTOMIZATION.TABLES.LINK_LEADS')
                 "

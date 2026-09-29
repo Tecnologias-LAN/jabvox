@@ -49,7 +49,17 @@ class Api::V1::Accounts::Jabvox::KanbanFunnelsController < Api::V1::Accounts::Ja
   end
 
   def funnel_params
-    params.require(:funnel).permit(:name_jabvox, :description_jabvox, :position_jabvox, :active_jabvox, :include_own_leads_jabvox)
+    permitted = params.require(:funnel).permit(:name_jabvox, :description_jabvox, :position_jabvox, :active_jabvox,
+                                               :include_own_contacts_jabvox, lifecycle_stages_jabvox: [])
+    permitted[:lifecycle_stages_jabvox] = sanitized_lifecycle_stages if params[:funnel].key?(:lifecycle_stages_jabvox)
+    permitted
+  end
+
+  # Solo etapas del catálogo: lo que llegue fuera de él se descarta en vez de guardarse y
+  # dejar un embudo que nunca casa con nada.
+  def sanitized_lifecycle_stages
+    Array(params[:funnel][:lifecycle_stages_jabvox]).map(&:to_s) &
+      Jabvox::ContactLifecycle::LIFECYCLE_STAGES
   end
 
   def update_inbox_associations

@@ -4,13 +4,15 @@
 # original ignoraba en silencio los ids inexistentes: aquí se comparan los
 # pedidos con los realmente afectados y se publican los que faltan.
 class Jabvox::Flows::Nodes::Jabvox::LeadAssignNode < Jabvox::Flows::Nodes::Jabvox::Base
-  type 'jabvox.lead.assign'
-  label 'Asignar Leads'
+  type 'jabvox.contact.assign'
+  # Tipo anterior: los flujos guardados lo siguen usando.
+  aliases 'jabvox.lead.assign'
+  label 'Asignar Contactos'
 
   def perform
     requested = requested_ids
     assignee = find_assignee!
-    leads = account.jabvox_leads.where(id: requested).to_a
+    leads = account.contacts.where(id: requested).to_a
     apply(leads, assignee)
     bulk_result(requested, leads, 'assigned')
   end
@@ -20,9 +22,9 @@ class Jabvox::Flows::Nodes::Jabvox::LeadAssignNode < Jabvox::Flows::Nodes::Jabvo
   def apply(leads, assignee)
     return if leads.empty?
 
-    account.jabvox_leads.where(id: leads.map(&:id)).update_all(assignee_id: assignee.id) # rubocop:disable Rails/SkipsModelValidations
+    account.contacts.where(id: leads.map(&:id)).update_all(assignee_id: assignee.id) # rubocop:disable Rails/SkipsModelValidations
     # Las conversaciones abiertas del contacto siguen al dueño del lead.
-    Jabvox::LeadConversationAssignmentSync.new(account).sync_leads(leads, assignee)
+    Jabvox::ContactConversationAssignmentSync.new(account).sync_contacts(leads, assignee)
   end
 
   def find_assignee!

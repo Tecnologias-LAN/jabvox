@@ -130,8 +130,9 @@ class JabvoxFormsController < ApplicationController
     account  = @form.account
     contact  = find_or_create_contact(account, contact_data)
     campaign = account.jabvox_campaigns.find_or_create_by!(name_jabvox: @form.name_jabvox)
-    JabvoxLead.create!(account: account, contact: contact, jabvox_campaign: campaign) unless
-      JabvoxLead.exists?(account_id: account.id, contact_id: contact.id)
+    # El contacto queda ligado a la campaña del formulario. Antes esto creaba además un lead;
+    # esos datos viven ahora en el propio contacto.
+    contact.update!(jabvox_campaign: campaign) if contact.jabvox_campaign_id.nil?
   rescue StandardError
     nil
   end

@@ -89,7 +89,7 @@ class Api::V1::Accounts::Jabvox::BulkWhatsapp::BatchesController < Api::V1::Acco
   # found across the account's leads. `truncated` tells the picker the base list
   # hit the discovery cap, so its search box should also query field_values.
   def lead_fields
-    table = Current.account.jabvox_custom_tables.for_leads.first
+    table = Current.account.jabvox_custom_tables.for_contacts.first
     columns = table ? table.jabvox_custom_columns.ordered : []
     defined_keys = columns.map(&:name_jabvox)
     # Data keys that are just the "_c" variant of a defined column merge into

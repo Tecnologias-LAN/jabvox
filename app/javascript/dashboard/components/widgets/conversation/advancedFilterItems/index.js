@@ -54,6 +54,40 @@ const filterTypes = [
     filterOperators: OPERATOR_TYPES_1,
     attributeModel: 'standard',
   },
+  // Datos del CONTACTO de la conversación: buscar por quién escribe sin elegirlo antes de
+  // una lista. El backend los resuelve con un subquery contra `contacts`.
+  {
+    attributeKey: 'contact_name',
+    attributeI18nKey: 'CONTACT_NAME',
+    inputType: 'plain_text',
+    dataType: 'Text',
+    filterOperators: OPERATOR_TYPES_3,
+    attributeModel: 'standard',
+  },
+  {
+    attributeKey: 'contact_phone_number',
+    attributeI18nKey: 'CONTACT_PHONE_NUMBER',
+    inputType: 'plain_text',
+    dataType: 'Text',
+    filterOperators: OPERATOR_TYPES_3,
+    attributeModel: 'standard',
+  },
+  {
+    attributeKey: 'contact_email',
+    attributeI18nKey: 'CONTACT_EMAIL',
+    inputType: 'plain_text',
+    dataType: 'Text',
+    filterOperators: OPERATOR_TYPES_3,
+    attributeModel: 'standard',
+  },
+  {
+    attributeKey: 'contact_identification',
+    attributeI18nKey: 'CONTACT_IDENTIFICATION',
+    inputType: 'plain_text',
+    dataType: 'Text',
+    filterOperators: OPERATOR_TYPES_3,
+    attributeModel: 'standard',
+  },
   {
     attributeKey: 'display_id',
     attributeI18nKey: 'CONVERSATION_IDENTIFIER',

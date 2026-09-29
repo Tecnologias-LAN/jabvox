@@ -60,6 +60,7 @@ import jabvoxProvisioningChat from './jabvoxProvisioningChat.json';
 import jabvoxManagementStates from './jabvoxManagementStates.json';
 import jabvoxDialer from './jabvoxDialer.json';
 import jabvoxFieldSecurity from './jabvoxFieldSecurity.json';
+import jabvoxContacts from './jabvoxContacts.json';
 import jabvoxLeads from './jabvoxLeads.json';
 import jabvoxAffiliates from './jabvoxAffiliates.json';
 import jabvoxAffiliatePortal from './jabvoxAffiliatePortal.json';
@@ -146,6 +147,7 @@ export default {
   ...jabvoxManagementStates,
   ...jabvoxDialer,
   ...jabvoxFieldSecurity,
+  ...jabvoxContacts,
   ...jabvoxLeads,
   ...jabvoxAffiliates,
   ...jabvoxAffiliatePortal,

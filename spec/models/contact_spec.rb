@@ -12,6 +12,68 @@ RSpec.describe Contact do
   context 'with associations' do
     it { is_expected.to belong_to(:account) }
     it { is_expected.to have_many(:conversations).dependent(:destroy_async) }
+
+    # Estas tienen clave foránea sin on_delete: sin `dependent` una sola fila impedía
+    # borrar el contacto con un ForeignKeyViolation.
+    it { is_expected.to have_many(:jabvox_call_logs).dependent(:delete_all) }
+    it { is_expected.to have_many(:jabvox_whatsapp_flow_submissions).dependent(:delete_all) }
+    it { is_expected.to have_many(:jabvox_calendar_events).dependent(:delete_all) }
+  end
+
+  describe 'responsable y conversaciones' do
+    let(:account) { create(:account) }
+    let(:contact) { create(:contact, account: account) }
+    let(:agente) { create(:user, account: account) }
+
+    it 'reasigna las conversaciones ABIERTAS al cambiar el responsable' do
+      abierta = create(:conversation, account: account, contact: contact, status: :open)
+
+      contact.update!(assignee: agente)
+
+      expect(abierta.reload.assignee_id).to eq(agente.id)
+    end
+
+    it 'alcanza conversaciones de bandejas distintas' do
+      otra = create(:conversation, account: account, contact: contact, status: :open,
+                                   inbox: create(:inbox, account: account))
+
+      contact.update!(assignee: agente)
+
+      expect(otra.reload.assignee_id).to eq(agente.id)
+    end
+
+    # Quien atendio una conversacion ya cerrada es historial: no se reescribe.
+    it 'no toca las conversaciones resueltas' do
+      resuelta = create(:conversation, account: account, contact: contact, status: :resolved)
+
+      contact.update!(assignee: agente)
+
+      expect(resuelta.reload.assignee_id).to be_nil
+    end
+
+    it 'desasignar el contacto desasigna sus conversaciones abiertas' do
+      abierta = create(:conversation, account: account, contact: contact,
+                                      status: :open, assignee: agente)
+      contact.update!(assignee: agente)
+
+      contact.update!(assignee: nil)
+
+      expect(abierta.reload.assignee_id).to be_nil
+    end
+  end
+
+  describe 'borrado de un contacto con registros de Jabvox' do
+    let(:account) { create(:account) }
+    let(:contact) { create(:contact, account: account) }
+
+    it 'no lo bloquea una llamada registrada' do
+      status = JabvoxCallLog.validators_on(:status).first.options[:in].first
+      JabvoxCallLog.create!(account: account, user: create(:user, account: account),
+                            contact: contact, phone_number: '+573001112233', status: status)
+
+      expect { contact.destroy! }.not_to raise_error
+      expect(JabvoxCallLog.where(contact_id: contact.id)).to be_empty
+    end
   end
 
   describe 'concerns' do

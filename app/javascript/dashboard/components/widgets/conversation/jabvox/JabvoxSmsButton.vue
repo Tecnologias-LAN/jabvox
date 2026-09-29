@@ -1,6 +1,8 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useMapGetter } from 'dashboard/composables/store';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { smsProvidersAPI, smsMessagesAPI } from 'dashboard/api/jabvox/sms';
 
 const props = defineProps({
@@ -10,6 +12,18 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+
+// Sin el módulo de SMS activo el botón no se muestra: antes solo lo usaba el detalle de
+// lead, pero la ficha del contacto la ven todas las cuentas y no debe ofrecer un canal que
+// la cuenta no tiene contratado.
+const accountId = useMapGetter('getCurrentAccountId');
+const isFeatureEnabledonAccount = useMapGetter(
+  'accounts/isFeatureEnabledonAccount'
+);
+const isEnabled = computed(() =>
+  isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.JABVOX_SMS)
+);
+
 const open = ref(false);
 const providers = ref([]);
 const selectedProviderId = ref(null);
@@ -61,7 +75,7 @@ async function send() {
 </script>
 
 <template>
-  <div class="relative">
+  <div v-if="isEnabled" class="relative">
     <button
       v-if="showLabel"
       class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-woot-500 hover:bg-woot-600 text-white text-sm font-medium transition-colors"

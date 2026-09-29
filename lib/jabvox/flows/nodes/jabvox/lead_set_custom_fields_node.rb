@@ -3,8 +3,10 @@
 # jabvox.lead.set_custom_fields — fija UN campo personalizado del lead. Los
 # demás campos se CONSERVAN: la escritura es una fusión, no un reemplazo.
 class Jabvox::Flows::Nodes::Jabvox::LeadSetCustomFieldsNode < Jabvox::Flows::Nodes::Jabvox::LeadSearchNode
-  type 'jabvox.lead.set_custom_fields'
-  label 'Fijar campo personalizado de Lead'
+  type 'jabvox.contact.set_custom_fields'
+  # Tipo anterior: los flujos guardados lo siguen usando.
+  aliases 'jabvox.lead.set_custom_fields'
+  label 'Campos personalizados del Contacto'
 
   def perform
     field = param(:field).to_s.strip

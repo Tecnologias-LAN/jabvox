@@ -1,8 +1,15 @@
 class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Accounts::Jabvox::Analytics::BaseController
-  before_action :set_data_source,
-                only: %i[show update destroy test_connection schema preview column_values query compile_sql custom_sql validate_sql sync]
+  # Acciones que operan sobre UNA fuente ya guardada. `index`, `create` y
+  # `test_connection_unsaved` quedan fuera a propósito: construyen la suya.
+  ON_SAVED_SOURCE = %i[show update destroy test_connection stats schema preview column_values
+                       query compile_sql custom_sql validate_sql sync].freeze
+
+  # Las que leen datos de la fuente, y por tanto exigen acceso a ESA fuente, no solo al módulo.
+  READS_SOURCE_DATA = %i[stats schema preview column_values query compile_sql].freeze
+
+  before_action :set_data_source, only: ON_SAVED_SOURCE
   before_action :authorize_manage!, only: %i[create update destroy]
-  before_action :authorize_data_source_access!, only: %i[schema preview column_values query compile_sql]
+  before_action :authorize_data_source_access!, only: READS_SOURCE_DATA
   before_action :authorize_custom_sql!, only: %i[custom_sql]
 
   def index
@@ -62,6 +69,14 @@ class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Acc
   def schema
     schema = Jabvox::Analytics::IntrospectionService.new(@data_source).call
     render json: { schema: schema }
+  rescue StandardError => e
+    ds_error(e)
+  end
+
+  # Conteo de tablas/vistas de la fuente, para mostrarlo junto a "Ver tablas" sin tener que
+  # abrir el explorador. Sale del esquema YA cacheado, así que no añade consultas a la base.
+  def stats
+    render json: Jabvox::Analytics::SchemaStats.new(@data_source).call
   rescue StandardError => e
     ds_error(e)
   end
@@ -184,23 +199,13 @@ class Api::V1::Accounts::Jabvox::Analytics::DataSourcesController < Api::V1::Acc
     end
   end
 
-  # Public, secret-free representation. NEVER includes password/ssl_ca.
-  # Representación pública, sin secretos. NUNCA incluye password/ssl_ca.
-  SERIALIZED_ATTRS = %i[
-    id name_jabvox engine_jabvox host_jabvox port_jabvox database_jabvox username_jabvox
-    sqlite_path_jabvox ssl_mode_jabvox allow_private_network_jabvox max_rows_jabvox
-    query_timeout_ms_jabvox status_jabvox last_tested_at_jabvox created_at
-  ].freeze
-
   def serialize(source)
-    source.slice(*SERIALIZED_ATTRS).symbolize_keys.merge(
-      has_password: source.password_jabvox.present?
-    )
+    Jabvox::Analytics::DataSourceSerializer.new(source).call
   end
 
   def sanitized(error)
     Rails.logger.error "[Analytics::DataSources] #{error.class}: #{error.message}"
-    'No se pudo completar la operación contra la fuente de datos'
+    Jabvox::Analytics::DbErrorMessage.new(error).call
   end
 
   def ds_error(error)

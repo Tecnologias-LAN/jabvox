@@ -14,11 +14,12 @@ const getters = {
   getTables: s => s.tables,
   getButtons: s => s.buttons,
   getActiveButtons: s => s.buttons.filter(b => b.active_jabvox),
+  // La tabla de UNA fila por contacto: la que aporta sus campos personalizados.
   getLeadsTable: s =>
     s.tables.find(
-      t => t.linked_to_jabvox === 'leads' && t.kind_jabvox !== 'multi'
+      t => t.linked_to_jabvox === 'contacts' && t.kind_jabvox !== 'multi'
     ) || null,
-  // Multi-row tables (Asesorías, Casos…) shown in the lead detail.
+  // Tablas de varias filas (Asesorías, Casos…) que se muestran en la ficha del contacto.
   getMultiTables: s => s.tables.filter(t => t.kind_jabvox === 'multi'),
   getUIFlags: s => s.uiFlags,
 };
@@ -195,38 +196,35 @@ const actions = {
     await api.deleteRow(tableId, rowId);
   },
 
-  async updateLeadCustomFields({ commit }, { leadId, customFields }) {
-    commit('SET_UI_FLAGS', { isSaving: true });
-    try {
-      const { data } = await api.updateLeadCustomFields(leadId, customFields);
-      return data;
-    } finally {
-      commit('SET_UI_FLAGS', { isSaving: false });
-    }
-  },
-
-  // Multi-row tables per lead (Asesorías, Casos…). Data is component-local
-  // (belongs to the currently-open lead), so these are thin pass-throughs.
-  async fetchLeadTableRows(_ctx, leadId) {
-    const { data } = await api.getLeadTableRows(leadId);
+  // Filas de las tablas de varias filas del contacto (Asesorías, Casos…). Los datos son
+  // locales del componente (pertenecen al contacto abierto), así que son pasarelas finas.
+  async fetchContactTableRows(_ctx, contactId) {
+    const { data } = await api.getContactTableRows(contactId);
     return data;
   },
 
-  async createLeadTableRow({ commit }, { leadId, tableId, rowData }) {
+  async createContactTableRow({ commit }, { contactId, tableId, rowData }) {
     commit('SET_UI_FLAGS', { isSaving: true });
     try {
-      const { data } = await api.createLeadTableRow(leadId, tableId, rowData);
+      const { data } = await api.createContactTableRow(
+        contactId,
+        tableId,
+        rowData
+      );
       return data;
     } finally {
       commit('SET_UI_FLAGS', { isSaving: false });
     }
   },
 
-  async updateLeadTableRow({ commit }, { leadId, tableId, rowId, rowData }) {
+  async updateContactTableRow(
+    { commit },
+    { contactId, tableId, rowId, rowData }
+  ) {
     commit('SET_UI_FLAGS', { isSaving: true });
     try {
-      const { data } = await api.updateLeadTableRow(
-        leadId,
+      const { data } = await api.updateContactTableRow(
+        contactId,
         tableId,
         rowId,
         rowData
@@ -237,8 +235,8 @@ const actions = {
     }
   },
 
-  async deleteLeadTableRow(_ctx, { leadId, tableId, rowId }) {
-    await api.deleteLeadTableRow(leadId, tableId, rowId);
+  async deleteContactTableRow(_ctx, { contactId, tableId, rowId }) {
+    await api.deleteContactTableRow(contactId, tableId, rowId);
   },
 };
 

@@ -65,7 +65,11 @@
       "CUSTOM_ATTRIBUTE_LINK": "Link",
       "CUSTOM_ATTRIBUTE_CHECKBOX": "Checkbox",
       "CREATED_AT": "Created at",
-      "LAST_ACTIVITY": "Last activity"
+      "LAST_ACTIVITY": "Last activity",
+      "CONTACT_NAME": "Contact name",
+      "CONTACT_PHONE_NUMBER": "Contact phone number",
+      "CONTACT_EMAIL": "Contact email",
+      "CONTACT_IDENTIFICATION": "Contact ID number"
     },
     "ERRORS": {
       "VALUE_REQUIRED": "Value is required",

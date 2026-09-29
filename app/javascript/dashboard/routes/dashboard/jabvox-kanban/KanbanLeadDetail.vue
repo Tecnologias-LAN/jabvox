@@ -5,7 +5,6 @@ import { useAlert } from 'dashboard/composables';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import messageAPI from 'dashboard/api/inbox/message';
-import Button from 'dashboard/components-next/button/Button.vue';
 import JabvoxCallButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxCallButton.vue';
 import JabvoxEmailButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxEmailButton.vue';
 import JabvoxSmsButton from 'dashboard/components/widgets/conversation/jabvox/JabvoxSmsButton.vue';
@@ -13,20 +12,17 @@ import JabvoxConversationProducts from 'dashboard/components/widgets/conversatio
 import JabvoxConversationHistory from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationHistory.vue';
 import JabvoxLeadRecordsByContact from 'dashboard/components/widgets/conversation/jabvox/JabvoxLeadRecordsByContact.vue';
 import JabvoxConversationNotes from 'dashboard/components/widgets/conversation/jabvox/JabvoxConversationNotes.vue';
-import ManagementQuestionsForm from 'dashboard/components/jabvox/managementStates/ManagementQuestionsForm.vue';
-import {
-  buildManagementContentAttributes,
-  stateGroups,
-  statesInGroup,
-  hasGroups,
-  CALL_SOURCES,
-} from 'dashboard/composables/jabvox/useManagementState';
+import ContactChatPanel from 'dashboard/components-next/Contacts/Pages/ContactChatPanel.vue';
+import contactDetailAPI from 'dashboard/api/jabvox/contactDetail';
+import { stageClass } from 'dashboard/helper/jabvox/lifecycleStage';
+import contactsListAPI from 'dashboard/api/jabvox/contactsList';
+import JabvoxLeadInfoByContact from 'dashboard/components/widgets/conversation/jabvox/JabvoxLeadInfoByContact.vue';
 
 const props = defineProps({
   conversation: { type: Object, required: true },
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'refresh']);
 const store = useStore();
 const { t } = useI18n();
 const myVisibilities = useMapGetter(
@@ -38,11 +34,10 @@ const mask = (field, value) =>
   myVisibilities.value[field] !== false ? value : '***';
 
 const activeTab = ref('chat');
+// Info ampliada del contacto, plegada por defecto.
+const showFullInfo = ref(false);
 const messages = ref([]);
 const isLoadingMessages = ref(false);
-const newMessage = ref('');
-const isNote = ref(false);
-const isSending = ref(false);
 const managementStateId = ref(null);
 const managementGroup = ref(null);
 const managementAnswers = ref({});
@@ -50,15 +45,6 @@ const messagesContainer = ref(null);
 
 const selectedManagementState = computed(() =>
   managementStates.value.find(s => s.id === managementStateId.value)
-);
-
-// Two-level picker (Estado → Subestado) when any active state has a group.
-const managementHasGroups = computed(() => hasGroups(managementStates.value));
-const managementGroups = computed(() => stateGroups(managementStates.value));
-const managementGroupStates = computed(() =>
-  managementGroup.value === null
-    ? []
-    : statesInGroup(managementStates.value, managementGroup.value)
 );
 
 // Changing the group invalidates a substate that belongs to another group.
@@ -101,9 +87,54 @@ const assigneeName = computed(
   () => props.conversation.assignee?.name || t('JABVOX_KANBAN.UNASSIGNED')
 );
 const inboxName = computed(() => props.conversation.inbox?.name || '');
+// Conversaciones del contacto, para que el chat ofrezca TODAS sus bandejas y no solo la
+// que abrió la tarjeta.
+const contactConversations = ref([]);
+
+// Etapa del ciclo de vida del contacto: se puede cambiar desde aquí sin salir del tablero.
+const lifecycleStages = ref([]);
+const lifecycleStage = ref('');
+const isSavingStage = ref(false);
+
+const loadContactConversations = async id => {
+  if (!id) {
+    contactConversations.value = [];
+    return;
+  }
+  try {
+    const { data } = await contactDetailAPI.show(id);
+    contactConversations.value = data.conversations || [];
+    lifecycleStage.value = data.contact?.lifecycle_stage || '';
+    lifecycleStages.value = data.lifecycle_stages || [];
+  } catch {
+    contactConversations.value = [];
+    lifecycleStage.value = '';
+    lifecycleStages.value = [];
+  }
+};
+
 const contactId = computed(
   () => props.conversation.contact?.id || props.conversation.meta?.sender?.id
 );
+
+const changeLifecycleStage = async stage => {
+  if (!stage || stage === lifecycleStage.value || isSavingStage.value) return;
+
+  const previous = lifecycleStage.value;
+  lifecycleStage.value = stage;
+  isSavingStage.value = true;
+  try {
+    await contactsListAPI.updateLifecycle(contactId.value, stage);
+    // El tablero pinta la etapa en la tarjeta: se recarga para que no quede desfasada.
+    emit('refresh');
+  } catch {
+    // Si falla, se revierte para no dejar en pantalla un estado que no se guardó.
+    lifecycleStage.value = previous;
+    useAlert(t('JABVOX_KANBAN.STAGE_UPDATE_ERROR'));
+  } finally {
+    isSavingStage.value = false;
+  }
+};
 
 const currentAccountId = useMapGetter('getCurrentAccountId');
 const isProductsEnabled = computed(() =>
@@ -159,12 +190,6 @@ const TABS = computed(() => {
   return tabs;
 });
 
-const sortedMessages = computed(() =>
-  [...messages.value].sort(
-    (a, b) => new Date(a.created_at) - new Date(b.created_at)
-  )
-);
-
 const scrollToBottom = () => {
   setTimeout(() => {
     if (messagesContainer.value) {
@@ -204,72 +229,12 @@ watch(
     managementGroup.value = null;
     managementAnswers.value = {};
     loadMessages();
+    loadContactConversations(contactId.value);
   }
 );
 
-const formatTime = dateStr =>
-  new Date(dateStr).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-const isIncomingMessage = msg => msg.message_type === 0;
-const isPrivateNote = msg => msg.message_type === 2 || msg.private;
-
-const messageClass = msg => {
-  if (isPrivateNote(msg))
-    return 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 text-slate-700 dark:text-slate-200';
-  if (isIncomingMessage(msg))
-    return 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100';
-  return 'bg-woot-500 text-white ml-auto';
-};
-
-const alignClass = msg =>
-  isPrivateNote(msg) || isIncomingMessage(msg) ? 'items-start' : 'items-end';
-
-const sendMessage = async () => {
-  const content = newMessage.value.trim();
-  if (!content || isSending.value) return;
-  // Gestión is captured in the Notes tab, not the chat. A chat private note is
-  // just the note text — no gestión required or attached here.
-  isSending.value = true;
-  try {
-    const payload = {
-      // messages API resolves by display_id, not the PK
-      conversationId: props.conversation.display_id,
-      message: content,
-      private: isNote.value,
-      echo_id: `jabvox_${Date.now()}`,
-    };
-    if (isNote.value && managementStateId.value) {
-      payload.contentAttributes = buildManagementContentAttributes(
-        selectedManagementState.value,
-        managementAnswers.value,
-        CALL_SOURCES.KANBAN
-      );
-    }
-    const response = await messageAPI.create(payload);
-    messages.value.push(response.data);
-    newMessage.value = '';
-    managementStateId.value = null;
-    managementGroup.value = null;
-    managementAnswers.value = {};
-    scrollToBottom();
-  } catch {
-    useAlert(t('JABVOX_KANBAN.SEND_MESSAGE_ERROR'));
-  } finally {
-    isSending.value = false;
-  }
-};
-
-const onKeydown = event => {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault();
-    sendMessage();
-  }
-};
+// También al abrir la ficha por primera vez.
+watch(contactId, id => loadContactConversations(id), { immediate: true });
 </script>
 
 <template>
@@ -329,11 +294,32 @@ const onKeydown = event => {
           >
             {{ t('JABVOX_KANBAN.DOCUMENT_LABEL') }}: {{ contactIdentification }}
           </p>
-          <span
-            class="inline-flex items-center mt-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 w-fit"
-          >
-            {{ contactTypeLabel }}
-          </span>
+          <div class="flex flex-wrap items-center gap-1.5 mt-1">
+            <span
+              class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+            >
+              {{ contactTypeLabel }}
+            </span>
+            <!-- Estado del contacto, editable aquí mismo. Cambiarlo NO depende de mover la
+                 tarjeta: la columna dice dónde está en el proceso, la etapa qué es el
+                 contacto para el negocio. -->
+            <select
+              v-if="contactId"
+              :value="lifecycleStage"
+              :disabled="isSavingStage"
+              :class="stageClass(lifecycleStage || 'prospecto')"
+              class="rounded-md border text-[11px] px-1.5 py-0.5 font-medium disabled:opacity-50"
+              @change="changeLifecycleStage($event.target.value)"
+            >
+              <option
+                v-for="stage in lifecycleStages"
+                :key="stage.id"
+                :value="stage.id"
+              >
+                {{ stage.name }}
+              </option>
+            </select>
+          </div>
         </div>
         <div class="flex items-center gap-1">
           <JabvoxCallButton
@@ -369,6 +355,27 @@ const onKeydown = event => {
           <i class="i-lucide-user text-base" />
           {{ assigneeName }}
         </span>
+        <!-- Info completa del contacto: campaña, afiliado, país, etapa y sus campos
+             personalizados. Va plegada para no empujar el chat hacia abajo. -->
+        <button
+          class="flex items-center gap-1 ml-auto rounded px-1.5 py-0.5 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          @click="showFullInfo = !showFullInfo"
+        >
+          <i
+            :class="
+              showFullInfo ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'
+            "
+            class="text-base"
+          />
+          {{ $t('JABVOX_KANBAN.FULL_INFO') }}
+        </button>
+      </div>
+
+      <div
+        v-if="showFullInfo && contactId"
+        class="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 max-h-72 overflow-y-auto"
+      >
+        <JabvoxLeadInfoByContact :contact-id="contactId" />
       </div>
     </div>
 
@@ -393,213 +400,14 @@ const onKeydown = event => {
     </div>
 
     <!-- Chat tab -->
+    <!-- Chat: se reutiliza el panel de la ficha del contacto en vez de una copia a mano.
+         Trae selector de bandeja, plantillas, adjuntos, audio y el asistente de IA; la
+         versión anterior era un chat reimplementado sin nada de eso. -->
     <template v-if="activeTab === 'chat'">
-      <div
-        ref="messagesContainer"
-        class="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0"
-      >
-        <div
-          v-if="isLoadingMessages"
-          class="flex items-center justify-center py-8 text-slate-400 text-sm animate-pulse"
-        >
-          {{ $t('JABVOX_KANBAN.LOADING_MESSAGES') }}
-        </div>
-
-        <template v-else>
-          <div
-            v-for="msg in sortedMessages"
-            :key="msg.id"
-            class="flex flex-col gap-1"
-            :class="alignClass(msg)"
-          >
-            <div
-              v-if="msg.content"
-              class="max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap break-words"
-              :class="messageClass(msg)"
-            >
-              <div
-                v-if="isPrivateNote(msg)"
-                class="flex items-center gap-1 mb-1 text-xs text-yellow-700 dark:text-yellow-400 font-medium"
-              >
-                <i class="i-lucide-sticky-note text-base" />
-                {{ $t('JABVOX_KANBAN.PRIVATE_NOTE') }}
-              </div>
-              <div
-                v-if="
-                  isPrivateNote(msg) &&
-                  msg.content_attributes?.jabvox_management_state_name
-                "
-                class="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-full text-[11px] font-semibold text-white"
-                :style="{
-                  backgroundColor:
-                    msg.content_attributes.jabvox_management_state_color ||
-                    '#6b7280',
-                }"
-              >
-                {{ msg.content_attributes.jabvox_management_state_name }}
-              </div>
-              {{ msg.content }}
-            </div>
-            <span class="text-xs text-slate-400 dark:text-slate-500 px-1">
-              {{ formatTime(msg.created_at) }}
-            </span>
-          </div>
-
-          <div
-            v-if="sortedMessages.length === 0"
-            class="flex items-center justify-center py-8 text-slate-400 dark:text-slate-600 text-sm"
-          >
-            {{ $t('JABVOX_KANBAN.NO_MESSAGES') }}
-          </div>
-        </template>
-      </div>
-
-      <div class="shrink-0 border-t border-slate-200 dark:border-slate-700 p-3">
-        <div class="flex items-center gap-2 mb-2">
-          <button
-            class="text-xs px-2 py-1 rounded-md font-medium transition-colors"
-            :class="[
-              !isNote
-                ? 'bg-woot-500 text-white'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300',
-            ]"
-            @click="isNote = false"
-          >
-            {{ $t('JABVOX_KANBAN.REPLY') }}
-          </button>
-          <button
-            class="text-xs px-2 py-1 rounded-md font-medium transition-colors"
-            :class="[
-              isNote
-                ? 'bg-yellow-500 text-white'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300',
-            ]"
-            @click="isNote = true"
-          >
-            {{ $t('JABVOX_KANBAN.ADD_NOTE') }}
-          </button>
-        </div>
-        <!-- Gestión picker removed from chat: notes here are plain text.
-             Gestión is done from the Notes tab. -->
-        <div v-if="false" class="mb-2">
-          <!-- Two-level picker: Estado (grupo) → Subestado -->
-          <template v-if="managementHasGroups">
-            <div class="flex items-center gap-2">
-              <label
-                class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0"
-              >
-                {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.GROUP_LABEL') }}
-              </label>
-              <select
-                v-model="managementGroup"
-                class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200"
-                :class="
-                  managementGroup !== null
-                    ? 'border-slate-200 dark:border-slate-600'
-                    : 'border-amber-400 dark:border-amber-500'
-                "
-              >
-                <option :value="null" disabled>
-                  {{
-                    $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.GROUP_PLACEHOLDER')
-                  }}
-                </option>
-                <option v-for="g in managementGroups" :key="g" :value="g">
-                  {{ g || $t('JABVOX_MANAGEMENT_STATES.UNGROUPED') }}
-                </option>
-              </select>
-            </div>
-            <div class="flex items-center gap-2 mt-2">
-              <label
-                class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0"
-              >
-                {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.SUBSTATE_LABEL') }}
-              </label>
-              <select
-                v-model="managementStateId"
-                :disabled="managementGroup === null"
-                class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-60"
-                :class="
-                  managementStateId
-                    ? 'border-slate-200 dark:border-slate-600'
-                    : 'border-amber-400 dark:border-amber-500'
-                "
-              >
-                <option :value="null" disabled>
-                  {{
-                    $t(
-                      'JABVOX_MANAGEMENT_STATES.REPLY_BOX.SUBSTATE_PLACEHOLDER'
-                    )
-                  }}
-                </option>
-                <option
-                  v-for="s in managementGroupStates"
-                  :key="s.id"
-                  :value="s.id"
-                >
-                  {{ s.name_jabvox }}
-                </option>
-              </select>
-            </div>
-          </template>
-          <!-- Flat picker (accounts without groups) -->
-          <div v-else class="flex items-center gap-2">
-            <label
-              class="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0"
-            >
-              {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.LABEL') }}
-            </label>
-            <select
-              v-model="managementStateId"
-              class="flex-1 rounded-md border text-xs px-2 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200"
-              :class="
-                managementStateId
-                  ? 'border-slate-200 dark:border-slate-600'
-                  : 'border-amber-400 dark:border-amber-500'
-              "
-            >
-              <option :value="null" disabled>
-                {{ $t('JABVOX_MANAGEMENT_STATES.REPLY_BOX.PLACEHOLDER') }}
-              </option>
-              <option v-for="s in managementStates" :key="s.id" :value="s.id">
-                {{ s.name_jabvox }}
-              </option>
-            </select>
-          </div>
-          <p
-            v-if="selectedManagementState?.usage_info_jabvox"
-            class="mt-1 text-xs text-slate-500 dark:text-slate-400"
-          >
-            {{ selectedManagementState.usage_info_jabvox }}
-          </p>
-        </div>
-        <ManagementQuestionsForm
-          v-if="isNote && selectedManagementState"
-          v-model="managementAnswers"
-          :state="selectedManagementState"
-          class="mb-2"
-        />
-        <div class="flex gap-2 items-end">
-          <textarea
-            v-model="newMessage"
-            rows="2"
-            :placeholder="
-              isNote
-                ? $t('JABVOX_KANBAN.NOTE_PLACEHOLDER')
-                : $t('JABVOX_KANBAN.MESSAGE_PLACEHOLDER')
-            "
-            class="flex-1 resize-none rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-woot-500 placeholder-slate-400"
-            @keydown="onKeydown"
-          />
-          <Button
-            size="small"
-            :is-loading="isSending"
-            :disabled="!newMessage.trim()"
-            icon="i-lucide-send"
-            @click="sendMessage"
-          />
-        </div>
-      </div>
+      <ContactChatPanel
+        :conversations="contactConversations"
+        class="flex-1 min-h-0"
+      />
     </template>
 
     <!-- Products tab -->

@@ -25,7 +25,7 @@ class Jabvox::Hermes::Authorizer
   # Los MCPs externos (creados por el aprovisionador, p.ej. analytics_db_49) sí se validan
   # contra el handoff en account_has_mcp?.
   CORE_MCPS = %w[
-    jabvox_core jabvox_dialer jabvox_leads jabvox_management jabvox_sms analytics
+    jabvox_core jabvox_dialer jabvox_management jabvox_sms analytics
   ].freeze
 
   def initialize(account:, user:)
@@ -102,7 +102,6 @@ class Jabvox::Hermes::Authorizer
   # Mapa MÓDULO (feature) → { view:, manage: } con las claves de permiso de rol/custom_role
   # de Jabvox. read exige view; create/write exige manage. Un módulo sin entrada usa CORE.
   MODULE_ROLE_PERMISSIONS = {
-    'jabvox_leads' => { view: 'jabvox_leads_view_all', manage: 'jabvox_leads_edit' },
     'jabvox_kanban' => { view: 'jabvox_kanban_view_all', manage: 'jabvox_kanban_manage' },
     'jabvox_tasks' => { view: 'jabvox_tasks_view_all', manage: 'jabvox_tasks_manage' },
     'jabvox_cdr' => { view: 'jabvox_cdr_view_reports', manage: 'jabvox_cdr_manage' },

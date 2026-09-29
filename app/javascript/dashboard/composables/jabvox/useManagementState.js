@@ -174,6 +174,8 @@ export const CALL_SOURCES = Object.freeze({
   DIALER: 'dialer',
   CLICK_TO_CALL: 'click_to_call',
   LEAD_DETAIL: 'lead_detail',
+  // Ficha unificada del contacto, la que sustituye al detalle de lead.
+  CONTACT_DETAIL: 'contact_detail',
   KANBAN: 'kanban',
   CONVERSATIONS: 'conversations',
 });

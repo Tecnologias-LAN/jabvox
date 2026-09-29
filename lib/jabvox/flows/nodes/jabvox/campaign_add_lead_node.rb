@@ -4,8 +4,10 @@
 # no existe), igual que `update_details` del panel. El select entrega un id: se
 # resuelve a nombre dentro de la cuenta.
 class Jabvox::Flows::Nodes::Jabvox::CampaignAddLeadNode < Jabvox::Flows::Nodes::Jabvox::Base
-  type 'jabvox.campaign.add_lead'
-  label 'Asociar Lead a Campaña'
+  type 'jabvox.campaign.add_contact'
+  # Tipo anterior: los flujos guardados lo siguen usando.
+  aliases 'jabvox.campaign.add_lead'
+  label 'Añadir Contacto a Campaña'
 
   def perform
     lead = find_lead!(param(:leadId), 'el ID interno del lead')

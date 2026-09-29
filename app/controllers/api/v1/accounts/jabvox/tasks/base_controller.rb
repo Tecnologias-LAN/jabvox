@@ -11,20 +11,39 @@ class Api::V1::Accounts::Jabvox::Tasks::BaseController < Api::V1::Accounts::Base
     render json: { error: 'El módulo de Tareas no está habilitado para esta cuenta' }, status: :forbidden
   end
 
-  # Enforce a custom-role permission ONLY for users who actually have a custom role, so
-  # standard agents keep their historical flow and admins always pass.
+  # Gestionar tareas exige el permiso SIEMPRE. Antes bastaba con no tener rol
+  # personalizado: el gate salía antes de comprobar nada, así que cualquier agente creaba,
+  # editaba y ejecutaba automatizaciones de envío. Ahora un usuario sin rol asignado no
+  # pasa, y hay que darle un rol que conceda `jabvox_tasks_manage`.
+  #
+  # El admin sigue pasando siempre (lo resuelve `user_grants_permission?`).
   def jabvox_gate!(key)
-    return if Current.account_user&.custom_role.nil?
+    return if jabvox_can?(key)
 
-    jabvox_authorize!(key)
+    deny_access
   end
 
-  # Sections previously reserved to admins now also accept the jabvox_tasks_manage grant.
-  # Admins keep passing; anyone else needs the custom-role permission.
+  # Borrar es exclusivo del administrador: se lleva por delante tareas enteras —y un
+  # tablero o una columna arrastran en cascada todo lo que contienen— así que no se delega
+  # en ningún rol, ni siquiera en uno con `jabvox_tasks_manage`.
+  def ensure_admin_for_destroy!
+    return if Current.account_user&.administrator?
+
+    deny_access
+  end
+
+  # Secciones sensibles (webhooks y sus secretos): admin o permiso explícito.
   def ensure_admin
     return if Current.account_user&.administrator?
     return if Current.account_user&.custom_role&.grants?('jabvox_tasks_manage')
 
-    render json: { error: 'Solo los administradores pueden gestionar esta sección' }, status: :forbidden
+    deny_access
+  end
+
+  # Un único mensaje para toda denegación: no distingue entre "no tienes rol", "tu rol no
+  # concede esto" y "esto es solo de administradores". Decir cuál de los tres es convierte
+  # el endpoint en un mapa de la configuración de permisos de la cuenta.
+  def deny_access
+    render json: { error: 'No tienes permiso para esta acción' }, status: :forbidden
   end
 end

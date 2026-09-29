@@ -15,6 +15,10 @@ const { t } = useI18n();
 
 const name = ref('');
 const color = ref('#3b82f6');
+// Papel de la columna en el flujo. Vacío = columna intermedia normal. Solo puede haber
+// una de cada por tablero, y el backend lo rechaza si se duplica.
+const STAGE_ROLES = ['initial', 'done', 'inactive'];
+const role = ref('');
 
 const isEdit = computed(() => Boolean(props.stage));
 
@@ -23,6 +27,7 @@ watch(
   value => {
     name.value = value?.nameJabvox || '';
     color.value = value?.colorJabvox || '#3b82f6';
+    role.value = value?.roleJabvox || '';
   },
   { immediate: true }
 );
@@ -32,6 +37,7 @@ const onSubmit = () => {
   emit('submit', {
     name_jabvox: name.value.trim(),
     color_jabvox: color.value,
+    role_jabvox: role.value || null,
   });
 };
 </script>
@@ -76,6 +82,26 @@ const onSubmit = () => {
             type="color"
             class="h-9 w-16 rounded-lg bg-n-alpha-1 border border-n-weak"
           />
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-n-slate-11">
+            {{ t('JABVOX_TASKS.STAGE_ROLE.LABEL') }}
+          </label>
+          <select
+            v-model="role"
+            class="w-full h-9 rounded-lg border border-n-weak bg-n-alpha-2 dark:bg-n-solid-2 text-sm text-n-slate-12 px-2"
+          >
+            <option value="">
+              {{ t('JABVOX_TASKS.STAGE_ROLE.NONE') }}
+            </option>
+            <option v-for="r in STAGE_ROLES" :key="r" :value="r">
+              {{ t(`JABVOX_TASKS.STAGE_ROLE.${r}`) }}
+            </option>
+          </select>
+          <p class="text-[11px] text-n-slate-10">
+            {{ t('JABVOX_TASKS.STAGE_ROLE.HELP') }}
+          </p>
         </div>
 
         <div class="flex items-center justify-end gap-2 pt-2">

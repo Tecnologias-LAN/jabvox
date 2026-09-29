@@ -77,10 +77,10 @@ class Api::V1::Accounts::Jabvox::CustomTablesController < Api::V1::Accounts::Bas
   # The "Leads" table is a fixed system table that always exists and cannot be
   # renamed or deleted. Its columns are the lead's custom fields.
   def ensure_leads_table
-    return if Current.account.jabvox_custom_tables.exists?(linked_to_jabvox: 'leads')
+    return if Current.account.jabvox_custom_tables.exists?(linked_to_jabvox: 'contacts')
 
     Current.account.jabvox_custom_tables.create!(
-      name_jabvox: 'Leads', description_jabvox: nil, linked_to_jabvox: 'leads'
+      name_jabvox: 'Contactos', description_jabvox: nil, linked_to_jabvox: 'contacts'
     )
   rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
     nil # created concurrently — fine

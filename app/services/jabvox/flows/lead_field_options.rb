@@ -53,7 +53,7 @@ module Jabvox::Flows::LeadFieldOptions
   # Columnas de la tabla personalizada de leads de la cuenta.
   def lead_custom_columns
     @lead_custom_columns ||= begin
-      table = JabvoxCustomTable.where(account_id: @account.id).for_leads.first
+      table = JabvoxCustomTable.where(account_id: @account.id).for_contacts.first
       table ? table.jabvox_custom_columns.order(:position_jabvox).to_a : []
     end
   end

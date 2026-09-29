@@ -225,17 +225,17 @@ class Jabvox::BulkWhatsappDispatchService
   def resolved_lead_ids
     sel = (@leads_selection || {}).with_indifferent_access
     actor_account_user = @account.account_users.find_by(user_id: @actor.id)
-    base = Jabvox::LeadsFilterService.new(
+    base = Jabvox::ContactsFilterService.new(
       account: @account, user: @actor,
-      is_admin: JabvoxPermissions.user_grants_permission?(actor_account_user, 'jabvox_leads_view_all'),
+      is_admin: JabvoxPermissions.user_grants_permission?(actor_account_user, 'jabvox_contacts_view_all'),
       filters: sel[:filters] || {}
     ).scope
 
     scope = if ActiveModel::Type::Boolean.new.cast(sel[:all])
               excluded = Array(sel[:excluded_ids]).map(&:to_i)
-              excluded.any? ? base.where.not(jabvox_leads: { id: excluded }) : base
+              excluded.any? ? base.where.not(id: excluded) : base
             else
-              base.where(jabvox_leads: { id: Array(sel[:lead_ids]).map(&:to_i) })
+              base.where(id: Array(sel[:lead_ids]).map(&:to_i))
             end
     scope.limit(MAX_ROWS).pluck(:id)
   end
@@ -408,11 +408,12 @@ class Jabvox::BulkWhatsappDispatchService
     # variable_map may travel in the payload (snapshot) even if it wasn't set on
     # this instance (deliver! rebuilds the service without it).
     var_map = @variable_map.presence || normalize_variable_map(payload[:variable_map])
-    scope = @account.jabvox_leads.where(id: ids).includes(:contact, :jabvox_campaign, :jabvox_affiliate, :assignee)
+    # `ids` son de CONTACTO: campaña, afiliado y responsable viven ya en el propio contacto.
+    scope = @account.contacts.where(id: ids).includes(:jabvox_campaign, :jabvox_affiliate, :assignee)
 
     scope.filter_map do |lead|
       # Número a solo dígitos (con prefijo de país); el '+' lo pone n8n.
-      number = normalize_phone(lead.contact&.phone_number)
+      number = normalize_phone(lead.phone_number)
       next nil if number.blank? || body.to_s.strip.blank?
 
       lead_message(lead, number, body, lang, var_map)
@@ -428,8 +429,8 @@ class Jabvox::BulkWhatsappDispatchService
     {
       'nombre' => fields['nombre'], 'numero' => number,
       'template' => body.to_s.strip, 'idioma' => lang,
-      'lead_id' => lead.id, 'lead_number' => lead.lead_number,
-      'contact_id' => lead.contact&.id,
+      'lead_id' => lead.id, 'lead_number' => nil,
+      'contact_id' => lead.id,
       'email' => fields['email'],
       'country' => fields['country'],
       'campaign' => fields['campaign'],
@@ -441,11 +442,11 @@ class Jabvox::BulkWhatsappDispatchService
     }
   end
 
-  # Flat, string-keyed map of every field usable as a template variable:
-  # default lead/contact fields under plain keys, and each custom field under
-  # "custom:<key>". This is the single source the variable_map maps against.
+  # Mapa plano de todos los campos usables como variable de plantilla: los del contacto
+  # bajo claves simples y cada campo personalizado bajo "custom:<clave>". Es la única
+  # fuente contra la que se resuelve variable_map.
   def lead_fields(lead, number)
-    contact = lead.contact
+    contact = lead
     base = {
       'nombre' => contact&.name.to_s,
       'numero' => number,
@@ -457,7 +458,9 @@ class Jabvox::BulkWhatsappDispatchService
       'afiliado' => lead.jabvox_affiliate&.name.to_s,
       'assignee_name' => lead.assignee&.name.to_s,
       'assignee_email' => lead.assignee&.email.to_s,
-      'lead_number' => lead.lead_number.to_s
+      # lead_number desapareció con la unificación; se conserva la clave vacía para no
+      # romper plantillas que la referencien.
+      'lead_number' => ''
     }
     (lead.custom_fields_jabvox || {}).each { |k, v| base["custom:#{k}"] = v.to_s }
     base
@@ -575,7 +578,7 @@ class Jabvox::BulkWhatsappDispatchService
     rescue URI::InvalidURIError
       ''
     end
-    host.end_with?('whatsapp.net') || host.end_with?('fbsbx.com') || host.include?('scontent')
+    host.end_with?('whatsapp.net', 'fbsbx.com') || host.include?('scontent')
   end
 
   # Coerces the incoming map to { "<var>" => "fieldkey", ... } with string keys,
@@ -593,17 +596,17 @@ class Jabvox::BulkWhatsappDispatchService
 
   def resolve_leads_scope(sel)
     sender_account_user = @account.account_users.find_by(user_id: @sender_user.id)
-    base = Jabvox::LeadsFilterService.new(
+    base = Jabvox::ContactsFilterService.new(
       account: @account, user: @sender_user,
-      is_admin: JabvoxPermissions.user_grants_permission?(sender_account_user, 'jabvox_leads_view_all'),
+      is_admin: JabvoxPermissions.user_grants_permission?(sender_account_user, 'jabvox_contacts_view_all'),
       filters: sel[:filters] || {}
     ).scope
 
     if ActiveModel::Type::Boolean.new.cast(sel[:all])
       excluded = Array(sel[:excluded_ids]).map(&:to_i)
-      excluded.any? ? base.where.not(jabvox_leads: { id: excluded }) : base
+      excluded.any? ? base.where.not(id: excluded) : base
     else
-      base.where(jabvox_leads: { id: Array(sel[:lead_ids]).map(&:to_i) })
+      base.where(id: Array(sel[:lead_ids]).map(&:to_i))
     end
   end
 

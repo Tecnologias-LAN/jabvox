@@ -1,0 +1,125 @@
+{
+  "JABVOX_CONTACTS": {
+    "TITLE": "Contactos",
+    "TOTAL": "{count} contactos",
+    "STAGES": {
+      "ALL": "Todos"
+    },
+    "FILTERS": {
+      "NAME": "Nombre",
+      "PHONE": "Teléfono",
+      "EMAIL": "Correo",
+      "DOCUMENT": "Documento",
+      "CAMPAIGN": "Campaña",
+      "ASSIGNEE": "Asignado a",
+      "INBOX": "Bandeja",
+      "AFFILIATE": "Afiliado",
+      "OWN": "Propios",
+      "MANAGEMENT": "Estado de gestión",
+      "SOLD_ANY": "Venta: todos",
+      "SOLD_SALES": "Con venta",
+      "SOLD_QUOTES": "Con cotización",
+      "ADVANCED": "Más filtros",
+      "CLEAR": "Limpiar",
+      "TITLE": "Filtros",
+      "APPLY": "Aplicar",
+      "CUSTOM": "Campos personalizados",
+      "NO_VALUES": "Sin valores",
+      "NO_MATCHES": "Ningún contacto de esta página coincide con los filtros.",
+      "COUNTRY": "País",
+      "ID": "ID",
+      "MANAGEMENT_RANGE": "Gestiones entre"
+    },
+    "COLUMNS": {
+      "NAME": "Nombre",
+      "STAGE": "Etapa",
+      "PHONE": "Teléfono",
+      "EMAIL": "Correo",
+      "CAMPAIGN": "Campaña",
+      "ASSIGNEE": "Asignado a",
+      "CREATED": "Creado",
+      "COUNTRY": "País",
+      "TITLE": "Columnas",
+      "RESET": "Restablecer",
+      "AFFILIATE": "Afiliado",
+      "LABELS": "Etiquetas",
+      "MANAGEMENTS": "Gestiones"
+    },
+    "EMPTY": {
+      "TITLE": "No hay contactos",
+      "SUBTITLE": "Ajusta los filtros o crea un contacto nuevo."
+    },
+    "PAGINATION": "Página {page} de {pages} · {total} en total",
+    "ERROR": {
+      "LOAD": "No se pudieron cargar los contactos.",
+      "STAGE": "No se pudo cambiar la etapa."
+    },
+    "SEARCH": "Buscar contacto…",
+    "SELECTION": {
+      "COUNT": "{count} seleccionados",
+      "CLEAR": "Quitar selección",
+      "ALL": "Seleccionar todos"
+    },
+    "DETAIL": {
+      "GROUPS": {
+        "CONTACT": "Contacto",
+        "ACTIVITY": "Actividad"
+      },
+      "TABS": {
+        "ATTRIBUTES": "Atributos",
+        "NOTES": "Notas",
+        "MEDIA": "Media",
+        "MERGE": "Combinar",
+        "MANAGEMENTS": "Gestiones",
+        "ORDERS": "Productos",
+        "RECORDS": "Registros",
+        "HISTORY": "Historial"
+      },
+      "EMPTY": {
+        "MANAGEMENTS": "Sin gestiones registradas.",
+        "ORDERS": "Sin pedidos ni cotizaciones.",
+        "RECORDS": "Sin registros de llamadas."
+      },
+      "CHAT": {
+        "EMPTY": "Este contacto no tiene conversaciones.",
+        "EMPTY_HINT": "Cuando escriba por cualquier canal, la conversación aparecerá aquí.",
+        "NO_INBOX": "Sin bandeja"
+      },
+      "NO_STATE": "Sin estado",
+      "NO_NUMBER": "Sin número",
+      "BACK": "Volver",
+      "TITLE": "Contacto",
+      "BLOCK": "Bloquear",
+      "UNBLOCK": "Desbloquear",
+      "DELETE": "Eliminar",
+      "MANAGEMENT": {
+        "TITLE": "Nueva gestión",
+        "ADD": "Añadir gestión",
+        "GROUP": "Estado",
+        "STATE": "Subestado",
+        "SELECT": "Seleccionar…",
+        "NO_GROUP": "Sin grupo",
+        "NOTE": "Nota",
+        "NOTE_REQUIRED": "Nota (obligatoria)",
+        "NOTE_HINT": "Detalle de la gestión…",
+        "SAVE": "Guardar",
+        "CANCEL": "Cancelar",
+        "CLOSE": "Cerrar",
+        "SAVED": "Gestión registrada.",
+        "ERROR": "No se pudo registrar la gestión."
+      },
+      "CUSTOM_FIELDS": "Campos personalizados",
+      "CUSTOM_FIELD_NONE": "Sin valor",
+      "CUSTOM_FIELD_YES": "Sí",
+      "CUSTOM_FIELD_NO": "No",
+      "SAVE_JABVOX": "Guardar campos Jabvox",
+      "UNASSIGNED": "Sin asignar"
+    },
+    "LIFECYCLE": {
+      "PROSPECTO": "Prospecto",
+      "INTERESADO": "Interesado",
+      "CLIENTE": "Cliente",
+      "INACTIVO": "Inactivo"
+    }
+  }
+}

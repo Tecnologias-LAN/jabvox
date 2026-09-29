@@ -1,12 +1,14 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import { useAlert } from 'dashboard/composables';
 import { useAnalyticsDataSourcesStore } from 'dashboard/stores/jabvox/analytics/dataSources';
 import { useAnalyticsWidgetsStore } from 'dashboard/stores/jabvox/analytics/widgets';
 import { useAnalyticsQueryStore } from 'dashboard/stores/jabvox/analytics/query';
 import { useAnalyticsCapabilitiesStore } from 'dashboard/stores/jabvox/analytics/capabilities';
 import { useAnalyticsError } from 'dashboard/composables/useAnalyticsError';
+import { useAnalyticsCrossReportsStore } from 'dashboard/stores/jabvox/analytics/crossReports';
 import AnalyticsDataTable from '../../data-sources/AnalyticsDataTable.vue';
 import ColumnValueFilter from '../../data-sources/ColumnValueFilter.vue';
 
@@ -22,6 +24,13 @@ const { t } = useI18n();
 const dsStore = useAnalyticsDataSourcesStore();
 const widgetsStore = useAnalyticsWidgetsStore();
 const queryStore = useAnalyticsQueryStore();
+const crossStore = useAnalyticsCrossReportsStore();
+const route = useRoute();
+
+const crossReportsRoute = computed(() => ({
+  name: 'jabvox_analytics_cross_reports',
+  params: { accountId: route.params.accountId },
+}));
 const capabilities = useAnalyticsCapabilitiesStore();
 const { showError } = useAnalyticsError();
 
@@ -40,6 +49,14 @@ const WIDGET_TYPES = [
 ];
 const FUNCTIONS = ['COUNT', 'SUM', 'AVG', 'MIN', 'MAX'];
 
+const ORIGIN_OPTIONS = [
+  {
+    value: 'source',
+    labelKey: 'JABVOX_ANALYTICS.WIDGETS.CONFIG.ORIGIN_SOURCE',
+  },
+  { value: 'cross', labelKey: 'JABVOX_ANALYTICS.WIDGETS.CONFIG.ORIGIN_CROSS' },
+];
+
 // Spec visual: table, columns, aggregations [{fn,column}], filters [{field,values:[]}], groupBy.
 const form = reactive({
   titleJabvox: '',
@@ -51,9 +68,15 @@ const form = reactive({
   groupBy: null,
   customSql: false,
   sql: '',
+  // Origen de los datos: 'source' (una tabla o SQL sobre una fuente) o 'cross' (un reporte
+  // cruzado guardado, que une varias tablas —incluso de bases distintas—).
+  origin: 'source',
+  crossReportId: null,
 });
 
 const dataSources = computed(() => dsStore.list);
+const crossReports = computed(() => crossStore.list);
+const isCrossOrigin = computed(() => form.origin === 'cross');
 const canUseSql = computed(() => capabilities.canUseCustomSql);
 
 const schema = computed(() => {
@@ -103,6 +126,9 @@ const resetForm = () => {
   form.groupBy = spec.groupBy ?? spec.group_by ?? null;
   form.customSql = Boolean(w.customSqlJabvox);
   form.sql = w.customSqlJabvox || '';
+  const cfg = w.configJabvox || {};
+  form.crossReportId = cfg.cross_report_id || null;
+  form.origin = form.crossReportId ? 'cross' : 'source';
   queryStore.resetResult();
 };
 
@@ -113,6 +139,9 @@ watch(
     resetForm();
     if (!dataSources.value.length) {
       await dsStore.fetch().catch(error => showError(error));
+    }
+    if (!crossReports.value.length) {
+      await crossStore.fetch().catch(() => {});
     }
     await ensureSchema(form.dataSourceId);
   },
@@ -221,6 +250,22 @@ const handleSave = async () => {
       widget_type_jabvox: form.widgetType,
       data_source_id: form.dataSourceId,
     };
+    // Un widget de cruce se resuelve por su reporte: no lleva fuente ni SQL propios.
+    if (isCrossOrigin.value) {
+      payload.data_source_id = null;
+      payload.custom_sql_jabvox = null;
+      payload.query_spec_jabvox = {};
+      payload.config_jabvox = { cross_report_id: form.crossReportId };
+      await widgetsStore.updateWidget(
+        props.dashboardId,
+        props.widget.id,
+        payload
+      );
+      useAlert(t('JABVOX_ANALYTICS.COMMON.SAVE'));
+      emit('saved');
+      return;
+    }
+    payload.config_jabvox = {};
     if (form.customSql) {
       payload.custom_sql_jabvox = form.sql;
       payload.query_spec_jabvox = {};
@@ -298,236 +343,304 @@ const controlClass =
             </select>
           </div>
           <div>
+            <!-- Origen: una fuente concreta, o un reporte cruzado que une varias tablas
+                 (incluso de bases distintas). El cruce lo resuelve el motor del backend. -->
             <label :class="labelClass">
-              {{ t('JABVOX_ANALYTICS.WIDGETS.CONFIG.DATA_SOURCE') }}
+              {{ t('JABVOX_ANALYTICS.WIDGETS.CONFIG.ORIGIN') }}
             </label>
-            <select
-              :value="form.dataSourceId"
-              :class="controlClass"
-              @change="onDataSourceChange(Number($event.target.value) || null)"
-            >
-              <option :value="null">
-                {{ t('JABVOX_ANALYTICS.COMMON.NONE') }}
-              </option>
-              <option v-for="ds in dataSources" :key="ds.id" :value="ds.id">
-                {{ ds.nameJabvox }}
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Toggle SQL / Visual -->
-        <label
-          v-if="canUseSql"
-          class="flex items-center gap-2 rounded-lg bg-n-alpha-1 px-3 py-2 text-sm text-n-slate-12"
-        >
-          <input
-            type="checkbox"
-            class="size-4 rounded border-n-weak"
-            :checked="form.customSql"
-            @change="onToggleSql($event.target.checked)"
-          />
-          <span class="flex items-center gap-1.5">
-            <span class="i-lucide-code size-4 text-n-brand" />
-            {{ t('JABVOX_ANALYTICS.WIDGETS.CONFIG.CUSTOM_SQL') }}
-          </span>
-          <span
-            v-if="convertingSql"
-            class="i-lucide-loader-circle ml-auto size-4 animate-spin text-n-slate-10"
-          />
-        </label>
-
-        <!-- ═══ Editor SQL ═══ -->
-        <div v-if="form.customSql && canUseSql">
-          <label :class="labelClass">
-            <span class="i-lucide-terminal size-3.5 text-n-brand" />
-            {{ 'SQL' }}
-          </label>
-          <textarea
-            v-model="form.sql"
-            rows="7"
-            :class="controlClass"
-            class="font-mono text-xs leading-relaxed"
-            :placeholder="t('JABVOX_ANALYTICS.WIDGETS.CONFIG.SQL_PLACEHOLDER')"
-          />
-        </div>
-
-        <!-- ═══ Config visual ═══ -->
-        <template v-else>
-          <!-- Tabla -->
-          <div>
-            <label :class="labelClass">
-              <span class="i-lucide-table size-3.5 text-n-brand" />
-              {{ t('JABVOX_ANALYTICS.WIDGETS.CONFIG.TABLE') }}
-            </label>
-            <div
-              v-if="schemaLoading"
-              class="flex items-center gap-2 py-2 text-sm text-n-slate-10"
-            >
-              <span class="i-lucide-loader-circle size-4 animate-spin" />
-              {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_LOADING_COLUMNS') }}
-            </div>
-            <select
-              v-else
-              v-model="form.table"
-              :class="controlClass"
-              :disabled="!form.dataSourceId"
-            >
-              <option value="">{{ t('JABVOX_ANALYTICS.COMMON.NONE') }}</option>
-              <option v-for="tbl in schema" :key="tbl.name" :value="tbl.name">
-                {{ tbl.name }}
-              </option>
-            </select>
-          </div>
-
-          <template v-if="form.table">
-            <!-- Medir -->
-            <div>
-              <label :class="labelClass">
-                <span class="i-lucide-calculator size-3.5 text-n-brand" />
-                {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_MEASURE') }}
+            <div class="mb-3 flex flex-wrap gap-2">
+              <label
+                v-for="opt in ORIGIN_OPTIONS"
+                :key="opt.value"
+                class="flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm"
+                :class="
+                  form.origin === opt.value
+                    ? 'border-n-brand bg-n-alpha-2 text-n-slate-12'
+                    : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+                "
+              >
+                <input
+                  v-model="form.origin"
+                  type="radio"
+                  :value="opt.value"
+                  class="accent-n-brand"
+                />
+                {{ t(opt.labelKey) }}
               </label>
-              <div class="flex flex-col gap-2">
-                <div
-                  v-for="(a, i) in form.aggregations"
-                  :key="`a${i}`"
-                  class="flex items-center gap-2"
-                >
-                  <select
-                    :value="a.fn"
-                    class="w-28 shrink-0 rounded-lg border border-n-weak bg-n-alpha-1 px-2 py-1.5 text-sm text-n-slate-12 outline-none focus:border-n-brand"
-                    @change="updateAgg(i, 'fn', $event.target.value)"
-                  >
-                    <option v-for="fn in FUNCTIONS" :key="fn" :value="fn">
-                      {{ fn }}
-                    </option>
-                  </select>
-                  <select
-                    :value="a.column"
-                    class="min-w-0 flex-1 rounded-lg border border-n-weak bg-n-alpha-1 px-2 py-1.5 text-sm text-n-slate-12 outline-none focus:border-n-brand"
-                    @change="
-                      updateAgg(i, 'column', $event.target.value || null)
-                    "
-                  >
-                    <option :value="null">
-                      {{
-                        a.fn === 'COUNT'
-                          ? t('JABVOX_ANALYTICS.VIEWER.SUMMARY_ALL_ROWS')
-                          : t('JABVOX_ANALYTICS.VIEWER.SUMMARY_COLUMN')
-                      }}
-                    </option>
-                    <option
-                      v-for="c in tableColumns"
-                      :key="c.name"
-                      :value="c.name"
-                    >
-                      {{ c.name }}
-                    </option>
-                  </select>
-                  <button
-                    type="button"
-                    class="flex size-8 shrink-0 items-center justify-center rounded-lg text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-ruby-9 disabled:opacity-40"
-                    :disabled="form.aggregations.length === 1"
-                    @click="removeAggregation(i)"
-                  >
-                    <span class="i-lucide-trash-2 size-4" />
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  class="inline-flex w-fit items-center gap-1.5 rounded-lg border border-dashed border-n-weak px-2.5 py-1.5 text-xs font-medium text-n-slate-11 hover:border-n-brand hover:text-n-brand"
-                  @click="addAggregation"
-                >
-                  <span class="i-lucide-plus size-3.5" />
-                  {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_ADD_MEASURE') }}
-                </button>
-              </div>
             </div>
 
-            <!-- Agrupar por -->
-            <div>
+            <template v-if="isCrossOrigin">
               <label :class="labelClass">
-                <span class="i-lucide-layers size-3.5 text-n-brand" />
-                {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_GROUP') }}
+                {{ t('JABVOX_ANALYTICS.WIDGETS.CONFIG.CROSS_REPORT') }}
               </label>
-              <select v-model="form.groupBy" :class="controlClass">
+              <select v-model="form.crossReportId" :class="controlClass">
                 <option :value="null">
-                  {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_NO_GROUP') }}
+                  {{ t('JABVOX_ANALYTICS.COMMON.NONE') }}
                 </option>
-                <option v-for="c in tableColumns" :key="c.name" :value="c.name">
-                  {{ c.name }}
+                <option v-for="cr in crossReports" :key="cr.id" :value="cr.id">
+                  {{ cr.nameJabvox || cr.name_jabvox }}
+                </option>
+              </select>
+              <p
+                v-if="!crossReports.length"
+                class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-n-slate-10"
+              >
+                {{ t('JABVOX_ANALYTICS.WIDGETS.CONFIG.NO_CROSS_REPORTS') }}
+                <router-link
+                  :to="crossReportsRoute"
+                  class="font-medium underline underline-offset-2"
+                >
+                  {{ t('JABVOX_ANALYTICS.WIDGETS.CONFIG.CREATE_CROSS_REPORT') }}
+                </router-link>
+              </p>
+            </template>
+
+            <template v-else>
+              <label :class="labelClass">
+                {{ t('JABVOX_ANALYTICS.WIDGETS.CONFIG.DATA_SOURCE') }}
+              </label>
+              <select
+                :value="form.dataSourceId"
+                :class="controlClass"
+                @change="
+                  onDataSourceChange(Number($event.target.value) || null)
+                "
+              >
+                <option :value="null">
+                  {{ t('JABVOX_ANALYTICS.COMMON.NONE') }}
+                </option>
+                <option v-for="ds in dataSources" :key="ds.id" :value="ds.id">
+                  {{ ds.nameJabvox }}
+                </option>
+              </select>
+            </template>
+          </div>
+        </div>
+
+        <!-- Consulta sobre una fuente: no aplica a un widget de cruce, que se
+             resuelve por su reporte guardado. -->
+        <template v-if="!isCrossOrigin">
+          <!-- Toggle SQL / Visual -->
+          <label
+            v-if="canUseSql"
+            class="flex items-center gap-2 rounded-lg bg-n-alpha-1 px-3 py-2 text-sm text-n-slate-12"
+          >
+            <input
+              type="checkbox"
+              class="size-4 rounded border-n-weak"
+              :checked="form.customSql"
+              @change="onToggleSql($event.target.checked)"
+            />
+            <span class="flex items-center gap-1.5">
+              <span class="i-lucide-code size-4 text-n-brand" />
+              {{ t('JABVOX_ANALYTICS.WIDGETS.CONFIG.CUSTOM_SQL') }}
+            </span>
+            <span
+              v-if="convertingSql"
+              class="i-lucide-loader-circle ml-auto size-4 animate-spin text-n-slate-10"
+            />
+          </label>
+
+          <!-- ═══ Editor SQL ═══ -->
+          <div v-if="form.customSql && canUseSql">
+            <label :class="labelClass">
+              <span class="i-lucide-terminal size-3.5 text-n-brand" />
+              {{ 'SQL' }}
+            </label>
+            <textarea
+              v-model="form.sql"
+              rows="7"
+              :class="controlClass"
+              class="font-mono text-xs leading-relaxed"
+              :placeholder="
+                t('JABVOX_ANALYTICS.WIDGETS.CONFIG.SQL_PLACEHOLDER')
+              "
+            />
+          </div>
+
+          <!-- ═══ Config visual ═══ -->
+          <template v-else>
+            <!-- Tabla -->
+            <div>
+              <label :class="labelClass">
+                <span class="i-lucide-table size-3.5 text-n-brand" />
+                {{ t('JABVOX_ANALYTICS.WIDGETS.CONFIG.TABLE') }}
+              </label>
+              <div
+                v-if="schemaLoading"
+                class="flex items-center gap-2 py-2 text-sm text-n-slate-10"
+              >
+                <span class="i-lucide-loader-circle size-4 animate-spin" />
+                {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_LOADING_COLUMNS') }}
+              </div>
+              <select
+                v-else
+                v-model="form.table"
+                :class="controlClass"
+                :disabled="!form.dataSourceId"
+              >
+                <option value="">
+                  {{ t('JABVOX_ANALYTICS.COMMON.NONE') }}
+                </option>
+                <option v-for="tbl in schema" :key="tbl.name" :value="tbl.name">
+                  {{ tbl.name }}
                 </option>
               </select>
             </div>
 
-            <!-- Filtros (selección) -->
-            <div>
-              <label :class="labelClass">
-                <span class="i-lucide-filter size-3.5 text-n-brand" />
-                {{ t('JABVOX_ANALYTICS.QUERY_BUILDER.FILTERS') }}
-              </label>
-              <div class="flex flex-col gap-2">
-                <div
-                  v-for="(f, i) in form.filters"
-                  :key="`f${i}`"
-                  class="flex items-center gap-2"
-                >
-                  <select
-                    :value="f.field"
-                    class="w-40 shrink-0 rounded-lg border border-n-weak bg-n-alpha-1 px-2 py-1.5 text-sm text-n-slate-12 outline-none focus:border-n-brand"
-                    @change="setFilterField(i, $event.target.value)"
+            <template v-if="form.table">
+              <!-- Medir -->
+              <div>
+                <label :class="labelClass">
+                  <span class="i-lucide-calculator size-3.5 text-n-brand" />
+                  {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_MEASURE') }}
+                </label>
+                <div class="flex flex-col gap-2">
+                  <div
+                    v-for="(a, i) in form.aggregations"
+                    :key="`a${i}`"
+                    class="flex items-center gap-2"
                   >
-                    <option :value="null">
-                      {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_FILTER_TYPE') }}
-                    </option>
-                    <option
-                      v-for="c in tableColumns"
-                      :key="c.name"
-                      :value="c.name"
+                    <select
+                      :value="a.fn"
+                      class="w-28 shrink-0 rounded-lg border border-n-weak bg-n-alpha-1 px-2 py-1.5 text-sm text-n-slate-12 outline-none focus:border-n-brand"
+                      @change="updateAgg(i, 'fn', $event.target.value)"
                     >
-                      {{ c.name }}
-                    </option>
-                  </select>
-                  <div class="min-w-0 flex-1">
-                    <ColumnValueFilter
-                      v-if="f.field"
-                      :key="f.field"
-                      :column="f.field"
-                      :table="form.table"
-                      :model-value="f.values"
-                      :fetcher="fetchColumnValues"
-                      @update:model-value="vals => setFilterValues(i, vals)"
-                    />
-                    <span
-                      v-else
-                      class="block px-1 text-xs italic text-n-slate-10"
+                      <option v-for="fn in FUNCTIONS" :key="fn" :value="fn">
+                        {{ fn }}
+                      </option>
+                    </select>
+                    <select
+                      :value="a.column"
+                      class="min-w-0 flex-1 rounded-lg border border-n-weak bg-n-alpha-1 px-2 py-1.5 text-sm text-n-slate-12 outline-none focus:border-n-brand"
+                      @change="
+                        updateAgg(i, 'column', $event.target.value || null)
+                      "
                     >
-                      {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_PICK_VALUES') }}
-                    </span>
+                      <option :value="null">
+                        {{
+                          a.fn === 'COUNT'
+                            ? t('JABVOX_ANALYTICS.VIEWER.SUMMARY_ALL_ROWS')
+                            : t('JABVOX_ANALYTICS.VIEWER.SUMMARY_COLUMN')
+                        }}
+                      </option>
+                      <option
+                        v-for="c in tableColumns"
+                        :key="c.name"
+                        :value="c.name"
+                      >
+                        {{ c.name }}
+                      </option>
+                    </select>
+                    <button
+                      type="button"
+                      class="flex size-8 shrink-0 items-center justify-center rounded-lg text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-ruby-9 disabled:opacity-40"
+                      :disabled="form.aggregations.length === 1"
+                      @click="removeAggregation(i)"
+                    >
+                      <span class="i-lucide-trash-2 size-4" />
+                    </button>
                   </div>
                   <button
                     type="button"
-                    class="flex size-8 shrink-0 items-center justify-center rounded-lg text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-ruby-9"
-                    @click="removeFilter(i)"
+                    class="inline-flex w-fit items-center gap-1.5 rounded-lg border border-dashed border-n-weak px-2.5 py-1.5 text-xs font-medium text-n-slate-11 hover:border-n-brand hover:text-n-brand"
+                    @click="addAggregation"
                   >
-                    <span class="i-lucide-trash-2 size-4" />
+                    <span class="i-lucide-plus size-3.5" />
+                    {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_ADD_MEASURE') }}
                   </button>
                 </div>
-                <button
-                  type="button"
-                  class="inline-flex w-fit items-center gap-1.5 rounded-lg border border-dashed border-n-weak px-2.5 py-1.5 text-xs font-medium text-n-slate-11 hover:border-n-brand hover:text-n-brand"
-                  @click="addFilter"
-                >
-                  <span class="i-lucide-plus size-3.5" />
-                  {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_ADD_FILTER') }}
-                </button>
               </div>
-            </div>
+
+              <!-- Agrupar por -->
+              <div>
+                <label :class="labelClass">
+                  <span class="i-lucide-layers size-3.5 text-n-brand" />
+                  {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_GROUP') }}
+                </label>
+                <select v-model="form.groupBy" :class="controlClass">
+                  <option :value="null">
+                    {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_NO_GROUP') }}
+                  </option>
+                  <option
+                    v-for="c in tableColumns"
+                    :key="c.name"
+                    :value="c.name"
+                  >
+                    {{ c.name }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Filtros (selección) -->
+              <div>
+                <label :class="labelClass">
+                  <span class="i-lucide-filter size-3.5 text-n-brand" />
+                  {{ t('JABVOX_ANALYTICS.QUERY_BUILDER.FILTERS') }}
+                </label>
+                <div class="flex flex-col gap-2">
+                  <div
+                    v-for="(f, i) in form.filters"
+                    :key="`f${i}`"
+                    class="flex items-center gap-2"
+                  >
+                    <select
+                      :value="f.field"
+                      class="w-40 shrink-0 rounded-lg border border-n-weak bg-n-alpha-1 px-2 py-1.5 text-sm text-n-slate-12 outline-none focus:border-n-brand"
+                      @change="setFilterField(i, $event.target.value)"
+                    >
+                      <option :value="null">
+                        {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_FILTER_TYPE') }}
+                      </option>
+                      <option
+                        v-for="c in tableColumns"
+                        :key="c.name"
+                        :value="c.name"
+                      >
+                        {{ c.name }}
+                      </option>
+                    </select>
+                    <div class="min-w-0 flex-1">
+                      <ColumnValueFilter
+                        v-if="f.field"
+                        :key="f.field"
+                        :column="f.field"
+                        :table="form.table"
+                        :model-value="f.values"
+                        :fetcher="fetchColumnValues"
+                        @update:model-value="vals => setFilterValues(i, vals)"
+                      />
+                      <span
+                        v-else
+                        class="block px-1 text-xs italic text-n-slate-10"
+                      >
+                        {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_PICK_VALUES') }}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      class="flex size-8 shrink-0 items-center justify-center rounded-lg text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-ruby-9"
+                      @click="removeFilter(i)"
+                    >
+                      <span class="i-lucide-trash-2 size-4" />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    class="inline-flex w-fit items-center gap-1.5 rounded-lg border border-dashed border-n-weak px-2.5 py-1.5 text-xs font-medium text-n-slate-11 hover:border-n-brand hover:text-n-brand"
+                    @click="addFilter"
+                  >
+                    <span class="i-lucide-plus size-3.5" />
+                    {{ t('JABVOX_ANALYTICS.VIEWER.SUMMARY_ADD_FILTER') }}
+                  </button>
+                </div>
+              </div>
+            </template>
           </template>
         </template>
 
         <!-- Previsualización -->
-        <div v-if="form.dataSourceId" class="mt-1">
+        <div v-if="form.dataSourceId && !isCrossOrigin" class="mt-1">
           <button
             type="button"
             class="inline-flex items-center gap-2 rounded-lg border border-n-weak px-3 py-2 text-sm font-medium text-n-slate-12 hover:bg-n-alpha-1 disabled:opacity-50"

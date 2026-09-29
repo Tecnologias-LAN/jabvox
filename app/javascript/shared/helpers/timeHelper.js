@@ -53,6 +53,23 @@ export const relativeDayTimestamp = (time, yesterdayLabel) => {
 };
 
 /**
+ * Formats a Unix timestamp as an exact date and time for conversation lists.
+ * Shows the time alone for today ("10:37 PM") so the common case stays short, and prepends
+ * the date otherwise ("Sep 24, 10:37 PM"; with the year when it is not the current one).
+ * Unlike a relative stamp ("12h"), the reader sees the actual clock time without doing math.
+ * @param {number} time - Unix timestamp.
+ * @returns {string} Formatted date-time string.
+ */
+export const exactTimestamp = time => {
+  if (!time) return '';
+  const stamp = fromUnixTime(time);
+  const now = new Date();
+  if (isToday(stamp)) return format(stamp, 'h:mm a');
+  if (!isSameYear(stamp, now)) return format(stamp, 'LLL d y, h:mm a');
+  return format(stamp, 'LLL d, h:mm a');
+};
+
+/**
  * Converts a Unix timestamp to a relative time string (e.g., 3 hours ago).
  * @param {number} time - Unix timestamp.
  * @returns {string} Relative time string.

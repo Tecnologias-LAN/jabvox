@@ -101,6 +101,20 @@ class Jabvox::Analytics::Adapters::BaseAdapter
     list.reject { |v| v.nil? || v.to_s.empty? }
   end
 
+  # La consulta del usuario se envuelve en `SELECT * FROM (...) AS jabvox_sub` para imponer
+  # el tope de filas. Un `;` final —que casi todo cliente SQL añade al copiar— dejaba el
+  # envoltorio inválido y la base devolvía un error de sintaxis que llegaba al usuario como
+  # un "no se pudo completar la operación" sin más pistas.
+  #
+  # Los comentarios de línea al final también rompen el envoltorio (comentarían el `)` que
+  # cierra), así que se recorta hasta dejar solo la sentencia.
+  def subquery_body(sql)
+    body = sql.to_s.strip
+    # Quita comentarios de línea finales que dejarían el paréntesis de cierre comentado.
+    body = body.sub(/(\s*--[^\n]*)+\z/, '').rstrip
+    body.sub(/;+\s*\z/, '').rstrip
+  end
+
   def row_cap(requested = nil)
     cap = data_source.max_rows_jabvox.to_i
     cap = 1000 if cap <= 0

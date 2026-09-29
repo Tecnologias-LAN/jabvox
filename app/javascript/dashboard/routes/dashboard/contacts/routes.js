@@ -1,8 +1,6 @@
 import { frontendURL } from '../../../helper/URLHelper';
 import ContactsIndex from './pages/ContactsIndex.vue';
 import ContactManageView from './pages/ContactManageView.vue';
-import JabvoxLeadsPage from './pages/JabvoxLeadsPage.vue';
-import JabvoxLeadDetail from './pages/JabvoxLeadDetail.vue';
 import { FEATURE_FLAGS } from '../../../featureFlags';
 
 const commonMeta = {
@@ -42,23 +40,24 @@ export const routes = [
       },
     ],
   },
+  // Leads desapareció: todo vive en Contactos. Se conservan las rutas como REDIRECCIÓN para
+  // que los enlaces guardados (favoritos, correos, automatizaciones) no den 404. El id del
+  // lead es hoy el id del contacto, así que el detalle redirige directo a su ficha.
   {
     path: frontendURL('accounts/:accountId/contacts/jabvox/leads'),
     name: 'jabvox_leads_index',
-    component: JabvoxLeadsPage,
-    meta: {
-      featureFlag: FEATURE_FLAGS.JABVOX_LEADS,
-      permissions: ['administrator', 'agent', 'contact_manage'],
-    },
+    redirect: to => ({
+      name: 'contacts_dashboard_index',
+      params: { accountId: to.params.accountId },
+    }),
   },
   {
     path: frontendURL('accounts/:accountId/contacts/jabvox/leads/:leadId'),
     name: 'jabvox_lead_detail',
-    component: JabvoxLeadDetail,
-    meta: {
-      featureFlag: FEATURE_FLAGS.JABVOX_LEADS,
-      permissions: ['administrator', 'agent', 'contact_manage'],
-    },
+    redirect: to => ({
+      name: 'contacts_edit',
+      params: { accountId: to.params.accountId, contactId: to.params.leadId },
+    }),
   },
   {
     path: frontendURL('accounts/:accountId/contacts/:contactId'),

@@ -4,35 +4,43 @@
 #
 # Table name: jabvox_tasks
 #
-#  id                 :bigint           not null, primary key
-#  description_jabvox :text
-#  due_at_jabvox      :datetime
-#  due_dates_jabvox   :jsonb            not null
-#  position_jabvox    :integer          default(0), not null
-#  priority_jabvox    :string           default("normal"), not null
-#  status_jabvox      :string           default("open"), not null
-#  title_jabvox       :string           not null
-#  created_at         :datetime         not null
-#  updated_at         :datetime         not null
-#  account_id         :bigint           not null
-#  assignee_id        :bigint
-#  board_id           :bigint           not null
-#  created_by_id      :bigint
-#  jabvox_lead_id     :bigint
-#  stage_id           :bigint           not null
+#  id                      :bigint           not null, primary key
+#  description_jabvox      :text
+#  due_at_jabvox           :datetime
+#  due_dates_jabvox        :jsonb            not null
+#  position_jabvox         :integer          default(0), not null
+#  priority_jabvox         :string           default("normal"), not null
+#  recurrence_count_jabvox :integer          default(1), not null
+#  recurrence_unit_jabvox  :string
+#  recurrence_until_jabvox :datetime
+#  reminder_sent_at_jabvox :datetime
+#  status_jabvox           :string           default("open"), not null
+#  title_jabvox            :string           not null
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#  account_id              :bigint           not null
+#  assignee_id             :bigint
+#  board_id                :bigint           not null
+#  contact_id              :bigint
+#  created_by_id           :bigint
+#  recurrence_parent_id    :bigint
+#  source_task_id          :bigint
+#  stage_id                :bigint           not null
 #
 # Indexes
 #
-#  index_jabvox_tasks_on_account_id                     (account_id)
-#  index_jabvox_tasks_on_account_id_and_board_id        (account_id,board_id)
-#  index_jabvox_tasks_on_account_id_and_due_at_jabvox   (account_id,due_at_jabvox)
-#  index_jabvox_tasks_on_account_id_and_jabvox_lead_id  (account_id,jabvox_lead_id)
-#  index_jabvox_tasks_on_assignee_id                    (assignee_id)
-#  index_jabvox_tasks_on_board_id                       (board_id)
-#  index_jabvox_tasks_on_created_by_id                  (created_by_id)
-#  index_jabvox_tasks_on_jabvox_lead_id                 (jabvox_lead_id)
-#  index_jabvox_tasks_on_stage_id                       (stage_id)
-#  index_jabvox_tasks_on_stage_id_and_position_jabvox   (stage_id,position_jabvox)
+#  index_jabvox_tasks_on_account_and_recurrence        (account_id,recurrence_unit_jabvox) WHERE (recurrence_unit_jabvox IS NOT NULL)
+#  index_jabvox_tasks_on_account_id                    (account_id)
+#  index_jabvox_tasks_on_account_id_and_board_id       (account_id,board_id)
+#  index_jabvox_tasks_on_account_id_and_contact_id     (account_id,contact_id)
+#  index_jabvox_tasks_on_account_id_and_due_at_jabvox  (account_id,due_at_jabvox)
+#  index_jabvox_tasks_on_assignee_id                   (assignee_id)
+#  index_jabvox_tasks_on_board_id                      (board_id)
+#  index_jabvox_tasks_on_created_by_id                 (created_by_id)
+#  index_jabvox_tasks_on_recurrence_parent_id          (recurrence_parent_id)
+#  index_jabvox_tasks_on_source_task_id                (source_task_id)
+#  index_jabvox_tasks_on_stage_id                      (stage_id)
+#  index_jabvox_tasks_on_stage_id_and_position_jabvox  (stage_id,position_jabvox)
 #
 # Foreign Keys
 #
@@ -40,7 +48,8 @@
 #  fk_rails_...  (assignee_id => users.id)
 #  fk_rails_...  (board_id => jabvox_task_boards.id)
 #  fk_rails_...  (created_by_id => users.id)
-#  fk_rails_...  (jabvox_lead_id => jabvox_leads.id)
+#  fk_rails_...  (recurrence_parent_id => jabvox_tasks.id) ON DELETE => nullify
+#  fk_rails_...  (source_task_id => jabvox_tasks.id) ON DELETE => nullify
 #  fk_rails_...  (stage_id => jabvox_task_stages.id)
 #
 class JabvoxTask < ApplicationRecord
@@ -52,7 +61,9 @@ class JabvoxTask < ApplicationRecord
   belongs_to :account
   belongs_to :board, class_name: 'JabvoxTaskBoard'
   belongs_to :stage, class_name: 'JabvoxTaskStage'
-  belongs_to :jabvox_lead, class_name: 'JabvoxLead', optional: true
+  # `contact` sustituye a `jabvox_lead`. La asociación vieja sigue mientras queden filas
+  # antiguas apuntando por lead.
+  belongs_to :contact, optional: true
   # Legacy single-assignee column, kept as the "primary assignee" mirror of #assignees.first.
   belongs_to :assignee, class_name: 'User', optional: true
   belongs_to :created_by, class_name: 'User', optional: true
@@ -82,13 +93,21 @@ class JabvoxTask < ApplicationRecord
   validates :title_jabvox, presence: true
   validates :priority_jabvox, inclusion: { in: PRIORITIES }
   validates :status_jabvox, inclusion: { in: STATUSES }
+  # El tablero, la columna y el contacto tienen que ser de la misma cuenta que la tarea.
+  # Sin esto, `board_id`/`stage_id`/`contact_id` viajan en el formulario y se podía crear
+  # una tarea apuntando al tablero de OTRA cuenta: aterrizaba en su columna, disparaba sus
+  # automatizaciones y devolvía el nombre de su contacto en la respuesta.
+  #
+  # Va en el modelo y no en el controlador para que valga venga de donde venga el guardado
+  # (API, consola, importación). Es el mismo criterio que ya usaba `sync_assignees!`.
+  validate :associations_belong_to_account
 
   scope :ordered, -> { order(:position_jabvox, :created_at) }
   scope :with_due_date, -> { where.not(due_at_jabvox: nil) }
 
   # Columns whose change should re-sync the task's calendar events.
   CALENDAR_RELEVANT = %w[due_at_jabvox due_dates_jabvox title_jabvox description_jabvox
-                         status_jabvox jabvox_lead_id assignee_id].freeze
+                         status_jabvox contact_id assignee_id].freeze
 
   # Fire stage automations when the card lands in a (new) stage — on create and whenever
   # stage_id changes — mirroring the kanban conversation-stage hook.
@@ -98,6 +117,15 @@ class JabvoxTask < ApplicationRecord
   # When a done task is reopened, reschedule its recurring automations so they
   # resume from now instead of firing every run missed while it was completed.
   after_commit :reschedule_automations_on_reopen, on: :update
+  # Una tarea recurrente engendra la siguiente al completarse. Va aquí y no en el
+  # controlador para que valga igual si se cierra desde la ficha, moviéndola a la columna
+  # de completadas o desde una automatización.
+  # Completar una tarea la lleva a la columna marcada como completada, y reabrirla la
+  # devuelve a la inicial: el estado y la columna cuentan lo mismo, así que moverse a mano
+  # después de marcar "hecho" sobra. Va antes de crear la repetición para que el historial
+  # quede en orden.
+  after_commit :move_to_role_stage, on: :update, if: :saved_change_to_status_jabvox?
+  after_commit :create_next_occurrence, on: :update, if: :just_completed?
 
   # Replace the task's assignees with the given user ids (scoped to this account's users).
   # Keeps the legacy assignee_id in sync with the first id (the "primary assignee").
@@ -110,12 +138,12 @@ class JabvoxTask < ApplicationRecord
     added = desired - current
     removed = current - desired
 
-    transaction do
-      task_assignees.where(user_id: removed).delete_all if removed.any?
-      added.each { |uid| task_assignees.create!(user_id: uid, account_id: account_id) }
-      new_primary = desired.first
-      update_column(:assignee_id, new_primary) if assignee_id != new_primary
-    end
+    apply_assignee_changes(desired, added, removed)
+
+    # Copiar al tablero personal de los responsables nuevos, si el tablero de origen lo
+    # tiene activado. Fuera de la transacción: que falle una copia no debe deshacer la
+    # asignación en sí.
+    copy_to_assignee_boards if added.any?
 
     [added, removed]
   end
@@ -130,7 +158,64 @@ class JabvoxTask < ApplicationRecord
     )
   end
 
+  # Lo que viaja al frontend cuando la tarea es el actor de una notificación (el
+  # recordatorio de vencimiento). Notification lo exige de todo primary_actor.
+  def push_event_data
+    {
+      id: id,
+      title: title_jabvox,
+      status: status_jabvox,
+      board_id: board_id,
+      due_at: due_at_jabvox
+    }
+  end
+
+  # Se repite: tiene unidad de recurrencia configurada.
+  def recurring?
+    Jabvox::TaskRecurrenceService::UNITS.include?(recurrence_unit_jabvox.to_s)
+  end
+
   private
+
+  # Se compara contra account_id en vez de cargar la cuenta: una consulta por asociación
+  # y solo de las que vienen informadas.
+  def associations_belong_to_account
+    return if account_id.blank?
+
+    { board: board, stage: stage, contact: contact }.each do |name, record|
+      next if record.nil? || record.account_id == account_id
+
+      errors.add(name, :invalid, message: 'no pertenece a esta cuenta')
+    end
+  end
+
+  def just_completed?
+    saved_change_to_status_jabvox? && status_jabvox == 'done'
+  end
+
+  # Mueve la tarea a la columna que corresponde a su nuevo estado, si el tablero la marcó.
+  # Un tablero sin columna marcada no se toca: mover a una cualquiera sería peor que no
+  # mover. Tampoco se toca si ya está donde debe.
+  def move_to_role_stage
+    role = status_jabvox == 'done' ? 'done' : 'initial'
+    target = board.stages.find_by(role_jabvox: role)
+    return if target.nil? || stage_id == target.id
+
+    from = stage
+    update_column(:stage_id, target.id) # rubocop:disable Rails/SkipsModelValidations
+    log_activity(:stage_changed, nil, from: from&.name_jabvox, to: target.name_jabvox,
+                                      reason: "status_#{status_jabvox}")
+  rescue StandardError => e
+    Rails.logger.error "[JabvoxTask##{id}] no se pudo mover a la columna de #{role}: #{e.message}"
+  end
+
+  # Si la copia falla no debe tumbar el guardado de la tarea que sí se completó: se
+  # registra y se sigue. Perder una repetición es molesto; perder el cierre, peor.
+  def create_next_occurrence
+    Jabvox::TaskRecurrenceService.new(self).create_next
+  rescue StandardError => e
+    Rails.logger.error "[JabvoxTask##{id}] no se pudo crear la siguiente ocurrencia: #{e.message}"
+  end
 
   def fire_stage_automations_on_move
     return unless saved_change_to_stage_id?
@@ -147,13 +232,40 @@ class JabvoxTask < ApplicationRecord
     return unless from == 'done' && to != 'done'
 
     now = Time.current
+    # Solo se corre la fecha del próximo disparo: no hay nada que validar y se evita
+    # reentrar en los callbacks de la automatización.
+    # rubocop:disable Rails/SkipsModelValidations
     automations.where(active_jabvox: true)
                .where(next_run_at_jabvox: ..now)
                .find_each { |a| a.update_column(:next_run_at_jabvox, now + a.interval_duration) }
+    # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  # Alta/baja de responsables y espejo del principal, en una sola transacción.
+  def apply_assignee_changes(desired, added, removed)
+    transaction do
+      task_assignees.where(user_id: removed).delete_all if removed.any?
+      added.each { |uid| task_assignees.create!(user_id: uid, account_id: account_id) }
+      new_primary = desired.first
+      next if assignee_id == new_primary
+
+      # update_column a propósito: assignee_id es solo el espejo de assignees.first, y
+      # pasar por validaciones aquí volvería a disparar los callbacks de la tarea.
+      # rubocop:disable Rails/SkipsModelValidations
+      update_column(:assignee_id, new_primary)
+      # rubocop:enable Rails/SkipsModelValidations
+    end
   end
 
   def fire_stage_automations
     Jabvox::TaskAutomationJob.perform_later(id)
+  end
+
+  # Una copia fallida no puede tumbar la asignación: se registra y se sigue.
+  def copy_to_assignee_boards
+    Jabvox::TaskAssigneeBoardCopyService.new(reload).perform
+  rescue StandardError => e
+    Rails.logger.error("[jabvox] copia a tablero de responsable falló task=#{id}: #{e.class}")
   end
 
   # Re-sync calendar events whenever a calendar-relevant field changed (or on create).

@@ -20,7 +20,7 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   def matching_lead_ids
     ids = filter_leads(request_filters.except(:excluded_lead_ids))
           .limit(MATCHING_IDS_LIMIT)
-          .pluck('jabvox_leads.id')
+          .pluck('contacts.id')
     render json: { ids: ids, capped: ids.size >= MATCHING_IDS_LIMIT }
   end
 
@@ -29,16 +29,16 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   def preview_leads
     page = [params[:page].to_i, 1].max
     scope = filter_leads(request_filters.except(:excluded_lead_ids))
-            .includes(:contact, :jabvox_campaign)
-            .order('jabvox_leads.lead_number ASC')
+            .includes(:jabvox_campaign)
+            .order('contacts.id ASC')
     total = scope.count
     leads = scope.offset((page - 1) * PREVIEW_PER_PAGE).limit(PREVIEW_PER_PAGE)
-    mgmt_by_contact = latest_management_for(leads.filter_map(&:contact_id))
+    mgmt_by_contact = latest_management_for(leads.map(&:id))
     render json: {
       total: total,
       page: page,
       per_page: PREVIEW_PER_PAGE,
-      leads: leads.map { |lead| preview_lead_json(lead, mgmt_by_contact[lead.contact_id]) }
+      leads: leads.map { |lead| preview_lead_json(lead, mgmt_by_contact[lead.id]) }
     }
   end
 
@@ -46,7 +46,7 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   # a filter per custom column without depending on the customization module's
   # own endpoints/permissions.
   def lead_fields
-    table = Current.account.jabvox_custom_tables.for_leads.first
+    table = Current.account.jabvox_custom_tables.for_contacts.first
     columns = table ? table.jabvox_custom_columns.ordered : []
     # Offer every field as a selectable filter: defined columns PLUS the keys
     # discovered in the leads' data (they can differ, e.g. seccion vs seccion_c),
@@ -222,17 +222,17 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   end
 
   # "No marcar": exclude the lead from the campaign so the dialer never calls it.
-  # Adds its jabvox_lead id to excluded_lead_ids_jabvox and removes its pending
-  # campaign-contact row, so it leaves the "sin marcar" list. Reversible from the
-  # campaign form. Respects the campaign config: an excluded lead is skipped by the
-  # picker/filter regardless of dial mode (last_state or one_by_one).
+  # Añade el id del CONTACTO a excluded_lead_ids_jabvox y quita su fila pendiente de
+  # campaign-contact, para que salga de la lista "sin marcar". Reversible desde el formulario
+  # de la campaña. Respeta la configuración: un contacto excluido lo salta el picker/filtro
+  # sea cual sea el modo de marcado (last_state o one_by_one).
   def exclude_lead
     contact_id = params[:contact_id].to_i
-    lead = Current.account.jabvox_leads.find_by(contact_id: contact_id)
-    return render json: { error: 'Lead no encontrado' }, status: :not_found unless lead
+    contact = Current.account.contacts.find_by(id: contact_id)
+    return render json: { error: 'Contacto no encontrado' }, status: :not_found unless contact
 
     excluded = Array(@campaign.excluded_lead_ids_jabvox).map(&:to_i)
-    excluded << lead.id unless excluded.include?(lead.id)
+    excluded << contact.id unless excluded.include?(contact.id)
     @campaign.update!(excluded_lead_ids_jabvox: excluded.uniq)
 
     # Drop any not-yet-dialed campaign-contact row so it disappears from "sin
@@ -345,15 +345,13 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   def pending_lead_rows
     dialed_cids = @campaign.jabvox_dialer_campaign_contacts
                            .where.not(contact_id: nil).distinct.pluck(:contact_id)
-    scope = Jabvox::DialerLeadsFilterService.for_campaign(Current.account, @campaign).scope
-    scope = scope.where.not(jabvox_leads: { contact_id: dialed_cids }) if dialed_cids.any?
-    scope.includes(:contact)
-         .order('jabvox_leads.id ASC')
+    scope = Jabvox::DialerContactsFilterService.for_campaign(Current.account, @campaign).scope
+    scope = scope.where.not(id: dialed_cids) if dialed_cids.any?
+    scope.order('contacts.id ASC')
          .limit(REPORT_PENDING_LIMIT)
-         .map do |lead|
-      c = lead.contact
+         .map do |c|
       {
-        contact_id: lead.contact_id,
+        contact_id: c.id,
         lead_name: c&.name.to_s,
         phone: c&.phone_number.to_s,
         status: 'pending'
@@ -641,9 +639,6 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     return {} if cc_ids.empty?
 
     contacts = @campaign.jabvox_dialer_campaign_contacts.where(id: cc_ids).includes(:contact).index_by(&:id)
-    lead_numbers = Current.account.jabvox_leads
-                          .where(contact_id: contacts.values.map(&:contact_id).compact.uniq)
-                          .pluck(:contact_id, :lead_number).to_h
 
     states.keys.each_with_object({}) do |uid, acc|
       cc_id = states[uid][:in_call_contact_id].presence&.to_i
@@ -653,7 +648,7 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
 
       acc[uid] = { name: cc.contact&.name.to_s.presence || cc.name_jabvox.to_s,
                    phone: cc.phone_jabvox.to_s,
-                   lead_number: lead_numbers[cc.contact_id] }
+                   lead_number: cc.contact_id }
     end
   end
 
@@ -676,15 +671,11 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     open_logs = @campaign.jabvox_dialer_call_logs
                          .where(jabvox_dialer_campaign_contact_id: calling.map(&:id), ended_at_jabvox: nil)
                          .index_by(&:jabvox_dialer_campaign_contact_id)
-    # lead_number en lote (evita un query por contacto en cada poll de ~3s).
-    lead_numbers = Current.account.jabvox_leads
-                          .where(contact_id: calling.map(&:contact_id).compact.uniq)
-                          .pluck(:contact_id, :lead_number).to_h
     calling.map do |cc|
       log = open_logs[cc.id]
       { contact_id: cc.contact_id, dialer_contact_id: cc.id,
         name: cc.contact&.name.to_s, phone: cc.phone_jabvox.to_s,
-        lead_number: lead_numbers[cc.contact_id],
+        lead_number: cc.contact_id,
         agent_extension: log&.phone_jabvox, since: (log&.started_at_jabvox || cc.last_attempt_at_jabvox)&.iso8601 }
     end
   end
@@ -737,13 +728,10 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   # "qué pasó" (contestó / no contestó / falló) y no solo las que están sonando.
   def live_monitor_recent_calls
     logs = @campaign.jabvox_dialer_call_logs.order(started_at_jabvox: :desc).limit(15).to_a
-    lead_numbers = Current.account.jabvox_leads
-                          .where(contact_id: logs.map(&:contact_id).compact.uniq)
-                          .pluck(:contact_id, :lead_number).to_h
     logs.map do |l|
       { phone: l.phone_jabvox.to_s, agent_extension: l.phone_jabvox,
         status: l.status_jabvox, answered: l.lead_answered_jabvox,
-        lead_number: lead_numbers[l.contact_id],
+        lead_number: l.contact_id,
         started_at: l.started_at_jabvox&.iso8601, ended_at: l.ended_at_jabvox&.iso8601 }
     end
   rescue StandardError
@@ -789,7 +777,7 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   end
 
   def live_lead_count(campaign)
-    Jabvox::DialerLeadsFilterService.for_campaign(Current.account, campaign).scope.count
+    Jabvox::DialerContactsFilterService.for_campaign(Current.account, campaign).scope.count
   rescue StandardError
     campaign.leads_count_jabvox
   end
@@ -800,10 +788,10 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   def dialed_leads_outside_filter(dialed_contact_ids)
     return 0 if dialed_contact_ids.blank?
 
-    still_matching = Jabvox::DialerLeadsFilterService
+    still_matching = Jabvox::DialerContactsFilterService
                      .for_campaign(Current.account, @campaign).scope
-                     .where(jabvox_leads: { contact_id: dialed_contact_ids })
-                     .distinct.count('jabvox_leads.contact_id')
+                     .where(id: dialed_contact_ids)
+                     .distinct.count('contacts.id')
     [dialed_contact_ids.size - still_matching, 0].max
   rescue StandardError
     0
@@ -852,11 +840,14 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
     raw
   end
 
+  # La fila es un CONTACTO. Se conserva la clave `lead_number` en la salida porque el
+  # frontend del marcador la pinta; ahora lleva el id del contacto, el único identificador
+  # que queda tras retirar Leads.
   def preview_lead_json(lead, last_management_state = nil)
-    contact = lead.contact
+    contact = lead
     {
       id: lead.id,
-      lead_number: lead.lead_number,
+      lead_number: lead.id,
       name: contact&.name.to_s,
       phone: contact&.phone_number.to_s,
       email: contact&.email.to_s,
@@ -908,7 +899,7 @@ class Api::V1::Accounts::Jabvox::DialerCampaignsController < Api::V1::Accounts::
   end
 
   def filter_leads(filters)
-    Jabvox::DialerLeadsFilterService.new(Current.account, filters).scope
+    Jabvox::DialerContactsFilterService.new(Current.account, filters).scope
   end
 
   def campaign_params

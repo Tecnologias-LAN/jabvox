@@ -62,6 +62,25 @@ const priorityMap = {
   },
 };
 
+// Etapa del ciclo de vida del contacto, con el mismo código de color que la lista de
+// contactos para que un estado se reconozca igual en las dos pantallas.
+const STAGE_STYLES = {
+  prospecto: 'bg-n-slate-3 text-n-slate-11',
+  interesado: 'bg-n-amber-3 text-n-amber-11',
+  cliente: 'bg-n-teal-3 text-n-teal-11',
+  inactivo: 'bg-n-ruby-3 text-n-ruby-11',
+};
+
+const lifecycleStage = computed(() => {
+  const stage = props.card.contact?.lifecycle_stage;
+  if (!stage) return null;
+  return {
+    key: stage,
+    label: t(`JABVOX_CONTACTS.LIFECYCLE.${stage.toUpperCase()}`),
+    class: STAGE_STYLES[stage] || STAGE_STYLES.prospecto,
+  };
+});
+
 const priority = computed(() =>
   !isLead.value && props.card.priority ? priorityMap[props.card.priority] : null
 );
@@ -117,10 +136,19 @@ const onDragStart = event => {
     </div>
 
     <p
-      class="text-sm font-semibold text-n-slate-12 leading-tight mb-2 line-clamp-2"
+      class="text-sm font-semibold text-n-slate-12 leading-tight mb-1 line-clamp-2"
     >
       {{ contactName }}
     </p>
+
+    <!-- Estado del contacto: prospecto / interesado / cliente / inactivo -->
+    <span
+      v-if="lifecycleStage"
+      class="inline-flex items-center text-xs px-1.5 py-0.5 rounded-md font-medium mb-2"
+      :class="[lifecycleStage.class]"
+    >
+      {{ lifecycleStage.label }}
+    </span>
 
     <div
       v-if="!isLead && card.labels?.length"

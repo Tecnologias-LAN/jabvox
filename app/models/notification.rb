@@ -51,7 +51,9 @@ class Notification < ApplicationRecord
     jabvox_ticket_resolved: 103,
     jabvox_ticket_reopened: 104,
     jabvox_ticket_comment: 105,
-    jabvox_ticket_sla_escalation: 106
+    jabvox_ticket_sla_escalation: 106,
+    # Jabvox Tareas
+    jabvox_task_reminder: 110
   }.freeze
 
   enum notification_type: NOTIFICATION_TYPES

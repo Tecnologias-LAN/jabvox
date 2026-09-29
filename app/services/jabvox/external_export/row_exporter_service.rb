@@ -80,7 +80,7 @@ class Jabvox::ExternalExport::RowExporterService
   # Best-effort storage type for a column name: from the model's schema, from the
   # lead custom-field defs, or text as a safe default.
   def column_type_for(model, name)
-    if model == JabvoxLead
+    if custom_fields_model?(model)
       cdef = @lead_custom.column_defs.find { |c| c[:name] == name }
       return cdef[:type] if cdef
     end
@@ -111,7 +111,7 @@ class Jabvox::ExternalExport::RowExporterService
   # link columns (contact_id / jabvox_lead_id) so the CRM can join to the lead.
   def create_plan(record, table)
     values = safe_values(record)
-    if record.is_a?(JabvoxLead)
+    if custom_fields_model?(record.class)
       values.delete(LEAD_JSONB_COLUMN)
       values.merge!(@lead_custom.values_for(record))
     end
@@ -130,14 +130,19 @@ class Jabvox::ExternalExport::RowExporterService
     end
   end
 
-  # id_jabvox always; the external-DB ids only when the record is a lead linked to
-  # an import source (so reports on the far side can join back).
+  # id_jabvox siempre; los ids de la BD externa solo cuando el registro es un contacto
+  # ligado a una fuente de importación (para que los reportes del otro lado puedan cruzar).
   def correlation_ids(record)
     ids = { 'id_jabvox' => record.id, 'id_db_externa' => nil, 'id_leads_db_externa' => nil }
-    if record.is_a?(JabvoxLead)
+    if record.is_a?(Contact)
       link = record.jabvox_lead_source_records.first
       ids['id_leads_db_externa'] = link&.external_id_jabvox
     end
     ids
+  end
+
+  # Modelos cuyos campos personalizados se explotan en columnas reales.
+  def custom_fields_model?(model)
+    model == Contact
   end
 end

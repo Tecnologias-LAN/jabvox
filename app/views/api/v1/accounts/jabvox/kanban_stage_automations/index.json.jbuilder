@@ -1,6 +1,13 @@
 json.automations @automations do |automation|
   json.id automation.id
   json.name automation.name
+  # El tipo y los datos de disparo faltaban aquí: sin ellos el panel no podía pintar las
+  # automatizaciones de movimiento ni precargarlas al editarlas.
+  json.automation_type automation.automation_type
+  json.target_stage_id automation.target_stage_id
+  json.trigger_hours automation.trigger_hours
+  json.trigger_value_jabvox automation.trigger_value_jabvox
+  json.trigger_unit_jabvox automation.trigger_unit_jabvox
   json.channel_type automation.channel_type
   json.inbox_id automation.inbox_id
   json.jabvox_email_template_id automation.jabvox_email_template_id

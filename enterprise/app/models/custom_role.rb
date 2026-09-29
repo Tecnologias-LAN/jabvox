@@ -46,10 +46,10 @@ class CustomRole < ApplicationRecord
   # action in that module's controllers/scoping (see JabvoxPermissions concern).
   # Naming: jabvox_<module>_<capability>.
   JABVOX_PERMISSIONS = %w[
-    jabvox_leads_view_all
-    jabvox_leads_assign
-    jabvox_leads_edit
-    jabvox_leads_delete
+    jabvox_contacts_view_all
+    jabvox_contacts_assign
+    jabvox_contacts_edit
+    jabvox_contacts_delete
     jabvox_kanban_view_all
     jabvox_kanban_manage
     jabvox_tasks_view_all
@@ -106,7 +106,6 @@ class CustomRole < ApplicationRecord
   # field_visibilities, campaigns, affiliates, app_states, reports, …) are always
   # grantable. Mirrors MODULE_FEATURE_FLAG in CustomRoleModal.vue.
   JABVOX_PERMISSION_FEATURES = {
-    %w[jabvox_leads_view_all jabvox_leads_assign jabvox_leads_edit jabvox_leads_delete] => 'jabvox_leads',
     %w[jabvox_kanban_view_all jabvox_kanban_manage] => 'jabvox_kanban',
     %w[jabvox_tasks_view_all jabvox_tasks_manage] => 'jabvox_tasks',
     %w[jabvox_cdr_view_reports jabvox_cdr_manage] => 'jabvox_cdr',

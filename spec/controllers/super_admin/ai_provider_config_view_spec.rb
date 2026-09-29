@@ -76,6 +76,32 @@ RSpec.describe 'Super Admin AI Provider Config — vista', type: :request do
     expect(html).not_to match(/sk-[A-Za-z0-9_-]{10,}/)
   end
 
+  it 'agrupa los modelos por proveedor con casillas, no un select de lista' do
+    linked = JabvoxAiProviderAccount.create!(account: account_one, team_id_jabvox: 'team-g',
+                                             remote_models_jabvox: ['gpt-4'])
+    rows = [{ account: account_one, plan: nil, provider_account: linked, connected: true }]
+
+    html = ApplicationController.render(
+      template: 'super_admin/ai_provider_config/show', layout: false,
+      assigns: { config: config, summary: config.safe_summary, tab: 'accounts', rows: rows,
+                 account_options: [], orphans: [],
+                 available_models: %w[gpt-4 gpt-4o claude],
+                 models_by_provider: { 'openai' => %w[gpt-4 gpt-4o],
+                                       'anthropic' => ['claude'] } }
+    )
+
+    # Casillas por modelo, agrupadas bajo el nombre del proveedor.
+    expect(html).to include('type="checkbox"')
+    expect(html).to include('name="models[]"')
+    expect(html).to include('openai')
+    expect(html).to include('anthropic')
+    expect(html).to include('gpt-4o')
+    # El modelo ya asignado viene marcado.
+    expect(html).to match(/value="gpt-4"[^>]*checked/)
+    # Ya no se usa un <select multiple> (mostraba la lista separada por comas).
+    expect(html).not_to include('multiple="multiple"')
+  end
+
   it 'ofrece el selector de modelos por team cuando hay catálogo' do
     linked = JabvoxAiProviderAccount.create!(account: account_one, team_id_jabvox: 'team-m',
                                              remote_models_jabvox: ['mock/model-a'])
@@ -85,7 +111,8 @@ RSpec.describe 'Super Admin AI Provider Config — vista', type: :request do
       template: 'super_admin/ai_provider_config/show', layout: false,
       assigns: { config: config, summary: config.safe_summary, tab: 'accounts', rows: rows,
                  account_options: [], orphans: [],
-                 available_models: ['mock/model-a', 'mock/model-b'] }
+                 available_models: ['mock/model-a', 'mock/model-b'],
+                 models_by_provider: { 'mock' => ['mock/model-a', 'mock/model-b'] } }
     )
 
     expect(html).to include('Guardar modelos')

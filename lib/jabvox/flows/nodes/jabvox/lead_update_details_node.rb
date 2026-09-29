@@ -4,8 +4,10 @@
 # (tel/email/país/documento), campaña, agente asignado y campos personalizados,
 # todo en una transacción. Solo se tocan los campos que llegan informados.
 class Jabvox::Flows::Nodes::Jabvox::LeadUpdateDetailsNode < Jabvox::Flows::Nodes::Jabvox::LeadSearchNode
-  type 'jabvox.lead.update_details'
-  label 'Actualizar Lead'
+  type 'jabvox.contact.update_details'
+  # Tipo anterior: los flujos guardados lo siguen usando.
+  aliases 'jabvox.lead.update_details'
+  label 'Actualizar Contacto'
 
   # country y documento no son columnas del contacto: viven en su JSON.
   ADDITIONAL_KEYS = { 'country' => 'country',
@@ -30,7 +32,7 @@ class Jabvox::Flows::Nodes::Jabvox::LeadUpdateDetailsNode < Jabvox::Flows::Nodes
 
   def find_lead_for_update!
     lead_id = require_id!(param(:leadId), 'el ID interno del lead')
-    lead = account.jabvox_leads.includes(:contact).find_by(id: lead_id)
+    lead = account.contacts.find_by(id: lead_id)
     return lead if lead
 
     fail_with!("El lead #{lead_id} no existe en esta cuenta. Comprueba que sea el ID INTERNO " \
@@ -66,7 +68,7 @@ class Jabvox::Flows::Nodes::Jabvox::LeadUpdateDetailsNode < Jabvox::Flows::Nodes
     fail_with!("El agente #{param(:assigneeId)} no pertenece a esta cuenta.") if assignee.nil?
 
     lead.update!(assignee: assignee)
-    Jabvox::LeadConversationAssignmentSync.new(account).sync_lead(lead, assignee)
+    Jabvox::ContactConversationAssignmentSync.new(account).sync_contact(lead, assignee)
   end
 
   def update_campaign(lead)

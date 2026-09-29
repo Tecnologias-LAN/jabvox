@@ -1,10 +1,11 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+import { useAnalyticsDataSourcesStore } from 'dashboard/stores/jabvox/analytics/dataSources';
 import StatusBadge from './StatusBadge.vue';
 
-defineProps({
+const props = defineProps({
   dataSources: {
     type: Array,
     default: () => [],
@@ -18,6 +19,21 @@ const route = useRoute();
 const router = useRouter();
 
 const openMenuId = ref(null);
+const dsStore = useAnalyticsDataSourcesStore();
+
+// Conteo de tablas/vistas por fuente, para mostrarlo en la tarjeta sin abrir el explorador.
+// Se pide una vez por fuente y falla en silencio: es informativo.
+watch(
+  () => props.dataSources,
+  list => {
+    (list || []).forEach(ds => {
+      if (!dsStore.statsFor(ds.id)) dsStore.fetchStats(ds.id);
+    });
+  },
+  { immediate: true, deep: true }
+);
+
+const statsFor = id => dsStore.statsFor(id);
 
 const toggleMenu = id => {
   openMenuId.value = openMenuId.value === id ? null : id;
@@ -193,6 +209,12 @@ const onSync = ds => {
       >
         <span class="i-lucide-table-2 size-3.5" />
         {{ t('JABVOX_ANALYTICS.DATA_SOURCES.LIST.VIEW_TABLES') }}
+        <span
+          v-if="statsFor(ds.id)"
+          class="rounded-full bg-n-alpha-2 px-1.5 text-[11px] tabular-nums"
+        >
+          {{ statsFor(ds.id).total }}
+        </span>
       </button>
     </div>
   </div>

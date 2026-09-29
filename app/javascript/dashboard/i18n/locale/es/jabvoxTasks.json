@@ -14,6 +14,8 @@
         "NAME_PLACEHOLDER": "Ej. Embudo de ventas",
         "DESCRIPTION": "Descripción",
         "DESCRIPTION_PLACEHOLDER": "¿Para qué sirve este tablero?",
+        "OWNER": "Dueño del tablero",
+        "OWNER_HINT": "Si eliges un dueño, este será su tablero personal y podrá recibir copias de las tareas que se le asignen en otros tableros.",
         "ACTIVE": "Activo",
         "SAVE": "Guardar",
         "CANCEL": "Cancelar"
@@ -48,13 +50,15 @@
         "SAVE": "Guardar",
         "CANCEL": "Cancelar"
       },
-      "DELETE": "Eliminar etapa",
-      "DELETE_CONFIRM": "¿Eliminar esta etapa? Primero deben moverse sus tareas.",
+      "DELETE": "Eliminar columna",
+      "DELETE_CONFIRM": "¿Eliminar la columna «{name}»?",
       "AUTOMATIONS": "Automatizaciones",
       "CREATED": "Etapa creada",
       "UPDATED": "Etapa actualizada",
-      "DELETED": "Etapa eliminada",
-      "ERROR": "Algo salió mal con la etapa."
+      "DELETED": "Columna eliminada",
+      "ERROR": "No se pudo eliminar la columna",
+      "DELETE_CONFIRM_WITH_TASKS": "¿Eliminar la columna «{name}»? Se borrarán también sus {count} tareas.",
+      "REORDER_ERROR": "No se pudo reordenar las columnas"
     },
     "TASK": {
       "FORM": {
@@ -109,6 +113,11 @@
       "NOT_FOUND": "Tarea no encontrada.",
       "NO_ASSIGNEES": "Nadie asignado.",
       "HISTORY": {
+        "COMMENT_PLACEHOLDER": "Escribe cómo va la resolución…",
+        "COMMENT_HINT": "Ctrl+Enter para enviar",
+        "COMMENT_SEND": "Comentar",
+        "COMMENT_ERROR": "No se pudo guardar el comentario",
+        "RECURRENCE_CREATED": "se creó la siguiente repetición",
         "TITLE": "Historial",
         "EMPTY": "Aún no hay actividad.",
         "CREATED": "creó la tarea",
@@ -120,69 +129,77 @@
         "DUE_DATE_CHANGED": "actualizó la fecha de vencimiento",
         "LEAD_CHANGED": "cambió el lead de {from} a {to}",
         "ASSIGNEE_ADDED": "agregó a {name} como responsable",
-        "ASSIGNEE_REMOVED": "quitó a {name} como responsable"
-      }
+        "ASSIGNEE_REMOVED": "quitó a {name} como responsable",
+        "STATUS_CHANGED_PREFIX": "cambió el estado de",
+        "STATUS_CHANGED_TO": "a"
+      },
+      "COMMENTS": {
+        "TITLE": "Comentarios de resolución",
+        "EMPTY": "Aún no hay comentarios. Escribe cómo va la resolución."
+      },
+      "REOPEN": "Reabrir",
+      "MARK_DONE": "Marcar completada"
     },
     "AUTOMATION": {
-        "TITLE": "Automatizaciones",
-        "ADD": "Nueva automatización",
-        "EMPTY": "Aún no hay automatizaciones. Crea una para enviar un correo, SMS o mensaje recurrente.",
-        "NEW_TITLE": "Nueva automatización",
-        "EDIT_TITLE": "Editar automatización",
-        "NAME": "Nombre",
-        "NAME_PLACEHOLDER": "Ej. Recordatorio de seguimiento",
-        "CHANNEL_LABEL": "Canal",
-        "CHANNEL": {
-          "EMAIL": "Correo",
-          "SMS": "SMS",
-          "INBOX": "Mensaje"
-        },
-        "RECURRENCE": "Recurrencia",
-        "EVERY_WORD": "Cada",
-        "EVERY": "Cada {count} {unit}",
-        "UNIT": {
-          "DAY": "día | días",
-          "WEEK": "semana | semanas",
-          "MONTH": "mes | meses"
-        },
-        "RECIPIENTS": "Destinatarios",
-        "RECIPIENT": {
-          "LEAD": "Lead",
-          "ASSIGNEES": "Responsables",
-          "LEAD_CONTACTS": "Contactos del lead",
-          "MANUAL": "Dirección manual"
-        },
-        "MANUAL_EMAIL": "Correo de destino",
-        "MANUAL_PHONE": "Teléfono de destino",
-        "EMAIL_TEMPLATE": "Plantilla de correo",
-        "EMAIL_TEMPLATE_NONE": "Sin plantilla (escribe abajo)",
-        "SUBJECT": "Asunto",
-        "INBOX": "Bandeja de entrada",
-        "SMS_PROVIDER": "Proveedor de SMS",
-        "BODY": "Mensaje",
-        "BODY_PLACEHOLDER": "Escribe tu mensaje…",
-        "VARS_HINT": "Variables: {'{{task_title}}'}, {'{{lead_name}}'}, {'{{board_name}}'}, {'{{stage_name}}'}",
-        "NEED_RECIPIENT": "Elige al menos un destinatario",
-        "NEXT_RUN": "Próxima ejecución",
-        "RUNS_COUNT": "sin ejecuciones | 1 ejecución | {count} ejecuciones",
-        "RUN_NOW": "Enviar ahora",
-        "RUN_DONE": "Automatización enviada",
-        "TOGGLE": "Activar / pausar",
-        "EDIT": "Editar",
-        "DELETE": "Eliminar",
-        "DELETE_CONFIRM": "¿Eliminar esta automatización?",
-        "SAVE": "Guardar",
-        "CANCEL": "Cancelar",
-        "ERROR": "Algo salió mal con la automatización.",
-        "LOG_TITLE": "Envíos recientes",
-        "SENT_TO": "enviado a {count} destinatario | enviado a {count} destinatarios",
-        "STATUS": {
-          "SENT": "Enviado",
-          "PARTIAL": "Parcial",
-          "FAILED": "Fallido",
-          "SKIPPED": "Omitido"
-        },
-        "CARD_BADGE": "{count} automatización activa | {count} automatizaciones activas"
+      "TITLE": "Automatizaciones",
+      "ADD": "Nueva automatización",
+      "EMPTY": "Aún no hay automatizaciones. Crea una para enviar un correo, SMS o mensaje recurrente.",
+      "NEW_TITLE": "Nueva automatización",
+      "EDIT_TITLE": "Editar automatización",
+      "NAME": "Nombre",
+      "NAME_PLACEHOLDER": "Ej. Recordatorio de seguimiento",
+      "CHANNEL_LABEL": "Canal",
+      "CHANNEL": {
+        "EMAIL": "Correo",
+        "SMS": "SMS",
+        "INBOX": "Mensaje"
+      },
+      "RECURRENCE": "Recurrencia",
+      "EVERY_WORD": "Cada",
+      "EVERY": "Cada {count} {unit}",
+      "UNIT": {
+        "DAY": "día | días",
+        "WEEK": "semana | semanas",
+        "MONTH": "mes | meses"
+      },
+      "RECIPIENTS": "Destinatarios",
+      "RECIPIENT": {
+        "LEAD": "Lead",
+        "ASSIGNEES": "Responsables",
+        "LEAD_CONTACTS": "Contactos del lead",
+        "MANUAL": "Dirección manual"
+      },
+      "MANUAL_EMAIL": "Correo de destino",
+      "MANUAL_PHONE": "Teléfono de destino",
+      "EMAIL_TEMPLATE": "Plantilla de correo",
+      "EMAIL_TEMPLATE_NONE": "Sin plantilla (escribe abajo)",
+      "SUBJECT": "Asunto",
+      "INBOX": "Bandeja de entrada",
+      "SMS_PROVIDER": "Proveedor de SMS",
+      "BODY": "Mensaje",
+      "BODY_PLACEHOLDER": "Escribe tu mensaje…",
+      "VARS_HINT": "Variables: {'{{task_title}}'}, {'{{lead_name}}'}, {'{{board_name}}'}, {'{{stage_name}}'}",
+      "NEED_RECIPIENT": "Elige al menos un destinatario",
+      "NEXT_RUN": "Próxima ejecución",
+      "RUNS_COUNT": "sin ejecuciones | 1 ejecución | {count} ejecuciones",
+      "RUN_NOW": "Enviar ahora",
+      "RUN_DONE": "Automatización enviada",
+      "TOGGLE": "Activar / pausar",
+      "EDIT": "Editar",
+      "DELETE": "Eliminar",
+      "DELETE_CONFIRM": "¿Eliminar esta automatización?",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "ERROR": "Algo salió mal con la automatización.",
+      "LOG_TITLE": "Envíos recientes",
+      "SENT_TO": "enviado a {count} destinatario | enviado a {count} destinatarios",
+      "STATUS": {
+        "SENT": "Enviado",
+        "PARTIAL": "Parcial",
+        "FAILED": "Fallido",
+        "SKIPPED": "Omitido"
+      },
+      "CARD_BADGE": "{count} automatización activa | {count} automatizaciones activas"
     },
     "LEAD_FILTER": {
       "LABEL": "Filtrar por lead",
@@ -192,10 +209,10 @@
       "CLEAR": "Limpiar"
     },
     "LEAD_SELECT": {
-      "PLACEHOLDER": "Buscar un lead…",
+      "PLACEHOLDER": "Buscar un contacto…",
       "LOADING": "Buscando…",
-      "EMPTY": "No se encontraron leads.",
-      "CLEAR": "Quitar lead"
+      "EMPTY": "No se encontraron contactos.",
+      "CLEAR": "Quitar contacto"
     },
     "AGENT_SELECT": {
       "PLACEHOLDER": "Buscar un agente…",
@@ -236,9 +253,17 @@
       "CREATED": "Contacto creado",
       "UPDATED": "Contacto actualizado",
       "DELETED": "Contacto eliminado",
-      "ERROR": "Algo salió mal con el contacto."
+      "ERROR": "Algo salió mal con el contacto.",
+      "COLLAPSE": "Ocultar panel"
     },
     "AUTOMATIONS": {
+      "DRAWER_TITLE": "Automatizaciones del tablero",
+      "SHORT": "Automatizaciones",
+      "CLOSE": "Cerrar",
+      "ACTIVE_COUNT": "{count} activas en total",
+      "STAGE_SUMMARY": "{active} activas de {total}",
+      "STAGE_NONE": "Sin automatizaciones",
+      "NO_STAGES": "Este tablero aún no tiene columnas.",
       "TITLE": "Automatizaciones de etapa",
       "SUBTITLE": "Ejecuta una acción cuando las tareas entran a esta etapa.",
       "EMPTY": "Aún no hay automatizaciones para esta etapa.",
@@ -272,8 +297,7 @@
       "CREATED": "Automatización creada",
       "UPDATED": "Automatización actualizada",
       "DELETED": "Automatización eliminada",
-      "ERROR": "Algo salió mal con la automatización.",
-      "CLOSE": "Cerrar"
+      "ERROR": "Algo salió mal con la automatización."
     },
     "CALENDAR": {
       "PREV": "Mes anterior",
@@ -285,6 +309,42 @@
     "EMPTY_STATE": {
       "TITLE": "Aún no hay nada aquí",
       "BODY": "No hay nada que mostrar."
+    },
+    "STAGE_ROLE": {
+      "initial": "Inicial",
+      "done": "Completada",
+      "inactive": "Inactiva",
+      "LABEL": "Papel de la columna",
+      "NONE": "Columna normal",
+      "HELP": "Marca qué columna recibe las tareas nuevas, cuál es la de completadas y cuál la de inactivas."
+    },
+    "RECURRENCE": {
+      "LABEL": "Se repite",
+      "NONE": "No se repite",
+      "day": "Cada día",
+      "week": "Cada semana",
+      "month": "Cada mes",
+      "year": "Cada año",
+      "EVERY": "Cada {count} {unit}",
+      "UNTIL": "Hasta",
+      "HELP": "Al completarla se crea la siguiente con la fecha desplazada.",
+      "BADGE": "Repetitiva"
+    },
+    "COMMON": {
+      "DELETE": "Eliminar",
+      "CANCEL": "Cancelar"
+    },
+    "ASSIGNEE_COPY": {
+      "TITLE": "Copiar al tablero del responsable",
+      "HINT": "Al asignar un responsable, se crea una copia de la tarea en su tablero personal.",
+      "ON": "Activada",
+      "OFF": "Desactivada",
+      "PICK_OWNER": "Responsable...",
+      "PICK_BOARD": "Su tablero...",
+      "ADD": "Añadir",
+      "REMOVE": "Quitar",
+      "ERROR": "No se pudo guardar la configuración",
+      "NO_OWNED_BOARDS": "Todavía no hay tableros con dueño. Asigna un dueño a un tablero para poder copiarle tareas."
     }
   }
 }

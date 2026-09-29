@@ -15,6 +15,9 @@ defineProps({
   activeOrdering: { type: String, default: '' },
   isSegmentsView: { type: Boolean, default: false },
   hasActiveFilters: { type: Boolean, default: false },
+  // La tabla de Jabvox trae su propio buscador y sus filtros, más completos; con esto se
+  // ocultan los de Chatwoot para no tener dos juegos que hacen lo mismo.
+  showLegacyFilters: { type: Boolean, default: true },
   isLabelView: { type: Boolean, default: false },
   isActiveView: { type: Boolean, default: false },
 });
@@ -61,7 +64,10 @@ const emit = defineEmits([
         </div>
         <div class="flex items-center flex-shrink-0 gap-4">
           <div class="flex items-center gap-2">
-            <div v-if="!isLabelView && !isActiveView" class="relative">
+            <div
+              v-if="showLegacyFilters && !isLabelView && !isActiveView"
+              class="relative"
+            >
               <Button
                 id="toggleContactsFilterButton"
                 :icon="
@@ -82,6 +88,7 @@ const emit = defineEmits([
             </div>
             <Button
               v-if="
+                showLegacyFilters &&
                 hasActiveFilters &&
                 !isSegmentsView &&
                 !isLabelView &&

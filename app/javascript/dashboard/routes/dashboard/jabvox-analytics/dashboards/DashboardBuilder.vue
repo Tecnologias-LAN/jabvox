@@ -68,11 +68,21 @@ const notFound = computed(() => !loading.value && !currentDashboard.value);
 
 // snake_case only the known top-level keys; the dynamic map carries
 // user-defined field names that must be preserved verbatim.
-const filterPayload = () => ({
-  date_from: globalFilters.value.dateFrom,
-  date_to: globalFilters.value.dateTo,
-  dynamic: globalFilters.value.dynamic,
-});
+// El backend espera `global_filters[filters]` como lista de {field, values}: enviarlo con
+// otra forma (date_from/date_to/dynamic) hacía que los filtros se ignoraran en silencio.
+// Las claves llegan como "tabla.columna"; el campo que viaja es la columna.
+const filterPayload = () => {
+  const dynamic = globalFilters.value.dynamic || {};
+  const filters = Object.entries(dynamic)
+    .filter(
+      ([, value]) => value !== '' && value !== null && value !== undefined
+    )
+    .map(([key, value]) => ({
+      field: key.includes('.') ? key.split('.').pop() : key,
+      values: [value],
+    }));
+  return { filters };
+};
 
 const refreshAll = () => {
   widgets.value.forEach(widget => {
@@ -226,7 +236,7 @@ const secondaryBtn =
         </div>
       </div>
 
-      <GlobalFilterBar @apply="refreshAll" />
+      <GlobalFilterBar :dashboard-id="dashboardId" @apply="refreshAll" />
 
       <AnalyticsEmptyState
         v-if="!widgets.length"

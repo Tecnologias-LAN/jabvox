@@ -7,6 +7,13 @@ import {
   taskStageAutomationsAPI,
 } from 'dashboard/api/jabvox/tasks';
 
+// Mismo criterio que el backend (`scope :ordered`): por posición, y el id desempata para
+// que dos columnas con la misma posición no bailen entre recargas.
+const sortStages = stages =>
+  [...stages].sort(
+    (a, b) => (a.position_jabvox ?? 0) - (b.position_jabvox ?? 0) || a.id - b.id
+  );
+
 export const useTasksStore = defineStore('jabvoxTasks', {
   state: () => ({
     boards: [],
@@ -88,19 +95,54 @@ export const useTasksStore = defineStore('jabvoxTasks', {
       return camelcaseKeys(data, { deep: true });
     },
 
+    // Copia por responsable: destinos --------------------------------
+    async fetchAssigneeTargets(boardId) {
+      const { data } = await tasksBoardsAPI.listAssigneeTargets(boardId);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async fetchOwnedBoards(boardId) {
+      const { data } = await tasksBoardsAPI.ownedBoards(boardId);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async createAssigneeTarget(boardId, payload) {
+      const { data } = await tasksBoardsAPI.createAssigneeTarget(
+        boardId,
+        payload
+      );
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async updateAssigneeTarget(boardId, id, payload) {
+      const { data } = await tasksBoardsAPI.updateAssigneeTarget(
+        boardId,
+        id,
+        payload
+      );
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async deleteAssigneeTarget(boardId, id) {
+      await tasksBoardsAPI.destroyAssigneeTarget(boardId, id);
+    },
+
     async deleteBoard(id) {
       await tasksBoardsAPI.destroy(id);
       this.boards = this.boards.filter(b => b.id !== Number(id));
     },
 
     // Stages -----------------------------------------------------------
+    // El backend sirve las columnas por position_jabvox. Al insertar o actualizar una en
+    // memoria hay que reordenar igual, o el tablero las pinta en el orden en que llegaron
+    // al array y el orden visual deja de coincidir con el guardado.
     async createStage(boardId, payload) {
       const { data } = await tasksBoardsAPI.createStage(boardId, payload);
       if (this.currentBoard && this.currentBoard.id === Number(boardId)) {
         const stages = this.currentBoard.stages || [];
         this.currentBoard = {
           ...this.currentBoard,
-          stages: [...stages, data],
+          stages: sortStages([...stages, data]),
         };
       }
       return camelcaseKeys(data, { deep: true });
@@ -116,9 +158,43 @@ export const useTasksStore = defineStore('jabvoxTasks', {
         const stages = [...this.currentBoard.stages];
         const idx = stages.findIndex(s => s.id === Number(stageId));
         if (idx !== -1) stages.splice(idx, 1, data);
-        this.currentBoard = { ...this.currentBoard, stages };
+        this.currentBoard = {
+          ...this.currentBoard,
+          stages: sortStages(stages),
+        };
       }
       return camelcaseKeys(data, { deep: true });
+    },
+
+    // Reordenar es optimista: la columna salta al soltarla y, si el servidor rechaza,
+    // se restaura el orden previo. Arrastrar y esperar una ida y vuelta se siente roto.
+    async reorderStages(boardId, stageIds) {
+      const previous = this.currentBoard?.stages
+        ? [...this.currentBoard.stages]
+        : null;
+      if (previous) {
+        const byId = new Map(previous.map(s => [s.id, s]));
+        const reordered = stageIds.map(id => byId.get(id)).filter(Boolean);
+        this.currentBoard = {
+          ...this.currentBoard,
+          stages: reordered.map((s, i) => ({ ...s, position_jabvox: i })),
+        };
+      }
+      try {
+        const { data } = await tasksBoardsAPI.reorderStages(boardId, stageIds);
+        if (this.currentBoard) {
+          this.currentBoard = {
+            ...this.currentBoard,
+            stages: sortStages(data),
+          };
+        }
+        return camelcaseKeys(data, { deep: true });
+      } catch (error) {
+        if (previous) {
+          this.currentBoard = { ...this.currentBoard, stages: previous };
+        }
+        throw error;
+      }
     },
 
     async deleteStage(boardId, stageId) {
@@ -200,6 +276,13 @@ export const useTasksStore = defineStore('jabvoxTasks', {
     // Append-only activity history for a task (newest first).
     async fetchTaskActivities(id) {
       const { data } = await tasksAPI.activities(id);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    // Añade un comentario y devuelve la actividad creada, para insertarla en el
+    // historial sin tener que recargarlo entero.
+    async addTaskComment(id, body) {
+      const { data } = await tasksAPI.comment(id, body);
       return camelcaseKeys(data, { deep: true });
     },
 

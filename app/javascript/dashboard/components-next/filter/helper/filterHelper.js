@@ -15,6 +15,12 @@ export const CONVERSATION_ATTRIBUTES = {
   REFERER: 'referer',
   CREATED_AT: 'created_at',
   LAST_ACTIVITY_AT: 'last_activity_at',
+  // Datos del contacto de la conversación: el backend los resuelve con un subquery contra
+  // la tabla `contacts` (ver lib/filters/filter_keys.yml).
+  CONTACT_NAME: 'contact_name',
+  CONTACT_PHONE_NUMBER: 'contact_phone_number',
+  CONTACT_EMAIL: 'contact_email',
+  CONTACT_IDENTIFICATION: 'contact_identification',
 };
 
 export const CONTACT_ATTRIBUTES = {

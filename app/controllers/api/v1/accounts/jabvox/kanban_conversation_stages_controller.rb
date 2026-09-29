@@ -28,13 +28,15 @@ class Api::V1::Accounts::Jabvox::KanbanConversationStagesController < Api::V1::A
     render json: { conversation_id: conversation.id, stage_id: stage.id }, status: :ok
   end
 
+  # `lead_id` en la ruta es hoy el id del CONTACTO: se conserva el nombre del parámetro para
+  # no romper al frontend, que ya envía ese valor.
   def update_lead
     stage = @funnel.jabvox_kanban_stages.find(params[:stage_id])
-    lead = Current.account.jabvox_leads.find(params[:lead_id])
-    return render_forbidden unless can_manage_lead?(lead)
+    contact = Current.account.contacts.find(params[:lead_id])
+    return render_forbidden unless can_manage_lead?(contact)
 
     placement = JabvoxKanbanConversationStage.find_or_initialize_by(
-      jabvox_lead_id: lead.id,
+      contact_id: contact.id,
       jabvox_kanban_funnel_id: @funnel.id
     )
 
@@ -45,7 +47,7 @@ class Api::V1::Accounts::Jabvox::KanbanConversationStagesController < Api::V1::A
     )
     placement.save!
 
-    render json: { lead_id: lead.id, stage_id: stage.id }, status: :ok
+    render json: { lead_id: contact.id, stage_id: stage.id }, status: :ok
   end
 
   private
@@ -68,11 +70,11 @@ class Api::V1::Accounts::Jabvox::KanbanConversationStagesController < Api::V1::A
     conversation.assignee_id == current_user.id
   end
 
-  def can_manage_lead?(lead)
+  def can_manage_lead?(contact)
     return true if Current.account_user&.administrator?
     return true if jabvox_can?('jabvox_kanban_view_all')
 
-    lead.assignee_id == current_user.id
+    contact.assignee_id == current_user.id
   end
 
   def render_forbidden

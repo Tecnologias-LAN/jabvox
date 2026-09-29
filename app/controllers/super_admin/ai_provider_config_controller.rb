@@ -4,6 +4,22 @@
 # master key (cifrada, nunca precargada ni mostrada) y habilitado. Permite probar la conexión.
 # rubocop:disable Rails/I18nLocaleTexts
 class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
+  # Validación del catálogo de modelos, aparte para no engordar el controller.
+  module ModelValidation
+    # Rechaza modelos que el proveedor no expone. Si el proxy no reporta catálogo, no se
+    # bloquea nada (no inventar una restricción sobre información que no tenemos).
+    def unknown_models_error(models)
+      return nil if models.empty?
+
+      catalog = client.model_names
+      return nil if catalog.empty?
+
+      unknown = models - catalog
+      unknown.empty? ? nil : "El proveedor no expone estos modelos: #{unknown.join(', ')}."
+    end
+  end
+  include ModelValidation
+
   TABS = %w[connection accounts balances].freeze
   # Tope de cuentas que se ofrecen en el selector. Evita renderizar un <select> gigantesco.
   ACCOUNT_OPTIONS_LIMIT = 500
@@ -18,11 +34,13 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
     @rows = load_account_rows
     @account_options = account_options
     @orphans = JabvoxAiProviderAccount.orphans.order(:team_alias_jabvox, :id).limit(200)
-    # Catálogo de modelos del proveedor, para el selector de modelos por team.
-    @available_models = @config.configured? ? client.model_names : []
+    load_model_catalog
     # Diagnóstico de un team concreto (?inspect_team=<id>): qué ve Jabvox realmente en el
     # proveedor. Sirve para entender por qué una key creada fuera no aparece en la cuenta.
-    @inspection = Jabvox::AiProvider::TeamInspector.new(config: @config, client: client).call(params[:inspect_team]) if params[:inspect_team].present?
+    return if params[:inspect_team].blank?
+
+    @inspection = Jabvox::AiProvider::TeamInspector.new(config: @config, client: client)
+                                                   .call(params[:inspect_team])
   end
 
   # Fija los modelos a los que puede acceder el team de una cuenta. Vacío = todos.
@@ -197,20 +215,18 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
 
   # UN cliente por request, con presupuesto de tiempo: esta pantalla encadena varias
   # llamadas (catálogo de modelos + diagnóstico) y un proveedor lento no debe colgarla.
-  def client
-    @client ||= Jabvox::AiProvider::Client.new(config: JabvoxAiProviderConfig.instance)
+  # Catálogo con proveedor por modelo: permite elegir modelos sueltos ('gpt-4') agrupados
+  # por proveedor, en vez de tratar cada proveedor como un bloque indivisible.
+  def load_model_catalog
+    @model_catalog = @config.configured? ? client.model_catalog : []
+    @available_models = @model_catalog.pluck(:name)
+    # { 'openai' => ['gpt-4', ...], 'anthropic' => [...] }
+    @models_by_provider = @model_catalog.group_by { |m| m[:provider] }
+                                        .transform_values { |ms| ms.pluck(:name) }
   end
 
-  # Rechaza modelos que el proveedor no expone. Si el proxy no reporta catálogo, no se
-  # bloquea nada (no inventar una restricción sobre información que no tenemos).
-  def unknown_models_error(models)
-    return nil if models.empty?
-
-    catalog = client.model_names
-    return nil if catalog.empty?
-
-    unknown = models - catalog
-    unknown.empty? ? nil : "El proveedor no expone estos modelos: #{unknown.join(', ')}."
+  def client
+    @client ||= Jabvox::AiProvider::Client.new(config: JabvoxAiProviderConfig.instance)
   end
 
   # Escribe los modelos en el proveedor y refleja el resultado localmente.

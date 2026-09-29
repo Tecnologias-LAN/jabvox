@@ -122,13 +122,16 @@ module Jabvox::ExternalExport::Catalog
   # instead of raw table names. Each group lists the model-name prefixes it owns
   # and (optionally) the account feature that must be enabled for it to appear.
   #
-  # `always` groups are core lead activity and are always offered/selected.
-  # The `core` group is implicit and never toggled off (leads, contacts,
-  # campaigns, typifications, custom tables…): it's what everything else joins to.
+  # Los grupos `always` son la actividad principal y siempre se ofrecen/seleccionan.
+  # El grupo `core` es implícito y nunca se desactiva (contactos, campañas, tipificaciones,
+  # tablas personalizadas…): es a lo que todo lo demás se enlaza.
+  #
+  # `Contact` va explícito porque ahora lleva los datos comerciales (campaña, afiliado,
+  # responsable, venta, campos personalizados y ciclo de vida) que antes vivían en el lead.
   EXPORT_GROUPS = [
-    { key: 'core', always: true, models: %w[JabvoxLead JabvoxCampaign JabvoxTypification
-                                             JabvoxManagementState JabvoxManagementQuestion
-                                             JabvoxManagementAnswer JabvoxCustomTable User] },
+    { key: 'core', always: true, models: %w[Contact JabvoxCampaign JabvoxTypification
+                                            JabvoxManagementState JabvoxManagementQuestion
+                                            JabvoxManagementAnswer JabvoxCustomTable User] },
     { key: 'conversations', always: true, models: %w[Conversation Message Note] },
     { key: 'calls', feature: 'jabvox_click_to_call', models: %w[JabvoxCallLog] },
     { key: 'dialer', feature: 'jabvox_dialer', models: %w[JabvoxDialer] },

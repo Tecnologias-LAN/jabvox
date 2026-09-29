@@ -62,7 +62,7 @@ class Jabvox::Analytics::Adapters::MysqlAdapter < Jabvox::Analytics::Adapters::B
 
   def execute(sql, binds: [], row_limit: nil)
     cap = row_cap(row_limit)
-    wrapped = "SELECT * FROM (#{sql}) AS jabvox_sub LIMIT #{cap}"
+    wrapped = "SELECT * FROM (#{subquery_body(sql)}) AS jabvox_sub LIMIT #{cap}"
     started = monotonic_ms
     with_client do |client|
       result = if binds.any?

@@ -46,24 +46,30 @@ class Jabvox::ExternalExport::SchemaBuilderService
   # the exported value is the human-readable enum string (e.g. "appointment"),
   # which would fail to insert into a BIGINT column.
   #
-  # For JabvoxLead the opaque custom_fields_jabvox jsonb column is dropped and
-  # replaced by one real column per defined custom field (seccion_c, alias_c, …).
+  # En Contact (y en JabvoxLead mientras exista) la columna jsonb opaca
+  # custom_fields_jabvox se sustituye por una columna real por cada campo personalizado
+  # definido (seccion_c, alias_c…), que es lo que el cliente puede consultar desde su BD.
   def columns_for(model)
     enums = model.defined_enums.keys
     cols = physical_columns(model).map do |name|
       type = enums.include?(name) ? :text : (model.columns_hash[name]&.type || :text)
       { name: name, type: type }
     end
-    cols += @lead_custom.column_defs if model == JabvoxLead
+    cols += @lead_custom.column_defs if custom_fields_model?(model)
     cols += Jabvox::ExternalExport::DerivedColumns.defs_for(model)
     (cols + CORRELATION_COLUMNS).uniq { |c| c[:name] }
   end
 
-  # Safe columns minus the lead jsonb blob (exploded into per-field columns).
+  # Columnas seguras menos el jsonb (que se explota en una columna por campo).
   def physical_columns(model)
     names = Jabvox::ExternalExport::Catalog.safe_columns(model)
-    return names unless model == JabvoxLead
+    return names unless custom_fields_model?(model)
 
     names - [LEAD_JSONB_COLUMN]
+  end
+
+  # Modelos que llevan campos personalizados inline.
+  def custom_fields_model?(model)
+    model == Contact
   end
 end

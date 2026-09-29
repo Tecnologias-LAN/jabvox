@@ -29,6 +29,8 @@ class Jabvox::Analytics::SqlValidatorService
     load_file set_config current_setting benchmark sleep
   ].freeze
 
+  MULTI_STATEMENT_MESSAGE = 'Solo se permite UNA consulta: quita las demás o el punto y coma del medio'.freeze
+
   def initialize(sql)
     @raw = sql.to_s
   end
@@ -37,7 +39,9 @@ class Jabvox::Analytics::SqlValidatorService
     return invalid('La consulta está vacía') if @raw.strip.empty?
 
     sql = strip_comments(@raw)
-    return invalid('No se permiten múltiples sentencias') if multiple_statements?(sql)
+    # Pegar un bloque con varias consultas separadas por `;` es un error frecuente al copiar
+    # desde un cliente SQL, así que el mensaje dice qué hacer en vez de solo negar.
+    return invalid(MULTI_STATEMENT_MESSAGE) if multiple_statements?(sql)
 
     denied = denylisted_keyword(sql)
     return invalid("Palabra no permitida: #{denied.upcase}") if denied

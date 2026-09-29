@@ -207,7 +207,12 @@
       "SAVED_WIDGET": "Widget agregado al dashboard.",
       "WIDGET_TITLE": "Título del widget",
       "TARGET_DASHBOARD": "Dashboard destino",
-      "WIDGET_TYPE": "Tipo de visualización"
+      "WIDGET_TYPE": "Tipo de visualización",
+      "NO_DATA_SOURCES": "No hay fuentes de datos configuradas: sin una no se puede ejecutar ninguna consulta.",
+      "NO_DATA_SOURCES_CTA": "Crear fuente de datos",
+      "PICK_DATA_SOURCE": "Elige una fuente de datos para ejecutar.",
+      "WRITE_QUERY": "Escribe una consulta SELECT.",
+      "MULTIPLE_STATEMENTS_HINT": "Pega UNA sola consulta: varias separadas por ; no se permiten."
     },
     "DASHBOARDS": {
       "TITLE": "Dashboards",
@@ -307,7 +312,13 @@
         "SQL_PLACEHOLDER": "SELECT ...",
         "MARKDOWN": "Contenido Markdown",
         "MARKDOWN_PLACEHOLDER": "Escribe texto usando Markdown…",
-        "PREVIEW": "Previsualizar"
+        "PREVIEW": "Previsualizar",
+        "ORIGIN": "Origen de los datos",
+        "ORIGIN_SOURCE": "Una fuente",
+        "ORIGIN_CROSS": "Reporte cruzado",
+        "CROSS_REPORT": "Reporte cruzado",
+        "NO_CROSS_REPORTS": "No hay reportes cruzados todavía.",
+        "CREATE_CROSS_REPORT": "Crear uno"
       },
       "MAP_PLACEHOLDER": "La visualización de mapa no está configurada.",
       "DELTA_UP": "vs anterior",
@@ -318,7 +329,15 @@
       "DATE_TO": "Fecha hasta",
       "APPLY": "Aplicar",
       "CLEAR": "Limpiar",
-      "CHIP": "{key}: {value}"
+      "CHIP": "{key}: {value}",
+      "NO_FILTERS_AVAILABLE": "Este tablero no tiene columnas filtrables: sus widgets usan SQL libre o reportes cruzados.",
+      "ADD_FILTER": "Añadir filtro",
+      "PICK_COLUMN": "Elegir columna…",
+      "REMOVE": "Quitar filtro",
+      "VALUE": "Valor",
+      "CONTAINS": "Contiene…",
+      "YES": "Sí",
+      "NO": "No"
     },
     "SHARE": {
       "TITLE": "Compartir dashboard",

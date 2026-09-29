@@ -207,7 +207,12 @@
       "SAVED_WIDGET": "Widget added to dashboard.",
       "WIDGET_TITLE": "Widget title",
       "TARGET_DASHBOARD": "Target dashboard",
-      "WIDGET_TYPE": "Visualization type"
+      "WIDGET_TYPE": "Visualization type",
+      "NO_DATA_SOURCES": "No data sources configured: a query cannot run without one.",
+      "NO_DATA_SOURCES_CTA": "Create data source",
+      "PICK_DATA_SOURCE": "Pick a data source to run.",
+      "WRITE_QUERY": "Write a SELECT query.",
+      "MULTIPLE_STATEMENTS_HINT": "Paste a SINGLE query: multiple statements separated by ; are not allowed."
     },
     "DASHBOARDS": {
       "TITLE": "Dashboards",
@@ -307,7 +312,13 @@
         "SQL_PLACEHOLDER": "SELECT ...",
         "MARKDOWN": "Markdown content",
         "MARKDOWN_PLACEHOLDER": "Write text using Markdown…",
-        "PREVIEW": "Preview"
+        "PREVIEW": "Preview",
+        "ORIGIN": "Data origin",
+        "ORIGIN_SOURCE": "Single source",
+        "ORIGIN_CROSS": "Cross report",
+        "CROSS_REPORT": "Cross report",
+        "NO_CROSS_REPORTS": "No cross reports yet.",
+        "CREATE_CROSS_REPORT": "Create one"
       },
       "MAP_PLACEHOLDER": "Map visualization is not configured.",
       "DELTA_UP": "vs previous",
@@ -318,7 +329,15 @@
       "DATE_TO": "Date to",
       "APPLY": "Apply",
       "CLEAR": "Clear",
-      "CHIP": "{key}: {value}"
+      "CHIP": "{key}: {value}",
+      "NO_FILTERS_AVAILABLE": "This dashboard has no filterable columns: its widgets use raw SQL or cross reports.",
+      "ADD_FILTER": "Add filter",
+      "PICK_COLUMN": "Pick a column…",
+      "REMOVE": "Remove filter",
+      "VALUE": "Value",
+      "CONTAINS": "Contains…",
+      "YES": "Yes",
+      "NO": "No"
     },
     "SHARE": {
       "TITLE": "Share dashboard",

@@ -65,23 +65,51 @@
           <td style="padding:8px; min-width:260px;">
             <% if row[:connected] %>
               <% if Array(@available_models).any? %>
+                <% selected = Array(pa.remote_models_jabvox) %>
                 <%= form_with url: set_team_models_super_admin_ai_provider_config_path, method: :post, local: true do |f| %>
                   <%= f.hidden_field :provider_account_id, value: pa.id %>
-                  <%= f.select :models,
-                        options_for_select(@available_models, Array(pa.remote_models_jabvox)),
-                        {},
-                        { multiple: true, size: [[@available_models.size, 5].min, 3].max,
-                          style: 'width:240px; font-size:12px;' } %>
-                  <div style="margin-top:4px;">
+                  <%# Casillas agrupadas por proveedor: se elige modelo a modelo ('gpt-4'),
+                      no el proveedor entero. El botón de cada grupo marca/desmarca todos. %>
+                  <div style="max-height:180px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:6px; padding:8px;">
+                    <% @models_by_provider.each do |provider, names| %>
+                      <div style="margin-bottom:8px;" data-jabvox-provider-group>
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                          <strong style="font-size:11px; text-transform:uppercase; color:#374151; letter-spacing:.03em;">
+                            <%= provider %>
+                          </strong>
+                          <button type="button" data-jabvox-toggle-provider
+                                  style="font-size:10px; color:#15605A; background:none; border:none; cursor:pointer; padding:0; text-decoration:underline;">
+                            todos
+                          </button>
+                        </div>
+                        <% names.each do |model| %>
+                          <label style="display:block; font-size:12px; color:#374151; padding:1px 0 1px 8px; cursor:pointer;">
+                            <%= check_box_tag 'models[]', model, selected.include?(model),
+                                  id: "m-#{pa.id}-#{model.parameterize}", style: 'margin-right:5px;' %>
+                            <%= model %>
+                          </label>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </div>
+                  <div style="margin-top:6px;">
                     <%= f.submit 'Guardar modelos', class: 'button' %>
                   </div>
                   <p style="font-size:11px; color:#6b7280; margin:4px 0 0;">
-                    Ninguno seleccionado = acceso a todos.
+                    <% if selected.empty? %>
+                      Acceso a <strong>todos</strong> los modelos.
+                    <% else %>
+                      <%= selected.size %> modelo(s) seleccionado(s). Ninguno = todos.
+                    <% end %>
                   </p>
                 <% end %>
               <% else %>
                 <span style="font-size:12px; color:#6b7280;">
-                  <%= Array(pa.remote_models_jabvox).presence&.join(', ') || 'Todos' %>
+                  <% if Array(pa.remote_models_jabvox).any? %>
+                    <%= pluralize(pa.remote_models_jabvox.size, 'modelo') %> asignado(s)
+                  <% else %>
+                    Todos
+                  <% end %>
                   <br><em>(conecta el proveedor para editarlos)</em>
                 </span>
               <% end %>

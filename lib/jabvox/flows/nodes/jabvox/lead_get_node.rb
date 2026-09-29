@@ -3,8 +3,10 @@
 # jabvox.lead.get — legacy (oculto): lo sustituye jabvox.lead.search modo
 # "Por ID". Devuelve el detalle PLANO de UN lead por su PK interna.
 class Jabvox::Flows::Nodes::Jabvox::LeadGetNode < Jabvox::Flows::Nodes::Jabvox::LeadSearchNode
-  type 'jabvox.lead.get'
-  label 'Obtener Lead'
+  type 'jabvox.contact.get'
+  # Tipo anterior: los flujos guardados lo siguen usando.
+  aliases 'jabvox.lead.get'
+  label 'Obtener Contacto'
 
   def perform
     lead_id = require_id!(param(:leadId), 'el ID interno del lead')

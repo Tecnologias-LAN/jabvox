@@ -199,12 +199,13 @@ class Account < ApplicationRecord
   has_many :jabvox_dialer_call_logs, dependent: :destroy_async
   has_many :jabvox_field_visibilities, dependent: :destroy_async
   has_many :jabvox_campaigns, dependent: :destroy_async
-  has_many :jabvox_leads, dependent: :destroy_async
   has_many :jabvox_affiliates, dependent: :destroy_async
   has_many :jabvox_affiliate_imports, dependent: :destroy_async
   has_many :jabvox_calendar_events, dependent: :destroy_async
   has_many :jabvox_calendar_external_people, dependent: :destroy_async
   has_many :jabvox_agent_availabilities, dependent: :delete_all
+  # Sedes del calendario: dónde se atiende, con su zona horaria y su horario comercial.
+  has_many :jabvox_branches, dependent: :destroy
   has_one :jabvox_form_config, dependent: :destroy
   has_many :jabvox_forms, dependent: :destroy_async
 
@@ -257,7 +258,6 @@ class Account < ApplicationRecord
   has_many :jabvox_conversation_label_logs, class_name: 'JabvoxConversationLabelLog', dependent: :delete_all
   has_many :jabvox_lead_sources, dependent: :destroy
   has_many :jabvox_lead_source_records, dependent: :delete_all
-  has_many :jabvox_deleted_leads, dependent: :delete_all
   has_many :jabvox_export_targets, dependent: :destroy
   has_many :jabvox_export_sync_logs, dependent: :delete_all
   has_many :portals, dependent: :destroy_async, class_name: '::Portal'

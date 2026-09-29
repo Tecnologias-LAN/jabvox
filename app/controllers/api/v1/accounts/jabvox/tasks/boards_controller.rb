@@ -2,6 +2,9 @@ class Api::V1::Accounts::Jabvox::Tasks::BoardsController < Api::V1::Accounts::Ja
   before_action :set_board, only: %i[show update destroy]
   # Managing boards is custom-role gated; standard agents keep historical behavior, admins pass.
   before_action -> { jabvox_gate!('jabvox_tasks_manage') }, only: %i[create update destroy]
+  # Borrar solo el administrador: un tablero o una columna arrastran en cascada
+  # todas sus tareas, y eso no se delega en ningún rol.
+  before_action :ensure_admin_for_destroy!, only: %i[destroy]
 
   def index
     render json: scoped.ordered.map { |b| serialize(b) }
@@ -49,17 +52,36 @@ class Api::V1::Accounts::Jabvox::Tasks::BoardsController < Api::V1::Accounts::Ja
   end
 
   def board_params
-    params.require(:board).permit(:name_jabvox, :description_jabvox, :position_jabvox, :is_active_jabvox)
+    permitted = params.require(:board).permit(:name_jabvox, :description_jabvox, :position_jabvox,
+                                              :is_active_jabvox, :owner_id, :copy_to_assignee_board_jabvox)
+    # El dueño tiene que ser un usuario de ESTA cuenta: si no, se descarta en vez de
+    # guardar un tablero apuntando a alguien de fuera.
+    permitted[:owner_id] = sanitized_owner_id if permitted.key?(:owner_id)
+    permitted
+  end
+
+  def sanitized_owner_id
+    id = params[:board][:owner_id].presence&.to_i
+    return nil if id.nil?
+
+    AccountUser.exists?(account_id: Current.account.id, user_id: id) ? id : nil
   end
 
   def serialize(board, detailed: false)
     base = {
       id: board.id, name_jabvox: board.name_jabvox, description_jabvox: board.description_jabvox,
-      position_jabvox: board.position_jabvox, is_active_jabvox: board.is_active_jabvox
+      position_jabvox: board.position_jabvox, is_active_jabvox: board.is_active_jabvox,
+      owner_id: board.owner_id,
+      copy_to_assignee_board_jabvox: board.copy_to_assignee_board_jabvox
     }
     return base unless detailed
 
-    base.merge(stages: board.stages.ordered.map { |s| stage_json(s) })
+    base.merge(
+      stages: board.stages.ordered.map { |s| stage_json(s) },
+      assignee_board_targets: board.assignee_board_targets.map do |t|
+        { id: t.id, owner_id: t.owner_id, target_board_id: t.target_board_id }
+      end
+    )
   end
 
   def stage_json(stage)

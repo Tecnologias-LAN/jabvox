@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { getInboxIconByType } from 'dashboard/helper/inbox';
 import { useRouter, useRoute } from 'vue-router';
 import { frontendURL, conversationUrl } from 'dashboard/helper/URLHelper.js';
-import { dynamicTime, shortTimestamp } from 'shared/helpers/timeHelper';
+import { exactTimestamp } from 'shared/helpers/timeHelper';
 
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
@@ -52,10 +52,11 @@ const inboxIcon = computed(() => {
   return getInboxIconByType(channelType, medium, 'fill', voiceEnabled);
 });
 
-const lastActivityAt = computed(() => {
-  const timestamp = props.conversation?.timestamp;
-  return timestamp ? shortTimestamp(dynamicTime(timestamp)) : '';
-});
+// Hora exacta en vez de tiempo transcurrido ("10:37 PM" en lugar de "12h"): se lee la hora
+// real de la última actividad sin tener que calcularla.
+const lastActivityAt = computed(() =>
+  exactTimestamp(props.conversation?.timestamp)
+);
 
 const showMessagePreviewWithoutMeta = computed(() => {
   const { labels = [] } = props.conversation;

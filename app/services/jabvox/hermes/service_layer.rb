@@ -79,8 +79,6 @@ class Jabvox::Hermes::ServiceLayer
     'POST webhooks' => :create_hermes_webhook,
     'POST webhooks/inbox' => :create_hermes_inbox_webhook,
     # Leads
-    'GET jabvox/leads' => :search_leads,
-    'GET jabvox/leads/:id' => :get_lead,
     # Gestiones
     'GET jabvox/management_states' => :list_management_states,
     'POST jabvox/management_states' => :create_management_state,
@@ -221,8 +219,6 @@ class Jabvox::Hermes::ServiceLayer
     'PATCH jabvox/task_boards/:id' => :update_task_board,
     'POST jabvox/task_stages' => :create_task_stage,
     'PATCH jabvox/task_stages/:id' => :update_task_stage,
-    'POST jabvox/task_lead_contacts' => :create_task_lead_contact,
-    'PATCH jabvox/task_lead_contacts/:id' => :update_task_lead_contact,
     # Calendario
     'POST jabvox/calendar/events' => :create_calendar_event,
     'PATCH jabvox/calendar/events/:id' => :update_calendar_event,
@@ -300,12 +296,6 @@ class Jabvox::Hermes::ServiceLayer
     'POST jabvox/tax_rates' => :create_tax_rate,
     'PATCH jabvox/tax_rates/:id' => :update_tax_rate,
     # Leads
-    'POST jabvox/leads/bulk_assign' => :bulk_assign_leads,
-    'POST jabvox/leads/bulk_unassign' => :bulk_unassign_leads,
-    'PATCH jabvox/leads/:id/details' => :update_lead_details,
-    'PATCH jabvox/leads/:id/custom_fields' => :update_lead_custom_fields,
-    'POST jabvox/leads/:id/claim' => :claim_lead,
-    'POST jabvox/leads/sync_contacts' => :sync_lead_contacts,
     # Afiliados
     'POST jabvox/affiliates' => :create_affiliate,
     'PATCH jabvox/affiliates/:id' => :update_affiliate,

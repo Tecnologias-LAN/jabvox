@@ -1,0 +1,125 @@
+{
+  "JABVOX_CONTACTS": {
+    "TITLE": "Contacts",
+    "TOTAL": "{count} contacts",
+    "STAGES": {
+      "ALL": "All"
+    },
+    "FILTERS": {
+      "NAME": "Name",
+      "PHONE": "Phone",
+      "EMAIL": "Email",
+      "DOCUMENT": "Document",
+      "CAMPAIGN": "Campaign",
+      "ASSIGNEE": "Assigned to",
+      "INBOX": "Inbox",
+      "AFFILIATE": "Affiliate",
+      "OWN": "Own",
+      "MANAGEMENT": "Management state",
+      "SOLD_ANY": "Sale: all",
+      "SOLD_SALES": "With sale",
+      "SOLD_QUOTES": "With quote",
+      "ADVANCED": "More filters",
+      "CLEAR": "Clear",
+      "TITLE": "Filters",
+      "APPLY": "Apply",
+      "CUSTOM": "Custom fields",
+      "NO_VALUES": "No values",
+      "NO_MATCHES": "No contact on this page matches the filters.",
+      "COUNTRY": "Country",
+      "ID": "ID",
+      "MANAGEMENT_RANGE": "Managements between"
+    },
+    "COLUMNS": {
+      "NAME": "Name",
+      "STAGE": "Stage",
+      "PHONE": "Phone",
+      "EMAIL": "Email",
+      "CAMPAIGN": "Campaign",
+      "ASSIGNEE": "Assigned to",
+      "CREATED": "Created",
+      "COUNTRY": "Country",
+      "TITLE": "Columns",
+      "RESET": "Reset",
+      "AFFILIATE": "Affiliate",
+      "LABELS": "Labels",
+      "MANAGEMENTS": "Managements"
+    },
+    "EMPTY": {
+      "TITLE": "No contacts",
+      "SUBTITLE": "Adjust the filters or create a new contact."
+    },
+    "PAGINATION": "Page {page} of {pages} · {total} total",
+    "ERROR": {
+      "LOAD": "Could not load contacts.",
+      "STAGE": "Could not change the stage."
+    },
+    "SEARCH": "Search contact…",
+    "SELECTION": {
+      "COUNT": "{count} selected",
+      "CLEAR": "Clear selection",
+      "ALL": "Select all"
+    },
+    "DETAIL": {
+      "GROUPS": {
+        "CONTACT": "Contact",
+        "ACTIVITY": "Activity"
+      },
+      "TABS": {
+        "ATTRIBUTES": "Attributes",
+        "NOTES": "Notes",
+        "MEDIA": "Media",
+        "MERGE": "Merge",
+        "MANAGEMENTS": "Managements",
+        "ORDERS": "Products",
+        "RECORDS": "Records",
+        "HISTORY": "History"
+      },
+      "EMPTY": {
+        "MANAGEMENTS": "No managements recorded.",
+        "ORDERS": "No orders or quotes.",
+        "RECORDS": "No call records."
+      },
+      "CHAT": {
+        "EMPTY": "This contact has no conversations.",
+        "EMPTY_HINT": "When they write through any channel, the conversation will appear here.",
+        "NO_INBOX": "No inbox"
+      },
+      "NO_STATE": "No state",
+      "NO_NUMBER": "No number",
+      "BACK": "Back",
+      "TITLE": "Contact",
+      "BLOCK": "Block",
+      "UNBLOCK": "Unblock",
+      "DELETE": "Delete",
+      "MANAGEMENT": {
+        "TITLE": "New management",
+        "ADD": "Add management",
+        "GROUP": "State",
+        "STATE": "Substate",
+        "SELECT": "Select…",
+        "NO_GROUP": "No group",
+        "NOTE": "Note",
+        "NOTE_REQUIRED": "Note (required)",
+        "NOTE_HINT": "Management details…",
+        "SAVE": "Save",
+        "CANCEL": "Cancel",
+        "CLOSE": "Close",
+        "SAVED": "Management saved.",
+        "ERROR": "Could not save the management."
+      },
+      "CUSTOM_FIELDS": "Custom fields",
+      "CUSTOM_FIELD_NONE": "No value",
+      "CUSTOM_FIELD_YES": "Yes",
+      "CUSTOM_FIELD_NO": "No",
+      "SAVE_JABVOX": "Save Jabvox fields",
+      "UNASSIGNED": "Unassigned"
+    },
+    "LIFECYCLE": {
+      "PROSPECTO": "Prospect",
+      "INTERESADO": "Interested",
+      "CLIENTE": "Customer",
+      "INACTIVO": "Inactive"
+    }
+  }
+}

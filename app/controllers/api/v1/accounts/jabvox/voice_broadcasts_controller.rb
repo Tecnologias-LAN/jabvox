@@ -83,12 +83,13 @@ class Api::V1::Accounts::Jabvox::VoiceBroadcastsController < Api::V1::Accounts::
   def preview_leads
     page = [params[:page].to_i, 1].max
     per = 25
-    leads = @broadcast.target_leads_scope.includes(:contact).limit(per).offset((page - 1) * per)
+    # El scope devuelve contactos: se conservan las claves `lead_*` que el frontend ya
+    # consume para no romperlo mientras se renombra la pantalla.
+    leads = @broadcast.target_leads_scope.limit(per).offset((page - 1) * per)
     render json: {
       page: page,
-      leads: leads.map do |l|
-        c = l.contact
-        { lead_id: l.id, contact_id: c&.id, name: c&.name, phone: c&.phone_number, email: c&.email }
+      leads: leads.map do |c|
+        { lead_id: c.id, contact_id: c.id, name: c.name, phone: c.phone_number, email: c.email }
       end
     }
   end
@@ -356,7 +357,7 @@ class Api::V1::Accounts::Jabvox::VoiceBroadcastsController < Api::V1::Accounts::
   end
 
   def leads_scope_from_params(with_exclusions: true)
-    Jabvox::VoiceBroadcast::LeadsFilterService.new(Current.account, filter_params_hash(with_exclusions: with_exclusions)).scope
+    Jabvox::VoiceBroadcast::ContactsFilterService.new(Current.account, filter_params_hash(with_exclusions: with_exclusions)).scope
   end
 
   def preview_lead_json(lead)
@@ -368,7 +369,7 @@ class Api::V1::Accounts::Jabvox::VoiceBroadcastsController < Api::V1::Accounts::
   # claves descubiertas en los datos (variantes _c), para que todo campo sea filtrable.
   # Usa Jabvox::LeadCustomFilter (clase NEUTRAL compartida, no del marcador).
   def lead_custom_fields # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity
-    table = Current.account.jabvox_custom_tables.for_leads.first
+    table = Current.account.jabvox_custom_tables.for_contacts.first
     columns = table ? table.jabvox_custom_columns.ordered : []
     defined_keys = columns.map(&:name_jabvox)
     defined_expanded = defined_keys.flat_map { |k| Jabvox::LeadCustomFilter.key_variants(k) }

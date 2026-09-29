@@ -10,6 +10,9 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   sort_on :country, internal_name: :order_on_country_name, type: :scope, scope_params: [:direction]
 
   RESULTS_PER_PAGE = 15
+  # Tamaños que el usuario puede elegir en el pie de la lista. Se valida contra esta lista
+  # para que un `per_page` arbitrario no pueda pedir la tabla entera.
+  ALLOWED_PER_PAGE = [15, 25, 50, 100].freeze
 
   before_action :check_authorization
   before_action :set_current_page, only: [:index, :active, :search, :filter]
@@ -131,12 +134,10 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
 
   def destroy
     conversation_ids = @contact.conversations.select(:id)
-    lead_ids = JabvoxLead.where(contact_id: @contact.id).pluck(:id)
     JabvoxKanbanConversationStage.where(conversation_id: conversation_ids).or(
-      JabvoxKanbanConversationStage.where(jabvox_lead_id: lead_ids)
+      JabvoxKanbanConversationStage.where(contact_id: @contact.id)
     ).delete_all
     JabvoxCalendarEvent.where(contact_id: @contact.id).delete_all
-    JabvoxLead.where(id: lead_ids).delete_all
     JabvoxSmsMessage.where(contact_id: @contact.id).delete_all
     @contact.destroy!
     head :ok
@@ -197,7 +198,13 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
     filtrate(contacts)
       .includes(includes_hash)
       .page(@current_page)
-      .per(RESULTS_PER_PAGE)
+      .per(results_per_page)
+  end
+
+  # Tamaño de página pedido por el usuario, acotado a los valores permitidos.
+  def results_per_page
+    requested = params[:per_page].to_i
+    ALLOWED_PER_PAGE.include?(requested) ? requested : RESULTS_PER_PAGE
   end
 
   def fetch_contacts_with_has_more(contacts)
@@ -205,15 +212,16 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
     includes_hash[:contact_inboxes] = { inbox: :channel } if @include_contact_inboxes
 
     # Calculate offset manually to fetch one extra record for has_more check
-    offset = (@current_page.to_i - 1) * RESULTS_PER_PAGE
+    per_page = results_per_page
+    offset = (@current_page.to_i - 1) * per_page
     results = filtrate(contacts)
               .includes(includes_hash)
               .offset(offset)
-              .limit(RESULTS_PER_PAGE + 1)
+              .limit(per_page + 1)
               .to_a
 
-    @has_more = results.size > RESULTS_PER_PAGE
-    results = results.first(RESULTS_PER_PAGE) if @has_more
+    @has_more = results.size > per_page
+    results = results.first(per_page) if @has_more
     @contacts_count = results.size
     results
   end
@@ -269,6 +277,20 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
     permitted_params.except(:custom_attributes, :avatar_url)
                     .merge({ custom_attributes: contact_custom_attributes })
                     .merge({ additional_attributes: contact_additional_attributes })
+                    .merge(jabvox_campaign_params)
+  end
+
+  # La campaña del contacto se elige POR NOMBRE desde la ficha (el desplegable lista los
+  # nombres de la cuenta). Antes esto vivía en el lead; ahora es una columna del contacto.
+  # Solo se toca cuando la clave viene en la petición: omitirla no desasigna.
+  def jabvox_campaign_params
+    return {} unless params.key?(:jabvox_campaign_name)
+
+    name = params[:jabvox_campaign_name].to_s.strip
+    return { jabvox_campaign_id: nil } if name.blank?
+
+    campaign = Current.account.jabvox_campaigns.find_by(name_jabvox: name)
+    campaign ? { jabvox_campaign_id: campaign.id } : {}
   end
 
   def set_include_contact_inboxes

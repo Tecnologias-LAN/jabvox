@@ -53,6 +53,14 @@ watch(selectedFunnelId, async newId => {
   }
 });
 
+// Recarga el tablero tras un cambio hecho desde el detalle (por ejemplo la etapa del
+// contacto, que las tarjetas pintan), para que no quede desfasado.
+const reloadBoard = () => {
+  if (selectedFunnelId.value) {
+    store.dispatch('jabvoxKanban/fetchBoard', selectedFunnelId.value);
+  }
+};
+
 const onSelectFunnel = id => {
   selectedFunnelId.value = id;
   isDetailOpen.value = false;
@@ -184,6 +192,7 @@ const onMoveLead = async ({ leadId, stageId }) => {
         <KanbanLeadDetail
           :conversation="selectedConversation"
           @close="onCloseDetail"
+          @refresh="reloadBoard"
         />
       </div>
     </div>

@@ -123,6 +123,48 @@ conversations:
       - "contains"
       - "does_not_contain"
 
+  # Datos del CONTACTO de la conversación. Viven en otra tabla, así que llevan su propio
+  # attribute_type: el helper de filtros los resuelve con un subquery contra `contacts` en
+  # vez de buscar la columna en `conversations`.
+  contact_name:
+    attribute_type: "contact_attribute"
+    data_type: "text_case_insensitive"
+    contact_column: "name"
+    filter_operators:
+      - "equal_to"
+      - "not_equal_to"
+      - "contains"
+      - "does_not_contain"
+  contact_phone_number:
+    attribute_type: "contact_attribute"
+    data_type: "text"
+    contact_column: "phone_number"
+    filter_operators:
+      - "equal_to"
+      - "not_equal_to"
+      - "contains"
+      - "does_not_contain"
+      - "starts_with"
+  contact_email:
+    attribute_type: "contact_attribute"
+    data_type: "text_case_insensitive"
+    contact_column: "email"
+    filter_operators:
+      - "equal_to"
+      - "not_equal_to"
+      - "contains"
+      - "does_not_contain"
+  # El documento (cédula/NIT) se guarda en additional_attributes del contacto.
+  contact_identification:
+    attribute_type: "contact_jsonb_attribute"
+    data_type: "text_case_insensitive"
+    contact_column: "jabvox_identification_number"
+    filter_operators:
+      - "equal_to"
+      - "not_equal_to"
+      - "contains"
+      - "does_not_contain"
+
 ### ----- End of Conversation Filters ----- ###
 
 

@@ -15,12 +15,23 @@ import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
 
+// Se pasa `contactId` (ficha unificada del contacto) o `leadId` (pantallas de lead, que
+// desaparecerán). Las filas son las mismas y viven en las mismas tablas; solo cambia de qué
+// registro cuelgan, así que basta con elegir el juego de acciones del store.
 const props = defineProps({
-  leadId: { type: [Number, String], required: true },
+  leadId: { type: [Number, String], default: null },
+  contactId: { type: [Number, String], default: null },
 });
 
 const store = useStore();
 const { t } = useI18n();
+
+const byContact = () => props.contactId != null && props.contactId !== '';
+const ownerId = () => Number(byContact() ? props.contactId : props.leadId);
+// Nombre de la acción y clave del id, según de quién cuelguen las filas.
+const rowAction = verb =>
+  `jabvoxCustomization/${verb}${byContact() ? 'Contact' : 'Lead'}TableRow`;
+const ownerKey = () => (byContact() ? 'contactId' : 'leadId');
 
 const tables = ref([]); // [{ table_id, table_name, columns, rows: [{row_id,data}] }]
 const loading = ref(false);
@@ -61,12 +72,12 @@ const visibleColumns = (table, data) =>
   table.columns.filter(col => isVisible(col, data));
 
 const load = async () => {
-  if (!props.leadId) return;
+  if (!ownerId()) return;
   loading.value = true;
   try {
     const data = await store.dispatch(
-      'jabvoxCustomization/fetchLeadTableRows',
-      Number(props.leadId)
+      `jabvoxCustomization/fetch${byContact() ? 'Contact' : 'Lead'}TableRows`,
+      ownerId()
     );
     tables.value = Array.isArray(data) ? data : [];
   } catch {
@@ -76,7 +87,7 @@ const load = async () => {
   }
 };
 
-watch(() => props.leadId, load, { immediate: true });
+watch(() => [props.leadId, props.contactId], load, { immediate: true });
 
 const toggle = tableId => {
   expanded[tableId] = !expanded[tableId];
@@ -141,15 +152,15 @@ const saveRow = async table => {
   try {
     const rowData = prunedData(table);
     if (draft.rowId) {
-      await store.dispatch('jabvoxCustomization/updateLeadTableRow', {
-        leadId: Number(props.leadId),
+      await store.dispatch(rowAction('update'), {
+        [ownerKey()]: ownerId(),
         tableId: table.table_id,
         rowId: draft.rowId,
         rowData,
       });
     } else {
-      await store.dispatch('jabvoxCustomization/createLeadTableRow', {
-        leadId: Number(props.leadId),
+      await store.dispatch(rowAction('create'), {
+        [ownerKey()]: ownerId(),
         tableId: table.table_id,
         rowData,
       });
@@ -170,8 +181,8 @@ const deleteRow = async (table, row) => {
   if (!window.confirm(t('JABVOX_CUSTOMIZATION.LEAD_ROWS.DELETE_CONFIRM')))
     return;
   try {
-    await store.dispatch('jabvoxCustomization/deleteLeadTableRow', {
-      leadId: Number(props.leadId),
+    await store.dispatch(rowAction('delete'), {
+      [ownerKey()]: ownerId(),
       tableId: table.table_id,
       rowId: row.row_id,
     });

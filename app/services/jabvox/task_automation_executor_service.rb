@@ -6,7 +6,8 @@ class Jabvox::TaskAutomationExecutorService
     @task = task
     @account = task.account
     @stage = task.stage
-    @contact = @task.jabvox_lead&.contact
+    # El contacto cuelga de la tarea desde que se retiró Leads.
+    @contact = @task.contact
   end
 
   def perform

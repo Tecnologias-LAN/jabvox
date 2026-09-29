@@ -231,7 +231,7 @@ class Jabvox::LeadImport::SyncService
     raise 'sin id externo' if external_id.blank?
 
     record = @source.records.find_by(external_id_jabvox: external_id)
-    lead = record&.jabvox_lead
+    lead = record&.contact
     creating = lead.nil?
 
     lead ||= build_lead_for(row)
@@ -239,7 +239,7 @@ class Jabvox::LeadImport::SyncService
 
     unless record
       @source.records.create!(account: @account, external_id_jabvox: external_id,
-                              jabvox_lead: lead, last_synced_at_jabvox: Time.current)
+                              contact: lead, last_synced_at_jabvox: Time.current)
     end
     record&.update!(last_synced_at_jabvox: Time.current)
 
@@ -249,12 +249,11 @@ class Jabvox::LeadImport::SyncService
   # Finds a contact by phone, then by email (mapped), or creates one with
   # whatever the row brings. Matching on both keys avoids duplicate contacts
   # when a source row shares an email but not a phone with an existing one.
+  # El registro importado ES el contacto: tras retirar Leads no hay fila intermedia.
   def build_lead_for(row)
     phone = normalized_phone(mapped_value(row, 'phone'))
     email = normalized_email(mapped_value(row, 'email'))
-    contact = find_contact_by_phone(phone) || find_contact_by_email(email)
-    contact ||= create_contact(row, phone)
-    @account.jabvox_leads.find_or_create_by!(contact: contact)
+    find_contact_by_phone(phone) || find_contact_by_email(email) || create_contact(row, phone)
   end
 
   # Ensures the lead's campaign is the one named after this connection (the
@@ -312,12 +311,11 @@ class Jabvox::LeadImport::SyncService
     end
   end
 
-  # Applies the field mapping. A lead is backed by a Contact, so standard fields
-  # map to the contact (direct columns, additional_attributes keys, or social
-  # profiles); 'custom' fields go to the lead's custom columns row. Notes are
-  # never touched here.
+  # Aplica el mapeo de campos sobre el CONTACTO: los estándar van a sus columnas,
+  # additional_attributes o redes sociales; los 'custom', a sus campos personalizados. Las
+  # notas no se tocan aquí.
   def apply_mapping(lead, row)
-    contact = lead.contact
+    contact = lead
     custom = {}
     attrs = (contact.additional_attributes || {}).dup
     socials = (attrs['social_profiles'] || {}).dup
@@ -338,14 +336,13 @@ class Jabvox::LeadImport::SyncService
       end
     end
 
-    # Los leads importados desde una BD externa siempre son personas: si el
+    # Los registros importados desde una BD externa siempre son personas: si el
     # contacto aún no tiene tipo definido, lo dejamos en "persona" por defecto.
     attrs['jabvox_contact_type'] = 'persona' if attrs['jabvox_contact_type'].blank?
 
     attrs['social_profiles'] = socials if socials.any?
     contact.additional_attributes = attrs
     save_contact(contact)
-    lead.save!
     # Tag with the connection-named campaign (runs on both create and update so
     # a re-sync backfills leads imported before this was added).
     assign_import_campaign(lead)

@@ -20,6 +20,8 @@ const newKeyBudget = ref('');
 const search = ref('');
 // Catálogo de modelos del proveedor y modelos a los que está limitado el team.
 const availableModels = ref([]);
+// Catálogo con el proveedor de cada modelo: [{ name: 'gpt-4', provider: 'openai' }, ...]
+const modelCatalog = ref([]);
 const teamModels = ref([]);
 // Modelos elegidos al crear una key, y al editar una existente.
 const newKeyModels = ref([]);
@@ -61,6 +63,7 @@ const refreshKeys = async () => {
   const res = await aiBudgetAPI.keys();
   keys.value = res.data?.keys || [];
   availableModels.value = res.data?.available_models || [];
+  modelCatalog.value = res.data?.model_catalog || [];
   teamModels.value = res.data?.team_models || [];
 };
 
@@ -68,6 +71,37 @@ const refreshKeys = async () => {
 const selectableModels = computed(() =>
   teamModels.value.length ? teamModels.value : availableModels.value
 );
+
+// Los mismos modelos agrupados por proveedor, para elegir uno a uno sin perder de vista
+// de quién es cada cual: [{ provider: 'openai', models: ['gpt-4', ...] }, ...]
+const modelsByProvider = computed(() => {
+  const allowed = new Set(selectableModels.value);
+  const groups = new Map();
+  modelCatalog.value.forEach(({ name, provider }) => {
+    if (!allowed.has(name)) return;
+    const key = provider || 'otros';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(name);
+  });
+  // Modelos sin entrada en el catálogo (p. ej. asignados a mano en el proveedor).
+  const listed = new Set(modelCatalog.value.map(m => m.name));
+  const orphans = selectableModels.value.filter(m => !listed.has(m));
+  if (orphans.length) groups.set('otros', [...(groups.get('otros') || []), ...orphans]);
+
+  return [...groups.entries()]
+    .map(([provider, models]) => ({ provider, models: models.slice().sort() }))
+    .sort((a, b) => a.provider.localeCompare(b.provider));
+});
+
+// Marca o desmarca de golpe todos los modelos de un proveedor.
+const toggleProvider = (list, models) => {
+  const allSelected = models.every(m => list.includes(m));
+  models.forEach(m => {
+    const i = list.indexOf(m);
+    if (allSelected && i !== -1) list.splice(i, 1);
+    else if (!allSelected && i === -1) list.push(m);
+  });
+};
 
 // Si el proveedor no responde, la lista de keys falla pero el saldo ya está cargado. Se
 // avisa de forma concreta en vez de decir "no se pudo cargar el saldo" con el saldo visible.
@@ -429,25 +463,47 @@ onMounted(fetchAll);
                 />
               </div>
               <!-- Modelos de la key: sin selección hereda los del team -->
-              <div v-if="selectableModels.length">
+              <div v-if="modelsByProvider.length">
                 <p class="mb-2 text-sm font-medium text-n-slate-12">
                   {{ t('JABVOX_AI_BUDGET.MODELS') }}
                 </p>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="m in selectableModels"
-                    :key="m"
-                    type="button"
-                    class="rounded-lg border px-2.5 py-1 text-xs transition-colors"
-                    :class="
-                      newKeyModels.includes(m)
-                        ? 'border-n-brand bg-n-alpha-2 text-n-slate-12'
-                        : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
-                    "
-                    @click="toggleModel(newKeyModels, m)"
+                <div class="flex flex-col gap-3">
+                  <div
+                    v-for="group in modelsByProvider"
+                    :key="group.provider"
+                    class="rounded-xl border border-n-weak p-3"
                   >
-                    {{ m }}
-                  </button>
+                    <div class="mb-2 flex items-center justify-between gap-2">
+                      <span
+                        class="text-xs font-semibold uppercase tracking-wide text-n-slate-11"
+                      >
+                        {{ group.provider }}
+                      </span>
+                      <button
+                        type="button"
+                        class="text-xs text-n-brand hover:underline"
+                        @click="toggleProvider(newKeyModels, group.models)"
+                      >
+                        {{ t('JABVOX_AI_BUDGET.SELECT_ALL') }}
+                      </button>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                      <button
+                        v-for="m in group.models"
+                        :key="m"
+                        type="button"
+                        class="rounded-lg border px-2.5 py-1 text-xs transition-colors"
+                        :class="
+                          newKeyModels.includes(m)
+                            ? 'border-n-brand bg-n-alpha-2 text-n-slate-12'
+                            : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+                        "
+                        @click="toggleModel(newKeyModels, m)"
+                      >
+                        {{ m }}
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <p class="mt-2 text-xs text-n-slate-10">
                   {{ t('JABVOX_AI_BUDGET.MODELS_HINT') }}
@@ -694,25 +750,47 @@ onMounted(fetchAll);
           :label="t('JABVOX_AI_BUDGET.EDIT_BUDGET_PROMPT')"
           placeholder="USD"
         />
-        <div v-if="selectableModels.length">
+        <div v-if="modelsByProvider.length">
           <p class="mb-2 text-sm font-medium text-n-slate-12">
             {{ t('JABVOX_AI_BUDGET.EDIT_MODELS') }}
           </p>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="m in selectableModels"
-              :key="m"
-              type="button"
-              class="rounded-lg border px-2.5 py-1 text-xs transition-colors"
-              :class="
-                editModels.includes(m)
-                  ? 'border-n-brand bg-n-alpha-2 text-n-slate-12'
-                  : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
-              "
-              @click="toggleModel(editModels, m)"
+          <div class="flex flex-col gap-3">
+            <div
+              v-for="group in modelsByProvider"
+              :key="group.provider"
+              class="rounded-xl border border-n-weak p-3"
             >
-              {{ m }}
-            </button>
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <span
+                  class="text-xs font-semibold uppercase tracking-wide text-n-slate-11"
+                >
+                  {{ group.provider }}
+                </span>
+                <button
+                  type="button"
+                  class="text-xs text-n-brand hover:underline"
+                  @click="toggleProvider(editModels, group.models)"
+                >
+                  {{ t('JABVOX_AI_BUDGET.SELECT_ALL') }}
+                </button>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="m in group.models"
+                  :key="m"
+                  type="button"
+                  class="rounded-lg border px-2.5 py-1 text-xs transition-colors"
+                  :class="
+                    editModels.includes(m)
+                      ? 'border-n-brand bg-n-alpha-2 text-n-slate-12'
+                      : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+                  "
+                  @click="toggleModel(editModels, m)"
+                >
+                  {{ m }}
+                </button>
+              </div>
+            </div>
           </div>
           <p class="mt-2 text-xs text-n-slate-10">
             {{ t('JABVOX_AI_BUDGET.MODELS_HINT') }}

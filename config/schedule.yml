@@ -107,14 +107,6 @@ jabvox_expired_access_tokens_sweeper_job:
   class: 'Jabvox::ExpiredAccessTokensSweeperJob'
   queue: scheduled_jobs
 
-# executed daily at 2300 UTC — permanently purges trashed imported leads whose
-# 30-day retention window has passed (restore is only possible before then).
-jabvox_lead_import_purge_trash_job:
-  cron: '0 23 * * *'
-  class: 'Jabvox::LeadImport::PurgeTrashJob'
-  # Cola aislada: sidekiq-cron sobrescribe el queue_as de la clase con este valor.
-  queue: jabvox_lead_import
-
 
 # cada 10 min — libera fuentes de lead-import colgadas en 'syncing' (worker o
 # servidor reiniciado a mitad de sync), para que se puedan relanzar.
@@ -234,4 +226,11 @@ jabvox_ai_provider_monthly_budget_reset_job:
 jabvox_provisioner_nonce_purge_job:
   cron: '*/15 * * * *'
   class: 'Jabvox::Provisioner::NoncePurgeJob'
+  queue: scheduled_jobs
+
+# Jabvox Tasks: recordatorio de lo que vence y apartado de lo vencido sin completar.
+# A las 7:00 para que el aviso llegue al empezar la jornada, no de madrugada.
+jabvox_task_due_sweeper_job:
+  cron: '0 7 * * *'
+  class: 'Jabvox::TaskDueSweeperJob'
   queue: scheduled_jobs

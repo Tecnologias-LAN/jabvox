@@ -8,6 +8,7 @@ export const useAnalyticsDataSourcesStore = defineStore(
     state: () => ({
       records: [],
       schemaByDsId: {},
+      statsByDsId: {},
       testResultByDsId: {},
       uiFlags: {
         fetchingList: false,
@@ -25,6 +26,7 @@ export const useAnalyticsDataSourcesStore = defineStore(
           deep: true,
         }),
       schemaFor: state => id => state.schemaByDsId[id],
+      statsFor: state => id => state.statsByDsId[id],
       testResultFor: state => id => state.testResultByDsId[id],
     },
 
@@ -85,6 +87,18 @@ export const useAnalyticsDataSourcesStore = defineStore(
           return camelcaseKeys(data, { deep: true });
         } finally {
           this.uiFlags.testing = false;
+        }
+      },
+
+      // Conteo de tablas/vistas por fuente. Falla en silencio: es informativo y no debe
+      // impedir que la lista se pinte si una fuente está caída.
+      async fetchStats(id) {
+        try {
+          const { data } = await analyticsDataSourcesAPI.stats(id);
+          this.statsByDsId = { ...this.statsByDsId, [id]: data };
+          return data;
+        } catch {
+          return null;
         }
       },
 

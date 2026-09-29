@@ -939,7 +939,6 @@ module Jabvox
 
       crm      = Contact.find_by(id: contact.contact_id, account_id: @account_id)
       campaign = account.jabvox_dialer_campaigns.find_by(id: campaign_id)
-      lead     = account.jabvox_leads.find_by(contact_id: contact.contact_id)
       return unless crm && campaign
 
       raw = Redis::Alfred.get("jabvox_dialer_agent_#{@account_id}_#{user_id}")
@@ -972,7 +971,7 @@ module Jabvox
         # Documento y tipo de persona: mismos campos que muestra el detalle del lead
         # (additional_attributes). El documento cae al helper de campos custom si no
         # está en additional_attributes, igual que el preview de la campaña.
-        contact_document: fv['identification'] == false ? '***' : dialer_document(lead, attrs, crm),
+        contact_document: fv['identification'] == false ? '***' : dialer_document(crm, attrs, crm),
         contact_type: fv['contact_type'] == false ? '***' : (attrs['jabvox_contact_type'].presence || 'persona'),
         contact_id: contact.contact_id,
         lead_id: lead&.id,
@@ -997,11 +996,12 @@ module Jabvox
     #   1) additional_attributes.jabvox_identification_number (detalle del lead)
     #   2) campos custom del lead (documento/document/cedula/dni/nit/identificacion)
     #   3) contact.identifier (columna del contacto — último fallback del preview)
-    def dialer_document(lead, attrs, crm)
+    # `record` es el propio contacto: lleva custom_fields_jabvox desde la unificación.
+    def dialer_document(record, attrs, crm)
       doc = attrs['jabvox_identification_number'].to_s
       return doc if doc.present?
 
-      custom = lead&.custom_fields_jabvox || {}
+      custom = record&.custom_fields_jabvox || {}
       %w[documento document cedula dni nit identificacion identification].each do |k|
         v = custom[k].to_s
         return v if v.present?

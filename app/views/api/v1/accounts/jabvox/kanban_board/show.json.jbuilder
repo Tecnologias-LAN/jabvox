@@ -33,6 +33,9 @@ json.stages @board[:stages] do |stage_data|
         json.email jabvox_mask('email', contact.email)
         json.phone_number jabvox_mask('phone', contact.phone_number)
         json.avatar_url contact.avatar_url
+        # Etapa del ciclo de vida: la tarjeta la muestra para saber de un vistazo si es
+        # prospecto, cliente o está inactivo.
+        json.lifecycle_stage contact.lifecycle_stage
       else
         json.null!
       end
@@ -74,6 +77,7 @@ json.stages @board[:stages] do |stage_data|
       json.email c[:email]
       json.phone_number c[:phone_number]
       json.avatar_url c[:avatar_url]
+      json.lifecycle_stage c[:lifecycle_stage]
     end
   end
 end

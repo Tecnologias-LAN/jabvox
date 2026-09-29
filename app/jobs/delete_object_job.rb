@@ -170,15 +170,11 @@ class DeleteObjectJob < ApplicationJob
     contact_ids = inbox.contact_inboxes.pluck(:contact_id)
     return if contact_ids.empty?
 
-    lead_ids = inbox.account.jabvox_leads.where(contact_id: contact_ids).pluck(:id)
-    return if lead_ids.empty?
-
-    JabvoxKanbanConversationStage.where(jabvox_lead_id: lead_ids).delete_all
-    # Custom-table rows (Asesorías, Casos…) belong to the lead; clear them
-    # before the callback-free delete_all. The FK is ON DELETE CASCADE too, so
-    # this is belt-and-suspenders — the delete can never be blocked.
-    JabvoxCustomTableRow.where(jabvox_lead_id: lead_ids).delete_all
-    inbox.account.jabvox_leads.where(id: lead_ids).delete_all
+    JabvoxKanbanConversationStage.where(contact_id: contact_ids).delete_all
+    # Las filas de tablas personalizadas (Asesorías, Casos…) cuelgan del contacto; se limpian
+    # antes del delete_all sin callbacks. La FK es ON DELETE CASCADE, así que esto es un
+    # refuerzo: el borrado nunca puede quedar bloqueado.
+    JabvoxCustomTableRow.where(contact_id: contact_ids).delete_all
 
     contact_ids.each_slice(BATCH_SIZE) do |slice|
       slice.each do |contact_id|
@@ -196,7 +192,7 @@ class DeleteObjectJob < ApplicationJob
 
   def heavy_associations
     {
-      Account => %i[jabvox_leads conversations contacts inboxes reporting_events]
+      Account => %i[conversations contacts inboxes reporting_events]
     }.freeze
   end
 

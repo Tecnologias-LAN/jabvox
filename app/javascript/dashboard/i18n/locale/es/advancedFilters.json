@@ -65,7 +65,11 @@
       "CUSTOM_ATTRIBUTE_LINK": "Enlace",
       "CUSTOM_ATTRIBUTE_CHECKBOX": "Casilla",
       "CREATED_AT": "Creado el",
-      "LAST_ACTIVITY": "Última actividad"
+      "LAST_ACTIVITY": "Última actividad",
+      "CONTACT_NAME": "Nombre del contacto",
+      "CONTACT_PHONE_NUMBER": "Teléfono del contacto",
+      "CONTACT_EMAIL": "Correo del contacto",
+      "CONTACT_IDENTIFICATION": "Documento del contacto"
     },
     "ERRORS": {
       "VALUE_REQUIRED": "El valor es requerido",
