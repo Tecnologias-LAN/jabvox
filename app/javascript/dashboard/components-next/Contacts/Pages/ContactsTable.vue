@@ -257,6 +257,8 @@ const DEFAULT_COLUMNS = [
   { id: 'labels', labelKey: 'JABVOX_CONTACTS.COLUMNS.LABELS' },
   { id: 'managements', labelKey: 'JABVOX_CONTACTS.COLUMNS.MANAGEMENTS' },
 ];
+// Tope de columnas a la vez: más no caben sin que la tabla se vuelva ilegible.
+const MAX_COLUMNS = 10;
 const columnConfig = ref(DEFAULT_COLUMNS.map(c => `d:${c.id}`));
 const storageKey = () => `jabvox_contact_columns_${route.params.accountId}`;
 
@@ -279,13 +281,26 @@ function saveColumnConfig() {
   }
 }
 
-function setColumn(index, value) {
-  columnConfig.value[index] = value;
+function resetColumns() {
+  columnConfig.value = DEFAULT_COLUMNS.map(c => `d:${c.id}`);
   saveColumnConfig();
 }
 
-function resetColumns() {
-  columnConfig.value = DEFAULT_COLUMNS.map(c => `d:${c.id}`);
+// La tabla no puede quedarse sin columnas, así que la última marcada no se desmarca.
+function isColumnLocked(value) {
+  const selected = columnConfig.value.includes(value);
+  if (selected) return columnConfig.value.length === 1;
+  return columnConfig.value.length >= MAX_COLUMNS;
+}
+
+// Marcar y desmarcar respetando el orden en que se eligieron: la columna nueva se añade
+// al final, que es donde el usuario espera verla aparecer.
+function toggleColumn(value) {
+  if (isColumnLocked(value)) return;
+
+  columnConfig.value = columnConfig.value.includes(value)
+    ? columnConfig.value.filter(v => v !== value)
+    : [...columnConfig.value, value];
   saveColumnConfig();
 }
 
@@ -628,27 +643,39 @@ onMounted(() => {
       v-if="showColumns"
       class="rounded-xl border border-n-weak bg-n-alpha-1 p-3"
     >
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div
-          v-for="(cfg, index) in columnConfig"
-          :key="index"
-          class="flex items-center gap-1.5"
+      <!-- Se marcan las columnas que se quieren ver. Antes eran diez huecos fijos con un
+           desplegable cada uno, así que siempre se veían las diez. -->
+      <p class="text-[11px] text-n-slate-10 mb-2">
+        {{ t('JABVOX_CONTACTS.COLUMNS.PICK_HINT') }}
+      </p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1.5">
+        <label
+          v-for="o in columnOptions"
+          :key="o.value"
+          class="flex items-center gap-2 text-xs text-n-slate-11 cursor-pointer rounded-lg px-1.5 py-1 hover:bg-n-alpha-1"
+          :class="{ 'opacity-50 cursor-not-allowed': isColumnLocked(o.value) }"
         >
-          <span class="text-xs text-n-slate-10 tabular-nums w-4">
-            {{ index + 1 }}
-          </span>
-          <select
-            :value="cfg"
-            class="reset-base flex-1 text-xs rounded-lg border border-n-weak bg-n-background px-2 py-1.5 text-n-slate-11"
-            @change="setColumn(index, $event.target.value)"
-          >
-            <option v-for="o in columnOptions" :key="o.value" :value="o.value">
-              {{ o.label }}
-            </option>
-          </select>
-        </div>
+          <input
+            type="checkbox"
+            class="rounded accent-n-brand"
+            :checked="columnConfig.includes(o.value)"
+            :disabled="isColumnLocked(o.value)"
+            @change="toggleColumn(o.value)"
+          />
+          <span class="truncate">{{ o.label }}</span>
+        </label>
       </div>
-      <div class="flex justify-end mt-2">
+      <div
+        class="flex items-center justify-between mt-3 pt-2 border-t border-n-weak"
+      >
+        <span class="text-[11px] text-n-slate-10">
+          {{
+            t('JABVOX_CONTACTS.COLUMNS.SELECTED_COUNT', {
+              count: columnConfig.length,
+              max: MAX_COLUMNS,
+            })
+          }}
+        </span>
         <Button
           variant="ghost"
           size="sm"

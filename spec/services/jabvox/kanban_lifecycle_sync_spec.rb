@@ -85,6 +85,27 @@ RSpec.describe Jabvox::KanbanLifecycleSync, type: :model do
       .not_to(change { cards_in(funnel) })
   end
 
+  # Las tarjetas alimentadas por bandeja se guardan con conversation_id y contact_id nulo:
+  # mirar solo contact_id las dejaba pegadas en el embudo para siempre.
+  it 'retira también la tarjeta que nació de una conversación' do
+    funnel = account.jabvox_kanban_funnels.create!(name_jabvox: 'Por conversación',
+                                                   lifecycle_stages_jabvox: ['cliente'])
+    stage = funnel.jabvox_kanban_stages.create!(account_id: account.id, name_jabvox: 'Nuevo',
+                                                position_jabvox: 1)
+    inbox = create(:inbox, account: account)
+    ci = create(:contact_inbox, contact: contact, inbox: inbox)
+    conv = create(:conversation, account: account, inbox: inbox,
+                                 contact: contact, contact_inbox: ci, status: :open)
+    JabvoxKanbanConversationStage.where(jabvox_kanban_funnel_id: funnel.id).delete_all
+    JabvoxKanbanConversationStage.create!(
+      account_id: account.id, jabvox_kanban_funnel_id: funnel.id,
+      jabvox_kanban_stage_id: stage.id, conversation_id: conv.id
+    )
+
+    expect { contact.advance_lifecycle!('inactivo') }
+      .to change { cards_in(funnel) }.from(1).to(0)
+  end
+
   it 'no deja tarjetas de otras cuentas al alcance' do
     other = create(:account)
     other.update!(jabvox_kanban_enabled_jabvox: true)

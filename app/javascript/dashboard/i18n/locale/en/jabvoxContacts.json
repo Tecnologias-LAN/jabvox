@@ -43,7 +43,9 @@
       "RESET": "Reset",
       "AFFILIATE": "Affiliate",
       "LABELS": "Labels",
-      "MANAGEMENTS": "Managements"
+      "MANAGEMENTS": "Managements",
+      "PICK_HINT": "Tick the columns you want to see in the table.",
+      "SELECTED_COUNT": "{count} of {max} columns"
     },
     "EMPTY": {
       "TITLE": "No contacts",
