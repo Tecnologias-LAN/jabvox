@@ -6,7 +6,9 @@
 # asignado al agente A mientras su conversación sigue sin asignar o con otro agente.
 #
 # Qué se reasigna:
-#   - Solo conversaciones ABIERTAS del contacto (el histórico resuelto/pospuesto no se toca).
+#   - TODAS las conversaciones del contacto, sea cual sea su estado: al filtrar "mías" se
+#     espera encontrar también las resueltas. Cada reasignación deja su entrada en el
+#     historial de la conversación.
 #   - Only when the current assignee differs from the target agent (no-op writes
 #     are skipped, so no spurious events/notifications fire).
 #
@@ -24,7 +26,7 @@ class Jabvox::ContactConversationAssignmentSync
     contact_id = contact.respond_to?(:id) ? contact.id : contact
     return 0 if contact_id.blank?
 
-    reassign_open_conversations(contact_id, user&.id)
+    reassign_conversations(contact_id, user&.id)
   end
 
   # Sincroniza varios contactos con el mismo usuario en una pasada. Devuelve cuántas
@@ -33,19 +35,19 @@ class Jabvox::ContactConversationAssignmentSync
     return 0 if user.nil?
 
     contact_ids = Array(contacts).filter_map { |c| c.respond_to?(:id) ? c.id : c }.uniq
-    contact_ids.sum { |cid| reassign_open_conversations(cid, user.id) }
+    contact_ids.sum { |cid| reassign_conversations(cid, user.id) }
   end
 
   private
 
-  def reassign_open_conversations(contact_id, user_id)
+  def reassign_conversations(contact_id, user_id)
     count = 0
     # `IS DISTINCT FROM` compara correctamente incluso con NULL (a diferencia de
     # `<>`, que da NULL frente a NULL). Así funciona en ambos sentidos:
     #   - asignar a un agente: recoge las que estén sin asignar o con otro agente;
     #   - desasignar (user_id nil): recoge las que TENGAN algún agente, para limpiarlas.
     @account.conversations
-            .where(contact_id: contact_id, status: :open)
+            .where(contact_id: contact_id)
             .where('assignee_id IS DISTINCT FROM ?', user_id)
             .find_each do |conversation|
       Conversations::AssignmentService.new(conversation: conversation, assignee_id: user_id).perform

@@ -8,8 +8,9 @@
 #
 # Dos decisiones deliberadas:
 #
-#   - Solo se tocan las conversaciones ABIERTAS. Una resuelta es historial: reescribir sus
-#     etiquetas falsearía con qué se cerró el caso.
+#   - Se tocan TODAS las conversaciones del contacto, no solo las abiertas: quien filtra
+#     por una etiqueta espera encontrar también las resueltas. El cambio deja rastro en el
+#     historial de cada conversación, así que sigue sabiéndose quién lo hizo.
 #   - La propagación no vuelve a disparar la sincronización (`skip_jabvox_label_sync`), o
 #     contacto y conversación se llamarían en bucle.
 class Jabvox::LabelSyncService
@@ -39,8 +40,11 @@ class Jabvox::LabelSyncService
     push_to_conversations(contact, @record.label_list, except: @record.id)
   end
 
+  # Todas las conversaciones del contacto, sea cual sea su estado: al filtrar por etiqueta
+  # se espera encontrar también las resueltas y pospuestas. El cambio queda registrado en
+  # el historial de cada conversación, así que se puede ver quién lo hizo y cuándo.
   def push_to_conversations(contact, labels, except: nil)
-    scope = contact.conversations.where(status: :open)
+    scope = contact.conversations
     scope = scope.where.not(id: except) if except
     scope.each { |conversation| sync(conversation, labels) }
   end
