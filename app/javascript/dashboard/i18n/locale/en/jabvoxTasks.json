@@ -18,6 +18,8 @@
         "NAME_PLACEHOLDER": "e.g. Sales pipeline",
         "DESCRIPTION": "Description",
         "DESCRIPTION_PLACEHOLDER": "What is this board for?",
+        "OWNER": "Board owner",
+        "OWNER_HINT": "If you pick an owner, this becomes their personal board and can receive copies of tasks assigned to them on other boards.",
         "ACTIVE": "Active",
         "SAVE": "Save",
         "CANCEL": "Cancel"
@@ -331,6 +333,18 @@
       "UNTIL": "Until",
       "HELP": "Completing it creates the next one with the date shifted.",
       "BADGE": "Recurring"
+    },
+    "ASSIGNEE_COPY": {
+      "TITLE": "Copy to the assignee's board",
+      "HINT": "When an assignee is set, a copy of the task is created on their personal board.",
+      "ON": "Enabled",
+      "OFF": "Disabled",
+      "PICK_OWNER": "Assignee...",
+      "PICK_BOARD": "Their board...",
+      "ADD": "Add",
+      "REMOVE": "Remove",
+      "ERROR": "Could not save the configuration",
+      "NO_OWNED_BOARDS": "No boards have an owner yet. Set an owner on a board to copy tasks to it."
     }
   }
 }

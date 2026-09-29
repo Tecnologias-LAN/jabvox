@@ -446,10 +446,16 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # --- Calendario (solo lectura) ---
+  # El título de una cita suele llevar el nombre del cliente, así que de las ajenas solo
+  # se devuelve la franja ocupada: la misma regla que aplica la API REST. Sin esto, pedirle
+  # la agenda a Jabvox IA esquivaba la protección del calendario.
   def list_calendar_events(params)
     scope = filter_by_date(@account.jabvox_calendar_events, params, column: :start_at)
-    scope.order(start_at: :desc).limit(capped_limit(params)).map do |e|
-      { id: e.id, title: e.title, start_at: e.start_at, end_at: e.end_at }
+    scope = scope.where(branch_id: params[:branch_id]) if params[:branch_id].present?
+    scope.order(start_at: :desc).limit(capped_limit(params))
+         .includes(:jabvox_calendar_event_participants).map do |e|
+      title = calendar_policy(e).full_detail? ? e.title : I18n.t('jabvox.calendar.busy', default: 'Ocupado')
+      { id: e.id, title: title, start_at: e.start_at, end_at: e.end_at }
     end
   end
 
@@ -1396,7 +1402,8 @@ module Jabvox::Hermes::ServiceHandlers
 
   # --- Calendario ---
   def create_calendar_event(params)
-    attrs = params.slice(:title, :description, :note, :all_day, :event_type, :status, :color, :contact_id).compact_blank
+    attrs = params.slice(:title, :description, :note, :all_day, :event_type, :status, :color,
+                         :contact_id, :branch_id).compact_blank
     events = Jabvox::CalendarEventBuilder.new(
       account: @account, user: @user, attributes: attrs,
       slots: [{ start_at: params[:start_at], end_at: params[:end_at], all_day: params[:all_day] }], participants: []
@@ -1411,15 +1418,36 @@ module Jabvox::Hermes::ServiceHandlers
     [calendar_event_view(created)]
   end
 
+  # Modificar la cita de otro se rechaza igual que por la API: el agente solo toca lo que
+  # organiza o donde participa.
   def update_calendar_event(params)
     e = @account.jabvox_calendar_events.find(params[:id])
-    e.update!(params.slice(:title, :description, :note, :event_type, :status, :color, :contact_id).compact_blank)
+    raise Jabvox::Hermes::ServiceLayer::Forbidden, 'no puedes modificar esta cita' unless calendar_policy(e).manage?
+
+    e.update!(params.slice(:title, :description, :note, :event_type, :status, :color,
+                           :contact_id, :branch_id).compact_blank)
     calendar_event_view(e)
+  end
+
+  def calendar_policy(event)
+    Jabvox::CalendarEventPolicy.new(event, @account.account_users.find_by(user_id: @user&.id))
   end
 
   def calendar_event_view(e)
     { id: e.id, title: e.title, start_at: e.start_at, end_at: e.end_at, all_day: e.all_day,
-      event_type: e.event_type, status: e.status, contact_id: e.contact_id }
+      event_type: e.event_type, status: e.status, contact_id: e.contact_id,
+      branch_id: e.branch_id, branch_name: e.branch&.name_jabvox }
+  end
+
+  # Sedes de la cuenta con su horario: Hermes las necesita para saber dónde agendar y a
+  # qué horas abre cada una. Solo lectura — crearlas es cosa del administrador.
+  def get_calendar_branches(_params = {})
+    @account.jabvox_branches.active.ordered.includes(:hours).map do |b|
+      { id: b.id, name: b.name_jabvox, timezone: b.timezone_jabvox,
+        hours: b.hours.order(:day_of_week, :open_minute).map do |h|
+          { day_of_week: h.day_of_week, open_minute: h.open_minute, close_minute: h.close_minute }
+        end }
+    end
   end
 
   def create_calendar_external_person(params)

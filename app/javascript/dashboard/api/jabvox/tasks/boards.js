@@ -53,6 +53,34 @@ class JabvoxTasksBoardsAPI extends ApiClient {
       stage_ids: stageIds,
     });
   }
+
+  // Destinos de la copia por responsable: a qué tablero suyo va la tarea.
+  listAssigneeTargets(boardId) {
+    return axios.get(`${this.url}/${boardId}/assignee_board_targets`);
+  }
+
+  // Tableros que tienen dueño, para elegir destino.
+  ownedBoards(boardId) {
+    return axios.get(
+      `${this.url}/${boardId}/assignee_board_targets/available_boards`
+    );
+  }
+
+  createAssigneeTarget(boardId, data) {
+    return axios.post(`${this.url}/${boardId}/assignee_board_targets`, {
+      target: data,
+    });
+  }
+
+  updateAssigneeTarget(boardId, id, data) {
+    return axios.patch(`${this.url}/${boardId}/assignee_board_targets/${id}`, {
+      target: data,
+    });
+  }
+
+  destroyAssigneeTarget(boardId, id) {
+    return axios.delete(`${this.url}/${boardId}/assignee_board_targets/${id}`);
+  }
 }
 
 export default new JabvoxTasksBoardsAPI();

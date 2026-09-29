@@ -14,6 +14,8 @@
         "NAME_PLACEHOLDER": "Ej. Embudo de ventas",
         "DESCRIPTION": "Descripción",
         "DESCRIPTION_PLACEHOLDER": "¿Para qué sirve este tablero?",
+        "OWNER": "Dueño del tablero",
+        "OWNER_HINT": "Si eliges un dueño, este será su tablero personal y podrá recibir copias de las tareas que se le asignen en otros tableros.",
         "ACTIVE": "Activo",
         "SAVE": "Guardar",
         "CANCEL": "Cancelar"
@@ -331,6 +333,18 @@
     "COMMON": {
       "DELETE": "Eliminar",
       "CANCEL": "Cancelar"
+    },
+    "ASSIGNEE_COPY": {
+      "TITLE": "Copiar al tablero del responsable",
+      "HINT": "Al asignar un responsable, se crea una copia de la tarea en su tablero personal.",
+      "ON": "Activada",
+      "OFF": "Desactivada",
+      "PICK_OWNER": "Responsable...",
+      "PICK_BOARD": "Su tablero...",
+      "ADD": "Añadir",
+      "REMOVE": "Quitar",
+      "ERROR": "No se pudo guardar la configuración",
+      "NO_OWNED_BOARDS": "Todavía no hay tableros con dueño. Asigna un dueño a un tablero para poder copiarle tareas."
     }
   }
 }

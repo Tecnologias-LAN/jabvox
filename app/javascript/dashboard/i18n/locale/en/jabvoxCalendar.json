@@ -45,7 +45,8 @@
     "TABS": {
       "CALENDAR": "Calendario",
       "SETTINGS": "Configuración",
-      "AVAILABILITY": "Agent hours"
+      "AVAILABILITY": "Agent hours",
+      "BRANCHES": "Branches"
     },
     "AVAILABILITY": {
       "TITLE": "Agent working hours",
@@ -64,13 +65,24 @@
         "4": "Thursday",
         "5": "Friday",
         "6": "Saturday"
-      }
+      },
+      "AGENTS": "Agents",
+      "PICK_AGENT": "Select an agent to view and edit their schedule.",
+      "APPLY_TO_ALL": "Apply to all days",
+      "LOADING": "Loading…",
+      "LOAD_ERROR": "Could not load schedules",
+      "COMPANY": "Company hours",
+      "INVALID_RANGE": "End before start",
+      "MINUTES": "{count} min",
+      "SAVE": "Save",
+      "SAVE_FOR": "Save {name}"
     },
     "FILTERS": {
       "CALENDARS": "Calendarios",
       "TEAM": "Equipo",
       "MINE": "Míos",
-      "ALL_AGENTS": "Todos los agentes"
+      "ALL_AGENTS": "Todos los agentes",
+      "ALL_BRANCHES": "All branches"
     },
     "CREATED_MULTIPLE": "Se crearon {count} citas",
     "FORM": {
@@ -95,7 +107,9 @@
       "SELECT_EXTERNAL": "Selecciona una persona",
       "ADD": "Añadir",
       "NOTE_LABEL": "Nota automática",
-      "NOTE_PLACEHOLDER": "Nota que se enviará a los participantes..."
+      "NOTE_PLACEHOLDER": "Nota que se enviará a los participantes...",
+      "BRANCH_LABEL": "Branch",
+      "BRANCH_NONE": "No branch"
     },
     "SETTINGS": {
       "TITLE": "Personas externas",
@@ -111,9 +125,9 @@
       "SAVED": "Persona guardada",
       "DELETED": "Persona eliminada",
       "DELETE_CONFIRM": "¿Eliminar esta persona externa?",
-      "DELETE_TITLE": "Eliminar persona externa",
-      "DELETE": "Eliminar",
-      "CANCEL": "Cancelar"
+      "DELETE_TITLE": "Delete item",
+      "DELETE": "Delete",
+      "CANCEL": "Cancel"
     },
     "TYPES": {
       "reminder": "Recordatorio",
@@ -133,6 +147,40 @@
     "ERRORS": {
       "TITLE_REQUIRED": "El título es requerido",
       "SAVE_FAILED": "No se pudo guardar el evento"
+    },
+    "GRID": {
+      "ALL_DAY": "All day"
+    },
+    "READ_ONLY": "Read only: this event belongs to another agent",
+    "CLOSE": "Close",
+    "BRANCHES": {
+      "TITLE": "Branches",
+      "SUBTITLE": "Where you work: each branch has its own timezone and hours.",
+      "NEW": "New branch",
+      "NEW_TITLE": "New branch",
+      "EDIT_TITLE": "Edit branch",
+      "EDIT": "Edit",
+      "DELETE": "Delete",
+      "DELETE_CONFIRM": "Delete the branch “{name}”? Its events and schedules will be left without a branch.",
+      "DELETE_ERROR": "Could not delete the branch",
+      "LOAD_ERROR": "Could not load branches",
+      "SAVE_ERROR": "Could not save the branch",
+      "LOADING": "Loading branches…",
+      "EMPTY": "No branches yet. Create one if you work from more than one place.",
+      "NAME": "Name",
+      "NAME_PLACEHOLDER": "North Office, Downtown…",
+      "TIMEZONE": "Timezone",
+      "ADDRESS": "Address",
+      "COLOR": "Color",
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "MANAGERS": "Managers",
+      "MANAGERS_HINT": "informational",
+      "HOURS": "Business hours",
+      "HOURS_HINT": "several ranges per day for split shifts",
+      "ADD_RANGE": "Add range",
+      "CLOSED": "Closed · add range",
+      "SUMMARY": "{count} days with hours"
     }
   }
 }

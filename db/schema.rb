@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_29_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -992,9 +992,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["account_id", "day_of_week"], name: "index_jabvox_agent_availabilities_company_unique", unique: true, where: "(user_id IS NULL)"
-    t.index ["account_id", "user_id", "day_of_week"], name: "index_jabvox_agent_availabilities_unique", unique: true
+    t.bigint "branch_id"
+    t.index ["account_id", "branch_id", "user_id", "day_of_week"], name: "index_jabvox_availabilities_lookup"
     t.index ["account_id"], name: "index_jabvox_agent_availabilities_on_account_id"
+    t.index ["branch_id"], name: "index_jabvox_agent_availabilities_on_branch_id"
     t.index ["user_id"], name: "index_jabvox_agent_availabilities_on_user_id"
   end
 
@@ -1562,6 +1563,41 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "jabvox_branch_hours", force: :cascade do |t|
+    t.bigint "branch_id", null: false
+    t.integer "day_of_week", null: false
+    t.integer "open_minute", null: false
+    t.integer "close_minute", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["branch_id", "day_of_week"], name: "index_jabvox_branch_hours_on_branch_id_and_day_of_week"
+  end
+
+  create_table "jabvox_branch_managers", force: :cascade do |t|
+    t.bigint "branch_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["branch_id", "user_id"], name: "index_jabvox_branch_managers_on_branch_id_and_user_id", unique: true
+    t.index ["user_id"], name: "index_jabvox_branch_managers_on_user_id"
+  end
+
+  create_table "jabvox_branches", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name_jabvox", null: false
+    t.string "timezone_jabvox", default: "UTC", null: false
+    t.string "color_jabvox", default: "#6366F1", null: false
+    t.text "address_jabvox"
+    t.boolean "active_jabvox", default: true, null: false
+    t.integer "position_jabvox", default: 0, null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "name_jabvox"], name: "index_jabvox_branches_on_account_id_and_name_jabvox", unique: true
+    t.index ["account_id"], name: "index_jabvox_branches_on_account_id"
+    t.index ["created_by_id"], name: "index_jabvox_branches_on_created_by_id"
+  end
+
   create_table "jabvox_bulk_whatsapp_batches", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "inbox_id"
@@ -1682,10 +1718,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
     t.string "recurrence_group_id"
     t.text "note"
     t.bigint "jabvox_task_id"
+    t.bigint "branch_id"
+    t.bigint "created_by_id"
     t.index ["account_id", "start_at"], name: "index_jabvox_calendar_events_on_account_id_and_start_at"
     t.index ["account_id", "user_id"], name: "index_jabvox_calendar_events_on_account_id_and_user_id"
     t.index ["account_id"], name: "index_jabvox_calendar_events_on_account_id"
+    t.index ["branch_id"], name: "index_jabvox_calendar_events_on_branch_id"
     t.index ["contact_id"], name: "index_jabvox_calendar_events_on_contact_id"
+    t.index ["created_by_id"], name: "index_jabvox_calendar_events_on_created_by_id"
     t.index ["jabvox_task_id"], name: "index_jabvox_calendar_events_on_jabvox_task_id"
     t.index ["recurrence_group_id"], name: "index_jabvox_calendar_events_on_recurrence_group_id"
     t.index ["user_id"], name: "index_jabvox_calendar_events_on_user_id"
@@ -3240,6 +3280,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
     t.index ["user_id"], name: "index_jabvox_task_activities_on_user_id"
   end
 
+  create_table "jabvox_task_assignee_board_targets", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "source_board_id", null: false
+    t.bigint "owner_id", null: false
+    t.bigint "target_board_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_task_assignee_board_targets_on_account_id"
+    t.index ["owner_id"], name: "index_jabvox_task_assignee_board_targets_on_owner_id"
+    t.index ["source_board_id", "owner_id"], name: "index_jabvox_task_targets_on_source_and_owner", unique: true
+    t.index ["source_board_id"], name: "index_jabvox_task_assignee_board_targets_on_source_board_id"
+    t.index ["target_board_id"], name: "index_jabvox_task_assignee_board_targets_on_target_board_id"
+  end
+
   create_table "jabvox_task_assignees", force: :cascade do |t|
     t.bigint "task_id", null: false
     t.bigint "user_id", null: false
@@ -3312,9 +3366,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
     t.bigint "created_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "copy_to_assignee_board_jabvox", default: false, null: false
+    t.bigint "owner_id"
     t.index ["account_id", "name_jabvox"], name: "index_jabvox_task_boards_on_account_id_and_name_jabvox", unique: true
     t.index ["account_id"], name: "index_jabvox_task_boards_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_task_boards_on_created_by_id"
+    t.index ["owner_id"], name: "index_jabvox_task_boards_on_owner_id"
   end
 
   create_table "jabvox_task_stage_automations", force: :cascade do |t|
@@ -3398,6 +3455,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
     t.datetime "recurrence_until_jabvox"
     t.bigint "recurrence_parent_id"
     t.datetime "reminder_sent_at_jabvox"
+    t.bigint "source_task_id"
     t.index ["account_id", "board_id"], name: "index_jabvox_tasks_on_account_id_and_board_id"
     t.index ["account_id", "contact_id"], name: "index_jabvox_tasks_on_account_id_and_contact_id"
     t.index ["account_id", "due_at_jabvox"], name: "index_jabvox_tasks_on_account_id_and_due_at_jabvox"
@@ -3407,6 +3465,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
     t.index ["board_id"], name: "index_jabvox_tasks_on_board_id"
     t.index ["created_by_id"], name: "index_jabvox_tasks_on_created_by_id"
     t.index ["recurrence_parent_id"], name: "index_jabvox_tasks_on_recurrence_parent_id"
+    t.index ["source_task_id"], name: "index_jabvox_tasks_on_source_task_id"
     t.index ["stage_id", "position_jabvox"], name: "index_jabvox_tasks_on_stage_id_and_position_jabvox"
     t.index ["stage_id"], name: "index_jabvox_tasks_on_stage_id"
   end
@@ -4318,6 +4377,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
   add_foreign_key "jabvox_affiliate_ip_whitelists", "jabvox_affiliates"
   add_foreign_key "jabvox_affiliates", "accounts"
   add_foreign_key "jabvox_agent_availabilities", "accounts"
+  add_foreign_key "jabvox_agent_availabilities", "jabvox_branches", column: "branch_id"
   add_foreign_key "jabvox_agent_availabilities", "users"
   add_foreign_key "jabvox_ai_balance_movements", "accounts"
   add_foreign_key "jabvox_ai_chat_configs", "accounts"
@@ -4402,6 +4462,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
   add_foreign_key "jabvox_audio_stages", "jabvox_ai_chat_models", column: "llm_model_id"
   add_foreign_key "jabvox_audio_stages", "jabvox_audio_pipelines", column: "pipeline_id"
   add_foreign_key "jabvox_audio_storages", "accounts"
+  add_foreign_key "jabvox_branch_hours", "jabvox_branches", column: "branch_id"
+  add_foreign_key "jabvox_branch_managers", "jabvox_branches", column: "branch_id"
+  add_foreign_key "jabvox_branch_managers", "users"
+  add_foreign_key "jabvox_branches", "accounts"
+  add_foreign_key "jabvox_branches", "users", column: "created_by_id"
   add_foreign_key "jabvox_bulk_whatsapp_batches", "accounts"
   add_foreign_key "jabvox_bulk_whatsapp_batches", "inboxes"
   add_foreign_key "jabvox_bulk_whatsapp_batches", "users", column: "created_by_id"
@@ -4414,8 +4479,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
   add_foreign_key "jabvox_calendar_event_reminders", "jabvox_calendar_events"
   add_foreign_key "jabvox_calendar_events", "accounts"
   add_foreign_key "jabvox_calendar_events", "contacts", name: "fk_jabvox_calendar_events_contact"
+  add_foreign_key "jabvox_calendar_events", "jabvox_branches", column: "branch_id"
   add_foreign_key "jabvox_calendar_events", "jabvox_tasks"
   add_foreign_key "jabvox_calendar_events", "users"
+  add_foreign_key "jabvox_calendar_events", "users", column: "created_by_id"
   add_foreign_key "jabvox_calendar_external_people", "accounts"
   add_foreign_key "jabvox_calendar_external_people", "users", column: "created_by_id"
   add_foreign_key "jabvox_call_logs", "accounts"
@@ -4612,6 +4679,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
   add_foreign_key "jabvox_task_activities", "accounts"
   add_foreign_key "jabvox_task_activities", "jabvox_tasks", column: "task_id"
   add_foreign_key "jabvox_task_activities", "users"
+  add_foreign_key "jabvox_task_assignee_board_targets", "accounts"
+  add_foreign_key "jabvox_task_assignee_board_targets", "jabvox_task_boards", column: "source_board_id"
+  add_foreign_key "jabvox_task_assignee_board_targets", "jabvox_task_boards", column: "target_board_id"
+  add_foreign_key "jabvox_task_assignee_board_targets", "users", column: "owner_id"
   add_foreign_key "jabvox_task_assignees", "accounts"
   add_foreign_key "jabvox_task_assignees", "jabvox_tasks", column: "task_id"
   add_foreign_key "jabvox_task_assignees", "users"
@@ -4627,6 +4698,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
   add_foreign_key "jabvox_task_automations", "users", column: "created_by_id"
   add_foreign_key "jabvox_task_boards", "accounts"
   add_foreign_key "jabvox_task_boards", "users", column: "created_by_id"
+  add_foreign_key "jabvox_task_boards", "users", column: "owner_id"
   add_foreign_key "jabvox_task_stage_automations", "accounts"
   add_foreign_key "jabvox_task_stage_automations", "inboxes"
   add_foreign_key "jabvox_task_stage_automations", "jabvox_email_templates", column: "email_template_id"
@@ -4644,6 +4716,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_26_100000) do
   add_foreign_key "jabvox_tasks", "jabvox_task_boards", column: "board_id"
   add_foreign_key "jabvox_tasks", "jabvox_task_stages", column: "stage_id"
   add_foreign_key "jabvox_tasks", "jabvox_tasks", column: "recurrence_parent_id", on_delete: :nullify
+  add_foreign_key "jabvox_tasks", "jabvox_tasks", column: "source_task_id", on_delete: :nullify
   add_foreign_key "jabvox_tasks", "users", column: "assignee_id"
   add_foreign_key "jabvox_tasks", "users", column: "created_by_id"
   add_foreign_key "jabvox_tax_rates", "accounts"

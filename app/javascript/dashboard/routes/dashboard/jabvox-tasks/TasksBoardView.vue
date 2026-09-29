@@ -185,6 +185,7 @@ watch(view, value => {
     <BoardAutomationsDrawer
       v-if="showAutomations"
       :board-id="boardId"
+      :board="board"
       :stages="boardStages"
       @close="showAutomations = false"
       @configure="openStageAutomations"

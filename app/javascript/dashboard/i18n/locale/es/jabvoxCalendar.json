@@ -45,7 +45,8 @@
     "TABS": {
       "CALENDAR": "Calendario",
       "SETTINGS": "Configuración",
-      "AVAILABILITY": "Horario de agentes"
+      "AVAILABILITY": "Horario de agentes",
+      "BRANCHES": "Sedes"
     },
     "AVAILABILITY": {
       "TITLE": "Horario de agentes",
@@ -64,13 +65,24 @@
         "4": "Jueves",
         "5": "Viernes",
         "6": "Sábado"
-      }
+      },
+      "AGENTS": "Agentes",
+      "PICK_AGENT": "Marca un agente para ver y editar su horario.",
+      "APPLY_TO_ALL": "Aplicar a todos los días",
+      "LOADING": "Cargando…",
+      "LOAD_ERROR": "No se pudieron cargar los horarios",
+      "COMPANY": "Horario de la empresa",
+      "INVALID_RANGE": "Fin antes que inicio",
+      "MINUTES": "{count} min",
+      "SAVE": "Guardar",
+      "SAVE_FOR": "Guardar {name}"
     },
     "FILTERS": {
       "CALENDARS": "Calendarios",
       "TEAM": "Equipo",
       "MINE": "Míos",
-      "ALL_AGENTS": "Todos los agentes"
+      "ALL_AGENTS": "Todos los agentes",
+      "ALL_BRANCHES": "Todas las sedes"
     },
     "CREATED_MULTIPLE": "Se crearon {count} citas",
     "FORM": {
@@ -95,7 +107,9 @@
       "SELECT_EXTERNAL": "Selecciona una persona",
       "ADD": "Añadir",
       "NOTE_LABEL": "Nota automática",
-      "NOTE_PLACEHOLDER": "Nota que se enviará a los participantes..."
+      "NOTE_PLACEHOLDER": "Nota que se enviará a los participantes...",
+      "BRANCH_LABEL": "Sede",
+      "BRANCH_NONE": "Sin sede"
     },
     "SETTINGS": {
       "TITLE": "Personas externas",
@@ -110,7 +124,10 @@
       "EVENTS_COUNT": "{count} citas",
       "SAVED": "Persona guardada",
       "DELETED": "Persona eliminada",
-      "DELETE_CONFIRM": "¿Eliminar esta persona externa?"
+      "DELETE_CONFIRM": "¿Eliminar esta persona externa?",
+      "CANCEL": "Cancelar",
+      "DELETE": "Eliminar",
+      "DELETE_TITLE": "Eliminar elemento"
     },
     "TYPES": {
       "reminder": "Recordatorio",
@@ -130,6 +147,40 @@
     "ERRORS": {
       "TITLE_REQUIRED": "El título es requerido",
       "SAVE_FAILED": "No se pudo guardar el evento"
+    },
+    "GRID": {
+      "ALL_DAY": "Todo el día"
+    },
+    "READ_ONLY": "Solo lectura: esta cita es de otro agente",
+    "CLOSE": "Cerrar",
+    "BRANCHES": {
+      "TITLE": "Sedes",
+      "SUBTITLE": "Dónde se atiende: cada sede tiene su zona horaria y su horario.",
+      "NEW": "Nueva sede",
+      "NEW_TITLE": "Nueva sede",
+      "EDIT_TITLE": "Editar sede",
+      "EDIT": "Editar",
+      "DELETE": "Eliminar",
+      "DELETE_CONFIRM": "¿Eliminar la sede «{name}»? Sus citas y horarios quedarán sin sede.",
+      "DELETE_ERROR": "No se pudo eliminar la sede",
+      "LOAD_ERROR": "No se pudieron cargar las sedes",
+      "SAVE_ERROR": "No se pudo guardar la sede",
+      "LOADING": "Cargando sedes…",
+      "EMPTY": "Aún no hay sedes. Crea una si atiendes en más de un sitio.",
+      "NAME": "Nombre",
+      "NAME_PLACEHOLDER": "Consultorio Norte, Sede Centro…",
+      "TIMEZONE": "Zona horaria",
+      "ADDRESS": "Dirección",
+      "COLOR": "Color",
+      "ACTIVE": "Activa",
+      "INACTIVE": "Inactiva",
+      "MANAGERS": "Responsables",
+      "MANAGERS_HINT": "informativo",
+      "HOURS": "Horario comercial",
+      "HOURS_HINT": "varias franjas por día para la jornada partida",
+      "ADD_RANGE": "Añadir franja",
+      "CLOSED": "Cerrado · añadir franja",
+      "SUMMARY": "{count} días con horario"
     }
   }
 }

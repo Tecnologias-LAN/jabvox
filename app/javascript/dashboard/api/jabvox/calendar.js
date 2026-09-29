@@ -8,6 +8,10 @@ const peopleClient = new ApiClient('jabvox/calendar_external_people', {
 const availabilityClient = new ApiClient('jabvox/agent_availabilities', {
   accountScoped: true,
 });
+// Sedes: zona horaria y horario comercial que la agenda sombrea.
+const branchesClient = new ApiClient('jabvox/branches', {
+  accountScoped: true,
+});
 
 export default {
   // Events
@@ -30,4 +34,11 @@ export default {
     axios.get(`${availabilityClient.url}/${agentId}`),
   updateAgentAvailability: (agentId, availabilities) =>
     axios.patch(`${availabilityClient.url}/${agentId}`, { availabilities }),
+
+  // Sedes (solo el admin las crea y edita; leerlas está abierto)
+  getBranches: () => axios.get(branchesClient.url),
+  createBranch: payload => axios.post(branchesClient.url, payload),
+  updateBranch: (id, payload) =>
+    axios.patch(`${branchesClient.url}/${id}`, payload),
+  destroyBranch: id => axios.delete(`${branchesClient.url}/${id}`),
 };

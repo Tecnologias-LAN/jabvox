@@ -146,6 +146,9 @@ class Api::V1::Accounts::Jabvox::KanbanBoardController < Api::V1::Accounts::Jabv
     # 'Propios' = los que no vinieron de un afiliado.
     collect_contacts(ids, excluded, jabvox_affiliate_id: nil) if @funnel.include_own_contacts_jabvox?
 
+    stages = funnel_lifecycle_stages
+    collect_contacts(ids, excluded, lifecycle_stage_jabvox: stages) if stages.any?
+
     ids.to_a
   end
 
@@ -168,8 +171,14 @@ class Api::V1::Accounts::Jabvox::KanbanBoardController < Api::V1::Accounts::Jabv
     inbox_ids = @funnel.jabvox_kanban_funnel_inboxes.pluck(:inbox_id)
     ids.merge(base.where(inbox_id: inbox_ids).pluck(:id)) if inbox_ids.any?
 
-    # Campaña y afiliado viven en el propio contacto: se consulta directo, sin pasar por
-    # la tabla de leads.
+    merge_contact_sources(ids, base)
+
+    ids.to_a
+  end
+
+  # Fuentes que viven en el propio contacto: se consultan directo, sin pasar por la tabla
+  # de leads.
+  def merge_contact_sources(ids, base)
     campaign_ids = @funnel.jabvox_kanban_funnel_campaigns.pluck(:jabvox_campaign_id)
     merge_by_contact(ids, base, jabvox_campaign_id: campaign_ids) if campaign_ids.any?
 
@@ -179,7 +188,16 @@ class Api::V1::Accounts::Jabvox::KanbanBoardController < Api::V1::Accounts::Jabv
     # 'Propios' = contactos que no vinieron de un afiliado.
     merge_by_contact(ids, base, jabvox_affiliate_id: nil) if @funnel.include_own_contacts_jabvox?
 
-    ids.to_a
+    # Etapa del ciclo de vida del contacto (cliente, prospecto...): un embudo puede
+    # existir solo para una etapa, sin bandeja ni campaña ni afiliado configurados.
+    stages = funnel_lifecycle_stages
+    merge_by_contact(ids, base, lifecycle_stage_jabvox: stages) if stages.any?
+  end
+
+  # Solo etapas del catálogo: una fila vieja con un valor que ya no existe no debe
+  # arrastrar contactos al tablero.
+  def funnel_lifecycle_stages
+    Array(@funnel.lifecycle_stages_jabvox) & Jabvox::ContactLifecycle::LIFECYCLE_STAGES
   end
 
   def fetch_funnel

@@ -186,8 +186,14 @@ const onSave = async () => {
     useAlert(t('JABVOX_KANBAN.AUTOMATIONS_PANEL.SAVE'));
     showForm.value = false;
   } catch (e) {
+    // El backend responde 422 con `message` (ver render_record_invalid). Leer solo
+    // `error` dejaba el motivo invisible y parecía que el guardado no hacía nada.
+    const data = e?.response?.data;
     useAlert(
-      e?.response?.data?.error || t('JABVOX_KANBAN.AUTOMATIONS_PANEL.SAVE')
+      data?.message ||
+        data?.error ||
+        data?.errors?.join?.(', ') ||
+        t('JABVOX_KANBAN.AUTOMATIONS_PANEL.SAVE_ERROR')
     );
   }
 };

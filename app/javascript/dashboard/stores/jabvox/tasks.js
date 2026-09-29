@@ -95,6 +95,38 @@ export const useTasksStore = defineStore('jabvoxTasks', {
       return camelcaseKeys(data, { deep: true });
     },
 
+    // Copia por responsable: destinos --------------------------------
+    async fetchAssigneeTargets(boardId) {
+      const { data } = await tasksBoardsAPI.listAssigneeTargets(boardId);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async fetchOwnedBoards(boardId) {
+      const { data } = await tasksBoardsAPI.ownedBoards(boardId);
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async createAssigneeTarget(boardId, payload) {
+      const { data } = await tasksBoardsAPI.createAssigneeTarget(
+        boardId,
+        payload
+      );
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async updateAssigneeTarget(boardId, id, payload) {
+      const { data } = await tasksBoardsAPI.updateAssigneeTarget(
+        boardId,
+        id,
+        payload
+      );
+      return camelcaseKeys(data, { deep: true });
+    },
+
+    async deleteAssigneeTarget(boardId, id) {
+      await tasksBoardsAPI.destroyAssigneeTarget(boardId, id);
+    },
+
     async deleteBoard(id) {
       await tasksBoardsAPI.destroy(id);
       this.boards = this.boards.filter(b => b.id !== Number(id));

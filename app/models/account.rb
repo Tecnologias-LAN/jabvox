@@ -204,6 +204,8 @@ class Account < ApplicationRecord
   has_many :jabvox_calendar_events, dependent: :destroy_async
   has_many :jabvox_calendar_external_people, dependent: :destroy_async
   has_many :jabvox_agent_availabilities, dependent: :delete_all
+  # Sedes del calendario: dónde se atiende, con su zona horaria y su horario comercial.
+  has_many :jabvox_branches, dependent: :destroy
   has_one :jabvox_form_config, dependent: :destroy
   has_many :jabvox_forms, dependent: :destroy_async
 

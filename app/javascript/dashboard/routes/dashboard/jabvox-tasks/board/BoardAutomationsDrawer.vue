@@ -2,6 +2,8 @@
 import { computed, ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
+import { useMapGetter } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
 
 // Automatizaciones del tablero entero, en un cajón que se abre desde el rayo de la barra.
 //
@@ -11,6 +13,8 @@ import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 const props = defineProps({
   boardId: { type: [Number, String], required: true },
   stages: { type: Array, default: () => [] },
+  // Tablero completo: hace falta su interruptor de copia por responsable.
+  board: { type: Object, default: null },
 });
 
 const emit = defineEmits(['close', 'configure']);
@@ -22,7 +26,119 @@ const store = useTasksStore();
 // Una etapa sin respuesta se muestra con cero en vez de romper la lista.
 const counts = ref({});
 
+// --- Copia al tablero del responsable -------------------------------------
+// Cada fila dice: "las tareas asignadas a X se copian a tal tablero suyo". Sin fila para
+// un responsable, a ese no se le copia nada.
+const copyEnabled = ref(false);
+const targets = ref([]);
+const ownedBoards = ref([]);
+const savingCopy = ref(false);
+
+const agents = useMapGetter('agents/getAgents');
+
+// Solo usuarios que son dueños de algún tablero: al resto no hay dónde copiarles.
+const ownerOptions = computed(() => {
+  const ids = [...new Set(ownedBoards.value.map(b => b.ownerId))];
+  return ids.map(id => agents.value.find(a => a.id === id)).filter(Boolean);
+});
+
+const boardsOf = ownerId =>
+  ownedBoards.value.filter(b => b.ownerId === Number(ownerId));
+
+const agentName = id => agents.value.find(a => a.id === id)?.name || `#${id}`;
+
+// El tablero de origen no puede copiarse a sí mismo, y un responsable ya configurado no
+// se ofrece dos veces (el backend lo rechaza por índice único).
+const availableOwners = computed(() => {
+  const used = new Set(targets.value.map(item => item.ownerId));
+  return ownerOptions.value.filter(a => !used.has(a.id));
+});
+
+const loadCopyConfig = async () => {
+  try {
+    const [list, boards] = await Promise.all([
+      store.fetchAssigneeTargets(props.boardId),
+      store.fetchOwnedBoards(props.boardId),
+    ]);
+    targets.value = list || [];
+    ownedBoards.value = (boards || []).filter(
+      b => b.id !== Number(props.boardId)
+    );
+  } catch {
+    targets.value = [];
+    ownedBoards.value = [];
+  }
+};
+
+const toggleCopy = async () => {
+  const next = !copyEnabled.value;
+  savingCopy.value = true;
+  try {
+    await store.updateBoard(props.boardId, {
+      copy_to_assignee_board_jabvox: next,
+    });
+    copyEnabled.value = next;
+  } catch {
+    useAlert(t('JABVOX_TASKS.ASSIGNEE_COPY.ERROR'));
+  } finally {
+    savingCopy.value = false;
+  }
+};
+
+const addTarget = async (ownerId, targetBoardId) => {
+  if (!ownerId || !targetBoardId) return;
+  try {
+    const row = await store.createAssigneeTarget(props.boardId, {
+      owner_id: Number(ownerId),
+      target_board_id: Number(targetBoardId),
+    });
+    targets.value = [...targets.value, row];
+  } catch (e) {
+    useAlert(
+      e?.response?.data?.errors?.join?.(', ') ||
+        t('JABVOX_TASKS.ASSIGNEE_COPY.ERROR')
+    );
+  }
+};
+
+const changeTarget = async (row, targetBoardId) => {
+  try {
+    const updated = await store.updateAssigneeTarget(props.boardId, row.id, {
+      target_board_id: Number(targetBoardId),
+    });
+    targets.value = targets.value.map(item =>
+      item.id === row.id ? updated : item
+    );
+  } catch (e) {
+    useAlert(
+      e?.response?.data?.errors?.join?.(', ') ||
+        t('JABVOX_TASKS.ASSIGNEE_COPY.ERROR')
+    );
+  }
+};
+
+const removeTarget = async row => {
+  try {
+    await store.deleteAssigneeTarget(props.boardId, row.id);
+    targets.value = targets.value.filter(item => item.id !== row.id);
+  } catch {
+    useAlert(t('JABVOX_TASKS.ASSIGNEE_COPY.ERROR'));
+  }
+};
+
+// Alta: se elige responsable y luego uno de SUS tableros.
+const newOwnerId = ref('');
+const newBoardId = ref('');
+
+const onAdd = async () => {
+  await addTarget(newOwnerId.value, newBoardId.value);
+  newOwnerId.value = '';
+  newBoardId.value = '';
+};
+
 onMounted(async () => {
+  copyEnabled.value = Boolean(props.board?.copyToAssigneeBoardJabvox);
+  await loadCopyConfig();
   const entries = await Promise.all(
     props.stages.map(async stage => {
       try {
@@ -158,6 +274,119 @@ const ROLE_STYLES = {
         <p v-if="!rows.length" class="text-sm text-n-slate-10 text-center py-8">
           {{ t('JABVOX_TASKS.AUTOMATIONS.NO_STAGES') }}
         </p>
+
+        <!-- Copia al tablero personal del responsable -->
+        <section class="pt-4 mt-2 border-t border-n-weak space-y-3">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h3 class="text-sm font-medium text-n-slate-12">
+                {{ t('JABVOX_TASKS.ASSIGNEE_COPY.TITLE') }}
+              </h3>
+              <p class="text-[11px] text-n-slate-10">
+                {{ t('JABVOX_TASKS.ASSIGNEE_COPY.HINT') }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50"
+              :class="
+                copyEnabled
+                  ? 'bg-n-amber-3 text-n-amber-11 border-n-amber-6'
+                  : 'text-n-slate-11 border-n-weak hover:bg-n-alpha-1'
+              "
+              :disabled="savingCopy"
+              @click="toggleCopy"
+            >
+              {{
+                copyEnabled
+                  ? t('JABVOX_TASKS.ASSIGNEE_COPY.ON')
+                  : t('JABVOX_TASKS.ASSIGNEE_COPY.OFF')
+              }}
+            </button>
+          </div>
+
+          <template v-if="copyEnabled">
+            <div
+              v-for="row in targets"
+              :key="row.id"
+              class="flex items-center gap-2 px-3 py-2 rounded-xl border border-n-weak"
+            >
+              <span class="text-sm text-n-slate-12 truncate flex-1 min-w-0">
+                {{ agentName(row.ownerId) }}
+              </span>
+              <select
+                class="text-xs rounded-lg bg-n-alpha-1 border border-n-weak text-n-slate-12 px-2 py-1"
+                :value="row.targetBoardId"
+                @change="changeTarget(row, $event.target.value)"
+              >
+                <option
+                  v-for="b in boardsOf(row.ownerId)"
+                  :key="b.id"
+                  :value="b.id"
+                >
+                  {{ b.nameJabvox }}
+                </option>
+              </select>
+              <button
+                type="button"
+                class="p-1 rounded text-n-slate-10 hover:text-n-ruby-11"
+                :title="t('JABVOX_TASKS.ASSIGNEE_COPY.REMOVE')"
+                @click="removeTarget(row)"
+              >
+                <span class="i-lucide-trash-2 size-3.5" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div
+              v-if="availableOwners.length"
+              class="flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-n-weak"
+            >
+              <select
+                v-model="newOwnerId"
+                class="flex-1 min-w-0 text-xs rounded-lg bg-n-alpha-1 border border-n-weak text-n-slate-12 px-2 py-1"
+              >
+                <option value="">
+                  {{ t('JABVOX_TASKS.ASSIGNEE_COPY.PICK_OWNER') }}
+                </option>
+                <option v-for="a in availableOwners" :key="a.id" :value="a.id">
+                  {{ a.name }}
+                </option>
+              </select>
+              <select
+                v-model="newBoardId"
+                :disabled="!newOwnerId"
+                class="text-xs rounded-lg bg-n-alpha-1 border border-n-weak text-n-slate-12 px-2 py-1 disabled:opacity-50"
+              >
+                <option value="">
+                  {{ t('JABVOX_TASKS.ASSIGNEE_COPY.PICK_BOARD') }}
+                </option>
+                <option
+                  v-for="b in boardsOf(newOwnerId)"
+                  :key="b.id"
+                  :value="b.id"
+                >
+                  {{ b.nameJabvox }}
+                </option>
+              </select>
+              <button
+                type="button"
+                class="p-1 rounded text-n-slate-11 hover:bg-n-alpha-1 disabled:opacity-40"
+                :disabled="!newOwnerId || !newBoardId"
+                :title="t('JABVOX_TASKS.ASSIGNEE_COPY.ADD')"
+                @click="onAdd"
+              >
+                <span class="i-lucide-plus size-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <p
+              v-if="!ownerOptions.length"
+              class="text-[11px] text-n-slate-10 py-1"
+            >
+              {{ t('JABVOX_TASKS.ASSIGNEE_COPY.NO_OWNED_BOARDS') }}
+            </p>
+          </template>
+        </section>
       </div>
     </aside>
   </div>

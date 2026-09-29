@@ -856,6 +856,9 @@ Rails.application.routes.draw do
             resources :calendar_external_people, only: [:index, :show, :create, :update, :destroy]
             # Horario laboral por agente para la disponibilidad de citas de Jabvox IA.
             resources :agent_availabilities, only: [:index, :show, :update]
+            # Sedes del calendario: cualquiera las lee (para filtrar y sombrear el
+            # horario), solo el admin las crea y las edita.
+            resources :branches, only: [:index, :show, :create, :update, :destroy]
             resources :forms, only: [:index, :show, :create, :update, :destroy]
             resource :form_config, only: [:show, :update]
             resource :reports, only: [], controller: 'reports' do
@@ -894,6 +897,10 @@ Rails.application.routes.draw do
                   collection { post :reorder }
                   resources :automations, only: [:index, :create, :update, :destroy],
                                           controller: 'stage_automations'
+                end
+                # A qué tablero se copia la tarea de cada responsable dueño de tablero.
+                resources :assignee_board_targets, only: %i[index create update destroy] do
+                  collection { get :available_boards }
                 end
               end
               resources :tasks do

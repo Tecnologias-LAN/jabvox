@@ -32,6 +32,7 @@
       "DELETE": "Delete",
       "BACK": "Back",
       "SAVE": "Save",
+      "SAVE_ERROR": "Could not save the automation",
       "SAVING": "Saving...",
       "CANCEL": "Cancel",
       "FORM": {

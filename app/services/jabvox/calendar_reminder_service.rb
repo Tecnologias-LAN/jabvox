@@ -48,7 +48,7 @@ class Jabvox::CalendarReminderService
     contact = event.contact
     label   = minutes_label(minutes_before)
     subject = "#{I18n.t('jabvox.calendar.reminder_subject')}: #{event.title}"
-    body    = reminder_html(event, contact, label)
+    body    = reminder_html(event, contact, label, smtp.account)
 
     Jabvox::EmailSenderService.new(
       account: smtp.account,
@@ -61,6 +61,14 @@ class Jabvox::CalendarReminderService
     ).deliver!
   end
 
+  # La hora del recordatorio va en la zona de la cuenta, no en UTC. Antes se formateaba
+  # el instante crudo, así que a una cuenta en Colombia el aviso le llegaba con cinco
+  # horas de más. Sin zona configurada se mantiene el comportamiento anterior.
+  def local_time(instant, account)
+    zone = ActiveSupport::TimeZone[account.reporting_timezone.to_s]
+    (zone ? instant.in_time_zone(zone) : instant).strftime('%Y-%m-%d %H:%M')
+  end
+
   def minutes_label(minutes)
     if minutes >= 1440 && (minutes % 1440).zero?
       I18n.t('jabvox.calendar.reminder_n_days', count: minutes / 1440)
@@ -71,8 +79,8 @@ class Jabvox::CalendarReminderService
     end
   end
 
-  def reminder_html(event, contact, label)
-    time_str = event.start_at.strftime('%Y-%m-%d %H:%M')
+  def reminder_html(event, contact, label, account)
+    time_str = local_time(event.start_at, account)
     <<~HTML
       <p>#{I18n.t('jabvox.calendar.reminder_greeting', name: contact.name)},</p>
       <p>#{label}</p>

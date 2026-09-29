@@ -113,11 +113,13 @@ const onSubmit = async () => {
         description_jabvox: form.value.description_jabvox,
         active_jabvox: form.value.active_jabvox,
         include_own_contacts_jabvox: form.value.include_own_contacts,
+        // Va DENTRO de `funnel`: el backend lo lee de params[:funnel], y mandarlo al
+        // nivel raíz hacía que se descartara y el embudo quedara sin etapas.
+        lifecycle_stages_jabvox: form.value.lifecycle_stages_jabvox,
       },
       inbox_ids: form.value.inbox_ids,
       campaign_ids: form.value.campaign_ids,
       affiliate_ids: form.value.affiliate_ids,
-      lifecycle_stages_jabvox: form.value.lifecycle_stages_jabvox,
     };
 
     if (isEditing.value) {

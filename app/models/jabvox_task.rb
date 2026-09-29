@@ -24,6 +24,7 @@
 #  contact_id              :bigint
 #  created_by_id           :bigint
 #  recurrence_parent_id    :bigint
+#  source_task_id          :bigint
 #  stage_id                :bigint           not null
 #
 # Indexes
@@ -37,6 +38,7 @@
 #  index_jabvox_tasks_on_board_id                      (board_id)
 #  index_jabvox_tasks_on_created_by_id                 (created_by_id)
 #  index_jabvox_tasks_on_recurrence_parent_id          (recurrence_parent_id)
+#  index_jabvox_tasks_on_source_task_id                (source_task_id)
 #  index_jabvox_tasks_on_stage_id                      (stage_id)
 #  index_jabvox_tasks_on_stage_id_and_position_jabvox  (stage_id,position_jabvox)
 #
@@ -47,6 +49,7 @@
 #  fk_rails_...  (board_id => jabvox_task_boards.id)
 #  fk_rails_...  (created_by_id => users.id)
 #  fk_rails_...  (recurrence_parent_id => jabvox_tasks.id) ON DELETE => nullify
+#  fk_rails_...  (source_task_id => jabvox_tasks.id) ON DELETE => nullify
 #  fk_rails_...  (stage_id => jabvox_task_stages.id)
 #
 class JabvoxTask < ApplicationRecord
@@ -135,12 +138,12 @@ class JabvoxTask < ApplicationRecord
     added = desired - current
     removed = current - desired
 
-    transaction do
-      task_assignees.where(user_id: removed).delete_all if removed.any?
-      added.each { |uid| task_assignees.create!(user_id: uid, account_id: account_id) }
-      new_primary = desired.first
-      update_column(:assignee_id, new_primary) if assignee_id != new_primary
-    end
+    apply_assignee_changes(desired, added, removed)
+
+    # Copiar al tablero personal de los responsables nuevos, si el tablero de origen lo
+    # tiene activado. Fuera de la transacción: que falle una copia no debe deshacer la
+    # asignación en sí.
+    copy_to_assignee_boards if added.any?
 
     [added, removed]
   end
@@ -229,13 +232,40 @@ class JabvoxTask < ApplicationRecord
     return unless from == 'done' && to != 'done'
 
     now = Time.current
+    # Solo se corre la fecha del próximo disparo: no hay nada que validar y se evita
+    # reentrar en los callbacks de la automatización.
+    # rubocop:disable Rails/SkipsModelValidations
     automations.where(active_jabvox: true)
                .where(next_run_at_jabvox: ..now)
                .find_each { |a| a.update_column(:next_run_at_jabvox, now + a.interval_duration) }
+    # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  # Alta/baja de responsables y espejo del principal, en una sola transacción.
+  def apply_assignee_changes(desired, added, removed)
+    transaction do
+      task_assignees.where(user_id: removed).delete_all if removed.any?
+      added.each { |uid| task_assignees.create!(user_id: uid, account_id: account_id) }
+      new_primary = desired.first
+      next if assignee_id == new_primary
+
+      # update_column a propósito: assignee_id es solo el espejo de assignees.first, y
+      # pasar por validaciones aquí volvería a disparar los callbacks de la tarea.
+      # rubocop:disable Rails/SkipsModelValidations
+      update_column(:assignee_id, new_primary)
+      # rubocop:enable Rails/SkipsModelValidations
+    end
   end
 
   def fire_stage_automations
     Jabvox::TaskAutomationJob.perform_later(id)
+  end
+
+  # Una copia fallida no puede tumbar la asignación: se registra y se sigue.
+  def copy_to_assignee_boards
+    Jabvox::TaskAssigneeBoardCopyService.new(reload).perform
+  rescue StandardError => e
+    Rails.logger.error("[jabvox] copia a tablero de responsable falló task=#{id}: #{e.class}")
   end
 
   # Re-sync calendar events whenever a calendar-relevant field changed (or on create).

@@ -9,6 +9,7 @@ class Api::V1::Accounts::Jabvox::AgentAvailabilitiesController < Api::V1::Accoun
   before_action :check_calendar_access
   before_action :ensure_module_permission
   before_action :set_agent, only: %i[show update]
+  before_action :ensure_can_edit_schedule!, only: %i[update]
 
   # Lista los agentes de la cuenta con si tienen o no horario configurado, para
   # poblar el selector de la UI.
@@ -75,6 +76,17 @@ class Api::V1::Accounts::Jabvox::AgentAvailabilitiesController < Api::V1::Accoun
     @agent_user_id = @agent.id
   rescue ActiveRecord::RecordNotFound
     render json: { error: 'Agente no encontrado' }, status: :not_found
+  end
+
+  # El horario propio lo edita cada uno; el de otro agente y el de la empresa, solo un
+  # administrador. Antes bastaba el permiso del módulo, así que cualquier agente reescribía
+  # en bloque el turno de un compañero —la acción borra y recrea— o el horario de empresa
+  # que sirve de respaldo a toda la cuenta.
+  def ensure_can_edit_schedule!
+    return if Current.account_user&.administrator?
+    return if @agent_user_id.present? && @agent_user_id == Current.user.id
+
+    render json: { error: 'No tienes permiso para esta acción' }, status: :forbidden
   end
 
   def availabilities_param

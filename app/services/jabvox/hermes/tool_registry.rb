@@ -262,8 +262,13 @@ module Jabvox::Hermes::ToolRegistry
 
     # --- Calendario (módulo jabvox_calendar) ---
     'get_calendar_events' => { permission: 'read', method: :get, path: 'jabvox/calendar/events',
-                               params: { since: :string, until: :string, limit: :integer },
+                               params: { since: :string, until: :string, limit: :integer, branch_id: :integer },
                                mcp: 'jabvox_core', feature: 'jabvox_calendar' },
+    # Sedes: dónde se atiende, con su zona horaria y su horario comercial. Hermes las lee
+    # para saber en qué sede agendar; crearlas sigue siendo cosa del administrador.
+    'get_calendar_branches' => { permission: 'read', method: :get, path: 'jabvox/calendar/branches',
+                                 params: {},
+                                 mcp: 'jabvox_core', feature: 'jabvox_calendar' },
 
     # --- Tickets (módulo jabvox_tickets) ---
     'get_tickets' => { permission: 'read', method: :get, path: 'jabvox/tickets',
@@ -503,11 +508,12 @@ module Jabvox::Hermes::ToolRegistry
     'create_calendar_event' => { permission: 'create', method: :post, path: 'jabvox/calendar/events',
                                  params: { title: :string, start_at: :string, end_at: :string, all_day: :boolean,
                                            description: :string, note: :string, event_type: :string, status: :string,
-                                           color: :string, contact_id: :integer },
+                                           color: :string, contact_id: :integer, branch_id: :integer },
                                  mcp: 'jabvox_core', feature: 'jabvox_calendar' },
     'update_calendar_event' => { permission: 'write', method: :patch, path: 'jabvox/calendar/events/:id',
                                  params: { id: :integer, title: :string, description: :string, note: :string,
-                                           event_type: :string, status: :string, color: :string, contact_id: :integer },
+                                           event_type: :string, status: :string, color: :string,
+                                           contact_id: :integer, branch_id: :integer },
                                  mcp: 'jabvox_core', feature: 'jabvox_calendar' },
     'create_calendar_external_person' => { permission: 'create', method: :post, path: 'jabvox/calendar/external_people',
                                            params: { name: :string, email: :string, phone_number: :string, notes: :string, color: :string },
