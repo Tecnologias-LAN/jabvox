@@ -468,8 +468,7 @@ module Jabvox::Hermes::ServiceHandlers
 
   def analytics_data_source_schema(params)
     d = @account.jabvox_analytics_data_sources.find(params[:id])
-    svc = Jabvox::Analytics::IntrospectionService.new(data_source: d, user: @user)
-    svc.tables
+    Jabvox::Analytics::IntrospectionService.new(d).call
   rescue StandardError => e
     { error: e.message }
   end
