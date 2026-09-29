@@ -61,7 +61,11 @@ class JabvoxKanbanFunnel < ApplicationRecord
   # existente: un `private` a media clase dejaba privados los métodos de debajo —entre
   # ellos `first_stage`, que el tablero llama— y la pantalla devolvía 500.
   def purge_contacts_outside_stages
-    contact_ids = jabvox_kanban_conversation_stages.where.not(contact_id: nil).distinct.pluck(:contact_id)
+    # Las tarjetas son de dos formas: colocadas por contacto, o nacidas de una conversación
+    # (contact_id nulo). Mirar solo la primera dejaba pegadas las segundas, que son la
+    # mayoría en un embudo alimentado por bandeja.
+    entries = jabvox_kanban_conversation_stages.includes(conversation: :contact)
+    contact_ids = entries.filter_map { |e| e.contact_id || e.conversation&.contact_id }.uniq
     return if contact_ids.empty?
 
     account.contacts.where(id: contact_ids).find_each do |contact|

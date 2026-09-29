@@ -43,7 +43,9 @@
       "RESET": "Restablecer",
       "AFFILIATE": "Afiliado",
       "LABELS": "Etiquetas",
-      "MANAGEMENTS": "Gestiones"
+      "MANAGEMENTS": "Gestiones",
+      "PICK_HINT": "Marca las columnas que quieres ver en la tabla.",
+      "SELECTED_COUNT": "{count} de {max} columnas"
     },
     "EMPTY": {
       "TITLE": "No hay contactos",

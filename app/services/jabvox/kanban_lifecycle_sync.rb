@@ -30,10 +30,18 @@ class Jabvox::KanbanLifecycleSync
 
   # Tarjetas del contacto en embudos cuya única razón para tenerlo era una etapa que ya
   # no es la suya.
+  # Las tarjetas del contacto son de dos formas: las colocadas por contacto (contact_id)
+  # y las que nacieron de una conversación suya (conversation_id, con contact_id nulo).
+  # Mirar solo la primera dejaba pegadas las segundas, que son las más comunes.
   def stale_entries
+    funnel_ids = stale_funnel_ids
+    return JabvoxKanbanConversationStage.none if funnel_ids.empty?
+
+    conversation_ids = @contact.conversations.select(:id)
     JabvoxKanbanConversationStage
-      .where(account_id: @contact.account_id, contact_id: @contact.id)
-      .where(jabvox_kanban_funnel_id: stale_funnel_ids)
+      .where(account_id: @contact.account_id, jabvox_kanban_funnel_id: funnel_ids)
+      .where('contact_id = :id OR conversation_id IN (:convs)',
+             id: @contact.id, convs: conversation_ids)
   end
 
   def stale_funnel_ids
