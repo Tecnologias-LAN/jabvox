@@ -145,7 +145,7 @@ const updateContact = async () => {
   }
 };
 
-const saveJabvoxFields = async () => {
+const saveJabvoxFields = async ({ silent = false } = {}) => {
   isSavingJabvox.value = true;
   try {
     const { data } = await contactDetailAPI.updateCustomFields(
@@ -158,12 +158,21 @@ const saveJabvoxFields = async () => {
       }
     );
     emit('jabvoxUpdated', data.contact);
-    useAlert(t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.SUCCESS_MESSAGE'));
+    if (!silent)
+      useAlert(t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.SUCCESS_MESSAGE'));
   } catch {
     useAlert(t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.ERROR_MESSAGE'));
   } finally {
     isSavingJabvox.value = false;
   }
+};
+
+// Guarda las dos mitades de la ficha: los campos de Chatwoot y los propios de Jabvox.
+// Van en dos peticiones porque son dos endpoints distintos, pero para quien usa la
+// pantalla es un solo guardado.
+const saveAll = async () => {
+  await updateContact();
+  if (hasJabvoxChanges.value) await saveJabvoxFields({ silent: true });
 };
 
 const handleAvatarUpload = async ({ file, url }) => {
@@ -383,20 +392,14 @@ const handleAvatarDelete = async () => {
         </template>
       </ContactsForm>
       <div class="flex flex-wrap items-center gap-2">
+        <!-- Un único botón para todo el contacto: tener dos obligaba a recordar cuál
+             guardaba cada mitad de la misma ficha. -->
         <Button
           :label="t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.UPDATE_BUTTON')"
           size="sm"
-          :is-loading="isUpdating"
-          :disabled="isUpdating || isFormInvalid"
-          @click="updateContact"
-        />
-        <Button
-          v-if="hasJabvoxChanges"
-          :label="t('JABVOX_CONTACTS.DETAIL.SAVE_JABVOX')"
-          size="sm"
-          variant="faded"
-          :is-loading="isSavingJabvox"
-          @click="saveJabvoxFields"
+          :is-loading="isUpdating || isSavingJabvox"
+          :disabled="isUpdating || isSavingJabvox || isFormInvalid"
+          @click="saveAll"
         />
       </div>
     </div>
