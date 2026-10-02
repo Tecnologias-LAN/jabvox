@@ -11,7 +11,7 @@ require 'tiny_tds'
 #   - there is no LIMIT; the row cap is applied with SELECT TOP (n).
 #   - pagination uses OFFSET ... FETCH (requires an ORDER BY).
 #   - schema is read from INFORMATION_SCHEMA + sys.foreign_keys.
-class Jabvox::Analytics::Adapters::SqlserverAdapter < Jabvox::Analytics::Adapters::BaseAdapter
+class Jabvox::Analytics::Adapters::SqlserverAdapter < Jabvox::Analytics::Adapters::BaseAdapter # rubocop:disable Metrics/ClassLength
   def dialect
     :sqlserver
   end
@@ -77,7 +77,7 @@ class Jabvox::Analytics::Adapters::SqlserverAdapter < Jabvox::Analytics::Adapter
   def execute(sql, binds: [], row_limit: nil)
     cap = row_cap(row_limit)
     # No LIMIT in T-SQL: cap with TOP over the (already-validated) subquery.
-    wrapped = "SELECT TOP (#{cap}) * FROM (#{subquery_body(sql)}) AS jabvox_sub"
+    wrapped = "SELECT TOP (#{cap}) * FROM (#{allow_order_by_in_subquery(subquery_body(sql))}) AS jabvox_sub"
     started = monotonic_ms
     with_client do |client|
       bound = apply_binds(wrapped, binds)
@@ -88,6 +88,57 @@ class Jabvox::Analytics::Adapters::SqlserverAdapter < Jabvox::Analytics::Adapter
   end
 
   protected
+
+  # T-SQL rejects an ORDER BY inside a derived table/view unless that same query
+  # also has its own TOP/OFFSET/FOR XML — and the user's query here always ends
+  # up as the derived table inside execute's own "SELECT TOP (cap) * FROM (...)"
+  # wrapper. A plain "SELECT ... ORDER BY x" that works fine standalone then
+  # fails only once wrapped, with "The ORDER BY clause is invalid in views,
+  # inline functions, derived tables...".
+  #
+  # Fixed by giving the query its own TOP, which SQL Server accepts alongside
+  # an ORDER BY in a derived table. "TOP 100 PERCENT" (added only when the
+  # query doesn't already have TOP/OFFSET/FOR XML of its own) is the standard
+  # trick for this and changes nothing when there's no existing TOP — but a
+  # query that ALREADY has "TOP n ... ORDER BY" (the one real case here: "TOP 3
+  # ... ORDER BY total DESC", to answer "top 3 by X") must keep that n as-is:
+  # inserting 100 PERCENT there, or moving the ORDER BY elsewhere, both change
+  # which n rows the query actually returns, not just silence the DB error.
+  HAS_OFFSET_OR_XML = /\bOFFSET\s+\d|\bFOR\s+XML\b/i
+  OUTER_SELECT = /(\bSELECT\s+(?:DISTINCT\s+)?)(TOP\s*\(?\s*\d)?/i
+
+  def allow_order_by_in_subquery(sql)
+    return sql unless sql.match?(/\bORDER\s+BY\b/i)
+    return sql if sql.match?(HAS_OFFSET_OR_XML)
+
+    pos = final_select_position(sql)
+    return sql if pos.nil?
+
+    after = sql[pos..]
+    match = after.match(OUTER_SELECT)
+    return sql if match.nil?
+    return sql if match[2] # ya tiene TOP n — no tocar
+
+    prefix = sql[0...pos]
+    prefix + after.sub(/\A(\s*SELECT\s+(?:DISTINCT\s+)?)/i, '\1TOP 100 PERCENT ')
+  end
+
+  def final_select_position(sql)
+    return 0 unless sql.match?(/\A\s*WITH\b/i)
+
+    pos = cte_end_position(sql)
+    pos ? pos + sql[pos..].index(/SELECT/i).to_i : nil
+  end
+
+  def cte_end_position(sql)
+    depth = 0
+    sql.each_char.with_index do |ch, i|
+      depth += 1 if ch == '('
+      depth -= 1 if ch == ')'
+      return i if depth.zero? && sql[i..].match?(/\A\s*SELECT\b/i)
+    end
+    nil
+  end
 
   def probe(client)
     client.execute('SELECT 1').do
