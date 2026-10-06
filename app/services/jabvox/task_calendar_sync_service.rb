@@ -43,7 +43,10 @@ class Jabvox::TaskCalendarSyncService
     @account.jabvox_calendar_events.create!(
       user: owner,
       jabvox_task_id: @task.id,
-      contact_id: @task.jabvox_lead&.contact_id,
+      # El contacto cuelga de la tarea desde que se unificó Leads en Contactos: la
+      # asociación `jabvox_lead` ya no existe en JabvoxTask, así que leerla dejaba el
+      # evento de calendario sin contacto.
+      contact_id: @task.contact_id,
       title: @task.title_jabvox,
       description: @task.description_jabvox,
       event_type: :task,
