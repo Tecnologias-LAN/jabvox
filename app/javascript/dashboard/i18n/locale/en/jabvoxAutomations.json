@@ -1,0 +1,23 @@
+{
+  "JABVOX_AUTOMATIONS": {
+    "PARAMS": {
+      "TEMPLATE_LABEL": "Plantilla de WhatsApp",
+      "TEMPLATE_PLACEHOLDER": "Elige una plantilla",
+      "PICK_INBOX_FIRST": "Primero elige la bandeja",
+      "NO_TEMPLATES": "Esta bandeja no tiene plantillas aprobadas.",
+      "LANGUAGE": "Idioma: {language}",
+      "VARIABLES_LABEL": "¿Qué envía cada variable?",
+      "PICK_SOURCE": "Elige el dato",
+      "CONTACT_NAME": "Contacto: nombre",
+      "CONTACT_PHONE": "Contacto: teléfono",
+      "CONTACT_EMAIL": "Contacto: correo",
+      "TASK_TITLE": "Tarea: título",
+      "TASK_DUE_DATE": "Tarea: fecha límite",
+      "TASK_ASSIGNEE": "Tarea: responsable",
+      "TASK_STAGE": "Tarea: columna",
+      "CUSTOM": "Campo personalizado",
+      "FIXED": "Texto fijo",
+      "FIXED_PLACEHOLDER": "Escribe el texto"
+    }
+  }
+}

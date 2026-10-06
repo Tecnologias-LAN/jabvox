@@ -288,3 +288,27 @@
   display_name: WhatsApp Embedded Signup Flow
   enabled: false
   column: feature_flags_ext_1
+- name: channel_whatsapp
+  display_name: WhatsApp Channel
+  enabled: true
+  column: feature_flags_ext_1
+- name: channel_sms
+  display_name: SMS Channel
+  enabled: true
+  column: feature_flags_ext_1
+- name: channel_api
+  display_name: API Channel
+  enabled: true
+  column: feature_flags_ext_1
+- name: channel_telegram
+  display_name: Telegram Channel
+  enabled: true
+  column: feature_flags_ext_1
+- name: channel_line
+  display_name: Line Channel
+  enabled: true
+  column: feature_flags_ext_1
+- name: channel_whatsapp_call
+  display_name: WhatsApp Call Channel
+  enabled: true
+  column: feature_flags_ext_1

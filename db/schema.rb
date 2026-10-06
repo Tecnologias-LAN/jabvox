@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_29_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_06_110000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -146,6 +146,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_29_120000) do
     t.boolean "jabvox_ai_chat_provisioning_enabled_jabvox", default: false, null: false
     t.boolean "jabvox_auto_renew", default: false, null: false
     t.boolean "jabvox_whatsapp_flows_enabled_jabvox", default: false, null: false
+    t.boolean "jabvox_ip_whitelist_enabled_jabvox", default: true, null: false
+    t.boolean "jabvox_management_states_enabled_jabvox", default: true, null: false
+    t.boolean "jabvox_field_security_enabled_jabvox", default: true, null: false
+    t.boolean "jabvox_conversation_workflow_enabled_jabvox", default: true, null: false
+    t.boolean "jabvox_sla_enabled_jabvox", default: true, null: false
+    t.boolean "jabvox_audit_logs_enabled_jabvox", default: true, null: false
+    t.boolean "jabvox_canned_responses_enabled_jabvox", default: true, null: false
     t.index ["jabvox_plan_id"], name: "index_accounts_on_jabvox_plan_id"
     t.index ["status"], name: "index_accounts_on_status"
   end
@@ -2657,6 +2664,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_29_120000) do
     t.bigint "created_by_id"
     t.string "trigger_unit_jabvox"
     t.integer "trigger_value_jabvox"
+    t.string "template_name_jabvox"
+    t.string "template_language_jabvox"
+    t.jsonb "template_params_jabvox", default: {}, null: false
     t.index ["account_id"], name: "index_jabvox_kanban_stage_automations_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_kanban_stage_automations_on_created_by_id"
     t.index ["inbox_id"], name: "index_jabvox_kanban_stage_automations_on_inbox_id"
@@ -3347,6 +3357,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_29_120000) do
     t.bigint "created_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "template_name_jabvox"
+    t.string "template_language_jabvox"
+    t.jsonb "template_params_jabvox", default: {}, null: false
+    t.integer "max_runs_jabvox"
+    t.string "schedule_mode_jabvox", default: "recurring", null: false
     t.index ["account_id", "task_id"], name: "index_jabvox_task_automations_on_account_id_and_task_id"
     t.index ["account_id"], name: "index_jabvox_task_automations_on_account_id"
     t.index ["active_jabvox", "next_run_at_jabvox"], name: "idx_on_active_jabvox_next_run_at_jabvox_c67e09e205"
@@ -3390,6 +3405,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_29_120000) do
     t.boolean "active_jabvox", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "template_name_jabvox"
+    t.string "template_language_jabvox"
+    t.jsonb "template_params_jabvox", default: {}, null: false
+    t.string "trigger_unit_jabvox"
+    t.integer "trigger_value_jabvox"
     t.index ["account_id", "stage_id"], name: "index_jabvox_task_stage_automations_on_account_id_and_stage_id"
     t.index ["account_id"], name: "index_jabvox_task_stage_automations_on_account_id"
     t.index ["email_template_id"], name: "index_jabvox_task_stage_automations_on_email_template_id"

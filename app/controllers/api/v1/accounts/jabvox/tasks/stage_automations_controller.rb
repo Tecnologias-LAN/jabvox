@@ -46,7 +46,12 @@ class Api::V1::Accounts::Jabvox::Tasks::StageAutomationsController < Api::V1::Ac
     params.require(:automation).permit(
       :automation_type_jabvox, :channel_type_jabvox, :message_body_jabvox, :inbox_id,
       :email_template_id, :sms_provider_id, :webhook_url_jabvox, :webhook_secret_jabvox,
-      :trigger_hours_jabvox, :target_stage_id, :active_jabvox
+      :trigger_hours_jabvox, :target_stage_id, :active_jabvox,
+      :trigger_value_jabvox, :trigger_unit_jabvox,
+      :template_name_jabvox, :template_language_jabvox,
+      # El mapeo de variables es un hash de forma libre ({"1" => {source:, field:}}), así
+      # que se permite entero y el servicio que lo lee valida campo por campo.
+      template_params_jabvox: {}
     )
   end
 
@@ -60,7 +65,12 @@ class Api::V1::Accounts::Jabvox::Tasks::StageAutomationsController < Api::V1::Ac
       sms_provider_id: automation.sms_provider_id, webhook_url_jabvox: automation.webhook_url_jabvox,
       has_webhook_secret: automation.webhook_secret_jabvox.present?,
       trigger_hours_jabvox: automation.trigger_hours_jabvox, target_stage_id: automation.target_stage_id,
-      active_jabvox: automation.active_jabvox
+      active_jabvox: automation.active_jabvox,
+      trigger_value_jabvox: automation.trigger_value_jabvox,
+      trigger_unit_jabvox: automation.trigger_unit_jabvox,
+      template_name_jabvox: automation.template_name_jabvox,
+      template_language_jabvox: automation.template_language_jabvox,
+      template_params_jabvox: automation.template_params_jabvox
     }
   end
 end

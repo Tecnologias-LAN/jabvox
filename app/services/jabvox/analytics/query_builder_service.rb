@@ -7,12 +7,21 @@
 #   aggregations: [{ function: 'sum', column: 'total', alias: 'total_sum' }],
 #   filters: [{ field: 'status', operator: 'eq', value: 'paid' }],
 #   group_by: 'status',
-#   date_bucket: { column: 'created_at', unit: 'month' }
+#   date_bucket: { column: 'created_at', unit: 'month' },
+#   joins: [{ table: 'customers', on: 'orders.customer_id = customers.id', type: 'inner' }]
 # }
+#
+# `joins` permite reportes que cruzan tablas (p.ej. leads + facturación) sin recurrir a SQL
+# libre, que deja el tablero sin filtros globales. Tablas, columnas y la condición ON pasan
+# por `quote_identifier`, que sanea a [A-Za-z0-9_.]: no admite subconsultas ni literales.
 #
 #   sql, binds = Jabvox::Analytics::QueryBuilderService.new(adapter, spec).build
 class Jabvox::Analytics::QueryBuilderService
   AGGREGATIONS = %w[count sum avg min max].freeze
+  # Solo uniones internas y por la izquierda: cubren los reportes reales y evitan que un
+  # CROSS JOIN accidental multiplique filas hasta tumbar la consulta.
+  JOIN_TYPES = { 'inner' => 'INNER JOIN', 'left' => 'LEFT JOIN' }.freeze
+  IDENTIFIER_RE = /\A[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?\z/
   DATE_UNITS = %w[day week month year].freeze
   OPERATOR_SQL = {
     'eq' => '=', 'neq' => '!=', 'gt' => '>', 'gte' => '>=', 'lt' => '<', 'lte' => '<=',
@@ -38,6 +47,7 @@ class Jabvox::Analytics::QueryBuilderService
     where, binds = build_where
     group = build_group_by
     sql = "SELECT #{select.join(', ')} FROM #{q(@spec[:table])}"
+    build_joins.each { |j| sql << " #{j}" }
     sql << " WHERE #{where.join(' AND ')}" if where.any?
     sql << " GROUP BY #{group.join(', ')}" if group.any?
     [sql, binds]
@@ -102,6 +112,36 @@ class Jabvox::Analytics::QueryBuilderService
     return agg[:alias] if agg[:alias].present?
 
     agg[:column].blank? ? func : "#{func}_#{agg[:column]}"
+  end
+
+  # Une otras tablas al reporte. La condición ON se parte en `izquierda = derecha` y cada
+  # lado debe ser un identificador limpio: así una condición solo puede comparar dos
+  # columnas, nunca inyectar SQL.
+  def build_joins
+    Array(@spec[:joins]).filter_map do |join|
+      tabla = join[:table].to_s
+      next if tabla.blank?
+
+      tipo = JOIN_TYPES[join[:type].to_s.downcase] || JOIN_TYPES['inner']
+      izq, der = join_sides(join[:on])
+      "#{tipo} #{identifier!(tabla)} ON #{identifier!(izq)} = #{identifier!(der)}"
+    end
+  end
+
+  def join_sides(condition)
+    izq, der = condition.to_s.split('=', 2).map(&:strip)
+    raise InvalidSpec, "Condición de unión inválida: #{condition}" if izq.blank? || der.blank?
+
+    [izq, der]
+  end
+
+  # `quote_identifier` saneaba en silencio: `1 OR 1=1 --` salía como `1OR11`, un JOIN sin
+  # sentido en vez de un error. Rechazar lo que no sea `tabla.columna` convierte un spec
+  # mal formado en un mensaje claro, y cierra la puerta a condiciones creativas.
+  def identifier!(name)
+    raise InvalidSpec, "Identificador inválido: #{name}" unless name.to_s.match?(IDENTIFIER_RE)
+
+    q(name)
   end
 
   def build_where

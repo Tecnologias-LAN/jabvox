@@ -44,6 +44,7 @@ import mfa from './mfa.json';
 import onboarding from './onboarding.json';
 import sessionLimit from './sessionLimit.json';
 import yearInReview from './yearInReview.json';
+import jabvoxAutomations from './jabvoxAutomations.json';
 import jabvoxKanban from './jabvoxKanban.json';
 import jabvoxProducts from './jabvoxProducts.json';
 import jabvoxVoip from './jabvoxVoip.json';
@@ -131,6 +132,7 @@ export default {
   ...onboarding,
   ...sessionLimit,
   ...yearInReview,
+  ...jabvoxAutomations,
   ...jabvoxKanban,
   ...jabvoxProducts,
   ...jabvoxVoip,

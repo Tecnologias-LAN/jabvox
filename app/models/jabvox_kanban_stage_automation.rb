@@ -8,6 +8,9 @@
 #  channel_type             :string
 #  message_body             :text
 #  name                     :string           not null
+#  template_language_jabvox :string
+#  template_name_jabvox     :string
+#  template_params_jabvox   :jsonb            not null
 #  trigger_hours            :integer
 #  trigger_unit_jabvox      :string
 #  trigger_value_jabvox     :integer
@@ -44,7 +47,10 @@ class JabvoxKanbanStageAutomation < ApplicationRecord
     send_message move_after_hours move_if_inactive
     move_if_no_incoming move_if_no_outgoing
   ].freeze
-  CHANNEL_TYPES = %w[inbox email sms].freeze
+  # `inbox` enviaba texto libre, que WhatsApp solo acepta dentro de la ventana de 24h:
+  # fuera de ella Meta rechazaba el envío y la automatización fallaba sin aviso. Se
+  # sustituye por `whatsapp_template`, que es lo único que permite iniciar conversación.
+  CHANNEL_TYPES = %w[whatsapp_template email sms].freeze
   # El disparo por tiempo se mide en minutos u horas, a elección del usuario: "escalar si
   # nadie contesta en 30 minutos" y "mover tras 48 horas" son casos igual de reales.
   TRIGGER_UNITS = %w[minutes hours].freeze
@@ -90,13 +96,26 @@ class JabvoxKanbanStageAutomation < ApplicationRecord
 
   def channel_references_valid
     case channel_type
-    when 'inbox'
-      errors.add(:inbox, 'must be present for inbox channel') if inbox_id.blank?
-    when 'email'
-      errors.add(:jabvox_email_template, 'must be present for email channel') if jabvox_email_template_id.blank?
-    when 'sms'
-      errors.add(:jabvox_sms_provider, 'must be present for sms channel') if jabvox_sms_provider_id.blank?
-      errors.add(:message_body, "can't be blank for sms channel") if message_body.blank?
+    when 'whatsapp_template' then validate_whatsapp_template
+    when 'email' then validate_email_channel
+    when 'sms' then validate_sms_channel
     end
+  end
+
+  def validate_whatsapp_template
+    errors.add(:inbox, 'debes elegir la bandeja de WhatsApp') if inbox_id.blank?
+    errors.add(:template_name_jabvox, 'debes elegir la plantilla') if template_name_jabvox.blank?
+    # Por WhatsApp solo sale la plantilla. Un cuerpo escrito a mano aquí no se enviaría
+    # nunca, así que guardarlo solo serviría para hacer creer que sí.
+    self.message_body = nil
+  end
+
+  def validate_email_channel
+    errors.add(:jabvox_email_template, 'must be present for email channel') if jabvox_email_template_id.blank?
+  end
+
+  def validate_sms_channel
+    errors.add(:jabvox_sms_provider, 'must be present for sms channel') if jabvox_sms_provider_id.blank?
+    errors.add(:message_body, "can't be blank for sms channel") if message_body.blank?
   end
 end

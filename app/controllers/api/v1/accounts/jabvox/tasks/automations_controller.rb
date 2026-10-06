@@ -60,7 +60,12 @@ class Api::V1::Accounts::Jabvox::Tasks::AutomationsController < Api::V1::Account
       :name_jabvox, :channel_jabvox, :recipients_jabvox, :manual_email_jabvox,
       :manual_phone_jabvox, :interval_unit_jabvox, :interval_count_jabvox,
       :email_template_id, :inbox_id, :sms_provider_id, :subject_jabvox, :body_jabvox,
-      :active_jabvox, :start_at_jabvox, :end_at_jabvox
+      :active_jabvox, :start_at_jabvox, :end_at_jabvox,
+      :max_runs_jabvox, :schedule_mode_jabvox,
+      :template_name_jabvox, :template_language_jabvox,
+      # El mapeo de variables es un hash de forma libre ({"1" => {source:, field:}}), así
+      # que se permite entero y el servicio que lo lee valida campo por campo.
+      template_params_jabvox: {}
     )
   end
 
@@ -81,6 +86,16 @@ class Api::V1::Accounts::Jabvox::Tasks::AutomationsController < Api::V1::Account
       next_run_at_jabvox: automation.next_run_at_jabvox,
       last_run_at_jabvox: automation.last_run_at_jabvox,
       runs_count_jabvox: automation.runs_count_jabvox
+    }.merge(template_fields(automation))
+  end
+
+  def template_fields(automation)
+    {
+      max_runs_jabvox: automation.max_runs_jabvox,
+      schedule_mode_jabvox: automation.schedule_mode_jabvox,
+      template_name_jabvox: automation.template_name_jabvox,
+      template_language_jabvox: automation.template_language_jabvox,
+      template_params_jabvox: automation.template_params_jabvox
     }
   end
 

@@ -5,6 +5,7 @@ import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import ConfirmDialog from './ConfirmDialog.vue';
+import TemplateParamsPicker from 'dashboard/components/jabvox/automations/TemplateParamsPicker.vue';
 
 const props = defineProps({
   taskId: { type: [Number, String], required: true },
@@ -29,8 +30,22 @@ const emailTemplates = computed(
   () => rootStore.getters['jabvoxEmail/getTemplates'] || []
 );
 
-const CHANNELS = ['email', 'sms', 'inbox'];
-const UNITS = ['day', 'week', 'month'];
+// Por WhatsApp solo se envía plantilla aprobada: el texto libre únicamente sale dentro de
+// la ventana de 24h, y una automatización programada dispara casi siempre fuera de ella.
+// Claves de los campos personalizados de contacto, para enviarlos como variable de la
+// plantilla (p. ej. ciudad, cupo, cédula).
+const customAttributeKeys = computed(() =>
+  (
+    rootStore.getters['attributes/getAttributesByModel']('contact_attribute') ||
+    []
+  )
+    .map(attr => attr.attribute_key)
+    .filter(Boolean)
+);
+
+const CHANNELS = ['email', 'sms', 'whatsapp_template'];
+// Minuto y hora permiten recordatorios intradía ("cada 2 horas").
+const UNITS = ['minute', 'hour', 'day', 'week', 'month'];
 const RECIPIENTS = ['lead', 'assignees', 'lead_contacts', 'manual'];
 
 const emptyForm = () => ({
@@ -41,20 +56,43 @@ const emptyForm = () => ({
   manual_phone_jabvox: '',
   interval_unit_jabvox: 'day',
   interval_count_jabvox: 1,
+  // Por defecto, 3 avisos antes del vencimiento: acotado y con final claro, en vez de un
+  // ciclo que no para hasta que alguien lo desactive.
+  schedule_mode_jabvox: 'before_due',
+  max_runs_jabvox: 3,
   email_template_id: '',
   inbox_id: '',
   sms_provider_id: '',
   subject_jabvox: '',
   body_jabvox: '',
+  template_name_jabvox: '',
+  template_language_jabvox: '',
+  template_params_jabvox: {},
   active_jabvox: true,
 });
 const form = ref(emptyForm());
+
+// Resumen en lenguaje natural de lo configurado: "3 avisos cada 2 horas antes de que
+// venza la tarea". Sin esto hay que deducir el comportamiento de tres campos sueltos.
+const scheduleSummary = computed(() => {
+  const count = Number(form.value.max_runs_jabvox) || 0;
+  const every = Number(form.value.interval_count_jabvox) || 1;
+  const unit = t(
+    `JABVOX_TASKS.AUTOMATION.UNIT.${String(form.value.interval_unit_jabvox).toUpperCase()}`,
+    every
+  );
+  const key =
+    form.value.schedule_mode_jabvox === 'before_due'
+      ? 'JABVOX_TASKS.AUTOMATION.SUMMARY.BEFORE_DUE'
+      : 'JABVOX_TASKS.AUTOMATION.SUMMARY.RECURRING';
+  return t(key, { count, every, unit });
+});
 
 const channelIcon = ch =>
   ({
     email: 'i-lucide-mail',
     sms: 'i-lucide-message-square',
-    inbox: 'i-lucide-messages-square',
+    whatsapp_template: 'i-lucide-messages-square',
   })[ch] || 'i-lucide-zap';
 
 const recipientLabel = key =>
@@ -115,11 +153,16 @@ const openEdit = a => {
     manual_phone_jabvox: a.manualPhoneJabvox || '',
     interval_unit_jabvox: a.intervalUnitJabvox || 'day',
     interval_count_jabvox: a.intervalCountJabvox || 1,
+    schedule_mode_jabvox: a.scheduleModeJabvox || 'recurring',
+    max_runs_jabvox: a.maxRunsJabvox || null,
     email_template_id: a.emailTemplateId ? String(a.emailTemplateId) : '',
     inbox_id: a.inboxId ? String(a.inboxId) : '',
     sms_provider_id: a.smsProviderId ? String(a.smsProviderId) : '',
     subject_jabvox: a.subjectJabvox || '',
     body_jabvox: a.bodyJabvox || '',
+    template_name_jabvox: a.templateNameJabvox || '',
+    template_language_jabvox: a.templateLanguageJabvox || '',
+    template_params_jabvox: a.templateParamsJabvox || {},
     active_jabvox: a.activeJabvox,
   };
   showForm.value = true;
@@ -133,6 +176,8 @@ const buildPayload = () => ({
   manual_phone_jabvox: form.value.manual_phone_jabvox,
   interval_unit_jabvox: form.value.interval_unit_jabvox,
   interval_count_jabvox: Number(form.value.interval_count_jabvox) || 1,
+  schedule_mode_jabvox: form.value.schedule_mode_jabvox,
+  max_runs_jabvox: Number(form.value.max_runs_jabvox) || null,
   email_template_id: form.value.email_template_id
     ? Number(form.value.email_template_id)
     : null,
@@ -142,6 +187,9 @@ const buildPayload = () => ({
     : null,
   subject_jabvox: form.value.subject_jabvox,
   body_jabvox: form.value.body_jabvox,
+  template_name_jabvox: form.value.template_name_jabvox,
+  template_language_jabvox: form.value.template_language_jabvox,
+  template_params_jabvox: form.value.template_params_jabvox,
   active_jabvox: form.value.active_jabvox,
 });
 
@@ -233,6 +281,7 @@ onMounted(() => {
   rootStore.dispatch('inboxes/get');
   rootStore.dispatch('jabvoxEmail/fetchTemplates');
   rootStore.dispatch('jabvoxSms/fetchProviders');
+  rootStore.dispatch('attributes/get');
   load();
 });
 </script>
@@ -491,6 +540,28 @@ onMounted(() => {
             <label class="text-xs text-n-slate-11">{{
               t('JABVOX_TASKS.AUTOMATION.RECURRENCE')
             }}</label>
+            <select
+              v-model="form.schedule_mode_jabvox"
+              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
+            >
+              <option value="before_due">
+                {{ t('JABVOX_TASKS.AUTOMATION.MODE.BEFORE_DUE') }}
+              </option>
+              <option value="recurring">
+                {{ t('JABVOX_TASKS.AUTOMATION.MODE.RECURRING') }}
+              </option>
+            </select>
+            <div class="flex items-center gap-2">
+              <input
+                v-model.number="form.max_runs_jabvox"
+                type="number"
+                min="1"
+                class="reset-base w-16 text-sm text-center rounded-lg border border-n-weak bg-n-alpha-1 px-2 py-2"
+              />
+              <span class="text-sm text-n-slate-10">
+                {{ t('JABVOX_TASKS.AUTOMATION.TIMES_WORD') }}
+              </span>
+            </div>
             <div class="flex items-center gap-2">
               <span class="text-sm text-n-slate-10">{{
                 t('JABVOX_TASKS.AUTOMATION.EVERY_WORD')
@@ -516,6 +587,7 @@ onMounted(() => {
                 </option>
               </select>
             </div>
+            <p class="text-xs text-n-slate-10">{{ scheduleSummary }}</p>
           </div>
 
           <!-- Recipients -->
@@ -591,9 +663,9 @@ onMounted(() => {
             </div>
           </template>
 
-          <!-- Inbox -->
+          <!-- Bandeja de WhatsApp -->
           <div
-            v-else-if="form.channel_jabvox === 'inbox'"
+            v-else-if="form.channel_jabvox === 'whatsapp_template'"
             class="flex flex-col gap-1"
           >
             <label class="text-xs text-n-slate-11">{{
@@ -608,6 +680,14 @@ onMounted(() => {
                 {{ ib.name }}
               </option>
             </select>
+            <TemplateParamsPicker
+              v-model:template-name="form.template_name_jabvox"
+              v-model:template-language="form.template_language_jabvox"
+              v-model:params="form.template_params_jabvox"
+              :inbox-id="form.inbox_id"
+              allow-task
+              :custom-attribute-keys="customAttributeKeys"
+            />
           </div>
 
           <!-- SMS provider -->
@@ -630,9 +710,12 @@ onMounted(() => {
             </select>
           </div>
 
-          <!-- Body (sms/inbox, or email without template) -->
+          <!-- Cuerpo libre: solo SMS, o email sin plantilla. Por WhatsApp va la plantilla. -->
           <div
-            v-if="form.channel_jabvox !== 'email' || !form.email_template_id"
+            v-if="
+              form.channel_jabvox === 'sms' ||
+              (form.channel_jabvox === 'email' && !form.email_template_id)
+            "
             class="flex flex-col gap-1"
           >
             <label class="text-xs text-n-slate-11">{{

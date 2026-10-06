@@ -95,6 +95,13 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
   def send_session_message
     message_id = channel.send_message(message.conversation.contact_inbox.source_id, message)
     message.update!(source_id: message_id) if message_id.present?
+  # El envío de plantillas ya estaba protegido; este camino no. Si reventaba armando el
+  # payload o por un fallo de red, el mensaje se quedaba en "sent" sin source_id: el
+  # relojito eterno en la conversación. Se marca fallido indicando que fue la app, no
+  # WhatsApp, que es lo primero que hay que distinguir al revisar.
+  rescue StandardError => e
+    Rails.logger.error "[WA SendSession] msg=#{message.id}: #{e.class} #{e.message}"
+    message.update!(status: :failed, external_error: "No se pudo enviar desde Jabvox: #{e.message}")
   end
 
   def template_params

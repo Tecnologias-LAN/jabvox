@@ -327,6 +327,7 @@
     "FILTERS": {
       "DATE_FROM": "Date from",
       "DATE_TO": "Date to",
+      "ALL": "Todos",
       "APPLY": "Apply",
       "CLEAR": "Clear",
       "CHIP": "{key}: {value}",

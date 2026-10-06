@@ -36,6 +36,7 @@ import jabvoxDialer from './jabvoxDialer.json';
 import jabvoxFieldSecurity from './jabvoxFieldSecurity.json';
 import jabvoxInternalChat from './jabvoxInternalChat.json';
 import jabvoxIpWhitelist from './jabvoxIpWhitelist.json';
+import jabvoxAutomations from './jabvoxAutomations.json';
 import jabvoxKanban from './jabvoxKanban.json';
 import jabvoxContacts from './jabvoxContacts.json';
 import jabvoxLeads from './jabvoxLeads.json';
@@ -119,6 +120,7 @@ export default {
   ...jabvoxFieldSecurity,
   ...jabvoxInternalChat,
   ...jabvoxIpWhitelist,
+  ...jabvoxAutomations,
   ...jabvoxKanban,
   ...jabvoxContacts,
   ...jabvoxLeads,

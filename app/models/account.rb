@@ -2,59 +2,66 @@
 #
 # Table name: accounts
 #
-#  id                                         :integer          not null, primary key
-#  auto_resolve_duration                      :integer
-#  custom_attributes                          :jsonb
-#  domain                                     :string(100)
-#  feature_flags                              :bigint           default(0), not null
-#  feature_flags_ext_1                        :bigint           default(0), not null
-#  internal_attributes                        :jsonb            not null
-#  jabvox_acento_jabvox                       :string
-#  jabvox_advanced_automations_enabled_jabvox :boolean          default(FALSE), not null
-#  jabvox_affiliates_enabled_jabvox           :boolean          default(FALSE), not null
-#  jabvox_ai_chat_enabled_jabvox              :boolean          default(FALSE), not null
-#  jabvox_ai_chat_max_documents_jabvox        :integer          default(0), not null
-#  jabvox_ai_chat_max_open_chats_jabvox       :integer          default(0), not null
-#  jabvox_ai_chat_provisioning_enabled_jabvox :boolean          default(FALSE), not null
-#  jabvox_analytics_enabled_jabvox            :boolean          default(FALSE), not null
-#  jabvox_audio_analysis_enabled_jabvox       :boolean          default(FALSE), not null
-#  jabvox_auto_renew                          :boolean          default(FALSE), not null
-#  jabvox_bulk_whatsapp_enabled_jabvox        :boolean          default(FALSE), not null
-#  jabvox_calendar_enabled_jabvox             :boolean          default(FALSE), not null
-#  jabvox_cdr_enabled_jabvox                  :boolean          default(FALSE), not null
-#  jabvox_click_to_call_enabled_jabvox        :boolean          default(FALSE), not null
-#  jabvox_customization_enabled_jabvox        :boolean          default(FALSE), not null
-#  jabvox_data_export_enabled_jabvox          :boolean          default(FALSE), not null
-#  jabvox_dialer_enabled_jabvox               :boolean          default(FALSE), not null
-#  jabvox_email_enabled_jabvox                :boolean          default(FALSE), not null
-#  jabvox_forms_enabled_jabvox                :boolean          default(FALSE), not null
-#  jabvox_internal_chat_enabled_jabvox        :boolean          default(FALSE), not null
-#  jabvox_kanban_enabled_jabvox               :boolean          default(FALSE), not null
-#  jabvox_lead_delete_enabled_jabvox          :boolean          default(FALSE), not null
-#  jabvox_lead_import_enabled_jabvox          :boolean          default(FALSE), not null
-#  jabvox_leads_enabled_jabvox                :boolean          default(FALSE), not null
-#  jabvox_plan_expires_at                     :datetime
-#  jabvox_products_enabled_jabvox             :boolean          default(FALSE), not null
-#  jabvox_response_bot_enabled_jabvox         :boolean          default(FALSE), not null
-#  jabvox_saldo_enabled_jabvox                :boolean          default(FALSE), not null
-#  jabvox_sms_enabled_jabvox                  :boolean          default(FALSE), not null
-#  jabvox_softphone_enabled_jabvox            :boolean          default(FALSE), not null
-#  jabvox_tasks_enabled_jabvox                :boolean          default(FALSE), not null
-#  jabvox_tickets_enabled_jabvox              :boolean          default(FALSE), not null
-#  jabvox_voice_broadcast_enabled_jabvox      :boolean          default(FALSE), not null
-#  jabvox_voip_enabled_jabvox                 :boolean          default(FALSE), not null
-#  jabvox_whatsapp_flows_enabled_jabvox       :boolean          default(FALSE), not null
-#  jabvox_whatsapp_groups_enabled_jabvox      :boolean          default(FALSE), not null
-#  jabvox_whatsapp_templates_enabled_jabvox   :boolean          default(FALSE), not null
-#  limits                                     :jsonb
-#  locale                                     :integer          default("en")
-#  name                                       :string           not null
-#  settings                                   :jsonb
-#  status                                     :integer          default("active")
-#  support_email                              :string(100)
-#  created_at                                 :datetime         not null
-#  updated_at                                 :datetime         not null
-#  jabvox_plan_id                             :bigint
+#  id                                          :integer          not null, primary key
+#  auto_resolve_duration                       :integer
+#  custom_attributes                           :jsonb
+#  domain                                      :string(100)
+#  feature_flags                               :bigint           default(0), not null
+#  feature_flags_ext_1                         :bigint           default(0), not null
+#  internal_attributes                         :jsonb            not null
+#  jabvox_acento_jabvox                        :string
+#  jabvox_advanced_automations_enabled_jabvox  :boolean          default(FALSE), not null
+#  jabvox_affiliates_enabled_jabvox            :boolean          default(FALSE), not null
+#  jabvox_ai_chat_enabled_jabvox               :boolean          default(FALSE), not null
+#  jabvox_ai_chat_max_documents_jabvox         :integer          default(0), not null
+#  jabvox_ai_chat_max_open_chats_jabvox        :integer          default(0), not null
+#  jabvox_ai_chat_provisioning_enabled_jabvox  :boolean          default(FALSE), not null
+#  jabvox_analytics_enabled_jabvox             :boolean          default(FALSE), not null
+#  jabvox_audio_analysis_enabled_jabvox        :boolean          default(FALSE), not null
+#  jabvox_audit_logs_enabled_jabvox            :boolean          default(TRUE), not null
+#  jabvox_auto_renew                           :boolean          default(FALSE), not null
+#  jabvox_bulk_whatsapp_enabled_jabvox         :boolean          default(FALSE), not null
+#  jabvox_calendar_enabled_jabvox              :boolean          default(FALSE), not null
+#  jabvox_canned_responses_enabled_jabvox      :boolean          default(TRUE), not null
+#  jabvox_cdr_enabled_jabvox                   :boolean          default(FALSE), not null
+#  jabvox_click_to_call_enabled_jabvox         :boolean          default(FALSE), not null
+#  jabvox_conversation_workflow_enabled_jabvox :boolean          default(TRUE), not null
+#  jabvox_customization_enabled_jabvox         :boolean          default(FALSE), not null
+#  jabvox_data_export_enabled_jabvox           :boolean          default(FALSE), not null
+#  jabvox_dialer_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_email_enabled_jabvox                 :boolean          default(FALSE), not null
+#  jabvox_field_security_enabled_jabvox        :boolean          default(TRUE), not null
+#  jabvox_forms_enabled_jabvox                 :boolean          default(FALSE), not null
+#  jabvox_internal_chat_enabled_jabvox         :boolean          default(FALSE), not null
+#  jabvox_ip_whitelist_enabled_jabvox          :boolean          default(TRUE), not null
+#  jabvox_kanban_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_lead_delete_enabled_jabvox           :boolean          default(FALSE), not null
+#  jabvox_lead_import_enabled_jabvox           :boolean          default(FALSE), not null
+#  jabvox_leads_enabled_jabvox                 :boolean          default(FALSE), not null
+#  jabvox_management_states_enabled_jabvox     :boolean          default(TRUE), not null
+#  jabvox_plan_expires_at                      :datetime
+#  jabvox_products_enabled_jabvox              :boolean          default(FALSE), not null
+#  jabvox_response_bot_enabled_jabvox          :boolean          default(FALSE), not null
+#  jabvox_saldo_enabled_jabvox                 :boolean          default(FALSE), not null
+#  jabvox_sla_enabled_jabvox                   :boolean          default(TRUE), not null
+#  jabvox_sms_enabled_jabvox                   :boolean          default(FALSE), not null
+#  jabvox_softphone_enabled_jabvox             :boolean          default(FALSE), not null
+#  jabvox_tasks_enabled_jabvox                 :boolean          default(FALSE), not null
+#  jabvox_tickets_enabled_jabvox               :boolean          default(FALSE), not null
+#  jabvox_voice_broadcast_enabled_jabvox       :boolean          default(FALSE), not null
+#  jabvox_voip_enabled_jabvox                  :boolean          default(FALSE), not null
+#  jabvox_whatsapp_flows_enabled_jabvox        :boolean          default(FALSE), not null
+#  jabvox_whatsapp_groups_enabled_jabvox       :boolean          default(FALSE), not null
+#  jabvox_whatsapp_templates_enabled_jabvox    :boolean          default(FALSE), not null
+#  limits                                      :jsonb
+#  locale                                      :integer          default("en")
+#  name                                        :string           not null
+#  settings                                    :jsonb
+#  status                                      :integer          default("active")
+#  support_email                               :string(100)
+#  created_at                                  :datetime         not null
+#  updated_at                                  :datetime         not null
+#  jabvox_plan_id                              :bigint
 #
 # Indexes
 #

@@ -13,7 +13,8 @@ class JabvoxModulesField < Administrate::Field::Base
     { key: :telephony, label: 'Telefonía y Voz', icon: '📞' },
     { key: :ai, label: 'IA y Automatización', icon: '🤖' },
     { key: :crm, label: 'CRM y Gestión', icon: '📇' },
-    { key: :other, label: 'Otros', icon: '🧩' }
+    { key: :other, label: 'Otros', icon: '🧩' },
+    { key: :settings, label: 'Configuración y Seguridad', icon: '🔒' }
   ].freeze
 
   # Each module: [account boolean column, human label, category key].
@@ -50,7 +51,17 @@ class JabvoxModulesField < Administrate::Field::Base
     [:jabvox_products_enabled_jabvox, 'Productos', :other],
     [:jabvox_internal_chat_enabled_jabvox, 'Chat Interno', :other],
     [:jabvox_customization_enabled_jabvox, 'Personalización', :other],
-    [:jabvox_data_export_enabled_jabvox, 'Exportar Datos', :other]
+    [:jabvox_data_export_enabled_jabvox, 'Exportar Datos', :other],
+    # Configuración y Seguridad: secciones que antes estaban siempre visibles. Las tres
+    # últimas son features de Chatwoot, así que apagarlas aquí las oculta en esta cuenta
+    # aunque el plan global las incluya.
+    [:jabvox_ip_whitelist_enabled_jabvox, 'Lista Blanca de IP', :settings],
+    [:jabvox_management_states_enabled_jabvox, 'Estados de Gestión', :settings],
+    [:jabvox_field_security_enabled_jabvox, 'Seguridad de Información', :settings],
+    [:jabvox_conversation_workflow_enabled_jabvox, 'Flujo de Conversación', :settings],
+    [:jabvox_sla_enabled_jabvox, 'SLA', :settings],
+    [:jabvox_audit_logs_enabled_jabvox, 'Auditoría de Registros', :settings],
+    [:jabvox_canned_responses_enabled_jabvox, 'Respuestas Predefinidas', :settings]
   ].freeze
 
   # [[column, label, enabled_boolean], ...] for the current account.

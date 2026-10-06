@@ -7,6 +7,7 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useAccount } from 'dashboard/composables/useAccount';
 
 import ChannelItem from 'dashboard/components/widgets/ChannelItem.vue';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -19,6 +20,22 @@ const enabledFeatures = computed(() => currentAccount.value?.features || {});
 const hasTiktokConfigured = computed(() => {
   return window.jabvoxConfig?.tiktokAppId;
 });
+
+// Canal del listado -> feature que lo habilita en la cuenta.
+const CHANNEL_FEATURE = {
+  website: FEATURE_FLAGS.CHANNEL_WEBSITE,
+  facebook: FEATURE_FLAGS.CHANNEL_FACEBOOK,
+  whatsapp: FEATURE_FLAGS.CHANNEL_WHATSAPP,
+  sms: FEATURE_FLAGS.CHANNEL_SMS,
+  email: FEATURE_FLAGS.CHANNEL_EMAIL,
+  api: FEATURE_FLAGS.CHANNEL_API,
+  telegram: FEATURE_FLAGS.CHANNEL_TELEGRAM,
+  line: FEATURE_FLAGS.CHANNEL_LINE,
+  instagram: FEATURE_FLAGS.CHANNEL_INSTAGRAM,
+  tiktok: FEATURE_FLAGS.CHANNEL_TIKTOK,
+  voice: FEATURE_FLAGS.CHANNEL_VOICE,
+  whatsapp_call: FEATURE_FLAGS.CHANNEL_WHATSAPP_CALL,
+};
 
 const channelList = computed(() => {
   const { apiChannelName } = globalConfig.value;
@@ -102,7 +119,14 @@ const channelList = computed(() => {
     icon: 'i-woot-whatsapp',
   });
 
-  return channels;
+  // Solo se ofrecen los canales que la cuenta tiene habilitados: antes se listaban los
+  // doce y al elegir uno no disponible el alta fallaba más adelante, sin explicar por qué.
+  return channels.filter(channel => {
+    const flag = CHANNEL_FEATURE[channel.key];
+    // Un canal sin flag definido se muestra siempre: es el comportamiento anterior y
+    // evita que añadir un canal nuevo lo deje invisible por olvido.
+    return !flag || enabledFeatures.value[flag];
+  });
 });
 
 const initChannelAuth = channel => {

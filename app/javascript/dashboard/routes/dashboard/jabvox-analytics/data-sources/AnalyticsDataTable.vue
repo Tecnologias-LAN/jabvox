@@ -37,9 +37,19 @@ const totalColspan = computed(
   () => columnNames.value.length + (props.showRowNumbers ? 1 : 0) || 1
 );
 
+// Los DECIMAL de la base llegan como string ("397339114.5"), no como número: sin formato
+// una cifra de venta se lee como un churro de dígitos. Se les pone separador de miles.
+// Se excluyen los textos que solo parecen números (códigos de zona, NIT, años) para no
+// convertir "1805" en "1.805", y los que ya traen formato propio (porcentajes).
+const NUMERIC_RE = /^-?\d+\.\d+$/;
+
 const formatCell = value => {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'object') return JSON.stringify(value);
+  if (typeof value === 'number') return value.toLocaleString('es-CO');
+  if (typeof value === 'string' && NUMERIC_RE.test(value)) {
+    return Number(value).toLocaleString('es-CO', { maximumFractionDigits: 2 });
+  }
   return value;
 };
 

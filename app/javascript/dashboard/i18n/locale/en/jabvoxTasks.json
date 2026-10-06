@@ -156,12 +156,14 @@
       "CHANNEL": {
         "EMAIL": "Email",
         "SMS": "SMS",
-        "INBOX": "Message"
+        "WHATSAPP_TEMPLATE": "WhatsApp"
       },
       "RECURRENCE": "Recurrence",
       "EVERY_WORD": "Every",
       "EVERY": "Every {count} {unit}",
       "UNIT": {
+        "MINUTE": "minute | minutes",
+        "HOUR": "hour | hours",
         "DAY": "day | days",
         "WEEK": "week | weeks",
         "MONTH": "month | months"
@@ -203,7 +205,16 @@
         "FAILED": "Failed",
         "SKIPPED": "Skipped"
       },
-      "CARD_BADGE": "{count} active automation | {count} active automations"
+      "CARD_BADGE": "{count} active automation | {count} active automations",
+      "MODE": {
+        "BEFORE_DUE": "Avisar antes de que venza la tarea",
+        "RECURRING": "Repetir cada cierto tiempo"
+      },
+      "TIMES_WORD": "veces",
+      "SUMMARY": {
+        "BEFORE_DUE": "{count} avisos, cada {every} {unit}, antes de que venza la tarea. Termina sola al llegar el vencimiento.",
+        "RECURRING": "Cada {every} {unit}, hasta {count} veces. Si dejas el número vacío, no para hasta que la desactives o completes la tarea."
+      }
     },
     "LEAD_FILTER": {
       "LABEL": "Filter by lead",
@@ -301,7 +312,9 @@
       "CREATED": "Automation created",
       "UPDATED": "Automation updated",
       "DELETED": "Automation deleted",
-      "ERROR": "Something went wrong with the automation."
+      "ERROR": "Something went wrong with the automation.",
+      "UNIT_MINUTES": "Minutos",
+      "UNIT_HOURS": "Horas"
     },
     "CALENDAR": {
       "PREV": "Previous month",
@@ -325,6 +338,8 @@
     "RECURRENCE": {
       "LABEL": "Repeats",
       "NONE": "Does not repeat",
+      "minute": "Every minute",
+      "hour": "Every hour",
       "day": "Every day",
       "week": "Every week",
       "month": "Every month",

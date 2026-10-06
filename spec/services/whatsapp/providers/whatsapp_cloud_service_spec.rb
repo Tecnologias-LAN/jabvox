@@ -364,7 +364,8 @@ describe Whatsapp::Providers::WhatsappCloudService do
       instance_double(
         HTTParty::Response,
         body: error_response.to_json,
-        parsed_response: error_response
+        parsed_response: error_response,
+        code: 400
       )
     end
 
@@ -373,30 +374,54 @@ describe Whatsapp::Providers::WhatsappCloudService do
     end
 
     context 'when there is a message' do
-      it 'logs error and updates message status' do
+      # El código de Meta acompaña al texto: es lo que distingue un problema de la cuenta
+      # de WhatsApp (plantilla no aprobada, número sin verificar) de un fallo de la app.
+      it 'logs error and updates message status with the Meta code' do
         service.instance_variable_set(:@message, message)
         service.send(:handle_error, error_response_object, message)
 
         expect(message.reload.status).to eq('failed')
-        expect(message.reload.external_error).to eq(error_message)
+        expect(message.reload.external_error).to eq("#{error_message} (WhatsApp 100)")
       end
     end
 
+    # Antes, un fallo sin texto legible dejaba el mensaje en "sent": el relojito eterno en
+    # la conversación, sin que nadie supiera que no había salido. Un envío rechazado se
+    # marca fallido siempre, con o sin detalle del proveedor.
     context 'when error message is blank' do
       let(:error_response_object) do
         instance_double(
           HTTParty::Response,
           body: '{}',
-          parsed_response: {}
+          parsed_response: {},
+          code: 502
         )
       end
 
-      it 'logs error but does not update message' do
+      it 'still marks the message as failed, explaining what is known' do
         service.instance_variable_set(:@message, message)
         service.send(:handle_error, error_response_object, message)
 
-        expect(message.reload.status).not_to eq('failed')
-        expect(message.reload.external_error).to be_nil
+        expect(message.reload.status).to eq('failed')
+        expect(message.reload.external_error).to eq('El proveedor no aceptó el envío (HTTP 502)')
+      end
+    end
+
+    context 'when only the Meta code arrives, with no message' do
+      let(:error_response_object) do
+        instance_double(
+          HTTParty::Response,
+          body: '{"error":{"code":131042}}',
+          parsed_response: { 'error' => { 'code' => 131_042 } },
+          code: 400
+        )
+      end
+
+      it 'names the code, which is what identifies the account problem' do
+        service.instance_variable_set(:@message, message)
+        service.send(:handle_error, error_response_object, message)
+
+        expect(message.reload.external_error).to eq('WhatsApp rechazó el envío (error 131042)')
       end
     end
   end

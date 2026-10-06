@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
+import TemplateParamsPicker from 'dashboard/components/jabvox/automations/TemplateParamsPicker.vue';
 import { useAlert } from 'dashboard/composables';
 import { backendMessage } from 'dashboard/helper/jabvox/backendMessage';
 import { useMapGetter } from 'dashboard/composables/store';
@@ -75,6 +76,9 @@ const emptyForm = () => ({
   jabvox_email_template_id: null,
   jabvox_sms_provider_id: null,
   message_body: '',
+  template_name_jabvox: '',
+  template_language_jabvox: '',
+  template_params_jabvox: {},
   trigger_value_jabvox: null,
   trigger_unit_jabvox: '',
   target_stage_id: null,
@@ -106,15 +110,15 @@ const applyChannelKey = key => {
   const [type, rawId] = key.split(':');
   const id = parseInt(rawId, 10);
   form.value.channel_type = type;
-  form.value.inbox_id = type === 'inbox' ? id : null;
+  form.value.inbox_id = type === 'whatsapp_template' ? id : null;
   form.value.jabvox_email_template_id = type === 'email' ? id : null;
   form.value.jabvox_sms_provider_id = type === 'sms' ? id : null;
 };
 
 const selectedChannelKey = computed({
   get: () => {
-    if (form.value.channel_type === 'inbox' && form.value.inbox_id)
-      return `inbox:${form.value.inbox_id}`;
+    if (form.value.channel_type === 'whatsapp_template' && form.value.inbox_id)
+      return `whatsapp_template:${form.value.inbox_id}`;
     if (
       form.value.channel_type === 'email' &&
       form.value.jabvox_email_template_id
@@ -127,8 +131,20 @@ const selectedChannelKey = computed({
   set: applyChannelKey,
 });
 
-const showMessageBody = computed(
-  () => form.value.channel_type === 'inbox' || form.value.channel_type === 'sms'
+// WhatsApp ya no envía texto libre (fuera de la ventana de 24h Meta lo rechaza): usa
+// plantilla. El cuerpo escrito a mano queda solo para SMS.
+const showMessageBody = computed(() => form.value.channel_type === 'sms');
+
+const showTemplatePicker = computed(
+  () => form.value.channel_type === 'whatsapp_template'
+);
+
+// Claves de los campos personalizados de contacto, para poder enviarlos como variable
+// de la plantilla (p. ej. ciudad, cupo, cédula).
+const customAttributeKeys = computed(() =>
+  (store.getters['attributes/getAttributesByModel']('contact_attribute') || [])
+    .map(attr => attr.attribute_key)
+    .filter(Boolean)
 );
 
 onMounted(() => {
@@ -138,7 +154,10 @@ onMounted(() => {
   });
   store.dispatch('jabvoxEmail/fetchTemplates');
   store.dispatch('jabvoxSms/fetchProviders');
+  // `inboxes/get` también trae las plantillas aprobadas de cada bandeja de WhatsApp,
+  // que son las que ofrece el selector.
   store.dispatch('inboxes/get');
+  store.dispatch('attributes/get');
   store.dispatch('jabvoxKanban/fetchFunnels');
 });
 
@@ -158,6 +177,9 @@ const openEdit = auto => {
     jabvox_email_template_id: auto.jabvox_email_template_id,
     jabvox_sms_provider_id: auto.jabvox_sms_provider_id,
     message_body: auto.message_body || '',
+    template_name_jabvox: auto.template_name_jabvox || '',
+    template_language_jabvox: auto.template_language_jabvox || '',
+    template_params_jabvox: auto.template_params_jabvox || {},
     // Las creadas antes de existir la unidad solo tienen trigger_hours: se leen como horas.
     trigger_value_jabvox:
       auto.trigger_value_jabvox ?? auto.trigger_hours ?? null,
@@ -222,11 +244,15 @@ const onDelete = async auto => {
 const automationDisplay = auto => {
   const type = auto.automation_type || 'send_message';
   if (type === 'send_message') {
-    if (auto.channel_type === 'inbox') {
-      return (
+    if (auto.channel_type === 'whatsapp_template') {
+      const inboxName =
         inboxes.value.find(i => i.id === auto.inbox_id)?.name ||
-        t('JABVOX_KANBAN.AUTOMATIONS_PANEL.FORM.INBOX_LABEL')
-      );
+        t('JABVOX_KANBAN.AUTOMATIONS_PANEL.FORM.INBOX_LABEL');
+      // Se nombra la plantilla además de la bandeja: con varias automatizaciones sobre la
+      // misma bandeja, el nombre de la bandeja solo no distingue una de otra.
+      return auto.template_name_jabvox
+        ? `${inboxName} · ${auto.template_name_jabvox}`
+        : inboxName;
     }
     if (auto.channel_type === 'email') {
       const tpl = templates.value.find(
@@ -282,7 +308,7 @@ const automationDisplay = auto => {
 const badgeClass = auto => {
   const type = auto.automation_type || 'send_message';
   if (type === 'send_message') {
-    if (auto.channel_type === 'inbox')
+    if (auto.channel_type === 'whatsapp_template')
       return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
     if (auto.channel_type === 'email')
       return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
@@ -479,7 +505,7 @@ const badgeClass = auto => {
                     <option
                       v-for="inbox in inboxes"
                       :key="inbox.id"
-                      :value="`inbox:${inbox.id}`"
+                      :value="`whatsapp_template:${inbox.id}`"
                     >
                       {{ inbox.name }}
                     </option>
@@ -536,6 +562,16 @@ const badgeClass = auto => {
                   </optgroup>
                 </select>
               </div>
+
+              <!-- Plantilla de WhatsApp y qué llena cada variable -->
+              <TemplateParamsPicker
+                v-if="showTemplatePicker"
+                v-model:template-name="form.template_name_jabvox"
+                v-model:template-language="form.template_language_jabvox"
+                v-model:params="form.template_params_jabvox"
+                :inbox-id="form.inbox_id"
+                :custom-attribute-keys="customAttributeKeys"
+              />
 
               <!-- Message body -->
               <div v-if="showMessageBody" class="space-y-1">

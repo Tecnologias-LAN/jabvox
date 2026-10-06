@@ -1049,12 +1049,19 @@ const menuItems = computed(() => {
           icon: 'i-lucide-toy-brick',
           to: accountScopedRoute('macros_wrapper'),
         },
-        {
-          name: 'Settings Canned Responses',
-          label: t('SIDEBAR.CANNED_RESPONSES'),
-          icon: 'i-lucide-message-square-quote',
-          to: accountScopedRoute('canned_list'),
-        },
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.CANNED_RESPONSES
+        )
+          ? [
+              {
+                name: 'Settings Canned Responses',
+                label: t('SIDEBAR.CANNED_RESPONSES'),
+                icon: 'i-lucide-message-square-quote',
+                to: accountScopedRoute('canned_list'),
+              },
+            ]
+          : []),
         {
           name: 'Settings Integrations',
           label: t('SIDEBAR.INTEGRATIONS'),
@@ -1071,12 +1078,19 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        {
-          name: 'Settings Audit Logs',
-          label: t('SIDEBAR.AUDIT_LOGS'),
-          icon: 'i-lucide-briefcase',
-          to: accountScopedRoute('auditlogs_list'),
-        },
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.AUDIT_LOGS
+        )
+          ? [
+              {
+                name: 'Settings Audit Logs',
+                label: t('SIDEBAR.AUDIT_LOGS'),
+                icon: 'i-lucide-briefcase',
+                to: accountScopedRoute('auditlogs_list'),
+              },
+            ]
+          : []),
         // Only when the account has the custom-roles module enabled (the route
         // guard also blocks direct-URL access when it's off).
         ...(isFeatureEnabledonAccount.value(
@@ -1092,31 +1106,50 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        {
-          name: 'Settings Sla',
-          label: t('SIDEBAR.SLA'),
-          icon: 'i-lucide-clock-alert',
-          to: accountScopedRoute('sla_list'),
-        },
-        {
-          name: 'Conversation Workflow',
-          label: t('SIDEBAR.CONVERSATION_WORKFLOW'),
-          icon: 'i-lucide-workflow',
-          to: accountScopedRoute('conversation_workflow_index'),
-        },
-        {
-          name: 'Settings Security',
-          label: t('SIDEBAR.SECURITY'),
-          icon: 'i-lucide-shield',
-          to: accountScopedRoute('security_settings_index'),
-        },
+        ...(isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.SLA)
+          ? [
+              {
+                name: 'Settings Sla',
+                label: t('SIDEBAR.SLA'),
+                icon: 'i-lucide-clock-alert',
+                to: accountScopedRoute('sla_list'),
+              },
+            ]
+          : []),
+        ...(isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_CONVERSATION_WORKFLOW
+        )
+          ? [
+              {
+                name: 'Conversation Workflow',
+                label: t('SIDEBAR.CONVERSATION_WORKFLOW'),
+                icon: 'i-lucide-workflow',
+                to: accountScopedRoute('conversation_workflow_index'),
+              },
+            ]
+          : []),
+        ...(isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.SAML)
+          ? [
+              {
+                name: 'Settings Security',
+                label: t('SIDEBAR.SECURITY'),
+                icon: 'i-lucide-shield',
+                to: accountScopedRoute('security_settings_index'),
+              },
+            ]
+          : []),
         {
           name: 'Settings Billing',
           label: t('SIDEBAR.BILLING'),
           icon: 'i-lucide-credit-card',
           to: accountScopedRoute('billing_settings_index'),
         },
-        ...(jabvoxCan('jabvox_field_visibilities_manage')
+        ...(jabvoxCan('jabvox_field_visibilities_manage') &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_FIELD_SECURITY
+        )
           ? [
               {
                 name: 'Settings Jabvox Field Security',
@@ -1383,7 +1416,11 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(jabvoxCan('jabvox_ip_whitelist_manage')
+        ...(jabvoxCan('jabvox_ip_whitelist_manage') &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_IP_WHITELIST
+        )
           ? [
               {
                 name: 'Settings Jabvox IP Whitelist',
@@ -1409,7 +1446,11 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(jabvoxCan('jabvox_management_states_manage')
+        ...(jabvoxCan('jabvox_management_states_manage') &&
+        isFeatureEnabledonAccount.value(
+          accountId.value,
+          FEATURE_FLAGS.JABVOX_MANAGEMENT_STATES
+        )
           ? [
               {
                 name: 'Settings Jabvox Management States',

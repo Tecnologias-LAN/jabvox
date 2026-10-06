@@ -11,7 +11,9 @@
 # contacto, recurrencia) y nace limpia de lo que pertenece a la ocurrencia cerrada
 # (comentarios, historial, fecha de aviso).
 class Jabvox::TaskRecurrenceService
-  UNITS = %w[day week month year].freeze
+  # Minuto y hora permiten recurrencias intradía ("recordar cada 2 horas"), que antes
+  # obligaban a crear una tarea por cada repetición.
+  UNITS = %w[minute hour day week month year].freeze
 
   def initialize(task)
     @task = task
@@ -49,6 +51,8 @@ class Jabvox::TaskRecurrenceService
   def interval
     count = @task.recurrence_count_jabvox.to_i
     case @task.recurrence_unit_jabvox
+    when 'minute' then count.minutes
+    when 'hour' then count.hours
     when 'day' then count.days
     when 'week' then count.weeks
     when 'month' then count.months

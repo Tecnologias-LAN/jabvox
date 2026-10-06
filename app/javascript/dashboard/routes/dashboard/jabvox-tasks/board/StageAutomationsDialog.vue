@@ -5,6 +5,7 @@ import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
+import TemplateParamsPicker from 'dashboard/components/jabvox/automations/TemplateParamsPicker.vue';
 
 const props = defineProps({
   boardId: {
@@ -42,8 +43,14 @@ const showForm = ref(false);
 
 // Form state
 const automationType = ref('send_message');
-const channelType = ref('inbox');
+const channelType = ref('whatsapp_template');
 const messageBody = ref('');
+const templateName = ref('');
+const templateLanguage = ref('');
+const templateParams = ref({});
+// El disparo se mide en minutos u horas: "avisar 30 minutos antes" y "mover tras 48
+// horas sin tocar" son casos igual de reales.
+const triggerUnit = ref('hours');
 const inboxId = ref('');
 const emailTemplateId = ref('');
 const smsProviderId = ref('');
@@ -82,12 +89,12 @@ const isMoveType = computed(() =>
   ['move_after_hours', 'move_if_inactive'].includes(automationType.value)
 );
 
-// Unified channel selector: a single dropdown that lists inboxes, email
+// Unified channel selector: a single dropdown that lists WhatsApp inboxes, email
 // templates and SMS providers by name. The selected `type:id` key is split
 // back into channelType + the matching id field.
 const applyChannelKey = key => {
   if (!key) {
-    channelType.value = 'inbox';
+    channelType.value = 'whatsapp_template';
     inboxId.value = '';
     emailTemplateId.value = '';
     smsProviderId.value = '';
@@ -95,15 +102,26 @@ const applyChannelKey = key => {
   }
   const [type, rawId] = key.split(':');
   channelType.value = type;
-  inboxId.value = type === 'inbox' ? rawId : '';
+  inboxId.value = type === 'whatsapp_template' ? rawId : '';
   emailTemplateId.value = type === 'email' ? rawId : '';
   smsProviderId.value = type === 'sms' ? rawId : '';
 };
 
+// Claves de los campos personalizados de contacto, para poder enviarlos como variable
+// de la plantilla (p. ej. ciudad, cupo, cédula).
+const customAttributeKeys = computed(() =>
+  (
+    rootStore.getters['attributes/getAttributesByModel']('contact_attribute') ||
+    []
+  )
+    .map(attr => attr.attribute_key)
+    .filter(Boolean)
+);
+
 const selectedChannelKey = computed({
   get: () => {
-    if (channelType.value === 'inbox' && inboxId.value)
-      return `inbox:${inboxId.value}`;
+    if (channelType.value === 'whatsapp_template' && inboxId.value)
+      return `whatsapp_template:${inboxId.value}`;
     if (channelType.value === 'email' && emailTemplateId.value)
       return `email:${emailTemplateId.value}`;
     if (channelType.value === 'sms' && smsProviderId.value)
@@ -115,8 +133,12 @@ const selectedChannelKey = computed({
 
 const resetForm = () => {
   automationType.value = 'send_message';
-  channelType.value = 'inbox';
+  channelType.value = 'whatsapp_template';
   messageBody.value = '';
+  templateName.value = '';
+  templateLanguage.value = '';
+  templateParams.value = {};
+  triggerUnit.value = 'hours';
   inboxId.value = '';
   emailTemplateId.value = '';
   smsProviderId.value = '';
@@ -151,8 +173,12 @@ const openCreate = () => {
 const openEdit = automation => {
   editing.value = automation;
   automationType.value = automation.automationTypeJabvox || 'send_message';
-  channelType.value = automation.channelTypeJabvox || 'inbox';
+  channelType.value = automation.channelTypeJabvox || 'whatsapp_template';
   messageBody.value = automation.messageBodyJabvox || '';
+  templateName.value = automation.templateNameJabvox || '';
+  templateLanguage.value = automation.templateLanguageJabvox || '';
+  templateParams.value = automation.templateParamsJabvox || {};
+  triggerUnit.value = automation.triggerUnitJabvox || 'hours';
   inboxId.value = automation.inboxId ? String(automation.inboxId) : '';
   emailTemplateId.value = automation.emailTemplateId
     ? String(automation.emailTemplateId)
@@ -179,6 +205,9 @@ const buildPayload = () => {
   if (automationType.value === 'send_message') {
     payload.channel_type_jabvox = channelType.value;
     payload.message_body_jabvox = messageBody.value;
+    payload.template_name_jabvox = templateName.value;
+    payload.template_language_jabvox = templateLanguage.value;
+    payload.template_params_jabvox = templateParams.value;
     payload.inbox_id = inboxId.value ? Number(inboxId.value) : null;
     payload.email_template_id = emailTemplateId.value
       ? Number(emailTemplateId.value)
@@ -192,9 +221,16 @@ const buildPayload = () => {
       payload.webhook_secret_jabvox = webhookSecret.value;
     }
   } else {
-    payload.trigger_hours_jabvox = triggerHours.value
+    // `trigger_value_jabvox` + unidad sustituyen a las horas fijas; se sigue enviando
+    // trigger_hours_jabvox para no romper lo ya guardado.
+    payload.trigger_value_jabvox = triggerHours.value
       ? Number(triggerHours.value)
       : null;
+    payload.trigger_unit_jabvox = triggerUnit.value;
+    payload.trigger_hours_jabvox =
+      triggerUnit.value === 'hours' && triggerHours.value
+        ? Number(triggerHours.value)
+        : null;
     payload.target_stage_id = targetStageId.value
       ? Number(targetStageId.value)
       : null;
@@ -253,6 +289,7 @@ onMounted(() => {
   rootStore.dispatch('inboxes/get');
   rootStore.dispatch('jabvoxEmail/fetchTemplates');
   rootStore.dispatch('jabvoxSms/fetchProviders');
+  rootStore.dispatch('attributes/get');
 });
 </script>
 
@@ -384,7 +421,7 @@ onMounted(() => {
                   <option
                     v-for="inbox in inboxes"
                     :key="inbox.id"
-                    :value="`inbox:${inbox.id}`"
+                    :value="`whatsapp_template:${inbox.id}`"
                   >
                     {{ inbox.name }}
                   </option>
@@ -418,10 +455,16 @@ onMounted(() => {
                 </optgroup>
               </select>
             </div>
-            <div
-              v-if="channelType === 'inbox' || channelType === 'sms'"
-              class="space-y-1"
-            >
+            <TemplateParamsPicker
+              v-if="channelType === 'whatsapp_template'"
+              v-model:template-name="templateName"
+              v-model:template-language="templateLanguage"
+              v-model:params="templateParams"
+              :inbox-id="inboxId"
+              allow-task
+              :custom-attribute-keys="customAttributeKeys"
+            />
+            <div v-if="channelType === 'sms'" class="space-y-1">
               <label class="block text-sm font-medium text-n-slate-11">
                 {{ t('JABVOX_TASKS.AUTOMATIONS.MESSAGE_BODY') }}
               </label>
@@ -476,12 +519,25 @@ onMounted(() => {
               <label class="block text-sm font-medium text-n-slate-11">
                 {{ t('JABVOX_TASKS.AUTOMATIONS.TRIGGER_HOURS') }}
               </label>
-              <input
-                v-model="triggerHours"
-                type="number"
-                min="0"
-                class="w-full px-3 py-2 text-sm rounded-lg bg-n-solid-1 border border-n-weak text-n-slate-12 focus:outline-none focus:border-n-strong"
-              />
+              <div class="flex gap-2">
+                <input
+                  v-model="triggerHours"
+                  type="number"
+                  min="0"
+                  class="w-full px-3 py-2 text-sm rounded-lg bg-n-solid-1 border border-n-weak text-n-slate-12 focus:outline-none focus:border-n-strong"
+                />
+                <select
+                  v-model="triggerUnit"
+                  class="px-3 py-2 text-sm rounded-lg bg-n-solid-1 border border-n-weak text-n-slate-12 focus:outline-none focus:border-n-strong"
+                >
+                  <option value="minutes">
+                    {{ t('JABVOX_TASKS.AUTOMATIONS.UNIT_MINUTES') }}
+                  </option>
+                  <option value="hours">
+                    {{ t('JABVOX_TASKS.AUTOMATIONS.UNIT_HOURS') }}
+                  </option>
+                </select>
+              </div>
             </div>
             <div class="space-y-1">
               <label class="block text-sm font-medium text-n-slate-11">

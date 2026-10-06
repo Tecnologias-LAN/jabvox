@@ -70,18 +70,19 @@ const notFound = computed(() => !loading.value && !currentDashboard.value);
 // user-defined field names that must be preserved verbatim.
 // El backend espera `global_filters[filters]` como lista de {field, values}: enviarlo con
 // otra forma (date_from/date_to/dynamic) hacía que los filtros se ignoraran en silencio.
-// Las claves llegan como "tabla.columna"; el campo que viaja es la columna.
+// La clave "tabla.columna" viaja COMPLETA: en un reporte con JOIN la columna sola es
+// ambigua (varias tablas tienen `deleted`, `name`...) y la base rechazaría la consulta.
+//
+// `params` son los marcadores de los widgets de SQL libre y van por separado, porque el
+// backend los inyecta como binds de la consulta, no como cláusulas de un WHERE.
 const filterPayload = () => {
   const dynamic = globalFilters.value.dynamic || {};
   const filters = Object.entries(dynamic)
     .filter(
       ([, value]) => value !== '' && value !== null && value !== undefined
     )
-    .map(([key, value]) => ({
-      field: key.includes('.') ? key.split('.').pop() : key,
-      values: [value],
-    }));
-  return { filters };
+    .map(([key, value]) => ({ field: key, values: [value] }));
+  return { filters, params: globalFilters.value.params || {} };
 };
 
 const refreshAll = () => {

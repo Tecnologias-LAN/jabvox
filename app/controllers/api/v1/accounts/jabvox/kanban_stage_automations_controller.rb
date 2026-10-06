@@ -51,7 +51,11 @@ class Api::V1::Accounts::Jabvox::KanbanStageAutomationsController < Api::V1::Acc
       :name, :automation_type, :channel_type,
       :inbox_id, :jabvox_email_template_id, :jabvox_sms_provider_id,
       :message_body, :trigger_hours, :target_stage_id, :active,
-      :trigger_value_jabvox, :trigger_unit_jabvox
+      :trigger_value_jabvox, :trigger_unit_jabvox,
+      :template_name_jabvox, :template_language_jabvox,
+      # El mapeo de variables es un hash de forma libre ({"1" => {source:, field:}}), así
+      # que se permite entero y el servicio que lo lee valida campo por campo.
+      template_params_jabvox: {}
     )
   end
 end

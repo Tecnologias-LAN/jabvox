@@ -1,6 +1,6 @@
 # Runs the automations configured on the stage a task just entered: send a message to the
-# lead's contact (inbox/email/sms) and/or POST a secure webhook. Mirrors the kanban executor;
-# time-based moves are handled separately by the scheduled time-automations service.
+# contact (WhatsApp template/email/sms) and/or POST a secure webhook. Mirrors the kanban
+# executor; time-based moves are handled separately by the scheduled time-automations service.
 class Jabvox::TaskAutomationExecutorService
   def initialize(task)
     @task = task
@@ -32,24 +32,40 @@ class Jabvox::TaskAutomationExecutorService
     return if @contact.nil?
 
     case automation.channel_type_jabvox
-    when 'inbox' then send_via_inbox(automation)
+    when 'whatsapp_template' then send_via_template(automation)
     when 'email' then send_via_email(automation)
     when 'sms' then send_via_sms(automation)
     end
   end
 
-  def send_via_inbox(automation)
+  # Plantilla aprobada de WhatsApp. El texto libre solo sale dentro de la ventana de 24h y
+  # una automatización de tiempo dispara justo cuando la tarea lleva rato quieta: fuera de
+  # esa ventana. Las variables salen del contacto, de la tarea o de campos personalizados,
+  # según lo que se haya configurado.
+  def send_via_template(automation)
     inbox = automation.inbox
-    return unless inbox
+    return if inbox.blank? || automation.template_name_jabvox.blank?
 
     conversation = find_or_create_conversation(inbox)
     return unless conversation
 
     Messages::MessageBuilder.new(nil, conversation, {
                                    message_type: 'outgoing',
-                                   content: render_template(automation.message_body_jabvox),
-                                   private: false
+                                   content: automation.template_name_jabvox,
+                                   private: false,
+                                   template_params: template_params_for(automation)
                                  }).perform
+  end
+
+  def template_params_for(automation)
+    {
+      name: automation.template_name_jabvox,
+      language: automation.template_language_jabvox.presence || 'es',
+      category: 'UTILITY',
+      processed_params: Jabvox::AutomationTemplateParamsService.new(
+        mapping: automation.template_params_jabvox, contact: @contact, task: @task
+      ).call
+    }
   end
 
   def send_via_email(automation)

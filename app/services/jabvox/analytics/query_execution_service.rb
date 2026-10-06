@@ -37,11 +37,34 @@ class Jabvox::Analytics::QueryExecutionService
     sql
   end
 
-  def run_custom_sql(sql)
+  # `params` son los valores de los marcadores `{{nombre}}` del SQL (p.ej. el ciclo que el
+  # usuario elige en la barra de filtros del tablero). El marcador se sustituye por un
+  # placeholder y el valor viaja como bind: el SQL ejecutado no cambia de forma con el
+  # filtro, así que un valor malicioso no puede alterar la consulta.
+  def run_custom_sql(sql, params: {})
     validation = Jabvox::Analytics::SqlValidatorService.new(sql).call
     raise RejectedError, validation.message unless validation.valid?
 
-    cached_execute(cache_parts: ['custom', sql], sql: sql, binds: [])
+    bound_sql, binds = bind_placeholders(sql, params)
+    cached_execute(cache_parts: ['custom', bound_sql, binds], sql: bound_sql, binds: binds)
+  end
+
+  PLACEHOLDER_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/
+
+  # Un marcador sin valor se deja tal cual: así una consulta a medio configurar falla en la
+  # base con un error visible, en vez de ejecutarse en silencio sin el filtro y mostrar
+  # cifras de todos los ciclos como si fueran del ciclo elegido.
+  def bind_placeholders(sql, params)
+    values = (params || {}).transform_keys(&:to_s)
+    binds = []
+    bound = sql.gsub(PLACEHOLDER_RE) do
+      name = Regexp.last_match(1)
+      next Regexp.last_match(0) unless values.key?(name)
+
+      binds << values[name]
+      @adapter.dialect == :postgres ? "$#{binds.size}" : '?'
+    end
+    [bound, binds]
   end
 
   # Not cached: preview is interactive/paginated. Accepts a hash of preview options

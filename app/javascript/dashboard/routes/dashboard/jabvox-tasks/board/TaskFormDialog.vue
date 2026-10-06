@@ -60,7 +60,9 @@ const toDatetimeLocal = value => {
 };
 
 // Recurrencia: vacío = tarea normal. Al completarla se crea la siguiente.
-const RECURRENCE_UNITS = ['day', 'week', 'month', 'year'];
+// Minuto y hora permiten recordatorios intradía ("cada 2 horas"), que antes obligaban a
+// crear una tarea por cada repetición.
+const RECURRENCE_UNITS = ['minute', 'hour', 'day', 'week', 'month', 'year'];
 const recurrenceUnit = ref('');
 const recurrenceCount = ref(1);
 const recurrenceUntil = ref('');

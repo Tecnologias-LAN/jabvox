@@ -7,7 +7,7 @@ class Jabvox::TaskTimeAutomationsService
       .active
       .where(automation_type_jabvox: %w[move_after_hours move_if_inactive])
       .where.not(target_stage_id: nil)
-      .where.not(trigger_hours_jabvox: nil)
+      .where('trigger_value_jabvox IS NOT NULL OR trigger_hours_jabvox IS NOT NULL')
       .includes(:account, :target_stage)
       .find_each { |auto| process(auto) }
   end
@@ -22,7 +22,11 @@ class Jabvox::TaskTimeAutomationsService
     return unless auto.account&.feature_enabled?('jabvox_tasks')
     return unless auto.target_stage&.account_id == auto.account_id
 
-    cutoff = auto.trigger_hours_jabvox.to_i.hours.ago
+    # `trigger_cutoff` respeta la unidad elegida (minutos u horas). Antes se asumían horas
+    # siempre, así que una automatización de 30 minutos esperaba 30 horas.
+    cutoff = auto.trigger_cutoff
+    return if cutoff.blank?
+
     JabvoxTask
       .where(account_id: auto.account_id, stage_id: auto.stage_id, status_jabvox: 'open')
       .where(updated_at: ..cutoff)

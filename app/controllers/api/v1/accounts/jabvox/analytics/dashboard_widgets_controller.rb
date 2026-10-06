@@ -75,7 +75,11 @@ class Api::V1::Accounts::Jabvox::Analytics::DashboardWidgetsController < Api::V1
     svc = Jabvox::Analytics::QueryExecutionService.new(
       data_source: @widget.data_source, user: current_user, ttl_seconds: @dashboard.cache_ttl_seconds_jabvox
     )
-    outcome = @widget.uses_custom_sql? ? svc.run_custom_sql(@widget.custom_sql_jabvox) : svc.run_visual(merged_spec)
+    outcome = if @widget.uses_custom_sql?
+                svc.run_custom_sql(@widget.custom_sql_jabvox, params: sql_placeholder_values)
+              else
+                svc.run_visual(merged_spec)
+              end
     render json: outcome.to_h
   end
 
@@ -184,6 +188,22 @@ class Api::V1::Accounts::Jabvox::Analytics::DashboardWidgetsController < Api::V1
     return if Jabvox::Analytics::ShareService.new(@dashboard, current_user, Current.account).can_edit?
 
     render json: { error: 'No puedes editar este dashboard' }, status: :forbidden
+  end
+
+  # Valores para los marcadores `{{nombre}}` de un widget de SQL libre. Llegan bajo
+  # `global_filters[params]` y el servicio los pasa como binds, nunca interpolados.
+  #
+  # Al abrir el tablero todavía no hay filtro elegido, así que se parte de los valores por
+  # defecto que el widget declara en `config_jabvox['param_defaults']`. Sin ellos un
+  # marcador se quedaría sin valor y la consulta fallaría con un 422 en cada widget: el
+  # tablero abriría vacío hasta que alguien tocara el filtro.
+  def sql_placeholder_values
+    defaults = Hash(@widget.config_jabvox['param_defaults']).stringify_keys
+    global = params[:global_filters]
+    return defaults if global.blank?
+
+    chosen = Hash(global.permit!.to_h['params']).stringify_keys
+    defaults.merge(chosen.compact_blank)
   end
 
   # Apply incoming global filters to the stored query spec (filters appended).

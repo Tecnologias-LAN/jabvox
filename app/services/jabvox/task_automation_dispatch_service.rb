@@ -101,7 +101,7 @@ class Jabvox::TaskAutomationDispatchService
     case @automation.channel_jabvox
     when 'email' then deliver_email(recipient)
     when 'sms' then deliver_sms(recipient)
-    when 'inbox' then deliver_inbox(recipient)
+    when 'whatsapp_template' then deliver_template(recipient)
     end
   end
 
@@ -130,21 +130,36 @@ class Jabvox::TaskAutomationDispatchService
     )
   end
 
-  def deliver_inbox(recipient)
+  # Plantilla aprobada de WhatsApp. El texto libre solo sale dentro de la ventana de 24h y
+  # una automatización programada dispara casi siempre fuera de ella.
+  def deliver_template(recipient)
     contact = recipient.contact
     raise 'sin_contacto' unless contact
 
     inbox = @automation.inbox
     raise 'sin_inbox' unless inbox
+    raise 'sin_plantilla' if @automation.template_name_jabvox.blank?
 
     conversation = find_or_create_conversation(contact, inbox)
     raise 'sin_conversacion' unless conversation
 
     Messages::MessageBuilder.new(nil, conversation, {
                                    message_type: 'outgoing',
-                                   content: render(@automation.body_jabvox),
-                                   private: false
+                                   content: @automation.template_name_jabvox,
+                                   private: false,
+                                   template_params: template_payload(contact)
                                  }).perform
+  end
+
+  def template_payload(contact)
+    {
+      name: @automation.template_name_jabvox,
+      language: @automation.template_language_jabvox.presence || 'es',
+      category: 'UTILITY',
+      processed_params: Jabvox::AutomationTemplateParamsService.new(
+        mapping: @automation.template_params_jabvox, contact: contact, task: @automation.task
+      ).call
+    }
   end
 
   def find_or_create_conversation(contact, inbox)

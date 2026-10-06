@@ -45,13 +45,36 @@ class Whatsapp::Providers::BaseService
     Rails.logger.error response.body
     return if message.blank?
 
-    # https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/#sample-response
-    error_message = error_message(response)
-    return if error_message.blank?
-
-    message.external_error = error_message
+    # Antes: `return if error_message.blank?`. Cuando el proveedor respondía un fallo sin
+    # texto legible (timeout, 502, HTML de error, cuerpo vacío), el mensaje se quedaba en
+    # "sent" para siempre: en la conversación salía el relojito y nadie sabía que no había
+    # salido. Un envío fallido SIEMPRE se marca como fallido, haya o no texto de Meta.
+    message.external_error = describe_error(response)
     message.status = :failed
     message.save!
+  end
+
+  # Texto que ve el agente en la conversación. Lleva el código de Meta cuando existe,
+  # porque es lo que distingue un problema de la cuenta de WhatsApp (plantilla no
+  # aprobada, número no verificado, límite de calidad) de un fallo de envío de la app.
+  def describe_error(response)
+    detail = error_message(response).presence
+    code = error_code(response)
+    http = response.respond_to?(:code) ? response.code : nil
+
+    return "#{detail} (WhatsApp #{code})" if detail && code
+    return detail if detail
+    return "WhatsApp rechazó el envío (error #{code})" if code
+
+    "El proveedor no aceptó el envío (HTTP #{http || 'sin respuesta'})"
+  end
+
+  # Código numérico de Meta / 360dialog. Sobrescribible por proveedor.
+  def error_code(response)
+    parsed = response.respond_to?(:parsed_response) ? response.parsed_response : nil
+    return nil unless parsed.is_a?(Hash)
+
+    parsed.dig('error', 'code') || parsed.dig('meta', 'http_code')
   end
 
   # WhatsApp coexistence / username migration: a contact may become addressable only by a Business-Scoped

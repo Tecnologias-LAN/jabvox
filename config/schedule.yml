@@ -93,10 +93,13 @@ jabvox_task_time_automations_job:
   class: 'Jabvox::TaskTimeAutomationsJob'
   queue: scheduled_jobs
 
-# Jabvox Tasks: dispatch due recurring per-task automations (email/sms/message), hourly so a
-# day/week/month schedule fires near its configured hour.
+# Jabvox Tasks: dispatch due recurring per-task automations (WhatsApp template/email/sms).
+# Cada 5 minutos: con el cron horario anterior, un intervalo en minutos u horas no se
+# cumplía (un aviso "cada 30 min" salía una vez por hora) y los avisos previos al
+# vencimiento llegaban hasta 59 minutos tarde. La consulta va por índice sobre
+# next_run_at y no toca nada si no hay vencidas.
 jabvox_task_automations_dispatch_job:
-  cron: '0 * * * *'
+  cron: '*/5 * * * *'
   class: 'Jabvox::TaskAutomationsDispatchJob'
   queue: scheduled_jobs
 
