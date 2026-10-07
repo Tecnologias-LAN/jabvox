@@ -266,7 +266,8 @@ class Jabvox::BulkWhatsappDispatchService
 
   # ── CSV parsing ─────────────────────────────────────────────────────────────
   def parse_rows
-    table = CSV.parse(read_csv, headers: true, skip_blanks: true)
+    raw = read_csv
+    table = CSV.parse(raw, headers: true, skip_blanks: true, col_sep: detect_separator(raw))
     validate_headers(table.headers)
 
     rows = table.first(MAX_ROWS)
@@ -276,14 +277,34 @@ class Jabvox::BulkWhatsappDispatchService
 
   def read_csv
     raw = @csv_io.read.force_encoding('UTF-8')
-    raw.valid_encoding? ? raw : raw.encode('UTF-8', invalid: :replace, undef: :replace)
+    raw = raw.encode('UTF-8', invalid: :replace, undef: :replace) unless raw.valid_encoding?
+    # Excel guarda los CSV en UTF-8 con BOM: una marca invisible al principio que
+    # convertía la primera cabecera en "\uFEFFnumero" y hacía fallar la validación
+    # aunque la columna estuviera bien escrita.
+    raw.delete_prefix("\uFEFF")
   end
 
+  # Excel en configuración regional española (y portuguesa, francesa, alemana…) separa
+  # con ';' en vez de ','. Con el separador equivocado, la línea entera se lee como UNA
+  # sola cabecera ("numero;nombre") y el archivo se rechaza por "falta la columna de
+  # número". Se decide por la primera línea: gana el separador que más veces aparece.
+  def detect_separator(raw)
+    primera = raw.lines.first.to_s
+    primera.count(';') > primera.count(',') ? ';' : ','
+  end
+
+  # Se acepta la columna si alguno de los nombres conocidos aparece EN la cabecera, no
+  # solo si coincide exacta: así valen "telefono celular", "numero de contacto" o
+  # "Celular (WhatsApp)", que es como vienen los archivos reales.
   def validate_headers(headers)
-    normalized = Array(headers).compact.map { |h| h.to_s.strip.downcase }
-    return if NUMBER_HEADERS.intersect?(normalized)
+    normalized = Array(headers).compact.map { |h| normalize_header(h) }
+    return if normalized.any? { |h| NUMBER_HEADERS.any? { |n| h.include?(n) } }
 
     raise Error, 'El archivo debe tener una columna de número (numero, telefono, celular…).'
+  end
+
+  def normalize_header(header)
+    header.to_s.strip.downcase.delete_prefix("\uFEFF")
   end
 
   # Longitud mínima de dígitos para aceptar un número (prefijo de país + local).
@@ -303,7 +324,7 @@ class Jabvox::BulkWhatsappDispatchService
     row.each do |key, value|
       next if key.nil?
 
-      cells[key.to_s.strip.downcase] = value.to_s.strip
+      cells[normalize_header(key)] = value.to_s.strip
     end
 
     # Prioriza la columna del número elegida en la UI; si no, autodetecta por sinónimos.
@@ -316,8 +337,14 @@ class Jabvox::BulkWhatsappDispatchService
   end
 
   # Primer valor no vacío entre las claves candidatas (ya normalizadas a minúsculas).
+  # Se prueba primero la coincidencia exacta y luego la parcial, para que una cabecera
+  # como "telefono celular" o "Celular (WhatsApp)" encuentre su valor igual que lo hace
+  # la validación de cabeceras.
   def first_present(cells, keys)
-    keys.filter_map { |k| cells[k].presence }.first
+    exacto = keys.filter_map { |k| cells[k].presence }.first
+    return exacto if exacto
+
+    cells.filter_map { |header, value| value.presence if keys.any? { |k| header.include?(k) } }.first
   end
 
   # Normaliza el número del CSV a dígitos listos para la API de WhatsApp.
