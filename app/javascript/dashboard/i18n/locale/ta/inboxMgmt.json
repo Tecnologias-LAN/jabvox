@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "முன் உரையாடல் படிவ அமைப்புகளை புதுப்பிக்கவும்"
     },
-    "HELP_CENTER": {
-      "LABEL": "உதவி மையம்",
-      "PLACEHOLDER": "உதவி மையத்தை தேர்ந்தெடுக்கவும்",
-      "SELECT_PLACEHOLDER": "உதவி மையத்தை தேர்ந்தெடுக்கவும்",
-      "NONE": "None",
-      "REMOVE": "உதவி மையத்தை அகற்று",
-      "SUB_TEXT": "ஒரு உதவி மையத்தை இன்பாக்ஸுடன் இணைக்கவும்"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "தானாக ஒதுக்கீடு வரம்பு",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "0 க்கும் மேற்பட்ட மதிப்பை உள்ளிடவும்",

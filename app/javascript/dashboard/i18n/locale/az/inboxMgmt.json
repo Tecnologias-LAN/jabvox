@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Pre Chat Form Parametrlərini Yeniləyin"
     },
-    "HELP_CENTER": {
-      "LABEL": "Kömək Mərkəzi",
-      "PLACEHOLDER": "Kömək Mərkəzini seçin",
-      "SELECT_PLACEHOLDER": "Kömək Mərkəzini seçin",
-      "NONE": "Heç biri",
-      "REMOVE": "Kömək Mərkəzini Silin",
-      "SUB_TEXT": "Inbox ilə Kömək Mərkəzini birləşdirin"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Avtomatik təyinat limiti",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Zəhmət olmasa 0-dan böyük bir dəyər daxil edin",

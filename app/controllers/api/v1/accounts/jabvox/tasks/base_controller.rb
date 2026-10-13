@@ -23,14 +23,15 @@ class Api::V1::Accounts::Jabvox::Tasks::BaseController < Api::V1::Accounts::Base
     deny_access
   end
 
-  # Borrar es exclusivo del administrador: se lleva por delante tareas enteras —y un
-  # tablero o una columna arrastran en cascada todo lo que contienen— así que no se delega
-  # en ningún rol, ni siquiera en uno con `jabvox_tasks_manage`.
+  # Eliminar y restaurar tareas es exclusivo del administrador, incluso para roles con
+  # `jabvox_tasks_manage`.
   def ensure_admin_for_destroy!
     return if Current.account_user&.administrator?
 
     deny_access
   end
+
+  alias ensure_admin_for_restore! ensure_admin_for_destroy!
 
   # Secciones sensibles (webhooks y sus secretos): admin o permiso explícito.
   def ensure_admin

@@ -19,16 +19,17 @@
 #
 # Indexes
 #
-#  idx_notifications_performance                   (user_id,account_id,snoozed_until,read_at)
-#  index_notifications_on_account_id               (account_id)
-#  index_notifications_on_last_activity_at         (last_activity_at)
-#  index_notifications_on_user_id                  (user_id)
-#  uniq_primary_actor_per_account_notifications    (primary_actor_type,primary_actor_id)
-#  uniq_secondary_actor_per_account_notifications  (secondary_actor_type,secondary_actor_id)
+#  idx_notifications_performance               (user_id,account_id,snoozed_until,read_at)
+#  index_notifications_on_account_id           (account_id)
+#  index_notifications_on_last_activity_at     (last_activity_at)
+#  index_notifications_on_user_id              (user_id)
+#  uniq_notification_primary_actor_per_user    (account_id,user_id,primary_actor_type,primary_actor_id) UNIQUE
+#  uniq_notification_secondary_actor_per_user  (account_id,user_id,secondary_actor_type,secondary_actor_id) UNIQUE
 #
 
 class Notification < ApplicationRecord
   include MessageFormatHelper
+  include NotificationModuleNotifications
   belongs_to :account
   belongs_to :user
 
@@ -53,11 +54,19 @@ class Notification < ApplicationRecord
     jabvox_ticket_comment: 105,
     jabvox_ticket_sla_escalation: 106,
     # Jabvox Tareas
-    jabvox_task_reminder: 110
+    jabvox_task_reminder: 110,
+    jabvox_internal_chat_message: 120,
+    jabvox_task_assigned: 121,
+    jabvox_calendar_event_reminder: 122,
+    jabvox_kanban_stage_changed: 123,
+    jabvox_lead_import_finished: 124,
+    jabvox_bulk_whatsapp_finished: 125,
+    jabvox_whatsapp_template_status: 126,
+    jabvox_ai_balance_movement: 127,
+    jabvox_ai_provisioning_approval: 128
   }.freeze
 
   enum notification_type: NOTIFICATION_TYPES
-
   before_create :set_last_activity_at
   after_create_commit :process_notification_delivery, :dispatch_create_event
   after_destroy_commit :dispatch_destroy_event
@@ -97,6 +106,8 @@ class Notification < ApplicationRecord
 
   # rubocop:disable Metrics/MethodLength
   def push_message_title
+    return module_notification_title if module_notification?
+
     notification_title_map = {
       'conversation_creation' => 'notifications.notification_title.conversation_creation',
       'conversation_assignment' => 'notifications.notification_title.conversation_assignment',
@@ -123,6 +134,8 @@ class Notification < ApplicationRecord
   # rubocop:enable Metrics/MethodLength
 
   def push_message_body
+    return module_notification_body if module_notification?
+
     case notification_type
     when 'conversation_creation', 'sla_missed_first_response'
       message_body(conversation.messages.first)
@@ -174,6 +187,8 @@ class Notification < ApplicationRecord
   end
 
   def user_subscribed_to_notification?(delivery_type)
+    return false if module_notification?
+
     notification_setting = user.notification_settings.find_by(account_id: account.id)
     return false if notification_setting.blank?
 
@@ -208,6 +223,14 @@ class Notification < ApplicationRecord
   end
 
   def primary_actor_data
+    if module_notification?
+      return {
+        primary_actor: { id: primary_actor_id },
+        push_message_title: push_message_title,
+        push_message_body: push_message_body
+      }
+    end
+
     {
       primary_actor: primary_actor&.push_event_data,
       # TODO: Rename push_message_title to push_message_body

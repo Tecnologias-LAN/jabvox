@@ -22,7 +22,6 @@
 # - 'conversation_participating_manage': Can manage conversations they are participating in (assigned to or a participant).
 # - 'contact_manage': Can manage contacts.
 # - 'report_manage': Can manage reports.
-# - 'knowledge_base_manage': Can manage knowledge base portals.
 
 class CustomRole < ApplicationRecord
   belongs_to :account
@@ -39,7 +38,6 @@ class CustomRole < ApplicationRecord
     conversation_participating_manage
     contact_manage
     report_manage
-    knowledge_base_manage
   ].freeze
 
   # Per-module Jabvox permissions, grouped by module. Each entry gates a real

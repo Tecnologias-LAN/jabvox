@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Atjaunināt pirms-tērzēšanas veidlapas iestatījumus"
     },
-    "HELP_CENTER": {
-      "LABEL": "Palīdzības centrs",
-      "PLACEHOLDER": "Izvēlēties Palīdzības Centru",
-      "SELECT_PLACEHOLDER": "Izvēlēties Palīdzības Centru",
-      "NONE": "Nav",
-      "REMOVE": "Noņemt Palīdzības Centru",
-      "SUB_TEXT": "Pievienot Palīdzības Centru ar iesūtni"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Automātiskās piešķiršanas ierobežojums",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Lūdzu, ievadiet vērtību, kas ir lielāka par 0",

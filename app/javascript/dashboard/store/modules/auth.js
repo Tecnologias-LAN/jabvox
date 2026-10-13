@@ -155,7 +155,8 @@ export const actions = {
     }
   },
 
-  updateUISettings: async ({ commit }, params) => {
+  updateUISettings: async ({ commit, state }, params) => {
+    const previousSettings = state.currentUser.ui_settings || {};
     try {
       commit(types.SET_CURRENT_USER_UI_SETTINGS, params);
 
@@ -167,8 +168,15 @@ export const actions = {
         const response = await authAPI.updateUISettings(params);
         commit(types.SET_CURRENT_USER, response.data);
       }
+      return true;
     } catch (error) {
-      // Ignore error
+      const previousValues = Object.fromEntries(
+        Object.keys(params.uiSettings).map(key => [key, previousSettings[key]])
+      );
+      commit(types.SET_CURRENT_USER_UI_SETTINGS, {
+        uiSettings: previousValues,
+      });
+      return false;
     }
   },
 

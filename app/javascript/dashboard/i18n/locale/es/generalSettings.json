@@ -143,6 +143,7 @@
   "NOTIFICATIONS_PAGE": {
     "HEADER": "Notificaciones",
     "MARK_ALL_DONE": "Marcar Todo Hecho",
+    "READ_ERROR": "No se pudo marcar la notificación como leída.",
     "DELETE_TITLE": "Eliminado",
     "UNREAD_NOTIFICATION": {
       "TITLE": "Notificaciones sin leer",
@@ -175,7 +176,17 @@
       "jabvox_ticket_resolved": "Solicitud resuelta",
       "jabvox_ticket_reopened": "Solicitud reabierta",
       "jabvox_ticket_comment": "Nuevo comentario",
-      "jabvox_ticket_sla_escalation": "SLA vencido"
+      "jabvox_ticket_sla_escalation": "SLA vencido",
+      "jabvox_task_reminder": "Recordatorio de tarea",
+      "jabvox_internal_chat_message": "Chat de equipo",
+      "jabvox_task_assigned": "Tarea asignada",
+      "jabvox_calendar_event_reminder": "Recordatorio de calendario",
+      "jabvox_kanban_stage_changed": "Cambio de etapa Kanban",
+      "jabvox_lead_import_finished": "Importación de leads",
+      "jabvox_bulk_whatsapp_finished": "Envío masivo de WhatsApp",
+      "jabvox_whatsapp_template_status": "Estado de plantilla WhatsApp",
+      "jabvox_ai_balance_movement": "Movimiento de saldo IA",
+      "jabvox_ai_provisioning_approval": "Aprobación pendiente en chat IA"
     }
   },
   "NETWORK": {

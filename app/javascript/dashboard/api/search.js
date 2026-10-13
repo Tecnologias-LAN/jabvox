@@ -49,13 +49,15 @@ class SearchAPI extends ApiClient {
     });
   }
 
-  articles({ q, page = 1, since, until }) {
-    return axios.get(`${this.url}/articles`, {
+  // Búsqueda de mensajes dentro de una conversación o un contacto (texto + transcripción de
+  // audio + nombre de adjunto). Pasa conversationId O contactId.
+  conversationMessages({ q, conversationId, contactId, page = 1 }) {
+    return axios.get(`${this.url}/conversation_messages`, {
       params: {
         q,
-        page: page,
-        since,
-        until,
+        page,
+        conversation_id: conversationId,
+        contact_id: contactId,
       },
     });
   }

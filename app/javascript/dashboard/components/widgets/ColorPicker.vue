@@ -1,5 +1,12 @@
 <script>
-import { Chrome } from '@lk77/vue3-color';
+import { defineAsyncComponent } from 'vue';
+
+// @lk77/vue3-color pesa ~269 KB. Se carga de forma diferida (solo al abrir el
+// selector de color), no en el bundle de arranque. El <Chrome> ya estaba tras un
+// v-if, así que el componente async solo se resuelve cuando el usuario lo abre.
+const Chrome = defineAsyncComponent(() =>
+  import('@lk77/vue3-color').then(m => m.Chrome)
+);
 
 export default {
   components: {

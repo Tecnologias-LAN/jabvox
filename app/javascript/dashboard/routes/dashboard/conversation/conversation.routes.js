@@ -45,7 +45,7 @@ const redirectFolderConversationIfUnavailable = async (to, _from, next) => {
 export default {
   routes: [
     {
-      path: frontendURL('accounts/:accountId/dashboard'),
+      path: frontendURL('accounts/:accountId/conversations'),
       name: 'home',
       meta: {
         permissions: CONVERSATION_PERMISSIONS,
@@ -54,6 +54,14 @@ export default {
       props: () => {
         return { inboxId: 0 };
       },
+    },
+    {
+      path: frontendURL('accounts/:accountId/dashboard'),
+      name: 'account_dashboard',
+      meta: {
+        permissions: ['administrator', 'agent', 'custom_role'],
+      },
+      component: () => import('../AccountDashboard.vue'),
     },
     {
       path: frontendURL('accounts/:accountId/conversations/:conversation_id'),

@@ -151,7 +151,21 @@
       "OP_ANSWERED": "fue respondida",
       "LEAD_FIELD_TITLE": "Autocompletar desde el lead",
       "LEAD_FIELD_NONE": "Sin autocompletar",
-      "LEAD_FIELD_LOCKED": "Solo lectura (no editable al gestionar)"
+      "LEAD_FIELD_LOCKED": "Solo lectura (no editable al gestionar)",
+      "LEAD_FIELDS": {
+        "CONTACT_NAME": "Contacto: Nombre",
+        "CONTACT_EMAIL": "Contacto: Email",
+        "CONTACT_PHONE": "Contacto: Teléfono",
+        "CONTACT_IDENTIFIER": "Contacto: Identificador",
+        "CONTACT_COUNTRY_CODE": "Contacto: País (código)",
+        "CONTACT_COUNTRY": "Contacto: País",
+        "CONTACT_DOCUMENT": "Contacto: Documento",
+        "LEAD_NUMBER": "Lead: Número",
+        "LEAD_CAMPAIGN": "Lead: Campaña",
+        "LEAD_AFFILIATE": "Lead: Afiliado",
+        "ATTRIBUTE": "Atributo: {name}",
+        "LEAD_CUSTOM": "Lead: {name}"
+      }
     },
     "HEADER_DESCRIPTION": "Configura y administra los estados de flujo de trabajo usados en la plataforma.",
     "COUNT": "{count} estados",

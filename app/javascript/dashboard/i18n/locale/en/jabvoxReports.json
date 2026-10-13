@@ -146,6 +146,10 @@
       "ACTIVE": "Activo",
       "LIVE_NOTE": "Live counters · Server data every 10s",
       "DIALER_CAMPAIGN": "Campaign"
+    },
+    "FILTERS": {
+      "COMPANY": "Empresa",
+      "ALL_COMPANIES": "Todas las empresas"
     }
   }
 }

@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Actualizarea setărilor formularului pre-chat"
     },
-    "HELP_CENTER": {
-      "LABEL": "Asistenta",
-      "PLACEHOLDER": "Selectați Centrul de ajutor",
-      "SELECT_PLACEHOLDER": "Selectați Centrul de ajutor",
-      "NONE": "Nimic",
-      "REMOVE": "Eliminarea Centrului de ajutor",
-      "SUB_TEXT": "Atașarea unui Centru de ajutor cu inboxul"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Limita de atribuire automată",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Vă rugăm să introduceți o valoare mai mare de 0",

@@ -152,7 +152,11 @@ describe('#actions', () => {
         headers: { expiry: 581842904 },
       });
       await actions.updateUISettings(
-        { commit, dispatch },
+        {
+          commit,
+          dispatch,
+          state: { currentUser: { ui_settings: {} } },
+        },
         { uiSettings: { is_contact_sidebar_open: false } }
       );
       expect(commit.mock.calls).toEqual([

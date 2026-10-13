@@ -5,6 +5,7 @@ class Jabvox::TaskAutomationJob < ApplicationJob
   def perform(task_id)
     task = JabvoxTask.find_by(id: task_id)
     return unless task
+    return if task.deleted_at_jabvox.present?
     return unless task.account.feature_enabled?('jabvox_tasks')
 
     Jabvox::TaskAutomationExecutorService.new(task).perform

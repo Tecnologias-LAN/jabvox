@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Թարմացնել նախազրույցի ձևի կարգավորումները"
     },
-    "HELP_CENTER": {
-      "LABEL": "Օգնության կենտրոն",
-      "PLACEHOLDER": "Ընտրեք Օգնության կենտրոնը",
-      "SELECT_PLACEHOLDER": "Ընտրեք Օգնության կենտրոնը",
-      "NONE": "Ոչ մեկը",
-      "REMOVE": "Հեռացնել Օգնության կենտրոնը",
-      "SUB_TEXT": "Կցեք Օգնության կենտրոնը մուտքին"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Ավտոմատ նշանակման սահմանաչափ",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Խնդրում ենք մուտքագրել 0-ից մեծ արժեք",

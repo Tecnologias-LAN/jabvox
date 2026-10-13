@@ -8,6 +8,14 @@ import { dirname, resolve } from 'path';
 // and check whether the enclosing spread includes a permission gate.
 const here = dirname(fileURLToPath(import.meta.url));
 const sidebarSrc = readFileSync(resolve(here, '../Sidebar.vue'), 'utf8');
+const navigationSrc = readFileSync(
+  resolve(here, '../jabvoxModuleNavigation.js'),
+  'utf8'
+);
+const dashboardRoutesSrc = readFileSync(
+  resolve(here, '../../../routes/dashboard/dashboard.routes.js'),
+  'utf8'
+);
 const lines = sidebarSrc.split('\n');
 
 const contextBefore = (needle, span = 16) => {
@@ -41,21 +49,6 @@ const CONFIG_ITEMS = [
   "name: 'Settings Jabvox Customization'",
 ];
 
-// Reports that only admin / custom-role-with-permission may see.
-const REPORT_ITEMS = [
-  "name: 'Jabvox Reports'",
-  "name: 'Jabvox CDR Reports'",
-  "name: 'Jabvox Audio Reports'",
-  "name: 'Jabvox Custom Data'",
-];
-
-// USAGE items an agent may see when the module is active (flag-only, NO perm gate).
-const USAGE_FLAG_ONLY = [
-  "name: 'Jabvox Kanban'",
-  "name: 'Jabvox AI Chat'",
-  "name: 'Jabvox Dialer'",
-];
-
 describe('Jabvox sidebar gating matches the permission spec', () => {
   it.each(CONFIG_ITEMS)('config item requires a permission: %s', item => {
     const ctx = contextBefore(item);
@@ -63,22 +56,31 @@ describe('Jabvox sidebar gating matches the permission spec', () => {
     expect(hasPermGate(ctx), `${item} must be permission-gated`).toBe(true);
   });
 
-  it.each(REPORT_ITEMS)('report item requires a permission: %s', item => {
-    const ctx = contextBefore(item);
-    expect(ctx).not.toBeNull();
-    expect(hasPermGate(ctx)).toBe(true);
+  it('filters module tabs through the destination route policy', () => {
+    expect(navigationSrc).toContain(
+      'tab.permissionRoutes.some(isRouteAllowed)'
+    );
+    expect(sidebarSrc).toContain(
+      'isJabvoxNavigationRouteAllowed(router, shouldShow, to)'
+    );
   });
 
-  it.each(USAGE_FLAG_ONLY)(
-    'usage item is flag-only (no perm gate): %s',
-    item => {
-      const ctx = contextBefore(item);
-      expect(ctx).not.toBeNull();
-      expect(hasPermGate(ctx), `${item} should NOT be permission-gated`).toBe(
-        false
-      );
-    }
-  );
+  it('keeps the requested modules in their consolidated navigation groups', () => {
+    expect(navigationSrc).toContain("'jabvox_kanban_index'");
+    expect(navigationSrc).toContain("'jabvox_calendar_index'");
+    expect(navigationSrc).toContain("'jabvox_tasks_index'");
+    expect(navigationSrc).toContain("'jabvox_internal_chat_index'");
+    expect(navigationSrc).toContain("'jabvox_tickets_index'");
+    expect(navigationSrc).toContain("'jabvox_custom_data_index'");
+    expect(navigationSrc).toContain("'jabvox_ai_chat_index'");
+    expect(navigationSrc).toContain("'jabvox_provisioning_chat_index'");
+    expect(navigationSrc).toContain("'jabvox_reports_index'");
+    expect(navigationSrc).toContain("'calls_dashboard_index'");
+    expect(navigationSrc).toContain("'jabvox_audio_analysis_reports_index'");
+    expect(navigationSrc).toContain("'jabvox_cdr_reports_index'");
+    expect(navigationSrc).toContain("'jabvox_analytics_index'");
+    expect(navigationSrc).toContain("'jabvox_dialer_index'");
+  });
 
   // Captain se unificó dentro del Chat IA (Hermes): ya no tiene entrada propia en el
   // sidebar. El único módulo de IA de la cuenta es "Jabvox AI Chat" (ver USAGE_FLAG_ONLY).
@@ -86,9 +88,15 @@ describe('Jabvox sidebar gating matches the permission spec', () => {
     expect(contextBefore("name: 'Captain'")).toBeNull();
   });
 
-  it('Help Center (Portals) is gated by its feature flag', () => {
-    const ctx = contextBefore("name: 'Portals'");
-    expect(ctx).not.toBeNull();
-    expect(/FEATURE_FLAGS\.HELP_CENTER\b/.test(ctx)).toBe(true);
+  // El centro de ayuda se retiro del producto: ni entrada de sidebar ni feature flag.
+  it('Help Center (Portals) no longer has a sidebar entry', () => {
+    expect(contextBefore("name: 'Portals'")).toBeNull();
+    expect(sidebarSrc).not.toContain('HELP_CENTER');
+  });
+
+  it('does not expose standard Campaigns navigation', () => {
+    expect(sidebarSrc).not.toContain("name: 'Campaigns'");
+    expect(navigationSrc).not.toContain('campaigns_livechat_index');
+    expect(dashboardRoutesSrc).not.toContain('campaignsRoutes');
   });
 });

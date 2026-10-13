@@ -306,6 +306,11 @@ export const useTasksStore = defineStore('jabvoxTasks', {
       this.tasks = this.tasks.filter(tk => tk.id !== Number(id));
     },
 
+    async restoreTask(id) {
+      const { data } = await tasksAPI.restore(id);
+      return camelcaseKeys(data, { deep: true });
+    },
+
     // Fetch a single task (used by the detail/history view).
     async getTask(id) {
       const { data } = await tasksAPI.show(id);

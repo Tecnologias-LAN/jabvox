@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "更新预聊天表单设置"
     },
-    "HELP_CENTER": {
-      "LABEL": "帮助中心",
-      "PLACEHOLDER": "选择帮助中心",
-      "SELECT_PLACEHOLDER": "选择帮助中心",
-      "NONE": "啥都没有",
-      "REMOVE": "移除帮助中心",
-      "SUB_TEXT": "将帮助中心附加到收件箱"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "自动分配限制",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "请输入一个大于0的值",

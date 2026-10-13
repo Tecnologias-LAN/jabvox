@@ -24,6 +24,8 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
       orders = orders.where('jabvox_orders.created_at <= ?',
                             Time.zone.parse(params[:date_to]).end_of_day.utc)
     end
+    contact_ids = company_contact_ids
+    orders = orders.where(contact_id: contact_ids) unless contact_ids.nil?
     orders = orders.includes(:contact, conversation: [:assignee]).order(created_at: :desc)
 
     render json: { orders: orders.map { |o| serialize_order(o) } }
@@ -32,17 +34,24 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
   def agents
     date_range = build_date_range
     account_id = Current.account.id
+    # Filtro por empresa: acota cada métrica a las conversaciones de sus contactos.
+    # `nil` = sin filtro; una lista vacía = empresa sin contactos, que debe dar cero.
+    conv_ids = company_conversation_ids
 
-    messages_sent = Message.where(account_id: account_id, message_type: 1, private: false, sender_type: 'User')
-                           .where(created_at: date_range).reorder(nil).group(:sender_id).count
+    messages_sent = scope_to_company(
+      Message.where(account_id: account_id, message_type: 1, private: false, sender_type: 'User')
+             .where(created_at: date_range), conv_ids
+    ).reorder(nil).group(:sender_id).count
 
     # Notas privadas del agente, separadas en dos:
     #   - Gestiones: notas con estado de gestión (creadas desde el apartado de
     #     notas del detalle del lead / click-to-call / dialer). Se identifican
     #     porque tienen filas en jabvox_management_answers ligadas al message_id.
     #   - Notas: notas privadas normales escritas en el chat, SIN estado de gestión.
-    private_notes = Message.where(account_id: account_id, private: true, sender_type: 'User')
-                           .where(created_at: date_range)
+    private_notes = scope_to_company(
+      Message.where(account_id: account_id, private: true, sender_type: 'User')
+             .where(created_at: date_range), conv_ids
+    )
     # Subquery (no pluck): message_ids that carry a management state. A NOT EXISTS
     # keeps this scalable — no list of ids is loaded into memory.
     management_ids = JabvoxManagementAnswer.where(account_id: account_id)
@@ -53,10 +62,11 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
     notes_added = private_notes.where('NOT EXISTS (?)', management_ids)
                                .reorder(nil).group(:sender_id).count
 
-    orders_placed = JabvoxOrder.joins(:conversation)
-                               .where(account_id: account_id)
-                               .where(jabvox_orders: { created_at: date_range })
-                               .group('conversations.assignee_id').count
+    orders_placed = scope_to_company(
+      JabvoxOrder.joins(:conversation)
+                 .where(account_id: account_id)
+                 .where(jabvox_orders: { created_at: date_range }), conv_ids
+    ).group('conversations.assignee_id').count
 
     calls_made = JabvoxDialerCallLog.where(account_id: account_id)
                                     .where(created_at: date_range)
@@ -64,17 +74,18 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
 
     # Conversaciones resueltas por agente (número de resoluciones), de
     # reporting_events name='conversation_resolved' (user_id = assignee).
-    resolved_count = ReportingEvent.where(account_id: account_id, name: 'conversation_resolved')
-                                   .where(created_at: date_range)
-                                   .reorder(nil).group(:user_id).count
+    resolved_count = scope_to_company(
+      ReportingEvent.where(account_id: account_id, name: 'conversation_resolved')
+                    .where(created_at: date_range), conv_ids
+    ).reorder(nil).group(:user_id).count
 
     # Conversaciones distintas en las que el agente habló (personas, contadas por
     # conversación, no por mensaje): conversaciones donde envió >=1 mensaje saliente.
-    conversations_count = Message.where(account_id: account_id, message_type: 1,
-                                        private: false, sender_type: 'User')
-                                 .where(created_at: date_range)
-                                 .reorder(nil).group(:sender_id)
-                                 .distinct.count(:conversation_id)
+    conversations_count = scope_to_company(
+      Message.where(account_id: account_id, message_type: 1,
+                    private: false, sender_type: 'User')
+             .where(created_at: date_range), conv_ids
+    ).reorder(nil).group(:sender_id).distinct.count(:conversation_id)
 
     state_times = build_state_times(account_id, date_range)
     current_states = build_current_states(account_id)
@@ -343,6 +354,38 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
     return if Current.account.feature_enabled?('jabvox_products')
 
     render json: { error: 'Products module is not enabled for this account' }, status: :forbidden
+  end
+
+  # Ids de los contactos que pertenecen a la empresa del filtro. Devuelve nil cuando no
+  # se filtra por empresa, para que cada reporte distinga "sin filtro" de "empresa sin
+  # contactos" (que debe dar cero, no todo).
+  def company_contact_ids
+    return nil if params[:company_id].blank?
+    return nil unless Current.account.feature_enabled?('companies')
+
+    # Se resuelve DENTRO de la cuenta: un company_id de otra cuenta no puede filtrar
+    # por sus contactos.
+    empresa = Current.account.companies.find_by(id: params[:company_id])
+    return [] if empresa.nil?
+
+    empresa.contacts.select(:id)
+  end
+
+  # Conversaciones de los contactos de la empresa filtrada. nil = sin filtro.
+  def company_conversation_ids
+    ids = company_contact_ids
+    return nil if ids.nil?
+
+    Current.account.conversations.where(contact_id: ids).select(:id)
+  end
+
+  # Aplica el filtro de empresa a una consulta que tenga `conversation_id`. Se hace por
+  # conversación y no por contacto porque las métricas de agente (mensajes, notas,
+  # resoluciones) cuelgan de la conversación, no del contacto.
+  def scope_to_company(relation, conversation_ids)
+    return relation if conversation_ids.nil?
+
+    relation.where(conversation_id: conversation_ids)
   end
 
   def build_date_range

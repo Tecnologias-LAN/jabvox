@@ -79,6 +79,10 @@ class JabvoxCalendarEvent < ApplicationRecord
       .distinct
   }
 
+  def push_event_data
+    { id: id, title: title, start_at: start_at, status: status }
+  end
+
   private
 
   # El fin va después del inicio también en los eventos de todo el día: excluirlos dejaba

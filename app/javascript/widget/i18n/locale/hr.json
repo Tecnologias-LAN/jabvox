@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Napustite poziv"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Popularni članci",
-    "VIEW_ALL_ARTICLES": "Pogledajte sve članke",
-    "IFRAME_LOAD_ERROR": "Došlo je do pogreške pri učitavanju članka, molimo osvježite stranicu i pokušajte ponovo"
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Poruka sa slikom"

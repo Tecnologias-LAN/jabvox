@@ -4,14 +4,12 @@
       "ALL": "모든 결과",
       "CONTACTS": "연락처",
       "CONVERSATIONS": "대화",
-      "MESSAGES": "메시지",
-      "ARTICLES": "문서"
+      "MESSAGES": "메시지"
     },
     "SECTION": {
       "CONTACTS": "연락처",
       "CONVERSATIONS": "대화",
-      "MESSAGES": "메시지",
-      "ARTICLES": "문서"
+      "MESSAGES": "메시지"
     },
     "VIEW_MORE": "더 보기",
     "LOAD_MORE": "더 불러오기",

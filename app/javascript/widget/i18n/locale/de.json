@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Anruf verlassen"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Beliebte Artikel",
-    "VIEW_ALL_ARTICLES": "Alle Artikel anzeigen",
-    "IFRAME_LOAD_ERROR": "Beim Laden des Artikels ist ein Fehler aufgetreten. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Bildnachricht"

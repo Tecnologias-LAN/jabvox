@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Actualitza la configuració del formulari de xat prèvia"
     },
-    "HELP_CENTER": {
-      "LABEL": "Centre d'ajuda",
-      "PLACEHOLDER": "Selecciona Centre d'ajuda",
-      "SELECT_PLACEHOLDER": "Selecciona Centre d'ajuda",
-      "NONE": "Ningú",
-      "REMOVE": "Suprimeix Centre d'ajuda",
-      "SUB_TEXT": "Adjunta un Centre d'ajuda amb la safata d'entrada"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Límit d'assignació automàtica",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Introdueix un valor superior a 0",

@@ -143,6 +143,7 @@
   "NOTIFICATIONS_PAGE": {
     "HEADER": "Notifications",
     "MARK_ALL_DONE": "Mark All Done",
+    "READ_ERROR": "Could not mark the notification as read.",
     "DELETE_TITLE": "deleted",
     "UNREAD_NOTIFICATION": {
       "TITLE": "Unread Notifications",
@@ -175,7 +176,17 @@
       "jabvox_ticket_resolved": "Request resolved",
       "jabvox_ticket_reopened": "Request reopened",
       "jabvox_ticket_comment": "New comment",
-      "jabvox_ticket_sla_escalation": "SLA breached"
+      "jabvox_ticket_sla_escalation": "SLA breached",
+      "jabvox_task_reminder": "Task reminder",
+      "jabvox_internal_chat_message": "Team chat",
+      "jabvox_task_assigned": "Task assigned",
+      "jabvox_calendar_event_reminder": "Calendar reminder",
+      "jabvox_kanban_stage_changed": "Kanban stage changed",
+      "jabvox_lead_import_finished": "Lead import",
+      "jabvox_bulk_whatsapp_finished": "WhatsApp bulk send",
+      "jabvox_whatsapp_template_status": "WhatsApp template status",
+      "jabvox_ai_balance_movement": "AI balance movement",
+      "jabvox_ai_provisioning_approval": "AI chat approval pending"
     }
   },
   "NETWORK": {

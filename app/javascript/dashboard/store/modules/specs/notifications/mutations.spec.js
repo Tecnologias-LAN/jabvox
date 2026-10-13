@@ -67,6 +67,16 @@ describe('#mutations', () => {
         4: { id: 4, primary_actor_id: 4 },
       });
     });
+
+    it('keeps distinct notifications that share the same primary actor', () => {
+      const state = { records: {} };
+      mutations[types.SET_NOTIFICATIONS](state, [
+        { id: 1, primary_actor_id: 42 },
+        { id: 2, primary_actor_id: 42 },
+      ]);
+
+      expect(Object.keys(state.records)).toEqual(['1', '2']);
+    });
   });
   describe('#UPDATE_NOTIFICATION', () => {
     it('update notifications ', () => {

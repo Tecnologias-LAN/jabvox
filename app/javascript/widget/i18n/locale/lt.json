@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Išeiti iš skambučio"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Populiarūs straipsniai",
-    "VIEW_ALL_ARTICLES": "Žiūrėti visus straipsnius",
-    "IFRAME_LOAD_ERROR": "Įkeliant straipsnį įvyko klaida. Atnaujinkite puslapį ir bandykite dar kartą."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Vaizdinė žinutė"

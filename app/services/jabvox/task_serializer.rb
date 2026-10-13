@@ -12,10 +12,14 @@ class Jabvox::TaskSerializer
   end
 
   def call
-    base.merge(recurrence).merge(automations)
+    base.merge(location).merge(recurrence).merge(automations)
   end
 
   private
+
+  def location
+    { board_name: @task.board.name_jabvox, stage_name: @task.stage.name_jabvox }
+  end
 
   def base
     {

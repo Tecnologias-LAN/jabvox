@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Beigt zvanu"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Populāri Raksti",
-    "VIEW_ALL_ARTICLES": "Skatīt visus rakstus",
-    "IFRAME_LOAD_ERROR": "Ielādējot rakstu radās kļūda. Lūdzu, atsvaidziniet lapu un mēģiniet vēlreiz."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Attēla ziņojums"

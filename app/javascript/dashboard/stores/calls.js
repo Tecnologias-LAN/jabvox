@@ -1,14 +1,19 @@
-import TwilioVoiceClient from 'dashboard/api/channel/voice/twilioVoiceClient';
 import { cleanupWhatsappSession } from 'dashboard/composables/useWhatsappCallSession';
 import { VOICE_CALL_PROVIDERS } from 'dashboard/helper/inbox';
 import { TERMINAL_STATUSES } from 'dashboard/helper/voice';
 import { defineStore } from 'pinia';
 
+// Twilio Voice SDK pesa ~788 KB. Se carga de forma diferida (solo cuando hay que
+// cerrar una llamada Twilio), para no meterlo en el bundle de arranque de toda la
+// app ni del portal/login. El teardown es fire-and-forget, así que el import async
+// no bloquea nada.
 const teardownByProvider = call => {
   if (call?.provider === VOICE_CALL_PROVIDERS.WHATSAPP) {
     cleanupWhatsappSession();
   } else {
-    TwilioVoiceClient.endClientCall();
+    import('dashboard/api/channel/voice/twilioVoiceClient').then(
+      ({ default: TwilioVoiceClient }) => TwilioVoiceClient.endClientCall()
+    );
   }
 };
 

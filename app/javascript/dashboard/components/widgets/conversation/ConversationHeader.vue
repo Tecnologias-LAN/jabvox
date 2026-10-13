@@ -12,6 +12,7 @@ import JabvoxCallButton from './jabvox/JabvoxCallButton.vue';
 import JabvoxSmsButton from './jabvox/JabvoxSmsButton.vue';
 import JabvoxEmailButton from './jabvox/JabvoxEmailButton.vue';
 import JabvoxQuickButtons from './jabvox/JabvoxQuickButtons.vue';
+import ConversationSearchButton from './jabvox/ConversationSearchButton.vue';
 import ConversationCallButton from './ConversationCallButton.vue';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
@@ -247,6 +248,10 @@ const copyConversationId = async () => {
         v-if="isCustomizationEnabled && currentContact.id"
         :contact="currentContact"
         size="sm"
+      />
+      <ConversationSearchButton
+        v-if="currentChat.id"
+        :conversation-id="currentChat.id"
       />
       <ConversationCallButton :inbox="inbox" :chat="currentChat" />
       <button

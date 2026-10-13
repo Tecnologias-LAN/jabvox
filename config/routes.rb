@@ -121,7 +121,7 @@ Rails.application.routes.draw do
               resources :inbox_limits, only: [:create, :update, :destroy]
             end
           end
-          resources :campaigns, only: [:index, :create, :show, :update, :destroy]
+          resources :campaigns, only: [:index]
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
           namespace :channels do
             resource :twilio_channel, only: [:create]
@@ -167,7 +167,8 @@ Rails.application.routes.draw do
               get :conversations
               get :messages
               get :contacts
-              get :articles
+              # Búsqueda de mensajes dentro de una conversación o contacto (texto + audio + adjuntos).
+              get :conversation_messages
             end
           end
 
@@ -394,32 +395,12 @@ Rails.application.routes.draw do
               end
             end
           end
-          resources :portals do
-            member do
-              patch :archive
-              delete :logo
-              post :send_instructions
-              get :ssl_status
-            end
-            resources :categories do
-              post :reorder, on: :collection
-            end
-            namespace :articles do
-              resource :bulk_actions, only: [] do
-                post :translate
-                patch :update_status
-                patch :update_category
-                delete :delete_articles
-              end
-            end
-            resources :articles do
-              post :reorder, on: :collection
-            end
-          end
 
           resources :upload, only: [:create]
 
           namespace :jabvox do
+            resource :dashboard, only: [:show], controller: 'dashboard'
+
             # Softphone WebRTC: credenciales efímeras + historial de llamadas.
             namespace :softphone do
               resource :credentials, only: [:show], controller: 'credentials'
@@ -959,6 +940,7 @@ Rails.application.routes.draw do
               resources :tasks do
                 member do
                   post :move
+                  post :restore
                   get :activities
                   # Comentario de resolución: se añade al historial de la tarea.
                   post :comment
@@ -1332,19 +1314,6 @@ Rails.application.routes.draw do
       end
     end
   end
-
-  get 'hc/:slug', to: 'public/api/v1/portals#show'
-  get 'hc/:slug/sitemap.xml', to: 'public/api/v1/portals#sitemap'
-  get 'hc/:slug/:locale', to: 'public/api/v1/portals#show', as: :public_portal_locale
-  get 'hc/:slug/:locale/search', to: 'public/api/v1/portals/search#index', as: :portal_search
-  get 'hc/:slug/:locale/articles', to: 'public/api/v1/portals/articles#index'
-  get 'hc/:slug/:locale/categories', to: 'public/api/v1/portals/categories#index'
-  get 'hc/:slug/:locale/categories/:category_slug', to: 'public/api/v1/portals/categories#show', as: :public_portal_category
-  get 'hc/:slug/:locale/categories/:category_slug/articles', to: 'public/api/v1/portals/articles#index'
-  get 'hc/:slug/articles/:article_slug.png', to: 'public/api/v1/portals/articles#tracking_pixel'
-  get 'hc/:slug/articles/:article_slug.md', to: 'public/api/v1/portals/articles#show_markdown', as: :public_portal_article_markdown,
-                                            defaults: { format: :md }
-  get 'hc/:slug/articles/:article_slug', to: 'public/api/v1/portals/articles#show', as: :public_portal_article
 
   # ----------------------------------------------------------------------
   # Used in mailer templates

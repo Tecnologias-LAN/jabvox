@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "പ്രീ ചാറ്റ് ഫോമിന്റെ ക്രമീകരണങ്ങൾ അപ്ഡേറ്റ് ചെയ്യുക"
     },
-    "HELP_CENTER": {
-      "LABEL": "സഹായ കേന്ദ്രം",
-      "PLACEHOLDER": "സഹായ കേന്ദ്രം തിരഞ്ഞെടുക്കുക",
-      "SELECT_PLACEHOLDER": "സഹായ കേന്ദ്രം തിരഞ്ഞെടുക്കുക",
-      "NONE": "ഒന്നുമില്ല",
-      "REMOVE": "സഹായ കേന്ദ്രം നീക്കംചെയ്യുക",
-      "SUB_TEXT": "ഇൻബോക്സിനൊപ്പം സഹായ കേന്ദ്രം ചേർക്കുക"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "സ്വയം നിയോഗം പരിധി",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "ദയവായി 0-ൽ കൂടുതൽ മൂല്യം നൽകുക",

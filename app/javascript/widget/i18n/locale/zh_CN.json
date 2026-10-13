@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "离开来电"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "最受欢迎文章",
-    "VIEW_ALL_ARTICLES": "查看所有文章",
-    "IFRAME_LOAD_ERROR": "加载文章时出错，请刷新页面后重试。"
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "图片消息"

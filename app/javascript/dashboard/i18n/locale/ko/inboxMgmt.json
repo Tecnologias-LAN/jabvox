@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "대화 전 설문 설정 업데이트"
     },
-    "HELP_CENTER": {
-      "LABEL": "도움말 센터",
-      "PLACEHOLDER": "도움말 센터 선택",
-      "SELECT_PLACEHOLDER": "도움말 센터 선택",
-      "NONE": "없음",
-      "REMOVE": "도움말 센터 제거",
-      "SUB_TEXT": "받은 메시지함에 도움말 센터 연결"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "자동 할당 제한",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "0보다 큰 값을 입력하십시오.",

@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Aktualizacja ustawień formularza czatu wstępnego"
     },
-    "HELP_CENTER": {
-      "LABEL": "Centrum pomocy",
-      "PLACEHOLDER": "Wybierz Centrum pomocy",
-      "SELECT_PLACEHOLDER": "Wybierz Centrum pomocy",
-      "NONE": "Brak",
-      "REMOVE": "Usuń Centrum pomocy",
-      "SUB_TEXT": "Dołącz Centrum pomocy do skrzynki odbiorczej"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Limit automatycznego przypisywania",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Wprowadź wartość większą niż 0",

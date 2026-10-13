@@ -26,6 +26,10 @@ class NotificationsAPI extends ApiClient {
     return axios.get(`${this.url}/unread_count`);
   }
 
+  markRead(id) {
+    return axios.patch(`${this.url}/${id}`);
+  }
+
   read(primaryActorType, primaryActorId) {
     return axios.post(`${this.url}/read_all`, {
       primary_actor_type: primaryActorType,

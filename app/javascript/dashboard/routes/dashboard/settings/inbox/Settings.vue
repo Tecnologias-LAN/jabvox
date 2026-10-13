@@ -107,7 +107,6 @@ export default {
       selectedFeatureFlags: [],
       replyTime: '',
       selectedTabIndex: 0,
-      selectedPortalSlug: '',
       showBusinessNameInput: false,
       healthData: null,
       isLoadingHealth: false,
@@ -125,7 +124,6 @@ export default {
       isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
       isOnJabvoxCloud: 'globalConfig/isOnJabvoxCloud',
       uiFlags: 'inboxes/getUIFlags',
-      portals: 'portals/allPortals',
     }),
     isInboundEmailEnabled() {
       return this.isFeatureEnabledonAccount(
@@ -469,7 +467,6 @@ export default {
         this.allowMessagesAfterResolved,
         this.continuityViaEmail,
         this.locktoSingleConversation,
-        this.selectedPortalSlug,
         this.replyTime,
         this.selectedFeatureFlags,
         this.widgetBubblePosition,
@@ -555,7 +552,6 @@ export default {
       this.$store.dispatch('agents/get');
       this.$store.dispatch('teams/get');
       this.$store.dispatch('labels/get');
-      this.$store.dispatch('portals/index');
     },
     syncInboxData() {
       if (!this.inbox || !this.inbox.id) return;
@@ -577,9 +573,6 @@ export default {
       this.selectedFeatureFlags = this.inbox.selected_feature_flags || [];
       this.replyTime = this.inbox.reply_time;
       this.locktoSingleConversation = this.inbox.lock_to_single_conversation;
-      this.selectedPortalSlug = this.inbox.help_center
-        ? this.inbox.help_center.slug
-        : '';
 
       const savedBubbleSettings = LocalStorage.get(
         this.widgetBuilderStorageKey
@@ -702,11 +695,6 @@ export default {
           allow_messages_after_resolved: this.allowMessagesAfterResolved,
           greeting_enabled: this.greetingEnabled,
           greeting_message: this.greetingMessage || '',
-          portal_id: this.selectedPortalSlug
-            ? this.portals.find(
-                portal => portal.slug === this.selectedPortalSlug
-              )?.id || null
-            : null,
           lock_to_single_conversation: this.locktoSingleConversation,
           sender_name_type: this.senderNameType,
           business_name: this.businessName || null,
@@ -968,20 +956,6 @@ export default {
                 type="text"
                 disabled
                 class="!mb-0"
-              />
-            </SettingsFieldSection>
-
-            <SettingsFieldSection
-              :label="$t('INBOX_MGMT.HELP_CENTER.LABEL')"
-              :help-text="$t('INBOX_MGMT.HELP_CENTER.SUB_TEXT')"
-            >
-              <SelectInput
-                v-model="selectedPortalSlug"
-                :placeholder="$t('INBOX_MGMT.HELP_CENTER.PLACEHOLDER')"
-                :options="[
-                  { value: '', label: $t('INBOX_MGMT.HELP_CENTER.NONE') },
-                  ...portals.map(p => ({ value: p.slug, label: p.name })),
-                ]"
               />
             </SettingsFieldSection>
 

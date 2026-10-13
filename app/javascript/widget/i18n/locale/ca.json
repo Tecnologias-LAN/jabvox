@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Deixa la trucada"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Articles populars",
-    "VIEW_ALL_ARTICLES": "Veure tots els articles",
-    "IFRAME_LOAD_ERROR": "S'ha produït un error en carregar l'article, actualitza la pàgina i torna-ho a provar."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Missatge d'imatge"

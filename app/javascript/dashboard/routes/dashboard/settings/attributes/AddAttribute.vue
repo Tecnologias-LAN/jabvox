@@ -21,12 +21,6 @@ export default {
       type: Function,
       default: () => {},
     },
-    // Passes 0 or 1 based on the selected AttributeModel tab selected in the UI
-    // Needs a better data type, todo: refactor this component later
-    selectedAttributeModelTab: {
-      type: Number,
-      default: 0,
-    },
   },
   setup() {
     const { markDirty, markClean } = useUnsavedChanges();
@@ -36,10 +30,10 @@ export default {
     return {
       displayName: '',
       description: '',
-      // Using the prop as default. There is no side effect here as the component
-      // is destroyed completely when the modal is closed. The prop doesn't change
-      // dynamically when the modal is active.
-      attributeModel: this.selectedAttributeModelTab || 0,
+      // El id del enum, no el índice de la pestaña: ahora solo se ofrece Empresa
+      // (company_attribute = 2), y usar el índice crearía el campo como atributo de
+      // conversación, que es el 0.
+      attributeModel: ATTRIBUTE_MODELS[0].id,
       attributeType: 0,
       attributeKey: '',
       regexPattern: null,

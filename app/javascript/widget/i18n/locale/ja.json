@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "通話を退出"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "よくある質問",
-    "VIEW_ALL_ARTICLES": "すべてのヘルプを表示",
-    "IFRAME_LOAD_ERROR": "記事の読み込み中にエラーが発生しました。ページを更新して再試行してください。"
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "画像メッセージ"

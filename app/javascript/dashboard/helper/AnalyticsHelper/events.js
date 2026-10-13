@@ -52,14 +52,6 @@ export const CONTACTS_EVENTS = Object.freeze({
   IMPORT_SUCCESS: 'Imported contacts successfully',
 });
 
-// CAMPAIGN EVENTS
-export const CAMPAIGNS_EVENTS = Object.freeze({
-  OPEN_NEW_CAMPAIGN_MODAL: 'Opened new campaign modal',
-  CREATE_CAMPAIGN: 'Created a new campaign',
-  UPDATE_CAMPAIGN: 'Updated a campaign',
-  DELETE_CAMPAIGN: 'Deleted a campaign',
-});
-
 // PORTAL EVENTS
 export const PORTALS_EVENTS = Object.freeze({
   ONBOARD_BASIC_INFORMATION: 'New Portal: Completed basic information',

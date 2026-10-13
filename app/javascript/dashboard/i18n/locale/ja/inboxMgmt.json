@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "プレチャットフォーム設定を更新する"
     },
-    "HELP_CENTER": {
-      "LABEL": "ヘルプセンター",
-      "PLACEHOLDER": "ヘルプセンターを選択",
-      "SELECT_PLACEHOLDER": "ヘルプセンターを選択",
-      "NONE": "なし",
-      "REMOVE": "ヘルプセンターを削除",
-      "SUB_TEXT": "受信トレイにヘルプセンターを添付する"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "自動割り当ての制限",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "0より大きい値を入力してください",

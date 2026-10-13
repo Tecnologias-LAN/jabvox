@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Opustit hovor"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Populární články",
-    "VIEW_ALL_ARTICLES": "Zobrazit všechny články",
-    "IFRAME_LOAD_ERROR": "Při načítání článku došlo k chybě, obnovte stránku a zkuste to znovu."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Zpráva obrázku"

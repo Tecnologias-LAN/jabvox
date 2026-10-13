@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Poistu puhelusta"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Suosittuja artikkeleita",
-    "VIEW_ALL_ARTICLES": "Näytä kaikki artikkelit",
-    "IFRAME_LOAD_ERROR": "Artikkelin lataamisessa tapahtui virhe. Ole hyvä ja päivitä sivu ja yritä uudelleen."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Kuvaviesti"

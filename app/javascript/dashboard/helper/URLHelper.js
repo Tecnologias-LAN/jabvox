@@ -39,7 +39,7 @@ export const conversationListPageURL = ({
   teamId,
   customViewId,
 }) => {
-  let url = `accounts/${accountId}/dashboard`;
+  let url = `accounts/${accountId}/conversations`;
   if (label) {
     url = `accounts/${accountId}/label/${label}`;
   } else if (teamId) {
@@ -64,38 +64,6 @@ export const isValidURL = value => {
   const URL_REGEX =
     /^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/gm;
   return URL_REGEX.test(value);
-};
-
-export const getArticleSearchURL = ({
-  host,
-  portalSlug,
-  pageNumber,
-  locale,
-  status,
-  authorId,
-  categorySlug,
-  sort,
-  query,
-}) => {
-  const queryParams = new URLSearchParams({});
-
-  const params = {
-    page: pageNumber,
-    locale,
-    status,
-    author_id: authorId,
-    category_slug: categorySlug,
-    sort,
-    query,
-  };
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== null && value !== undefined) {
-      queryParams.set(key, value);
-    }
-  });
-
-  return `${host}/${portalSlug}/articles?${queryParams.toString()}`;
 };
 
 export const hasValidAvatarUrl = avatarUrl => {

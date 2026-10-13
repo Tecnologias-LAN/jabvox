@@ -2,22 +2,16 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
   before_action :set_task, only: %i[show update destroy move activities automation_runs comment]
   # Creating/editing/moving/deleting tasks is a management action (custom-role gated;
   # standard agents keep historical behavior, admins always pass).
-  before_action -> { jabvox_gate!('jabvox_tasks_manage') }, only: %i[create update destroy move]
-  # Borrar solo el administrador: un tablero o una columna arrastran en cascada
-  # todas sus tareas, y eso no se delega en ningún rol.
+  before_action -> { jabvox_gate!('jabvox_tasks_manage') }, only: %i[create update destroy move restore]
   before_action :ensure_admin_for_destroy!, only: %i[destroy]
+  before_action :ensure_admin_for_restore!, only: %i[restore]
 
   # Filterable by board, lead, and date range (board view + calendar view + per-lead filter).
   def index
-    tasks = scoped.includes(:stage, :contact, :assignee, :assignees, :automations)
-    tasks = tasks.where(board_id: params[:board_id]) if params[:board_id].present?
-    # Se filtra por contacto; `lead_id` se sigue aceptando por compatibilidad con enlaces
-    # y llamadas antiguas, resolviéndolo al contacto correspondiente.
-    tasks = tasks.where(contact_id: params[:contact_id]) if params[:contact_id].present?
-    # `lead_id` es hoy el id del contacto: se acepta como alias para los enlaces guardados.
-    tasks = tasks.where(contact_id: params[:lead_id]) if params[:lead_id].present?
-    tasks = filter_by_date(tasks)
+    tasks = Jabvox::TaskIndexQuery.new(scope: scoped, params: params).call
     render json: tasks.ordered.map { |t| serialize(t) }
+  rescue Jabvox::TaskIndexQuery::InvalidFilter => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def show
@@ -53,8 +47,14 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
   end
 
   def destroy
-    @task.destroy!
+    @task.update!(deleted_at_jabvox: Time.current)
     head :no_content
+  end
+
+  def restore
+    task = scoped.trashed.find(params[:id])
+    task.update!(deleted_at_jabvox: nil)
+    render json: serialize(task.reload)
   end
 
   # Move a card to another stage at an optional position, recompacting the destination
@@ -114,13 +114,7 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
   end
 
   def set_task
-    @task = scoped.find(params[:id])
-  end
-
-  def filter_by_date(tasks)
-    tasks = tasks.where(due_at_jabvox: params[:from]..) if params[:from].present?
-    tasks = tasks.where(due_at_jabvox: ..params[:to]) if params[:to].present?
-    tasks
+    @task = scoped.active.find(params[:id])
   end
 
   # NOTE: assignee_ids is intentionally NOT permitted here. It's a has_many-through

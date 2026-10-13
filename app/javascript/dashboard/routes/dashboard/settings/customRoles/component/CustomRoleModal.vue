@@ -70,7 +70,6 @@ const BASE_CUSTOM_ROLE_PERMISSIONS = [
   'conversation_participating_manage',
   'contact_manage',
   'report_manage',
-  'knowledge_base_manage',
 ];
 
 const store = useStore();

@@ -28,7 +28,8 @@ class Jabvox::TaskTimeAutomationsService
     return if cutoff.blank?
 
     JabvoxTask
-      .where(account_id: auto.account_id, stage_id: auto.stage_id, status_jabvox: 'open')
+      .where(account_id: auto.account_id, stage_id: auto.stage_id, status_jabvox: 'open',
+             deleted_at_jabvox: nil)
       .where(updated_at: ..cutoff)
       .find_each do |task|
       task.update!(stage_id: auto.target_stage_id)

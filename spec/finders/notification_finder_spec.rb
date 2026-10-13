@@ -93,5 +93,28 @@ RSpec.describe NotificationFinder do
         expect(subject.count).to eq(6) # all notifications including read and snoozed
       end
     end
+
+    describe 'module notification visibility' do
+      let(:params) { { includes: %w[read snoozed] } }
+
+      it 'hides AI balance notifications from users who are no longer administrators' do
+        account.update!(jabvox_ai_chat_enabled_jabvox: true)
+        account.account_users.find_by!(user: user).update!(role: :agent)
+        movement = JabvoxAiBalanceMovement.create!(
+          account: account,
+          kind_jabvox: 'purchase',
+          amount_cents_jabvox: 100
+        )
+        notification = create(
+          :notification,
+          account: account,
+          user: user,
+          primary_actor: movement,
+          notification_type: :jabvox_ai_balance_movement
+        )
+
+        expect(notification_finder.notifications).not_to include(notification)
+      end
+    end
   end
 end

@@ -40,10 +40,12 @@
   display_name: Email Continuity on API Channel
   enabled: false
 - name: help_center
+  # El centro de ayuda se retiro del producto. La entrada NO se puede borrar:
+  # el bit de cada flag es su posicion en este archivo, asi que quitarla
+  # desplazaria todos los flags siguientes y corromperia las cuentas existentes.
   display_name: Help Center
-  # Off by default for every account; a Super Admin can enable it per account.
   enabled: false
-  help_url: https://chwt.app/hc/help-center
+  deprecated: true
 - name: agent_bots
   display_name: Agent Bots
   enabled: true
@@ -143,10 +145,12 @@
   premium: true
   help_url: https://chwt.app/hc/sla
 - name: help_center_embedding_search
+  # Retirado junto con el centro de ayuda. Se conserva por la posicion del bit.
   display_name: Help Center Embedding Search
   enabled: false
   premium: true
   jabvox_internal: true
+  deprecated: true
 - name: linear_integration
   display_name: Linear Integration
   enabled: false

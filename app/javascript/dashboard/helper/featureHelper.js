@@ -8,7 +8,6 @@ const FEATURE_HELP_URLS = {
   channel_facebook: 'https://chwt.app/hc/fb',
   custom_attributes: 'https://chwt.app/hc/custom-attributes',
   dashboard_apps: 'https://chwt.app/hc/dashboard-apps',
-  help_center: 'https://chwt.app/hc/help-center',
   inboxes: 'https://chwt.app/hc/inboxes',
   integrations: 'https://chwt.app/hc/integrations',
   labels: 'https://chwt.app/hc/labels',

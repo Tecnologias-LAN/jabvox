@@ -1,11 +1,10 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert, useTrack } from 'dashboard/composables';
 import { useAccount } from 'dashboard/composables/useAccount';
-import { useConfig } from 'dashboard/composables/useConfig';
 import { ONBOARDING_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import OnboardingLayout from './shared/OnboardingLayout.vue';
@@ -14,7 +13,6 @@ import InboxChannelsDialog from './inbox-setup/InboxChannelsDialog.vue';
 import InboxChannelsFooter from './inbox-setup/InboxChannelsFooter.vue';
 import ChannelRow from './inbox-setup/ChannelRow.vue';
 import WebWidgetCreationStatus from './inbox-setup/WebWidgetCreationStatus.vue';
-import HelpCenterCreationStatus from './inbox-setup/HelpCenterCreationStatus.vue';
 import { CHANNEL_TYPES } from 'dashboard/helper/inbox';
 import { useChannelConnect } from './inbox-setup/useChannelConnect';
 import { useDetectedChannels } from './inbox-setup/useDetectedChannels';
@@ -23,13 +21,8 @@ import { DIALOG_CHANNELS } from './inbox-setup/constants';
 const { t } = useI18n();
 const store = useStore();
 const router = useRouter();
-const { accountId, currentAccount, finishOnboarding } = useAccount();
-const { isEnterprise } = useConfig();
+const { accountId, finishOnboarding } = useAccount();
 const { connectViaOAuth, connectWhatsapp } = useChannelConnect();
-
-const helpCenterGenerationId = computed(
-  () => currentAccount.value?.custom_attributes?.help_center_generation_id
-);
 
 const isSubmitting = ref(false);
 
@@ -114,9 +107,6 @@ const connectChannel = channel => {
       >
         <div class="divide-y divide-n-weak">
           <WebWidgetCreationStatus />
-          <HelpCenterCreationStatus
-            v-if="isEnterprise && helpCenterGenerationId"
-          />
         </div>
       </OnboardingSection>
 

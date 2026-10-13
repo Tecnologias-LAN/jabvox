@@ -32,12 +32,23 @@ class NotificationFinder
 
   def set_up
     find_all_notifications
+    filter_disabled_module_notifications
     filter_snoozed_notifications
     filter_read_notifications
   end
 
   def find_all_notifications
     @notifications = current_user.notifications.where(account_id: @current_account.id)
+  end
+
+  def filter_disabled_module_notifications
+    disabled_types = Jabvox::ModuleNotificationService::EVENT_FEATURES.filter_map do |type, feature|
+      Notification.notification_types.fetch(type.to_s) unless @current_account.feature_enabled?(feature)
+    end
+    unless @current_account.account_users.find_by(user_id: current_user.id)&.administrator?
+      disabled_types << Notification.notification_types.fetch('jabvox_ai_balance_movement')
+    end
+    @notifications = @notifications.where.not(notification_type: disabled_types) if disabled_types.any?
   end
 
   def filter_snoozed_notifications

@@ -10,6 +10,20 @@ RSpec.describe Notification do
     it { is_expected.to belong_to(:user) }
   end
 
+  context 'with Jabvox module notifications' do
+    it 'recognizes the explicit module notification types' do
+      notification = described_class.new(notification_type: :jabvox_ai_provisioning_approval)
+
+      expect(notification).to be_module_notification
+    end
+
+    it 'keeps existing Jabvox ticket notifications on the original notification flow' do
+      notification = described_class.new(notification_type: :jabvox_ticket_created)
+
+      expect(notification).not_to be_module_notification
+    end
+  end
+
   context 'with default order by' do
     it 'sort by primary id desc' do
       notification1 = create(:notification)

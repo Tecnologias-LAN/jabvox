@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Csevegés előtti űrlap beállításainak frissítése"
     },
-    "HELP_CENTER": {
-      "LABEL": "Súgóközpont",
-      "PLACEHOLDER": "Súgóközpont kiválasztása",
-      "SELECT_PLACEHOLDER": "Súgóközpont kiválasztása",
-      "NONE": "Nincs",
-      "REMOVE": "Súgóközpont eltávolítása",
-      "SUB_TEXT": "Súgóközpont csatolása a fiókhoz"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Automatikus hozzárendelés limit",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Kérlek 0-nál magasabb értéket adj meg",

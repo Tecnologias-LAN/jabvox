@@ -12,10 +12,15 @@ class Jabvox::TaskCalendarSyncService
   end
 
   def sync!
+    events = @account.jabvox_calendar_events.where(jabvox_task_id: @task.id)
+    if @task.deleted_at_jabvox.present?
+      events.destroy_all
+      return
+    end
     return if owner.nil?
 
     # Replace this task's events with a fresh set built from its current dates.
-    @account.jabvox_calendar_events.where(jabvox_task_id: @task.id).destroy_all
+    events.destroy_all
     due_dates.each { |date| create_event(date) }
   end
 

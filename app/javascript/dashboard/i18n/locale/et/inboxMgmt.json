@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Uuenda vestluse-eelse vormi seadeid"
     },
-    "HELP_CENTER": {
-      "LABEL": "Abi keskus",
-      "PLACEHOLDER": "Vali abi keskus",
-      "SELECT_PLACEHOLDER": "Vali abi keskus",
-      "NONE": "None",
-      "REMOVE": "Eemalda abi keskus",
-      "SUB_TEXT": "Ühenda abikeskus postkastiga"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Automaatse määramise piirang",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Palun sisesta väärtus, mis on suurem kui 0",

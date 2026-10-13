@@ -55,7 +55,7 @@ describe('filterItemsByPermission', () => {
     },
     item3: { name: 'Item 3', permissions: ['contact_manage'] },
     item4: { name: 'Item 4', permissions: ['report_manage'] },
-    item5: { name: 'Item 5', permissions: ['knowledge_base_manage'] },
+    item5: { name: 'Item 5', permissions: ['custom_role'] },
     item6: {
       name: 'Item 6',
       permissions: [
@@ -66,7 +66,7 @@ describe('filterItemsByPermission', () => {
         'conversation_participating_manage',
         'contact_manage',
         'report_manage',
-        'knowledge_base_manage',
+        'custom_role',
       ],
     },
     item7: { name: 'Item 7', permissions: [] },

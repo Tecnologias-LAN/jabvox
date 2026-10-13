@@ -26,15 +26,13 @@ class Jabvox::CalendarReminderService
       .where(account_id: account_id)
       .where(start_at: window_start..window_end)
       .where.not(id: already_sent)
-      .where.not(contact_id: nil)
-      .includes(:contact)
+      .includes(:contact, :participant_users, :user)
       .find_each { |event| send_reminder(event, minutes_before, smtp) }
   end
 
   def send_reminder(event, minutes_before, smtp)
-    return if event.contact&.email.blank?
-
-    deliver(event, minutes_before, smtp)
+    deliver(event, minutes_before, smtp) if event.contact&.email.present?
+    notify_users(event, minutes_before)
     JabvoxCalendarEventReminder.create!(
       jabvox_calendar_event: event,
       minutes_before: minutes_before,
@@ -59,6 +57,21 @@ class Jabvox::CalendarReminderService
       source: 'calendar',
       user: nil
     ).deliver!
+  end
+
+  def notify_users(event, minutes_before)
+    label = minutes_label(minutes_before)
+    ([event.user] + event.participant_users.to_a).compact.uniq.each do |user|
+      Jabvox::ModuleNotificationService.create!(
+        account: event.account,
+        user: user,
+        type: :jabvox_calendar_event_reminder,
+        actor: event,
+        title: event.title,
+        body: label,
+        path: "/app/accounts/#{event.account_id}/jabvox/calendar"
+      )
+    end
   end
 
   # La hora del recordatorio va en la zona de la cuenta, no en UTC. Antes se formateaba

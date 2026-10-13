@@ -51,6 +51,13 @@ class JabvoxProvisioningChatMessage < ApplicationRecord
   scope :chronological, -> { order(created_at: :asc) }
   scope :in_session, ->(session_id) { where(session_id: session_id) }
 
+  after_update_commit :notify_user_when_approval_needed,
+                      if: -> { role == 'assistant' && saved_change_to_status_jabvox? }
+
+  def push_event_data
+    { id: id, session_id: session_id, status: status_jabvox }
+  end
+
   # Resumen de las conversaciones de una cuenta para la lista lateral: una fila por
   # session_id con su último mensaje. El título se deriva del primer mensaje del usuario
   # (no hay campo title), igual que hace el Chat IA.
@@ -62,5 +69,21 @@ class JabvoxProvisioningChatMessage < ApplicationRecord
       .reverse
       .first(limit)
       .map { |sid, last_at, count| { session_id: sid, last_at: last_at, messages_count: count } }
+  end
+
+  private
+
+  def notify_user_when_approval_needed
+    return unless status_jabvox == 'waiting_approval'
+
+    Jabvox::ModuleNotificationService.create!(
+      account: account,
+      user: user,
+      type: :jabvox_ai_provisioning_approval,
+      actor: self,
+      title: 'El chat IA requiere tu aprobación',
+      body: 'Hay una acción de aprovisionamiento pendiente de autorización.',
+      path: "/app/accounts/#{account_id}/jabvox/provisioning-chat"
+    )
   end
 end

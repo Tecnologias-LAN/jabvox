@@ -20,7 +20,6 @@ import datePicker from './datePicker.json';
 import emoji from './emoji.json';
 import general from './general.json';
 import generalSettings from './generalSettings.json';
-import helpCenter from './helpCenter.json';
 import inbox from './inbox.json';
 import inboxMgmt from './inboxMgmt.json';
 import integrationApps from './integrationApps.json';
@@ -69,6 +68,7 @@ import jabvoxAffiliatePortal from './jabvoxAffiliatePortal.json';
 import jabvoxCalendar from './jabvoxCalendar.json';
 import jabvoxInternalChat from './jabvoxInternalChat.json';
 import jabvoxReports from './jabvoxReports.json';
+import jabvoxDashboard from './jabvoxDashboard.json';
 import jabvoxEmail from './jabvoxEmail.json';
 import jabvoxActions from './jabvoxActions.json';
 import jabvoxBilling from './jabvoxBilling.json';
@@ -109,7 +109,6 @@ export default {
   ...emoji,
   ...general,
   ...generalSettings,
-  ...helpCenter,
   ...inbox,
   ...inboxMgmt,
   ...integrationApps,
@@ -158,6 +157,7 @@ export default {
   ...jabvoxCalendar,
   ...jabvoxInternalChat,
   ...jabvoxReports,
+  ...jabvoxDashboard,
   ...jabvoxEmail,
   ...jabvoxActions,
   ...jabvoxBilling,

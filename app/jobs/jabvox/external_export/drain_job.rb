@@ -46,11 +46,12 @@ class Jabvox::ExternalExport::DrainJob < ApplicationJob
     true
   end
 
+  # El lock se mantiene mientras dura el lote y se libera al terminar. Antes se liberaba
+  # al ENTRAR, dejando la cuenta sin protección durante todo el drenaje: cada commit que
+  # llegara en esa ventana —y con 12 hilos drenando a la vez, llegaban muchos— encolaba
+  # otro drenador. Se acumularon 56.506 jobs para 1 registro pendiente, con un diluvio de
+  # logs de 24 MB/min que llenó el disco y tumbó el servidor con un 504.
   def perform(account_id)
-    # Liberamos el lock de encolado: a partir de aquí, nuevos commits pueden encolar
-    # el siguiente drenador (que procesará lo que llegue después de este lote).
-    Redis::Alfred.delete(self.class.enqueue_lock_key(account_id))
-
     account = Account.find_by(id: account_id)
     return unless account&.feature_enabled?('jabvox_data_export')
 
@@ -59,6 +60,10 @@ class Jabvox::ExternalExport::DrainJob < ApplicationJob
     return if target_unreachable?(account_id) && requeue_later(account_id)
 
     drain_batch(account, target, account_id)
+  ensure
+    # Se libera siempre, también si el lote revienta: de lo contrario la cuenta se
+    # quedaría sin drenador hasta que expirase el TTL de una hora.
+    Redis::Alfred.delete(self.class.enqueue_lock_key(account_id))
   end
 
   private
@@ -68,8 +73,12 @@ class Jabvox::ExternalExport::DrainJob < ApplicationJob
     return if members.empty?
 
     members.each { |member| export_member(account, target, member) }
-    # ¿Quedan pendientes? Encola el siguiente lote (otro job, sin busy-loop).
-    self.class.ensure_enqueued(account_id) if pending?(account_id)
+    return unless pending?(account_id)
+
+    # Encola el siguiente lote SIN pasar por `ensure_enqueued`: el lock sigue tomado por
+    # este job (se libera en el ensure), así que ensure_enqueued lo vería ocupado y no
+    # encolaría nada, dejando el resto del backlog sin drenar.
+    self.class.perform_later(account_id)
   end
 
   # Exporta un miembro "model_name:record_id" con el scope de la cuenta.

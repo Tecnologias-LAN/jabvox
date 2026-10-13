@@ -168,7 +168,6 @@ export const AVAILABLE_CUSTOM_ROLE_PERMISSIONS = [
   'conversation_participating_manage',
   'contact_manage',
   'report_manage',
-  'knowledge_base_manage',
   ...JABVOX_CUSTOM_ROLE_PERMISSIONS,
 ];
 
@@ -191,8 +190,6 @@ export const CONVERSATION_PARTICIPATING_PERMISSIONS =
 export const CONTACT_PERMISSIONS = 'contact_manage';
 
 export const REPORTS_PERMISSIONS = 'report_manage';
-
-export const PORTAL_PERMISSIONS = 'knowledge_base_manage';
 
 export const ASSIGNEE_TYPE_TAB_PERMISSIONS = {
   me: {

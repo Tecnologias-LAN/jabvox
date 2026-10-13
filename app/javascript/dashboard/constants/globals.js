@@ -39,7 +39,6 @@ export default {
     EXPANDED: 'expanded',
   },
   DOCS_URL: '',
-  HELP_CENTER_DOCS_URL: '',
   TESTIMONIAL_URL: '',
   WHATSAPP_EMBEDDED_SIGNUP_DOCS_URL:
     'https://developers.facebook.com/docs/whatsapp/embedded-signup/custom-flows/onboarding-business-app-users#limitations',

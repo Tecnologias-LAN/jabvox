@@ -114,13 +114,11 @@ class Account < ApplicationRecord
   has_many :agent_bot_inboxes, dependent: :destroy_async
   has_many :agent_bots, dependent: :destroy_async
   has_many :api_channels, dependent: :destroy_async, class_name: '::Channel::Api'
-  has_many :articles, dependent: :destroy_async, class_name: '::Article'
   has_many :assignment_policies, dependent: :destroy_async
   has_many :automation_rules, dependent: :destroy_async
   has_many :macros, dependent: :destroy_async
   has_many :campaigns, dependent: :destroy_async
   has_many :canned_responses, dependent: :destroy_async
-  has_many :categories, dependent: :destroy_async, class_name: '::Category'
   has_many :contacts, dependent: :destroy_async
   has_many :conversations, dependent: :destroy_async
   has_many :csat_survey_responses, dependent: :destroy_async
@@ -284,7 +282,6 @@ class Account < ApplicationRecord
   has_many :jabvox_lead_source_records, dependent: :delete_all
   has_many :jabvox_export_targets, dependent: :destroy
   has_many :jabvox_export_sync_logs, dependent: :delete_all
-  has_many :portals, dependent: :destroy_async, class_name: '::Portal'
   has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
   has_many :teams, dependent: :destroy_async
   has_many :telegram_channels, dependent: :destroy_async, class_name: '::Channel::Telegram'

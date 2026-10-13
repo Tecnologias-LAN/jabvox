@@ -240,44 +240,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_000010) do
     t.index ["sla_policy_id"], name: "index_applied_slas_on_sla_policy_id"
   end
 
-  create_table "article_embeddings", force: :cascade do |t|
-    t.bigint "article_id", null: false
-    t.text "term", null: false
-    t.vector "embedding", limit: 1536
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["embedding"], name: "index_article_embeddings_on_embedding", using: :ivfflat
-  end
-
-  create_table "articles", force: :cascade do |t|
-    t.integer "account_id", null: false
-    t.integer "portal_id", null: false
-    t.integer "category_id"
-    t.integer "folder_id"
-    t.string "title"
-    t.text "description"
-    t.text "content"
-    t.integer "status"
-    t.integer "views"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.bigint "author_id"
-    t.bigint "associated_article_id"
-    t.jsonb "meta", default: {}
-    t.string "slug", null: false
-    t.integer "position"
-    t.string "locale", default: "en", null: false
-    t.string "draft_title"
-    t.text "draft_content"
-    t.index ["account_id"], name: "index_articles_on_account_id"
-    t.index ["associated_article_id"], name: "index_articles_on_associated_article_id"
-    t.index ["author_id"], name: "index_articles_on_author_id"
-    t.index ["portal_id"], name: "index_articles_on_portal_id"
-    t.index ["slug"], name: "index_articles_on_slug", unique: true
-    t.index ["status"], name: "index_articles_on_status"
-    t.index ["views"], name: "index_articles_on_views"
-  end
-
   create_table "assignment_policies", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "name", limit: 255, null: false
@@ -402,27 +364,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_000010) do
     t.text "content"
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
-  end
-
-  create_table "categories", force: :cascade do |t|
-    t.integer "account_id", null: false
-    t.integer "portal_id", null: false
-    t.string "name"
-    t.text "description"
-    t.integer "position"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.string "locale", default: "en"
-    t.string "slug", null: false
-    t.bigint "parent_category_id"
-    t.bigint "associated_category_id"
-    t.string "icon", default: ""
-    t.string "icon_color", default: ""
-    t.index ["associated_category_id"], name: "index_categories_on_associated_category_id"
-    t.index ["locale", "account_id"], name: "index_categories_on_locale_and_account_id"
-    t.index ["locale"], name: "index_categories_on_locale"
-    t.index ["parent_category_id"], name: "index_categories_on_parent_category_id"
-    t.index ["slug", "locale", "portal_id"], name: "index_categories_on_slug_and_locale_and_portal_id", unique: true
   end
 
   create_table "channel_api", force: :cascade do |t|
@@ -852,14 +793,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_000010) do
     t.index ["name", "template_type", "locale"], name: "index_email_templates_on_installation_scope", unique: true, where: "((account_id IS NULL) AND (inbox_id IS NULL))"
   end
 
-  create_table "folders", force: :cascade do |t|
-    t.integer "account_id", null: false
-    t.integer "category_id", null: false
-    t.string "name"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-  end
-
   create_table "inbox_assignment_policies", force: :cascade do |t|
     t.bigint "inbox_id", null: false
     t.bigint "assignment_policy_id", null: false
@@ -908,13 +841,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_000010) do
     t.boolean "allow_messages_after_resolved", default: true
     t.jsonb "auto_assignment_config", default: {}
     t.boolean "lock_to_single_conversation", default: false, null: false
-    t.bigint "portal_id"
     t.integer "sender_name_type", default: 0, null: false
     t.string "business_name"
     t.jsonb "csat_config", default: {}, null: false
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
-    t.index ["portal_id"], name: "index_inboxes_on_portal_id"
   end
 
   create_table "installation_configs", force: :cascade do |t|
@@ -3692,8 +3623,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_000010) do
     t.bigint "recurrence_parent_id"
     t.datetime "reminder_sent_at_jabvox"
     t.bigint "source_task_id"
+    t.datetime "deleted_at_jabvox"
     t.index ["account_id", "board_id"], name: "index_jabvox_tasks_on_account_id_and_board_id"
     t.index ["account_id", "contact_id"], name: "index_jabvox_tasks_on_account_id_and_contact_id"
+    t.index ["account_id", "deleted_at_jabvox"], name: "idx_jabvox_tasks_account_deleted_at"
     t.index ["account_id", "due_at_jabvox"], name: "index_jabvox_tasks_on_account_id_and_due_at_jabvox"
     t.index ["account_id", "recurrence_unit_jabvox"], name: "index_jabvox_tasks_on_account_and_recurrence", where: "(recurrence_unit_jabvox IS NOT NULL)"
     t.index ["account_id"], name: "index_jabvox_tasks_on_account_id"
@@ -4324,10 +4257,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_000010) do
     t.datetime "snoozed_until"
     t.datetime "last_activity_at", default: -> { "CURRENT_TIMESTAMP" }
     t.jsonb "meta", default: {}
+    t.index ["account_id", "user_id", "primary_actor_type", "primary_actor_id"], name: "uniq_notification_primary_actor_per_user", unique: true
+    t.index ["account_id", "user_id", "secondary_actor_type", "secondary_actor_id"], name: "uniq_notification_secondary_actor_per_user", unique: true
     t.index ["account_id"], name: "index_notifications_on_account_id"
     t.index ["last_activity_at"], name: "index_notifications_on_last_activity_at"
-    t.index ["primary_actor_type", "primary_actor_id"], name: "uniq_primary_actor_per_account_notifications"
-    t.index ["secondary_actor_type", "secondary_actor_id"], name: "uniq_secondary_actor_per_account_notifications"
     t.index ["user_id", "account_id", "snoozed_until", "read_at"], name: "idx_notifications_performance"
     t.index ["user_id"], name: "index_notifications_on_user_id"
   end
@@ -4355,43 +4288,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_000010) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-  end
-
-  create_table "portals", force: :cascade do |t|
-    t.integer "account_id", null: false
-    t.string "name", null: false
-    t.string "slug", null: false
-    t.string "custom_domain"
-    t.string "color"
-    t.string "homepage_link"
-    t.string "page_title"
-    t.text "header_text"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.jsonb "config", default: {"allowed_locales" => ["en"]}
-    t.boolean "archived", default: false
-    t.bigint "channel_web_widget_id"
-    t.jsonb "ssl_settings", default: {}, null: false
-    t.index ["channel_web_widget_id"], name: "index_portals_on_channel_web_widget_id"
-    t.index ["custom_domain"], name: "index_portals_on_custom_domain", unique: true
-    t.index ["slug"], name: "index_portals_on_slug", unique: true
-  end
-
-  create_table "portals_members", id: false, force: :cascade do |t|
-    t.bigint "portal_id", null: false
-    t.bigint "user_id", null: false
-    t.index ["portal_id", "user_id"], name: "index_portals_members_on_portal_id_and_user_id", unique: true
-    t.index ["portal_id"], name: "index_portals_members_on_portal_id"
-    t.index ["user_id"], name: "index_portals_members_on_user_id"
-  end
-
-  create_table "related_categories", force: :cascade do |t|
-    t.bigint "category_id"
-    t.bigint "related_category_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["category_id", "related_category_id"], name: "index_related_categories_on_category_id_and_related_category_id", unique: true
-    t.index ["related_category_id", "category_id"], name: "index_related_categories_on_related_category_id_and_category_id", unique: true
   end
 
   create_table "reporting_events", force: :cascade do |t|
@@ -4607,7 +4503,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_000010) do
   add_foreign_key "account_users", "jabvox_app_states", on_delete: :nullify
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "inboxes", "portals"
   add_foreign_key "jabvox_affiliate_imports", "accounts"
   add_foreign_key "jabvox_affiliate_imports", "jabvox_affiliates"
   add_foreign_key "jabvox_affiliate_imports", "users", column: "created_by_id"

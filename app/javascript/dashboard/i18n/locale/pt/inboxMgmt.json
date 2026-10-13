@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Atualizar configurações do formulário pré-chat"
     },
-    "HELP_CENTER": {
-      "LABEL": "Centro de suporte",
-      "PLACEHOLDER": "Selecione centro de suporte",
-      "SELECT_PLACEHOLDER": "Selecione centro de suporte",
-      "NONE": "Nenhuma",
-      "REMOVE": "Remover centro de suporte",
-      "SUB_TEXT": "Associe um centro de suporte à caixa de entrada"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Limite de atribuição automática",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Por favor, insira um valor maior que 0",

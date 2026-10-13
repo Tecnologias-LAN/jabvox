@@ -1,6 +1,6 @@
 <script>
 import { mapGetters } from 'vuex';
-import { useTrack } from 'dashboard/composables';
+import { useAlert, useTrack } from 'dashboard/composables';
 import TableFooter from 'dashboard/components/widgets/TableFooter.vue';
 
 import NotificationTable from './NotificationTable.vue';
@@ -31,13 +31,29 @@ export default {
       const {
         primary_actor_id: primaryActorId,
         primary_actor_type: primaryActorType,
-        primary_actor: { id: conversationId },
-        notification_type: notificationType,
       } = notification;
+      const conversationId = notification.primary_actor?.id;
+      const notificationType = notification.notification_type;
 
       useTrack(ACCOUNT_EVENTS.OPEN_CONVERSATION_VIA_NOTIFICATION, {
         notificationType,
       });
+      if (
+        notification.meta?.module ||
+        notification.notification_type === 'jabvox_task_reminder'
+      ) {
+        this.$store
+          .dispatch('notifications/markRead', { id: notification.id })
+          .catch(() => useAlert(this.$t('NOTIFICATIONS_PAGE.READ_ERROR')));
+        const path =
+          notification.meta?.path ||
+          `/app/accounts/${this.accountId}/jabvox/tasks/view/${primaryActorId}`;
+        if (path?.startsWith(`/app/accounts/${this.accountId}/`)) {
+          this.$router.push(path);
+        }
+        return;
+      }
+
       this.$store.dispatch('notifications/read', {
         id: notification.id,
         primaryActorId,

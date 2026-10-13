@@ -4,13 +4,11 @@ import Auth from 'dashboard/api/auth';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import Avatar from 'next/avatar/Avatar.vue';
-import SidebarProfileMenuStatus from './SidebarProfileMenuStatus.vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 import {
   DropdownContainer,
   DropdownBody,
-  DropdownSeparator,
   DropdownItem,
 } from 'next/dropdown-menu/base';
 import CustomBrandPolicyWrapper from '../../components/CustomBrandPolicyWrapper.vue';
@@ -76,16 +74,6 @@ const menuItems = computed(() => {
       link: { name: 'profile_settings_index' },
     },
     {
-      show: true,
-      showOnCustomBrandedInstance: true,
-      label: t('SIDEBAR_ITEMS.APPEARANCE'),
-      icon: 'i-lucide-palette',
-      click: () => {
-        const ninja = document.querySelector('ninja-keys');
-        ninja.open({ parent: 'appearance_settings' });
-      },
-    },
-    {
       show: currentUser.value.type === 'SuperAdmin',
       showOnCustomBrandedInstance: true,
       label: t('SIDEBAR_ITEMS.SUPER_ADMIN_CONSOLE'),
@@ -143,8 +131,6 @@ const allowedMenuItems = computed(() => {
       </button>
     </template>
     <DropdownBody class="bottom-12 z-50 mb-2 w-80 ltr:left-0 rtl:right-0">
-      <SidebarProfileMenuStatus />
-      <DropdownSeparator />
       <template v-for="item in allowedMenuItems" :key="item.label">
         <CustomBrandPolicyWrapper
           :show-on-custom-branded-instance="item.showOnCustomBrandedInstance"

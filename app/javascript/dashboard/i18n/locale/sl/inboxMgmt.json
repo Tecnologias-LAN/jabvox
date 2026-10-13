@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Posodobi nastavitve obrazca pred klepetom"
     },
-    "HELP_CENTER": {
-      "LABEL": "Pomoč",
-      "PLACEHOLDER": "Izberite Pomoč",
-      "SELECT_PLACEHOLDER": "Izberite Pomoč",
-      "NONE": "Brez",
-      "REMOVE": "Odstrani Pomočnik za center",
-      "SUB_TEXT": "Poveži Pomočnik za center z nabiralnikom"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Omejitev samodejne dodelitve",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Vnesite vrednost, večjo od 0",

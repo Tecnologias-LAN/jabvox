@@ -115,16 +115,6 @@ const triggerCampaign = ({ websiteToken, campaignId, customAttributes }) => ({
   },
 });
 
-const getMostReadArticles = (slug, locale) => ({
-  url: `/hc/${slug}/${locale}/articles.json`,
-  params: {
-    page: 1,
-    sort: 'views',
-    status: 1,
-    per_page: 6,
-  },
-});
-
 export default {
   createConversation,
   sendMessage,
@@ -134,5 +124,4 @@ export default {
   getAvailableAgents,
   getCampaigns,
   triggerCampaign,
-  getMostReadArticles,
 };

@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Perbarui Pengaturan Formulir Pra Obrolan"
     },
-    "HELP_CENTER": {
-      "LABEL": "Pusat Bantuan",
-      "PLACEHOLDER": "Pilih Pusat Bantuan",
-      "SELECT_PLACEHOLDER": "Pilih Pusat Bantuan",
-      "NONE": "Tidak ada",
-      "REMOVE": "Hapus Pusat Bantuan",
-      "SUB_TEXT": "Lampirkan Pusat Bantuan dengan kotak masuk"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Batas penugasan otomatis",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Harap masukkan nilai yang lebih besar dari 0",

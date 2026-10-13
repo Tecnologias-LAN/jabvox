@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Abbandona la chiamata"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Articoli Popolari",
-    "VIEW_ALL_ARTICLES": "Visualizza tutti gli articoli",
-    "IFRAME_LOAD_ERROR": "C'è stato un errore nel caricamento dell'articolo, ricarica la pagina e riprova."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Messaggio immagine"

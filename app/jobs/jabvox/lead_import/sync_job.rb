@@ -32,9 +32,34 @@ class Jabvox::LeadImport::SyncJob < ApplicationJob
     return unless lock.held?
 
     source.update!(status_jabvox: 'ok')
+    notify_creator(
+      source,
+      title: 'Importación de leads finalizada',
+      body: import_summary(source.last_sync_result_jabvox)
+    )
   rescue StandardError => e
     Rails.logger.error("[LeadImport::Sync] source=#{lead_source_id} error=#{e.message}")
     source&.update(status_jabvox: 'error',
                    last_sync_result_jabvox: { error: e.message, at: Time.current.iso8601 })
+    notify_creator(source, title: 'Falló la importación de leads', body: 'No se pudo completar la sincronización.')
+  end
+
+  def notify_creator(source, title:, body:)
+    return unless source&.created_by
+
+    Jabvox::ModuleNotificationService.create!(
+      account: source.account,
+      user: source.created_by,
+      type: :jabvox_lead_import_finished,
+      actor: source,
+      title: title,
+      body: body,
+      path: "/app/accounts/#{source.account_id}/settings/jabvox/lead-import"
+    )
+  end
+
+  def import_summary(result)
+    counts = result.to_h
+    "Nuevos: #{counts['created'].to_i} · Actualizados: #{counts['updated'].to_i} · Fallidos: #{counts['failed'].to_i}"
   end
 end

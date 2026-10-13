@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Atnaujinkite išankstinio pokalbio internetu formos nustatymus"
     },
-    "HELP_CENTER": {
-      "LABEL": "Palaikymo centras",
-      "PLACEHOLDER": "Pasirinkti Pagalbos Centrą",
-      "SELECT_PLACEHOLDER": "Pasirinkti Pagalbos Centrą",
-      "NONE": "Nėra",
-      "REMOVE": "Pašalinti Pagalbos Centrą",
-      "SUB_TEXT": "Pridėkite pagalbos centrą prie gautų laiškų aplanko"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Automatinio priskyrimo limitas",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Įveskite reikšmę, didesnę nei 0",

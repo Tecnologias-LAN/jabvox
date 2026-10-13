@@ -95,9 +95,6 @@ const doBoardDelete = async board => {
 onMounted(async () => {
   try {
     await store.fetchBoards();
-    if (!activeBoardId.value && boards.value.length) {
-      goToBoard(boards.value[0].id);
-    }
   } catch {
     useAlert(t('JABVOX_TASKS.BOARDS.ERROR'));
   }

@@ -22,6 +22,8 @@ class Jabvox::TaskReminderService
   end
 
   def call
+    return Result.new(delivered: [], skipped: ['task_deleted']) if @task.deleted_at_jabvox.present?
+
     delivered = []
     skipped = []
 
@@ -62,10 +64,14 @@ class Jabvox::TaskReminderService
   # Aviso dentro de Jabvox: la campanita del panel. Es el único que no depende de que la
   # cuenta tenga nada configurado, así que es el que siempre llega.
   def deliver_notification(user)
-    Notification.create!(
-      account: @account, user: user,
-      notification_type: 'jabvox_task_reminder',
-      primary_actor: @task
+    Jabvox::ModuleNotificationService.create!(
+      account: @account,
+      user: user,
+      type: :jabvox_task_reminder,
+      actor: @task,
+      title: 'Recordatorio de tarea',
+      body: body,
+      path: "/app/accounts/#{@account.id}/jabvox/tasks/view/#{@task.id}"
     )
   end
 

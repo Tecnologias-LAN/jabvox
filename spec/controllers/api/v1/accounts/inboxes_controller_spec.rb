@@ -532,8 +532,7 @@ RSpec.describe 'Inboxes API', type: :request do
 
     context 'when it is an authenticated user' do
       let(:admin) { create(:user, account: account, role: :administrator) }
-      let!(:portal) { create(:portal, account_id: account.id) }
-      let(:valid_params) { { name: 'new test inbox', enable_auto_assignment: false, portal_id: portal.id } }
+      let(:valid_params) { { name: 'new test inbox', enable_auto_assignment: false } }
 
       it 'will not update inbox for agent' do
         agent = create(:user, account: account, role: :agent)
@@ -555,7 +554,6 @@ RSpec.describe 'Inboxes API', type: :request do
         expect(response).to have_http_status(:success)
         expect(response).to conform_schema(200)
         expect(inbox.reload.enable_auto_assignment).to be_falsey
-        expect(inbox.reload.portal_id).to eq(portal.id)
         expect(response.parsed_body['name']).to eq 'new test inbox'
       end
 

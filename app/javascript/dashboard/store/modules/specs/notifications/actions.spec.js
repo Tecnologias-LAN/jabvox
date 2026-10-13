@@ -118,6 +118,46 @@ describe('#actions', () => {
     });
   });
 
+  describe('#markRead', () => {
+    it('marks one notification read and updates unread count', async () => {
+      axios.patch.mockResolvedValue({});
+      const state = {
+        meta: { unreadCount: 2 },
+        records: { 1: { id: 1, read_at: null } },
+      };
+
+      await actions.markRead({ commit, state }, { id: 1 });
+
+      expect(axios.patch).toHaveBeenCalled();
+      expect(commit.mock.calls).toEqual([
+        [types.READ_NOTIFICATION, { id: 1, read_at: expect.any(Date) }],
+        [types.SET_NOTIFICATIONS_UNREAD_COUNT, 1],
+        [types.SET_NOTIFICATIONS_UI_FLAG, { isUpdating: true }],
+        [types.SET_NOTIFICATIONS_UI_FLAG, { isUpdating: false }],
+      ]);
+    });
+
+    it('restores the unread state when the API request fails', async () => {
+      axios.patch.mockRejectedValue(new Error('Request failed'));
+      const state = {
+        meta: { unreadCount: 2 },
+        records: { 1: { id: 1, read_at: null } },
+      };
+
+      await expect(
+        actions.markRead({ commit, state }, { id: 1 })
+      ).rejects.toThrow('Request failed');
+      expect(commit.mock.calls).toEqual([
+        [types.READ_NOTIFICATION, { id: 1, read_at: expect.any(Date) }],
+        [types.SET_NOTIFICATIONS_UNREAD_COUNT, 1],
+        [types.SET_NOTIFICATIONS_UI_FLAG, { isUpdating: true }],
+        [types.READ_NOTIFICATION, { id: 1, read_at: null }],
+        [types.SET_NOTIFICATIONS_UNREAD_COUNT, 2],
+        [types.SET_NOTIFICATIONS_UI_FLAG, { isUpdating: false }],
+      ]);
+    });
+  });
+
   describe('#unread', () => {
     it('sends correct actions if API is success', async () => {
       axios.post.mockResolvedValue({});

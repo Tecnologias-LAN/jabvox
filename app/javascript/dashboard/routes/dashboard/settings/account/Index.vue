@@ -3,8 +3,6 @@ import { useVuelidate } from '@vuelidate/core';
 import { required } from '@vuelidate/validators';
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
-import { useUISettings } from 'dashboard/composables/useUISettings';
-import { useConfig } from 'dashboard/composables/useConfig';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { formatBytes } from 'shared/helpers/FileHelper';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
@@ -31,18 +29,15 @@ export default {
     NextInput,
   },
   setup() {
-    const { updateUISettings, uiSettings } = useUISettings();
-    const { enabledLanguages } = useConfig();
     const { accountId } = useAccount();
     const v$ = useVuelidate();
 
-    return { updateUISettings, uiSettings, v$, enabledLanguages, accountId };
+    return { v$, accountId };
   },
   data() {
     return {
       id: '',
       name: '',
-      locale: 'en',
       domain: '',
       supportEmail: '',
       features: {},
@@ -50,9 +45,6 @@ export default {
   },
   validations: {
     name: {
-      required,
-    },
-    locale: {
       required,
     },
   },
@@ -69,12 +61,6 @@ export default {
       return this.isFeatureEnabledonAccount(
         this.accountId,
         FEATURE_FLAGS.JABVOX_AI_CHAT
-      );
-    },
-    languagesSortedByCode() {
-      const enabledLanguages = [...this.enabledLanguages];
-      return enabledLanguages.sort((l1, l2) =>
-        l1.iso_639_1_code.localeCompare(l2.iso_639_1_code)
       );
     },
     isUpdating() {
@@ -201,15 +187,11 @@ export default {
   methods: {
     async initializeAccount() {
       try {
-        const { name, locale, id, domain, support_email, features } =
-          this.getAccount(this.accountId);
+        const { name, id, domain, support_email, features } = this.getAccount(
+          this.accountId
+        );
 
-        const effectiveLocale = this.uiSettings?.locale || locale;
-        if (effectiveLocale) {
-          this.$root.$i18n.locale = effectiveLocale;
-        }
         this.name = name;
-        this.locale = locale;
         this.id = id;
         this.domain = domain;
         this.supportEmail = support_email;
@@ -227,17 +209,10 @@ export default {
       }
       try {
         await this.$store.dispatch('accounts/update', {
-          locale: this.locale,
           name: this.name,
           domain: this.domain,
           support_email: this.supportEmail,
         });
-        // If user locale is set, update the locale with user locale
-        const updatedLocale = this.uiSettings?.locale || this.locale;
-        if (updatedLocale) {
-          this.$root.$i18n.locale = updatedLocale;
-        }
-        this.getAccount(this.id).locale = this.locale;
         useAlert(this.$t('GENERAL_SETTINGS.UPDATE.SUCCESS'));
       } catch (error) {
         useAlert(this.$t('GENERAL_SETTINGS.UPDATE.ERROR'));
@@ -292,22 +267,6 @@ export default {
               :placeholder="$t('GENERAL_SETTINGS.FORM.NAME.PLACEHOLDER')"
               @blur="v$.name.$touch"
             />
-          </WithLabel>
-          <WithLabel
-            name="site-language"
-            :has-error="v$.locale.$error"
-            :label="$t('GENERAL_SETTINGS.FORM.LANGUAGE.LABEL')"
-            :error-message="$t('GENERAL_SETTINGS.FORM.LANGUAGE.ERROR')"
-          >
-            <select v-model="locale" class="!mb-0 text-sm">
-              <option
-                v-for="lang in languagesSortedByCode"
-                :key="lang.iso_639_1_code"
-                :value="lang.iso_639_1_code"
-              >
-                {{ lang.name }}
-              </option>
-            </select>
           </WithLabel>
           <WithLabel
             v-if="featureCustomReplyDomainEnabled"

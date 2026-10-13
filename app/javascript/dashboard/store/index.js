@@ -5,7 +5,6 @@ import agentBots from './modules/agentBots';
 import agentCapacityPolicies from './modules/agentCapacityPolicies';
 import agents from './modules/agents';
 import assignmentPolicies from './modules/assignmentPolicies';
-import articles from './modules/helpCenterArticles';
 import attributes from './modules/attributes';
 import auditlogs from './modules/auditlogs';
 import auth from './modules/auth';
@@ -13,7 +12,6 @@ import automations from './modules/automations';
 import bulkActions from './modules/bulkActions';
 import campaigns from './modules/campaigns';
 import cannedResponse from './modules/cannedResponse';
-import categories from './modules/helpCenterCategories';
 import contactConversations from './modules/contactConversations';
 import contactLabels from './modules/contactLabels';
 import contactNotes from './modules/contactNotes';
@@ -40,7 +38,6 @@ import integrations from './modules/integrations';
 import labels from './modules/labels';
 import macros from './modules/macros';
 import notifications from './modules/notifications';
-import portals from './modules/helpCenterPortals';
 import reports from './modules/reports';
 import sla from './modules/sla';
 import slaReports from './modules/SLAReports';
@@ -82,7 +79,6 @@ export default createStore({
     agentCapacityPolicies,
     agents,
     assignmentPolicies,
-    articles,
     attributes,
     auditlogs,
     auth,
@@ -90,7 +86,6 @@ export default createStore({
     bulkActions,
     campaigns,
     cannedResponse,
-    categories,
     contactConversations,
     contactLabels,
     contactNotes,
@@ -117,7 +112,6 @@ export default createStore({
     labels,
     macros,
     notifications,
-    portals,
     reports,
     sla,
     slaReports,

@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Tinggalkan panggilan"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Artikel Populer",
-    "VIEW_ALL_ARTICLES": "Lihat semua artikel",
-    "IFRAME_LOAD_ERROR": "Terjadi kesalahan saat memuat artikel, harap muat ulang halaman dan coba lagi."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Pesan gambar"

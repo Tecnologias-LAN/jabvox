@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "עזוב את השיחה"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "מאמרים פופולריים",
-    "VIEW_ALL_ARTICLES": "הצג את כל המאמרים",
-    "IFRAME_LOAD_ERROR": "אירעה שגיאה בטעינת המאמר, אנא רענן את הדף ונסה שוב."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "הודעת תמונה"

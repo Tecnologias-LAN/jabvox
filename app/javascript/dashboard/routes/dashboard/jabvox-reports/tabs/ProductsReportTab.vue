@@ -11,6 +11,9 @@ import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import Label from 'dashboard/components-next/label/Label.vue';
 import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import FilterBar from '../components/FilterBar.vue';
+import { useCompaniesStore } from 'dashboard/stores/companies';
+import { useAccount } from 'dashboard/composables/useAccount';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import KpiCard from '../components/KpiCard.vue';
 
 const { t } = useI18n();
@@ -20,6 +23,21 @@ const router = useRouter();
 
 const orderStatusConfigs = useMapGetter('jabvoxProducts/getOrderStatusConfigs');
 
+// El filtro por empresa solo aparece si la cuenta tiene el módulo: sin él no hay
+// empresas que elegir y el desplegable saldría vacío.
+const companiesStore = useCompaniesStore();
+const { isCloudFeatureEnabled } = useAccount();
+const hasCompanies = computed(() =>
+  isCloudFeatureEnabled(FEATURE_FLAGS.COMPANIES)
+);
+const companyOptions = computed(() => [
+  { value: '', label: t('JABVOX_REPORTS.FILTERS.ALL_COMPANIES') },
+  ...(companiesStore.records || []).map(c => ({
+    value: String(c.id),
+    label: c.name,
+  })),
+]);
+
 const loading = ref(false);
 const orders = ref([]);
 
@@ -28,6 +46,7 @@ const filters = ref({
   date_to: '',
   doc_type: '',
   status: '',
+  company_id: '',
 });
 
 const totalOrders = computed(() => orders.value.length);
@@ -54,7 +73,13 @@ const fetch = async () => {
 };
 
 const resetFilters = () => {
-  filters.value = { date_from: '', date_to: '', doc_type: '', status: '' };
+  filters.value = {
+    date_from: '',
+    date_to: '',
+    doc_type: '',
+    status: '',
+    company_id: '',
+  };
   fetch();
 };
 
@@ -103,6 +128,7 @@ const goToLead = order => {
 
 onMounted(async () => {
   store.dispatch('jabvoxProducts/fetchStatus');
+  if (hasCompanies.value) companiesStore.get();
   await fetch();
 });
 </script>
@@ -122,6 +148,12 @@ onMounted(async () => {
           {{ t('JABVOX_REPORTS.COMMON.FILTER_TO') }}
         </label>
         <Input v-model="filters.date_to" type="date" size="sm" />
+      </div>
+      <div v-if="hasCompanies" class="flex flex-col gap-1.5 w-44">
+        <label class="text-xs font-medium text-n-slate-11">
+          {{ t('JABVOX_REPORTS.FILTERS.COMPANY') }}
+        </label>
+        <Select v-model="filters.company_id" :options="companyOptions" />
       </div>
       <div class="flex flex-col gap-1.5 w-44">
         <label class="text-xs font-medium text-n-slate-11">

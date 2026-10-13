@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "განაახლეთ წინასწარი ჩატის ფორმის პარამეტრები"
     },
-    "HELP_CENTER": {
-      "LABEL": "დახმარების ცენტრი",
-      "PLACEHOLDER": "აირჩიეთ დახმარების ცენტრი",
-      "SELECT_PLACEHOLDER": "აირჩიეთ დახმარების ცენტრი",
-      "NONE": "არცერთი",
-      "REMOVE": "დახმარების ცენტრის წაშლა",
-      "SUB_TEXT": "დამატეთ დახმარების ცენტრი ინბოქსთან"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "ავტომატური დანიშვნის ლიმიტი",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "გთხოვთ, შეიყვანოთ 0-ზე მეტი მნიშვნელობა",

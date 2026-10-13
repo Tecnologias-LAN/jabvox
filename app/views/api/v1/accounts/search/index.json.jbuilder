@@ -14,9 +14,4 @@ json.payload do
       json.partial! 'message', formats: [:json], message: message
     end
   end
-  json.articles do
-    json.array! @result[:articles] do |article|
-      json.partial! 'article', formats: [:json], article: article
-    end
-  end
 end

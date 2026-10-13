@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Përditëso Cilësimet e Formularit Para Bisedës"
     },
-    "HELP_CENTER": {
-      "LABEL": "Qendra e Ndihmës",
-      "PLACEHOLDER": "Zgjidh Qendrën e Ndihmës",
-      "SELECT_PLACEHOLDER": "Zgjidh Qendrën e Ndihmës",
-      "NONE": "Asnjë",
-      "REMOVE": "Hiq Qendrën e Ndihmës",
-      "SUB_TEXT": "Attach a Help Center with the inbox"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Kufiri i caktimit automatik",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Ju lutemi shkruani një vlerë më të madhe se 0",

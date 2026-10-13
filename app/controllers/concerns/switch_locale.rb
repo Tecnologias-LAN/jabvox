@@ -11,7 +11,6 @@ module SwitchLocale
     locale ||= locale_from_user
 
     # Use the locale from a custom domain if applicable
-    locale ||= locale_from_custom_domain
 
     # if locale is not set in account, let's use DEFAULT_LOCALE env variable
     locale ||= ENV.fetch('DEFAULT_LOCALE', nil)
@@ -27,20 +26,6 @@ module SwitchLocale
     locale ||= locale_from_account(@current_account)
 
     set_locale(locale, &)
-  end
-
-  # If the request is coming from a custom domain, it should be for a helpcenter portal
-  # We will use the portal locale in such cases
-  def locale_from_custom_domain(&)
-    return if params[:locale]
-
-    domain = request.host
-    return if DomainHelper.jabvox_domain?(domain)
-
-    @portal = Portal.find_by(custom_domain: domain)
-    return unless @portal
-
-    @portal.default_locale
   end
 
   def locale_from_user

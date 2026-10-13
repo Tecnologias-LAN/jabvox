@@ -82,4 +82,8 @@ class JabvoxLeadSource < ApplicationRecord
   def sqlite?
     false
   end
+
+  def push_event_data
+    { id: id, name: name_jabvox, status: status_jabvox }
+  end
 end

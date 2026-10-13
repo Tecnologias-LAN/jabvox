@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "更新聊天前表單設定"
     },
-    "HELP_CENTER": {
-      "LABEL": "幫助中心",
-      "PLACEHOLDER": "選擇幫助中心",
-      "SELECT_PLACEHOLDER": "選擇幫助中心",
-      "NONE": "無",
-      "REMOVE": "移除幫助中心",
-      "SUB_TEXT": "將幫助中心連結到此收件匣"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "自動分配上限",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "請輸入大於 0 的值",

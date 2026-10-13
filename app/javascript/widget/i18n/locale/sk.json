@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Opustiť hovor"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Popular Articles",
-    "VIEW_ALL_ARTICLES": "Zobraziť všetky články",
-    "IFRAME_LOAD_ERROR": "There was an error loading the article, please refresh the page and try again."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Obrázková správa"

@@ -23,10 +23,8 @@ class Jabvox::TaskAutomationDispatchService
 
   # Sends to every resolved recipient and returns the created run.
   def perform
-    # A completed task's automations never fire, regardless of the dispatch path
-    # (scheduled batch or manual "run now"). The batch already excludes done
-    # tasks; this guards the direct/manual path too.
-    return record_run(status: 'skipped', count: 0, detail: 'task_done') if @task.status_jabvox == 'done'
+    reason = skip_reason
+    return record_run(status: 'skipped', count: 0, detail: reason) if reason
 
     recipients = resolve_recipients
     return record_run(status: 'skipped', count: 0, detail: 'no_recipients') if recipients.empty?
@@ -42,12 +40,18 @@ class Jabvox::TaskAutomationDispatchService
 
     record_run(status: run_status(sent, errors), count: sent, detail: errors.join('; ').presence)
   ensure
-    # Don't advance the schedule when skipped because the task is done — leave
-    # next_run_at as-is so it resumes correctly if the task is reopened.
-    @automation.mark_ran! if @automation.persisted? && @task.status_jabvox != 'done'
+    # Skipped tasks keep their schedule so it resumes if reopened or restored.
+    @automation.mark_ran! if @automation.persisted? && skip_reason.nil?
   end
 
   private
+
+  def skip_reason
+    return 'task_deleted' if @task.deleted_at_jabvox.present?
+    return 'task_done' if @task.status_jabvox == 'done'
+
+    nil
+  end
 
   def run_status(sent, errors)
     return 'failed' if sent.zero? && errors.any?

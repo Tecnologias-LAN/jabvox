@@ -27,9 +27,7 @@ const JabvoxDialerCallBanner = defineAsyncComponent(
 );
 const JabvoxSoftphoneLauncher = defineAsyncComponent(
   () =>
-    import(
-      'dashboard/routes/dashboard/jabvox-softphone/components/SoftphoneLauncher.vue'
-    )
+    import('dashboard/routes/dashboard/jabvox-softphone/components/SoftphoneLauncher.vue')
 );
 
 import CopilotLauncher from 'dashboard/components/copilot/CopilotLauncher.vue';
@@ -37,6 +35,7 @@ import SupportWidgetLauncher from 'dashboard/components-next/support/SupportWidg
 import CopilotContainer from 'dashboard/components/copilot/CopilotContainer.vue';
 
 import MobileSidebarLauncher from 'dashboard/components-next/sidebar/MobileSidebarLauncher.vue';
+import JabvoxModuleNavigation from 'dashboard/components-next/sidebar/JabvoxModuleNavigation.vue';
 import { useCallsStore } from 'dashboard/stores/calls';
 
 export default {
@@ -54,6 +53,7 @@ export default {
     JabvoxDialerCallBanner,
     JabvoxSoftphoneLauncher,
     MobileSidebarLauncher,
+    JabvoxModuleNavigation,
   },
   setup() {
     const upgradePageRef = ref(null);
@@ -78,6 +78,7 @@ export default {
       showCreateAccountModal: false,
       showShortcutModal: false,
       isMobileSidebarOpen: false,
+      settingsNavigationItems: [],
     };
   },
   computed: {
@@ -126,6 +127,9 @@ export default {
     closeMobileSidebar() {
       this.isMobileSidebarOpen = false;
     },
+    setSettingsNavigation(items) {
+      this.settingsNavigationItems = items;
+    },
     openCreateAccountModal() {
       this.showAccountModal = false;
       this.showCreateAccountModal = true;
@@ -147,53 +151,65 @@ export default {
 </script>
 
 <template>
-  <div class="flex flex-grow overflow-hidden text-n-slate-12">
-    <NextSidebar
-      :is-mobile-sidebar-open="isMobileSidebarOpen"
-      @toggle-account-modal="toggleAccountModal"
-      @open-key-shortcut-modal="toggleKeyShortcutModal"
-      @close-key-shortcut-modal="closeKeyShortcutModal"
-      @show-create-account-modal="openCreateAccountModal"
-      @close-mobile-sidebar="closeMobileSidebar"
-    />
-
-    <main
-      class="flex flex-1 h-full w-full min-h-0 px-0 overflow-hidden bg-n-background"
+  <div
+    class="flex h-full min-h-0 w-full flex-grow overflow-hidden bg-[#EAF0F1] p-2 text-n-slate-12 sm:p-3"
+  >
+    <div
+      class="relative flex h-full min-h-0 w-full min-w-0 flex-1 overflow-hidden rounded-xl bg-n-background shadow-[0_12px_36px_rgba(30,64,74,0.12)] md:rounded-2xl"
     >
-      <UpgradePage
-        v-show="showUpgradePage"
-        ref="upgradePageRef"
-        :bypass-upgrade-page="bypassUpgradePage"
+      <NextSidebar
+        :is-mobile-sidebar-open="isMobileSidebarOpen"
+        @toggle-account-modal="toggleAccountModal"
+        @open-key-shortcut-modal="toggleKeyShortcutModal"
+        @close-key-shortcut-modal="closeKeyShortcutModal"
+        @show-create-account-modal="openCreateAccountModal"
+        @close-mobile-sidebar="closeMobileSidebar"
+        @settings-navigation="setSettingsNavigation"
+      />
+
+      <main
+        class="flex h-full min-h-0 w-full min-w-0 flex-1 overflow-hidden bg-n-background md:mt-16 md:h-[calc(100%-4rem)]"
       >
-        <MobileSidebarLauncher
-          :is-mobile-sidebar-open="isMobileSidebarOpen"
-          @toggle="toggleMobileSidebar"
+        <UpgradePage
+          v-show="showUpgradePage"
+          ref="upgradePageRef"
+          :bypass-upgrade-page="bypassUpgradePage"
+        >
+          <MobileSidebarLauncher
+            :is-mobile-sidebar-open="isMobileSidebarOpen"
+            @toggle="toggleMobileSidebar"
+          />
+        </UpgradePage>
+        <template v-if="!showUpgradePage">
+          <div class="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
+            <JabvoxModuleNavigation :settings-items="settingsNavigationItems" />
+            <div class="flex min-w-0 min-h-0 flex-1 overflow-hidden">
+              <router-view />
+            </div>
+          </div>
+          <CommandBar />
+          <CopilotLauncher />
+          <SupportWidgetLauncher />
+          <MobileSidebarLauncher
+            :is-mobile-sidebar-open="isMobileSidebarOpen"
+            @toggle="toggleMobileSidebar"
+          />
+          <CopilotContainer />
+          <FloatingCallWidget v-if="hasActiveCall || hasIncomingCall" />
+          <JabvoxCallOverlay />
+          <JabvoxDialerCallBanner />
+          <JabvoxSoftphoneLauncher />
+        </template>
+        <AddAccountModal
+          :show="showCreateAccountModal"
+          @close-account-create-modal="closeCreateAccountModal"
         />
-      </UpgradePage>
-      <template v-if="!showUpgradePage">
-        <router-view />
-        <CommandBar />
-        <CopilotLauncher />
-        <SupportWidgetLauncher />
-        <MobileSidebarLauncher
-          :is-mobile-sidebar-open="isMobileSidebarOpen"
-          @toggle="toggleMobileSidebar"
+        <WootKeyShortcutModal
+          v-model:show="showShortcutModal"
+          @close="closeKeyShortcutModal"
+          @clickaway="closeKeyShortcutModal"
         />
-        <CopilotContainer />
-        <FloatingCallWidget v-if="hasActiveCall || hasIncomingCall" />
-        <JabvoxCallOverlay />
-        <JabvoxDialerCallBanner />
-        <JabvoxSoftphoneLauncher />
-      </template>
-      <AddAccountModal
-        :show="showCreateAccountModal"
-        @close-account-create-modal="closeCreateAccountModal"
-      />
-      <WootKeyShortcutModal
-        v-model:show="showShortcutModal"
-        @close="closeKeyShortcutModal"
-        @clickaway="closeKeyShortcutModal"
-      />
-    </main>
+      </main>
+    </div>
   </div>
 </template>

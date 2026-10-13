@@ -813,7 +813,7 @@ module Jabvox::Hermes::ServiceHandlers
   # se pidiera). Incluye el nombre de la columna y del responsable para que el agente pueda
   # responder "en qué estado está" y "quién la tiene" sin una segunda consulta.
   def list_tasks(params)
-    scope = @account.jabvox_tasks.includes(:stage, :assignee)
+    scope = @account.jabvox_tasks.active.includes(:stage, :assignee)
     scope = filter_by(scope, params, :board_id, :stage_id, :assignee_id)
     scope = filter_by_date(scope, params)
     scope.order(created_at: :desc).limit(capped_limit(params)).map { |t| task_view(t) }
@@ -1118,7 +1118,7 @@ module Jabvox::Hermes::ServiceHandlers
     stages = board.try(:stages)
     return [] if stages.blank?
 
-    counts = @account.jabvox_tasks.where(board_id: board.id).group(:stage_id).count
+    counts = @account.jabvox_tasks.active.where(board_id: board.id).group(:stage_id).count
     stages.map do |s|
       { id: s.id, name: s.try(:name_jabvox) || s.try(:name), tasks_count: counts[s.id].to_i }
     end
@@ -1724,14 +1724,14 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   def update_task(params)
-    t = @account.jabvox_tasks.find(params[:id])
+    t = @account.jabvox_tasks.active.find(params[:id])
     t.update!(params.slice(:title_jabvox, :stage_id, :assignee_id, :description_jabvox,
                            :priority_jabvox, :status_jabvox, :due_at_jabvox).compact_blank)
     task_view(t)
   end
 
   def move_task(params)
-    t = @account.jabvox_tasks.find(params[:id])
+    t = @account.jabvox_tasks.active.find(params[:id])
     stage = @account.jabvox_task_stages.find(params[:stage_id])
     t.update!(stage_id: stage.id, position_jabvox: params[:position].to_i)
     task_view(t)

@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Mettre à jour les paramètres du formulaire de pré-chat"
     },
-    "HELP_CENTER": {
-      "LABEL": "Centre d'aide",
-      "PLACEHOLDER": "Sélectionnez le centre d'aide",
-      "SELECT_PLACEHOLDER": "Sélectionnez le centre d'aide",
-      "NONE": "Aucun",
-      "REMOVE": "Supprimer le centre d'aide",
-      "SUB_TEXT": "Attachez un centre d'aide avec la boîte de réception"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Limite de l'affectation automatique",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Veuillez entrer une valeur supérieure à 0",

@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
@@ -15,6 +16,8 @@ import { DESTROY_KEY } from 'dashboard/helper/jabvox/nestedAttributes';
 import { stateGroups } from 'dashboard/composables/jabvox/useManagementState';
 
 const store = useStore();
+const route = useRoute();
+const router = useRouter();
 const { t } = useI18n();
 
 // ─── store ───
@@ -32,33 +35,68 @@ const leadCustomFields = ref([]);
 
 // Fixed contact/lead fields. The value is a namespaced key the backend
 // whitelists and the typification form resolves against the live lead/contact.
-const BASE_LEAD_FIELDS = [
-  { value: 'contact.name', label: 'Contacto: Nombre' },
-  { value: 'contact.email', label: 'Contacto: Email' },
-  { value: 'contact.phone_number', label: 'Contacto: Teléfono' },
-  { value: 'contact.identifier', label: 'Contacto: Identificador' },
-  { value: 'contact.country_code', label: 'Contacto: País (código)' },
-  { value: 'contact.additional.country', label: 'Contacto: País' },
+const baseLeadFields = () => [
+  {
+    value: 'contact.name',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.CONTACT_NAME'),
+  },
+  {
+    value: 'contact.email',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.CONTACT_EMAIL'),
+  },
+  {
+    value: 'contact.phone_number',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.CONTACT_PHONE'),
+  },
+  {
+    value: 'contact.identifier',
+    label: t(
+      'JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.CONTACT_IDENTIFIER'
+    ),
+  },
+  {
+    value: 'contact.country_code',
+    label: t(
+      'JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.CONTACT_COUNTRY_CODE'
+    ),
+  },
+  {
+    value: 'contact.additional.country',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.CONTACT_COUNTRY'),
+  },
   {
     value: 'contact.additional.jabvox_identification_number',
-    label: 'Contacto: Documento',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.CONTACT_DOCUMENT'),
   },
-  { value: 'lead.lead_number', label: 'Lead: Número' },
-  { value: 'lead.campaign', label: 'Lead: Campaña' },
-  { value: 'lead.affiliate_name', label: 'Lead: Afiliado' },
+  {
+    value: 'lead.lead_number',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.LEAD_NUMBER'),
+  },
+  {
+    value: 'lead.campaign',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.LEAD_CAMPAIGN'),
+  },
+  {
+    value: 'lead.affiliate_name',
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.LEAD_AFFILIATE'),
+  },
 ];
 
 const leadFieldOptions = computed(() => [
-  ...BASE_LEAD_FIELDS,
+  ...baseLeadFields(),
   // Contact custom attributes (account contact attribute defs).
   ...(contactAttributes.value || []).map(attr => ({
     value: `contact.custom.${attr.attributeKey}`,
-    label: `Atributo: ${attr.attributeDisplayName || attr.attributeKey}`,
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.ATTRIBUTE', {
+      name: attr.attributeDisplayName || attr.attributeKey,
+    }),
   })),
   // Lead custom columns (the bulk of the account's business fields).
   ...(leadCustomFields.value || []).map(cf => ({
     value: `lead.${cf.key}`,
-    label: `Lead: ${cf.label || cf.key}`,
+    label: t('JABVOX_MANAGEMENT_STATES.QUESTIONS.LEAD_FIELDS.LEAD_CUSTOM', {
+      name: cf.label || cf.key,
+    }),
   })),
 ]);
 
@@ -73,23 +111,16 @@ const loadLeadCustomFields = async () => {
 
 // ─── tabs ───
 const activeTab = ref('management');
-const tabs = [
-  {
-    key: 'management',
-    label: () => t('JABVOX_MANAGEMENT_STATES.TABS.MANAGEMENT'),
-    icon: 'i-lucide-workflow',
+const managementTabs = ['management', 'app', 'campaigns'];
+
+watch(
+  () => route.query.tab,
+  tab => {
+    if (managementTabs.includes(tab)) activeTab.value = tab;
+    else activeTab.value = 'management';
   },
-  {
-    key: 'app',
-    label: () => t('JABVOX_MANAGEMENT_STATES.TABS.APP'),
-    icon: 'i-lucide-smartphone',
-  },
-  {
-    key: 'campaigns',
-    label: () => t('JABVOX_MANAGEMENT_STATES.TABS.CAMPAIGNS'),
-    icon: 'i-lucide-megaphone',
-  },
-];
+  { immediate: true }
+);
 
 const totalForActiveTab = computed(() => {
   if (activeTab.value === 'management') return states.value.length;
@@ -321,6 +352,14 @@ const onImportFile = async event => {
 };
 
 onMounted(() => {
+  if (!managementTabs.includes(route.query.tab)) {
+    router.replace({
+      name: route.name,
+      params: route.params,
+      query: { ...route.query, tab: 'management' },
+      hash: route.hash,
+    });
+  }
   store.dispatch('jabvoxManagementStates/fetchStates');
   store.dispatch('jabvoxAppStates/fetchStates');
   store.dispatch('jabvoxCampaigns/fetchCampaigns');
@@ -388,26 +427,6 @@ onMounted(() => {
             @click="onCreate"
           />
         </div>
-      </div>
-
-      <!-- Tabs -->
-      <div
-        class="flex items-center gap-1 p-1 rounded-xl bg-n-alpha-1 border border-n-weak w-full sm:w-fit overflow-x-auto"
-      >
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors flex-1 sm:flex-none focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand"
-          :class="
-            activeTab === tab.key
-              ? 'bg-n-solid-1 text-n-slate-12 shadow-sm'
-              : 'text-n-slate-11 hover:text-n-slate-12'
-          "
-          @click="activeTab = tab.key"
-        >
-          <span :class="tab.icon" class="size-4 shrink-0" />
-          {{ tab.label() }}
-        </button>
       </div>
 
       <!-- Management tab -->

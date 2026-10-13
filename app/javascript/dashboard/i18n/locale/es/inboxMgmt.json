@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Actualizar configuración de Formulario de Chat"
     },
-    "HELP_CENTER": {
-      "LABEL": "Centro de ayuda",
-      "PLACEHOLDER": "Seleccione Centro de Ayuda",
-      "SELECT_PLACEHOLDER": "Seleccione Centro de Ayuda",
-      "NONE": "Ninguna",
-      "REMOVE": "Eliminar Centro de Ayuda",
-      "SUB_TEXT": "Adjuntar un Centro de Ayuda con la bandeja de entrada"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Límite de asignación automática",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Por favor ingrese un valor mayor a 0",

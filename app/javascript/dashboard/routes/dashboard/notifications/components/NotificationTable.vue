@@ -45,6 +45,31 @@ export default {
   },
   methods: {
     dynamicTime,
+    notificationTitle(notification) {
+      if (notification.meta?.title) return notification.meta.title;
+      const actor = notification.primary_actor;
+      return actor
+        ? `#${actor.display_id || actor.id}`
+        : this.$t('NOTIFICATIONS_PAGE.DELETE_TITLE');
+    },
+    notificationBody(notification) {
+      if (notification.meta?.body) return notification.meta.body;
+      if (notification.notification_type === 'jabvox_task_reminder') {
+        return (
+          notification.push_message_body || notification.push_message_title
+        );
+      }
+      return notification.push_message_title || notification.push_message_body;
+    },
+    notificationTypeLabel(notification) {
+      const key = `NOTIFICATIONS_PAGE.TYPE_LABEL.${notification.notification_type}`;
+      // notification_type is a server enum with matching locale keys.
+      // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
+      const label = this.$t(key);
+      return label === key
+        ? notification.meta?.module || notification.notification_type
+        : label;
+    },
   },
 };
 </script>
@@ -81,30 +106,37 @@ export default {
             <div
               class="overflow-hidden flex-view notification-contant--wrap whitespace-nowrap text-ellipsis"
             >
-              <h5 class="notification--title">
-                {{
-                  `#${
-                    notificationItem.primary_actor
-                      ? notificationItem.primary_actor.display_id ||
-                        notificationItem.primary_actor.id
-                      : $t(`NOTIFICATIONS_PAGE.DELETE_TITLE`)
-                  }`
-                }}
-              </h5>
+              <div class="flex items-center gap-2">
+                <span
+                  v-if="notificationItem.meta?.module"
+                  class="notification--module"
+                >
+                  {{ notificationTypeLabel(notificationItem) }}
+                </span>
+                <h5 class="notification--title">
+                  {{
+                    notificationTitle(notificationItem) ||
+                    `#${
+                      notificationItem.primary_actor?.display_id ||
+                      notificationItem.primary_actor?.id ||
+                      $t('NOTIFICATIONS_PAGE.DELETE_TITLE')
+                    }`
+                  }}
+                </h5>
+              </div>
               <span
                 class="overflow-hidden notification--message-title whitespace-nowrap text-ellipsis"
               >
-                {{ notificationItem.push_message_title }}
+                {{ notificationBody(notificationItem) }}
               </span>
             </div>
           </td>
           <td class="text-right">
-            <span class="notification--type">
-              {{
-                $t(
-                  `NOTIFICATIONS_PAGE.TYPE_LABEL.${notificationItem.notification_type}`
-                )
-              }}
+            <span
+              v-if="!notificationItem.meta?.module"
+              class="notification--type"
+            >
+              {{ notificationTypeLabel(notificationItem) }}
             </span>
           </td>
           <td class="thumbnail--column">
@@ -146,6 +178,10 @@ export default {
 <style lang="scss" scoped>
 .notification--title {
   @apply text-sm m-0 text-n-slate-12;
+}
+
+.notification--module {
+  @apply inline-flex items-center rounded-full bg-n-brand/10 px-2 py-0.5 text-[10px] font-medium text-n-brand;
 }
 
 .notifications-table {

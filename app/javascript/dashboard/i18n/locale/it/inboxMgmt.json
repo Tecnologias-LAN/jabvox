@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Aggiorna le Impostazioni del Modulo Pre Chat"
     },
-    "HELP_CENTER": {
-      "LABEL": "Help Center",
-      "PLACEHOLDER": "Seleziona Help Center",
-      "SELECT_PLACEHOLDER": "Seleziona Help Center",
-      "NONE": "Nessuno",
-      "REMOVE": "Rimuovi Help Center",
-      "SUB_TEXT": "Allega un Help Center con la Inbox"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Limite assegnazione automatica",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Inserisci un valore maggiore di 0",

@@ -32,7 +32,10 @@ const uiFlags = computed(() => getters['attributes/getUIFlags'].value);
 const [showEditPopup, toggleEditPopup] = useToggle(false);
 const [showDeletePopup, toggleDeletePopup] = useToggle(false);
 const selectedAttribute = ref({});
-const attributeModels = ['conversation_attribute', 'contact_attribute'];
+// Solo empresa. Los campos de contacto se crean desde Personalización (tablas y
+// columnas propias de Jabvox), y los de conversación no se usan en esta instalación:
+// mantener las tres pestañas aquí duplicaba la gestión de contactos en dos sitios.
+const attributeModels = ['company_attribute'];
 
 const openAddPopup = () => {
   toggleAddPopup(true);
@@ -53,11 +56,7 @@ const tabs = computed(() => {
   return [
     {
       key: 0,
-      name: t('ATTRIBUTES_MGMT.TABS.CONVERSATION'),
-    },
-    {
-      key: 1,
-      name: t('ATTRIBUTES_MGMT.TABS.CONTACT'),
+      name: t('ATTRIBUTES_MGMT.TABS.COMPANY'),
     },
   ];
 });
@@ -71,7 +70,7 @@ onMounted(() => {
 });
 
 const attributeModel = computed(
-  () => attributeModels[selectedTabIndex.value] || 'conversation_attribute'
+  () => attributeModels[selectedTabIndex.value] || 'company_attribute'
 );
 
 const attributes = computed(() =>
@@ -228,7 +227,6 @@ const filteredAttributes = computed(() => {
       v-if="showAddPopup"
       v-model:show="showAddPopup"
       :on-close="hideAddPopup"
-      :selected-attribute-model-tab="selectedTabIndex"
     />
     <woot-modal v-model:show="showEditPopup" :on-close="hideEditPopup">
       <EditAttribute

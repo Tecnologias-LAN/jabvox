@@ -23,16 +23,6 @@ RSpec.describe 'Onboarding API', type: :request do
         expect(response).to have_http_status(:unauthorized)
         expect(account.reload.name).not_to eq('Hijacked')
       end
-
-      it 'does not create a help center portal' do
-        account.update!(custom_attributes: { 'onboarding_step' => 'account_details' })
-
-        expect do
-          patch "/api/v1/accounts/#{account.id}/onboarding",
-                params: { website: 'attacker.com' },
-                headers: agent.create_new_auth_token, as: :json
-        end.not_to change(account.portals, :count)
-      end
     end
 
     context 'when finalizing account_details' do
@@ -68,14 +58,6 @@ RSpec.describe 'Onboarding API', type: :request do
                 headers: admin.create_new_auth_token, as: :json
 
           expect(account.reload.custom_attributes['onboarding_step']).to eq('inbox_setup')
-        end
-
-        it 'does not create a help center portal when website is blank' do
-          expect do
-            patch "/api/v1/accounts/#{account.id}/onboarding",
-                  params: { name: 'Acme Inc', onboarding_step: 'account_details' },
-                  headers: admin.create_new_auth_token, as: :json
-          end.not_to change(account.portals, :count)
         end
 
         it 'is idempotent when the account_details completion is replayed' do
@@ -175,14 +157,6 @@ RSpec.describe 'Onboarding API', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
       end
-
-      it 'does not create a help center portal' do
-        expect do
-          patch "/api/v1/accounts/#{account.id}/onboarding",
-                params: { website: 'acme.com' },
-                headers: admin.create_new_auth_token, as: :json
-        end.not_to change(account.portals, :count)
-      end
     end
 
     context 'when completing inbox_setup out of order' do
@@ -195,42 +169,6 @@ RSpec.describe 'Onboarding API', type: :request do
 
         expect(response).to have_http_status(:success)
         expect(account.reload.custom_attributes['onboarding_step']).to eq('account_details')
-      end
-    end
-  end
-
-  describe 'GET /api/v1/accounts/{account.id}/onboarding/help_center_generation' do
-    context 'when unauthenticated' do
-      it 'returns unauthorized' do
-        get "/api/v1/accounts/#{account.id}/onboarding/help_center_generation", as: :json
-
-        expect(response).to have_http_status(:unauthorized)
-      end
-    end
-
-    context 'when authenticated as an agent (non-admin)' do
-      let(:agent) { create(:user, account: account, role: :agent) }
-
-      it 'returns unauthorized' do
-        get "/api/v1/accounts/#{account.id}/onboarding/help_center_generation",
-            headers: agent.create_new_auth_token, as: :json
-
-        expect(response).to have_http_status(:unauthorized)
-      end
-    end
-
-    context 'when no help center generation has started' do
-      it 'returns not_started with zero counts' do
-        get "/api/v1/accounts/#{account.id}/onboarding/help_center_generation",
-            headers: admin.create_new_auth_token, as: :json
-
-        expect(response).to have_http_status(:success)
-        expect(response.parsed_body).to include(
-          'generation_id' => nil,
-          'state' => nil,
-          'articles_count' => 0,
-          'categories_count' => 0
-        )
       end
     end
   end

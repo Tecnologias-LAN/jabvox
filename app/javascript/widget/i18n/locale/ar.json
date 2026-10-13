@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "ترك المكالمة"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "المقالات الشائعة",
-    "VIEW_ALL_ARTICLES": "عرض جميع المقالات",
-    "IFRAME_LOAD_ERROR": "حدث خطأ أثناء جلب المقال، الرجاء تحديث الصفحة والمحاولة مرة أخرى."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "رسالة صورة"

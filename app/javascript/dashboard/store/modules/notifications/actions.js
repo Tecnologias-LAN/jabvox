@@ -65,6 +65,25 @@ export const actions = {
       commit(types.SET_NOTIFICATIONS_UI_FLAG, { isUpdating: false });
     }
   },
+  markRead: async ({ commit, state }, { id }) => {
+    const notification = state.records[id];
+    if (!notification || notification.read_at) return;
+
+    const unreadCount = state.meta.unreadCount;
+    const readAt = new Date();
+    commit(types.READ_NOTIFICATION, { id, read_at: readAt });
+    commit(types.SET_NOTIFICATIONS_UNREAD_COUNT, Math.max(0, unreadCount - 1));
+    commit(types.SET_NOTIFICATIONS_UI_FLAG, { isUpdating: true });
+    try {
+      await NotificationsAPI.markRead(id);
+    } catch (error) {
+      commit(types.READ_NOTIFICATION, { id, read_at: null });
+      commit(types.SET_NOTIFICATIONS_UNREAD_COUNT, unreadCount);
+      throw error;
+    } finally {
+      commit(types.SET_NOTIFICATIONS_UI_FLAG, { isUpdating: false });
+    }
+  },
   unread: async ({ commit }, { id }) => {
     commit(types.SET_NOTIFICATIONS_UI_FLAG, { isUpdating: true });
     try {

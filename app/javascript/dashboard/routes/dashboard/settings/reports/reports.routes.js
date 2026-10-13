@@ -63,6 +63,7 @@ const revisedReportRoutes = [
     path: 'agents_overview',
     name: 'agent_reports_index',
     meta: {
+      featureFlag: FEATURE_FLAGS.REPORTS,
       permissions: ['administrator', 'report_manage'],
     },
     component: AgentReportsIndex,
@@ -71,6 +72,7 @@ const revisedReportRoutes = [
     path: 'agents/:id',
     name: 'agent_reports_show',
     meta: {
+      featureFlag: FEATURE_FLAGS.REPORTS,
       permissions: ['administrator', 'report_manage'],
     },
     component: AgentReportsShow,
@@ -80,6 +82,7 @@ const revisedReportRoutes = [
     path: 'inboxes_overview',
     name: 'inbox_reports_index',
     meta: {
+      featureFlag: FEATURE_FLAGS.REPORTS,
       permissions: ['administrator', 'report_manage'],
     },
     component: InboxReportsIndex,
@@ -88,6 +91,7 @@ const revisedReportRoutes = [
     path: 'inboxes/:id',
     name: 'inbox_reports_show',
     meta: {
+      featureFlag: FEATURE_FLAGS.REPORTS,
       permissions: ['administrator', 'report_manage'],
     },
     component: InboxReportsShow,
@@ -96,6 +100,7 @@ const revisedReportRoutes = [
     path: 'teams_overview',
     name: 'team_reports_index',
     meta: {
+      featureFlag: FEATURE_FLAGS.REPORTS,
       permissions: ['administrator', 'report_manage'],
     },
     component: TeamReportsIndex,
@@ -104,6 +109,7 @@ const revisedReportRoutes = [
     path: 'teams/:id',
     name: 'team_reports_show',
     meta: {
+      featureFlag: FEATURE_FLAGS.REPORTS,
       permissions: ['administrator', 'report_manage'],
     },
     component: TeamReportsShow,
@@ -112,6 +118,7 @@ const revisedReportRoutes = [
     path: 'labels_overview',
     name: 'label_reports_index',
     meta: {
+      featureFlag: FEATURE_FLAGS.REPORTS,
       permissions: ['administrator', 'report_manage'],
     },
     component: LabelReportsIndex,
@@ -120,6 +127,7 @@ const revisedReportRoutes = [
     path: 'labels/:id',
     name: 'label_reports_show',
     meta: {
+      featureFlag: FEATURE_FLAGS.REPORTS,
       permissions: ['administrator', 'report_manage'],
     },
     component: LabelReportsShow,
@@ -182,11 +190,11 @@ export default {
         {
           path: 'whatsapp/templates',
           name: 'whatsapp_templates_reports',
-          // Mismo criterio de acceso que 'whatsapp' arriba; además depende del
-          // módulo de Envío Masivo (sin él no hay ningún envío que listar), pero
-          // esa gate ya la aplica el backend (BulkWhatsapp::BaseController) — la
-          // página simplemente sale vacía/con error si el módulo está apagado.
-          meta: { permissions: ['administrator', 'report_manage'] },
+          // Depende del módulo de Envío Masivo además del permiso de reportes.
+          meta: {
+            featureFlag: FEATURE_FLAGS.JABVOX_BULK_WHATSAPP,
+            permissions: ['administrator', 'report_manage'],
+          },
           component: WhatsappTemplatesReports,
         },
       ],

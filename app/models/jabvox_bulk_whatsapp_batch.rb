@@ -78,6 +78,7 @@ class JabvoxBulkWhatsappBatch < ApplicationRecord
   validates :status_jabvox, inclusion: { in: STATUSES }
 
   before_create :assign_batch_uuid
+  after_update_commit :notify_creator_when_finished, if: :saved_change_to_status_jabvox?
 
   # Recomputes counters and lifecycle status from the recipients' outcomes.
   # Called by the callback controller as results arrive from n8n and by the
@@ -96,6 +97,10 @@ class JabvoxBulkWhatsappBatch < ApplicationRecord
       finished_at_jabvox: terminal ? (finished_at_jabvox || Time.current) : finished_at_jabvox
     )
     revoke_access_token! if terminal
+  end
+
+  def push_event_data
+    { id: id, status: status_jabvox, sent_count: sent_count_jabvox, failed_count: failed_count_jabvox }
   end
 
   # Borra el token efímero del envío en cuanto el batch termina (lo confirma n8n por
@@ -142,5 +147,22 @@ class JabvoxBulkWhatsappBatch < ApplicationRecord
   def assign_batch_uuid
     self.batch_uuid_jabvox ||= SecureRandom.uuid
     self.callback_token_jabvox ||= SecureRandom.hex(32)
+  end
+
+  def notify_creator_when_finished
+    return unless %w[completed partial failed].include?(status_jabvox)
+
+    recipient = created_by || sender_user
+    return unless recipient
+
+    Jabvox::ModuleNotificationService.create!(
+      account: account,
+      user: recipient,
+      type: :jabvox_bulk_whatsapp_finished,
+      actor: self,
+      title: 'Envío masivo de WhatsApp finalizado',
+      body: "Enviados: #{sent_count_jabvox.to_i} · Fallidos: #{failed_count_jabvox.to_i}",
+      path: "/app/accounts/#{account_id}/settings/jabvox/bulk-whatsapp"
+    )
   end
 end

@@ -27,6 +27,10 @@ class JabvoxTasksAPI extends ApiClient {
     return axios.delete(`${this.url}/${id}`);
   }
 
+  restore(id) {
+    return axios.post(`${this.url}/${id}/restore`);
+  }
+
   move(id, stageId, position) {
     return axios.post(`${this.url}/${id}/move`, {
       stage_id: stageId,

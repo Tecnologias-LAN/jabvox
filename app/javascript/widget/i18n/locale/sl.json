@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Zapustite klic"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Priljubljeni članki",
-    "VIEW_ALL_ARTICLES": "Poglej vse članke",
-    "IFRAME_LOAD_ERROR": "Pri nalaganju članka je prišlo do napake, osvežite stran in poskusite znova."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Slikovno sporočilo"

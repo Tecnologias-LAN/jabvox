@@ -29,10 +29,6 @@ module JabvoxApp
     @custom ||= root.join('custom').exist?
   end
 
-  def self.help_center_root
-    ENV.fetch('HELPCENTER_URL', nil) || ENV.fetch('FRONTEND_URL', nil)
-  end
-
   def self.extensions
     if custom?
       %w[enterprise custom]

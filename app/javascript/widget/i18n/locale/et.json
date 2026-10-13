@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Lahku kõnest"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Populaarsed artiklid",
-    "VIEW_ALL_ARTICLES": "Vaata kõiki artikleid",
-    "IFRAME_LOAD_ERROR": "Artikli laadimisel tekkis viga, palun värskenda lehte ja proovi uuesti."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Pildisõnum"

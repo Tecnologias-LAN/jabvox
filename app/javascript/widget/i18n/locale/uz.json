@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Qo'ng'iroqni tark etish"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Ommabop maqolalar",
-    "VIEW_ALL_ARTICLES": "Barcha maqolalarni ko'rish",
-    "IFRAME_LOAD_ERROR": "Maqolani yuklashda xatolik yuz berdi, sahifani yangilab qayta urinib ko'ring."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Rasmli xabar"

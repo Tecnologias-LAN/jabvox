@@ -18,10 +18,6 @@ class Api::V1::Accounts::OnboardingsController < Api::V1::Accounts::BaseControll
     render 'api/v1/accounts/update', format: :json
   end
 
-  def help_center_generation
-    render json: help_center_generation_status
-  end
-
   private
 
   def complete_account_details
@@ -74,15 +70,6 @@ class Api::V1::Accounts::OnboardingsController < Api::V1::Accounts::BaseControll
 
   def custom_attributes_params
     params.permit(:industry, :company_size, :timezone, :referral_source, :user_role, :website)
-  end
-
-  def help_center_generation_status
-    {
-      generation_id: nil,
-      state: nil,
-      articles_count: 0,
-      categories_count: 0
-    }
   end
 end
 

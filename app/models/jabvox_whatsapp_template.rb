@@ -77,6 +77,7 @@ class JabvoxWhatsappTemplate < ApplicationRecord
   validates :category, inclusion: { in: CATEGORIES }
   validates :status, inclusion: { in: STATUSES }
   validates :template_kind, inclusion: { in: TEMPLATE_KINDS }
+  after_update_commit :notify_creator_on_status_change, if: :saved_change_to_status?
   # NOTA: se evita deliberadamente cualquier validate de presencia condicional sobre
   # body_content/cards_json aquí. upsert_from_meta (sync) usa create!/update! sobre
   # templates AUTHENTICATION/CAROUSEL ya existentes en Meta que Jabvox no creó, y
@@ -98,6 +99,26 @@ class JabvoxWhatsappTemplate < ApplicationRecord
 
   def current_version_number
     versions.maximum(:version) || 1
+  end
+
+  def push_event_data
+    { id: id, name: name, status: status, language: language }
+  end
+
+  private
+
+  def notify_creator_on_status_change
+    return unless created_by
+
+    Jabvox::ModuleNotificationService.create!(
+      account: account,
+      user: created_by,
+      type: :jabvox_whatsapp_template_status,
+      actor: self,
+      title: 'Actualización de plantilla de WhatsApp',
+      body: "#{name}: #{status}",
+      path: "/app/accounts/#{account_id}/settings/jabvox/whatsapp-templates"
+    )
   end
 
   def snapshot_payload

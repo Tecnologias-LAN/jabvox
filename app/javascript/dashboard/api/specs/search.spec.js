@@ -8,7 +8,6 @@ describe('#SearchAPI', () => {
     expect(searchAPI).toHaveProperty('contacts');
     expect(searchAPI).toHaveProperty('conversations');
     expect(searchAPI).toHaveProperty('messages');
-    expect(searchAPI).toHaveProperty('articles');
   });
 
   describe('API calls', () => {
@@ -109,25 +108,6 @@ describe('#SearchAPI', () => {
           from: 'contact:42',
           inbox_id: 10,
         },
-      });
-    });
-
-    it('#articles', () => {
-      searchAPI.articles({ q: 'test', page: 1 });
-      expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/search/articles', {
-        params: { q: 'test', page: 1, since: undefined, until: undefined },
-      });
-    });
-
-    it('#articles with date filters', () => {
-      searchAPI.articles({
-        q: 'test',
-        page: 2,
-        since: 1700000000,
-        until: 1732000000,
-      });
-      expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/search/articles', {
-        params: { q: 'test', page: 2, since: 1700000000, until: 1732000000 },
       });
     });
   });

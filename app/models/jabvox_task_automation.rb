@@ -108,6 +108,7 @@ class JabvoxTaskAutomation < ApplicationRecord
     joins(:task)
       .where(active_jabvox: true)
       .where(next_run_at_jabvox: ..now)
+      .where(jabvox_tasks: { deleted_at_jabvox: nil })
       .where.not(jabvox_tasks: { status_jabvox: 'done' })
   }
 

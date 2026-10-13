@@ -4,7 +4,8 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import WaveSurfer from 'wavesurfer.js';
 import RecordPlugin from 'wavesurfer.js/dist/plugins/record.js';
 import { format, intervalToDuration } from 'date-fns';
-import { convertAudio } from './utils/audioConversionUtils';
+// lamejs (codificador MP3, ~253 KB) vive dentro de audioConversionUtils. Se carga
+// de forma diferida solo al terminar una grabación, no en el bundle de arranque.
 
 const props = defineProps({
   audioRecordFormat: {
@@ -84,6 +85,7 @@ const initWaveSurfer = () => {
 
   record.value.on('record-end', async blob => {
     try {
+      const { convertAudio } = await import('./utils/audioConversionUtils');
       const audioBlob = await convertAudio(blob, props.audioRecordFormat);
       // Use the converted blob's actual type, which may differ from the
       // requested format when the browser can't produce it (e.g. Safari falls

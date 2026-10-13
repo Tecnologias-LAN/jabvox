@@ -7,8 +7,6 @@ import { routes as companyRoutes } from './companies/routes';
 import { routes as notificationRoutes } from './notifications/routes';
 import { routes as inboxRoutes } from './inbox/routes';
 import { frontendURL } from '../../helper/URLHelper';
-import helpcenterRoutes from './helpcenter/helpcenter.routes';
-import campaignsRoutes from './campaigns/campaigns.routes';
 import { routes as jabvoxKanbanRoutes } from './jabvox-kanban/routes';
 import { routes as jabvoxDriveRoutes } from './jabvox-drive/routes';
 import { routes as jabvoxProductsRoutes } from './jabvox-products/routes';
@@ -45,8 +43,6 @@ export default {
         ...companyRoutes,
         ...searchRoutes,
         ...notificationRoutes,
-        ...helpcenterRoutes.routes,
-        ...campaignsRoutes.routes,
         ...jabvoxKanbanRoutes,
         ...jabvoxDriveRoutes,
         ...jabvoxProductsRoutes,

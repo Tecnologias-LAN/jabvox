@@ -179,7 +179,6 @@ async function initialise() {
       hasRestoredSession.value = true;
       await restoreLastSession();
     }
-    await loadModelOptions(selectedAgentId.value);
   } catch {
     hasFetchedAgents.value = false;
   }

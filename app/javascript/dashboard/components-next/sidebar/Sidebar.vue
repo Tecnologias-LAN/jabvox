@@ -1,9 +1,8 @@
 <script setup>
-import { h, ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { provideSidebarContext, useSidebarResize } from './provider';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useConfig } from 'dashboard/composables/useConfig';
-import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
@@ -13,23 +12,25 @@ import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { usePolicy } from 'dashboard/composables/usePolicy';
 import { useJabvoxPermissions } from 'dashboard/composables/useJabvoxPermissions';
 import { useWindowSize, useEventListener } from '@vueuse/core';
+import { useRoute, useRouter } from 'vue-router';
+import { useAlert } from 'dashboard/composables';
+import { aiBudgetAPI } from 'dashboard/api/jabvox/aiBudget';
 
-import Button from 'dashboard/components-next/button/Button.vue';
 import SidebarGroup from './SidebarGroup.vue';
 import SidebarProfileMenu from './SidebarProfileMenu.vue';
 import SidebarChangelogCard from './SidebarChangelogCard.vue';
 import SidebarChangelogButton from './SidebarChangelogButton.vue';
-import ChannelLeaf from './ChannelLeaf.vue';
-import TicketsSidebarLeaf from './TicketsSidebarLeaf.vue';
-import ChannelIcon from 'next/icon/ChannelIcon.vue';
 import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
-import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
+import SidebarNotificationBell from './SidebarNotificationBell.vue';
+import SidebarQuickPreferences from './SidebarQuickPreferences.vue';
 import {
-  SIDEBAR_SORT_SECTIONS,
-  getSidebarSortOptions,
-  resolveSidebarSort,
-  sortSidebarItems,
-} from 'dashboard/helper/sidebarSort';
+  createJabvoxModuleNavigation,
+  isJabvoxNavigationRouteAllowed,
+} from './jabvoxModuleNavigation';
+import {
+  createJabvoxSettingsGroups,
+  getJabvoxSettingsCategoryLabels,
+} from './jabvoxSettingsNavigation';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -43,20 +44,22 @@ const emit = defineEmits([
   'openKeyShortcutModal',
   'showCreateAccountModal',
   'closeMobileSidebar',
+  'settingsNavigation',
 ]);
 
 const JABVOX_LOGO_URL = '/jabvox/public/logo.png';
 
 const { accountScopedRoute, isOnJabvoxCloud } = useAccount();
 const { isEnterprise } = useConfig();
-const { checkPermissions } = usePolicy();
+const { shouldShow } = usePolicy();
 const { jabvoxCan } = useJabvoxPermissions();
 const store = useStore();
+const route = useRoute();
+const router = useRouter();
 
 // Calls run on the enterprise-only API (cloud runs enterprise); hide the entry
 // on community so it doesn't lead to a dashboard/CTA the backend can't serve.
 const isCallsAvailable = computed(() => isOnJabvoxCloud.value || isEnterprise);
-const searchShortcut = useKbd([`$mod`, 'k']);
 const { t } = useI18n();
 
 const isACustomBrandedInstance = useMapGetter(
@@ -68,18 +71,24 @@ const { width: windowWidth } = useWindowSize();
 const isMobile = computed(() => windowWidth.value < 768);
 
 const accountId = useMapGetter('getCurrentAccountId');
-const currentUserId = useMapGetter('getCurrentUserID');
 const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
 const saldoStatus = useMapGetter('jabvoxSaldo/getStatus');
-
-// Reports visibility mirrors the API gate: admins always, otherwise the
-// jabvox_reports_view permission from the user's custom role.
-const canViewJabvoxReports = computed(() => jabvoxCan('jabvox_reports_view'));
+const aiBudgetBalance = ref(null);
+const isAiBalanceLoading = ref(false);
+let aiBalanceRequestId = 0;
 
 const isSaldoEnabled = computed(() =>
   isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.JABVOX_SALDO)
+);
+const canViewAiBalance = computed(
+  () =>
+    shouldShow('', ['administrator']) &&
+    isFeatureEnabledonAccount.value(
+      accountId.value,
+      FEATURE_FLAGS.JABVOX_AI_CHAT
+    )
 );
 
 const appStatesForPresence = useMapGetter('jabvoxAppStates/getActiveStates');
@@ -110,16 +119,6 @@ const hasConversationUnreadCounts = computed(() => {
   );
 });
 
-const hasFilteredUnreadCounts = computed(() => {
-  return (
-    hasConversationUnreadCounts.value &&
-    isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.UNREAD_COUNT_FOR_FILTERS
-    )
-  );
-});
-
 const hasDataImport = computed(() => {
   return isFeatureEnabledonAccount.value(
     accountId.value,
@@ -136,11 +135,6 @@ const fetchConversationUnreadCounts = ([currentAccountId, isEnabled]) => {
   }
 
   store.dispatch('conversationUnreadCounts/get');
-};
-
-const fetchSidebarSortPreferences = ([currentAccountId, userId]) => {
-  if (!currentAccountId || !userId) return;
-  store.dispatch('sidebarSortPreferences/initialize');
 };
 
 const toggleShortcutModalFn = show => {
@@ -168,6 +162,10 @@ const {
   snapToExpanded,
   COLLAPSED_THRESHOLD,
 } = useSidebarResize();
+
+const sidebarToggleLabel = computed(() =>
+  isCollapsed.value ? t('SIDEBAR.EXPAND_MENU') : t('SIDEBAR.COLLAPSE_MENU')
+);
 
 // On mobile, sidebar is always expanded (flyout mode)
 const isEffectivelyCollapsed = computed(
@@ -231,49 +229,18 @@ const onResizeHandleDoubleClick = () => {
   else snapToCollapsed();
 };
 
+const toggleSidebarWidth = () => {
+  if (isCollapsed.value) snapToExpanded();
+  else snapToCollapsed();
+};
+
 // Support both mouse and touch events
 useEventListener(document, 'mousemove', onResizeMove);
 useEventListener(document, 'mouseup', onResizeEnd);
 useEventListener(document, 'touchmove', onResizeMove, { passive: false });
 useEventListener(document, 'touchend', onResizeEnd);
 
-const inboxes = useMapGetter('inboxes/getInboxes');
-const labels = useMapGetter('labels/getLabelsOnSidebar');
-const allUnreadCount = useMapGetter(
-  'conversationUnreadCounts/getAllUnreadCount'
-);
-const getInboxUnreadCount = useMapGetter(
-  'conversationUnreadCounts/getInboxUnreadCount'
-);
-const getLabelUnreadCount = useMapGetter(
-  'conversationUnreadCounts/getLabelUnreadCount'
-);
-const getTeamUnreadCount = useMapGetter(
-  'conversationUnreadCounts/getTeamUnreadCount'
-);
-const mentionsUnreadCount = useMapGetter(
-  'conversationUnreadCounts/getMentionsUnreadCount'
-);
-const participatingUnreadCount = useMapGetter(
-  'conversationUnreadCounts/getParticipatingUnreadCount'
-);
-const unattendedUnreadCount = useMapGetter(
-  'conversationUnreadCounts/getUnattendedUnreadCount'
-);
-const getFolderUnreadCount = useMapGetter(
-  'conversationUnreadCounts/getFolderUnreadCount'
-);
-const teams = useMapGetter('teams/getMyTeams');
-const conversationCustomViews = useMapGetter(
-  'customViews/getConversationCustomViews'
-);
-const getSidebarSectionSort = useMapGetter(
-  'sidebarSortPreferences/getSectionSort'
-);
-
 onMounted(() => {
-  store.dispatch('labels/get');
-  store.dispatch('inboxes/get');
   store.dispatch('notifications/unReadCount');
   store.dispatch('teams/get');
   store.dispatch('attributes/get');
@@ -298,109 +265,27 @@ onMounted(() => {
   store.dispatch('jabvoxAppStates/fetchStates');
 });
 
+watch(
+  accountId,
+  currentAccountId => {
+    if (!currentAccountId) return;
+
+    store.commit('labels/SET_LABELS', []);
+    store.commit('inboxes/SET_INBOXES', []);
+    store.dispatch('labels/get');
+    store.dispatch('inboxes/get');
+  },
+  { immediate: true }
+);
+
 watch([accountId, hasConversationUnreadCounts], fetchConversationUnreadCounts, {
   immediate: true,
 });
-
-watch([accountId, currentUserId], fetchSidebarSortPreferences, {
-  immediate: true,
-});
-
-const hasUnreadCountsForSection = section => {
-  if (section === SIDEBAR_SORT_SECTIONS.FOLDERS) {
-    return hasFilteredUnreadCounts.value;
-  }
-
-  return hasConversationUnreadCounts.value;
-};
-
-const getSortOptionsForSection = section =>
-  getSidebarSortOptions(section, {
-    hasUnreadCounts: hasUnreadCountsForSection(section),
-  });
-
-const getSortForSection = section =>
-  resolveSidebarSort(section, getSidebarSectionSort.value(section), {
-    hasUnreadCounts: hasUnreadCountsForSection(section),
-  });
-
-const updateSortPreference = (section, sortBy) => {
-  store.dispatch('sidebarSortPreferences/setSectionSort', {
-    section,
-    sortBy,
-  });
-};
-
-const buildSortConfig = section => ({
-  sortOptions: getSortOptionsForSection(section),
-  activeSort: getSortForSection(section),
-  onSortChange: sortBy => updateSortPreference(section, sortBy),
-});
-
-const sortedFolders = computed(() =>
-  sortSidebarItems(conversationCustomViews.value, {
-    sortBy: getSortForSection(SIDEBAR_SORT_SECTIONS.FOLDERS),
-    labelKey: view => view.name,
-    unreadCountKey: view => getFolderUnreadCount.value(view.id),
-  })
-);
-
-const sortedTeams = computed(() =>
-  sortSidebarItems(teams.value, {
-    sortBy: getSortForSection(SIDEBAR_SORT_SECTIONS.TEAMS),
-    labelKey: team => team.name,
-    unreadCountKey: team => getTeamUnreadCount.value(team.id),
-  })
-);
-
-const sortedInboxes = computed(() =>
-  sortSidebarItems(inboxes.value, {
-    sortBy: getSortForSection(SIDEBAR_SORT_SECTIONS.CHANNELS),
-    labelKey: inbox => inbox.name,
-    unreadCountKey: inbox => getInboxUnreadCount.value(inbox.id),
-  })
-);
-
-const sortedLabels = computed(() =>
-  sortSidebarItems(labels.value, {
-    sortBy: getSortForSection(SIDEBAR_SORT_SECTIONS.LABELS),
-    labelKey: label => label.title,
-    unreadCountKey: label => getLabelUnreadCount.value(label.id),
-  })
-);
 
 const closeMobileSidebar = () => {
   if (!props.isMobileSidebarOpen) return;
   emit('closeMobileSidebar');
 };
-
-const newReportRoutes = () => [
-  {
-    name: 'Reports Agent',
-    label: t('SIDEBAR.REPORTS_AGENT'),
-    to: accountScopedRoute('agent_reports_index'),
-    activeOn: ['agent_reports_show'],
-  },
-  {
-    name: 'Reports Label',
-    label: t('SIDEBAR.REPORTS_LABEL'),
-    to: accountScopedRoute('label_reports_index'),
-  },
-  {
-    name: 'Reports Inbox',
-    label: t('SIDEBAR.REPORTS_INBOX'),
-    to: accountScopedRoute('inbox_reports_index'),
-    activeOn: ['inbox_reports_show'],
-  },
-  {
-    name: 'Reports Team',
-    label: t('SIDEBAR.REPORTS_TEAM'),
-    to: accountScopedRoute('team_reports_index'),
-    activeOn: ['team_reports_show'],
-  },
-];
-
-const reportRoutes = computed(() => newReportRoutes());
 
 const saldoLabel = computed(() => {
   if (!saldoStatus.value) {
@@ -415,6 +300,49 @@ const saldoLabel = computed(() => {
   return `$${formatted} COP`;
 });
 
+const aiBalanceLabel = computed(() => {
+  if (isAiBalanceLoading.value) return '...';
+  if (!aiBudgetBalance.value?.connected) return '—';
+  if (aiBudgetBalance.value.unlimited) {
+    return t('JABVOX_AI_BUDGET.UNLIMITED');
+  }
+  return `$${Number(aiBudgetBalance.value.remaining_usd || 0).toFixed(2)} USD`;
+});
+
+const aiBalanceColor = computed(() => {
+  if (isAiBalanceLoading.value || !aiBudgetBalance.value?.connected) {
+    return 'text-n-slate-11';
+  }
+  if (
+    aiBudgetBalance.value.unlimited ||
+    Number(aiBudgetBalance.value.remaining_usd || 0) > 0
+  ) {
+    return 'text-n-teal-11';
+  }
+  return 'text-red-500';
+});
+
+const fetchAiBalance = async ([currentAccountId, enabled]) => {
+  aiBalanceRequestId += 1;
+  const requestId = aiBalanceRequestId;
+  aiBudgetBalance.value = null;
+  isAiBalanceLoading.value = Boolean(currentAccountId && enabled);
+  if (!currentAccountId || !enabled) return;
+
+  try {
+    const { data } = await aiBudgetAPI.get();
+    if (requestId === aiBalanceRequestId) aiBudgetBalance.value = data || null;
+  } catch {
+    if (requestId === aiBalanceRequestId) {
+      useAlert(t('JABVOX_AI_BUDGET.LOAD_ERROR'));
+    }
+  } finally {
+    if (requestId === aiBalanceRequestId) isAiBalanceLoading.value = false;
+  }
+};
+
+watch([accountId, canViewAiBalance], fetchAiBalance, { immediate: true });
+
 const saldoBalanceColor = computed(() => {
   if (!saldoStatus.value) return 'text-n-slate-11';
   const balance = Number(saldoStatus.value.balance || 0);
@@ -423,551 +351,35 @@ const saldoBalanceColor = computed(() => {
   return 'text-amber-500';
 });
 
-const menuItems = computed(() => {
-  // These views are toggled per-account from Super Admin via feature flags.
-  const hasFeature = flag =>
-    isFeatureEnabledonAccount.value(accountId.value, flag);
+const rawMenuItems = computed(() => {
+  const moduleNavigation = createJabvoxModuleNavigation({
+    t,
+    accountScopedRoute,
+    hasFeature: flag => isFeatureEnabledonAccount.value(accountId.value, flag),
+    isRouteAllowed: to =>
+      isJabvoxNavigationRouteAllowed(router, shouldShow, to),
+    isCallsAvailable: isCallsAvailable.value,
+    canViewJabvoxReports: jabvoxCan('jabvox_reports_view'),
+  });
 
   return [
-    ...(hasFeature(FEATURE_FLAGS.INBOX_VIEW)
-      ? [
-          {
-            name: 'Inbox',
-            label: t('SIDEBAR.INBOX'),
-            icon: 'i-lucide-inbox',
-            to: accountScopedRoute('inbox_view'),
-            activeOn: ['inbox_view', 'inbox_view_conversation'],
-            getterKeys: {
-              count: 'notifications/getUnreadCount',
-            },
-          },
-        ]
-      : []),
     {
-      name: 'Conversation',
-      label: t('SIDEBAR.CONVERSATIONS'),
-      icon: 'i-lucide-message-circle',
-      children: [
-        {
-          name: 'All',
-          label: t('SIDEBAR.ALL_CONVERSATIONS'),
-          icon: 'i-lucide-inbox',
-          badgeCount: allUnreadCount.value,
-          activeOn: ['inbox_conversation'],
-          to: accountScopedRoute('home'),
-        },
-        ...(hasFeature(FEATURE_FLAGS.MENTIONS)
-          ? [
-              {
-                name: 'Mentions',
-                label: t('SIDEBAR.MENTIONED_CONVERSATIONS'),
-                icon: 'i-lucide-at-sign',
-                badgeCount: hasFilteredUnreadCounts.value
-                  ? mentionsUnreadCount.value
-                  : 0,
-                activeOn: ['conversation_through_mentions'],
-                to: accountScopedRoute('conversation_mentions'),
-              },
-            ]
-          : []),
-        ...(hasFeature(FEATURE_FLAGS.PARTICIPATING)
-          ? [
-              {
-                name: 'Participating',
-                label: t('SIDEBAR.PARTICIPATING_CONVERSATIONS'),
-                icon: 'i-lucide-user-round-check',
-                badgeCount: hasFilteredUnreadCounts.value
-                  ? participatingUnreadCount.value
-                  : 0,
-                activeOn: ['conversation_through_participating'],
-                to: accountScopedRoute('conversation_participating'),
-              },
-            ]
-          : []),
-        ...(hasFeature(FEATURE_FLAGS.UNATTENDED)
-          ? [
-              {
-                name: 'Unattended',
-                activeOn: ['conversation_through_unattended'],
-                label: t('SIDEBAR.UNATTENDED_CONVERSATIONS'),
-                icon: 'i-lucide-clock-alert',
-                badgeCount: hasFilteredUnreadCounts.value
-                  ? unattendedUnreadCount.value
-                  : 0,
-                to: accountScopedRoute('conversation_unattended'),
-              },
-            ]
-          : []),
-        {
-          name: 'Folders',
-          label: t('SIDEBAR.CUSTOM_VIEWS_FOLDER'),
-          icon: 'i-lucide-folder',
-          activeOn: ['conversations_through_folders'],
-          ...buildSortConfig(SIDEBAR_SORT_SECTIONS.FOLDERS),
-          collapsible: true,
-          showTreeLine: true,
-          children: sortedFolders.value.map(view => ({
-            name: `${view.name}-${view.id}`,
-            label: view.name,
-            badgeCount: hasFilteredUnreadCounts.value
-              ? getFolderUnreadCount.value(view.id)
-              : 0,
-            to: accountScopedRoute('folder_conversations', { id: view.id }),
-          })),
-        },
-        {
-          name: 'Teams',
-          label: t('SIDEBAR.TEAMS'),
-          icon: 'i-lucide-users',
-          activeOn: ['conversations_through_team'],
-          ...buildSortConfig(SIDEBAR_SORT_SECTIONS.TEAMS),
-          collapsible: true,
-          showTreeLine: true,
-          children: sortedTeams.value.map(team => ({
-            name: `${team.name}-${team.id}`,
-            label: team.name,
-            badgeCount: getTeamUnreadCount.value(team.id),
-            to: accountScopedRoute('team_conversations', { teamId: team.id }),
-          })),
-        },
-        {
-          name: 'Channels',
-          label: t('SIDEBAR.CHANNELS'),
-          icon: 'i-lucide-mailbox',
-          activeOn: ['conversation_through_inbox'],
-          ...buildSortConfig(SIDEBAR_SORT_SECTIONS.CHANNELS),
-          collapsible: true,
-          showTreeLine: true,
-          children: sortedInboxes.value.map(inbox => ({
-            name: `${inbox.name}-${inbox.id}`,
-            label: inbox.name,
-            badgeCount: getInboxUnreadCount.value(inbox.id),
-            icon: h(ChannelIcon, { inbox, class: 'size-[16px]' }),
-            to: accountScopedRoute('inbox_dashboard', { inbox_id: inbox.id }),
-            component: leafProps =>
-              h(ChannelLeaf, {
-                label: leafProps.label,
-                active: leafProps.active,
-                inbox,
-                badgeCount: leafProps.badgeCount,
-              }),
-          })),
-        },
-        {
-          name: 'Labels',
-          label: t('SIDEBAR.LABELS'),
-          icon: 'i-lucide-tag',
-          activeOn: ['conversations_through_label'],
-          ...buildSortConfig(SIDEBAR_SORT_SECTIONS.LABELS),
-          collapsible: true,
-          showTreeLine: true,
-          children: sortedLabels.value.map(label => ({
-            name: `${label.title}-${label.id}`,
-            label: label.title,
-            badgeCount: getLabelUnreadCount.value(label.id),
-            icon: h('span', {
-              class: `size-[8px] rounded-sm`,
-              style: { backgroundColor: label.color },
-            }),
-            to: accountScopedRoute('label_conversations', {
-              label: label.title,
-            }),
-          })),
-        },
-      ],
+      name: 'Dashboard',
+      label: t('SIDEBAR.HOME'),
+      icon: 'i-lucide-layout-dashboard',
+      to: accountScopedRoute('account_dashboard'),
+      activeOn: ['account_dashboard'],
     },
-    // "Contactos" siempre visible y como entrada ÚNICA: antes se ocultaba cuando el módulo
-    // Leads estaba activo, porque aquella pantalla absorbía la gestión de contactos.
-    // Retirado Leads, esta es la única pantalla, así que va directa sin sub-secciones.
-    {
-      name: 'Contacts',
-      label: t('SIDEBAR.CONTACTS'),
-      icon: 'i-lucide-contact',
-      to: accountScopedRoute(
-        'contacts_dashboard_index',
-        {},
-        { page: 1, search: undefined }
-      ),
-      activeOn: [
-        'contacts_dashboard_index',
-        'contacts_edit',
-        'contacts_dashboard_active',
-        'contacts_dashboard_segments_index',
-        'contacts_edit_segment',
-        'contacts_dashboard_labels_index',
-        'contacts_edit_label',
-      ],
-    },
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_KANBAN
-    )
-      ? [
-          {
-            name: 'Jabvox Kanban',
-            label: t('SIDEBAR.JABVOX_KANBAN'),
-            icon: 'i-lucide-kanban',
-            to: accountScopedRoute('jabvox_kanban_index'),
-            activeOn: ['jabvox_kanban_index'],
-          },
-        ]
-      : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_DRIVE
-    )
-      ? [
-          {
-            name: 'Jabvox Drive',
-            label: t('SIDEBAR.JABVOX_DRIVE'),
-            icon: 'i-lucide-hard-drive',
-            to: accountScopedRoute('jabvox_drive_index'),
-            activeOn: [
-              'jabvox_drive_index',
-              'jabvox_drive_folder',
-              'jabvox_drive_contact',
-            ],
-          },
-        ]
-      : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_AI_CHAT
-    )
-      ? [
-          {
-            name: 'Jabvox AI Chat',
-            label: t('JABVOX_AI_CHAT.SIDEBAR_LABEL'),
-            icon: 'i-ri-robot-2-line',
-            to: accountScopedRoute('jabvox_ai_chat_index'),
-            activeOn: ['jabvox_ai_chat_index'],
-          },
-        ]
-      : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_AI_CHAT_PROVISIONING
-    )
-      ? [
-          {
-            name: 'Jabvox Provisioning Chat',
-            label: t('JABVOX_PROVISIONING_CHAT.SIDEBAR_LABEL'),
-            icon: 'i-lucide-server-cog',
-            to: accountScopedRoute('jabvox_provisioning_chat_index'),
-            activeOn: ['jabvox_provisioning_chat_index'],
-          },
-        ]
-      : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_CALENDAR
-    )
-      ? [
-          {
-            name: 'Jabvox Calendar',
-            label: t('JABVOX_CALENDAR.SIDEBAR_LABEL'),
-            icon: 'i-lucide-calendar-days',
-            to: accountScopedRoute('jabvox_calendar_index'),
-            activeOn: ['jabvox_calendar_index'],
-          },
-        ]
-      : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_TASKS
-    )
-      ? [
-          {
-            name: 'Jabvox Tasks',
-            label: t('SIDEBAR.JABVOX_TASKS'),
-            icon: 'i-lucide-square-kanban',
-            to: accountScopedRoute('jabvox_tasks_index'),
-            activeOn: ['jabvox_tasks_index', 'jabvox_tasks_board'],
-          },
-        ]
-      : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_TICKETS
-    )
-      ? [
-          {
-            name: 'Jabvox Tickets',
-            label: t('SIDEBAR.JABVOX_TICKETS'),
-            icon: 'i-lucide-ticket',
-            to: accountScopedRoute('jabvox_tickets_index'),
-            activeOn: [
-              'jabvox_tickets_index',
-              'jabvox_tickets_detail',
-              'jabvox_tickets_metrics',
-              'jabvox_tickets_categories',
-            ],
-            component: leafProps =>
-              h(TicketsSidebarLeaf, {
-                label: leafProps.label,
-                icon: leafProps.icon,
-              }),
-          },
-        ]
-      : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_INTERNAL_CHAT
-    )
-      ? [
-          {
-            name: 'Jabvox Internal Chat',
-            label: t('JABVOX_INTERNAL_CHAT.SIDEBAR_LABEL'),
-            icon: 'i-lucide-message-circle',
-            to: accountScopedRoute('jabvox_internal_chat_index'),
-            activeOn: ['jabvox_internal_chat_index'],
-            getterKeys: { count: 'jabvoxInternalChat/getUnreadTotal' },
-          },
-        ]
-      : []),
-    ...(canViewJabvoxReports.value
-      ? [
-          {
-            name: 'Jabvox Reports',
-            label: t('JABVOX_REPORTS.SIDEBAR_LABEL'),
-            icon: 'i-lucide-bar-chart-2',
-            to: accountScopedRoute('jabvox_reports_index'),
-            activeOn: ['jabvox_reports_index'],
-          },
-        ]
-      : []),
-    ...(canViewJabvoxReports.value &&
-    isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.JABVOX_CDR)
-      ? [
-          {
-            name: 'Jabvox CDR Reports',
-            label: t('JABVOX_CDR.SIDEBAR_LABEL'),
-            icon: 'i-lucide-phone-call',
-            to: accountScopedRoute('jabvox_cdr_reports_index'),
-            activeOn: ['jabvox_cdr_reports_index'],
-          },
-        ]
-      : []),
-    ...(canViewJabvoxReports.value &&
-    isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_AUDIO_ANALYSIS
-    )
-      ? [
-          {
-            name: 'Jabvox Audio Reports',
-            label: t('JABVOX_AUDIO.SIDEBAR_LABEL'),
-            icon: 'i-lucide-audio-lines',
-            to: accountScopedRoute('jabvox_audio_analysis_reports_index'),
-            activeOn: ['jabvox_audio_analysis_reports_index'],
-          },
-        ]
-      : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_ANALYTICS
-    )
-      ? [
-          {
-            name: 'Jabvox Analytics',
-            label: t('SIDEBAR.JABVOX_ANALYTICS'),
-            icon: 'i-lucide-chart-no-axes-combined',
-            to: accountScopedRoute('jabvox_analytics_index'),
-            activeOn: [
-              'jabvox_analytics_index',
-              // La ruta índice redirige a overview, así que sin este name el ítem
-              // nunca se resaltaba al aterrizar en Analítica.
-              'jabvox_analytics_overview',
-              'jabvox_analytics_data_sources',
-              'jabvox_analytics_ds_tables',
-              'jabvox_analytics_ds_viewer',
-              'jabvox_analytics_query_builder',
-              'jabvox_analytics_sql',
-              'jabvox_analytics_dashboards',
-              'jabvox_analytics_dashboard_show',
-              'jabvox_analytics_cross_reports',
-              'jabvox_analytics_cross_report_new',
-              'jabvox_analytics_cross_report_edit',
-              'jabvox_analytics_permissions',
-            ],
-          },
-        ]
-      : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_CUSTOMIZATION
-    ) && checkPermissions(['administrator', 'jabvox_custom_data_manage'])
-      ? [
-          {
-            name: 'Jabvox Custom Data',
-            label: t('SIDEBAR.JABVOX_CUSTOM_DATA'),
-            icon: 'i-lucide-database',
-            to: accountScopedRoute('jabvox_custom_data_index'),
-            activeOn: ['jabvox_custom_data_index'],
-          },
-        ]
-      : []),
-    ...(isCallsAvailable.value
-      ? [
-          {
-            name: 'Calls',
-            label: t('SIDEBAR.CALLS'),
-            icon: 'i-lucide-phone',
-            to: accountScopedRoute('calls_dashboard_index'),
-            activeOn: ['calls_dashboard_index'],
-          },
-        ]
-      : []),
-    {
-      name: 'Companies',
-      label: t('SIDEBAR.COMPANIES'),
-      icon: 'i-lucide-building-2',
-      children: [
-        {
-          name: 'All Companies',
-          label: t('SIDEBAR.ALL_COMPANIES'),
-          to: accountScopedRoute(
-            'companies_dashboard_index',
-            {},
-            { page: 1, search: undefined }
-          ),
-          activeOn: ['companies_dashboard_index', 'companies_dashboard_show'],
-        },
-      ],
-    },
-    {
-      name: 'Reports',
-      label: t('SIDEBAR.REPORTS'),
-      icon: 'i-lucide-chart-spline',
-      children: [
-        {
-          name: 'Report Overview',
-          label: t('SIDEBAR.REPORTS_OVERVIEW'),
-          to: accountScopedRoute('account_overview_reports'),
-        },
-        {
-          name: 'Report Conversation',
-          label: t('SIDEBAR.REPORTS_CONVERSATION'),
-          to: accountScopedRoute('conversation_reports'),
-        },
-        ...reportRoutes.value,
-        {
-          name: 'Reports CSAT',
-          label: t('SIDEBAR.CSAT'),
-          to: accountScopedRoute('csat_reports'),
-        },
-        {
-          name: 'Reports SLA',
-          label: t('SIDEBAR.REPORTS_SLA'),
-          to: accountScopedRoute('sla_reports'),
-        },
-        {
-          name: 'Reports Bot',
-          label: t('SIDEBAR.REPORTS_BOT'),
-          to: accountScopedRoute('bot_reports'),
-        },
-        {
-          name: 'Reports WhatsApp',
-          label: t('SIDEBAR.REPORTS_WHATSAPP'),
-          to: accountScopedRoute('whatsapp_reports'),
-        },
-        {
-          name: 'Reports WhatsApp Templates',
-          label: t('SIDEBAR.REPORTS_WHATSAPP_TEMPLATES'),
-          to: accountScopedRoute('whatsapp_templates_reports'),
-        },
-      ],
-    },
-    {
-      name: 'Campaigns',
-      label: t('SIDEBAR.CAMPAIGNS'),
-      icon: 'i-lucide-megaphone',
-      children: [
-        {
-          name: 'Live chat',
-          label: t('SIDEBAR.LIVE_CHAT'),
-          to: accountScopedRoute('campaigns_livechat_index'),
-        },
-        {
-          name: 'SMS',
-          label: t('SIDEBAR.SMS'),
-          to: accountScopedRoute('campaigns_sms_index'),
-        },
-        {
-          name: 'WhatsApp',
-          label: t('SIDEBAR.WHATSAPP'),
-          to: accountScopedRoute('campaigns_whatsapp_index'),
-        },
-      ],
-    },
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.JABVOX_DIALER
-    )
-      ? [
-          {
-            name: 'Jabvox Dialer',
-            label: t('JABVOX_DIALER.TITLE'),
-            icon: 'i-lucide-phone-call',
-            to: accountScopedRoute('jabvox_dialer_index'),
-            activeOn: ['jabvox_dialer_index'],
-          },
-        ]
-      : []),
-    ...(isFeatureEnabledonAccount.value(
-      accountId.value,
-      FEATURE_FLAGS.HELP_CENTER
-    )
-      ? [
-          {
-            name: 'Portals',
-            label: t('SIDEBAR.HELP_CENTER.TITLE'),
-            icon: 'i-lucide-library-big',
-            children: [
-              {
-                name: 'Articles',
-                label: t('SIDEBAR.HELP_CENTER.ARTICLES'),
-                activeOn: [
-                  'portals_articles_index',
-                  'portals_articles_new',
-                  'portals_articles_edit',
-                ],
-                to: accountScopedRoute('portals_index', {
-                  navigationPath: 'portals_articles_index',
-                }),
-              },
-              {
-                name: 'Categories',
-                label: t('SIDEBAR.HELP_CENTER.CATEGORIES'),
-                activeOn: [
-                  'portals_categories_index',
-                  'portals_categories_articles_index',
-                  'portals_categories_articles_edit',
-                ],
-                to: accountScopedRoute('portals_index', {
-                  navigationPath: 'portals_categories_index',
-                }),
-              },
-              {
-                name: 'Locales',
-                label: t('SIDEBAR.HELP_CENTER.LOCALES'),
-                activeOn: ['portals_locales_index'],
-                to: accountScopedRoute('portals_index', {
-                  navigationPath: 'portals_locales_index',
-                }),
-              },
-              {
-                name: 'Settings',
-                label: t('SIDEBAR.HELP_CENTER.SETTINGS'),
-                activeOn: ['portals_settings_index'],
-                to: accountScopedRoute('portals_index', {
-                  navigationPath: 'portals_settings_index',
-                }),
-              },
-            ],
-          },
-        ]
-      : []),
+    ...moduleNavigation.map(
+      ({ name, label, icon, to, activeOn, getterKeys }) => ({
+        name,
+        label,
+        icon,
+        to,
+        activeOn,
+        getterKeys,
+      })
+    ),
     {
       name: 'Settings',
       label: t('SIDEBAR.SETTINGS'),
@@ -1485,7 +897,33 @@ const menuItems = computed(() => {
                 name: 'Settings Jabvox Management States',
                 label: t('JABVOX_MANAGEMENT_STATES.SIDEBAR_LABEL'),
                 icon: 'i-lucide-tag',
-                to: accountScopedRoute('jabvox_management_states_index'),
+                to: accountScopedRoute(
+                  'jabvox_management_states_index',
+                  {},
+                  { tab: 'management' }
+                ),
+                activeOn: ['jabvox_management_states_index'],
+              },
+              {
+                name: 'Settings Jabvox App States',
+                label: t('JABVOX_MANAGEMENT_STATES.TABS.APP'),
+                icon: 'i-lucide-smartphone',
+                to: accountScopedRoute(
+                  'jabvox_management_states_index',
+                  {},
+                  { tab: 'app' }
+                ),
+                activeOn: ['jabvox_management_states_index'],
+              },
+              {
+                name: 'Settings Jabvox Campaigns',
+                label: t('JABVOX_MANAGEMENT_STATES.TABS.CAMPAIGNS'),
+                icon: 'i-lucide-megaphone',
+                to: accountScopedRoute(
+                  'jabvox_management_states_index',
+                  {},
+                  { tab: 'campaigns' }
+                ),
                 activeOn: ['jabvox_management_states_index'],
               },
             ]
@@ -1569,9 +1007,211 @@ const menuItems = computed(() => {
     },
   ];
 });
+
+const settingsNavigationItems = computed(
+  () =>
+    rawMenuItems.value.find(item => item.name === 'Settings')?.children || []
+);
+
+const settingsSidebarGroups = computed(() =>
+  createJabvoxSettingsGroups({
+    settingsItems: settingsNavigationItems.value,
+    categoryLabels: getJabvoxSettingsCategoryLabels(t),
+    isRouteAllowed: to =>
+      isJabvoxNavigationRouteAllowed(router, shouldShow, to),
+  }).map(category => {
+    const activeSettingPath = category.items.some(setting => {
+      const settingPath = router.resolve(setting.to).path;
+      return (
+        route.path === settingPath || route.path.startsWith(`${settingPath}/`)
+      );
+    });
+    const activeOn = category.items.flatMap(setting => [
+      setting.to?.name,
+      ...(setting.activeOn || []),
+    ]);
+
+    return {
+      name: `Settings ${category.key}`,
+      label: category.label,
+      icon: category.items[0]?.icon || 'i-lucide-settings-2',
+      to: category.items[0].to,
+      activeOn: [
+        ...new Set(activeOn.concat(activeSettingPath ? [route.name] : [])),
+      ],
+    };
+  })
+);
+
+const menuItems = computed(() =>
+  rawMenuItems.value.map(item => {
+    if (item.name !== 'Settings') return item;
+
+    const firstAllowedItem = settingsSidebarGroups.value[0];
+
+    return {
+      ...item,
+      to: firstAllowedItem?.to || accountScopedRoute('general_settings_index'),
+      activeOn: settingsSidebarGroups.value.flatMap(group => group.activeOn),
+      children: settingsSidebarGroups.value,
+    };
+  })
+);
+
+watch(settingsNavigationItems, items => emit('settingsNavigation', items), {
+  immediate: true,
+});
 </script>
 
 <template>
+  <header
+    v-if="!isMobile"
+    class="absolute inset-x-0 top-0 z-[60] flex h-16 border-b border-[#8FC4C2] bg-white/95 shadow-sm backdrop-blur"
+  >
+    <div
+      class="flex h-full flex-shrink-0 items-center gap-2 overflow-hidden bg-gradient-to-r from-[#DAEBDB] to-[#A8D5D3] px-2"
+      :style="{ width: `${sidebarWidth}px` }"
+    >
+      <SidebarAccountSwitcher
+        v-if="isEffectivelyCollapsed"
+        is-collapsed
+        @show-create-account-modal="emit('showCreateAccountModal')"
+      />
+      <template v-else>
+        <img
+          :src="JABVOX_LOGO_URL"
+          alt="Jabvox"
+          class="h-10 w-auto max-w-[112px] flex-shrink-0 object-contain"
+        />
+        <div class="h-6 w-px flex-shrink-0 bg-[#5B9690]/50" />
+        <SidebarAccountSwitcher
+          class="min-w-0 flex-1"
+          @show-create-account-modal="emit('showCreateAccountModal')"
+        />
+      </template>
+    </div>
+    <div class="flex min-w-0 flex-1 items-center justify-between gap-3 px-4">
+      <button
+        type="button"
+        class="grid size-9 flex-shrink-0 place-items-center rounded-lg text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-brand"
+        :aria-label="sidebarToggleLabel"
+        :title="sidebarToggleLabel"
+        @click="toggleSidebarWidth"
+      >
+        <span class="i-lucide-menu size-5" aria-hidden="true" />
+      </button>
+      <div class="flex min-w-0 items-center gap-3">
+        <div
+          v-if="isSaldoEnabled"
+          class="hidden items-center gap-2 rounded-xl border border-n-weak bg-n-background px-3 py-2 lg:flex"
+        >
+          <span
+            class="i-lucide-wallet size-4 flex-shrink-0 text-n-slate-10"
+            aria-hidden="true"
+          />
+          <span class="text-xs text-n-slate-10">
+            {{ t('JABVOX_SALDO.HEADER.LABEL') }}
+          </span>
+          <span class="text-sm font-semibold" :class="saldoBalanceColor">
+            {{ saldoLabel }}
+          </span>
+        </div>
+        <div
+          v-if="canViewAiBalance"
+          class="hidden items-center gap-2 rounded-xl border border-n-weak bg-n-background px-3 py-2 xl:flex"
+        >
+          <span
+            class="i-lucide-sparkles size-4 flex-shrink-0 text-n-slate-10"
+            aria-hidden="true"
+          />
+          <span class="text-xs text-n-slate-10">
+            {{ t('SIDEBAR.JABVOX_AI_BUDGET') }}
+          </span>
+          <span class="text-sm font-semibold" :class="aiBalanceColor">
+            {{ aiBalanceLabel }}
+          </span>
+        </div>
+        <div
+          v-on-click-outside="() => (presenceDropdownOpen = false)"
+          class="relative"
+        >
+          <button
+            type="button"
+            class="flex max-w-48 items-center gap-2 rounded-xl border border-n-weak bg-n-background px-3 py-2 text-sm transition-colors hover:bg-n-alpha-2"
+            aria-haspopup="listbox"
+            :aria-expanded="presenceDropdownOpen"
+            :title="presenceName"
+            @click="presenceDropdownOpen = !presenceDropdownOpen"
+          >
+            <span
+              class="size-2.5 flex-shrink-0 rounded-full"
+              :style="{ backgroundColor: presenceColor }"
+              aria-hidden="true"
+            />
+            <span class="hidden truncate text-n-slate-11 lg:block">
+              {{ presenceName }}
+            </span>
+            <span
+              class="i-lucide-chevron-down size-4 flex-shrink-0 text-n-slate-9"
+              aria-hidden="true"
+            />
+          </button>
+          <div
+            v-if="presenceDropdownOpen"
+            class="absolute right-0 top-full z-[70] mt-2 min-w-52 overflow-hidden rounded-xl border border-n-weak bg-n-surface-2 py-1 shadow-lg"
+            role="listbox"
+          >
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-n-alpha-2"
+              :class="
+                !currentAppState
+                  ? 'font-semibold text-n-slate-12'
+                  : 'text-n-slate-11'
+              "
+              role="option"
+              :aria-selected="!currentAppState"
+              @click="setPresence(null)"
+            >
+              <span class="size-2 rounded-full bg-green-500" />
+              {{
+                currentAppState
+                  ? t('JABVOX_MANAGEMENT_STATES.APP_STATES.ACTIVE_RETURN')
+                  : t('JABVOX_MANAGEMENT_STATES.APP_STATES.ACTIVE_DEFAULT')
+              }}
+            </button>
+            <button
+              v-for="state in appStatesForPresence"
+              :key="state.id"
+              type="button"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-n-alpha-2"
+              :class="
+                currentAppState?.id === state.id
+                  ? 'font-semibold text-n-slate-12'
+                  : 'text-n-slate-11'
+              "
+              role="option"
+              :aria-selected="currentAppState?.id === state.id"
+              @click="setPresence(state.id)"
+            >
+              <span
+                class="size-2 flex-shrink-0 rounded-full"
+                :style="{ backgroundColor: state.color }"
+              />
+              {{ state.name }}
+            </button>
+          </div>
+        </div>
+        <SidebarQuickPreferences />
+        <SidebarNotificationBell
+          class="size-9 rounded-xl border border-n-weak bg-n-background"
+          @open-notification-panel="
+            router.push({ name: 'notifications_index' })
+          "
+        />
+      </div>
+    </div>
+  </header>
   <aside
     v-on-click-outside="[
       closeMobileSidebar,
@@ -1583,7 +1223,7 @@ const menuItems = computed(() => {
         ],
       },
     ]"
-    class="bg-gradient-to-b from-[#DAEBDB] to-[#A8D5D3] flex flex-col text-sm pb-px fixed top-0 ltr:left-0 rtl:right-0 h-full z-40 w-[200px] md:w-auto md:relative md:flex-shrink-0 md:ltr:translate-x-0 md:rtl:translate-x-0 ltr:border-r rtl:border-l border-[#8FC4C2]"
+    class="bg-gradient-to-b from-[#DAEBDB] to-[#A8D5D3] flex flex-col text-sm pb-px absolute top-0 bottom-0 ltr:left-0 rtl:right-0 h-auto z-40 w-[200px] md:w-auto md:relative md:mt-16 md:h-[calc(100%-4rem)] md:flex-shrink-0 md:ltr:translate-x-0 md:rtl:translate-x-0 ltr:border-r rtl:border-l border-[#8FC4C2]"
     :class="[
       {
         'shadow-lg md:shadow-none': isMobileSidebarOpen,
@@ -1594,39 +1234,27 @@ const menuItems = computed(() => {
     ]"
     :style="isMobile ? undefined : { width: `${sidebarWidth}px` }"
   >
-    <section
-      class="grid"
-      :class="isEffectivelyCollapsed ? 'mt-3 mb-6 gap-4' : 'mt-1 mb-4 gap-2'"
-    >
-      <div
-        class="flex gap-2 items-center min-w-0"
-        :class="{
-          'justify-center px-1': isEffectivelyCollapsed,
-          'px-2': !isEffectivelyCollapsed,
-        }"
-      >
-        <template v-if="isEffectivelyCollapsed">
-          <SidebarAccountSwitcher
-            is-collapsed
-            @show-create-account-modal="emit('showCreateAccountModal')"
-          />
-        </template>
-        <template v-else>
-          <div class="flex-shrink-0 flex items-center">
-            <img
-              :src="JABVOX_LOGO_URL"
-              alt="Jabvox"
-              class="h-5 w-auto object-contain"
-            />
-          </div>
-          <div class="flex-shrink-0 w-px h-3 bg-n-strong" />
-          <SidebarAccountSwitcher
-            class="flex-grow -mx-1 min-w-0"
-            @show-create-account-modal="emit('showCreateAccountModal')"
-          />
-        </template>
+    <section v-if="isMobile" class="grid mt-1 mb-4 gap-2">
+      <div class="flex min-w-0 items-center gap-2 px-2">
+        <img
+          :src="JABVOX_LOGO_URL"
+          alt="Jabvox"
+          class="h-10 w-auto max-w-[112px] flex-shrink-0 object-contain"
+        />
+        <div class="h-6 w-px flex-shrink-0 bg-[#5B9690]/50" />
+        <SidebarAccountSwitcher
+          class="min-w-0 flex-1"
+          @show-create-account-modal="emit('showCreateAccountModal')"
+        />
+        <SidebarQuickPreferences />
+        <SidebarNotificationBell
+          class="size-9 flex-shrink-0 rounded-xl border border-[#8FC4C2]/60 bg-white/40"
+          @open-notification-panel="
+            router.push({ name: 'notifications_index' })
+          "
+        />
       </div>
-      <div v-if="!isEffectivelyCollapsed && isSaldoEnabled" class="px-2">
+      <div v-if="isSaldoEnabled" class="px-2">
         <div
           class="px-2 py-1 rounded-lg bg-n-alpha-2 flex items-center justify-between text-xs"
         >
@@ -1638,8 +1266,20 @@ const menuItems = computed(() => {
           }}</span>
         </div>
       </div>
+      <div v-if="canViewAiBalance" class="px-2">
+        <div
+          class="px-2 py-1 rounded-lg bg-n-alpha-2 flex items-center justify-between text-xs"
+        >
+          <span class="text-n-slate-11">{{
+            t('SIDEBAR.JABVOX_AI_BUDGET')
+          }}</span>
+          <span class="font-medium" :class="aiBalanceColor">
+            {{ aiBalanceLabel }}
+          </span>
+        </div>
+      </div>
       <div
-        v-if="!isEffectivelyCollapsed"
+        v-if="isMobile"
         v-on-click-outside="() => (presenceDropdownOpen = false)"
         class="px-2 relative"
       >
@@ -1696,50 +1336,6 @@ const menuItems = computed(() => {
             {{ state.name }}
           </button>
         </div>
-      </div>
-      <div
-        class="flex gap-2"
-        :class="isEffectivelyCollapsed ? 'flex-col items-center' : 'px-2'"
-      >
-        <RouterLink
-          v-if="!isEffectivelyCollapsed"
-          :to="{ name: 'search' }"
-          class="flex gap-2 items-center px-2 py-1 w-full h-7 rounded-lg outline outline-1 outline-n-weak bg-n-button-color transition-all duration-100 ease-out"
-        >
-          <span class="flex-shrink-0 i-lucide-search size-4 text-n-slate-10" />
-          <span class="flex-grow text-start text-n-slate-10">
-            {{ t('COMBOBOX.SEARCH_PLACEHOLDER') }}
-          </span>
-          <span
-            class="hidden tracking-wide pointer-events-none select-none text-n-slate-10"
-          >
-            {{ searchShortcut }}
-          </span>
-        </RouterLink>
-        <RouterLink
-          v-else
-          :to="{ name: 'search' }"
-          class="flex items-center justify-center size-8 rounded-lg outline outline-1 outline-n-weak bg-n-button-color transition-all duration-100 ease-out hover:bg-n-alpha-2 dark:hover:bg-n-slate-9/30"
-          :title="t('COMBOBOX.SEARCH_PLACEHOLDER')"
-        >
-          <span class="i-lucide-search size-4 text-n-slate-11" />
-        </RouterLink>
-        <ComposeConversation align="start">
-          <template #trigger="{ isOpen }">
-            <Button
-              icon="i-lucide-pen-line"
-              color="slate"
-              size="sm"
-              class="dark:hover:!bg-n-slate-9/30"
-              :class="[
-                isEffectivelyCollapsed
-                  ? '!size-8 !outline-n-weak !text-n-slate-11'
-                  : '!h-7 !outline-n-weak !text-n-slate-11',
-                { '!bg-n-alpha-2 dark:!bg-n-slate-9/30': isOpen },
-              ]"
-            />
-          </template>
-        </ComposeConversation>
       </div>
     </section>
     <nav

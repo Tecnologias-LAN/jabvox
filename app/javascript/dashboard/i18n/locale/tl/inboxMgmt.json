@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "I-update ang Mga Setting ng Pre Chat Form"
     },
-    "HELP_CENTER": {
-      "LABEL": "Help Center",
-      "PLACEHOLDER": "Piliin ang Help Center",
-      "SELECT_PLACEHOLDER": "Piliin ang Help Center",
-      "NONE": "Wala",
-      "REMOVE": "Alisin ang Help Center",
-      "SUB_TEXT": "Ikabit ang Help Center sa inbox"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "Limitasyon ng auto assignment",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "Pakilagay ang halaga na higit sa 0",

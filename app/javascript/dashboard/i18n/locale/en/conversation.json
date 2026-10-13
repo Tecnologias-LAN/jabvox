@@ -8,6 +8,12 @@
       "NEXT": "Next",
       "CLOSE": "Close"
     },
+    "SEARCH_MESSAGES": {
+      "TOOLTIP": "Search in conversation",
+      "PLACEHOLDER": "Search messages, audio, attachments…",
+      "SEARCHING": "Searching…",
+      "NO_RESULTS": "No results"
+    },
     "SELECT_A_CONVERSATION": "Please select a conversation from left pane",
     "CSAT_REPLY_MESSAGE": "Please rate the conversation",
     "404": "Sorry, we cannot find the conversation. Please try again",

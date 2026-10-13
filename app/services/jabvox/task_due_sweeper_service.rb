@@ -36,9 +36,9 @@ class Jabvox::TaskDueSweeperService
   # Vence dentro de la ventana y no se ha avisado desde la última vez que cambió la fecha.
   def due_soon(account)
     account.jabvox_tasks
-           .where(status_jabvox: 'open')
-           .where(due_at_jabvox: Time.current..(Time.current + REMINDER_WINDOW))
-           .where(reminder_sent_at_jabvox: nil)
+      .active.where(status_jabvox: 'open')
+      .where(due_at_jabvox: Time.current..(Time.current + REMINDER_WINDOW))
+      .where(reminder_sent_at_jabvox: nil)
   end
 
   # Cada tablero decide cuál es su etapa inactiva; el que no la tenga marcada se salta.
@@ -57,7 +57,8 @@ class Jabvox::TaskDueSweeperService
   end
 
   def overdue(account)
-    account.jabvox_tasks.where(status_jabvox: 'open').where(due_at_jabvox: ...Time.current)
+    account.jabvox_tasks.active.where(status_jabvox: 'open')
+           .where(due_at_jabvox: ...Time.current)
   end
 
   def move_to_inactive(task, stage)

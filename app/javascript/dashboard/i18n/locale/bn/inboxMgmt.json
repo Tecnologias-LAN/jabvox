@@ -913,14 +913,6 @@
       },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "প্রি-চ্যাট ফর্ম সেটিংস আপডেট করুন"
     },
-    "HELP_CENTER": {
-      "LABEL": "সহায়তা কেন্দ্র",
-      "PLACEHOLDER": "সহায়তা কেন্দ্র নির্বাচন করুন",
-      "SELECT_PLACEHOLDER": "হেল্প সেন্টার নির্বাচন করুন",
-      "NONE": "কিছুই না",
-      "REMOVE": "হেল্প সেন্টার সরান",
-      "SUB_TEXT": "ইনবক্সের সাথে একটি হেল্প সেন্টার সংযুক্ত করুন"
-    },
     "AUTO_ASSIGNMENT": {
       "MAX_ASSIGNMENT_LIMIT": "স্বয়ংক্রিয় বরাদ্দের সীমা",
       "MAX_ASSIGNMENT_LIMIT_RANGE_ERROR": "অনুগ্রহ করে ০-এর চেয়ে বড় একটি মান দিন",

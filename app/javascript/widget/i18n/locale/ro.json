@@ -127,11 +127,6 @@
       "LEAVE_THE_ROOM": "Părăsiți apelul"
     }
   },
-  "PORTAL": {
-    "POPULAR_ARTICLES": "Popular Articles",
-    "VIEW_ALL_ARTICLES": "Vezi toate articolele",
-    "IFRAME_LOAD_ERROR": "There was an error loading the article, please refresh the page and try again."
-  },
   "ATTACHMENTS": {
     "image": {
       "CONTENT": "Mesaj imagine"

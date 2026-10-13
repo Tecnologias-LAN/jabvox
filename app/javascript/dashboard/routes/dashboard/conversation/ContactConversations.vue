@@ -9,6 +9,7 @@ import {
   isOnFoldersView,
 } from 'dashboard/store/modules/conversations/helpers/actionHelpers';
 import ConversationCard from 'dashboard/components/widgets/conversation/ConversationCard.vue';
+import ConversationSearchButton from 'dashboard/components/widgets/conversation/jabvox/ConversationSearchButton.vue';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import ConversationContextMenu from 'dashboard/components/widgets/conversation/contextMenu/Index.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -130,6 +131,9 @@ onMounted(() => {
 
 <template>
   <div v-if="!uiFlags.isFetching" class="">
+    <div class="flex justify-end px-4 pt-2">
+      <ConversationSearchButton :contact-id="contactId" />
+    </div>
     <div v-if="!previousConversations.length" class="no-label-message px-4 p-3">
       <span>
         {{ $t('CONTACT_PANEL.CONVERSATIONS.NO_RECORDS_FOUND') }}

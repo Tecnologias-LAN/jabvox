@@ -39,6 +39,11 @@ class JabvoxAiBalanceMovement < ApplicationRecord
   validates :amount_cents_jabvox, numericality: { only_integer: true }
 
   scope :recent, -> { order(created_at: :desc) }
+  after_create_commit :notify_account_administrators
+
+  def push_event_data
+    { id: id, kind: kind_jabvox, amount_cents: amount_cents_jabvox, created_at: created_at }
+  end
 
   # Registra un movimiento de forma idempotente. Si ya existe uno con la misma
   # idempotency_key, no crea otro (devuelve el existente). Nunca revienta el flujo por la
@@ -60,6 +65,22 @@ class JabvoxAiBalanceMovement < ApplicationRecord
     )
   rescue ActiveRecord::RecordNotUnique
     find_by(idempotency_key_jabvox: idempotency_key)
+  end
+
+  private
+
+  def notify_account_administrators
+    account.account_users.includes(:user).where(role: :administrator).find_each do |account_user|
+      Jabvox::ModuleNotificationService.create!(
+        account: account,
+        user: account_user.user,
+        type: :jabvox_ai_balance_movement,
+        actor: self,
+        title: 'Movimiento en el saldo de IA',
+        body: I18n.t("jabvox.ai_balance_movement.#{kind_jabvox}", default: 'El saldo de IA de la cuenta fue actualizado.'),
+        path: "/app/accounts/#{account_id}/settings/jabvox/ai-budget"
+      )
+    end
   end
   # rubocop:enable Metrics/ParameterLists
 end

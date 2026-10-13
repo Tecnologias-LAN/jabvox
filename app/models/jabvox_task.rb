@@ -5,6 +5,7 @@
 # Table name: jabvox_tasks
 #
 #  id                      :bigint           not null, primary key
+#  deleted_at_jabvox       :datetime
 #  description_jabvox      :text
 #  due_at_jabvox           :datetime
 #  due_dates_jabvox        :jsonb            not null
@@ -29,6 +30,7 @@
 #
 # Indexes
 #
+#  idx_jabvox_tasks_account_deleted_at                 (account_id,deleted_at_jabvox)
 #  index_jabvox_tasks_on_account_and_recurrence        (account_id,recurrence_unit_jabvox) WHERE (recurrence_unit_jabvox IS NOT NULL)
 #  index_jabvox_tasks_on_account_id                    (account_id)
 #  index_jabvox_tasks_on_account_id_and_board_id       (account_id,board_id)
@@ -103,6 +105,8 @@ class JabvoxTask < ApplicationRecord
   validate :associations_belong_to_account
 
   scope :ordered, -> { order(:position_jabvox, :created_at) }
+  scope :active, -> { where(deleted_at_jabvox: nil) }
+  scope :trashed, -> { where.not(deleted_at_jabvox: nil) }
   scope :with_due_date, -> { where.not(due_at_jabvox: nil) }
 
   # Al crear, la tarjeta se coloca al final de su columna en vez de quedar en la posición 0
@@ -116,7 +120,7 @@ class JabvoxTask < ApplicationRecord
 
   # Columns whose change should re-sync the task's calendar events.
   CALENDAR_RELEVANT = %w[due_at_jabvox due_dates_jabvox title_jabvox description_jabvox
-                         status_jabvox contact_id assignee_id].freeze
+                         status_jabvox contact_id assignee_id deleted_at_jabvox].freeze
 
   # Fire stage automations when the card lands in a (new) stage — on create and whenever
   # stage_id changes — mirroring the kanban conversation-stage hook.
@@ -152,6 +156,21 @@ class JabvoxTask < ApplicationRecord
     removed = current - desired
 
     apply_assignee_changes(desired, added, removed)
+
+    added.each do |user_id|
+      user = account.users.find_by(id: user_id)
+      next unless user
+
+      Jabvox::ModuleNotificationService.create!(
+        account: account,
+        user: user,
+        type: :jabvox_task_assigned,
+        actor: self,
+        title: 'Tarea asignada',
+        body: title_jabvox,
+        path: "/app/accounts/#{account_id}/jabvox/tasks/view/#{id}"
+      )
+    end
 
     # Copiar al tablero personal de los responsables nuevos, si el tablero de origen lo
     # tiene activado. Fuera de la transacción: que falle una copia no debe deshacer la

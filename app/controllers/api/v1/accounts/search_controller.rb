@@ -15,8 +15,14 @@ class Api::V1::Accounts::SearchController < Api::V1::Accounts::BaseController
     @result = search('Message')
   end
 
-  def articles
-    @result = search('Article')
+  # Búsqueda de mensajes DENTRO de una conversación (?conversation_id=&q=) o de un contacto
+  # (?contact_id=&q=): texto + transcripción de audio + nombre de adjunto. Servicio dedicado,
+  # acotado y aislado por cuenta (no usa el SearchService global).
+  def conversation_messages
+    @result = Jabvox::ConversationMessageSearchService.new(
+      account: Current.account, user: Current.user, params: params
+    ).perform
+    render json: @result
   end
 
   private

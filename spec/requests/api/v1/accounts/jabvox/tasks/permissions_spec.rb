@@ -99,6 +99,14 @@ RSpec.describe 'Jabvox tasks permissions', type: :request do
       expect(response).to have_http_status(:no_content)
     end
 
+    it 'no deja a un gestor restaurar una tarea' do
+      task.update!(deleted_at_jabvox: Time.current)
+
+      post url("tasks/#{task.id}/restore"), headers: gestor.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
     it 'deja al administrador borrar un tablero' do
       delete url("boards/#{board.id}"), headers: admin.create_new_auth_token, as: :json
 
