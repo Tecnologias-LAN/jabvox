@@ -42,11 +42,15 @@ class JabvoxProvisionerApiToken < ApplicationRecord
   RESOURCES = %w[
     accounts users account_modules plans payment_gateways transactions
     limits ip_whitelists saldo softphone analytics_data_sources leads hermes_tokens
-    ai_provider
+    ai_provider hermes_instances automations
   ].freeze
 
-  # Recursos que SOLO admiten lectura (nunca edit/create): datos sensibles/financieros.
-  READ_ONLY_RESOURCES = %w[payment_gateways transactions saldo analytics_data_sources].freeze
+  # Recursos que SOLO admiten lectura (nunca edit/create): datos financieros de pago.
+  #
+  # `saldo` salio de esta lista a proposito: el aprovisionador necesita crear el team de
+  # saldo IA y recargarlo (es su trabajo levantar una cuenta completa). Las pasarelas y las
+  # transacciones siguen siendo intocables: el dinero que ya entro no se edita desde la API.
+  READ_ONLY_RESOURCES = %w[payment_gateways transactions analytics_data_sources].freeze
 
   # Rutas por defecto: prohibidas en la allowlist (abrirían la API a todo internet).
   WILDCARD_ENTRIES = ['0.0.0.0/0', '::/0', '0.0.0.0', '*'].freeze

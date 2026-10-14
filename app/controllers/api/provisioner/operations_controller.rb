@@ -7,12 +7,16 @@
 # La ejecución delega en Executor, que revalida el permiso FRESCO por operación y audita.
 class Api::Provisioner::OperationsController < Api::Provisioner::BaseController
   # Solo las operaciones cuyo (recurso, acción) el token permite AHORA (consulta fresca).
+  #
+  # Cada operación viene con su manual de uso (qué hace, qué parámetros admite y qué
+  # devuelve): con el recurso/acción a secas el Hermes podría autorizarse pero no sabría
+  # cómo llamar nada, y acabaría adivinando nombres de parámetros.
   def catalog
     token = JabvoxProvisionerApiToken.find_by(id: guarded_token.id)
     allowed = Jabvox::Provisioner::OperationRegistry.catalog.select do |_op, meta|
       token&.allows?(meta[:resource], meta[:action])
     end
-    render json: { operations: allowed }
+    render json: { operations: Jabvox::Provisioner::OperationDocs.catalog_with_docs(only: allowed.keys) }
   end
 
   def execute

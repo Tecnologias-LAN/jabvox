@@ -79,10 +79,70 @@ class SuperAdmin::HermesInstancesController < SuperAdmin::ApplicationController
     redirect_back_with(true, nil, "Token renovado para «#{conn.name_jabvox}». Cópialo ahora.")
   end
 
+  # Crea el Hermes de UNA cuenta desde el super admin, con los mismos datos del formulario
+  # "conectar agente IA" del dashboard: nombre visible, nombre del agente en Hermes, URL
+  # (.../p/<agente>/v1), token del agente y allowlist de IPs.
+  #
+  # La allowlist es obligatoria a propósito: una conexión sin IPs autorizadas no puede
+  # ejecutar nada (ip_allowed? la rechaza), así que crearla vacía dejaría un agente
+  # inservible sin ningún aviso.
+  def create_connection # rubocop:disable Metrics/AbcSize
+    ips = parse_ips(params[:allowed_ips])
+    return redirect_back_with(false, 'Indica al menos una IP autorizada', nil) if ips.empty?
+
+    conn = account.jabvox_hermes_connections.new(
+      name_jabvox: params[:name].to_s.strip,
+      hermes_agent_name_jabvox: params[:hermes_agent_name].to_s.strip,
+      base_url_jabvox: params[:base_url].to_s.strip,
+      token_jabvox: params[:token].to_s.presence,
+      allowed_ips_jabvox: ips
+    )
+    if conn.save
+      # El action_token se genera solo al crear; se muestra una vez para copiarlo al gateway.
+      flash[:revealed_token] = { 'connection_id' => conn.id, 'token' => conn.action_token_jabvox }
+      redirect_back_with(true, nil, "Hermes «#{conn.name_jabvox}» creado en la cuenta ##{account.id}")
+    else
+      redirect_back_with(false, conn.errors.full_messages.to_sentence, nil)
+    end
+  end
+
+  # Edita los datos del Hermes de una cuenta. Token en blanco = conservar el actual.
+  def update_connection # rubocop:disable Metrics/AbcSize
+    conn = account.jabvox_hermes_connections.find_by(id: params[:connection_id])
+    return redirect_back_with(false, 'Conexión no encontrada', nil) if conn.nil?
+
+    attrs = {}
+    attrs[:name_jabvox] = params[:name].to_s.strip if params[:name].present?
+    attrs[:hermes_agent_name_jabvox] = params[:hermes_agent_name].to_s.strip if params[:hermes_agent_name].present?
+    attrs[:base_url_jabvox] = params[:base_url].to_s.strip if params[:base_url].present?
+    attrs[:token_jabvox] = params[:token].to_s if params[:token].present?
+
+    if conn.update(attrs)
+      redirect_back_with(true, nil, "Hermes «#{conn.name_jabvox}» actualizado")
+    else
+      redirect_back_with(false, conn.errors.full_messages.to_sentence, nil)
+    end
+  end
+
   private
 
   def account
     @account ||= Account.find(params[:account_id])
+  end
+
+  # Acepta "ip1, ip2/24" y descarta lo que no sea IP/CIDR válido.
+  def parse_ips(raw)
+    raw.to_s.split(',').filter_map do |ip|
+      ip = ip.strip
+      next if ip.blank?
+
+      begin
+        IPAddr.new(ip)
+        ip
+      rescue IPAddr::Error
+        nil
+      end
+    end
   end
 
   # Redirige al panel con notice (éxito) o alert (error). Base de las acciones del super admin.

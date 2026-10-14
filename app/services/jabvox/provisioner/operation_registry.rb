@@ -78,7 +78,26 @@ module Jabvox
         # create_key: crea el PRIMER virtual key del team de la cuenta.
         'ai_provider.create_key' => { resource: 'ai_provider', action: 'create', handler: :ai_provider_create_key },
         # recharge: suma saldo comprado aparte (se acumula).
-        'ai_provider.recharge' => { resource: 'ai_provider', action: 'edit', handler: :ai_provider_recharge }
+        'ai_provider.recharge' => { resource: 'ai_provider', action: 'edit', handler: :ai_provider_recharge },
+        # manual_setup: crea el team y lo liga SIN exigir plan (equivale a la pestana "Por cuenta").
+        'ai_provider.manual_setup' => { resource: 'ai_provider', action: 'create', handler: :ai_provider_manual_setup },
+        # set_models: fija a que modelos accede el team de la cuenta.
+        'ai_provider.set_models' => { resource: 'ai_provider', action: 'edit',   handler: :ai_provider_set_models },
+        # list_keys: virtual keys del team con su consumo (nunca la key en claro).
+        'ai_provider.list_keys' => { resource: 'ai_provider', action: 'view',   handler: :ai_provider_list_keys },
+
+        # --- Hermes POR CUENTA (crear/leer/editar el agente de cada cuenta) ---
+        'hermes_instances.list' => { resource: 'hermes_instances', action: 'view',   handler: :hermes_list },
+        'hermes_instances.get' => { resource: 'hermes_instances', action: 'view',   handler: :hermes_get },
+        'hermes_instances.create' => { resource: 'hermes_instances', action: 'create', handler: :hermes_create },
+        'hermes_instances.update' => { resource: 'hermes_instances', action: 'edit',   handler: :hermes_update },
+        'hermes_instances.rotate_token' => { resource: 'hermes_instances', action: 'edit', handler: :hermes_rotate_token },
+        'hermes_instances.verify' => { resource: 'hermes_instances', action: 'edit',   handler: :hermes_verify },
+
+        # --- Automatizaciones de la cuenta ---
+        'automations.list' => { resource: 'automations', action: 'view', handler: :automations_list },
+        'automations.get' => { resource: 'automations', action: 'view', handler: :automations_get },
+        'automations.set_active' => { resource: 'automations', action: 'edit', handler: :automations_set_active }
       }.freeze
 
       module_function

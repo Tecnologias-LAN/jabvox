@@ -3,7 +3,7 @@
 # Pantalla del Super Admin para configurar el proveedor de API de IA: nombre, URL base,
 # master key (cifrada, nunca precargada ni mostrada) y habilitado. Permite probar la conexión.
 # rubocop:disable Rails/I18nLocaleTexts
-class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
+class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController # rubocop:disable Metrics/ClassLength
   # Validación del catálogo de modelos, aparte para no engordar el controller.
   module ModelValidation
     # Rechaza modelos que el proveedor no expone. Si el proxy no reporta catálogo, no se
@@ -24,7 +24,7 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
   # Tope de cuentas que se ofrecen en el selector. Evita renderizar un <select> gigantesco.
   ACCOUNT_OPTIONS_LIMIT = 500
 
-  def show
+  def show # rubocop:disable Metrics/AbcSize
     @config = JabvoxAiProviderConfig.instance
     @summary = @config.safe_summary
     @tab = TABS.include?(params[:tab]) ? params[:tab] : 'connection'
@@ -35,6 +35,11 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
     @account_options = account_options
     @orphans = JabvoxAiProviderAccount.orphans.order(:team_alias_jabvox, :id).limit(200)
     load_model_catalog
+    # Virtual keys de UNA cuenta con su consumo (?show_keys=<account_id>). Se cargan bajo
+    # demanda y no al pintar la tabla: cada consulta es una llamada al proveedor, y hacerla
+    # para las 200 filas dejaria la pantalla colgada.
+    load_account_keys if params[:show_keys].present?
+
     # Diagnóstico de un team concreto (?inspect_team=<id>): qué ve Jabvox realmente en el
     # proveedor. Sirve para entender por qué una key creada fuera no aparece en la cuenta.
     return if params[:inspect_team].blank?
@@ -210,6 +215,24 @@ class SuperAdmin::AiProviderConfigController < SuperAdmin::ApplicationController
     accounts.map do |acc|
       pa = provider_accounts[acc.id]
       { account: acc, plan: acc.jabvox_plan, provider_account: pa, connected: pa&.team_id_jabvox.present? }
+    end
+  end
+
+  # Virtual keys del team de una cuenta, con su consumo. El proveedor NUNCA devuelve la key
+  # en claro (solo al crearla): aqui se ve su alias, su hash, el gasto y el tope.
+  def load_account_keys
+    @keys_account_id = params[:show_keys].to_i
+    pa = JabvoxAiProviderAccount.find_by(account_id: @keys_account_id)
+    if pa.nil? || pa.team_id_jabvox.blank?
+      @keys_error = 'Esa cuenta aun no tiene team en el proveedor.'
+      return
+    end
+
+    resp = client.list_keys(pa.team_id_jabvox)
+    if resp.success?
+      @account_keys = Array(resp.data['keys'])
+    else
+      @keys_error = resp.error
     end
   end
 

@@ -86,7 +86,8 @@ class JabvoxBulkWhatsappBatch < ApplicationRecord
     sent = recipients.where(status_jabvox: 'sent').count
     failed = recipients.where(status_jabvox: 'failed').count
     total = recipients.count
-    new_status = next_status(sent, failed, total, final)
+    pending = recipients.where(status_jabvox: 'pending').count
+    new_status = next_status(sent, failed, total, final, pending)
 
     terminal = %w[completed partial failed].include?(new_status)
     update!(
@@ -103,6 +104,10 @@ class JabvoxBulkWhatsappBatch < ApplicationRecord
   # final nunca llega.
   def revoke_access_token!
     return if access_token_id_jabvox.blank?
+    # Última línea de defensa: aunque alguien llame a este método directamente o un
+    # estado quede mal calculado, el token NO se destruye si n8n todavía tiene envíos
+    # en vuelo. Es el fallo que costó 341 mensajes con "401 Invalid Access Token".
+    return if recipients.exists?(status_jabvox: 'pending')
 
     AccessToken.where(id: access_token_id_jabvox).destroy_all
     # rubocop:disable Rails/SkipsModelValidations
@@ -112,8 +117,22 @@ class JabvoxBulkWhatsappBatch < ApplicationRecord
 
   private
 
-  def next_status(sent, failed, total, final)
-    return 'running' unless final || ((sent + failed) >= total && total.positive?)
+  # El cierre revoca el token del envío, así que adelantarlo mata los mensajes que n8n
+  # aún tiene en vuelo. El envío 191 perdió 341 destinatarios con "401 Invalid Access
+  # Token" por esto: los rechazos de Meta entran como `failed` al instante, la condición
+  # `sent + failed >= total` se cumplía antes de que salieran los últimos, y el token
+  # desaparecía. Cuantos más rechazaba Meta, antes se cerraba y más se perdían.
+  #
+  # Ahora un destinatario en `pending` bloquea el cierre: mientras quede uno sin
+  # reportar, el batch sigue `running` y el token vivo. El tope de `sent + failed` se
+  # conserva como respaldo para que un chunk perdido no deje el batch colgado.
+  def next_status(sent, failed, total, final, pending)
+    return 'running' unless total.positive?
+    # Cierra cuando n8n confirma el último chunk, pero NUNCA mientras queden
+    # destinatarios sin reportar: ahí es donde se revocaba el token con mensajes
+    # todavía en vuelo.
+    return 'running' if pending.positive?
+    return 'running' unless final || (sent + failed) >= total
     return 'completed' if failed.zero?
     return 'failed' if sent.zero?
 

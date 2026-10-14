@@ -99,7 +99,7 @@ module Jabvox
       # ---------------------------------------------------------------- Módulos de cuenta
       def get_account_modules(params)
         account = find_account!(params['id'])
-        { account_id: account.id, modules: module_state(account) }
+        { account_id: account.id, modules: module_state(account), catalog: module_catalog(account) }
       end
 
       def set_account_modules(params) # rubocop:disable Naming/AccessorMethodName
@@ -115,7 +115,8 @@ module Jabvox
           updates[col] = to_bool(on)
         end
         account.update!(updates) if updates.any?
-        { account_id: account.id, modules: module_state(account.reload) }
+        account.reload
+        { account_id: account.id, modules: module_state(account), catalog: module_catalog(account) }
       end
 
       # ---------------------------------------------------------------- helpers de vista
@@ -147,6 +148,21 @@ module Jabvox
         JabvoxModulesField::MODULES.each_with_object({}) do |(col, _label, _cat), acc|
           acc[col.to_s] = account.respond_to?(col) ? account.public_send(col) == true : nil
         end.compact
+      end
+
+      # Catálogo de módulos con su nombre corto y su etiqueta legible:
+      #   [{ key: 'dialer', column: 'jabvox_dialer_enabled_jabvox', label: 'Marcador', enabled: true }]
+      #
+      # `module_state` devuelve la columna completa, pero `set_account_modules` acepta el
+      # nombre corto; sin este catálogo quien consume la API tendría que derivarlo a mano
+      # para saber qué puede activar y cómo se llama cada módulo.
+      def module_catalog(account)
+        JabvoxModulesField::MODULES.filter_map do |(col, label, _cat)|
+          next unless account.respond_to?(col)
+
+          { key: col.to_s.delete_prefix('jabvox_').delete_suffix('_enabled_jabvox'),
+            column: col.to_s, label: label, enabled: account.public_send(col) == true }
+        end
       end
 
       def module_column(mod)

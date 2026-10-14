@@ -46,16 +46,20 @@ module Jabvox
 
       private
 
-      # Despacha al handler en Handlers o HandlersAdmin (el que responda al método).
+      # Módulos de handlers, en orden de búsqueda: se usa el primero que responda al método.
+      HANDLER_MODULES = [
+        Jabvox::Provisioner::Handlers,
+        Jabvox::Provisioner::HandlersAdmin,
+        Jabvox::Provisioner::HandlersPlatform
+      ].freeze
+
+      # Despacha al handler en el módulo que lo implemente.
       def dispatch(handler, params)
         p = params.is_a?(Hash) ? params.stringify_keys : {}
-        if Jabvox::Provisioner::Handlers.respond_to?(handler)
-          Jabvox::Provisioner::Handlers.public_send(handler, p)
-        elsif Jabvox::Provisioner::HandlersAdmin.respond_to?(handler)
-          Jabvox::Provisioner::HandlersAdmin.public_send(handler, p)
-        else
-          raise Jabvox::Provisioner::Handlers::OperationError, 'handler no implementado'
-        end
+        mod = HANDLER_MODULES.find { |m| m.respond_to?(handler) }
+        raise Jabvox::Provisioner::Handlers::OperationError, 'handler no implementado' if mod.nil?
+
+        mod.public_send(handler, p)
       end
 
       def denied(operation, resource, action, code, message, status) # rubocop:disable Metrics/ParameterLists

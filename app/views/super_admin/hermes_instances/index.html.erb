@@ -129,6 +129,37 @@
                 </div>
               <% end %>
             <% end %>
+            <%# Alta de un Hermes nuevo para esta cuenta, con los mismos campos del formulario
+                "conectar agente IA" del dashboard. La allowlist es obligatoria: sin IPs el
+                agente no podria ejecutar nada. %>
+            <details style="margin-top:6px;">
+              <summary style="cursor:pointer; color:#2563eb; font-size:12px;">+ Conectar un Hermes a esta cuenta</summary>
+              <%= form_with url: create_connection_super_admin_hermes_instance_path(inst[:account_id]), method: :post, local: true, html: { style: 'margin:8px 0 0; display:grid; gap:6px; max-width:420px;' } do |f| %>
+                <label style="font-size:12px; color:#6b7280;">Nombre visible
+                  <%= f.text_field :name, placeholder: 'Mi agente', required: true,
+                                   style: 'width:100%; padding:4px 6px; border:1px solid #d1d5db; border-radius:4px;' %>
+                </label>
+                <label style="font-size:12px; color:#6b7280;">Nombre del agente en Hermes
+                  <%= f.text_field :hermes_agent_name, placeholder: 'mi-agente', required: true,
+                                   style: 'width:100%; font-family:monospace; padding:4px 6px; border:1px solid #d1d5db; border-radius:4px;' %>
+                </label>
+                <label style="font-size:12px; color:#6b7280;">URL del agente
+                  <%= f.text_field :base_url, placeholder: 'http://tu-hermes.ejemplo:PUERTO/p/mi-agente/v1', required: true,
+                                   style: 'width:100%; font-family:monospace; padding:4px 6px; border:1px solid #d1d5db; border-radius:4px;' %>
+                  <span style="display:block; color:#9ca3af; font-size:11px;">Mismo host:puerto que los demas agentes. Incluye el prefijo /p/&lt;agente&gt;/v1.</span>
+                </label>
+                <label style="font-size:12px; color:#6b7280;">Token del agente
+                  <%= f.password_field :token, placeholder: 'Bearer token del agente', autocomplete: 'new-password',
+                                       style: 'width:100%; font-family:monospace; padding:4px 6px; border:1px solid #d1d5db; border-radius:4px;' %>
+                </label>
+                <label style="font-size:12px; color:#6b7280;">IPs autorizadas de este Hermes
+                  <%= f.text_field :allowed_ips, placeholder: '203.0.113.5, 10.147.17.0/24', required: true,
+                                   style: 'width:100%; font-family:monospace; padding:4px 6px; border:1px solid #d1d5db; border-radius:4px;' %>
+                  <span style="display:block; color:#9ca3af; font-size:11px;">Solo desde estas IPs o rangos podra este Hermes ejecutar acciones. Acepta IP suelta o CIDR, incluidas las de ZeroTier.</span>
+                </label>
+                <%= f.submit 'Conectar Hermes', class: 'button button--secondary', style: 'font-size:12px; padding:5px 12px; justify-self:start;' %>
+              <% end %>
+            </details>
           </td>
           <td style="padding:8px; white-space:nowrap;">
             <% if inst[:linked] %>

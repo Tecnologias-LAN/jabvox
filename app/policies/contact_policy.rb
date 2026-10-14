@@ -11,6 +11,11 @@ class ContactPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  # Descargar el CSV/Excel de ejemplo para importar: mismo privilegio que importar.
+  def sample_import?
+    @account_user.administrator?
+  end
+
   # La vista previa de importación lee contactos existentes para detectar
   # duplicados: mismo nivel de privilegio que la importación en sí.
   def import_preview?

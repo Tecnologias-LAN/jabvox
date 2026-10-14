@@ -1391,6 +1391,8 @@ Rails.application.routes.draw do
           post :unlink_account
           post :update_allowed_ips    # allowlist de IPs del Hermes de esta cuenta
           post :rotate_action_token   # renovar el action_token de una conexión de la cuenta
+          post :create_connection     # crear el Hermes de una cuenta desde el super admin
+          post :update_connection     # editar los datos del Hermes de una cuenta
         end
       end
       # Widget de Soporte global (burbuja "Soporte" del dashboard): token + HMAC.

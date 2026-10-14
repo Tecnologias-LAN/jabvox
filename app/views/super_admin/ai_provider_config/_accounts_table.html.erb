@@ -59,6 +59,11 @@
               <%= link_to 'Inspeccionar',
                     super_admin_ai_provider_config_path(tab: 'accounts', inspect_team: pa.team_id_jabvox),
                     class: 'button', style: 'margin-left:6px;' %>
+              <%# Virtual keys de esta cuenta con su consumo. Se cargan bajo demanda (una
+                  llamada al proveedor por cuenta), no al pintar la tabla. %>
+              <%= link_to 'Virtual keys',
+                    super_admin_ai_provider_config_path(tab: 'accounts', show_keys: row[:account].id),
+                    class: 'button', style: 'margin-left:6px;' %>
             <% end %>
           </td>
           <!-- Modelos del team: vacío = todos los del proveedor -->
