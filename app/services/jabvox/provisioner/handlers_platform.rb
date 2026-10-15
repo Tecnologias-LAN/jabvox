@@ -47,7 +47,7 @@ module Jabvox
       # La allowlist de IPs es deliberadamente obligatoria: una conexion sin IPs autorizadas no
       # puede ejecutar NADA (ip_allowed? la rechaza), asi que crearla vacia produciria un agente
       # inservible y un fallo silencioso dificil de diagnosticar.
-      def hermes_create(params) # rubocop:disable Metrics/AbcSize
+      def hermes_create(params) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Metrics/MethodLength
         account = h.find_account!(params['account_id'])
         h.error!('name es requerido') if params['name'].blank?
         h.error!('hermes_agent_name es requerido') if params['hermes_agent_name'].blank?
@@ -66,8 +66,27 @@ module Jabvox
         )
         h.error!(conn.errors.full_messages.to_sentence) unless conn.save
 
+        # Ligarlo a un agente en el mismo paso: un Hermes sin agente no aparece en el Chat IA
+        # de la cuenta, asi que crearlo suelto deja el trabajo a medias.
+        agente = nil
+        if params['agent_id'].present?
+          agente = find_agent!(account, params['agent_id'])
+          link_connections!(account, agente, agente.hermes_connections.map(&:id) + [conn.id])
+        end
+
         { account_id: account.id, connection: connection_view(conn.reload),
-          note: 'Guarda el action_token: es la credencial con la que este Hermes ejecuta acciones en Jabvox.' }
+          agent: agente && agent_view(agente.reload),
+          note: 'Guarda el action_token: es la credencial con la que este Hermes ejecuta acciones en Jabvox.',
+          warning: sin_agente_warning(agente) }.compact
+      end
+
+      # Un Hermes sin agente no aparece en el Chat IA de la cuenta: se avisa en la respuesta
+      # para que el aprovisionador no de por terminado un trabajo a medias.
+      def sin_agente_warning(agente)
+        return nil if agente
+
+        'Este Hermes NO esta ligado a ningun agente: todavia no aparece en el Chat IA. ' \
+          'Ligalo con hermes_agents.set_connections o hermes_agents.create.'
       end
 
       # Edita un Hermes existente. El token en blanco CONSERVA el actual (no lo pisa con vacio),
@@ -114,6 +133,63 @@ module Jabvox
       rescue StandardError => e
         conn&.mark_status!(success: false, error: e.message)
         h.error!("no se pudo verificar: #{e.message}")
+      end
+
+      # ======================================================= Agentes del Chat IA
+      # Un Hermes solo sirve de algo si esta LIGADO a un agente: el agente es quien lo usa
+      # desde el Chat IA, y sus permisos son los del usuario al que pertenece. Crear la
+      # conexion sin ligarla deja un Hermes invisible para la cuenta.
+      def hermes_agents_list(params)
+        account = h.find_account!(params['account_id'])
+        agentes = account.jabvox_hermes_agents.includes(:user, :hermes_connections).order(:name_jabvox)
+        { account_id: account.id, agents: agentes.map { |a| agent_view(a) } }
+      end
+
+      # Crea un agente ligado a un usuario de la cuenta y, opcionalmente, le liga Hermes.
+      def hermes_agents_create(params) # rubocop:disable Metrics/AbcSize
+        account = h.find_account!(params['account_id'])
+        h.error!('name es requerido') if params['name'].blank?
+        user = account_user!(account, params['user_id'])
+
+        agent = JabvoxHermesAgent.new(
+          account_id: account.id, user_id: user.id,
+          name_jabvox: params['name'].to_s.strip,
+          description_jabvox: params['description'].to_s.presence,
+          status_jabvox: 'active'
+        )
+        h.error!(agent.errors.full_messages.to_sentence) unless agent.save
+
+        link_connections!(account, agent, params['connection_ids']) if params.key?('connection_ids')
+        # Sin esto el agente nace sin permisos y no puede ejecutar NADA: sus permisos se
+        # derivan del rol que el usuario tiene en la cuenta.
+        JabvoxHermesUserPermission.sync_from_role!(account.id, user.id)
+
+        { account_id: account.id, agent: agent_view(agent.reload) }
+      end
+
+      def hermes_agents_update(params) # rubocop:disable Metrics/AbcSize
+        account = h.find_account!(params['account_id'])
+        agent = find_agent!(account, params['agent_id'])
+
+        attrs = {}
+        attrs[:name_jabvox] = params['name'].to_s.strip if params['name'].present?
+        attrs[:description_jabvox] = params['description'].to_s if params.key?('description')
+        attrs[:status_jabvox] = agent_status(params['status']) if params.key?('status')
+        h.error!(agent.errors.full_messages.to_sentence) if attrs.any? && !agent.update(attrs)
+
+        link_connections!(account, agent, params['connection_ids']) if params.key?('connection_ids')
+        { account_id: account.id, agent: agent_view(agent.reload) }
+      end
+
+      # Liga (o reemplaza) los Hermes que puede usar un agente. Es el paso que faltaba para
+      # que un Hermes recien creado quede operativo en el Chat IA de la cuenta.
+      def hermes_agents_set_connections(params)
+        account = h.find_account!(params['account_id'])
+        agent = find_agent!(account, params['agent_id'])
+        h.error!('connection_ids es requerido (usa [] para desligar todo)') unless params.key?('connection_ids')
+
+        link_connections!(account, agent, params['connection_ids'])
+        { account_id: account.id, agent: agent_view(agent.reload) }
       end
 
       # ======================================================= Saldo IA por cuenta
@@ -183,6 +259,48 @@ module Jabvox
       def find_connection!(account, id)
         h.error!('connection_id es requerido') if id.blank?
         account.jabvox_hermes_connections.find_by(id: id) || h.error!('conexion Hermes no encontrada en esta cuenta')
+      end
+
+      def find_agent!(account, id)
+        h.error!('agent_id es requerido') if id.blank?
+        account.jabvox_hermes_agents.find_by(id: id) || h.error!('agente no encontrado en esta cuenta')
+      end
+
+      def account_user!(account, user_id)
+        h.error!('user_id es requerido') if user_id.blank?
+        # El usuario debe pertenecer a la cuenta: un agente nunca se liga a un usuario ajeno.
+        account.users.find_by(id: user_id) || h.error!('el usuario no pertenece a esta cuenta')
+      end
+
+      def agent_status(value)
+        status = value.to_s.presence || 'active'
+        h.error!("status invalido: #{status} (usa active o disabled)") unless JabvoxHermesAgent::STATUSES.include?(status)
+        status
+      end
+
+      # Asigna los Hermes de la cuenta a un agente. Las conexiones se buscan SIEMPRE dentro
+      # de la cuenta, y un id ajeno o inexistente se rechaza en vez de ignorarse en silencio:
+      # pasar desapercibido dejaria al agente sin el Hermes que se creia haberle ligado.
+      def link_connections!(account, agent, ids) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+        ids = Array(ids).map(&:to_i).uniq
+        conns = account.jabvox_hermes_connections.where(id: ids)
+        faltan = ids - conns.map(&:id)
+        h.error!("conexiones no encontradas en esta cuenta: #{faltan.join(', ')}") if faltan.any?
+
+        agent.hermes_connections = conns
+      rescue ActiveRecord::RecordInvalid => e
+        # Un Hermes solo puede pertenecer a UN agente (regla del modelo).
+        h.error!(e.record&.errors&.full_messages&.to_sentence.presence || e.message)
+      end
+
+      def agent_view(agent)
+        {
+          id: agent.id, name: agent.name_jabvox, description: agent.description_jabvox,
+          status: agent.status_jabvox, is_default: agent.is_default_jabvox,
+          user: { id: agent.user_id, name: agent.user&.name, email: agent.user&.email },
+          connections: agent.hermes_connections.map { |c| { id: c.id, name: c.name_jabvox } },
+          connection_ids: agent.hermes_connections.map(&:id)
+        }
       end
 
       def provider_account!(account)

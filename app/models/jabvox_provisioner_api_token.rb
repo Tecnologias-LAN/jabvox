@@ -42,7 +42,7 @@ class JabvoxProvisionerApiToken < ApplicationRecord
   RESOURCES = %w[
     accounts users account_modules plans payment_gateways transactions
     limits ip_whitelists saldo softphone analytics_data_sources leads hermes_tokens
-    ai_provider hermes_instances automations
+    ai_provider hermes_instances hermes_agents automations
   ].freeze
 
   # Recursos que SOLO admiten lectura (nunca edit/create): datos financieros de pago.

@@ -221,12 +221,16 @@ module Jabvox
             'hermes_agent_name' => 'nombre del agente en Hermes, p.ej. "mi-agente" (requerido)',
             'base_url' => 'URL del agente: http://tu-hermes:PUERTO/p/<agente>/v1 (requerido)',
             'token' => 'Bearer token del agente (Jabvox -> Hermes)',
-            'allowed_ips' => '(requerido) IPs o CIDR autorizados; array o texto separado por comas'
+            'allowed_ips' => '(requerido) IPs o CIDR autorizados; array o texto separado por comas',
+            'agent_id' => 'id del agente del Chat IA al que ligar este Hermes (muy recomendado)'
           },
-          returns: 'connection creada, con su action_token (Hermes -> Jabvox)',
+          returns: 'connection creada con su action_token (Hermes -> Jabvox), el agent ligado y, ' \
+                   'si no se ligo ninguno, un warning explicando que aun no aparece en el Chat IA',
           notes: 'La URL debe incluir el prefijo /p/<agente>/v1 y usar el mismo host:puerto que los demas ' \
                  'agentes. allowed_ips es obligatoria: sin IPs el Hermes no puede ejecutar NADA. ' \
-                 'El action_token se genera solo: es la credencial con la que ese Hermes actua sobre la cuenta.'
+                 'El action_token se genera solo: es la credencial con la que ese Hermes actua sobre la cuenta. ' \
+                 'Sin `agent_id` el Hermes queda creado pero NO visible en el Chat IA: hay que ligarlo ' \
+                 'despues con hermes_agents.set_connections.'
         },
         'hermes_instances.update' => {
           summary: 'Edita los datos del Hermes de una cuenta.',
@@ -249,6 +253,47 @@ module Jabvox
           summary: 'Comprueba que el agente responde y guarda el estado en la conexion.',
           params: { 'account_id' => 'id de la cuenta (requerido)', 'connection_id' => 'id de la conexion (requerido)' },
           returns: 'connection + ok: true|false'
+        },
+
+        # ------------------------------------------------------------------ Agentes del Chat IA
+        'hermes_agents.list' => {
+          summary: 'Lista los agentes del Chat IA de una cuenta y que Hermes tiene ligado cada uno.',
+          params: { 'account_id' => 'id de la cuenta (requerido)' },
+          returns: 'agents: [{ id, name, status, user: {id,name,email}, connections, connection_ids }]'
+        },
+        'hermes_agents.create' => {
+          summary: 'Crea un agente del Chat IA ligado a un usuario, y opcionalmente le liga Hermes.',
+          params: {
+            'account_id' => 'id de la cuenta (requerido)',
+            'user_id' => 'id del usuario de la cuenta al que pertenece el agente (requerido)',
+            'name' => 'nombre visible del agente (requerido)',
+            'description' => 'descripcion libre',
+            'connection_ids' => 'array de ids de Hermes a ligarle'
+          },
+          returns: 'agent creado con sus conexiones',
+          notes: 'Los permisos del agente SON los del usuario ligado: se derivan de su rol en la ' \
+                 'cuenta automaticamente. El usuario debe pertenecer a la cuenta y solo puede tener ' \
+                 'UN agente en ella.'
+        },
+        'hermes_agents.update' => {
+          summary: 'Edita un agente (nombre, descripcion, estado) y/o sus Hermes ligados.',
+          params: {
+            'account_id' => 'id de la cuenta (requerido)', 'agent_id' => 'id del agente (requerido)',
+            'name' => 'nombre nuevo', 'description' => 'descripcion nueva',
+            'status' => "'active' o 'disabled'", 'connection_ids' => 'array de ids de Hermes'
+          },
+          returns: 'agent actualizado'
+        },
+        'hermes_agents.set_connections' => {
+          summary: 'Liga a un agente los Hermes que puede usar (REEMPLAZA la lista actual).',
+          params: {
+            'account_id' => 'id de la cuenta (requerido)', 'agent_id' => 'id del agente (requerido)',
+            'connection_ids' => '(requerido) array de ids de Hermes; [] los desliga todos'
+          },
+          returns: 'agent con sus conexiones',
+          notes: 'Es el paso que deja operativo un Hermes recien creado: sin agente ligado NO aparece ' \
+                 'en el Chat IA de la cuenta. Un Hermes solo puede pertenecer a UN agente: ligarlo a ' \
+                 'otro falla en vez de robarselo.'
         },
 
         # ------------------------------------------------------------------ Saldo IA

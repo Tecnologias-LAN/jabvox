@@ -154,6 +154,109 @@ RSpec.describe Jabvox::Provisioner::HandlersPlatform do
     end
   end
 
+  describe 'agentes del Chat IA' do
+    let!(:usuario) do
+      u = create(:user, account: account)
+      account.account_users.find_by(user_id: u.id)&.update!(role: :administrator)
+      u
+    end
+
+    def crear_agente(user: usuario, nombre: 'Agente de prueba', **extra)
+      described_class.hermes_agents_create(
+        { 'account_id' => account.id, 'user_id' => user.id, 'name' => nombre }.merge(extra)
+      )[:agent]
+    end
+
+    def crear_hermes(nombre: 'Hermes', agente_id: nil)
+      params = { 'account_id' => account.id, 'name' => nombre, 'hermes_agent_name' => nombre.downcase,
+                 'base_url' => 'http://10.147.200.3:8080/p/hermes/v1', 'allowed_ips' => '10.147.17.0/24' }
+      params['agent_id'] = agente_id if agente_id
+      described_class.hermes_create(params)
+    end
+
+    it 'crea el agente ligado al usuario y le deriva sus permisos' do
+      agente = crear_agente(nombre: 'Agente de Keiner')
+
+      expect(agente[:name]).to eq('Agente de Keiner')
+      expect(agente[:user][:id]).to eq(usuario.id)
+      # Sin permisos derivados el agente no podría ejecutar nada.
+      expect(JabvoxHermesUserPermission.exists?(account_id: account.id, user_id: usuario.id)).to be(true)
+    end
+
+    it 'liga el Hermes al agente en el mismo paso de crearlo' do
+      agente = crear_agente
+      resultado = crear_hermes(agente_id: agente[:id])
+
+      expect(resultado[:agent][:connection_ids]).to eq([resultado[:connection][:id]])
+      expect(resultado[:warning]).to be_nil
+    end
+
+    # Un Hermes sin agente no aparece en el Chat IA: crearlo suelto en silencio dejaría al
+    # aprovisionador creyendo que terminó.
+    it 'avisa cuando el Hermes queda sin agente' do
+      resultado = crear_hermes
+
+      expect(resultado[:agent]).to be_nil
+      expect(resultado[:warning]).to match(/NO esta ligado a ningun agente/)
+    end
+
+    it 'liga y desliga conexiones de un agente existente' do
+      agente = crear_agente
+      conn = crear_hermes[:connection]
+
+      ligado = described_class.hermes_agents_set_connections(
+        'account_id' => account.id, 'agent_id' => agente[:id], 'connection_ids' => [conn[:id]]
+      )
+      expect(ligado[:agent][:connection_ids]).to eq([conn[:id]])
+
+      vacio = described_class.hermes_agents_set_connections(
+        'account_id' => account.id, 'agent_id' => agente[:id], 'connection_ids' => []
+      )
+      expect(vacio[:agent][:connection_ids]).to be_empty
+    end
+
+    it 'no permite robar el Hermes de otro agente' do
+      otro_usuario = create(:user, account: account)
+      agente1 = crear_agente(nombre: 'A1')
+      agente2 = crear_agente(user: otro_usuario, nombre: 'A2')
+      conn = crear_hermes(agente_id: agente1[:id])[:connection]
+
+      expect do
+        described_class.hermes_agents_set_connections(
+          'account_id' => account.id, 'agent_id' => agente2[:id], 'connection_ids' => [conn[:id]]
+        )
+      end.to raise_error(/ya está ligado a otro agente/)
+    end
+
+    it 'rechaza un usuario que no pertenece a la cuenta' do
+      ajeno = create(:user, account: other_account)
+
+      expect { crear_agente(user: ajeno) }.to raise_error(/no pertenece a esta cuenta/)
+    end
+
+    # Ignorar un id inexistente dejaría al agente sin el Hermes que se creía haberle ligado.
+    it 'rechaza ids de conexión inexistentes en vez de ignorarlos' do
+      agente = crear_agente
+
+      expect do
+        described_class.hermes_agents_set_connections(
+          'account_id' => account.id, 'agent_id' => agente[:id], 'connection_ids' => [999_999]
+        )
+      end.to raise_error(/conexiones no encontradas/)
+    end
+
+    it 'no alcanza un agente de otra cuenta' do
+      ajeno = create(:user, account: other_account)
+      agente_ajeno = described_class.hermes_agents_create(
+        'account_id' => other_account.id, 'user_id' => ajeno.id, 'name' => 'Ajeno'
+      )[:agent]
+
+      expect do
+        described_class.hermes_agents_update('account_id' => account.id, 'agent_id' => agente_ajeno[:id], 'name' => 'X')
+      end.to raise_error(/no encontrado en esta cuenta/)
+    end
+  end
+
   describe 'automatizaciones' do
     let!(:rule) do
       account.automation_rules.create!(

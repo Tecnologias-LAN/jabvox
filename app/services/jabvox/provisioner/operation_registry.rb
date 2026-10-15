@@ -94,6 +94,12 @@ module Jabvox
         'hermes_instances.rotate_token' => { resource: 'hermes_instances', action: 'edit', handler: :hermes_rotate_token },
         'hermes_instances.verify' => { resource: 'hermes_instances', action: 'edit',   handler: :hermes_verify },
 
+        # --- Agentes del Chat IA (a quien pertenece cada Hermes) ---
+        'hermes_agents.list' => { resource: 'hermes_agents', action: 'view',   handler: :hermes_agents_list },
+        'hermes_agents.create' => { resource: 'hermes_agents', action: 'create', handler: :hermes_agents_create },
+        'hermes_agents.update' => { resource: 'hermes_agents', action: 'edit',   handler: :hermes_agents_update },
+        'hermes_agents.set_connections' => { resource: 'hermes_agents', action: 'edit', handler: :hermes_agents_set_connections },
+
         # --- Automatizaciones de la cuenta ---
         'automations.list' => { resource: 'automations', action: 'view', handler: :automations_list },
         'automations.get' => { resource: 'automations', action: 'view', handler: :automations_get },
