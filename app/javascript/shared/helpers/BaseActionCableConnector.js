@@ -7,6 +7,10 @@ const RECONNECT_INTERVAL = 1000;
 // mantiene corto a propósito: al reconectar se refrescan las conversaciones, y un agente
 // en plena conversación no puede quedarse medio minuto sin ver lo que entra.
 const MAX_RECONNECT_INTERVAL = 10000;
+// Con la conexión sana, el chequeo de salud corre espaciado (no cada segundo) para detectar
+// un socket zombi sin gastar: cada 15s es suficiente y el monitor nativo de ActionCable
+// (stale ~6s) ya cubre la detección rápida.
+const HEALTHY_CHECK_INTERVAL = 15000;
 
 class BaseActionCableConnector {
   static isDisconnected = false;
@@ -32,6 +36,18 @@ class BaseActionCableConnector {
           this.perform('update_presence');
         },
         received: this.onReceived,
+        // `connected` se dispara en CADA (re)conexión real del socket, incluida la que hace
+        // el monitor nativo de ActionCable al detectar un socket "stale" (sin depender de que
+        // antes se haya disparado `disconnected`). Si veníamos de una caída, forzamos el
+        // onReconnect para refrescar conversaciones y recuperar los mensajes perdidos.
+        connected: () => {
+          if (BaseActionCableConnector.isDisconnected) {
+            BaseActionCableConnector.isDisconnected = false;
+            this.reconnectDelay = RECONNECT_INTERVAL;
+            this.clearReconnectTimer();
+            this.onReconnect();
+          }
+        },
         disconnected: () => {
           BaseActionCableConnector.isDisconnected = true;
           this.onDisconnected();
@@ -51,6 +67,9 @@ class BaseActionCableConnector {
       }, presenceInterval);
     };
     this.triggerPresenceInterval();
+    // Chequeo de salud SIEMPRE activo: así se detecta un socket zombi (que murió sin disparar
+    // `disconnected`, típico en red móvil/tablet) y se reabre, sin esperar a ese callback.
+    this.initReconnectTimer();
   }
 
   // Antes, el `else` solo reprogramaba el temporizador: si el socket moría sin que se
@@ -72,20 +91,29 @@ class BaseActionCableConnector {
     }
 
     if (isConnectionActive) {
-      // Conexión sana: el siguiente intento vuelve a partir del intervalo corto.
+      // Conexión sana: el siguiente intento vuelve a partir del intervalo corto y el chequeo
+      // de salud se reprograma espaciado (no cada segundo) para no gastar.
       this.reconnectDelay = RECONNECT_INTERVAL;
+      this.scheduleHealthCheck();
+      return;
     }
 
-    if (!isConnectionActive) {
-      BaseActionCableConnector.isDisconnected = true;
-      // `reopen` y no `open`: open() no hace nada si el socket figura como "activo", y el
-      // caso que deja la ventana muda es justamente un socket zombi —en estado connecting
-      // que nunca avanza—. reopen() lo cierra y lo levanta de nuevo.
-      this.consumer.connection.reopen();
-    }
-
+    // Socket caído/zombi: marcar y reabrir.
+    BaseActionCableConnector.isDisconnected = true;
+    // `reopen` y no `open`: open() no hace nada si el socket figura como "activo", y el
+    // caso que deja la ventana muda es justamente un socket zombi —en estado connecting
+    // que nunca avanza—. reopen() lo cierra y lo levanta de nuevo.
+    this.consumer.connection.reopen();
     this.initReconnectTimer();
   }
+
+  // Reprograma el chequeo de salud cuando la conexión está sana (intervalo largo).
+  scheduleHealthCheck = () => {
+    this.clearReconnectTimer();
+    this.reconnectTimer = setTimeout(() => {
+      this.checkConnection();
+    }, HEALTHY_CHECK_INTERVAL);
+  };
 
   clearReconnectTimer = () => {
     if (this.reconnectTimer) {

@@ -42,11 +42,15 @@ class ReconnectService {
       ? Math.max(differenceInSeconds(new Date(), this.disconnectTime), 0)
       : 0;
 
-  // Force reload if the user is disconnected for more than 3 hours
+  // Al recuperar la red: si estuvo caído >3h recargamos (demasiado desfase). En el caso
+  // normal, resincronizamos conversaciones y mensajes de inmediato en vez de esperar a que
+  // el socket lo note — así los mensajes que entraron sin conexión aparecen al volver.
   handleOnlineEvent = () => {
     if (this.getSecondsSinceDisconnect() >= MAX_DISCONNECT_SECONDS) {
       window.location.reload();
+      return;
     }
+    this.onReconnect();
   };
 
   fetchConversations = async () => {

@@ -127,6 +127,12 @@ export default {
       if (hiddenFor >= REFETCH_AFTER_MS) {
         this.$store.dispatch('accounts/get');
       }
+      // Al volver a la pestaña, el socket pudo haber muerto en segundo plano (red móvil,
+      // suspensión). Forzamos una verificación/reapertura del WebSocket y la resincronización
+      // de la conversación activa, para que no falten los mensajes que entraron mientras tanto.
+      if (window.reconnectService) {
+        window.reconnectService.onReconnect();
+      }
     },
     async initializeAccount() {
       await this.$store.dispatch('accounts/get');
