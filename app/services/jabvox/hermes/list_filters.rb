@@ -56,6 +56,47 @@ module Jabvox::Hermes::ListFilters
     scope
   end
 
+  # Resuelve un umbral de tiempo relativo "hace N" a un Time absoluto en el pasado.
+  # El LLM suele preguntar "los que no responden hace 5 horas / 30 minutos / 2 días" sin
+  # calcular la fecha. Acepta un número + unidad por params (last_minutes/last_hours/last_days)
+  # y devuelve el instante contra el que comparar (Time.current - duración), o nil si no se pidió.
+  # Se topa a 90 días para que un valor disparatado no barra toda la tabla.
+  def relative_threshold(params)
+    minutes = params[:last_minutes].to_i
+    hours   = params[:last_hours].to_i
+    days    = params[:last_days].to_i
+    total_minutes = minutes + (hours * 60) + (days * 24 * 60)
+    return nil unless total_minutes.positive?
+
+    total_minutes = [total_minutes, 90 * 24 * 60].min
+    Time.current - total_minutes.minutes
+  end
+
+  # Rango efectivo [desde, hasta] combinando umbral relativo y fechas absolutas, en este orden:
+  # si hay relativo (last_*), desde = ahora - duración y hasta = ahora; si no, usa since/until ISO.
+  # Devuelve [nil, nil] si no se pidió nada (sin filtro). Lo usan las tools por agente/reportes
+  # para aceptar indistintamente "últimos 7 días" o "del 1 al 15".
+  def effective_range(params)
+    rel = relative_threshold(params)
+    return [rel, Time.current] if rel
+
+    [parse_time(params[:since]), parse_time(params[:until], end_of_day: true)]
+  end
+
+  # Aplica effective_range a un scope sobre la columna dada (validada contra la tabla).
+  def filter_by_effective_range(scope, params, column: :created_at)
+    from, to = effective_range(params)
+    return scope if from.nil? && to.nil?
+
+    col = scope.klass.column_names.include?(column.to_s) ? column.to_s : nil
+    raise ArgumentError, "columna de fecha inválida: #{column}" if col.nil?
+
+    quoted = "#{scope.quoted_table_name}.#{scope.connection.quote_column_name(col)}"
+    scope = scope.where("#{quoted} >= ?", from) if from
+    scope = scope.where("#{quoted} <= ?", to) if to
+    scope
+  end
+
   private
 
   def parse_time(value, end_of_day: false)

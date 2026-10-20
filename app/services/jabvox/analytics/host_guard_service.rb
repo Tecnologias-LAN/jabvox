@@ -33,14 +33,12 @@ class Jabvox::Analytics::HostGuardService
 
   DEFAULT_ALLOWED_PORTS = [5432, 3306, 5433, 3307, 1433].freeze
 
-  # With the explicit private-network override (an admin-only, per-connection
-  # opt-in) any unprivileged port is accepted — real customer DBs often listen
-  # on custom ports. Without it, only the standard DB ports pass, which keeps
-  # the SSRF surface minimal for arbitrary external hosts.
+  # Las BD externas de clientes a menudo escuchan en puertos no estándar, así que
+  # se acepta cualquier puerto no privilegiado (1024-65535). La protección real
+  # anti-SSRF no es la lista de puertos sino el bloqueo de IPs privadas/metadata
+  # (PRIVATE_RANGES / HARD_BLOCKED), que sigue vigente en #call.
   def port_allowed?
-    return @port.to_i.between?(1024, 65_535) if @allow_private
-
-    @allowed_ports.include?(@port.to_i)
+    @port.to_i.between?(1024, 65_535)
   end
 
   def initialize(host:, port: nil, allow_private: false, allowed_ports: DEFAULT_ALLOWED_PORTS)

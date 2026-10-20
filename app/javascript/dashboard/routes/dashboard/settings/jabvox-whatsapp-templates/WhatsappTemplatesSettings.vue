@@ -1,5 +1,12 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import {
+  ref,
+  computed,
+  nextTick,
+  onMounted,
+  onBeforeUnmount,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import {
@@ -13,7 +20,11 @@ import PromptDialog from './components/PromptDialog.vue';
 import InlineFlowBuilder from './components/InlineFlowBuilder.vue';
 import { validateFlow } from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/widgetValidation';
 import FlowPreview from 'dashboard/routes/dashboard/settings/jabvox-whatsapp-flows/components/FlowPreview.vue';
-import { useTemplateValidation } from './composables/useTemplateValidation';
+import {
+  useTemplateValidation,
+  sanitizeTemplateName,
+} from './composables/useTemplateValidation';
+import { formatWhatsappText, toggleMarker } from './helpers/whatsappFormatting';
 
 const { t } = useI18n();
 
@@ -640,6 +651,7 @@ const emptyForm = () => ({
   buttons: [],
   var_descriptions: {},
   limited_time_offer: false,
+  lto_text: '',
   auth_config: emptyAuthConfig(),
   cards: [],
   // Formulario (WhatsApp Flow) construido junto a la plantilla, cuando el tipo
@@ -714,7 +726,58 @@ const {
   buttonErrors,
   errors: templateValidationErrors,
   isValid: templateIsValid,
-} = useTemplateValidation(form);
+} = useTemplateValidation(form, editingTemplate);
+
+// ─── Formato de WhatsApp (*negrita*, _cursiva_, ~tachado~) ──────────────────
+// La vista previa pinta el resultado, no los asteriscos: así se ve lo que
+// recibirá el cliente sin tener que enviar la plantilla para comprobarlo.
+const formattedBody = computed(
+  () => formatWhatsappText(form.value.body) || '…'
+);
+const formattedFooter = computed(() => formatWhatsappText(form.value.footer));
+const formattedHeader = computed(() =>
+  formatWhatsappText(form.value.header_content)
+);
+
+// Marcadores de formato de WhatsApp. El monoespaciado (```) se deja fuera: se
+// usa poco en plantillas y su marcador triple confunde en una barra de iconos.
+const FORMAT_BUTTONS = [
+  {
+    marker: '*',
+    icon: 'i-lucide-bold',
+    label: 'JABVOX_WA_TEMPLATES.CREATE.FORMAT_BOLD',
+  },
+  {
+    marker: '_',
+    icon: 'i-lucide-italic',
+    label: 'JABVOX_WA_TEMPLATES.CREATE.FORMAT_ITALIC',
+  },
+  {
+    marker: '~',
+    icon: 'i-lucide-strikethrough',
+    label: 'JABVOX_WA_TEMPLATES.CREATE.FORMAT_STRIKE',
+  },
+];
+
+const bodyRef = ref(null);
+
+// Envuelve lo seleccionado en el cuerpo con el marcador y repone la selección:
+// sin reponerla el cursor salta al final y hay que volver a seleccionar a mano.
+const applyFormat = async marker => {
+  const el = bodyRef.value;
+  if (!el) return;
+
+  const { value, start, end } = toggleMarker(
+    form.value.body || '',
+    el.selectionStart,
+    el.selectionEnd,
+    marker
+  );
+  form.value.body = value;
+  await nextTick();
+  el.focus();
+  el.setSelectionRange(start, end);
+};
 
 // ─── Carousel: cards ────────────────────────────────────────────────────────
 const addCard = () => {
@@ -931,9 +994,12 @@ const submitForm = async () => {
         : null,
     body: isAuthenticationKind.value ? null : form.value.body,
     footer: isAuthenticationKind.value ? null : form.value.footer,
+    // COPY_CODE se conserva aunque no tenga texto: Meta le fija el texto ("Copiar
+    // código de oferta") y lo editable es el código (b.example). Filtrarlo por
+    // b.text lo descartaría y nunca se crearía el botón.
     buttons: isAuthenticationKind.value
       ? []
-      : form.value.buttons.filter(b => b.text),
+      : form.value.buttons.filter(b => b.text || b.type === 'COPY_CODE'),
     inbox_id: formInboxId.value,
     // Ejemplo por variable: Meta lo usa para revisar la plantilla, así que se
     // envía lo que el usuario escribió en el paso de variables.
@@ -941,6 +1007,10 @@ const submitForm = async () => {
     limited_time_offer: canShowLto.value
       ? form.value.limited_time_offer
       : false,
+    lto_text:
+      canShowLto.value && form.value.limited_time_offer
+        ? form.value.lto_text
+        : '',
     auth_config: isAuthenticationKind.value ? form.value.auth_config : {},
     cards: isCarouselKind.value ? form.value.cards : [],
   };
@@ -1040,8 +1110,16 @@ const missingRequiredFields = computed(() => {
   )
     missing.push(t('JABVOX_WA_TEMPLATES.CREATE.HEADER_MEDIA_FILE_LABEL'));
   form.value.buttons.forEach((b, i) => {
-    if (blank(b.text))
+    // COPY_CODE no lleva texto editable (Meta lo fija); lo obligatorio es el
+    // código de oferta (b.example).
+    if (b.type === 'COPY_CODE') {
+      if (blank(b.example))
+        missing.push(
+          `${t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_COPY_CODE')} ${i + 1}`
+        );
+    } else if (blank(b.text)) {
       missing.push(`${t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')} ${i + 1}`);
+    }
     if (b.type === 'URL' && blank(b.url))
       missing.push(`${t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_URL')} ${i + 1}`);
     if (
@@ -1935,6 +2013,9 @@ onBeforeUnmount(() => {
                     {{ t('JABVOX_WA_TEMPLATES.CREATE.NAME_LABEL') }}
                     <span class="text-n-ruby-11">*</span>
                   </label>
+                  <!-- Se sanea al escribir: Meta solo acepta minúsculas, números
+                       y guion bajo, así que se formatea en vivo en vez de dejar
+                       que rechace la plantilla tras el envío. -->
                   <input
                     v-model="form.name"
                     class="reset-base text-sm"
@@ -1942,6 +2023,7 @@ onBeforeUnmount(() => {
                     :placeholder="
                       t('JABVOX_WA_TEMPLATES.CREATE.NAME_PLACEHOLDER')
                     "
+                    @input="form.name = sanitizeTemplateName(form.name)"
                   />
                   <span class="text-xs text-n-slate-10">{{
                     t('JABVOX_WA_TEMPLATES.CREATE.NAME_HINT')
@@ -2178,7 +2260,6 @@ onBeforeUnmount(() => {
                   class="reset-base text-sm w-full"
                   :class="fieldClass(form.header_content, true)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.HEADER_TEXT_PH')"
-                  maxlength="60"
                 />
                 <span
                   class="text-[11px] self-end"
@@ -2284,7 +2365,31 @@ onBeforeUnmount(() => {
                     }}
                   </span>
                 </div>
+                <!-- WhatsApp usa UN solo caracter a cada lado (*negrita*), no
+                     Markdown: estos botones lo insertan bien para que nadie
+                     escriba **texto** y le lleguen los asteriscos al cliente. -->
+                <div class="flex items-center gap-1 mb-1">
+                  <button
+                    v-for="fmt in FORMAT_BUTTONS"
+                    :key="fmt.marker"
+                    v-tooltip.top="t(fmt.label)"
+                    type="button"
+                    class="size-6 flex items-center justify-center rounded border border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
+                    :aria-label="t(fmt.label)"
+                    @click="applyFormat(fmt.marker)"
+                  >
+                    <span
+                      class="size-3.5"
+                      :class="fmt.icon"
+                      aria-hidden="true"
+                    />
+                  </button>
+                  <span class="text-[10px] text-n-slate-10 ml-1">
+                    {{ t('JABVOX_WA_TEMPLATES.CREATE.FORMAT_HINT') }}
+                  </span>
+                </div>
                 <textarea
+                  ref="bodyRef"
                   v-model="form.body"
                   rows="5"
                   class="reset-base text-sm w-full resize-none"
@@ -2341,7 +2446,6 @@ onBeforeUnmount(() => {
                   class="reset-base text-sm w-full"
                   :class="fieldClass(form.footer)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.FOOTER_PH')"
-                  maxlength="60"
                 />
               </div>
               <!-- LTO: visible solo para category MARKETING y template_kind standard -->
@@ -2356,6 +2460,20 @@ onBeforeUnmount(() => {
                 />
                 {{ t('JABVOX_WA_TEMPLATES.CREATE.LTO.LABEL') }}
               </label>
+              <div
+                v-if="canShowLto && form.limited_time_offer"
+                class="flex flex-col gap-1 max-w-sm"
+              >
+                <label class="text-xs text-n-slate-11">
+                  {{ t('JABVOX_WA_TEMPLATES.CREATE.LTO.TEXT_LABEL') }}
+                </label>
+                <input
+                  v-model="form.lto_text"
+                  class="reset-base text-sm w-full"
+                  :class="fieldClass(form.lto_text)"
+                  :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.LTO.TEXT_PH')"
+                />
+              </div>
             </section>
 
             <!-- ── FLOW: el formulario se construye aquí mismo; al guardar, el
@@ -2542,7 +2660,6 @@ onBeforeUnmount(() => {
                       </select>
                       <input
                         v-model="btn.text"
-                        maxlength="25"
                         class="reset-base text-xs flex-1 min-w-24"
                         :class="fieldClass(btn.text, true)"
                         :placeholder="
@@ -2735,7 +2852,6 @@ onBeforeUnmount(() => {
                   </span>
                   <input
                     v-model="form.flow_button_text"
-                    maxlength="25"
                     class="reset-base text-xs flex-1 min-w-32"
                     :class="fieldClass(form.flow_button_text, true)"
                     :placeholder="
@@ -2773,7 +2889,6 @@ onBeforeUnmount(() => {
                 <input
                   v-else
                   v-model="btn.text"
-                  maxlength="25"
                   class="reset-base text-xs flex-1 min-w-24"
                   :class="fieldClass(btn.text, true)"
                   :placeholder="t('JABVOX_WA_TEMPLATES.CREATE.BUTTON_TEXT')"
@@ -2781,7 +2896,7 @@ onBeforeUnmount(() => {
                 <input
                   v-if="btn.type === 'COPY_CODE'"
                   v-model="btn.example"
-                  maxlength="15"
+                  maxlength="20"
                   class="reset-base text-xs flex-1 min-w-32"
                   :class="fieldClass(btn.example, true)"
                   :placeholder="
@@ -3004,9 +3119,8 @@ onBeforeUnmount(() => {
                   <div
                     v-if="form.header_type === 'TEXT' && form.header_content"
                     class="font-semibold text-[11px] text-white/90 border-b border-white/10 pb-1.5 mb-1.5"
-                  >
-                    {{ form.header_content }}
-                  </div>
+                    v-html="formattedHeader"
+                  />
                   <template v-else-if="isMediaHeader">
                     <img
                       v-if="
@@ -3045,17 +3159,17 @@ onBeforeUnmount(() => {
                       {{ form.header_type }}
                     </div>
                   </template>
+                  <!-- v-html es seguro: formatWhatsappText escapa el HTML antes
+                       de aplicar el formato de WhatsApp. -->
                   <p
                     class="text-[11px] leading-relaxed text-white/90 whitespace-pre-wrap"
-                  >
-                    {{ form.body || '…' }}
-                  </p>
+                    v-html="formattedBody"
+                  />
                   <p
                     v-if="form.footer"
                     class="text-[10px] text-white/40 border-t border-white/10 pt-1 mt-1"
-                  >
-                    {{ form.footer }}
-                  </p>
+                    v-html="formattedFooter"
+                  />
                   <p class="text-right text-[9px] text-white/30">
                     {{
                       new Date().toLocaleTimeString([], {

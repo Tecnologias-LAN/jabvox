@@ -1,5 +1,7 @@
 import { computed } from 'vue';
 
+import { textLength } from '../helpers/whatsappFormatting';
+
 /**
  * Validación en vivo del wizard de plantillas de WhatsApp, con paridad con el
  * editor de Meta Business Manager: avisa ANTES de intentar guardar/publicar,
@@ -22,7 +24,31 @@ export const LIMITS = {
   BUTTON_URL: 2000,
   BUTTON_PHONE: 20,
   BUTTON_COPY_CODE: 20,
+  NAME: 512,
 };
+
+// Meta exige que el nombre sea solo minúsculas, números y guion bajo (máx 512).
+// Mayúsculas, espacios, acentos o guiones medios hacen que rechace la plantilla
+// al crearla. Se valida en el editor para no descubrirlo tras el envío.
+export function isValidTemplateName(name) {
+  const value = (name || '').trim();
+  if (!value) return false;
+  if (value.length > LIMITS.NAME) return false;
+  return /^[a-z0-9_]+$/.test(value);
+}
+
+// Convierte lo que escribe la persona a un nombre válido de Meta: a minúsculas,
+// espacios y guiones a guion bajo, acentos sin tilde y fuera cualquier otro
+// símbolo. Así "Mi Plantilla 2!" queda "mi_plantilla_2" mientras se escribe.
+export function sanitizeTemplateName(name) {
+  return (name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // quita acentos
+    .replace(/[\s-]+/g, '_') // espacios y guiones medios -> guion bajo
+    .replace(/[^a-z0-9_]/g, '') // fuera todo lo demás
+    .slice(0, LIMITS.NAME);
+}
 
 export const BUTTON_TYPE_MAX = {
   QUICK_REPLY: 10,
@@ -75,6 +101,44 @@ export function isNonSequentialPositional(vars) {
   return !nums.every((n, i) => n === i + 1);
 }
 
+// Meta NO aplica formato (*negrita*, _cursiva_, ~tachado~) fuera del cuerpo:
+// en el encabezado y el pie los marcadores salen literales al cliente.
+const FORMAT_MARKERS = /(\*[^\s*][^*]*\*)|(_[^\s_][^_]*_)|(~[^\s~][^~]*~)/;
+
+export function hasFormattingMarkers(text) {
+  return FORMAT_MARKERS.test(text || '');
+}
+
+// El encabezado de texto y el pie son de una sola línea.
+export function hasNewline(text) {
+  return /[\r\n]/.test(text || '');
+}
+
+// Meta admite UNA variable en el encabezado y NINGUNA en el pie.
+export function countVariables(text) {
+  return ((text || '').match(/\{\{[^}]+\}\}/g) || []).length;
+}
+
+// En una URL la variable solo puede ir al final (sufijo dinámico).
+export function urlVariableNotAtEnd(url) {
+  const value = url || '';
+  if (!countVariables(value)) return false;
+  return !/\{\{[^}]+\}\}$/.test(value.trim());
+}
+
+// Dos botones con el mismo texto los rechaza Meta.
+export function duplicateButtonTexts(buttons) {
+  const vistos = new Map();
+  const dups = new Set();
+  buttons.forEach(b => {
+    const key = (b.text || '').trim().toLowerCase();
+    if (!key) return;
+    if (vistos.has(key)) dups.add(b.text.trim());
+    vistos.set(key, true);
+  });
+  return [...dups];
+}
+
 // True si los botones del mismo tipo quedan agrupados (no intercalados).
 function buttonsGroupedByType(types) {
   const seenOrder = [...new Set(types)];
@@ -87,7 +151,10 @@ function buttonsGroupedByType(types) {
   return rebuilt.join('|') === types.join('|');
 }
 
-export function useTemplateValidation(formRef) {
+// `isEditingRef` (opcional): al editar una plantilla el nombre ya existe en Meta
+// y no se puede cambiar, así que no se valida su formato. Si no se pasa, se asume
+// creación (se valida siempre).
+export function useTemplateValidation(formRef, isEditingRef = null) {
   // ─── Variables del body ────────────────────────────────────────────────
   const detectedVars = computed(() => detectVariables(formRef.value.body));
 
@@ -108,14 +175,17 @@ export function useTemplateValidation(formRef) {
   );
 
   // ─── Contadores de longitud ────────────────────────────────────────────
+  // Se cuenta en CARACTERES reales, no en unidades UTF-16: '😊'.length es 2 y
+  // '👨‍👩‍👧'.length es 8, así que con `.length` el editor bloqueaba textos con
+  // emojis que sí caben dentro del límite de Meta.
   const counters = computed(() => ({
     header: {
-      value: (formRef.value.header_content || '').length,
+      value: textLength(formRef.value.header_content),
       max: LIMITS.HEADER_TEXT,
     },
-    body: { value: (formRef.value.body || '').length, max: LIMITS.BODY },
+    body: { value: textLength(formRef.value.body), max: LIMITS.BODY },
     footer: {
-      value: (formRef.value.footer || '').length,
+      value: textLength(formRef.value.footer),
       max: LIMITS.FOOTER,
     },
   }));
@@ -129,7 +199,11 @@ export function useTemplateValidation(formRef) {
   // ─── Botones ────────────────────────────────────────────────────────────
   const buttonErrors = computed(() => {
     const errs = [];
-    const buttons = (formRef.value.buttons || []).filter(b => b.text);
+    // COPY_CODE no lleva texto editable (Meta lo fija); se incluye igual para
+    // contarlo en los topes y validar su código (b.example).
+    const buttons = (formRef.value.buttons || []).filter(
+      b => b.text || b.type === 'COPY_CODE'
+    );
     if (!buttons.length) return errs;
 
     if (buttons.length > BUTTON_MAX_TOTAL) {
@@ -165,32 +239,50 @@ export function useTemplateValidation(formRef) {
       );
     }
 
+    const dups = duplicateButtonTexts(buttons);
+    if (dups.length) {
+      errs.push(
+        `Dos botones no pueden tener el mismo texto: ${dups.join(', ')}.`
+      );
+    }
+
     buttons.forEach((b, i) => {
-      if ((b.text || '').length > LIMITS.BUTTON_TEXT) {
+      if (textLength(b.text) > LIMITS.BUTTON_TEXT) {
         errs.push(
           `Botón ${i + 1}: el texto no puede superar ${LIMITS.BUTTON_TEXT} caracteres.`
         );
       }
-      if (b.type === 'URL' && (b.url || '').length > LIMITS.BUTTON_URL) {
+      if (b.type === 'URL' && textLength(b.url) > LIMITS.BUTTON_URL) {
         errs.push(
           `Botón ${i + 1}: la URL no puede superar ${LIMITS.BUTTON_URL} caracteres.`
         );
       }
       if (
         (b.type === 'PHONE_NUMBER' || b.type === 'VOICE_CALL') &&
-        (b.phone_number || '').length > LIMITS.BUTTON_PHONE
+        textLength(b.phone_number) > LIMITS.BUTTON_PHONE
       ) {
         errs.push(
           `Botón ${i + 1}: el número no puede superar ${LIMITS.BUTTON_PHONE} caracteres.`
         );
       }
+      // El código de oferta se edita en b.example, no en b.text (el texto del
+      // botón lo fija Meta). La longitud se valida sobre el campo real.
       if (
         b.type === 'COPY_CODE' &&
-        (b.text || '').length > LIMITS.BUTTON_COPY_CODE
+        textLength(b.example) > LIMITS.BUTTON_COPY_CODE
       ) {
         errs.push(
           `Botón ${i + 1}: el código no puede superar ${LIMITS.BUTTON_COPY_CODE} caracteres.`
         );
+      }
+      if (b.type === 'URL') {
+        if (countVariables(b.url) > 1) {
+          errs.push(`Botón ${i + 1}: la URL admite como máximo una variable.`);
+        } else if (urlVariableNotAtEnd(b.url)) {
+          errs.push(
+            `Botón ${i + 1}: la variable de la URL solo puede ir al final (p. ej. https://tusitio.com/{{1}}).`
+          );
+        }
       }
     });
 
@@ -202,22 +294,38 @@ export function useTemplateValidation(formRef) {
     const errs = [];
     const form = formRef.value;
 
-    if ((form.body || '').length > LIMITS.BODY) {
+    // El nombre solo se valida al crear: al editar ya existe en Meta y es fijo.
+    const isEditing = isEditingRef ? isEditingRef.value : false;
+    if (!isEditing && form.name && !isValidTemplateName(form.name)) {
       errs.push(
-        `El cuerpo no puede superar ${LIMITS.BODY} caracteres (tiene ${form.body.length}).`
+        'El nombre solo admite minúsculas, números y guion bajo (sin espacios, mayúsculas ni acentos).'
       );
     }
-    if ((form.footer || '').length > LIMITS.FOOTER) {
+
+    if (textLength(form.body) > LIMITS.BODY) {
+      errs.push(
+        `El cuerpo no puede superar ${LIMITS.BODY} caracteres (tiene ${textLength(form.body)}).`
+      );
+    }
+    if (textLength(form.footer) > LIMITS.FOOTER) {
       errs.push(
         `El pie de página no puede superar ${LIMITS.FOOTER} caracteres.`
       );
     }
     if (
       form.header_type === 'TEXT' &&
-      (form.header_content || '').length > LIMITS.HEADER_TEXT
+      textLength(form.header_content) > LIMITS.HEADER_TEXT
     ) {
       errs.push(
         `El texto del encabezado no puede superar ${LIMITS.HEADER_TEXT} caracteres.`
+      );
+    }
+    // Botón de Flow: su texto tiene el mismo tope que un botón normal (25). Se
+    // valida aquí porque el botón de Flow vive en form.flow_button_text, fuera
+    // del array de botones que recorre buttonErrors.
+    if (textLength(form.flow_button_text) > LIMITS.BUTTON_TEXT) {
+      errs.push(
+        `El texto del botón de Flow no puede superar ${LIMITS.BUTTON_TEXT} caracteres.`
       );
     }
 
@@ -248,6 +356,70 @@ export function useTemplateValidation(formRef) {
         'Las variables posicionales deben ser secuenciales sin saltos: {{1}}, {{2}}, {{3}}… (no {{1}}, {{3}}).'
       );
     }
+
+    // ── Encabezado de texto ────────────────────────────────────────────
+    if (form.header_type === 'TEXT' && form.header_content) {
+      if (countVariables(form.header_content) > 1) {
+        errs.push('El encabezado admite como máximo una variable.');
+      }
+      if (hasNewline(form.header_content)) {
+        errs.push('El encabezado no admite saltos de línea.');
+      }
+      // Meta no interpreta *negrita* fuera del cuerpo: los marcadores llegarían
+      // literales al cliente.
+      if (hasFormattingMarkers(form.header_content)) {
+        errs.push(
+          'El encabezado no admite formato (*negrita*, _cursiva_, ~tachado~): los símbolos se verían tal cual.'
+        );
+      }
+    }
+
+    // ── Pie de página ──────────────────────────────────────────────────
+    if (form.footer) {
+      if (countVariables(form.footer)) {
+        errs.push('El pie de página no admite variables.');
+      }
+      if (hasNewline(form.footer)) {
+        errs.push('El pie de página no admite saltos de línea.');
+      }
+      if (hasFormattingMarkers(form.footer)) {
+        errs.push(
+          'El pie de página no admite formato (*negrita*, _cursiva_, ~tachado~): los símbolos se verían tal cual.'
+        );
+      }
+    }
+
+    // ── Botones de las tarjetas del carrusel ───────────────────────────
+    // Tienen el mismo tope de texto (25) que un botón normal, pero viven en
+    // form.cards[].buttons, fuera del array que recorre buttonErrors.
+    (form.cards || []).forEach((card, ci) => {
+      (card.buttons || []).forEach((b, bi) => {
+        const where = `Tarjeta ${ci + 1}, botón ${bi + 1}`;
+        if (textLength(b.text) > LIMITS.BUTTON_TEXT) {
+          errs.push(
+            `${where}: el texto no puede superar ${LIMITS.BUTTON_TEXT} caracteres.`
+          );
+        }
+        if (b.type === 'URL' && textLength(b.url) > LIMITS.BUTTON_URL) {
+          errs.push(
+            `${where}: la URL no puede superar ${LIMITS.BUTTON_URL} caracteres.`
+          );
+        }
+        if (
+          (b.type === 'PHONE_NUMBER' || b.type === 'VOICE_CALL') &&
+          textLength(b.phone_number) > LIMITS.BUTTON_PHONE
+        ) {
+          errs.push(
+            `${where}: el número no puede superar ${LIMITS.BUTTON_PHONE} caracteres.`
+          );
+        }
+        if (b.type === 'URL' && urlVariableNotAtEnd(b.url)) {
+          errs.push(
+            `${where}: la variable de la URL solo puede ir al final (p. ej. https://tusitio.com/{{1}}).`
+          );
+        }
+      });
+    });
 
     errs.push(...buttonErrors.value);
 

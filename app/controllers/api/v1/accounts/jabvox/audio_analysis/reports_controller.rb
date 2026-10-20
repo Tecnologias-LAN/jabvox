@@ -1,6 +1,15 @@
 class Api::V1::Accounts::Jabvox::AudioAnalysis::ReportsController < Api::V1::Accounts::Jabvox::AudioAnalysis::BaseController
   before_action :ensure_can_view_reports, except: [:my_access]
 
+  # GET /reports/result_pdf?result_id=... — descarga el PDF de QA de una llamada.
+  def result_pdf
+    result = Current.account.jabvox_audio_results
+                    .includes(:typification, :detected_typification, :advisor, :assigned_agent)
+                    .find(params[:result_id])
+    service = Jabvox::AudioQaReportPdfService.new(result)
+    send_data service.render, filename: service.filename, type: 'application/pdf', disposition: 'attachment'
+  end
+
   # GET /access/my — used by the frontend guard and to gate the UI.
   # `can_manage` mirrors the backend `ensure_can_manage` gate (jabvox_audio_manage),
   # so the Pipelines/Storages tabs show for anyone who can actually manage them,
@@ -55,9 +64,7 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::ReportsController < Api::V1::Acc
     scope = scope.where(pipeline_id: params[:pipeline_id]) if params[:pipeline_id].present?
     scope = scope.where(created_by_id: params[:created_by_id]) if params[:created_by_id].present?
     # Search by analysis label (e.g. "analisis3"); case-insensitive partial match.
-    if params[:label].present?
-      scope = scope.where('label_jabvox ILIKE ?', "%#{params[:label].to_s.strip}%")
-    end
+    scope = scope.where('label_jabvox ILIKE ?', "%#{params[:label].to_s.strip}%") if params[:label].present?
     scope
   end
 

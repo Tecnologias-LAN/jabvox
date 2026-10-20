@@ -17,11 +17,12 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
   end
 
   def results
-    rows = @job.results.includes(:assigned_agent, :typification).order(:file_key)
+    rows = @job.results.includes(:assigned_agent, :typification, :advisor, :detected_typification).order(:file_key)
     render json: { results: rows.map { |r| serialize_result(r) } }
   end
 
   # POST /jobs — create a batch job and fan out processing.
+  # rubocop:disable Metrics/AbcSize
   def create
     file_keys = Array(params[:file_keys]).map(&:to_s).reject(&:blank?).uniq.first(MAX_FILES)
     pipeline = Current.account.jabvox_audio_pipelines.find_by(id: params[:pipeline_id])
@@ -36,6 +37,7 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
     Jabvox::ProcessAudioJob.perform_later(job.id)
     render json: serialize(job), status: :created
   end
+  # rubocop:enable Metrics/AbcSize
 
   private
 
@@ -46,6 +48,7 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
     Current.account.users.exists?(params[:assigned_agent_id]) ? params[:assigned_agent_id].to_i : nil
   end
 
+  # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
   def build_job(file_keys, pipeline, storage)
     fallback_agent_id = assigned_agent_id
     # Each audio's responsible agent AND typification come from its manual
@@ -57,6 +60,10 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
     agent_by_key = assignments.to_h { |key, agent, _typ| [key, agent] }
     typ_by_key = assignments.to_h { |key, _agent, typ| [key, typ] }
 
+    # Si no hay asignación manual, el nombre del archivo se parsea contra los
+    # patrones de la cuenta para vincular asesor y tipificación automáticamente.
+    parser = Jabvox::AudioFilenameParserService.new(Current.account)
+
     # Label is generated server-side and never trusted from the client.
     job = Current.account.jabvox_audio_jobs.create!(
       pipeline: pipeline, storage: storage, created_by: current_user,
@@ -65,15 +72,20 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
     )
     now = Time.current
     rows = file_keys.map do |key|
+      parsed = parser.parse(key)
       { job_id: job.id, account_id: Current.account.id, file_key: key, status: 'pending',
-        assigned_agent_id: agent_by_key[key] || fallback_agent_id,
-        typification_id: typ_by_key[key] || pipeline.typification_id,
+        assigned_agent_id: agent_by_key[key] || parsed[:advisor]&.user_id || fallback_agent_id,
+        advisor_id: parsed[:advisor]&.id,
+        typification_id: typ_by_key[key] || parsed[:typification]&.id || pipeline.typification_id,
+        parsed_metadata: parsed[:raw] || {},
         stages_data: [], transcript_words_jabvox: [],
+        infaltables_result: [], anatomy_result: [], qa_summary: {},
         created_at: now, updated_at: now }
     end
     JabvoxAudioResult.insert_all(rows) # rubocop:disable Rails/SkipsModelValidations
     job
   end
+  # rubocop:enable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
   def set_job
     @job = Current.account.jabvox_audio_jobs.find(params[:id])
@@ -99,6 +111,7 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
     }
   end
 
+  # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
   def serialize_result(result)
     {
       id: result.id,
@@ -115,7 +128,24 @@ class Api::V1::Accounts::Jabvox::AudioAnalysis::JobsController < Api::V1::Accoun
       assigned_agent_id: result.assigned_agent_id,
       assigned_agent_name: result.assigned_agent&.name,
       typification_id: result.typification_id,
-      typification_name: result.typification&.name
+      typification_name: result.typification&.name,
+      advisor_id: result.advisor_id,
+      advisor_name: result.advisor&.name,
+      # Campos de QA (vacíos en pipelines no-QA).
+      infaltables_result: result.infaltables_result,
+      anatomy_result: result.anatomy_result,
+      infaltables_score: result.infaltables_score,
+      infaltables_applicable: result.infaltables_applicable,
+      infaltables_met: result.infaltables_met,
+      detected_typification_id: result.detected_typification_id,
+      detected_typification_name: result.detected_typification&.name,
+      retypification_reason: result.retypification_reason,
+      qa_summary: result.qa_summary,
+      review_status: result.review_status,
+      review_explanation: result.review_explanation,
+      first_pass_score: result.first_pass_score,
+      parsed_metadata: result.parsed_metadata
     }
   end
+  # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 end

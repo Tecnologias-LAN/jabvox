@@ -51,6 +51,25 @@ module Jabvox::Hermes::ToolRegistry
                               mcp: 'jabvox_core', feature: 'core' },
     'get_conversation_messages' => { permission: 'read', method: :get, path: 'conversations/:id/messages',
                                      params: { id: :integer }, mcp: 'jabvox_core', feature: 'core' },
+    # Conversaciones sin responder desde hace N tiempo (umbral relativo last_minutes/hours/days).
+    # with_messages=true añade la ventana de mensajes de hoy/del rango por conversación.
+    'get_unanswered_conversations' => { permission: 'read', method: :get, path: 'conversations/unanswered',
+                                        params: { last_minutes: :integer, last_hours: :integer, last_days: :integer,
+                                                  inbox_id: :integer, with_messages: :boolean, limit: :integer },
+                                        mcp: 'jabvox_core', feature: 'core' },
+    # Últimas conversaciones con el texto del último mensaje (quién escribió y qué dijo).
+    # with_messages=true añade la ventana de mensajes de hoy/del rango (para el resumen de hoy).
+    'get_recent_conversations' => { permission: 'read', method: :get, path: 'conversations/recent_with_message',
+                                    params: { inbox_id: :integer, incoming_only: :boolean, with_messages: :boolean,
+                                              since: :string, until: :string,
+                                              last_minutes: :integer, last_hours: :integer, last_days: :integer,
+                                              limit: :integer },
+                                    mcp: 'jabvox_core', feature: 'core' },
+    # Conteo de mensajes por tipo de contenido (texto vs audio/imagen/documento/vídeo).
+    'get_messages_by_content_type' => { permission: 'read', method: :get, path: 'conversations/messages_by_content_type',
+                                        params: { inbox_id: :integer, message_type: :string,
+                                                  since: :string, until: :string },
+                                        mcp: 'jabvox_core', feature: 'core' },
     # Resumen estructurado de una conversación (metadatos + últimos mensajes) para que
     # Hermes lo resuma; no llama al LLM, solo entrega el material listo.
     'summarize_conversation' => { permission: 'read', method: :get, path: 'conversations/:id/summary',
@@ -91,6 +110,12 @@ module Jabvox::Hermes::ToolRegistry
     # Crea la integración de webhook Hermes para UNA bandeja concreta (inbox_type).
     'create_hermes_inbox_webhook' => { permission: 'create', method: :post, path: 'webhooks/inbox',
                                        params: { inbox_id: :integer }, mcp: 'jabvox_core', feature: 'core' },
+    # Reglas de respuesta del webhook (cuándo responde Hermes): ver/editar las conditions
+    # (bandejas permitidas, etiquetas excluidas, solo-en-horario). Leer el webhook incluye
+    # sus conditions vía get_webhooks/list_webhooks (webhook_view ya las expone).
+    'update_webhook_conditions' => { permission: 'write', method: :patch, path: 'webhooks/:id',
+                                     params: { id: :integer, conditions: :json },
+                                     mcp: 'jabvox_core', feature: 'core' },
 
     # --- Gestiones (management states) ---
     'get_management_states' => { permission: 'read', method: :get, path: 'jabvox/management_states',
@@ -127,6 +152,37 @@ module Jabvox::Hermes::ToolRegistry
                               mcp: 'analytics', feature: 'core' },
     'get_agents_report' => { permission: 'read', method: :get, path: 'jabvox/reports/agents',
                              params: { since: :string, until: :string }, mcp: 'analytics', feature: 'core' },
+    # Rendimiento REAL por agente: mensajes, notas privadas, conversaciones asignadas y resueltas.
+    # Rango por since/until o relativo (last_minutes/hours/days).
+    'get_agent_performance' => { permission: 'read', method: :get, path: 'jabvox/reports/agent_performance',
+                                 params: { since: :string, until: :string, agent_id: :integer,
+                                           last_minutes: :integer, last_hours: :integer, last_days: :integer },
+                                 mcp: 'analytics', feature: 'core' },
+    # Últimos mensajes escritos por un agente concreto (qué ha dicho últimamente).
+    'get_agent_messages' => { permission: 'read', method: :get, path: 'jabvox/reports/agent_messages',
+                              params: { agent_id: :integer, inbox_id: :integer, include_notes: :boolean,
+                                        since: :string, until: :string,
+                                        last_minutes: :integer, last_hours: :integer, last_days: :integer,
+                                        limit: :integer },
+                              mcp: 'analytics', feature: 'core' },
+    # Tiempo que un agente estuvo conectado (duración real, hoy o en un rango) + estado actual.
+    'get_agent_online_time' => { permission: 'read', method: :get, path: 'jabvox/reports/agent_online_time',
+                                 params: { agent_id: :integer, since: :string, until: :string,
+                                           last_minutes: :integer, last_hours: :integer, last_days: :integer },
+                                 mcp: 'analytics', feature: 'core' },
+    # Ventas (pedidos) con su agente y su cliente: las últimas ventas y a quién pertenecen.
+    'get_sales_by_agent' => { permission: 'read', method: :get, path: 'jabvox/reports/sales_by_agent',
+                              params: { agent_id: :integer, doc_type: :string, status: :string,
+                                        since: :string, until: :string,
+                                        last_minutes: :integer, last_hours: :integer, last_days: :integer,
+                                        limit: :integer },
+                              mcp: 'jabvox_core', feature: 'jabvox_products' },
+    # Serie POR DÍA de una métrica (mensajes/ventas/resueltas) en un rango: "cuántos por día".
+    'get_daily_series' => { permission: 'read', method: :get, path: 'jabvox/reports/daily_series',
+                            params: { metric: :string, agent_id: :integer, inbox_id: :integer, timezone: :string,
+                                      since: :string, until: :string,
+                                      last_minutes: :integer, last_hours: :integer, last_days: :integer },
+                            mcp: 'analytics', feature: 'core' },
     'get_products_report' => { permission: 'read', method: :get, path: 'jabvox/reports/products',
                                params: { since: :string, until: :string }, mcp: 'jabvox_core',
                                feature: 'jabvox_products' },
@@ -886,6 +942,15 @@ module Jabvox::Hermes::ToolRegistry
     'get_conversations_meta' => 'Devuelve conteos de conversaciones (abiertas/total).',
     'list_conversations' => 'Lista conversaciones con filtros (estado, bandeja, contacto) y paginación.',
     'get_conversation_messages' => 'Devuelve los mensajes de una conversación.',
+    'get_unanswered_conversations' => 'Lista conversaciones que el cliente escribió y el agente aún no respondió. ' \
+                                      'Umbral de espera relativo: last_minutes / last_hours / last_days (p.ej. "sin responder hace 5 horas" = last_hours:5). ' \
+                                      'Sin umbral devuelve todas las que esperan respuesta. Incluye minutos de espera y el texto del último mensaje del cliente. ' \
+                                      'Opcional inbox_id para una bandeja.',
+    'get_recent_conversations' => 'Las últimas conversaciones con actividad, con el texto del último mensaje ' \
+                                  '(quién escribió y qué dijo) en una sola llamada. incoming_only=true (por defecto) toma el último mensaje del cliente; ' \
+                                  'false toma el último mensaje cualquiera. Opcional inbox_id, since/until y limit (por defecto 10).',
+    'get_messages_by_content_type' => 'Conteo de mensajes por tipo de contenido: texto vs adjuntos (audio, imagen, documento, vídeo). ' \
+                                      'Opcional inbox_id, message_type (incoming/outgoing) y rango since/until. Solo de esta cuenta.',
     'summarize_conversation' => 'Devuelve el material (metadatos + mensajes) de una conversación para resumirla.',
     'reply_conversation' => 'Envía una respuesta al cliente en una conversación.',
     'add_private_note' => 'Agrega una nota privada (interna) a una conversación.',
@@ -914,6 +979,18 @@ module Jabvox::Hermes::ToolRegistry
     'get_analytics_overview_stats' => 'Resumen del módulo Analytics (nº de dashboards, fuentes, carpetas).',
     'get_analytics_internal_reports' => 'Lista los reportes internos pre-armados disponibles.',
     'get_agents_report' => 'Reporte de agentes (mensajes, notas, gestiones, pedidos) en un rango de fechas (since/until).',
+    'get_agent_performance' => 'Rendimiento DESGLOSADO por agente: por cada agente, mensajes enviados, notas privadas, ' \
+                               'conversaciones asignadas y resueltas. Rango por since/until o relativo (last_days/last_hours, ej. hoy=last_days:1). ' \
+                               'Pasa agent_id para un solo agente. Solo de esta cuenta.',
+    'get_agent_messages' => 'Últimos mensajes que ESCRIBIÓ un agente concreto (agent_id), con la conversación a la que pertenecen. ' \
+                            'include_notes=true incluye sus notas privadas. Rango since/until o relativo (last_days/last_hours). Opcional inbox_id, limit (20).',
+    'get_agent_online_time' => 'Tiempo que un agente (agent_id) estuvo CONECTADO, con duración real (segundos/minutos/horas). ' \
+                               'Sin fechas = hoy; con since/until o relativo (last_days) = ese rango. Incluye nº de sesiones y si está online ahora.',
+    'get_sales_by_agent' => 'Últimas ventas (pedidos) con su agente y su cliente: a quién pertenece cada venta. ' \
+                            'doc_type SALE (por defecto), QUOTE o ALL. Rango since/until o relativo. Opcional agent_id, status, limit. Incluye total vendido.',
+    'get_daily_series' => 'Serie POR DÍA de una métrica en un rango (para tendencias). metric: messages, messages_incoming, messages_outgoing, ' \
+                          'private_notes, sales, conversations_resolved. Rango since/until o relativo (last_days, por defecto 7 días). ' \
+                          'Opcional agent_id, inbox_id. Devuelve {fecha => valor} en la zona horaria de la cuenta.',
     'get_products_report' => 'Reporte de productos/pedidos: totales, monto, por estado y tipo de documento (since/until).',
     'get_dialer_report' => 'Reporte del marcador: llamadas totales, contestadas, duración y por estado (since/until). Solo datos, no toca telefonía.',
     'get_agent_status_report' => 'Estado en vivo de los agentes (conectados/desconectados).',
@@ -958,6 +1035,11 @@ module Jabvox::Hermes::ToolRegistry
     'create_contact_note' => 'Añade una nota a un contacto (content).',
     'create_hermes_webhook' => 'Crea/asegura el webhook a nivel de cuenta hacia el propio Hermes (message_created).',
     'create_hermes_inbox_webhook' => 'Crea/asegura el webhook de UNA bandeja (inbox_id) hacia el propio Hermes.',
+    'update_webhook_conditions' => 'Define cuándo responde Hermes en un webhook (id). conditions: ' \
+                                   '{allowed_inbox_ids:[ids], excluded_labels:["etiqueta"], within_working_hours:true/false}. ' \
+                                   'Vacío = responde siempre. allowed_inbox_ids vacío = todas las bandejas. ' \
+                                   'excluded_labels = no responder conversaciones con esas etiquetas. ' \
+                                   'within_working_hours=true = responder solo en el horario laboral de la bandeja.',
     'create_api_inbox' => 'Crea una bandeja de tipo API (name, webhook_url).',
     'get_management_states' => 'Lista los estados de gestión de la cuenta.',
     'create_management_state' => 'Crea un estado de gestión (name).',

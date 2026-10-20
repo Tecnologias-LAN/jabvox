@@ -18,7 +18,8 @@
       "PIPELINES": "Pipelines",
       "ANALYZER": "Analyzer",
       "JOBS": "Jobs",
-      "ACCESS": "Access"
+      "ACCESS": "Access",
+      "CONFIG": "Configuration"
     },
     "STORAGE": {
       "NEW": "New storage",
@@ -146,7 +147,10 @@
       "ESCALATED": "Escalado",
       "TITLE": "Trabajos de análisis",
       "SUBTITLE": "Historial de análisis con resultados por audio.",
-      "EMPTY_TITLE": "Sin trabajos aún"
+      "EMPTY_TITLE": "Sin trabajos aún",
+      "DOWNLOAD_PDF": "Download PDF",
+      "INFALTABLES_SCORE": "Must-haves",
+      "INFALTABLES_MET": "met"
     },
     "ACCESS": {
       "USER": "User",
@@ -190,7 +194,116 @@
       "RESET": "Limpiar",
       "LAST_7D": "Últimos 7 días",
       "LAST_30D": "Últimos 30 días",
-      "SCORE_PLACEHOLDER": "%"
+      "SCORE_PLACEHOLDER": "%",
+      "DOWNLOAD_PDF": "Download PDF",
+      "INFALTABLES_SCORE": "Must-haves",
+      "INFALTABLES_MET": "met"
+    },
+    "CONFIG": {
+      "LOAD_ERROR": "Could not load the data.",
+      "SUBTABS": {
+        "ADVISORS": "Advisors",
+        "TYPIFICATIONS": "Typifications",
+        "INFALTABLES": "Must-haves",
+        "ANATOMY": "Rapport",
+        "PATTERNS": "Filename formats",
+        "MAPPINGS": "Mappings"
+      },
+      "ADVISORS": {
+        "TITLE": "Advisors",
+        "SUBTITLE": "Agents evaluated in call QA.",
+        "NEW": "New advisor",
+        "IMPORT": "Import users from CRM",
+        "IMPORTED": "Users imported successfully.",
+        "IMPORT_ERROR": "Could not import users.",
+        "NAME": "Name",
+        "NAME_REQUIRED": "Name is required.",
+        "EXTERNAL_ID": "External ID",
+        "EXTERNAL_ID_HINT": "Identifier in the recordings system (optional)",
+        "EMPTY_TITLE": "No advisors",
+        "EMPTY": "No advisors yet. Create them or import from the CRM."
+      },
+      "TYPIFICATIONS": {
+        "TITLE": "Typifications",
+        "SUBTITLE": "Typifications group must-haves by call type.",
+        "NOTICE": "Typifications are managed in their own section (Settings → Typifications). They are shown here in read-only mode.",
+        "INFALTABLES_COUNT": "{count} must-haves",
+        "EMPTY_TITLE": "No typifications",
+        "EMPTY": "No typifications yet."
+      },
+      "INFALTABLES": {
+        "TITLE": "Must-haves",
+        "SUBTITLE": "Phrases or points the advisor must cover in every call.",
+        "TYPIFICATION": "Typification",
+        "PICK_TYPIFICATION": "Choose a typification",
+        "PICK_FIRST": "Choose a typification to edit its must-haves.",
+        "LOADING": "Loading must-haves…",
+        "TEXT": "Must-have text",
+        "OPTIONAL": "Desirable",
+        "ADD": "Add must-have",
+        "SAVE_ALL": "Save all",
+        "BULK_PASTE": "Paste many",
+        "BULK_PASTE_HINT": "One line per must-have. Replaces the current list.",
+        "BULK_APPLY": "Use pasted list"
+      },
+      "ANATOMY": {
+        "TITLE": "Rapport",
+        "SUBTITLE": "The 12 rapport criteria that evaluate customer treatment.",
+        "NEW": "New criterion",
+        "SEED": "Restore defaults",
+        "NAME": "Criterion name",
+        "NAME_REQUIRED": "Name is required.",
+        "DESCRIPTION": "Description",
+        "POSITIVE": "Positive signal",
+        "OPPORTUNITY": "Opportunity signal",
+        "EMPTY_TITLE": "No criteria",
+        "EMPTY": "No rapport criteria yet."
+      },
+      "PATTERNS": {
+        "TITLE": "Filename formats",
+        "SUBTITLE": "Patterns to extract data from the audio file name.",
+        "NEW": "New pattern",
+        "NAME": "Name",
+        "PATTERN": "Pattern",
+        "DATE_FORMAT": "Date format",
+        "REQUIRED": "Name and pattern are required.",
+        "EXAMPLE": "Use fields in braces. E.g.: {phone}-{campaign} {advisor_name} parses \"3016615126-AMP Paula Ramírez\".",
+        "EMPTY_TITLE": "No patterns",
+        "EMPTY": "No filename patterns yet.",
+        "PROBE_TITLE": "Pattern tester",
+        "PROBE_SUBTITLE": "Test a pattern against a sample name without saving it.",
+        "SAMPLE": "Sample name",
+        "PROBE_RUN": "Test",
+        "PROBE_REQUIRED": "Provide a pattern and a sample name.",
+        "PROBE_ERROR": "Could not test the pattern.",
+        "PROBE_FIELDS": "Extracted fields",
+        "PROBE_NO_MATCH": "The pattern does not match the sample name.",
+        "PROBE_ADVISOR": "Matching advisor:"
+      },
+      "MAPPINGS": {
+        "TITLE": "Mappings",
+        "SUBTITLE": "Translate what comes in the file name into a typification and an advisor.",
+        "INTRO": "These mappings translate the codes in the file name (e.g. \"3002490237-AMP Gisell Martínez.WAV\") into a typification and an advisor. The system does not assume it: if there is no mapping, the call stays unresolved.",
+        "TYPIFICATION_TITLE": "Code → Typification",
+        "TYPIFICATION_SUBTITLE": "Map a code from the file name (e.g. \"AMP\") to a typification.",
+        "ADVISOR_TITLE": "Liker name/code → Advisor",
+        "ADVISOR_SUBTITLE": "Map the text that appears in the file (e.g. \"Gisell Martínez\") to an advisor.",
+        "CODE": "Code",
+        "CODE_TYPIFICATION_PLACEHOLDER": "AMP",
+        "CODE_ADVISOR_PLACEHOLDER": "Gisell Martínez",
+        "TYPIFICATION": "Typification",
+        "PICK_TYPIFICATION": "Choose a typification",
+        "ADVISOR": "Advisor",
+        "PICK_ADVISOR": "Choose an advisor",
+        "ADD": "Add mapping",
+        "CODE_REQUIRED": "Code is required.",
+        "TYPIFICATION_REQUIRED": "Select a typification.",
+        "ADVISOR_REQUIRED": "Select an advisor.",
+        "UNASSIGNED": "Unassigned",
+        "EMPTY_TITLE": "No mappings",
+        "TYPIFICATION_EMPTY": "No code-to-typification mappings yet.",
+        "ADVISOR_EMPTY": "No code-to-advisor mappings yet."
+      }
     },
     "BREADCRUMB": {
       "SETTINGS": "Configuración",

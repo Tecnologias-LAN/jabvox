@@ -19,6 +19,7 @@ import StoragesTab from './components/StoragesTab.vue';
 import PipelinesTab from './components/PipelinesTab.vue';
 import AnalyzerTab from './components/AnalyzerTab.vue';
 import JobsTab from './components/JobsTab.vue';
+import ConfigTab from './components/ConfigTab.vue';
 import StatusRow from './components/StatusRow.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 
@@ -82,6 +83,12 @@ const baseTabs = [
     key: 'storages',
     label: () => t('JABVOX_AUDIO.TABS.STORAGES'),
     icon: 'i-lucide-database',
+    manageOnly: true,
+  },
+  {
+    key: 'config',
+    label: () => t('JABVOX_AUDIO.TABS.CONFIG'),
+    icon: 'i-lucide-settings',
     manageOnly: true,
   },
 ];
@@ -579,6 +586,10 @@ onMounted(async () => {
             @test="testStorage"
             @cancel="setEditorClean('storage', null)"
           />
+
+          <!-- Configuración QA: asesores, tipificaciones, infaltables,
+               cercanía y formatos de archivo (gestiona su propio estado). -->
+          <ConfigTab v-else-if="activeTab === 'config'" />
         </main>
 
         <!-- Sidebar -->

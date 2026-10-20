@@ -193,7 +193,9 @@
         "SIGNATURE_HASH_PH": "Signature hash"
       },
       "LTO": {
-        "LABEL": "Limited-time offer (adds an expiration date when the message is sent)"
+        "LABEL": "Limited-time offer (adds an expiration date when the message is sent)",
+        "TEXT_LABEL": "Offer text",
+        "TEXT_PH": "Limited-time offer"
       },
       "CAROUSEL": {
         "SECTION_TITLE": "Carousel cards",
@@ -309,7 +311,11 @@
         "DOCUMENT": "Document",
         "LOCATION": "Location"
       },
-      "VARS_HELP": "Meta reviews the template using these values, so use realistic examples of what will be sent."
+      "VARS_HELP": "Meta reviews the template using these values, so use realistic examples of what will be sent.",
+      "FORMAT_BOLD": "Bold",
+      "FORMAT_ITALIC": "Italic",
+      "FORMAT_STRIKE": "Strikethrough",
+      "FORMAT_HINT": "Use *bold*, _italic_, ~strikethrough~"
     },
     "DETAIL": {
       "TITLE": "Template detail",

@@ -2,18 +2,23 @@
 #
 # Table name: jabvox_audio_pipelines
 #
-#  id                     :bigint           not null, primary key
-#  is_default             :boolean          default(FALSE), not null
-#  name                   :string           not null
-#  segment_seconds_jabvox :integer          default(30), not null
-#  timestamp_mode_jabvox  :string           default("none"), not null
-#  transcription_prompt   :text
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  account_id             :bigint           not null
-#  created_by_id          :bigint
-#  transcription_model_id :bigint
-#  typification_id        :bigint
+#  id                           :bigint           not null, primary key
+#  is_default                   :boolean          default(FALSE), not null
+#  name                         :string           not null
+#  qa_anatomy_weight_jabvox     :integer          default(0), not null
+#  qa_infaltables_weight_jabvox :integer          default(100), not null
+#  qa_mode_jabvox               :boolean          default(FALSE), not null
+#  qa_reclassify_jabvox         :boolean          default(TRUE), not null
+#  review_threshold_jabvox      :integer          default(60), not null
+#  segment_seconds_jabvox       :integer          default(30), not null
+#  timestamp_mode_jabvox        :string           default("none"), not null
+#  transcription_prompt         :text
+#  created_at                   :datetime         not null
+#  updated_at                   :datetime         not null
+#  account_id                   :bigint           not null
+#  created_by_id                :bigint
+#  transcription_model_id       :bigint
+#  typification_id              :bigint
 #
 # Indexes
 #

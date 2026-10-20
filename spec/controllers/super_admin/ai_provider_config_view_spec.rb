@@ -38,8 +38,14 @@ RSpec.describe 'Super Admin AI Provider Config — vista', type: :request do
     expect(html).not_to match(/name="account_id"[^>]*type="number"/)
   end
 
-  it 'ofrece sincronizar con el proveedor' do
-    expect(render_accounts_tab).to include('Sincronizar ahora')
+  it 'ofrece actualizar y forzar la sincronización con el proveedor' do
+    html = render_accounts_tab
+
+    # El botón se renombró: la pestaña ya sincroniza al abrirse, y "Actualizar ahora"
+    # fuerza una pasada inmediata (?resync=1).
+    expect(html).to include('Actualizar ahora')
+    expect(html).to include('resync=1')
+    expect(html).to include('Sincronizar (forzado)')
   end
 
   it 'lista los teams sin cuenta con su tope remoto y un formulario para ligarlos' do

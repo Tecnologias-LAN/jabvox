@@ -34,6 +34,8 @@ class JabvoxTypification < ApplicationRecord
   has_many :audio_pipelines, class_name: 'JabvoxAudioPipeline', dependent: :nullify, foreign_key: :typification_id, inverse_of: :typification
   has_many :audio_assignments, class_name: 'JabvoxAudioAssignment', dependent: :nullify, foreign_key: :typification_id, inverse_of: false
   has_many :audio_results, class_name: 'JabvoxAudioResult', dependent: :nullify, foreign_key: :typification_id, inverse_of: false
+  # Infaltables de QA: lo que no puede faltar en una llamada de esta tipificación.
+  has_many :audio_infaltables, class_name: 'JabvoxAudioInfaltable', dependent: :destroy, foreign_key: :typification_id, inverse_of: :typification
 
   validates :name, presence: true, length: { maximum: 150 }, uniqueness: { scope: :account_id }
 

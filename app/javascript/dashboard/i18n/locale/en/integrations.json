@@ -78,7 +78,22 @@
           "ERROR": "Please enter a valid URL"
         },
         "EDIT_SUBMIT": "Update webhook",
-        "ADD_SUBMIT": "Create webhook"
+        "ADD_SUBMIT": "Create webhook",
+        "RULES": {
+          "TITLE": "Response rules (optional)",
+          "DESCRIPTION": "Control when this webhook fires. Leave empty to always send. Useful for the AI Chat (Hermes): choose which inboxes it answers, which conversations to skip, and the time window.",
+          "ALLOWED_INBOXES": {
+            "LABEL": "Only respond in these inboxes",
+            "HELP": "If none selected, responds in all. Hold Ctrl/Cmd to pick several."
+          },
+          "EXCLUDED_LABELS": {
+            "LABEL": "Do not respond if it has these labels",
+            "HELP": "Conversations with any of these labels will not be sent (e.g. test)."
+          },
+          "WORKING_HOURS": {
+            "LABEL": "Only respond within the inbox working hours"
+          }
+        }
       },
       "TITLE": "Webhook",
       "CONFIGURE": "Configure",
@@ -952,7 +967,6 @@
         "SUCCESS_MESSAGE": "The document has been successfully deleted",
         "ERROR_MESSAGE": "There was an error deleting the document, please try again."
       },
-
       "OPTIONS": {
         "VIEW_DETAILS": "View details",
         "SYNC_NOW": "Refresh now",

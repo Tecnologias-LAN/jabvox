@@ -60,6 +60,9 @@ class Jabvox::Hermes::ServiceLayer
     # Conversaciones + mensajes + notas privadas
     'GET conversations/meta' => :conversations_meta,
     'GET conversations' => :list_conversations,
+    'GET conversations/unanswered' => :unanswered_conversations,
+    'GET conversations/recent_with_message' => :recent_conversations_with_message,
+    'GET conversations/messages_by_content_type' => :messages_by_content_type,
     'GET conversations/:id/messages' => :list_conversation_messages,
     'GET conversations/:id/summary' => :summarize_conversation,
     'POST conversations/:id/messages' => :reply_conversation,
@@ -78,6 +81,7 @@ class Jabvox::Hermes::ServiceLayer
     'GET webhooks' => :list_webhooks,
     'POST webhooks' => :create_hermes_webhook,
     'POST webhooks/inbox' => :create_hermes_inbox_webhook,
+    'PATCH webhooks/:id' => :update_webhook_conditions,
     # Leads
     # Gestiones
     'GET jabvox/management_states' => :list_management_states,
@@ -94,6 +98,11 @@ class Jabvox::Hermes::ServiceLayer
     'PATCH jabvox/sms_campaigns/:id' => :update_sms_campaign,
     # Reportes (solo lectura)
     'GET jabvox/reports/agents' => :report_agents_summary,
+    'GET jabvox/reports/agent_performance' => :agent_performance,
+    'GET jabvox/reports/agent_messages' => :agent_messages,
+    'GET jabvox/reports/agent_online_time' => :agent_online_time,
+    'GET jabvox/reports/sales_by_agent' => :sales_by_agent,
+    'GET jabvox/reports/daily_series' => :daily_series,
     'GET jabvox/reports/products' => :report_products,
     'GET jabvox/reports/dialer' => :report_dialer,
     'GET jabvox/reports/agent_status' => :report_agent_status,

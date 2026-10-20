@@ -7,6 +7,13 @@ import {
   hasConsecutiveVariables,
   hasMixedVariableTypes,
   isNonSequentialPositional,
+  hasFormattingMarkers,
+  hasNewline,
+  countVariables,
+  urlVariableNotAtEnd,
+  duplicateButtonTexts,
+  isValidTemplateName,
+  sanitizeTemplateName,
 } from '../useTemplateValidation';
 
 const baseForm = (overrides = {}) => ({
@@ -234,6 +241,24 @@ describe('useTemplateValidation', () => {
       expect(isValid.value).toBe(true);
     });
 
+    // El código se edita en b.example (no en b.text, que Meta fija). La
+    // validación de longitud debe mirar example.
+    it('valida la longitud del código COPY_CODE sobre example, no sobre text', () => {
+      const buttons = [
+        button('COPY_CODE', { text: '', example: 'x'.repeat(21) }),
+      ];
+      const form = ref(baseForm({ body: 'Usa este código', buttons }));
+      const { errors } = useTemplateValidation(form);
+      expect(errors.value.join(' ')).toMatch(/el código no puede superar/i);
+    });
+
+    it('acepta un COPY_CODE con código válido aunque text esté vacío', () => {
+      const buttons = [button('COPY_CODE', { text: '', example: 'PROMO10' })];
+      const form = ref(baseForm({ body: 'Usa este código', buttons }));
+      const { errors } = useTemplateValidation(form);
+      expect(errors.value.join(' ')).not.toMatch(/el código no puede superar/i);
+    });
+
     it('flags a button text over 25 characters', () => {
       const buttons = [button('QUICK_REPLY', { text: 'x'.repeat(26) })];
       const form = ref(baseForm({ body: 'Hola', buttons }));
@@ -267,6 +292,209 @@ describe('useTemplateValidation', () => {
       expect(counterClass(10, 100)).toBe('text-n-slate-10');
       expect(counterClass(95, 100)).toBe('text-n-amber-11');
       expect(counterClass(101, 100)).toBe('text-n-ruby-11');
+    });
+  });
+  describe('reglas de Meta añadidas', () => {
+    // Meta no interpreta *negrita* fuera del cuerpo: llegaría con asteriscos.
+    it('detecta marcadores de formato', () => {
+      expect(hasFormattingMarkers('hola *mundo*')).toBe(true);
+      expect(hasFormattingMarkers('_a_')).toBe(true);
+      expect(hasFormattingMarkers('~a~')).toBe(true);
+      expect(hasFormattingMarkers('sin formato')).toBe(false);
+      expect(hasFormattingMarkers('2 * 3')).toBe(false);
+    });
+
+    it('detecta saltos de línea', () => {
+      expect(hasNewline('a\nb')).toBe(true);
+      expect(hasNewline('una linea')).toBe(false);
+    });
+
+    it('cuenta variables', () => {
+      expect(countVariables('{{1}} y {{2}}')).toBe(2);
+      expect(countVariables('sin variables')).toBe(0);
+    });
+
+    it('exige que la variable de la URL vaya al final', () => {
+      expect(urlVariableNotAtEnd('https://x.com/{{1}}')).toBe(false);
+      expect(urlVariableNotAtEnd('https://x.com/{{1}}/fin')).toBe(true);
+      expect(urlVariableNotAtEnd('https://x.com/fijo')).toBe(false);
+    });
+
+    it('detecta textos de botón duplicados ignorando mayúsculas', () => {
+      expect(duplicateButtonTexts([{ text: 'Ver' }, { text: 'ver' }])).toEqual([
+        'ver',
+      ]);
+      expect(
+        duplicateButtonTexts([{ text: 'Ver' }, { text: 'Comprar' }])
+      ).toEqual([]);
+    });
+
+    it('rechaza variables y formato en el pie', () => {
+      const form = ref(baseForm({ body: 'hola', footer: 'Pie {{1}} *x*' }));
+      const { errors } = useTemplateValidation(form);
+      expect(errors.value.join(' ')).toMatch(
+        /pie de página no admite variables/i
+      );
+      expect(errors.value.join(' ')).toMatch(/no admite formato/i);
+    });
+
+    it('rechaza más de una variable y saltos de línea en el encabezado', () => {
+      const form = ref(
+        baseForm({
+          body: 'hola',
+          header_type: 'TEXT',
+          header_content: '{{1}} y {{2}}\nsegunda',
+        })
+      );
+      const { errors } = useTemplateValidation(form);
+      expect(errors.value.join(' ')).toMatch(/máximo una variable/i);
+      expect(errors.value.join(' ')).toMatch(/no admite saltos de línea/i);
+    });
+
+    // '😊'.length es 2: con .length un texto de 24 emojis parecía pasarse de 25.
+    it('cuenta los emojis como un carácter en los contadores', () => {
+      const form = ref(baseForm({ body: '😊😊', footer: '👨‍👩‍👧' }));
+      const { counters } = useTemplateValidation(form);
+      expect(counters.value.body.value).toBe(2);
+      expect(counters.value.footer.value).toBe(1);
+    });
+  });
+
+  describe('nombre de plantilla (regla de Meta)', () => {
+    it('acepta solo minúsculas, números y guion bajo', () => {
+      expect(isValidTemplateName('mi_plantilla_2')).toBe(true);
+      expect(isValidTemplateName('MiPlantilla')).toBe(false);
+      expect(isValidTemplateName('mi plantilla')).toBe(false);
+      expect(isValidTemplateName('mi-plantilla')).toBe(false);
+      expect(isValidTemplateName('niño')).toBe(false);
+      expect(isValidTemplateName('')).toBe(false);
+    });
+
+    it('rechaza nombres de más de 512 caracteres', () => {
+      expect(isValidTemplateName('a'.repeat(512))).toBe(true);
+      expect(isValidTemplateName('a'.repeat(513))).toBe(false);
+    });
+
+    it('sanea lo que escribe la persona a un nombre válido', () => {
+      expect(sanitizeTemplateName('Mi Plantilla 2!')).toBe('mi_plantilla_2');
+      expect(sanitizeTemplateName('Pedido-Niño')).toBe('pedido_nino');
+      expect(sanitizeTemplateName('  hola  mundo  ')).toBe('_hola_mundo_');
+    });
+
+    it('marca error de nombre al crear pero no al editar', () => {
+      const form = ref(baseForm({ name: 'Nombre Inválido', body: 'hola' }));
+      const creando = useTemplateValidation(form);
+      expect(creando.errors.value.join(' ')).toMatch(/solo admite minúsculas/i);
+
+      const editando = useTemplateValidation(form, ref({ id: 1 }));
+      expect(editando.errors.value.join(' ')).not.toMatch(
+        /solo admite minúsculas/i
+      );
+    });
+  });
+
+  describe('longitud por caracteres reales (sin maxlength del HTML)', () => {
+    it('marca el texto del botón de Flow si supera 25 caracteres reales', () => {
+      const form = ref(
+        baseForm({ body: 'hola', flow_button_text: 'a'.repeat(26) })
+      );
+      const { errors } = useTemplateValidation(form);
+      expect(errors.value.join(' ')).toMatch(/botón de Flow/i);
+    });
+
+    it('acepta 25 emojis en el botón de Flow (antes los cortaba a 12)', () => {
+      const form = ref(
+        baseForm({ body: 'hola', flow_button_text: '😊'.repeat(25) })
+      );
+      const { errors } = useTemplateValidation(form);
+      expect(errors.value.join(' ')).not.toMatch(/botón de Flow/i);
+    });
+
+    it('marca el texto de un botón de tarjeta del carrusel si supera 25', () => {
+      const form = ref(
+        baseForm({
+          body: 'hola',
+          cards: [{ buttons: [{ type: 'QUICK_REPLY', text: 'a'.repeat(26) }] }],
+        })
+      );
+      const { errors } = useTemplateValidation(form);
+      expect(errors.value.join(' ')).toMatch(/Tarjeta 1, botón 1/i);
+    });
+
+    it('marca una URL demasiado larga en un botón de tarjeta del carrusel', () => {
+      const form = ref(
+        baseForm({
+          body: 'hola',
+          cards: [
+            {
+              buttons: [
+                {
+                  type: 'URL',
+                  text: 'Ir',
+                  url: `https://a.com/${'x'.repeat(2001)}`,
+                },
+              ],
+            },
+          ],
+        })
+      );
+      const { errors } = useTemplateValidation(form);
+      expect(errors.value.join(' ')).toMatch(/Tarjeta 1, botón 1: la URL/i);
+    });
+
+    it('marca un teléfono demasiado largo en un botón de tarjeta del carrusel', () => {
+      const form = ref(
+        baseForm({
+          body: 'hola',
+          cards: [
+            {
+              buttons: [
+                {
+                  type: 'PHONE_NUMBER',
+                  text: 'Llamar',
+                  phone_number: `+${'1'.repeat(21)}`,
+                },
+              ],
+            },
+          ],
+        })
+      );
+      const { errors } = useTemplateValidation(form);
+      expect(errors.value.join(' ')).toMatch(/Tarjeta 1, botón 1: el número/i);
+    });
+
+    it('marca una variable que no va al final de la URL en un botón de carrusel', () => {
+      const form = ref(
+        baseForm({
+          body: 'hola',
+          cards: [
+            {
+              buttons: [
+                { type: 'URL', text: 'Ir', url: 'https://a.com/{{1}}/fin' },
+              ],
+            },
+          ],
+        })
+      );
+      const { errors } = useTemplateValidation(form);
+      expect(errors.value.join(' ')).toMatch(/solo puede ir al final/i);
+    });
+
+    it('acepta botones de carrusel dentro de los topes (URL con variable al final)', () => {
+      const form = ref(
+        baseForm({
+          body: 'hola',
+          cards: [
+            {
+              buttons: [
+                { type: 'URL', text: 'Ver oferta', url: 'https://a.com/{{1}}' },
+              ],
+            },
+          ],
+        })
+      );
+      const { errors } = useTemplateValidation(form);
+      expect(errors.value.join(' ')).not.toMatch(/Tarjeta 1/i);
     });
   });
 });

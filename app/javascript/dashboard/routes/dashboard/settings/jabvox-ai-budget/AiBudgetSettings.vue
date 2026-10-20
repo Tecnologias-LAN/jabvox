@@ -93,6 +93,9 @@ const modelsByProvider = computed(() => {
     .sort((a, b) => a.provider.localeCompare(b.provider));
 });
 
+// ¿El Super Admin limitó esta cuenta a una lista concreta de modelos?
+const isRestricted = computed(() => teamModels.value.length > 0);
+
 // Marca o desmarca de golpe todos los modelos de un proveedor.
 const toggleProvider = (list, models) => {
   const allSelected = models.every(m => list.includes(m));
@@ -430,6 +433,74 @@ onMounted(fetchAll);
             <p class="text-sm leading-relaxed text-n-slate-12">
               {{ t('JABVOX_AI_BUDGET.UNLIMITED_HINT') }}
             </p>
+          </div>
+
+          <!-- Modelos disponibles: lo que el Super Admin dejó usar a esta cuenta.
+               Los nombres son los del proveedor, tal cual, para que coincidan con LiteLLM. -->
+          <div
+            class="overflow-hidden rounded-2xl border border-n-weak bg-n-solid-1 shadow-sm"
+          >
+            <div
+              class="flex flex-wrap items-center gap-2 border-b border-n-weak px-5 py-4 sm:px-6"
+            >
+              <span class="i-lucide-boxes size-5 shrink-0 text-n-slate-11" />
+              <h2 class="text-base font-semibold text-n-slate-12">
+                {{ t('JABVOX_AI_BUDGET.ALLOWED_TITLE') }}
+              </h2>
+              <Label
+                v-if="isRestricted"
+                :label="t('JABVOX_AI_BUDGET.RESTRICTED_BADGE')"
+                color="amber"
+                compact
+              />
+              <span class="ml-auto text-xs text-n-slate-10">
+                {{
+                  t('JABVOX_AI_BUDGET.MODELS_COUNT', {
+                    count: selectableModels.length,
+                  })
+                }}
+              </span>
+            </div>
+            <div class="px-5 py-5 sm:px-6">
+              <p class="mb-3 text-sm leading-relaxed text-n-slate-11">
+                {{
+                  isRestricted
+                    ? t('JABVOX_AI_BUDGET.ALLOWED_RESTRICTED')
+                    : t('JABVOX_AI_BUDGET.ALLOWED_ALL')
+                }}
+              </p>
+
+              <p
+                v-if="!selectableModels.length"
+                class="text-sm text-n-slate-11"
+              >
+                {{ t('JABVOX_AI_BUDGET.ALLOWED_NONE') }}
+              </p>
+
+              <!-- Agrupados por proveedor, con el nombre exacto del modelo en el proxy -->
+              <div v-else class="flex flex-col gap-3">
+                <div
+                  v-for="group in modelsByProvider"
+                  :key="group.provider"
+                  class="flex flex-wrap items-baseline gap-x-3 gap-y-2"
+                >
+                  <span
+                    class="w-full text-xs font-semibold uppercase tracking-wide text-n-slate-11 sm:w-24 sm:shrink-0"
+                  >
+                    {{ group.provider }}
+                  </span>
+                  <div class="flex min-w-0 flex-1 flex-wrap gap-2">
+                    <code
+                      v-for="m in group.models"
+                      :key="m"
+                      class="rounded-md bg-n-alpha-2 px-2 py-0.5 font-mono text-xs text-n-slate-12"
+                    >
+                      {{ m }}
+                    </code>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Crear virtual key -->

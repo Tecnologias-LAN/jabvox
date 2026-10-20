@@ -126,6 +126,267 @@ module Jabvox::Hermes::ServiceHandlers
     { conversations: rows, next_before_id: rows.last&.dig(:id) }
   end
 
+  # Tope de mensajes por conversación cuando se pide la ventana de historial (with_messages),
+  # para que una conversación enorme no sature la respuesta del agente.
+  MESSAGES_WINDOW_CAP = 30
+
+  # Ventana de mensajes de UNA conversación para armar "el resumen de hoy": los mensajes del
+  # rango efectivo (hoy por defecto, o since/until/last_*), sin notas privadas, orden cronológico,
+  # topados a MESSAGES_WINDOW_CAP. Si no se pide rango, cae a los últimos del día de hoy.
+  def conversation_messages_window(conv, params)
+    from, to = effective_range(params)
+    from ||= Time.current.beginning_of_day
+    msgs = conv.messages.where(private: false).where.not(message_type: :activity)
+    msgs = msgs.where('messages.created_at >= ?', from)
+    msgs = msgs.where('messages.created_at <= ?', to) if to
+    msgs.order(created_at: :asc).last(MESSAGES_WINDOW_CAP)
+        .map { |m| { role: m.message_type, content: m.content, at: m.created_at } }
+  end
+
+  # Conversaciones SIN RESPONDER desde hace N tiempo: el cliente escribió y el agente aún no
+  # contesta. Se apoya en la columna `waiting_since` que Message ya mantiene (se setea cuando
+  # entra un mensaje del cliente y se limpia cuando el agente responde), así que es el instante
+  # exacto desde el que la conversación lleva esperando respuesta.
+  #
+  # El umbral se pasa relativo (last_minutes/last_hours/last_days): "sin responder hace más de
+  # 5 horas" => last_hours:5. Sin umbral, devuelve todas las que estén esperando respuesta.
+  # Acota opcionalmente por bandeja (inbox_id). Incluye el texto del último mensaje del cliente;
+  # con `with_messages=true` incluye además la ventana de mensajes de hoy (para el resumen).
+  def unanswered_conversations(params)
+    threshold = relative_threshold(params)
+    with_messages = ActiveModel::Type::Boolean.new.cast(params[:with_messages])
+    scope = @account.conversations.includes(:contact, :assignee).where.not(waiting_since: nil)
+    scope = scope.where(inbox_id: params[:inbox_id]) if params[:inbox_id].to_i.positive?
+    scope = scope.where('conversations.waiting_since <= ?', threshold) if threshold
+    limit = capped_limit(params, default: 25)
+
+    rows = scope.order(waiting_since: :asc).limit(limit).map do |c|
+      waiting_minutes = ((Time.current - c.waiting_since) / 60).round
+      last_incoming = c.messages.where(message_type: :incoming, private: false).order(created_at: :desc).first
+      row = { id: c.id, display_id: c.display_id, status: c.status, inbox_id: c.inbox_id,
+              contact: c.contact && { id: c.contact.id, name: c.contact.name },
+              assignee: c.assignee && { id: c.assignee.id, name: c.assignee.name },
+              waiting_since: c.waiting_since, waiting_minutes: waiting_minutes,
+              last_message: last_incoming && { content: last_incoming.content, at: last_incoming.created_at } }
+      row[:messages] = conversation_messages_window(c, params) if with_messages
+      row
+    end
+    { conversations: rows, count: rows.size, threshold: threshold }
+  end
+
+  # Últimas conversaciones que tuvieron actividad, CON el texto del último mensaje. Responde
+  # directamente "los últimos N que escribieron y qué dijeron" en una sola llamada (list_conversations
+  # no trae el texto y ordena por id, no por actividad). Orden por last_activity_at desc.
+  # `incoming_only` (por defecto true) toma el último mensaje DEL CLIENTE; en false toma el último
+  # mensaje cualquiera. `with_messages=true` añade la ventana de mensajes de hoy/del rango por
+  # conversación (para "el resumen de hoy"). Acota por bandeja y por rango de fechas opcional.
+  def recent_conversations_with_message(params)
+    incoming_only = params.key?(:incoming_only) ? ActiveModel::Type::Boolean.new.cast(params[:incoming_only]) : true
+    with_messages = ActiveModel::Type::Boolean.new.cast(params[:with_messages])
+    scope = @account.conversations.includes(:contact, :assignee)
+    scope = scope.where(inbox_id: params[:inbox_id]) if params[:inbox_id].to_i.positive?
+    scope = filter_by_effective_range(scope, params, column: :last_activity_at)
+    limit = capped_limit(params, default: 10)
+
+    rows = scope.order(last_activity_at: :desc).limit(limit).map do |c|
+      msgs = c.messages.where(private: false)
+      msgs = msgs.where(message_type: :incoming) if incoming_only
+      last = msgs.order(created_at: :desc).first
+      row = { id: c.id, display_id: c.display_id, status: c.status, inbox_id: c.inbox_id,
+              contact: c.contact && { id: c.contact.id, name: c.contact.name },
+              assignee: c.assignee && { id: c.assignee.id, name: c.assignee.name },
+              last_activity_at: c.last_activity_at,
+              last_message: last && { content: last.content, message_type: last.message_type, at: last.created_at } }
+      row[:messages] = conversation_messages_window(c, params) if with_messages
+      row
+    end
+    { conversations: rows, count: rows.size }
+  end
+
+  # Conteo de mensajes POR TIPO DE CONTENIDO: texto vs multimedia (audio/imagen/documento/vídeo).
+  # El tipo multimedia NO vive en Message.content_type (que es texto/formularios), sino en los
+  # ATTACHMENTS (file_type). Por eso se cuentan dos cosas: mensajes de texto (sin adjunto) y
+  # adjuntos agrupados por su file_type. Acota por bandeja, por dirección (incoming/outgoing) y
+  # por rango de fechas. Scoped a la cuenta.
+  def messages_by_content_type(params)
+    msg_scope = @account.messages
+    msg_scope = msg_scope.joins(:conversation).where(conversations: { inbox_id: params[:inbox_id] }) if params[:inbox_id].to_i.positive?
+    if params[:message_type].present? && Message.message_types.key?(params[:message_type])
+      msg_scope = msg_scope.where(message_type: params[:message_type])
+    end
+    msg_scope = filter_by_date(msg_scope, params, column: :created_at)
+
+    total = msg_scope.count
+    # DISTINCT por id (no por la fila entera): messages tiene columnas json que PG no puede
+    # comparar en un SELECT DISTINCT messages.*.
+    with_attachments = msg_scope.joins(:attachments).distinct.count('messages.id')
+    text_only = total - with_attachments
+    # .group sobre un enum de Rails devuelve las claves como NOMBRE (string), no el entero.
+    by_file_type = Attachment.where(message_id: msg_scope.select('messages.id')).group(:file_type).count
+
+    {
+      total: total,
+      text_only: text_only,
+      with_attachments: with_attachments,
+      attachments_by_type: {
+        audio: by_file_type['audio'].to_i,
+        image: by_file_type['image'].to_i,
+        video: by_file_type['video'].to_i,
+        document: by_file_type['file'].to_i,
+        other: by_file_type.reject { |k, _| %w[audio image video file].include?(k.to_s) }.values.sum
+      },
+      since: params[:since].presence, until: params[:until].presence
+    }
+  end
+
+  # Rendimiento REAL por agente en un rango: por cada agente de la cuenta, mensajes salientes,
+  # notas privadas, conversaciones asignadas y resueltas. El report_agents_summary existente
+  # solo da agregados de cuenta; este desglosa por agente. Scoped a la cuenta. Todo agregado en
+  # SQL (GROUP BY ... COUNT), no trae filas a Ruby: escala con muchas cuentas. Si se pasa
+  # `agent_id`, limita el resultado a ese agente. Acota por rango de fechas.
+  def agent_performance(params)
+    agents = @account.users.order(:name)
+    agents = agents.where(id: params[:agent_id].to_i) if params[:agent_id].to_i.positive?
+    agents = agents.to_a
+
+    # .reorder(nil): los scopes por defecto ordenan por created_at; en una consulta GROUP BY
+    # agregada ese ORDER BY rompe en PG ("must appear in GROUP BY"). Se quita para agrupar.
+    # El rango acepta tanto fechas absolutas (since/until) como relativas (last_days/hours/minutes).
+    outgoing = @account.messages.where(message_type: :outgoing, sender_type: 'User').reorder(nil)
+    outgoing = filter_by_effective_range(outgoing, params, column: :created_at)
+    messages_by_sender = outgoing.where(private: false).group(:sender_id).count
+    notes_by_sender = outgoing.where(private: true).group(:sender_id).count
+
+    assigned_by_agent = @account.conversations.where.not(assignee_id: nil).reorder(nil).group(:assignee_id).count
+
+    resolved_scope = @account.conversations.where(status: :resolved).where.not(assignee_id: nil).reorder(nil)
+    resolved_scope = filter_by_effective_range(resolved_scope, params, column: :updated_at)
+    resolved_by_agent = resolved_scope.group(:assignee_id).count
+
+    rows = agents.map do |u|
+      { agent_id: u.id, name: u.name,
+        messages_sent: messages_by_sender[u.id].to_i,
+        private_notes: notes_by_sender[u.id].to_i,
+        conversations_assigned: assigned_by_agent[u.id].to_i,
+        conversations_resolved: resolved_by_agent[u.id].to_i }
+    end
+    { agents: rows, agents_total: rows.size,
+      since: params[:since].presence, until: params[:until].presence }
+  end
+
+  # Últimos mensajes escritos por UN agente concreto (los que envió, no los que recibió).
+  # Responde "qué ha dicho el agente tal últimamente". Incluye a qué conversación pertenece
+  # cada uno. `include_notes` (por defecto false) excluye notas privadas; en true las incluye.
+  # Acota por bandeja y rango de fechas. Scoped a la cuenta. Topado a MAX_ROWS.
+  def agent_messages(params)
+    agent = @account.users.find(params[:agent_id])
+    include_notes = ActiveModel::Type::Boolean.new.cast(params[:include_notes])
+    scope = @account.messages.where(sender_type: 'User', sender_id: agent.id, message_type: :outgoing)
+    scope = scope.where(private: false) unless include_notes
+    scope = scope.joins(:conversation).where(conversations: { inbox_id: params[:inbox_id] }) if params[:inbox_id].to_i.positive?
+    scope = filter_by_effective_range(scope, params, column: :created_at)
+    limit = capped_limit(params, default: 20)
+
+    rows = scope.reorder(created_at: :desc).limit(limit).map do |m|
+      { id: m.id, conversation_id: m.conversation&.display_id, content: m.content,
+        private: m.private, created_at: m.created_at }
+    end
+    { agent: { id: agent.id, name: agent.name }, messages: rows, count: rows.size }
+  end
+
+  # Tiempo que un agente ha estado conectado (estado de app), con duración real a partir del
+  # histórico jabvox_app_state_logs (started_at/ended_at). Para "cuánto lleva/llevó conectado":
+  # por defecto hoy (zona de la cuenta); con since/until, el rango dado. Suma los tramos cerrados
+  # y, si hay un tramo abierto (ended_at nil), lo cuenta hasta ahora. También reporta el estado
+  # actual online/offline (Redis). Scoped a cuenta+agente, usando el índice (account_id,user_id,started_at).
+  def agent_online_time(params)
+    agent = @account.users.find(params[:agent_id])
+    # Acepta relativo (last_hours/days) o absoluto (since/until); sin nada, hoy.
+    range_from, range_to = effective_range(params)
+    from = range_from || Time.current.beginning_of_day
+    to   = range_to || Time.current
+
+    logs = JabvoxAppStateLog.where(account_id: @account.id, user_id: agent.id)
+                            .where('started_at <= ?', to)
+                            .where('ended_at IS NULL OR ended_at >= ?', from)
+    total_seconds = logs.sum do |log|
+      seg_start = [log.started_at, from].max
+      seg_end   = [log.ended_at || Time.current, to].min
+      [(seg_end - seg_start).to_i, 0].max
+    end
+    online_now = begin
+      OnlineStatusTracker.get_available_users(@account.id).key?(agent.id.to_s) ||
+        OnlineStatusTracker.get_available_users(@account.id).key?(agent.id)
+    rescue StandardError
+      nil
+    end
+    { agent: { id: agent.id, name: agent.name },
+      connected_seconds: total_seconds,
+      connected_minutes: (total_seconds / 60.0).round(1),
+      connected_hours: (total_seconds / 3600.0).round(2),
+      sessions: logs.size, online_now: online_now,
+      since: from, until: to }
+  end
+
+  # Ventas (pedidos doc_type=SALE) con su agente (created_by) y su cliente, para "las últimas
+  # ventas, a quién pertenecen". Por defecto solo ventas; doc_type='QUOTE' para cotizaciones, o
+  # 'ALL' para ambas. Acota por agente, estado, rango de fechas. Scoped a cuenta. Topado a MAX_ROWS.
+  # Incluye un agregado de total vendido para el periodo consultado.
+  def sales_by_agent(params)
+    doc = params[:doc_type].to_s.upcase
+    scope = @account.jabvox_orders.includes(:contact)
+    scope = scope.where(doc_type: if doc.presence == 'ALL'
+                                    JabvoxOrder::DOC_TYPES
+                                  else
+                                    (JabvoxOrder::DOC_TYPES.include?(doc) ? doc : 'SALE')
+                                  end)
+    scope = scope.where(created_by_id: params[:agent_id].to_i) if params[:agent_id].to_i.positive?
+    scope = scope.where(status: params[:status]) if params[:status].present?
+    scope = filter_by_effective_range(scope, params, column: :created_at)
+    limit = capped_limit(params, default: 20)
+
+    agent_names = @account.users.where(id: scope.distinct.pluck(:created_by_id).compact).pluck(:id, :name).to_h
+    rows = scope.reorder(created_at: :desc).limit(limit).map do |o|
+      { id: o.id, doc_type: o.doc_type, status: o.status, total: o.total,
+        agent: o.created_by_id && { id: o.created_by_id, name: agent_names[o.created_by_id] },
+        contact: o.contact && { id: o.contact.id, name: o.contact.name },
+        created_at: o.created_at }
+    end
+    { orders: rows, count: rows.size,
+      total_amount: scope.sum(:total),
+      since: params[:since].presence, until: params[:until].presence }
+  end
+
+  # Métricas que admite la serie diaria.
+  DAILY_METRICS = %w[messages messages_incoming messages_outgoing private_notes sales conversations_resolved].freeze
+
+  # Serie POR DÍA de una métrica en un rango: "cuántos mensajes/ventas por día esta semana".
+  # Agrupa en SQL por día (zona de la cuenta) — no trae filas a Ruby, escala. Rango por since/until
+  # o relativo (last_days). Métrica elegible (`metric`), opcional por agente (agent_id) y bandeja.
+  # Devuelve un mapa { "YYYY-MM-DD" => valor } con los días del rango.
+  def daily_series(params)
+    metric = DAILY_METRICS.include?(params[:metric].to_s) ? params[:metric].to_s : 'messages'
+    since_at, until_at = effective_range(params)
+    since_at ||= 7.days.ago.beginning_of_day
+    until_at ||= Time.current
+    # Account no tiene timezone propia (es por inbox). Se permite override por param y, si no,
+    # se usa la zona por defecto de la app (configurada para Jabvox), cayendo a UTC.
+    tzone = daily_series_timezone(params[:timezone])
+
+    series =
+      case metric
+      when 'sales'
+        sales_daily_series(params, since_at, until_at, tzone)
+      when 'conversations_resolved'
+        conversations_resolved_daily_series(params, since_at, until_at, tzone)
+      else
+        messages_daily_series(metric, params, since_at, until_at, tzone)
+      end
+
+    { metric: metric, timezone: tzone, by_day: series.transform_keys(&:to_s),
+      total: series.values.sum, since: since_at, until: until_at }
+  end
+
   # Material listo para que Hermes resuma: metadatos + últimos mensajes (sin notas
   # privadas). No llama al LLM — Hermes hace el resumen con este contexto.
   def summarize_conversation(params)
@@ -147,17 +408,31 @@ module Jabvox::Hermes::ServiceHandlers
     conv = find_conversation(params[:id])
     msg = conv.messages.create!(
       account_id: @account.id, message_type: :outgoing, content: params[:content],
-      sender: @user, inbox_id: conv.inbox_id,
-      # Marca el mensaje como enviado por Hermes (bot), no por el usuario técnico ligado.
-      # El front muestra este nombre en vez del del usuario.
+      # El AUTOR visible es el AgentBot "Hermes" (nombre propio, no un agente humano).
+      # La autorización ya se resolvió antes con @user; aquí solo se marca la autoría.
+      sender: hermes_sender, inbox_id: conv.inbox_id,
       additional_attributes: hermes_message_attrs
     )
     { id: msg.id, conversation_id: conv.display_id }
   end
 
   # Atributos que identifican un mensaje/nota como enviado por el agente Hermes.
+  # Se mantienen por compatibilidad con el panel propio (JabvoxConversationHistory) y se
+  # añade senderName (camelCase) que es el que lee el bubble estándar de Chatwoot.
   def hermes_message_attrs
-    { 'sent_by_hermes' => true, 'hermes_agent_name' => @hermes_name }
+    { 'sent_by_hermes' => true, 'hermes_agent_name' => HERMES_DISPLAY_NAME, 'senderName' => HERMES_DISPLAY_NAME }
+  end
+
+  # Nombre visible del agente IA en el CRM. Fijo "Hermes" (ignora el name_jabvox técnico
+  # tipo "hermes_account_N"). Si en el futuro se quiere configurable, se cambia aquí.
+  HERMES_DISPLAY_NAME = 'Hermes'
+
+  # AgentBot "Hermes" de la cuenta (autor visible de las respuestas de la IA). Se crea una vez
+  # por cuenta y se reutiliza; distingue inequívocamente a Hermes de los agentes humanos.
+  def hermes_sender
+    @hermes_sender ||= @account.agent_bots.find_or_create_by!(name: HERMES_DISPLAY_NAME) do |bot|
+      bot.description = 'Agente IA (Hermes) de Jabvox'
+    end
   end
 
   # Nota privada en una conversación (mensaje interno, no visible al cliente).
@@ -165,7 +440,7 @@ module Jabvox::Hermes::ServiceHandlers
     conv = find_conversation(params[:id])
     msg = conv.messages.create!(
       account_id: @account.id, message_type: :outgoing, content: params[:content],
-      private: true, sender: @user, inbox_id: conv.inbox_id,
+      private: true, sender: hermes_sender, inbox_id: conv.inbox_id,
       additional_attributes: hermes_message_attrs
     )
     { id: msg.id, conversation_id: conv.display_id, private: true }
@@ -255,6 +530,24 @@ module Jabvox::Hermes::ServiceHandlers
     inbox = @account.inboxes.find(params[:inbox_id]) # scoped → no cross-account
     hook = upsert_hermes_webhook(webhook_type: :inbox_type, inbox_id: inbox.id)
     hermes_webhook_setup(hook).merge(inbox_id: inbox.id)
+  end
+
+  # Reglas de respuesta del webhook: define CUÁNDO responde Hermes. Solo normaliza las claves
+  # conocidas (allowed_inbox_ids, excluded_labels, within_working_hours); ignora cualquier otra.
+  # scoped a @account → no cross-account. No borra. Devuelve la vista segura del webhook.
+  def update_webhook_conditions(params)
+    hook = @account.webhooks.find(params[:id])
+    raw = params[:conditions].is_a?(Hash) ? params[:conditions] : {}
+    hook.update!(conditions: sanitize_webhook_conditions(raw))
+    webhook_view(hook)
+  end
+
+  def sanitize_webhook_conditions(raw)
+    {
+      'allowed_inbox_ids' => Array(raw['allowed_inbox_ids'] || raw[:allowed_inbox_ids]).map(&:to_i).reject(&:zero?).uniq,
+      'excluded_labels' => Array(raw['excluded_labels'] || raw[:excluded_labels]).map { |l| l.to_s.strip }.reject(&:blank?).uniq,
+      'within_working_hours' => ActiveModel::Type::Boolean.new.cast(raw['within_working_hours'] || raw[:within_working_hours]) || false
+    }
   end
 
   # Devuelve la configuración COMPLETA para que Hermes valide los webhooks entrantes de
@@ -383,7 +676,8 @@ module Jabvox::Hermes::ServiceHandlers
   # --- vistas seguras ---
 
   def webhook_view(hook)
-    { id: hook.id, url: hook.url, webhook_type: hook.webhook_type, subscriptions: hook.subscriptions }
+    { id: hook.id, url: hook.url, webhook_type: hook.webhook_type, subscriptions: hook.subscriptions,
+      inbox_id: hook.inbox_id, conditions: hook.conditions }
   end
 
   def sms_view(campaign)
@@ -1146,8 +1440,8 @@ module Jabvox::Hermes::ServiceHandlers
                     'category' => template.try(:category), 'language' => template.try(:language) }
     msg = conversation.messages.create!(
       account_id: @account.id, inbox_id: inbox.id, message_type: :outgoing,
-      content: template.try(:body) || template.try(:name_jabvox).to_s, sender: @user,
-      additional_attributes: { 'template_params' => tmpl_params.compact, 'sent_by_hermes' => true, 'hermes_agent_name' => @hermes_name }
+      content: template.try(:body) || template.try(:name_jabvox).to_s, sender: hermes_sender,
+      additional_attributes: { 'template_params' => tmpl_params.compact }.merge(hermes_message_attrs)
     )
     SendReplyJob.perform_later(msg.id)
     { sent: true, message_id: msg.id, conversation_id: conversation.display_id, contact_id: contact.id }
@@ -2168,6 +2462,44 @@ module Jabvox::Hermes::ServiceHandlers
     raise Jabvox::Hermes::ServiceLayer::UnknownAction, 'la fuente de datos no existe en esta cuenta' if id.nil?
 
     id
+  end
+
+  # --- Helpers de daily_series (agrupan por día con groupdate, en la zona de la cuenta) ---
+
+  # Zona horaria para agrupar por día: la que pida el param si es válida, si no la zona por
+  # defecto de la app (Time.zone), cayendo a UTC. Valida contra la lista de zonas conocidas
+  # para no pasar una cadena arbitraria a groupdate/PG.
+  def daily_series_timezone(requested)
+    name = requested.to_s.strip
+    return name if name.present? && ActiveSupport::TimeZone[name].present?
+
+    Time.zone&.name.presence || 'UTC'
+  end
+
+  def messages_daily_series(metric, params, since_at, until_at, tzone)
+    scope = @account.messages.reorder(nil)
+                    .where('messages.created_at >= ? AND messages.created_at <= ?', since_at, until_at)
+    scope = scope.where(message_type: :incoming) if metric == 'messages_incoming'
+    scope = scope.where(message_type: :outgoing) if metric == 'messages_outgoing'
+    scope = scope.where(private: true, sender_type: 'User') if metric == 'private_notes'
+    scope = scope.where(sender_type: 'User', sender_id: params[:agent_id].to_i) if params[:agent_id].to_i.positive?
+    scope = scope.joins(:conversation).where(conversations: { inbox_id: params[:inbox_id] }) if params[:inbox_id].to_i.positive?
+    scope.group_by_day('messages.created_at', time_zone: tzone).count
+  end
+
+  def sales_daily_series(params, since_at, until_at, tzone)
+    scope = @account.jabvox_orders.reorder(nil).where(doc_type: 'SALE')
+                    .where('jabvox_orders.created_at >= ? AND jabvox_orders.created_at <= ?', since_at, until_at)
+    scope = scope.where(created_by_id: params[:agent_id].to_i) if params[:agent_id].to_i.positive?
+    scope.group_by_day('jabvox_orders.created_at', time_zone: tzone).sum(:total)
+  end
+
+  def conversations_resolved_daily_series(params, since_at, until_at, tzone)
+    scope = @account.conversations.reorder(nil).where(status: :resolved)
+                    .where('conversations.updated_at >= ? AND conversations.updated_at <= ?', since_at, until_at)
+    scope = scope.where(assignee_id: params[:agent_id].to_i) if params[:agent_id].to_i.positive?
+    scope = scope.where(inbox_id: params[:inbox_id]) if params[:inbox_id].to_i.positive?
+    scope.group_by_day('conversations.updated_at', time_zone: tzone).count
   end
 end
 # rubocop:enable Metrics/ModuleLength

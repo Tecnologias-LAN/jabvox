@@ -613,7 +613,11 @@ class Jabvox::WhatsappTemplatesManager
 
   # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
   def build_buttons_component(buttons)
-    list = Array(buttons).select { |b| (b[:text] || b['text']).to_s.present? }
+    # COPY_CODE no trae texto (Meta se lo fija más abajo); se conserva aunque
+    # `text` venga vacío. Filtrarlo aquí lo eliminaría antes de construirlo.
+    list = Array(buttons).select do |b|
+      (b[:text] || b['text']).to_s.present? || (b[:type] || b['type']).to_s == 'COPY_CODE'
+    end
     return nil if list.empty?
 
     {
@@ -774,11 +778,58 @@ class Jabvox::WhatsappTemplatesManager
     'VOICE_CALL' => 1, 'COPY_CODE' => 1, 'OTP' => 1
   }.freeze
 
+  # Topes de longitud por campo de botón (los mismos que impone Meta). El
+  # frontend (useTemplateValidation.js) ya los valida en vivo, pero el backend
+  # revalida para no depender del cliente: un POST directo a la API con una URL
+  # de 3000 caracteres debe fallar aquí, no tarde en Meta.
+  BUTTON_TEXT_MAX = 25
+  BUTTON_URL_MAX = 2000
+  BUTTON_PHONE_MAX = 20
+  BUTTON_COPY_CODE_MAX = 20
+
+  # Cuenta por grafemas (clusters), igual que el frontend con Intl.Segmenter: un
+  # emoji compuesto ("👨‍👩‍👧") cuenta como 1, no como sus code points. Así el tope
+  # de caracteres coincide con lo que el usuario ve y con lo que Meta mide.
+  def grapheme_length(value)
+    value.to_s.grapheme_clusters.length
+  end
+
+  # Revalida la longitud de cada campo del botón según su tipo. Devuelve el
+  # primer mensaje de error o nil. `prefix` identifica el botón en el mensaje
+  # (p. ej. "Botón 2" o "Card 1, botón 1").
+  # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+  def button_length_error(btn, prefix)
+    type = (btn[:type] || btn['type']).to_s
+    text = (btn[:text] || btn['text']).to_s
+    # COPY_CODE no lleva texto editable (Meta lo fija), se exceptúa del tope de texto.
+    text_over = type != 'COPY_CODE' && grapheme_length(text) > BUTTON_TEXT_MAX
+    return "#{prefix}: el texto no puede superar #{BUTTON_TEXT_MAX} caracteres." if text_over
+
+    case type
+    when 'URL'
+      url = (btn[:url] || btn['url']).to_s
+      return "#{prefix}: la URL no puede superar #{BUTTON_URL_MAX} caracteres." if grapheme_length(url) > BUTTON_URL_MAX
+    when 'PHONE_NUMBER', 'VOICE_CALL'
+      phone = (btn[:phone_number] || btn['phone_number']).to_s
+      return "#{prefix}: el número no puede superar #{BUTTON_PHONE_MAX} caracteres." if grapheme_length(phone) > BUTTON_PHONE_MAX
+    when 'COPY_CODE'
+      code = (btn[:example] || btn['example']).to_s
+      return "#{prefix}: el código no puede superar #{BUTTON_COPY_CODE_MAX} caracteres." if grapheme_length(code) > BUTTON_COPY_CODE_MAX
+    end
+
+    nil
+  end
+  # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+
   # Valida ANTES de llamar a Meta: tope 10, límites por tipo, COPY_CODE exclusivo,
   # PHONE_NUMBER/VOICE_CALL mutuamente excluyentes, y agrupación por tipo contiguo.
   # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
   def validate_buttons!(buttons)
-    list = Array(buttons).select { |b| (b[:text] || b['text']).to_s.present? }
+    # COPY_CODE no trae texto propio (Meta lo fija), así que se cuenta igual que
+    # el resto para los topes y reglas de combinación.
+    list = Array(buttons).select do |b|
+      (b[:text] || b['text']).to_s.present? || (b[:type] || b['type']).to_s == 'COPY_CODE'
+    end
     return nil if list.empty?
 
     return "Máximo 10 botones combinados (hay #{list.length})." if list.length > BUTTON_MAX_TOTAL
@@ -795,6 +846,11 @@ class Jabvox::WhatsappTemplatesManager
     end
 
     return 'Los botones del mismo tipo deben ir agrupados (no intercalados con otros tipos).' unless grouped_by_type?(types)
+
+    list.each_with_index do |b, i|
+      err = button_length_error(b, "Botón #{i + 1}")
+      return err if err
+    end
 
     nil
   end
@@ -828,11 +884,14 @@ class Jabvox::WhatsappTemplatesManager
       return "Card #{i + 1}: el header debe ser IMAGE o VIDEO." unless CARD_ALLOWED_HEADER_TYPES.include?(card[:header_type].to_s)
 
       card_buttons = Array(card[:buttons])
-      card_buttons.each do |b|
+      card_buttons.each_with_index do |b, bi|
         b = b.to_h.with_indifferent_access
         if CARD_FORBIDDEN_BUTTON_TYPES.include?(b[:type].to_s)
           return "Card #{i + 1}: el tipo de botón #{b[:type]} no está permitido dentro de una card (solo QUICK_REPLY/URL/PHONE_NUMBER)."
         end
+
+        len_err = button_length_error(b, "Card #{i + 1}, botón #{bi + 1}")
+        return len_err if len_err
       end
       return "Card #{i + 1}: máximo 2 botones." if card_buttons.size > 2
 

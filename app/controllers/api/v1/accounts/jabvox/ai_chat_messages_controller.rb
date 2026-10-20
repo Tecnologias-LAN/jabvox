@@ -85,10 +85,12 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
       metadata_jabvox: { mode: mode, model: model_record.model_jabvox }
     )
 
+    # account_id DEBE ir dentro de data: el front valida data.account_id en isAValidEvent;
+    # fuera de data el evento se descarta en silencio (regla ActionCable de Jabvox).
     ActionCable.server.broadcast(current_user.pubsub_token, {
                                    event: 'jabvox.ai_chat.response_created',
-                                   account_id: Current.account.id,
-                                   data: { session_id: session_id, message: message_json(assistant_msg) }
+                                   data: { account_id: Current.account.id, session_id: session_id,
+                                           message: message_json(assistant_msg) }
                                  })
 
     render json: { session_id: session_id, message: message_json(assistant_msg) }, status: :created

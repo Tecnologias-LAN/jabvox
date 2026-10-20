@@ -56,6 +56,13 @@
     "NO_MODELS": "El proveedor no reportó modelos disponibles.",
     "KEYS_ERROR": "No se pudieron cargar las virtual keys: el proveedor no respondió a tiempo. Tu saldo sí está actualizado.",
     "RETRY": "Reintentar",
-    "SELECT_ALL": "todos"
+    "SELECT_ALL": "todos",
+    "ALLOWED_TITLE": "Modelos disponibles para esta cuenta",
+    "ALLOWED_RESTRICTED": "Tu administrador limitó esta cuenta a los modelos de abajo. Las keys solo pueden usar estos.",
+    "ALLOWED_ALL": "Esta cuenta puede usar todos los modelos del proveedor.",
+    "ALLOWED_NONE": "El proveedor no reportó modelos. Contacta a tu administrador.",
+    "RESTRICTED_BADGE": "Restringida",
+    "PROVIDER_LABEL": "Proveedor",
+    "MODELS_COUNT": "{count} modelo(s)"
   }
 }

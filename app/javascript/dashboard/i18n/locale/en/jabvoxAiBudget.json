@@ -56,6 +56,13 @@
     "NO_MODELS": "The provider reported no available models.",
     "KEYS_ERROR": "Could not load the virtual keys: the provider did not respond in time. Your balance is up to date.",
     "RETRY": "Retry",
-    "SELECT_ALL": "all"
+    "SELECT_ALL": "all",
+    "ALLOWED_TITLE": "Models available to this account",
+    "ALLOWED_RESTRICTED": "Your administrator limited this account to the models below. Keys can only use these.",
+    "ALLOWED_ALL": "This account can use every model on the provider.",
+    "ALLOWED_NONE": "The provider reported no models. Contact your administrator.",
+    "RESTRICTED_BADGE": "Restricted",
+    "PROVIDER_LABEL": "Provider",
+    "MODELS_COUNT": "{count} model(s)"
   }
 }

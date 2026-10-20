@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_06_110000) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_18_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1437,6 +1437,33 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_06_110000) do
     t.index ["created_by_id"], name: "index_jabvox_app_states_on_created_by_id"
   end
 
+  create_table "jabvox_audio_advisors", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.string "external_id"
+    t.bigint "user_id"
+    t.boolean "active", default: true, null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "external_id"], name: "index_audio_advisors_on_account_and_external_id", unique: true
+    t.index ["account_id"], name: "index_jabvox_audio_advisors_on_account_id"
+  end
+
+  create_table "jabvox_audio_anatomy_criteria", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.text "description", default: "", null: false
+    t.text "positive_signal", default: "", null: false
+    t.text "opportunity_signal", default: "", null: false
+    t.integer "position", default: 0, null: false
+    t.boolean "active", default: true, null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_audio_anatomy_criteria_on_account_id"
+  end
+
   create_table "jabvox_audio_assignments", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "storage_id", null: false
@@ -1452,6 +1479,46 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_06_110000) do
     t.index ["storage_id", "file_key"], name: "index_jabvox_audio_assignments_on_storage_id_and_file_key", unique: true
     t.index ["storage_id"], name: "index_jabvox_audio_assignments_on_storage_id"
     t.index ["typification_id"], name: "index_jabvox_audio_assignments_on_typification_id"
+  end
+
+  create_table "jabvox_audio_code_mappings", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "kind", null: false
+    t.string "code", null: false
+    t.bigint "typification_id"
+    t.bigint "advisor_id"
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "kind", "code"], name: "index_audio_code_mappings_on_account_kind_code", unique: true
+    t.index ["account_id"], name: "index_jabvox_audio_code_mappings_on_account_id"
+  end
+
+  create_table "jabvox_audio_filename_patterns", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.string "pattern", null: false
+    t.string "date_format", default: "%d-%m-%Y", null: false
+    t.boolean "active", default: true, null: false
+    t.integer "position", default: 0, null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_audio_filename_patterns_on_account_id"
+  end
+
+  create_table "jabvox_audio_infaltables", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "typification_id", null: false
+    t.text "text", null: false
+    t.integer "position", default: 0, null: false
+    t.boolean "optional", default: false, null: false
+    t.boolean "active", default: true, null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "typification_id"], name: "index_audio_infaltables_on_account_and_typification"
+    t.index ["account_id"], name: "index_jabvox_audio_infaltables_on_account_id"
   end
 
   create_table "jabvox_audio_jobs", force: :cascade do |t|
@@ -1503,6 +1570,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_06_110000) do
     t.string "timestamp_mode_jabvox", default: "none", null: false
     t.integer "segment_seconds_jabvox", default: 30, null: false
     t.bigint "created_by_id"
+    t.integer "review_threshold_jabvox", default: 60, null: false
+    t.boolean "qa_mode_jabvox", default: false, null: false
+    t.boolean "qa_reclassify_jabvox", default: true, null: false
+    t.integer "qa_infaltables_weight_jabvox", default: 100, null: false
+    t.integer "qa_anatomy_weight_jabvox", default: 0, null: false
     t.index ["account_id"], name: "index_jabvox_audio_pipelines_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_audio_pipelines_on_created_by_id"
     t.index ["transcription_model_id"], name: "index_jabvox_audio_pipelines_on_transcription_model_id"
@@ -1527,11 +1599,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_06_110000) do
     t.bigint "typification_id"
     t.jsonb "transcript_words_jabvox", default: [], null: false
     t.bigint "created_by_id"
+    t.jsonb "infaltables_result", default: [], null: false
+    t.jsonb "anatomy_result", default: [], null: false
+    t.integer "infaltables_score"
+    t.integer "infaltables_applicable"
+    t.integer "infaltables_met"
+    t.bigint "detected_typification_id"
+    t.jsonb "qa_summary", default: {}, null: false
+    t.string "review_status", default: "ok", null: false
+    t.bigint "advisor_id"
+    t.jsonb "parsed_metadata", default: {}, null: false
+    t.text "retypification_reason"
+    t.text "review_explanation"
+    t.integer "first_pass_score"
     t.index ["account_id"], name: "index_jabvox_audio_results_on_account_id"
+    t.index ["advisor_id"], name: "index_jabvox_audio_results_on_advisor_id"
     t.index ["assigned_agent_id"], name: "index_jabvox_audio_results_on_assigned_agent_id"
     t.index ["created_by_id"], name: "index_jabvox_audio_results_on_created_by_id"
+    t.index ["detected_typification_id"], name: "index_jabvox_audio_results_on_detected_typification_id"
     t.index ["job_id", "file_key"], name: "index_jabvox_audio_results_on_job_id_and_file_key"
     t.index ["job_id"], name: "index_jabvox_audio_results_on_job_id"
+    t.index ["review_status"], name: "index_jabvox_audio_results_on_review_status"
     t.index ["typification_id"], name: "index_jabvox_audio_results_on_typification_id"
   end
 
@@ -4366,6 +4454,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_06_110000) do
     t.jsonb "subscriptions", default: ["conversation_status_changed", "conversation_updated", "conversation_created", "contact_created", "contact_updated", "message_created", "message_updated", "webwidget_triggered"]
     t.string "name"
     t.string "secret"
+    t.jsonb "conditions", default: {}, null: false
     t.index ["account_id", "url"], name: "index_webhooks_on_account_id_and_url", unique: true
   end
 
@@ -4459,11 +4548,25 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_06_110000) do
   add_foreign_key "jabvox_app_state_logs", "accounts"
   add_foreign_key "jabvox_app_states", "accounts"
   add_foreign_key "jabvox_app_states", "users", column: "created_by_id"
+  add_foreign_key "jabvox_audio_advisors", "accounts"
+  add_foreign_key "jabvox_audio_advisors", "users"
+  add_foreign_key "jabvox_audio_advisors", "users", column: "created_by_id"
+  add_foreign_key "jabvox_audio_anatomy_criteria", "accounts"
+  add_foreign_key "jabvox_audio_anatomy_criteria", "users", column: "created_by_id"
   add_foreign_key "jabvox_audio_assignments", "accounts"
   add_foreign_key "jabvox_audio_assignments", "jabvox_audio_storages", column: "storage_id"
   add_foreign_key "jabvox_audio_assignments", "jabvox_typifications", column: "typification_id"
   add_foreign_key "jabvox_audio_assignments", "users", column: "agent_id"
   add_foreign_key "jabvox_audio_assignments", "users", column: "created_by_id"
+  add_foreign_key "jabvox_audio_code_mappings", "accounts"
+  add_foreign_key "jabvox_audio_code_mappings", "jabvox_audio_advisors", column: "advisor_id"
+  add_foreign_key "jabvox_audio_code_mappings", "jabvox_typifications", column: "typification_id"
+  add_foreign_key "jabvox_audio_code_mappings", "users", column: "created_by_id"
+  add_foreign_key "jabvox_audio_filename_patterns", "accounts"
+  add_foreign_key "jabvox_audio_filename_patterns", "users", column: "created_by_id"
+  add_foreign_key "jabvox_audio_infaltables", "accounts"
+  add_foreign_key "jabvox_audio_infaltables", "jabvox_typifications", column: "typification_id"
+  add_foreign_key "jabvox_audio_infaltables", "users", column: "created_by_id"
   add_foreign_key "jabvox_audio_jobs", "accounts"
   add_foreign_key "jabvox_audio_jobs", "jabvox_audio_pipelines", column: "pipeline_id"
   add_foreign_key "jabvox_audio_jobs", "jabvox_audio_storages", column: "storage_id"
@@ -4475,7 +4578,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_06_110000) do
   add_foreign_key "jabvox_audio_pipelines", "jabvox_typifications", column: "typification_id"
   add_foreign_key "jabvox_audio_pipelines", "users", column: "created_by_id"
   add_foreign_key "jabvox_audio_results", "accounts"
+  add_foreign_key "jabvox_audio_results", "jabvox_audio_advisors", column: "advisor_id"
   add_foreign_key "jabvox_audio_results", "jabvox_audio_jobs", column: "job_id"
+  add_foreign_key "jabvox_audio_results", "jabvox_typifications", column: "detected_typification_id"
   add_foreign_key "jabvox_audio_results", "jabvox_typifications", column: "typification_id"
   add_foreign_key "jabvox_audio_results", "users", column: "assigned_agent_id"
   add_foreign_key "jabvox_audio_results", "users", column: "created_by_id"

@@ -21,6 +21,9 @@ module ContactAgentVisibility
 
     def visible_to(account_user)
       return all if account_user.nil? || account_user.administrator?
+      # Agentes con el permiso "ver todos los contactos" (rol personalizado) ven
+      # todos, coherente con jabvox/contacts_list_controller y el envio masivo.
+      return all if JabvoxPermissions.user_grants_permission?(account_user, 'jabvox_contacts_view_all')
 
       user_id = account_user.user_id
       conversation_contact_ids = Conversation.where(account_id: account_user.account_id, assignee_id: user_id)

@@ -102,9 +102,33 @@
         se ligan automáticamente a su cuenta; el resto queda abajo como <em>sin cuenta</em>
         para que los ligues a mano. No borra nada ni pisa los saldos locales.
       </p>
-      <%= button_to 'Sincronizar ahora', sync_provider_super_admin_ai_provider_config_path,
-            method: :post, class: 'button',
-            data: { confirm: '¿Traer todos los teams del proveedor e importarlos a Jabvox?' } %>
+      <p style="font-size:12px; color:#374151; margin:0 0 12px;">
+        Esta pestaña ya se sincroniza sola al abrirla. Usa <strong>Actualizar</strong> si
+        acabas de crear algo en el proveedor y quieres verlo al instante.
+      </p>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <%= link_to 'Actualizar ahora',
+              super_admin_ai_provider_config_path(tab: 'accounts', resync: 1),
+              class: 'button' %>
+        <%= button_to 'Sincronizar (forzado)', sync_provider_super_admin_ai_provider_config_path,
+              method: :post, class: 'button', form_class: 'inline-block',
+              data: { confirm: '¿Traer todos los teams del proveedor e importarlos a Jabvox?' } %>
+      </div>
+
+      <!-- Resultado de la sincronización automática de esta carga -->
+      <% if @autosync_error.present? %>
+        <p style="font-size:12px; color:#b91c1c; margin:10px 0 0;">
+          ⚠️ No se pudo sincronizar: <%= @autosync_error %>
+          Se muestran los últimos datos guardados.
+        </p>
+      <% elsif @autosync.present? %>
+        <p style="font-size:12px; color:#15803d; margin:10px 0 0;">
+          ✓ Sincronizado con el proveedor:
+          <%= @autosync[:imported] %> importado(s),
+          <%= @autosync[:updated] %> actualizado(s),
+          <%= @autosync[:linked] %> ligado(s) automáticamente.
+        </p>
+      <% end %>
     </div>
 
     <!-- Crear team manualmente para CUALQUIER cuenta (sin depender del plan) -->
@@ -177,6 +201,67 @@
             <% end %>
           </tbody>
         </table>
+      </div>
+    <% end %>
+
+    <%# Virtual keys de UNA cuenta con su consumo (llega por ?show_keys=<account_id> desde el
+        boton "Virtual keys" de la tabla). El proveedor NUNCA devuelve la key en claro: solo
+        su alias, su hash (token_id), el gasto acumulado y el tope. %>
+    <% if @keys_account_id.present? %>
+      <div style="margin-bottom:24px; padding:16px; border:1px solid #c7d2fe; background:#eef2ff; border-radius:8px;">
+        <h2 style="font-size:15px; font-weight:600; margin:0 0 4px;">
+          Virtual keys de la cuenta #<%= @keys_account_id %>
+        </h2>
+        <% if @keys_error.present? %>
+          <p style="color:#b91c1c; margin:8px 0 0; font-size:13px;">Error: <%= @keys_error %></p>
+        <% elsif Array(@account_keys).empty? %>
+          <p style="color:#b45309; margin:8px 0 0; font-size:13px;">
+            Esta cuenta no tiene ninguna virtual key todavia.
+          </p>
+        <% else %>
+          <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; background:#fff;">
+            <thead>
+              <tr style="border-bottom:1px solid #e5e7eb; text-align:left;">
+                <th style="padding:8px;">Alias</th>
+                <th style="padding:8px;">Key (hash)</th>
+                <th style="padding:8px; text-align:right;">Consumo</th>
+                <th style="padding:8px; text-align:right;">Tope</th>
+                <th style="padding:8px;">Modelos</th>
+                <th style="padding:8px;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @account_keys.each do |k| %>
+                <tr style="border-bottom:1px solid #f3f4f6;">
+                  <td style="padding:8px;"><%= k['key_alias'].presence || '—' %></td>
+                  <td style="padding:8px; font-family:monospace; font-size:11px; color:#6b7280;">
+                    <%= k['token'].to_s.first(20) %><%= '…' if k['token'].to_s.length > 20 %>
+                  </td>
+                  <td style="padding:8px; text-align:right;">
+                    <strong>$<%= format('%.4f', k['spend'].to_f) %></strong>
+                  </td>
+                  <td style="padding:8px; text-align:right;">
+                    <%= k['max_budget'].present? ? "$#{format('%.2f', k['max_budget'].to_f)}" : 'sin tope' %>
+                  </td>
+                  <td style="padding:8px; font-size:11px; color:#6b7280;">
+                    <%= Array(k['models']).presence&.join(', ') || 'todos' %>
+                  </td>
+                  <td style="padding:8px;">
+                    <% if k['blocked'] %>
+                      <span style="color:#b91c1c;">bloqueada</span>
+                    <% else %>
+                      <span style="color:#16a34a;">activa</span>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+          <p style="font-size:11px; color:#6b7280; margin:8px 0 0;">
+            El consumo lo reporta el proveedor. La key en claro solo se muestra al crearla:
+            despues no se puede recuperar, solo rotar.
+          </p>
+        <% end %>
       </div>
     <% end %>
 

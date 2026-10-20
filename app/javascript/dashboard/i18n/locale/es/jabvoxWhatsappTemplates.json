@@ -188,7 +188,9 @@
         "SIGNATURE_HASH_PH": "Hash de firma"
       },
       "LTO": {
-        "LABEL": "Oferta por tiempo limitado (agrega una fecha de expiración al enviar el mensaje)"
+        "LABEL": "Oferta por tiempo limitado (agrega una fecha de expiración al enviar el mensaje)",
+        "TEXT_LABEL": "Texto de la oferta",
+        "TEXT_PH": "Oferta por tiempo limitado"
       },
       "CAROUSEL": {
         "SECTION_TITLE": "Cards del carousel",
@@ -304,7 +306,11 @@
         "DOCUMENT": "Documento",
         "LOCATION": "Ubicación"
       },
-      "VARS_HELP": "Meta revisa la plantilla con estos valores, así que escribe ejemplos reales de lo que se enviará."
+      "VARS_HELP": "Meta revisa la plantilla con estos valores, así que escribe ejemplos reales de lo que se enviará.",
+      "FORMAT_BOLD": "Negrita",
+      "FORMAT_ITALIC": "Cursiva",
+      "FORMAT_STRIKE": "Tachado",
+      "FORMAT_HINT": "Usa *negrita*, _cursiva_, ~tachado~"
     },
     "DETAIL": {
       "TITLE": "Detalle de la plantilla",

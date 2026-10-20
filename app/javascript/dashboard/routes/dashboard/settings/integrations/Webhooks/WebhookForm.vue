@@ -67,6 +67,7 @@ export default {
   },
   data() {
     const { inboxEventsEnabled } = useConfig();
+    const conditions = this.value.conditions || {};
     return {
       url: this.value.url || '',
       name: this.value.name || '',
@@ -75,9 +76,19 @@ export default {
       supportedWebhookEvents: inboxEventsEnabled
         ? [...SUPPORTED_WEBHOOK_EVENTS, 'inbox_updated']
         : SUPPORTED_WEBHOOK_EVENTS,
+      // Reglas de entrega (Jabvox): limitar bandejas, excluir etiquetas, solo en horario.
+      allowedInboxIds: (conditions.allowed_inbox_ids || []).map(id => Number(id)),
+      excludedLabels: conditions.excluded_labels || [],
+      withinWorkingHours: !!conditions.within_working_hours,
     };
   },
   computed: {
+    inboxes() {
+      return this.$store.getters['inboxes/getInboxes'] || [];
+    },
+    labels() {
+      return this.$store.getters['labels/getLabels'] || [];
+    },
     hasSecret() {
       return !!this.value.secret;
     },
@@ -94,8 +105,17 @@ export default {
     },
   },
   mounted() {
+    this.$store.dispatch('inboxes/get');
+    this.$store.dispatch('labels/get');
     this.$watch(
-      () => [this.url, this.name, this.subscriptions],
+      () => [
+        this.url,
+        this.name,
+        this.subscriptions,
+        this.allowedInboxIds,
+        this.excludedLabels,
+        this.withinWorkingHours,
+      ],
       () => this.markDirty(),
       { deep: true }
     );
@@ -108,6 +128,11 @@ export default {
         url: this.url,
         name: this.name,
         subscriptions: this.subscriptions,
+        conditions: {
+          allowed_inbox_ids: this.allowedInboxIds,
+          excluded_labels: this.excludedLabels,
+          within_working_hours: this.withinWorkingHours,
+        },
       });
     },
     onCancel() {
@@ -205,6 +230,48 @@ export default {
             }}
           </label>
         </div>
+      </div>
+
+      <!-- Reglas de entrega (Jabvox): controlan cuándo se dispara este webhook.
+           Vacías = se entrega siempre (comportamiento normal). Pensado para el Chat IA (Hermes). -->
+      <div class="pt-2 mt-2 border-t border-slate-100 dark:border-slate-700/50">
+        <p class="mb-1 text-sm font-medium text-slate-800 dark:text-slate-100">
+          {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.TITLE') }}
+        </p>
+        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">
+          {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.DESCRIPTION') }}
+        </p>
+
+        <label class="mb-4">
+          {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.ALLOWED_INBOXES.LABEL') }}
+          <select v-model="allowedInboxIds" multiple class="h-28">
+            <option v-for="inbox in inboxes" :key="inbox.id" :value="inbox.id">
+              {{ inbox.name }}
+            </option>
+          </select>
+          <span class="text-xs text-slate-500 dark:text-slate-400">
+            {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.ALLOWED_INBOXES.HELP') }}
+          </span>
+        </label>
+
+        <label class="mb-4">
+          {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.EXCLUDED_LABELS.LABEL') }}
+          <select v-model="excludedLabels" multiple class="h-28">
+            <option v-for="label in labels" :key="label.id" :value="label.title">
+              {{ label.title }}
+            </option>
+          </select>
+          <span class="text-xs text-slate-500 dark:text-slate-400">
+            {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.EXCLUDED_LABELS.HELP') }}
+          </span>
+        </label>
+
+        <label class="flex items-center gap-2 mb-4">
+          <input v-model="withinWorkingHours" type="checkbox" class="!mb-0" />
+          <span class="text-sm">
+            {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.WORKING_HOURS.LABEL') }}
+          </span>
+        </label>
       </div>
     </div>
 

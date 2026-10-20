@@ -67,10 +67,12 @@ class Api::V1::Accounts::Jabvox::InternalChatsController < Api::V1::Accounts::Ba
       token = User.find_by(id: uid)&.pubsub_token
       next unless token
 
+      # account_id DEBE ir dentro de data: el front valida data.account_id en isAValidEvent;
+      # fuera de data el evento se descarta en silencio (regla ActionCable de Jabvox).
       ActionCable.server.broadcast(token, {
         event: 'jabvox.internal_chat.message_created',
-        account_id: Current.account.id,
         data: {
+          account_id: Current.account.id,
           chat_id: @chat.id,
           sender_id: current_user.id,
           message: serialize_message(msg)

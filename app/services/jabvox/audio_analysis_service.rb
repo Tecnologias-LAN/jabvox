@@ -2,6 +2,7 @@ require 'openai'
 
 # Analyzes a single audio file for a result row: download -> transcribe (Whisper)
 # -> run pipeline stages with escalation logic -> persist score/passed/sentiment.
+# rubocop:disable Metrics/ClassLength
 class Jabvox::AudioAnalysisService
   TRANSCRIBE_TIMEOUT = 120
   STAGE_TIMEOUT = 60
@@ -15,6 +16,7 @@ class Jabvox::AudioAnalysisService
     @storage = @job.storage
   end
 
+  # rubocop:disable Metrics/MethodLength
   def call
     started = monotonic_ms
     @result.update!(status: 'processing')
@@ -24,30 +26,113 @@ class Jabvox::AudioAnalysisService
     transcript, words = transcribe
     return fail!('No se pudo transcribir el audio') if transcript.blank?
 
-    stages_data, final = evaluate_stages(transcript)
-    @result.update!(
-      transcript: transcript,
-      transcript_words_jabvox: words || [],
-      stages_data: stages_data,
-      final_score: final[:score],
-      passed: final[:passed],
-      sentiment: final[:sentiment],
-      status: 'completed',
-      processing_time_ms: monotonic_ms - started,
-      error_message: nil
-    )
+    if @pipeline.qa_mode_jabvox
+      evaluate_qa(transcript, words, started)
+    else
+      stages_data, final = evaluate_stages(transcript)
+      @result.update!(
+        transcript: transcript,
+        transcript_words_jabvox: words || [],
+        stages_data: stages_data,
+        final_score: final[:score],
+        passed: final[:passed],
+        sentiment: final[:sentiment],
+        status: 'completed',
+        processing_time_ms: monotonic_ms - started,
+        error_message: nil
+      )
+    end
   rescue StandardError => e
     Rails.logger.error "[AudioAnalysis] #{@result.file_key} failed: #{e.message}"
     fail!(e.message)
   ensure
     @job.refresh_progress!
   end
+  # rubocop:enable Metrics/MethodLength
 
   private
+
+  # Modo QA: evalúa la transcripción por infaltables + anatomía de la tipificación
+  # resuelta para este result, calcula el % de cumplimiento y marca 'en_revision'
+  # cuando cae bajo el umbral del pipeline. Todo queda persistido en el result.
+  # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+  def evaluate_qa(transcript, words, started)
+    typification = @result.typification || @pipeline.typification
+    evaluation = Jabvox::AudioQaEvaluatorService.new(
+      account: @account, pipeline: @pipeline, typification: typification, transcript: transcript
+    ).call
+
+    detected = resolve_detected_typification(evaluation.detected_typification_name)
+    retypification_reason = evaluation.detected_typification_reason
+
+    # Re-tipificación (OPT-IN, por defecto desactivada): cuando la tipificación
+    # viene de un mapeo explícito del nombre de archivo, se respeta y NO se
+    # recalifica — la IA solo deja una NOTA (retypification_reason) si cree que es
+    # otra. Reasignar automáticamente inflaba los scores (la IA elegía la
+    # tipificación más fácil de cumplir). Solo recalifica si el pipeline lo activa.
+    if @pipeline.qa_reclassify_jabvox && detected && detected.id != typification&.id &&
+       detected.audio_infaltables.active.exists?
+      typification = detected
+      evaluation = Jabvox::AudioQaEvaluatorService.new(
+        account: @account, pipeline: @pipeline, typification: detected, transcript: transcript
+      ).call
+      detected = resolve_detected_typification(evaluation.detected_typification_name) || detected
+      retypification_reason = evaluation.detected_typification_reason.presence || retypification_reason
+    end
+
+    threshold = @pipeline.review_threshold_jabvox.to_i
+    first_pass_score = evaluation.score
+
+    # Segunda validación: si la primera cae bajo el umbral, un auditor revisa el
+    # resultado de la primera, puede corregirlo y explica el porqué del porcentaje.
+    review_explanation = nil
+    if first_pass_score.present? && first_pass_score < threshold
+      evaluation = Jabvox::AudioQaEvaluatorService.new(
+        account: @account, pipeline: @pipeline, typification: typification, transcript: transcript
+      ).audit(evaluation)
+      review_explanation = evaluation.review_explanation
+    end
+
+    review = evaluation.score.present? && evaluation.score < threshold ? 'en_revision' : 'ok'
+    passed = evaluation.score.present? && evaluation.score >= threshold
+
+    @result.update!(
+      transcript: transcript,
+      transcript_words_jabvox: words || [],
+      # Tipificación con la que REALMENTE se calificó (puede ser la re-tipificada).
+      typification_id: typification&.id,
+      infaltables_result: evaluation.infaltables,
+      anatomy_result: evaluation.anatomy,
+      # infaltables_score = % puro de infaltables; final_score = global ponderado.
+      infaltables_score: evaluation.infaltables_score,
+      infaltables_applicable: evaluation.applicable,
+      infaltables_met: evaluation.met,
+      final_score: evaluation.score,
+      first_pass_score: first_pass_score,
+      passed: passed,
+      sentiment: evaluation.sentiment,
+      detected_typification_id: detected&.id,
+      retypification_reason: retypification_reason,
+      review_explanation: review_explanation,
+      qa_summary: evaluation.summary,
+      review_status: review,
+      status: 'completed',
+      processing_time_ms: monotonic_ms - started,
+      error_message: nil
+    )
+  end
+  # rubocop:enable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+
+  def resolve_detected_typification(name)
+    return nil if name.blank?
+
+    @account.jabvox_typifications.where('LOWER(name) = ?', name.downcase).first
+  end
 
   # Returns [transcript_text, words_array]. words_array is [] unless the pipeline
   # requests timestamps; for 'word' it is per-word, for 'segment' it is per-segment
   # of segment_seconds_jabvox (built from word timings).
+  # rubocop:disable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
   def transcribe
     model = @pipeline.transcription_model || @account.jabvox_ai_chat_models.find_by(is_default_jabvox: true)
     return [nil, nil] unless model
@@ -57,10 +142,17 @@ class Jabvox::AudioAnalysisService
     return [nil, nil] if tmp.size > MAX_AUDIO_BYTES
 
     mode = @pipeline.timestamp_mode_jabvox
-    params = { model: 'whisper-1', file: tmp, language: 'es' }
+    # Usa el modelo de transcripción configurado (whisper-1, gpt-4o-transcribe,
+    # gpt-4o-mini-transcribe, etc.); cae a whisper-1 si no viene nombre.
+    transcribe_model = model.model_jabvox.presence || 'whisper-1'
+    params = { model: transcribe_model, file: tmp, language: 'es' }
     params[:prompt] = @pipeline.transcription_prompt if @pipeline.transcription_prompt.present?
 
-    if mode == 'none'
+    # Los timestamps por palabra (verbose_json + timestamp_granularities) solo los
+    # soporta whisper-1; los modelos gpt-4o*-transcribe los rechazan. Para esos,
+    # se transcribe el texto sin timestamps aunque el pipeline los pida.
+    supports_word_timestamps = transcribe_model.include?('whisper')
+    if mode == 'none' || !supports_word_timestamps
       text = openai_client(model, TRANSCRIBE_TIMEOUT).audio.transcribe(parameters: params)['text'].presence
       return [text, []]
     end
@@ -89,6 +181,7 @@ class Jabvox::AudioAnalysisService
   ensure
     tmp&.close!
   end
+  # rubocop:enable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
   # Buckets per-word timings into fixed segments of segment_seconds_jabvox seconds,
   # concatenating the words that fall in each bucket.
@@ -177,3 +270,4 @@ class Jabvox::AudioAnalysisService
     (Process.clock_gettime(Process::CLOCK_MONOTONIC) * 1000).to_i
   end
 end
+# rubocop:enable Metrics/ClassLength

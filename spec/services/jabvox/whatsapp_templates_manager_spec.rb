@@ -309,6 +309,22 @@ RSpec.describe Jabvox::WhatsappTemplatesManager do
         expect(btn['type']).to eq('COPY_CODE')
       end
 
+      # El front manda COPY_CODE con text vacío (Meta fija el texto) y el código en
+      # `example`. El botón debe conservarse y salir con el texto que impone Meta.
+      it 'conserva un COPY_CODE sin text y le fija el texto de Meta' do
+        stub_create_template
+        result = manager.create(inbox, {
+                                  name: 'copy_code_sin_text', category: 'UTILITY', language: 'es',
+                                  body: 'Usa este código',
+                                  buttons: [button('COPY_CODE', text: '', example: 'PROMO10')]
+                                })
+        expect(result[:success]).to be(true)
+        sent_body = JSON.parse(WebMock::RequestRegistry.instance.requested_signatures.hash.keys.last.body)
+        btn = sent_body['components'].find { |c| c['type'] == 'BUTTONS' }['buttons'].first
+        expect(btn['type']).to eq('COPY_CODE')
+        expect(btn['text']).to eq(described_class::COPY_CODE_BUTTON_TEXT)
+      end
+
       it 'accepts a VOICE_CALL button alone' do
         stub_create_template
         result = manager.create(inbox, {
@@ -572,6 +588,168 @@ RSpec.describe Jabvox::WhatsappTemplatesManager do
       expect { manager.send(:upsert_from_meta, raw, inbox) }.not_to raise_error
       tpl = account.jabvox_whatsapp_templates.find_by(name: 'lto_from_meta')
       expect(tpl.limited_time_offer).to be(true)
+    end
+  end
+  # ─────────────────────────────────────────────────────────────────────
+  # PRUEBAS DE ESTRÉS: revalidación de longitudes en backend (doble candado).
+  # El frontend ya valida en vivo, pero estos casos simulan un POST directo a
+  # la API saltándose el cliente. Cada tope se prueba en el borde exacto (pasa)
+  # y un carácter por encima (falla). El conteo es por grafemas: un emoji
+  # compuesto cuenta como 1, igual que Intl.Segmenter en el front.
+  # ─────────────────────────────────────────────────────────────────────
+  describe 'stress: backend button length revalidation (new, doble candado)' do
+    def button(type, text: 'Texto', **rest)
+      { type: type, text: text }.merge(rest)
+    end
+
+    it 'acepta un texto de botón de exactamente 25 caracteres' do
+      stub_create_template
+      result = manager.create(inbox, {
+                                name: 'btn_text_limit_ok', category: 'UTILITY', language: 'es',
+                                body: 'Hola, bienvenido', buttons: [button('QUICK_REPLY', text: 'A' * 25)]
+                              })
+      expect(result[:success]).to be(true)
+    end
+
+    it 'rechaza un texto de botón de 26 caracteres' do
+      result = manager.create(inbox, {
+                                name: 'btn_text_over', category: 'UTILITY', language: 'es',
+                                body: 'Hola, bienvenido', buttons: [button('QUICK_REPLY', text: 'A' * 26)]
+                              })
+      expect(result[:success]).to be(false)
+      expect(result[:error]).to match(/Botón 1: el texto no puede superar 25/)
+    end
+
+    it 'cuenta por grafemas: 25 emojis compuestos pasan aunque sean miles de code points' do
+      stub_create_template
+      family = "\u{1F468}‍\u{1F469}‍\u{1F467}" # 👨‍👩‍👧 = 1 grafema, 8 UTF-16
+      result = manager.create(inbox, {
+                                name: 'btn_emoji_ok', category: 'UTILITY', language: 'es',
+                                body: 'Hola, bienvenido', buttons: [button('QUICK_REPLY', text: family * 25)]
+                              })
+      expect(result[:success]).to be(true)
+    end
+
+    it 'rechaza 26 emojis compuestos en el texto de un botón' do
+      family = "\u{1F468}‍\u{1F469}‍\u{1F467}"
+      result = manager.create(inbox, {
+                                name: 'btn_emoji_over', category: 'UTILITY', language: 'es',
+                                body: 'Hola, bienvenido', buttons: [button('QUICK_REPLY', text: family * 26)]
+                              })
+      expect(result[:success]).to be(false)
+      expect(result[:error]).to match(/Botón 1: el texto no puede superar 25/)
+    end
+
+    it 'rechaza una URL de más de 2000 caracteres' do
+      long = "https://a.com/#{'x' * 2000}"
+      result = manager.create(inbox, {
+                                name: 'btn_url_over', category: 'UTILITY', language: 'es',
+                                body: 'Hola, bienvenido', buttons: [button('URL', text: 'Ir', url: long)]
+                              })
+      expect(result[:success]).to be(false)
+      expect(result[:error]).to match(/Botón 1: la URL no puede superar 2000/)
+    end
+
+    it 'rechaza un número de teléfono de más de 20 caracteres' do
+      result = manager.create(inbox, {
+                                name: 'btn_phone_over', category: 'UTILITY', language: 'es',
+                                body: 'Hola, bienvenido',
+                                buttons: [button('PHONE_NUMBER', text: 'Llamar', phone_number: '+' + ('1' * 21))]
+                              })
+      expect(result[:success]).to be(false)
+      expect(result[:error]).to match(/Botón 1: el número no puede superar 20/)
+    end
+
+    it 'rechaza un código COPY_CODE de más de 20 caracteres' do
+      result = manager.create(inbox, {
+                                name: 'btn_code_over', category: 'UTILITY', language: 'es',
+                                body: 'Usa este código', buttons: [button('COPY_CODE', text: '', example: 'Z' * 21)]
+                              })
+      expect(result[:success]).to be(false)
+      expect(result[:error]).to match(/Botón 1: el código no puede superar 20/)
+    end
+
+    it 'NO cuenta el texto de un COPY_CODE para el tope de 25 (Meta lo fija)' do
+      stub_create_template
+      # Aunque el text crudo sea larguísimo, COPY_CODE se exceptúa del tope de
+      # texto porque el backend lo reemplaza por el texto fijo de Meta.
+      result = manager.create(inbox, {
+                                name: 'btn_code_text_ignored', category: 'UTILITY', language: 'es',
+                                body: 'Usa este código', buttons: [button('COPY_CODE', text: 'X' * 99, example: 'PROMO10')]
+                              })
+      expect(result[:success]).to be(true)
+    end
+  end
+
+  describe 'stress: carousel card button length revalidation (new)' do
+    def carousel_card(header_type: 'IMAGE', handle: 'h:card1', body: nil, buttons: [])
+      { header_type: header_type, header_handle: handle, body_content: body, buttons: buttons }
+    end
+
+    it 'rechaza una URL demasiado larga dentro de un botón de card' do
+      long = "https://a.com/#{'x' * 2000}"
+      result = manager.create(inbox, {
+                                name: 'carousel_url_over', category: 'MARKETING', language: 'es', template_kind: 'carousel',
+                                body: 'Mira nuestros productos',
+                                cards: [
+                                  carousel_card(buttons: [{ type: 'URL', text: 'Ir', url: long }]),
+                                  carousel_card(handle: 'h:card2', buttons: [{ type: 'URL', text: 'Ir', url: 'https://b.com' }])
+                                ]
+                              })
+      expect(result[:success]).to be(false)
+      expect(result[:error]).to match(/Card 1, botón 1: la URL no puede superar 2000/)
+    end
+
+    it 'rechaza un texto de botón de card de más de 25 caracteres' do
+      result = manager.create(inbox, {
+                                name: 'carousel_text_over', category: 'MARKETING', language: 'es', template_kind: 'carousel',
+                                body: 'Mira nuestros productos',
+                                cards: [
+                                  carousel_card(buttons: [{ type: 'QUICK_REPLY', text: 'A' * 26 }]),
+                                  carousel_card(handle: 'h:card2', buttons: [{ type: 'QUICK_REPLY', text: 'B' }])
+                                ]
+                              })
+      expect(result[:success]).to be(false)
+      expect(result[:error]).to match(/Card 1, botón 1: el texto no puede superar 25/)
+    end
+
+    it 'acepta cards con botones dentro de los topes' do
+      stub_create_template
+      result = manager.create(inbox, {
+                                name: 'carousel_len_ok', category: 'MARKETING', language: 'es', template_kind: 'carousel',
+                                body: 'Mira nuestros productos',
+                                cards: [
+                                  carousel_card(buttons: [{ type: 'QUICK_REPLY', text: 'Ver' }]),
+                                  carousel_card(handle: 'h:card2', buttons: [{ type: 'QUICK_REPLY', text: 'Comprar' }])
+                                ]
+                              })
+      expect(result[:success]).to be(true)
+    end
+  end
+
+  describe 'stress: lto_text personalizado (new)' do
+    it 'usa el lto_text que manda el usuario en lugar del texto por defecto' do
+      stub = stub_create_template
+      manager.create(inbox, {
+                       name: 'lto_custom_text', category: 'MARKETING', language: 'es',
+                       body: 'Oferta especial', limited_time_offer: true, lto_text: '¡Solo hoy! 🔥'
+                     })
+      expect(stub).to have_been_requested
+      sent_body = JSON.parse(WebMock::RequestRegistry.instance.requested_signatures.hash.keys.last.body)
+      lto_c = sent_body['components'].find { |c| c['type'] == 'LIMITED_TIME_OFFER' }
+      expect(lto_c['limited_time_offer']['text']).to eq('¡Solo hoy! 🔥')
+    end
+
+    it 'cae al texto por defecto cuando lto_text viene en blanco' do
+      stub = stub_create_template
+      manager.create(inbox, {
+                       name: 'lto_blank_text', category: 'MARKETING', language: 'es',
+                       body: 'Oferta especial', limited_time_offer: true, lto_text: '   '
+                     })
+      expect(stub).to have_been_requested
+      sent_body = JSON.parse(WebMock::RequestRegistry.instance.requested_signatures.hash.keys.last.body)
+      lto_c = sent_body['components'].find { |c| c['type'] == 'LIMITED_TIME_OFFER' }
+      expect(lto_c['limited_time_offer']['text']).to eq('Oferta por tiempo limitado')
     end
   end
 end

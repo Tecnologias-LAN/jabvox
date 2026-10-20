@@ -110,8 +110,10 @@ class WebhookListener < BaseListener
   def deliver_account_webhooks(payload, account)
     return unless account.api_and_webhooks_enabled?
 
+    inbox = payload.dig(:conversation, :inbox_id) ? account.inboxes.find_by(id: payload.dig(:conversation, :inbox_id)) : nil
     account.webhooks.account_type.each do |webhook|
       next unless webhook.subscriptions.include?(payload[:event])
+      next unless webhook.deliverable_for?(payload, inbox)
 
       WebhookJob.perform_later(webhook.url, payload, :account_webhook,
                                secret: webhook.secret,
@@ -136,6 +138,7 @@ class WebhookListener < BaseListener
 
     inbox.account.webhooks.inbox_type.where(inbox_id: inbox.id).each do |webhook|
       next unless webhook.subscriptions.include?(payload[:event])
+      next unless webhook.deliverable_for?(payload, inbox)
 
       WebhookJob.perform_later(webhook.url, payload, :inbox_webhook,
                                secret: webhook.secret, delivery_id: SecureRandom.uuid)

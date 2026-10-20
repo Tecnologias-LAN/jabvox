@@ -177,6 +177,11 @@ class Account < ApplicationRecord
   has_many :jabvox_audio_results, dependent: :destroy_async
   has_many :jabvox_audio_assignments, dependent: :destroy_async
   has_many :jabvox_audio_permissions, dependent: :destroy_async
+  has_many :jabvox_audio_infaltables, class_name: 'JabvoxAudioInfaltable', dependent: :destroy_async
+  has_many :jabvox_audio_anatomy_criteria, class_name: 'JabvoxAudioAnatomyCriterion', dependent: :destroy_async
+  has_many :jabvox_audio_advisors, class_name: 'JabvoxAudioAdvisor', dependent: :destroy_async
+  has_many :jabvox_audio_filename_patterns, class_name: 'JabvoxAudioFilenamePattern', dependent: :destroy_async
+  has_many :jabvox_audio_code_mappings, class_name: 'JabvoxAudioCodeMapping', dependent: :destroy_async
   has_many :jabvox_typifications, dependent: :destroy_async
   has_many :jabvox_call_logs, dependent: :destroy_async
   has_one :jabvox_voip_config, dependent: :destroy

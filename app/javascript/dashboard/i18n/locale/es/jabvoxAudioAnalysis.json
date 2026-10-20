@@ -18,7 +18,8 @@
       "PIPELINES": "Pipelines",
       "ANALYZER": "Analizador",
       "JOBS": "Trabajos",
-      "ACCESS": "Acceso"
+      "ACCESS": "Acceso",
+      "CONFIG": "Configuración"
     },
     "STORAGE": {
       "NEW": "Nuevo almacenamiento",
@@ -146,7 +147,10 @@
       "ESCALATED": "Escalado",
       "TITLE": "Trabajos de análisis",
       "SUBTITLE": "Historial de análisis con resultados por audio.",
-      "EMPTY_TITLE": "Sin trabajos aún"
+      "EMPTY_TITLE": "Sin trabajos aún",
+      "DOWNLOAD_PDF": "Descargar PDF",
+      "INFALTABLES_SCORE": "Infaltables",
+      "INFALTABLES_MET": "cumplidos"
     },
     "ACCESS": {
       "USER": "Usuario",
@@ -190,7 +194,116 @@
       "RESET": "Limpiar",
       "LAST_7D": "Últimos 7 días",
       "LAST_30D": "Últimos 30 días",
-      "SCORE_PLACEHOLDER": "%"
+      "SCORE_PLACEHOLDER": "%",
+      "DOWNLOAD_PDF": "Descargar PDF",
+      "INFALTABLES_SCORE": "Infaltables",
+      "INFALTABLES_MET": "cumplidos"
+    },
+    "CONFIG": {
+      "LOAD_ERROR": "No se pudieron cargar los datos.",
+      "SUBTABS": {
+        "ADVISORS": "Asesores",
+        "TYPIFICATIONS": "Tipificaciones",
+        "INFALTABLES": "Infaltables",
+        "ANATOMY": "Cercanía",
+        "PATTERNS": "Formatos de archivo",
+        "MAPPINGS": "Mapeos"
+      },
+      "ADVISORS": {
+        "TITLE": "Asesores",
+        "SUBTITLE": "Agentes evaluados en el QA de llamadas.",
+        "NEW": "Nuevo asesor",
+        "IMPORT": "Importar usuarios del CRM",
+        "IMPORTED": "Usuarios importados correctamente.",
+        "IMPORT_ERROR": "No se pudieron importar los usuarios.",
+        "NAME": "Nombre",
+        "NAME_REQUIRED": "El nombre es obligatorio.",
+        "EXTERNAL_ID": "ID externo",
+        "EXTERNAL_ID_HINT": "Identificador en el sistema de grabaciones (opcional)",
+        "EMPTY_TITLE": "Sin asesores",
+        "EMPTY": "Aún no hay asesores. Créalos o impórtalos del CRM."
+      },
+      "TYPIFICATIONS": {
+        "TITLE": "Tipificaciones",
+        "SUBTITLE": "Las tipificaciones agrupan los infaltables por tipo de llamada.",
+        "NOTICE": "Las tipificaciones se gestionan en su propia sección (Configuración → Tipificaciones). Aquí solo se muestran en modo lectura.",
+        "INFALTABLES_COUNT": "{count} infaltables",
+        "EMPTY_TITLE": "Sin tipificaciones",
+        "EMPTY": "Aún no hay tipificaciones."
+      },
+      "INFALTABLES": {
+        "TITLE": "Infaltables",
+        "SUBTITLE": "Frases o puntos que el asesor debe cubrir en cada llamada.",
+        "TYPIFICATION": "Tipificación",
+        "PICK_TYPIFICATION": "Elige una tipificación",
+        "PICK_FIRST": "Elige una tipificación para editar sus infaltables.",
+        "LOADING": "Cargando infaltables…",
+        "TEXT": "Texto del infaltable",
+        "OPTIONAL": "Deseable",
+        "ADD": "Añadir infaltable",
+        "SAVE_ALL": "Guardar todo",
+        "BULK_PASTE": "Pegar varios",
+        "BULK_PASTE_HINT": "Una línea por infaltable. Reemplaza la lista actual.",
+        "BULK_APPLY": "Usar lista pegada"
+      },
+      "ANATOMY": {
+        "TITLE": "Cercanía",
+        "SUBTITLE": "Los 12 criterios de cercanía que evalúan el trato al cliente.",
+        "NEW": "Nuevo criterio",
+        "SEED": "Restaurar por defecto",
+        "NAME": "Nombre del criterio",
+        "NAME_REQUIRED": "El nombre es obligatorio.",
+        "DESCRIPTION": "Descripción",
+        "POSITIVE": "Señal positiva",
+        "OPPORTUNITY": "Señal de oportunidad",
+        "EMPTY_TITLE": "Sin criterios",
+        "EMPTY": "Aún no hay criterios de cercanía."
+      },
+      "PATTERNS": {
+        "TITLE": "Formatos de archivo",
+        "SUBTITLE": "Patrones para extraer datos del nombre del archivo de audio.",
+        "NEW": "Nuevo patrón",
+        "NAME": "Nombre",
+        "PATTERN": "Patrón",
+        "DATE_FORMAT": "Formato de fecha",
+        "REQUIRED": "El nombre y el patrón son obligatorios.",
+        "EXAMPLE": "Usa campos entre llaves. Ej.: {phone}-{campaign} {advisor_name} parsea \"3016615126-AMP Paula Ramírez\".",
+        "EMPTY_TITLE": "Sin patrones",
+        "EMPTY": "Aún no hay patrones de nombre de archivo.",
+        "PROBE_TITLE": "Probador de patrones",
+        "PROBE_SUBTITLE": "Prueba un patrón contra un nombre de ejemplo sin guardarlo.",
+        "SAMPLE": "Nombre de ejemplo",
+        "PROBE_RUN": "Probar",
+        "PROBE_REQUIRED": "Indica un patrón y un nombre de ejemplo.",
+        "PROBE_ERROR": "No se pudo probar el patrón.",
+        "PROBE_FIELDS": "Campos extraídos",
+        "PROBE_NO_MATCH": "El patrón no coincide con el nombre de ejemplo.",
+        "PROBE_ADVISOR": "Asesor que casaría:"
+      },
+      "MAPPINGS": {
+        "TITLE": "Mapeos",
+        "SUBTITLE": "Traduce lo que viene en el nombre del archivo a una tipificación y a un asesor.",
+        "INTRO": "Estos mapeos traducen los códigos del nombre del archivo (p.ej. \"3002490237-AMP Gisell Martínez.WAV\") a una tipificación y a un asesor. El sistema no lo asume: si no hay mapeo, la llamada queda sin resolver.",
+        "TYPIFICATION_TITLE": "Código → Tipificación",
+        "TYPIFICATION_SUBTITLE": "Asocia un código del nombre del archivo (p.ej. \"AMP\") con una tipificación.",
+        "ADVISOR_TITLE": "Nombre/código del liker → Asesor",
+        "ADVISOR_SUBTITLE": "Asocia el texto que aparece en el archivo (p.ej. \"Gisell Martínez\") con un asesor.",
+        "CODE": "Código",
+        "CODE_TYPIFICATION_PLACEHOLDER": "AMP",
+        "CODE_ADVISOR_PLACEHOLDER": "Gisell Martínez",
+        "TYPIFICATION": "Tipificación",
+        "PICK_TYPIFICATION": "Elige una tipificación",
+        "ADVISOR": "Asesor",
+        "PICK_ADVISOR": "Elige un asesor",
+        "ADD": "Añadir mapeo",
+        "CODE_REQUIRED": "El código es obligatorio.",
+        "TYPIFICATION_REQUIRED": "Selecciona una tipificación.",
+        "ADVISOR_REQUIRED": "Selecciona un asesor.",
+        "UNASSIGNED": "Sin asignar",
+        "EMPTY_TITLE": "Sin mapeos",
+        "TYPIFICATION_EMPTY": "Aún no hay mapeos de código a tipificación.",
+        "ADVISOR_EMPTY": "Aún no hay mapeos de código a asesor."
+      }
     },
     "BREADCRUMB": {
       "SETTINGS": "Configuración",

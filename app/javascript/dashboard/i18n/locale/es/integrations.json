@@ -78,7 +78,22 @@
           "ERROR": "Por favor, introduzca una URL válida"
         },
         "EDIT_SUBMIT": "Actualizar webhook",
-        "ADD_SUBMIT": "Crear webhook"
+        "ADD_SUBMIT": "Crear webhook",
+        "RULES": {
+          "TITLE": "Reglas de respuesta (opcional)",
+          "DESCRIPTION": "Controla cuándo se dispara este webhook. Si lo dejas vacío, se envía siempre. Útil para el Chat IA (Hermes): decidir qué bandejas atiende, qué conversaciones ignorar y en qué horario.",
+          "ALLOWED_INBOXES": {
+            "LABEL": "Responder solo estas bandejas",
+            "HELP": "Si no eliges ninguna, responde en todas. Mantén Ctrl/Cmd para seleccionar varias."
+          },
+          "EXCLUDED_LABELS": {
+            "LABEL": "No responder si tiene estas etiquetas",
+            "HELP": "Las conversaciones con alguna de estas etiquetas no se enviarán (p. ej. prueba)."
+          },
+          "WORKING_HOURS": {
+            "LABEL": "Responder solo dentro del horario laboral de la bandeja"
+          }
+        }
       },
       "TITLE": "Webhook",
       "CONFIGURE": "Configurar",

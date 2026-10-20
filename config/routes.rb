@@ -653,8 +653,25 @@ Rails.application.routes.draw do
               resources :jobs, only: [:index, :show, :create] do
                 member { get :results }
               end
+              # Configuración de QA: infaltables por tipificación, anatomía,
+              # asesores propios y patrones de nombre de archivo.
+              resources :infaltables, only: [:index, :create, :update, :destroy] do
+                collection { put :bulk_replace }
+              end
+              resources :anatomy_criteria, only: [:index, :create, :update, :destroy] do
+                collection { post :seed_defaults }
+              end
+              resources :advisors, only: [:index, :create, :update, :destroy] do
+                collection { post :import_users }
+              end
+              resources :filename_patterns, only: [:index, :create, :update, :destroy] do
+                collection { post :test }
+              end
+              # Mapeos código→tipificación y código→asesor (configurados en la visual).
+              resources :code_mappings, only: [:index, :create, :update, :destroy]
               get 'reports/daily', to: 'reports#daily'
               get 'reports/filter_options', to: 'reports#filter_options'
+              get 'reports/result_pdf', to: 'reports#result_pdf'
               get 'access/my', to: 'reports#my_access'
             end
             resource :saldo_config, only: [:show, :update]

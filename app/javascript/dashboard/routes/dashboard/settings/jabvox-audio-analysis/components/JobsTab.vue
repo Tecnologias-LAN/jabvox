@@ -1,5 +1,6 @@
 <script setup>
 import { useI18n } from 'vue-i18n';
+import { audioReportsAPI } from 'dashboard/api/jabvox/audioAnalysis';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import EmptyStateLayout from 'dashboard/components-next/EmptyStateLayout.vue';
 import SettingsCard from './SettingsCard.vue';
@@ -26,6 +27,11 @@ const CHECK = '✓';
 const CROSS = '✗';
 
 const fileName = key => key.split('/').pop();
+
+// Abre el PDF de QA de un resultado en una pestaña nueva.
+const openResultPdf = resultId => {
+  window.open(audioReportsAPI.resultPdfUrl(resultId), '_blank');
+};
 
 const SENTIMENT_EMOJI = { positive: '🙂', negative: '🙁', neutral: '😐' };
 const sentimentEmoji = s => SENTIMENT_EMOJI[s] || '😐';
@@ -142,6 +148,56 @@ const STATUS_TONE = {
                 <span v-if="r.status !== 'completed'" class="text-n-slate-11">
                   {{ r.status }}
                 </span>
+                <!-- Descarga del PDF de QA (solo resultados completados). -->
+                <button
+                  v-if="r.status === 'completed'"
+                  type="button"
+                  class="inline-flex items-center gap-1 text-n-brand hover:underline"
+                  @click="openResultPdf(r.id)"
+                >
+                  <span class="i-lucide-file-down size-3.5" />
+                  {{ t('JABVOX_AUDIO.JOBS.DOWNLOAD_PDF') }}
+                </button>
+              </span>
+            </div>
+
+            <!-- Métricas de QA (solo si el resultado trae campos nuevos). -->
+            <div
+              v-if="
+                r.infaltables_score != null ||
+                r.review_status ||
+                r.detected_typification_name
+              "
+              class="flex flex-wrap items-center gap-2 mt-1.5 pl-5 text-xs"
+            >
+              <span
+                v-if="r.infaltables_score != null"
+                class="px-1.5 py-0.5 rounded-full bg-n-brand/10 text-n-brand font-medium"
+              >
+                {{ t('JABVOX_AUDIO.JOBS.INFALTABLES_SCORE') }}
+                {{ r.infaltables_score }}
+              </span>
+              <span
+                v-if="
+                  r.infaltables_met != null && r.infaltables_applicable != null
+                "
+                class="text-n-slate-11"
+              >
+                {{ r.infaltables_met }}/{{ r.infaltables_applicable }}
+                {{ t('JABVOX_AUDIO.JOBS.INFALTABLES_MET') }}
+              </span>
+              <span
+                v-if="r.review_status"
+                class="px-1.5 py-0.5 rounded-full bg-n-alpha-2 text-n-slate-11 capitalize"
+              >
+                {{ r.review_status }}
+              </span>
+              <span
+                v-if="r.detected_typification_name"
+                class="text-n-slate-11 flex items-center gap-1"
+              >
+                <span class="i-lucide-tag size-3" />
+                {{ r.detected_typification_name }}
               </span>
             </div>
 
