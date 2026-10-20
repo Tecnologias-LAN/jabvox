@@ -420,17 +420,31 @@ module Jabvox::Hermes::ServiceHandlers
   # Se mantienen por compatibilidad con el panel propio (JabvoxConversationHistory) y se
   # añade senderName (camelCase) que es el que lee el bubble estándar de Chatwoot.
   def hermes_message_attrs
-    { 'sent_by_hermes' => true, 'hermes_agent_name' => HERMES_DISPLAY_NAME, 'senderName' => HERMES_DISPLAY_NAME }
+    name = hermes_display_name
+    { 'sent_by_hermes' => true, 'hermes_agent_name' => name, 'senderName' => name }
   end
 
-  # Nombre visible del agente IA en el CRM. Fijo "Hermes" (ignora el name_jabvox técnico
-  # tipo "hermes_account_N"). Si en el futuro se quiere configurable, se cambia aquí.
-  HERMES_DISPLAY_NAME = 'Hermes'
+  # Fallback cuando la cuenta no tiene una conexión Hermes con nombre configurado.
+  HERMES_DEFAULT_DISPLAY_NAME = 'Hermes'
 
-  # AgentBot "Hermes" de la cuenta (autor visible de las respuestas de la IA). Se crea una vez
-  # por cuenta y se reutiliza; distingue inequívocamente a Hermes de los agentes humanos.
+  # Nombre visible del agente IA en el CRM: el nombre de la CONEXIÓN Hermes de la cuenta
+  # (ej. "Agente de Miguel Estrada"), no el técnico (hermes_account_N) ni un fijo. Cada cuenta
+  # muestra su propio agente. Cae a "Hermes" si no hay conexión con nombre.
+  def hermes_display_name
+    @hermes_display_name ||= begin
+      conn_name = JabvoxHermesConnection.where(account_id: @account.id)
+                                        .where.not(name_jabvox: [nil, ''])
+                                        .order(updated_at: :desc)
+                                        .pick(:name_jabvox)
+      conn_name.presence || HERMES_DEFAULT_DISPLAY_NAME
+    end
+  end
+
+  # AgentBot de la cuenta (autor visible de las respuestas de la IA), nombrado como el agente
+  # Hermes de la cuenta. Se crea una vez por cuenta y se reutiliza; distingue inequívocamente
+  # a Hermes de los agentes humanos.
   def hermes_sender
-    @hermes_sender ||= @account.agent_bots.find_or_create_by!(name: HERMES_DISPLAY_NAME) do |bot|
+    @hermes_sender ||= @account.agent_bots.find_or_create_by!(name: hermes_display_name) do |bot|
       bot.description = 'Agente IA (Hermes) de Jabvox'
     end
   end
