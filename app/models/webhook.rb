@@ -43,7 +43,7 @@ class Webhook < ApplicationRecord
   def deliverable_for?(payload, inbox)
     return true if conditions.blank?
 
-    inbox_allowed?(inbox) && labels_allowed?(payload) && within_working_hours?(inbox)
+    inbox_allowed?(inbox) && labels_allowed?(payload) && within_schedule?(inbox)
   end
 
   private
@@ -63,17 +63,61 @@ class Webhook < ApplicationRecord
 
     convo_labels = Array(payload.dig(:conversation, :labels) || payload.dig('conversation', 'labels'))
                    .map { |l| l.to_s.strip.downcase }
-    (excluded & convo_labels).empty?
+    !excluded.intersect?(convo_labels)
   end
 
-  # Solo dispara dentro del horario laboral del inbox (modelo WorkingHour). Si el
-  # inbox no tiene horario configurado, no bloquea (deja pasar).
-  def within_working_hours?(inbox)
+  # Solo dispara dentro del horario elegido en la regla. Prioridad:
+  #   1) `schedule` propio del webhook (días + franja + zona) — lo que el usuario define aquí.
+  #   2) compatibilidad: el viejo booleano `within_working_hours` (horario de la bandeja).
+  # Sin ninguno -> no bloquea (deja pasar).
+  def within_schedule?(inbox)
+    sched = conditions['schedule']
+    return within_custom_schedule?(sched) if sched.is_a?(Hash) && ActiveModel::Type::Boolean.new.cast(sched['enabled'])
+
+    within_inbox_working_hours?(inbox)
+  end
+
+  # Horario PROPIO del webhook: { enabled, days:[0..6], start:"HH:MM", end:"HH:MM", timezone }.
+  # days vacío = todos los días. Franja incompleta = no bloquea. 0=domingo..6=sábado.
+  def within_custom_schedule?(sched)
+    tz = sched['timezone'].presence || Time.zone.name
+    now = Time.current.in_time_zone(tz)
+
+    days = Array(sched['days']).map(&:to_i)
+    return false if days.present? && days.exclude?(now.wday)
+
+    start_min = parse_hhmm(sched['start'])
+    end_min   = parse_hhmm(sched['end'])
+    return true if start_min.nil? || end_min.nil?
+
+    current_min = (now.hour * 60) + now.min
+    if end_min >= start_min
+      current_min.between?(start_min, end_min)
+    else
+      # Franja que cruza medianoche (ej. 22:00–06:00).
+      current_min >= start_min || current_min <= end_min
+    end
+  end
+
+  # Compatibilidad con la regla antigua: horario laboral del inbox (modelo WorkingHour).
+  def within_inbox_working_hours?(inbox)
     return true unless ActiveModel::Type::Boolean.new.cast(conditions['within_working_hours'])
     return true if inbox.blank? || !inbox.working_hours_enabled?
 
     today = inbox.working_hours.find_by(day_of_week: Time.zone.now.in_time_zone(inbox.timezone).to_date.wday)
     today.present? && today.open_now?
+  end
+
+  # "HH:MM" -> minutos desde medianoche; nil si vacío/invalido.
+  def parse_hhmm(value)
+    str = value.to_s.strip
+    return nil unless str =~ /\A(\d{1,2}):(\d{2})\z/
+
+    h = Regexp.last_match(1).to_i
+    m = Regexp.last_match(2).to_i
+    return nil unless h.between?(0, 23) && m.between?(0, 59)
+
+    (h * 60) + m
   end
 
   public

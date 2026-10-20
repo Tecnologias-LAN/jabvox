@@ -84,14 +84,22 @@
           "DESCRIPTION": "Controla cuándo se dispara este webhook. Si lo dejas vacío, se envía siempre. Útil para el Chat IA (Hermes): decidir qué bandejas atiende, qué conversaciones ignorar y en qué horario.",
           "ALLOWED_INBOXES": {
             "LABEL": "Responder solo estas bandejas",
-            "HELP": "Si no eliges ninguna, responde en todas. Mantén Ctrl/Cmd para seleccionar varias."
+            "PLACEHOLDER": "Todas las bandejas",
+            "HELP": "Elige una o varias. Si no eliges ninguna, responde en todas.",
+            "EMPTY": "No hay bandejas"
           },
           "EXCLUDED_LABELS": {
             "LABEL": "No responder si tiene estas etiquetas",
-            "HELP": "Las conversaciones con alguna de estas etiquetas no se enviarán (p. ej. prueba)."
+            "PLACEHOLDER": "Ninguna etiqueta excluida",
+            "HELP": "Elige una o varias. Las conversaciones con alguna de estas etiquetas no se enviarán.",
+            "EMPTY": "No hay etiquetas"
           },
-          "WORKING_HOURS": {
-            "LABEL": "Responder solo dentro del horario laboral de la bandeja"
+          "SCHEDULE": {
+            "LABEL": "Responder solo en este horario",
+            "DAYS": "Días",
+            "FROM": "Desde",
+            "TO": "Hasta",
+            "HELP": "El webhook solo se dispara en los días y la franja que elijas. Fuera de eso, no responde."
           }
         }
       },

@@ -84,14 +84,22 @@
           "DESCRIPTION": "Control when this webhook fires. Leave empty to always send. Useful for the AI Chat (Hermes): choose which inboxes it answers, which conversations to skip, and the time window.",
           "ALLOWED_INBOXES": {
             "LABEL": "Only respond in these inboxes",
-            "HELP": "If none selected, responds in all. Hold Ctrl/Cmd to pick several."
+            "PLACEHOLDER": "All inboxes",
+            "HELP": "Pick one or several. If none selected, responds in all.",
+            "EMPTY": "No inboxes"
           },
           "EXCLUDED_LABELS": {
             "LABEL": "Do not respond if it has these labels",
-            "HELP": "Conversations with any of these labels will not be sent (e.g. test)."
+            "PLACEHOLDER": "No excluded labels",
+            "HELP": "Pick one or several. Conversations with any of these labels will not be sent.",
+            "EMPTY": "No labels"
           },
-          "WORKING_HOURS": {
-            "LABEL": "Only respond within the inbox working hours"
+          "SCHEDULE": {
+            "LABEL": "Only respond within this schedule",
+            "DAYS": "Days",
+            "FROM": "From",
+            "TO": "To",
+            "HELP": "The webhook only fires on the days and time range you choose. Outside that, it won't respond."
           }
         }
       },

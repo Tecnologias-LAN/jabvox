@@ -532,8 +532,8 @@ module Jabvox::Hermes::ServiceHandlers
     hermes_webhook_setup(hook).merge(inbox_id: inbox.id)
   end
 
-  # Reglas de respuesta del webhook: define CUÁNDO responde Hermes. Solo normaliza las claves
-  # conocidas (allowed_inbox_ids, excluded_labels, within_working_hours); ignora cualquier otra.
+  # Reglas de respuesta del webhook: define CUÁNDO responde Hermes. Normaliza solo las claves
+  # conocidas (allowed_inbox_ids, excluded_labels, schedule, within_working_hours); ignora otras.
   # scoped a @account → no cross-account. No borra. Devuelve la vista segura del webhook.
   def update_webhook_conditions(params)
     hook = @account.webhooks.find(params[:id])
@@ -543,11 +543,37 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   def sanitize_webhook_conditions(raw)
-    {
+    out = {
       'allowed_inbox_ids' => Array(raw['allowed_inbox_ids'] || raw[:allowed_inbox_ids]).map(&:to_i).reject(&:zero?).uniq,
       'excluded_labels' => Array(raw['excluded_labels'] || raw[:excluded_labels]).map { |l| l.to_s.strip }.reject(&:blank?).uniq,
       'within_working_hours' => ActiveModel::Type::Boolean.new.cast(raw['within_working_hours'] || raw[:within_working_hours]) || false
     }
+    sched = sanitize_webhook_schedule(raw['schedule'] || raw[:schedule])
+    out['schedule'] = sched if sched
+    out
+  end
+
+  # Horario PROPIO de la regla: { enabled, days:[0..6], start:"HH:MM", end:"HH:MM", timezone }.
+  # Devuelve nil si no se envió (no se guarda clave vacía). Valida días 0-6 y formato HH:MM.
+  def sanitize_webhook_schedule(raw)
+    return nil unless raw.is_a?(Hash)
+
+    days = Array(raw['days'] || raw[:days]).map(&:to_i).select { |d| d.between?(0, 6) }.uniq.sort
+    start_hhmm = valid_hhmm(raw['start'] || raw[:start])
+    end_hhmm   = valid_hhmm(raw['end'] || raw[:end])
+    tz = (raw['timezone'] || raw[:timezone]).to_s.strip
+    {
+      'enabled' => ActiveModel::Type::Boolean.new.cast(raw['enabled'] || raw[:enabled]) || false,
+      'days' => days,
+      'start' => start_hhmm,
+      'end' => end_hhmm,
+      'timezone' => (ActiveSupport::TimeZone[tz] ? tz : nil)
+    }.compact
+  end
+
+  def valid_hhmm(value)
+    str = value.to_s.strip
+    /\A([01]?\d|2[0-3]):[0-5]\d\z/.match?(str) ? str : nil
   end
 
   # Devuelve la configuración COMPLETA para que Hermes valide los webhooks entrantes de

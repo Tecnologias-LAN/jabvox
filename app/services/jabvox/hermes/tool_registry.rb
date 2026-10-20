@@ -1036,10 +1036,12 @@ module Jabvox::Hermes::ToolRegistry
     'create_hermes_webhook' => 'Crea/asegura el webhook a nivel de cuenta hacia el propio Hermes (message_created).',
     'create_hermes_inbox_webhook' => 'Crea/asegura el webhook de UNA bandeja (inbox_id) hacia el propio Hermes.',
     'update_webhook_conditions' => 'Define cuándo responde Hermes en un webhook (id). conditions: ' \
-                                   '{allowed_inbox_ids:[ids], excluded_labels:["etiqueta"], within_working_hours:true/false}. ' \
-                                   'Vacío = responde siempre. allowed_inbox_ids vacío = todas las bandejas. ' \
-                                   'excluded_labels = no responder conversaciones con esas etiquetas. ' \
-                                   'within_working_hours=true = responder solo en el horario laboral de la bandeja.',
+                                   '{allowed_inbox_ids:[ids], excluded_labels:["etiqueta"], ' \
+                                   'schedule:{enabled:true, days:[1,2,3,4,5], start:"08:00", end:"18:00", timezone:"America/Bogota"}}. ' \
+                                   'Vacío = responde siempre. allowed_inbox_ids vacío = todas las bandejas (una o varias). ' \
+                                   'excluded_labels = no responder conversaciones con esas etiquetas (una o varias). ' \
+                                   'schedule = horario PROPIO de la regla: days 0=domingo..6=sábado (vacío=todos), franja start/end "HH:MM", ' \
+                                   'timezone opcional. Fuera de ese horario no responde.',
     'create_api_inbox' => 'Crea una bandeja de tipo API (name, webhook_url).',
     'get_management_states' => 'Lista los estados de gestión de la cuenta.',
     'create_management_state' => 'Crea un estado de gestión (name).',
