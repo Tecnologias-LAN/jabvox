@@ -692,11 +692,23 @@ module Jabvox::Hermes::ServiceHandlers
   # --- helpers ---
 
   # URL del Hermes de ESTA cuenta (destino de bots/webhooks). Nunca una URL del LLM.
+  # Dos esquemas de conexión coexisten: ContextForge (jabvox_context_forge_handoff.hermes_url)
+  # y el de conexiones de la UI de Chat IA (JabvoxHermesConnection.base_url_jabvox). Se prioriza
+  # el handoff y se cae a la conexión activa de la cuenta, para funcionar con ambos.
   def hermes_outgoing_url!
     url = @account.jabvox_context_forge_handoff&.hermes_url
+    url = hermes_connection_base_url if url.blank?
     raise Jabvox::Hermes::ServiceLayer::UnknownAction, 'la cuenta no tiene un Hermes conectado (sin hermes_url)' if url.blank?
 
     url
+  end
+
+  # base_url del Hermes conectado por la UI de Chat IA. Prefiere la conexión del agente ligado
+  # a este contexto (@user); si no, la primera conexión con URL de la cuenta.
+  def hermes_connection_base_url
+    scope = JabvoxHermesConnection.where(account_id: @account.id).where.not(base_url_jabvox: [nil, ''])
+    conn = scope.order(updated_at: :desc).first
+    conn&.base_url_jabvox
   end
 
   # --- vistas seguras ---
