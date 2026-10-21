@@ -134,6 +134,8 @@ class Jabvox::AudioAnalysisService
   # of segment_seconds_jabvox (built from word timings).
   # rubocop:disable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
   def transcribe
+    tmp = nil
+    pcm = nil
     model = @pipeline.transcription_model || @account.jabvox_ai_chat_models.find_by(is_default_jabvox: true)
     return [nil, nil] unless model
 
@@ -141,11 +143,20 @@ class Jabvox::AudioAnalysisService
     return [nil, nil] unless tmp
     return [nil, nil] if tmp.size > MAX_AUDIO_BYTES
 
+    # Las grabaciones de telefonía suelen venir en WAV GSM 8kHz. Whisper
+    # malinterpreta ese codec (devuelve "INTERRUPCIÓN..." o texto basura), así que
+    # se normaliza con ffmpeg a MP3 16kHz mono antes de transcribir. Se usa MP3 (no
+    # PCM) porque PCM16 de una llamada larga infla a decenas de MB y el endpoint
+    # responde 413; MP3 48k mantiene el archivo liviano y whisper lo acepta igual.
+    # Si ffmpeg no está o falla, se usa el archivo original tal cual.
+    pcm = convert_to_mp3(tmp)
+    audio_file = pcm || tmp
+
     mode = @pipeline.timestamp_mode_jabvox
     # Usa el modelo de transcripción configurado (whisper-1, gpt-4o-transcribe,
     # gpt-4o-mini-transcribe, etc.); cae a whisper-1 si no viene nombre.
     transcribe_model = model.model_jabvox.presence || 'whisper-1'
-    params = { model: transcribe_model, file: tmp, language: 'es' }
+    params = { model: transcribe_model, file: audio_file, language: 'es' }
     params[:prompt] = @pipeline.transcription_prompt if @pipeline.transcription_prompt.present?
 
     # Los timestamps por palabra (verbose_json + timestamp_granularities) solo los
@@ -180,8 +191,34 @@ class Jabvox::AudioAnalysisService
     [text, words]
   ensure
     tmp&.close!
+    pcm&.close
+    pcm&.unlink
   end
   # rubocop:enable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+
+  # Normaliza el audio a MP3 16kHz mono 48kbps con ffmpeg. Devuelve un Tempfile
+  # (el llamador lo cierra/borra en el ensure) o nil si ffmpeg no está, falla o
+  # produce un archivo vacío — en cuyo caso se transcribe el original.
+  def convert_to_mp3(source)
+    out = Tempfile.new(['audio_norm', '.mp3'])
+    out.binmode
+    out.close
+    ok = system('ffmpeg', '-y', '-i', source.path, '-ar', '16000', '-ac', '1',
+                '-c:a', 'libmp3lame', '-b:a', '48k', out.path,
+                out: File::NULL, err: File::NULL)
+    if ok && File.size?(out.path)
+      out.open
+      out.binmode
+      return out
+    end
+    out.unlink
+    nil
+  rescue StandardError => e
+    Rails.logger.warn "[AudioAnalysis] ffmpeg convert failed: #{e.message}"
+    out&.close
+    out&.unlink
+    nil
+  end
 
   # Buckets per-word timings into fixed segments of segment_seconds_jabvox seconds,
   # concatenating the words that fall in each bucket.
