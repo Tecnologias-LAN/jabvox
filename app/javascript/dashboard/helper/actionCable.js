@@ -84,7 +84,15 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   isAValidEvent = data => {
-    return this.app.$store.getters.getCurrentAccountId === data.account_id;
+    // El account_id del evento puede llegar como número o como string según la vía que lo
+    // emita (p. ej. el status de WhatsApp —delivered/read— viene de un webhook de Meta donde
+    // los ids son strings). getCurrentAccountId siempre es Number, así que un `===` estricto
+    // descartaba en silencio esos eventos y el relojito del mensaje no se actualizaba hasta
+    // recargar. Comparamos por valor numérico para aceptarlos vengan como vengan.
+    const current = Number(this.app.$store.getters.getCurrentAccountId);
+    const incoming = Number(data?.account_id);
+    // Sin account_id válido (NaN) el evento se descarta, como antes.
+    return Number.isFinite(current) && current === incoming;
   };
 
   onMessageUpdated = data => {
