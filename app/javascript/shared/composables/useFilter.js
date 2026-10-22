@@ -95,7 +95,11 @@ export const useFilter = ({ filteri18nKey, attributeModel }) => {
     currentUserDetails,
     activeAssigneeTab
   ) => {
-    if (activeStatus !== '') {
+    // 'all' NO es un estado real de conversación (open/resolved/pending/snoozed):
+    // significa "todos", es decir SIN filtro de estado. Armar `status = 'all'`
+    // genera un filtro que no coincide con nada y vacía la lista al combinarlo con
+    // otros filtros (p. ej. por bandeja). Por eso se trata igual que vacío.
+    if (activeStatus !== '' && activeStatus !== wootConstants.STATUS_TYPE.ALL) {
       return {
         attribute_key: 'status',
         attribute_model: 'standard',

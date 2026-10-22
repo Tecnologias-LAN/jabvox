@@ -164,6 +164,12 @@ export const AUTOMATIONS = {
   conversation_created: {
     conditions: [
       {
+        key: 'current_time',
+        name: 'CURRENT_TIME',
+        inputType: 'time_range',
+        filterOperators: OPERATOR_TYPES_TIME,
+      },
+      {
         key: 'status',
         name: 'STATUS',
         inputType: 'multi_select',
@@ -297,6 +303,12 @@ export const AUTOMATIONS = {
   },
   conversation_updated: {
     conditions: [
+      {
+        key: 'current_time',
+        name: 'CURRENT_TIME',
+        inputType: 'time_range',
+        filterOperators: OPERATOR_TYPES_TIME,
+      },
       {
         key: 'status',
         name: 'STATUS',
@@ -444,6 +456,12 @@ export const AUTOMATIONS = {
   conversation_opened: {
     conditions: [
       {
+        key: 'current_time',
+        name: 'CURRENT_TIME',
+        inputType: 'time_range',
+        filterOperators: OPERATOR_TYPES_TIME,
+      },
+      {
         key: 'browser_language',
         name: 'BROWSER_LANGUAGE',
         inputType: 'search_select',
@@ -579,6 +597,12 @@ export const AUTOMATIONS = {
   },
   conversation_resolved: {
     conditions: [
+      {
+        key: 'current_time',
+        name: 'CURRENT_TIME',
+        inputType: 'time_range',
+        filterOperators: OPERATOR_TYPES_TIME,
+      },
       {
         key: 'browser_language',
         name: 'BROWSER_LANGUAGE',

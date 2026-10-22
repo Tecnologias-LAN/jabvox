@@ -87,6 +87,18 @@ describe('useFilter', () => {
 
       expect(result).toBeNull();
     });
+
+    it("should NOT build a status filter when activeStatus is 'all' (means no status filter)", () => {
+      const { initializeStatusAndAssigneeFilterToModal } = useFilter({
+        filteri18nKey: 'TEST',
+        attributeModel: 'conversation',
+      });
+      // 'all' no es un estado real: armar status='all' vacía la lista al combinarlo
+      // con otros filtros (p. ej. por bandeja).
+      const result = initializeStatusAndAssigneeFilterToModal('all', {}, '');
+
+      expect(result).toBeNull();
+    });
   });
 
   describe('initializeInboxTeamAndLabelFilterToModal', () => {
