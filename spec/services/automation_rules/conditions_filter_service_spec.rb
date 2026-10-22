@@ -354,5 +354,63 @@ RSpec.describe AutomationRules::ConditionsFilterService do
         end
       end
     end
+
+    # Jabvox: condicion por TIPO de contenido del mensaje (attachment_type).
+    # Se evalua en Ruby sobre el mensaje del evento (message_created), igual que la
+    # franja horaria. 'text' = mensaje sin adjuntos.
+    context 'when condition is based on attachment_type (tipo de contenido)' do
+      def mensaje_con_adjunto(tipo)
+        msg = create(:message, account: account, conversation: conversation,
+                               inbox: conversation.inbox, message_type: :incoming, content: 'hola')
+        msg.attachments.create!(account_id: account.id, file_type: tipo) unless tipo.nil?
+        msg
+      end
+
+      def match?(tipo_mensaje, operador, tipo_buscado)
+        rule.conditions = [{ 'values' => [tipo_buscado], 'attribute_key' => 'attachment_type',
+                             'query_operator' => nil, 'filter_operator' => operador }]
+        rule.save!
+        msg = mensaje_con_adjunto(tipo_mensaje)
+        described_class.new(rule, msg.conversation, { message: msg, changed_attributes: {} }).perform
+      end
+
+      it 'matchea cuando el mensaje contiene una imagen' do
+        expect(match?(:image, 'contains', 'image')).to be(true)
+      end
+
+      it 'matchea cuando el mensaje contiene un audio' do
+        expect(match?(:audio, 'contains', 'audio')).to be(true)
+      end
+
+      it 'NO matchea cuando se busca imagen pero el adjunto es audio' do
+        expect(match?(:audio, 'contains', 'image')).to be(false)
+      end
+
+      it "matchea 'text' cuando el mensaje no tiene adjuntos" do
+        expect(match?(nil, 'contains', 'text')).to be(true)
+      end
+
+      it "NO matchea 'text' cuando el mensaje sí tiene adjunto" do
+        expect(match?(:image, 'contains', 'text')).to be(false)
+      end
+
+      it 'does_not_contain: matchea cuando el mensaje NO tiene ese tipo' do
+        expect(match?(:audio, 'does_not_contain', 'image')).to be(true)
+      end
+
+      it 'does_not_contain: NO matchea cuando el mensaje SÍ tiene ese tipo' do
+        expect(match?(:image, 'does_not_contain', 'image')).to be(false)
+      end
+
+      it 'combinado con message_type incoming (ambas deben cumplirse)' do
+        rule.conditions = [
+          { 'values' => ['incoming'], 'attribute_key' => 'message_type', 'query_operator' => 'AND', 'filter_operator' => 'equal_to' },
+          { 'values' => ['image'], 'attribute_key' => 'attachment_type', 'query_operator' => nil, 'filter_operator' => 'contains' }
+        ]
+        rule.save!
+        msg = mensaje_con_adjunto(:image)
+        expect(described_class.new(rule, msg.conversation, { message: msg, changed_attributes: {} }).perform).to be(true)
+      end
+    end
   end
 end

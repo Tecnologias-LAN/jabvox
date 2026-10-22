@@ -36,11 +36,20 @@ class AutomationRules::ConditionValidationService
   # evalua en Ruby comparando la hora actual contra un rango. Por eso vive fuera
   # de filter_keys.yml y se valida aqui como caso especial.
   CURRENT_TIME_OPERATORS = %w[is_between is_not_between].freeze
+  # attachment_type: tipo de contenido del mensaje, evaluado en Ruby (no es SQL).
+  ATTACHMENT_TYPE_OPERATORS = %w[contains does_not_contain].freeze
+
+  # Condiciones evaluadas en Ruby (no en filter_keys.yml) y sus operadores validos.
+  RUBY_CONDITION_OPERATORS = {
+    'current_time' => CURRENT_TIME_OPERATORS,
+    'attachment_type' => ATTACHMENT_TYPE_OPERATORS
+  }.freeze
 
   def valid_condition?(condition)
     key = condition['attribute_key']
 
-    return CURRENT_TIME_OPERATORS.include?(condition['filter_operator']) if key == 'current_time'
+    ruby_operators = RUBY_CONDITION_OPERATORS[key]
+    return ruby_operators.include?(condition['filter_operator']) if ruby_operators
 
     conversation_filter = @conversation_filters[key]
     contact_filter = @contact_filters[key]

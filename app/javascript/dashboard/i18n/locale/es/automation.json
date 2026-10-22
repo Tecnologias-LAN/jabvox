@@ -163,6 +163,13 @@
       "INCOMING": "Mensaje entrante",
       "OUTGOING": "Mensaje saliente"
     },
+    "ATTACHMENT_TYPES": {
+      "TEXT": "Texto (sin adjunto)",
+      "IMAGE": "Imagen",
+      "AUDIO": "Audio",
+      "VIDEO": "Video",
+      "FILE": "Documento"
+    },
     "PRIORITY_TYPES": {
       "NONE": "Ninguna",
       "LOW": "Baja",
@@ -172,6 +179,7 @@
     },
     "ATTRIBUTES": {
       "MESSAGE_TYPE": "Tipo de mensaje",
+      "ATTACHMENT_TYPE": "Tipo de contenido",
       "CURRENT_TIME": "Hora actual",
       "PRIVATE_NOTE": "Nota privada",
       "MESSAGE_CONTAINS": "El mensaje contiene",

@@ -2,6 +2,8 @@ require 'json'
 
 class AutomationRules::ConditionsFilterService < FilterService
   include AutomationRules::CurrentTimeCondition
+  include AutomationRules::AttachmentTypeCondition
+  include AutomationRules::AttributeChangedFilter
 
   ATTRIBUTE_MODEL = 'contact_attribute'.freeze
 
@@ -64,10 +66,12 @@ class AutomationRules::ConditionsFilterService < FilterService
   def build_filters
     @rule.conditions.each_with_index do |query_hash, current_index|
       @attribute_changed_query_filter << query_hash and next if query_hash['filter_operator'] == 'attribute_changed'
-      next if current_time_condition?(query_hash)
-      return false if current_time_attribute?(query_hash)
 
-      apply_filter(query_hash, current_index)
+      case ruby_condition_outcome(query_hash)
+      when :skip then next        # condicion Ruby cumplida: no aporta SQL
+      when :fail then return false # condicion Ruby no cumplida: la regla no matchea
+      else apply_filter(query_hash, current_index) # condicion SQL normal
+      end
     end
     true
   end
@@ -103,37 +107,6 @@ class AutomationRules::ConditionsFilterService < FilterService
     elsif custom_attribute(query_hash['attribute_key'], @account, query_hash['custom_attribute_type'])
       # send table name according to attribute key right now we are supporting contact based custom attribute filter
       @query_string += custom_attribute_query(query_hash.with_indifferent_access, query_hash['custom_attribute_type'], current_index)
-    end
-  end
-
-  # If attribute_changed type filter is present perform this against array
-  def perform_attribute_changed_filter(records)
-    @attribute_changed_records = []
-    current_attribute_changed_record = base_relation
-    filter_based_on_attribute_change(records, current_attribute_changed_record)
-
-    @attribute_changed_records.uniq
-  end
-
-  # Loop through attribute_changed_query_filter
-  def filter_based_on_attribute_change(records, current_attribute_changed_record)
-    @attribute_changed_query_filter.each do |filter|
-      @changed_attributes = @changed_attributes.with_indifferent_access
-      changed_attribute = @changed_attributes[filter['attribute_key']].presence
-
-      if changed_attribute[0].in?(filter['values']['from']) && changed_attribute[1].in?(filter['values']['to'])
-        @attribute_changed_records = attribute_changed_filter_query(filter, records, current_attribute_changed_record)
-      end
-      current_attribute_changed_record = @attribute_changed_records
-    end
-  end
-
-  # We intersect with the record if query_operator-AND is present and union if query_operator-OR is present
-  def attribute_changed_filter_query(filter, records, current_attribute_changed_record)
-    if filter['query_operator'] == 'AND'
-      @attribute_changed_records + (current_attribute_changed_record & records)
-    else
-      @attribute_changed_records + (current_attribute_changed_record | records)
     end
   end
 

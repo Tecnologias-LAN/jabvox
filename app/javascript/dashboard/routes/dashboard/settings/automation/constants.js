@@ -16,6 +16,12 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_1,
       },
       {
+        key: 'attachment_type',
+        name: 'ATTACHMENT_TYPE',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
         key: 'current_time',
         name: 'CURRENT_TIME',
         inputType: 'time_range',

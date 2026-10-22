@@ -163,6 +163,13 @@
       "INCOMING": "Incoming Message",
       "OUTGOING": "Outgoing Message"
     },
+    "ATTACHMENT_TYPES": {
+      "TEXT": "Text (no attachment)",
+      "IMAGE": "Image",
+      "AUDIO": "Audio",
+      "VIDEO": "Video",
+      "FILE": "Document"
+    },
     "PRIORITY_TYPES": {
       "NONE": "None",
       "LOW": "Low",
@@ -172,6 +179,7 @@
     },
     "ATTRIBUTES": {
       "MESSAGE_TYPE": "Message Type",
+      "ATTACHMENT_TYPE": "Content type",
       "CURRENT_TIME": "Current time",
       "PRIVATE_NOTE": "Private Note",
       "MESSAGE_CONTAINS": "Message Contains",

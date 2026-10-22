@@ -48,6 +48,16 @@ export const MESSAGE_CONDITION_VALUES = [
   },
 ];
 
+// Jabvox: tipo de contenido del mensaje para la condición attachment_type.
+// 'text' = mensaje sin adjuntos; el resto son file_type del modelo Attachment.
+export const ATTACHMENT_TYPE_CONDITION_VALUES = [
+  { id: 'text', name: 'Text', i18nKey: 'TEXT' },
+  { id: 'image', name: 'Image', i18nKey: 'IMAGE' },
+  { id: 'audio', name: 'Audio', i18nKey: 'AUDIO' },
+  { id: 'video', name: 'Video', i18nKey: 'VIDEO' },
+  { id: 'file', name: 'File', i18nKey: 'FILE' },
+];
+
 export const PRIORITY_CONDITION_VALUES = [
   {
     id: 'nil',

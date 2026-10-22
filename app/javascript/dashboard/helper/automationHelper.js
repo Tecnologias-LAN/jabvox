@@ -130,6 +130,7 @@ export const getConditionOptions = ({
   type,
   priorityOptions,
   messageTypeOptions,
+  attachmentTypeOptions,
 }) => {
   if (isCustomAttributeCheckbox(customAttributes, type)) {
     return booleanFilterOptions;
@@ -150,6 +151,7 @@ export const getConditionOptions = ({
     conversation_language: languages,
     country_code: countries,
     message_type: messageTypeOptions,
+    attachment_type: attachmentTypeOptions,
     private_note: booleanFilterOptions,
     priority: priorityOptions,
     labels: generateConditionOptions(labels, 'title'),
