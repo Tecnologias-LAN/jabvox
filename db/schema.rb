@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_22_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_23_000002) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2698,11 +2698,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_22_000001) do
     t.datetime "updated_at", null: false
     t.bigint "created_by_id"
     t.bigint "contact_id"
+    t.integer "position_jabvox", default: 0, null: false
     t.index ["account_id", "contact_id"], name: "idx_on_account_id_contact_id_15c04b9163"
     t.index ["account_id"], name: "index_jabvox_conv_stages_account"
     t.index ["conversation_id", "jabvox_kanban_funnel_id"], name: "index_jabvox_conv_stages_unique", unique: true
     t.index ["created_by_id"], name: "index_jabvox_kanban_conversation_stages_on_created_by_id"
     t.index ["jabvox_kanban_funnel_id"], name: "index_jabvox_conv_stages_funnel"
+    t.index ["jabvox_kanban_stage_id", "position_jabvox"], name: "idx_jabvox_conv_stages_stage_position"
     t.index ["jabvox_kanban_stage_id"], name: "index_jabvox_conv_stages_stage"
   end
 
@@ -2790,6 +2792,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_22_000001) do
     t.integer "auto_advance_hours"
     t.bigint "auto_advance_target_stage_id"
     t.bigint "created_by_id"
+    t.string "card_sort_jabvox", default: "manual", null: false
     t.index ["account_id"], name: "index_jabvox_kanban_stages_on_account_id"
     t.index ["auto_advance_target_stage_id"], name: "index_jabvox_kanban_stages_on_auto_advance_target"
     t.index ["created_by_id"], name: "index_jabvox_kanban_stages_on_created_by_id"
