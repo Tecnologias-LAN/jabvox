@@ -131,6 +131,25 @@ const mutations = {
     delete msgs[sessionId];
     s.messages = msgs;
   },
+  // Re-clava los mensajes de una sesión temporal (pending_<ts>) al session_id REAL que devolvió
+  // el backend al abrir el stream. Así, si el usuario sale durante/tras el primer turno, la
+  // sesión no se pierde: sus mensajes quedan bajo el UUID real que el historial sí conoce.
+  REKEY_SESSION(s, { fromSessionId, toSessionId }) {
+    if (!fromSessionId || !toSessionId || fromSessionId === toSessionId) return;
+    const existing = s.messages[fromSessionId];
+    if (existing === undefined) return;
+    const msgs = { ...s.messages };
+    // Si ya hay mensajes bajo el id real, se antepone lo temporal para no perder nada.
+    msgs[toSessionId] = [...existing, ...(msgs[toSessionId] || [])];
+    delete msgs[fromSessionId];
+    s.messages = msgs;
+  },
+  // Actualiza el título de una sesión en la lista (tras renombrar).
+  UPDATE_SESSION_TITLE(s, { sessionId, title }) {
+    s.sessions = s.sessions.map(ses =>
+      ses.session_id === sessionId ? { ...ses, title } : ses
+    );
+  },
   SET_COPILOT_SESSION_ID(s, sessionId) {
     s.copilotSessionId = sessionId;
   },
@@ -223,6 +242,16 @@ const actions = {
   async deleteSession({ commit }, sessionId) {
     await aiChatAPI.deleteSession(sessionId);
     commit('REMOVE_SESSION', sessionId);
+  },
+
+  // Renombra una sesión (compartida por cuenta) y refleja el título en la lista.
+  async renameSession({ commit }, { sessionId, title }) {
+    const { data } = await aiChatAPI.renameSession(sessionId, title);
+    commit('UPDATE_SESSION_TITLE', {
+      sessionId,
+      title: data?.title ?? title,
+    });
+    return data;
   },
 
   async fetchModels({ commit }) {

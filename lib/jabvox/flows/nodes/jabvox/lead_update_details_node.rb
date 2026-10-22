@@ -40,7 +40,8 @@ class Jabvox::Flows::Nodes::Jabvox::LeadUpdateDetailsNode < Jabvox::Flows::Nodes
   end
 
   def update_contact_fields(lead)
-    contact = lead.contact
+    # El lead ES el contacto (la tabla jabvox_leads ya no existe).
+    contact = lead
     return if contact.blank?
 
     attrs = {}

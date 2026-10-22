@@ -11,10 +11,12 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::LeadUpdateDetailsNode do
   let(:account) { create(:account) }
   let(:ctx) { build_ctx(account) }
 
+  # Los "leads" hoy SON contactos (la tabla jabvox_leads ya no existe): el lead es
+  # el propio contacto y sus campos personalizados viven en custom_fields_jabvox.
   def crear_lead(numero, campos: {}, nombre: nil)
-    contact = create(:contact, account: account, name: nombre || "Cliente #{numero}",
-                               phone_number: format('+5730077788%<n>02d', n: numero))
-    account.jabvox_leads.create!(contact: contact, custom_fields_jabvox: campos)
+    create(:contact, account: account, name: nombre || "Cliente #{numero}",
+                     phone_number: format('+5730077788%<n>02d', n: numero),
+                     custom_fields_jabvox: campos)
   end
 
   it 'actualiza teléfono y email del contacto y devuelve el lead REAL releído' do
@@ -36,18 +38,18 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::LeadUpdateDetailsNode do
     run_node(described_class, ctx,
              { 'leadId' => lead.id, 'country' => 'CO', 'identification' => '1020304050' })
 
-    adicionales = lead.contact.reload.additional_attributes
+    adicionales = lead.reload.additional_attributes
     expect(adicionales['country']).to eq('CO')
     expect(adicionales['jabvox_identification_number']).to eq('1020304050')
   end
 
   it 'NO toca los campos que se dejan vacíos' do
     lead = crear_lead(1)
-    telefono = lead.contact.phone_number
+    telefono = lead.phone_number
 
     run_node(described_class, ctx, { 'leadId' => lead.id, 'phone_number' => '', 'email' => '' })
 
-    expect(lead.contact.reload.phone_number).to eq(telefono)
+    expect(lead.reload.phone_number).to eq(telefono)
   end
 
   it 'crea la campaña si no existe y la asigna al lead' do
@@ -168,7 +170,7 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::LeadUpdateDetailsNode do
     it 'trata un lead de OTRA cuenta como inexistente' do
       agente = create(:user, account: account)
       otra = create(:account)
-      ajeno = otra.jabvox_leads.create!(contact: create(:contact, account: otra))
+      ajeno = create(:contact, account: otra)
 
       result = run_node(described_class, ctx, { 'leadIds' => ajeno.id, 'assigneeId' => agente.id })
 
@@ -224,43 +226,6 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::LeadUpdateDetailsNode do
     it 'falla si la lista viene vacía' do
       expect(run_node(described_class, ctx, { 'leadIds' => '' }).error)
         .to match(/al menos un ID interno de lead/)
-    end
-  end
-
-  describe Jabvox::Flows::Nodes::Jabvox::LeadSyncContactsNode do
-    it 'crea un lead por cada contacto que aún no lo tenía' do
-      create(:contact, account: account)
-      create(:contact, account: account)
-
-      result = run_node(described_class, ctx, {})
-
-      expect(result.output['synced']).to eq(2)
-      expect(account.jabvox_leads.count).to eq(2)
-    end
-
-    it 'es idempotente: la segunda pasada no crea nada' do
-      create(:contact, account: account)
-      run_node(described_class, ctx, {})
-
-      result = run_node(described_class, ctx, {})
-
-      expect(result.output['synced']).to eq(0)
-      expect(account.jabvox_leads.count).to eq(1)
-    end
-
-    it 'devuelve 0 cuando la cuenta no tiene contactos' do
-      expect(run_node(described_class, ctx, {}).output['synced']).to eq(0)
-    end
-
-    it 'no toca los contactos de OTRA cuenta' do
-      otra = create(:account)
-      create(:contact, account: otra)
-      create(:contact, account: account)
-
-      run_node(described_class, ctx, {})
-
-      expect(account.jabvox_leads.count).to eq(1)
-      expect(otra.jabvox_leads.count).to eq(0)
     end
   end
 end

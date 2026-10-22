@@ -110,6 +110,20 @@ const inputFieldType = computed(() => {
   return 'text';
 });
 
+// Jabvox: franja horaria. `values` es un objeto { from, to } con horas 'HH:MM'.
+const timeRangeFrom = computed({
+  get: () => values.value?.from ?? '',
+  set: val => {
+    values.value = { ...(values.value || {}), from: val };
+  },
+});
+const timeRangeTo = computed({
+  get: () => values.value?.to ?? '',
+  set: val => {
+    values.value = { ...(values.value || {}), to: val };
+  },
+});
+
 const asyncOptions = ref([]);
 const isSearching = ref(false);
 const lastSearchQuery = ref('');
@@ -151,9 +165,12 @@ const resetModelOnAttributeKeyChange = newAttributeKey => {
   if (newInputType === 'multiSelect') {
     values.value = [];
   } else if (
-    ['searchSelect', 'asyncSearchSelect', 'booleanSelect'].includes(
-      newInputType
-    )
+    [
+      'searchSelect',
+      'asyncSearchSelect',
+      'booleanSelect',
+      'timeRange',
+    ].includes(newInputType)
   ) {
     values.value = {};
   } else {
@@ -235,6 +252,22 @@ defineExpose({ validate, resetValidation });
           disable-search
           :options="booleanOptions"
         />
+        <div
+          v-else-if="inputType === 'timeRange'"
+          class="flex items-center gap-2"
+        >
+          <input
+            v-model="timeRangeFrom"
+            type="time"
+            class="h-8 py-1.5 px-2 text-sm rounded-lg border border-n-weak bg-n-alpha-black2 text-n-slate-12 outline-offset-0"
+          />
+          <span class="i-lucide-move-right text-n-slate-11 flex-shrink-0" />
+          <input
+            v-model="timeRangeTo"
+            type="time"
+            class="h-8 py-1.5 px-2 text-sm rounded-lg border border-n-weak bg-n-alpha-black2 text-n-slate-12 outline-offset-0"
+          />
+        </div>
         <Input
           v-else
           v-model="values"

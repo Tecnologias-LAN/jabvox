@@ -110,6 +110,25 @@ describe('useHermesCommands', () => {
       expect(isStopCommand('/stop')).toBe(true);
       expect(isStopCommand('/status')).toBe(false);
     });
+
+    it('detects new-chat and stop commands by prefix (with arguments)', () => {
+      const { isNewChatCommand, isStopCommand } = setup();
+      expect(isNewChatCommand('/new mi conversación')).toBe(true);
+      expect(isNewChatCommand('/reset  con espacios')).toBe(true);
+      expect(isStopCommand('/stop ahora')).toBe(true);
+      // No confunde comandos que empiezan igual pero son otra palabra.
+      expect(isNewChatCommand('/newsletter')).toBe(false);
+      expect(isStopCommand('/stopall')).toBe(false);
+    });
+
+    it('extracts the title from "/new <nombre>"', () => {
+      const { newChatTitle } = setup();
+      expect(newChatTitle('/new Soporte VIP')).toBe('Soporte VIP');
+      expect(newChatTitle('/new')).toBe('');
+      expect(newChatTitle('/reset  Ventas  ')).toBe('Ventas');
+      // No es comando de nueva sesión → sin título.
+      expect(newChatTitle('/model glm-5')).toBe('');
+    });
   });
 
   // "/model" sí viaja a Hermes, pero quien lo envíe debe resincronizar el picker: Hermes no

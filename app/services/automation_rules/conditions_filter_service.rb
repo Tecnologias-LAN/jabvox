@@ -1,6 +1,8 @@
 require 'json'
 
 class AutomationRules::ConditionsFilterService < FilterService
+  include AutomationRules::CurrentTimeCondition
+
   ATTRIBUTE_MODEL = 'contact_attribute'.freeze
 
   def initialize(rule, conversation = nil, options = {})
@@ -27,13 +29,17 @@ class AutomationRules::ConditionsFilterService < FilterService
 
     @attribute_changed_query_filter = []
 
-    @rule.conditions.each_with_index do |query_hash, current_index|
-      @attribute_changed_query_filter << query_hash and next if query_hash['filter_operator'] == 'attribute_changed'
+    # build_filters arma el @query_string SQL y evalua en Ruby la franja horaria;
+    # devuelve false si una condicion de hora no se cumple (la regla no matchea).
+    return false unless build_filters
 
-      apply_filter(query_hash, current_index)
-    end
+    # Las condiciones current_time no aportan SQL; al saltarlas puede quedar un
+    # operador AND/OR colgando o doble. Se normaliza para no romper el where.
+    @query_string = sanitize_dangling_operators(@query_string)
 
-    records = base_relation.where(@query_string, @filter_values.with_indifferent_access)
+    # Si la unica condicion era current_time (ya evaluada en Ruby y cumplida),
+    # @query_string queda vacio: no hay filtro SQL que aplicar, la regla matchea.
+    records = @query_string.blank? ? base_relation : base_relation.where(@query_string, @filter_values.with_indifferent_access)
     records = perform_attribute_changed_filter(records) if @attribute_changed_query_filter.any?
 
     records.any?
@@ -41,6 +47,29 @@ class AutomationRules::ConditionsFilterService < FilterService
     Rails.logger.error "Error in AutomationRules::ConditionsFilterService: #{e.message}"
     Rails.logger.info "AutomationRules::ConditionsFilterService failed while processing rule #{@rule.id} for conversation #{@conversation.id}"
     false
+  end
+
+  # Limpia operadores AND/OR que queden colgando o duplicados cuando una condicion
+  # current_time (que no aporta SQL) se salta al inicio, en medio o al final.
+  def sanitize_dangling_operators(sql)
+    sql.gsub(/\s+(AND|OR)\s+(AND|OR)\s+/i, ' \1 ')
+       .sub(/\A\s*(AND|OR)\s+/i, '')
+       .sub(/\s+(AND|OR)\s*\z/i, '')
+       .strip
+  end
+
+  # Itera las condiciones de la regla: separa attribute_changed, evalua la franja
+  # horaria en Ruby y acumula el resto como filtro SQL. Devuelve false si una
+  # condicion de hora no se cumple.
+  def build_filters
+    @rule.conditions.each_with_index do |query_hash, current_index|
+      @attribute_changed_query_filter << query_hash and next if query_hash['filter_operator'] == 'attribute_changed'
+      next if current_time_condition?(query_hash)
+      return false if current_time_attribute?(query_hash)
+
+      apply_filter(query_hash, current_index)
+    end
+    true
   end
 
   def rule_valid?

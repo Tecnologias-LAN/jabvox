@@ -11,6 +11,10 @@ const state = {
     me: false,
     unassigned: false,
     all: false,
+    // Sin esta clave, getHasEndReached('appliedFilters') devuelve undefined y el
+    // guard de "cargar más" no frena nunca: el filtro pide página tras página en
+    // bucle (filter?page=1,2,3…) y la lista "carga infinito".
+    appliedFilters: false,
   },
 };
 

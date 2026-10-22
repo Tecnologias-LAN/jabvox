@@ -94,7 +94,7 @@ class Jabvox::Flows::Nodes::Jabvox::TaskBase < Jabvox::Flows::Nodes::Jabvox::Bas
       'due_at' => task.due_at_jabvox&.iso8601,
       'board_id' => task.board_id, 'board_name' => task.board&.name_jabvox,
       'stage_id' => task.stage_id, 'stage_name' => task.stage&.name_jabvox,
-      'lead_id' => task.jabvox_lead_id, 'assignee_id' => task.assignee_id,
+      'lead_id' => task.contact_id, 'assignee_id' => task.assignee_id,
       'assignee_ids' => task.assignees.pluck(:id),
       'assignee_names' => task.assignees.pluck(:name) }
   end

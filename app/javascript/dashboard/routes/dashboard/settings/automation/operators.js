@@ -111,3 +111,15 @@ export const OPERATOR_TYPES_6 = [
     label: 'Starts With',
   },
 ];
+
+// Jabvox: operadores para la condicion de franja horaria (current_time).
+export const OPERATOR_TYPES_TIME = [
+  {
+    value: 'is_between',
+    label: 'Is between',
+  },
+  {
+    value: 'is_not_between',
+    label: 'Is not between',
+  },
+];

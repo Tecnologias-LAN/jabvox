@@ -117,7 +117,7 @@ const onDrop = event => {
         <button
           class="size-7 flex items-center justify-center rounded-lg text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-2 transition-colors"
           :title="$t('JABVOX_KANBAN.AUTOMATIONS.CONFIGURE')"
-          @click="showAutomations = true"
+          @click.stop="showAutomations = true"
         >
           <span class="i-lucide-settings-2 size-3.5" />
         </button>

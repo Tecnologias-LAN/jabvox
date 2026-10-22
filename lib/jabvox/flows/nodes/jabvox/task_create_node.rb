@@ -25,7 +25,8 @@ class Jabvox::Flows::Nodes::Jabvox::TaskCreateNode < Jabvox::Flows::Nodes::Jabvo
       status_jabvox: valid_enum(param(:status), JabvoxTask::STATUSES, 'el estado', 'open'),
       assignee_id: assignee_ids.first, due_at_jabvox: due_at,
       position_jabvox: int_or(param(:position), 0, min: 0),
-      jabvox_lead_id: linked_lead&.id }
+      # El lead ES el contacto: la tarea se vincula por contact_id.
+      contact_id: linked_lead&.id }
   end
 
   def require_title!

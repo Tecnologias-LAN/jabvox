@@ -29,7 +29,8 @@ class Jabvox::Flows::Nodes::Jabvox::LeadListNode < Jabvox::Flows::Nodes::Jabvox:
 
   def filtered_scope
     scope = base_scope
-    scope = scope.joins(:contact).where('contacts.name ILIKE ?', "%#{sanitized_query}%") if query.present?
+    # El lead ES el contacto: se filtra por su propio nombre, sin join a 'contact'.
+    scope = scope.where('contacts.name ILIKE ?', "%#{sanitized_query}%") if query.present?
     scope = scope.where(jabvox_campaign_id: param(:campaignId)) if param(:campaignId).present?
     scope = scope.where(assignee_id: param(:assigneeId)) if param(:assigneeId).present?
     scope

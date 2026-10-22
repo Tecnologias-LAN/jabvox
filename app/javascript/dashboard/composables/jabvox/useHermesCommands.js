@@ -83,8 +83,22 @@ export function useHermesCommands(messageInput) {
     return false;
   }
 
-  const isNewChatCommand = content => NEW_CHAT_COMMANDS.includes(content);
-  const isStopCommand = content => content === '/stop';
+  // El primer token del texto (la palabra tras el "/"), para detectar comandos por PREFIJO:
+  // así "/new nombre de la sesión" y "/stop algo" se reconocen, no solo "/new" exacto.
+  const commandWord = content => (content || '').trim().split(/\s+/)[0];
+  const isNewChatCommand = content =>
+    NEW_CHAT_COMMANDS.includes(commandWord(content));
+  const isStopCommand = content => commandWord(content) === '/stop';
+
+  // Argumento de "/new <nombre>": el resto del texto tras el comando, usado como título de la
+  // sesión nueva. Vacío si no se dio nombre.
+  const newChatTitle = content => {
+    if (!isNewChatCommand(content)) return '';
+    return (content || '')
+      .trim()
+      .replace(/^\/\S+\s*/, '')
+      .trim();
+  };
 
   // "/model ..." cambia el modelo del lado de Hermes, pero el picker visual no se entera:
   // seguiría mandando su propio llm_model en el siguiente mensaje y pisaría el cambio. Quien
@@ -102,5 +116,6 @@ export function useHermesCommands(messageInput) {
     isNewChatCommand,
     isStopCommand,
     isModelCommand,
+    newChatTitle,
   };
 }

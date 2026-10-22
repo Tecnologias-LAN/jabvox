@@ -82,13 +82,11 @@ module Jabvox::Hermes::ServiceHandlersKanban
   end
 
   def create_kanban_stage_automation(params)
+    # La etapa dueña se resuelve dentro de la cuenta (find en @account), no cruda desde params:
+    # así una etapa de otra cuenta da RecordNotFound en vez de crearse atada a ella.
+    stage = @account.jabvox_kanban_stages.find(params[:stage_id])
     a = @account.jabvox_kanban_stage_automations.new(
-      jabvox_kanban_stage_id: params[:stage_id], name: params[:name],
-      automation_type: params[:automation_type], channel_type: params[:channel_type],
-      message_body: params[:message_body], inbox_id: params[:inbox_id],
-      trigger_hours: params[:trigger_hours], target_stage_id: params[:target_stage_id],
-      jabvox_email_template_id: params[:email_template_id],
-      jabvox_sms_provider_id: params[:sms_provider_id]
+      build_kanban_automation_attrs(params).merge(jabvox_kanban_stage_id: stage.id)
     )
     a.active = params.key?(:active) ? params[:active] : true
     a.created_by_id = @user&.id
@@ -102,11 +100,18 @@ module Jabvox::Hermes::ServiceHandlersKanban
     kanban_automation_view(a)
   end
 
+  # Mapea los params de la tool a las columnas reales del modelo. Incluye el canal de
+  # PLANTILLA de WhatsApp (template_name/language/params) y el disparador por tiempo
+  # (trigger_value/unit), antes ausentes: sin ellos Hermes no podía crear automatizaciones
+  # de columna que envíen plantillas con variables. template_params es el mapeo {var => {source,field}}.
   def build_kanban_automation_attrs(params)
     map = { name: :name, automation_type: :automation_type, channel_type: :channel_type,
             message_body: :message_body, inbox_id: :inbox_id, trigger_hours: :trigger_hours,
             target_stage_id: :target_stage_id, active: :active,
-            email_template_id: :jabvox_email_template_id, sms_provider_id: :jabvox_sms_provider_id }
+            email_template_id: :jabvox_email_template_id, sms_provider_id: :jabvox_sms_provider_id,
+            template_name: :template_name_jabvox, template_language: :template_language_jabvox,
+            template_params: :template_params_jabvox,
+            trigger_value: :trigger_value_jabvox, trigger_unit: :trigger_unit_jabvox }
     map.each_with_object({}) { |(from, to), out| out[to] = params[from] if params.key?(from) }
   end
 
@@ -114,7 +119,11 @@ module Jabvox::Hermes::ServiceHandlersKanban
     { id: automation.id, stage_id: automation.jabvox_kanban_stage_id, name: automation.name,
       automation_type: automation.automation_type, channel_type: automation.channel_type,
       inbox_id: automation.inbox_id, trigger_hours: automation.trigger_hours,
-      target_stage_id: automation.target_stage_id, active: automation.active }
+      target_stage_id: automation.target_stage_id, active: automation.active,
+      template_name: automation.template_name_jabvox,
+      template_language: automation.template_language_jabvox,
+      template_params: automation.template_params_jabvox,
+      trigger_value: automation.trigger_value_jabvox, trigger_unit: automation.trigger_unit_jabvox }
   end
 
   # ==========================================================================

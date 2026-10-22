@@ -20,7 +20,8 @@ class AsyncDispatcher < BaseDispatcher
       Conversations::UnreadCounts::Listener.instance,
       ReportingEventListener.instance,
       WebhookListener.instance,
-      JabvoxBulkWhatsappListener.instance
+      JabvoxBulkWhatsappListener.instance,
+      Jabvox::FlowsEventListener.instance
     ]
   end
 end

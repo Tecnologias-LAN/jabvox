@@ -87,7 +87,12 @@ class Jabvox::KanbanAutomationExecutorService
     return unless provider && @contact.phone_number.present?
 
     body = render_template(automation.message_body)
-    Jabvox::SmsSendService.new(provider: provider, phone: @contact.phone_number, message: body).perform
+    # Clase y firma deben coincidir con las reales (Jabvox::SmsSenderService#send_sms); antes
+    # llamaba a Jabvox::SmsSendService —inexistente— y el SMS de Kanban fallaba en silencio
+    # (el rescue del executor tragaba el NameError). Se alinea con el executor de Tareas.
+    Jabvox::SmsSenderService.new(provider).send_sms(
+      phone: @contact.phone_number, message: body, account: @account, contact: @contact
+    )
   end
 
   def find_or_create_conversation(inbox)

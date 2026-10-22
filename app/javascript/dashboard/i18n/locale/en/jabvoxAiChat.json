@@ -9,6 +9,7 @@
     "STOP": "Stop",
     "NEW_CHAT": "New Chat",
     "DELETE_SESSION": "Delete conversation",
+    "RENAME_SESSION": "Rename conversation",
     "DELETE_SESSION_CONFIRM": "Are you sure you want to delete this conversation?",
     "PLACEHOLDER": "Ask something...",
     "EMPTY_STATE": "Start a conversation with the AI assistant",

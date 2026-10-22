@@ -11,11 +11,12 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::LeadListNode do
   let(:account) { create(:account) }
   let(:ctx) { build_ctx(account) }
 
+  # Los "leads" hoy SON contactos: campaña, agente y campos personalizados viven
+  # en el propio contacto (la tabla jabvox_leads ya no existe).
   def crear_lead(numero, campos: {}, nombre: nil, campana: nil, agente: nil)
-    contact = create(:contact, account: account, name: nombre || "Cliente #{numero}",
-                               phone_number: format('+5730055566%<n>02d', n: numero))
-    account.jabvox_leads.create!(contact: contact, custom_fields_jabvox: campos,
-                                 jabvox_campaign: campana, assignee: agente)
+    create(:contact, account: account, name: nombre || "Cliente #{numero}",
+                     phone_number: format('+5730055566%<n>02d', n: numero),
+                     custom_fields_jabvox: campos, jabvox_campaign: campana, assignee: agente)
   end
 
   it 'declara itemsPath para que el bucle reciba la colección' do
@@ -98,8 +99,7 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::LeadListNode do
 
     it 'no encuentra un lead de OTRA cuenta' do
       otra = create(:account)
-      contacto = create(:contact, account: otra)
-      ajeno = otra.jabvox_leads.create!(contact: contacto)
+      ajeno = create(:contact, account: otra)
 
       expect(run_node(described_class, ctx, { 'leadId' => ajeno.id }).ok?).to be(false)
     end

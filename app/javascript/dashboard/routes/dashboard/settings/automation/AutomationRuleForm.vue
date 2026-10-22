@@ -69,6 +69,8 @@ const INPUT_TYPE_MAP = {
   plain_text: 'plainText',
   comma_separated_plain_text: 'plainText',
   date: 'date',
+  // Jabvox: franja horaria con dos selectores de hora (desde / hasta).
+  time_range: 'timeRange',
 };
 
 const { t } = useI18n();

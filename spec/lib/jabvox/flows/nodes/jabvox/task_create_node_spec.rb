@@ -24,9 +24,9 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::TaskCreateNode do
     user
   end
 
+  # El lead ES el contacto (la tabla jabvox_leads ya no existe).
   def crear_lead(numero = 1)
-    contact = create(:contact, account: account, name: "Cliente #{numero}")
-    account.jabvox_leads.create!(contact: contact)
+    create(:contact, account: account, name: "Cliente #{numero}")
   end
 
   describe described_class do
@@ -150,7 +150,7 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::TaskCreateNode do
 
       ajeno = create(:account)
       contacto = create(:contact, account: ajeno)
-      lead_ajeno = ajeno.jabvox_leads.create!(contact: contacto)
+      lead_ajeno = contacto
       expect(run_node(described_class, ctx,
                       { 'title' => 'x', 'boardId' => board.id, 'stageId' => stage.id, 'leadId' => lead_ajeno.id }).error)
         .to match(/no existe en esta cuenta/)

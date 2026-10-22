@@ -15,7 +15,10 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     }
   end
 
-  def sessions
+  def sessions # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+    # El historial del Chat IA es PRIVADO POR USUARIO: cada usuario ve solo SUS chats, no los de
+    # otros usuarios de la cuenta. La lectura filtra por account_id + user_id.
+    #
     # Incluye metadata para poder mostrar a qué AGENTE/conexión pertenece cada sesión y
     # asegurar que solo ese agente la atienda (el front bloquea el cambio de agente).
     sessions_data = JabvoxAiChatMessage
@@ -26,7 +29,7 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     grouped = sessions_data.each_with_object({}) do |m, h|
       sid = m.session_id_jabvox
       h[sid] ||= { session_id: sid, created_at: m.created_at, last_message_at: m.created_at,
-                   connection_id: nil, agent: nil }
+                   connection_id: nil, agent: nil, title: nil }
       h[sid][:last_message_at] = m.created_at if m.created_at > h[sid][:last_message_at]
       # El agente/conexión de la sesión = el primero registrado en metadata.
       meta = m.metadata_jabvox || {}
@@ -36,6 +39,13 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
       end
     end
 
+    # Título de cada sesión desde la tabla nueva (privada por usuario). Si no hay fila/título,
+    # queda nil y el front sigue mostrando "Sesión N".
+    titles = JabvoxAiChatSession.for_account(Current.account.id)
+                                .where(user_id: current_user.id, session_id_jabvox: grouped.keys)
+                                .pluck(:session_id_jabvox, :title_jabvox).to_h
+    grouped.each { |sid, s| s[:title] = titles[sid].presence }
+
     render json: grouped.values.sort_by { |s| s[:last_message_at] }.reverse
   end
 
@@ -44,16 +54,24 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     page = (params[:page] || 1).to_i
     per = 50
 
-    messages = JabvoxAiChatMessage
-               .where(account_id: Current.account.id, user_id: current_user.id, session_id_jabvox: session_id)
-               .order(created_at: :asc)
+    # LECTURA privada por usuario (ver nota en #sessions): account_id + user_id.
+    scope = JabvoxAiChatMessage
+            .where(account_id: Current.account.id, user_id: current_user.id, session_id_jabvox: session_id)
+
+    # Mostrar los mensajes RECIENTES, no los 50 más antiguos: se toman los N últimos por
+    # created_at descendente (página N-ésima desde el final) y se re-ordenan ascendente para
+    # render. Así una sesión con >50 mensajes abre en lo último, no en lo más viejo.
+    messages = scope
+               .order(created_at: :desc)
                .offset((page - 1) * per)
                .limit(per)
+               .to_a
+               .reverse
 
     render json: messages.map { |m| message_json(m) }
   end
 
-  def create
+  def create # rubocop:disable Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/AbcSize
     check_access!
     return if performed?
 
@@ -66,6 +84,7 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     model_record = find_model(params[:model_id])
     raise 'No hay ningún modelo de IA configurado para esta cuenta.' unless model_record
 
+    # Historial privado por usuario (ver nota en #sessions): account + user + session.
     history = JabvoxAiChatMessage
               .where(account: Current.account, user: current_user, session_id_jabvox: session_id)
               .order(:created_at)
@@ -74,6 +93,8 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     service = Jabvox::AiChatService.new(account: Current.account, user: current_user, model_record: model_record)
     response_text = service.send_message(content: params[:content], session_id: session_id, mode: mode, history: history)
 
+    # Crea la fila de sesión (con auto-título) al primer mensaje del usuario de esta sesión.
+    ensure_session_record(session_id)
     JabvoxAiChatMessage.create!(
       account: Current.account, user: current_user,
       session_id_jabvox: session_id, role_jabvox: 'user', content_jabvox: params[:content],
@@ -100,7 +121,7 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
 
   # Chat en STREAMING (SSE) — reenvía en vivo lo que hace el agente Hermes (texto + tools),
   # igual que Telegram. Solo aplica a modelos Hermes (source='hermes'); para otros, error.
-  def stream # rubocop:disable Metrics/MethodLength
+  def stream # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
     check_access!
     return if performed?
 
@@ -109,6 +130,10 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
     return unless hermes_connection_ready?(conn)
 
     set_sse_headers
+    # Anuncia al cliente el session_id REAL de Jabvox nada más abrir el stream. En un chat nuevo
+    # el cliente usó un id "pending_<ts>" temporal; con esto lo ADOPTA (re-clava los mensajes al
+    # UUID real), así salir durante/justo tras el primer turno no "pierde" la sesión.
+    write_sse("event: jabvox.session\ndata: #{{ session_id: session_id }.to_json}\n\n")
     # Guarda el mensaje del usuario ANTES de empezar (así no se pierde si sale del módulo).
     # Cada sesión queda ligada a la conexión/agente que la atiende (conn.id).
     persist_user_message(session_id, conn)
@@ -163,11 +188,42 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
   end
 
   def destroy
+    # Historial privado por usuario: se borra por (cuenta, usuario, session_id), para que cada
+    # usuario solo pueda eliminar SUS propios chats IA, no los de otros usuarios de la cuenta.
     JabvoxAiChatMessage.where(
       account_id: Current.account.id,
       user_id: current_user.id,
       session_id_jabvox: params[:id]
     ).destroy_all
+    JabvoxAiChatSession.for_account(Current.account.id)
+                       .where(user_id: current_user.id, session_id_jabvox: params[:id]).destroy_all
+    head :ok
+  end
+
+  # Renombra una sesión (privada por usuario). Recibe session_id (:id) + title. Crea la fila
+  # de sesión si aún no existe (sesión virtual previa a la tabla nueva). Scoped a cuenta + usuario.
+  def rename
+    session_id = params[:id].to_s
+    title = params[:title].to_s.strip
+    return render(json: { error: 'session_id requerido' }, status: :unprocessable_entity) if session_id.blank?
+    return render(json: { error: 'El título no puede estar vacío.' }, status: :unprocessable_entity) if title.blank?
+    return render(json: { error: 'El título es demasiado largo.' }, status: :unprocessable_entity) if title.length > 255
+
+    session = JabvoxAiChatSession.find_or_initialize_by(
+      account_id: Current.account.id, user_id: current_user.id, session_id_jabvox: session_id
+    )
+    session.title_jabvox = title
+    session.save!
+    render json: { session_id: session_id, title: session.title_jabvox }
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  # Ruta set_model existía sin implementación (404). El Chat IA ya elige modelo/proveedor por
+  # mensaje (llm_overrides en el stream) y por el comando "/model" que Hermes interpreta, así
+  # que no hay estado de modelo que persistir por sesión en Jabvox. Se responde OK idempotente
+  # para no romper al cliente que la invoque; el modelo efectivo lo fija el stream/comando.
+  def set_model
     head :ok
   end
 
@@ -201,6 +257,7 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
 
   # Abre el stream al agente Hermes elegido y reenvía cada frame SSE al navegador.
   def stream_via_connection(conn, session_id)
+    # Historial privado por usuario (ver nota en #sessions): account + user + session.
     history = JabvoxAiChatMessage
               .where(account: Current.account, user: current_user, session_id_jabvox: session_id)
               .order(:created_at).last(20)
@@ -337,12 +394,44 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
   end
 
   def persist_user_message(session_id, conn = nil)
+    # Crea la fila de sesión (con auto-título) al primer mensaje del usuario de esta sesión.
+    ensure_session_record(session_id, conn)
     JabvoxAiChatMessage.create!(
       account: Current.account, user: current_user, session_id_jabvox: session_id,
       role_jabvox: 'user', content_jabvox: params[:content],
       # Ata la sesión a su conexión/agente: quién la atiende no cambia después.
       metadata_jabvox: conn ? { connection_id: conn.id, agent: conn.name_jabvox } : {}
     )
+  end
+
+  # Asegura la fila JabvoxAiChatSession de esta sesión (privada por usuario). Al crearla por
+  # primera vez, AUTO-TÍTULO con las primeras ~50 chars del primer mensaje del usuario (o el
+  # título explícito pasado en params[:title], p. ej. desde "/new <nombre>"). find_or_create_by
+  # + rescue sobre el índice único evita duplicar en accesos concurrentes. Idempotente: si ya
+  # existe (y ya tiene título), no lo pisa.
+  def ensure_session_record(session_id, conn = nil)
+    return if session_id.blank?
+
+    JabvoxAiChatSession.find_or_create_by!(
+      account_id: Current.account.id, user_id: current_user.id, session_id_jabvox: session_id
+    ) do |s|
+      s.connection_id = conn&.id
+      s.title_jabvox = requested_title.presence || JabvoxAiChatSession.auto_title_from(params[:content])
+    end
+    # Si la sesión existía sin título (sesión virtual previa) y ahora llega un título explícito,
+    # lo adopta sin pisar un auto-título ya puesto.
+
+  rescue ActiveRecord::RecordNotUnique
+    JabvoxAiChatSession.for_account(Current.account.id).find_by(user_id: current_user.id, session_id_jabvox: session_id)
+  rescue StandardError => e
+    Rails.logger.warn("[AiChat] ensure_session_record falló: #{e.class}: #{e.message}")
+    nil
+  end
+
+  # Título explícito pasado por el cliente (p. ej. "/new <nombre>"), saneado a string corto.
+  def requested_title
+    t = params[:title].to_s.strip
+    t.present? && t.length <= 255 ? t : nil
   end
 
   # Guarda la respuesta del asistente al terminar (o al cortarse) el stream, incluyendo las

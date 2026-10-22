@@ -9,7 +9,7 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::CampaignAddLeadNode do
   let(:account) { create(:account) }
   let(:ctx) { build_ctx(account) }
   let(:contact) { create(:contact, account: account, name: 'Ana') }
-  let(:lead) { account.jabvox_leads.create!(contact: contact) }
+  let(:lead) { contact }
 
   it 'asocia el lead a una campaña NUEVA cuando se escribe un nombre libre' do
     result = run_node(described_class, ctx, { 'leadId' => lead.id, 'campaign' => 'Navidad 2026' })
@@ -64,7 +64,7 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::CampaignAddLeadNode do
 
   it 'no toca un lead de OTRA cuenta' do
     otra = create(:account)
-    ajeno = otra.jabvox_leads.create!(contact: create(:contact, account: otra))
+    ajeno = create(:contact, account: otra)
 
     expect(run_node(described_class, ctx, { 'leadId' => ajeno.id, 'campaign' => 'X' }).error)
       .to match(/no existe en esta cuenta/)

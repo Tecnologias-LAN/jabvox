@@ -795,14 +795,17 @@ Rails.application.routes.draw do
                 get :my_access
                 get :sessions
                 post :stream
-                get :sessions
-                get :model_options
-                delete :destroy_session
-                # Control de sesión del agente (API de runs de Hermes).
-                post :approve
-                post :steer
-                post :stop_run
                 post :set_model
+                # NOTA: se eliminaron rutas muertas (model_options, destroy_session, approve,
+                # steer, stop_run) que apuntaban a acciones inexistentes en este controller y
+                # que ningún componente llamaba. model_options vivo está en hermes_connections;
+                # borrar una sesión usa el DELETE normal (:destroy); detener el stream es abort
+                # del cliente. Si en el futuro se cablea el modo "runs con aprobación" de Hermes,
+                # reintroducir approve/steer/stop_run CON su acción implementada.
+              end
+              # Renombrar una sesión (privada por usuario): PATCH .../ai_chat_messages/:id/rename
+              member do
+                patch :rename
               end
             end
             # Storages (buckets) — se conservan porque el Response Bot los comparte vía
@@ -1338,6 +1341,8 @@ Rails.application.routes.draw do
   # Un agente de Hermes ejecuta acciones sobre Jabvox con su token exclusivo (permisos del agente).
   get 'webhooks/jabvox/hermes_agent/tools', to: 'webhooks/jabvox/hermes_agent#tools'
   post 'webhooks/jabvox/hermes_agent/execute', to: 'webhooks/jabvox/hermes_agent#execute'
+  # Disparador "Webhook entrante" de Automatizaciones avanzadas (trigger.webhook).
+  match 'webhooks/jabvox/flows/:token', to: 'webhooks/jabvox/flows#trigger', via: %i[get post put patch]
   post 'webhooks/line/:line_channel_id', to: 'webhooks/line#process_payload'
   post 'webhooks/telegram/:bot_token', to: 'webhooks/telegram#process_payload'
   post 'webhooks/sms/:phone_number', to: 'webhooks/sms#process_payload'

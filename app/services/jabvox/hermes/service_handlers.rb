@@ -2553,5 +2553,113 @@ module Jabvox::Hermes::ServiceHandlers
     scope = scope.where(inbox_id: params[:inbox_id]) if params[:inbox_id].to_i.positive?
     scope.group_by_day('conversations.updated_at', time_zone: tzone).count
   end
+
+  # ==========================================================================
+  # Automatizaciones de TAREAS (módulo jabvox_tasks). Scoped a @account; nunca borran
+  # (política del ServiceLayer). Soportan el canal de PLANTILLA de WhatsApp con su mapeo de
+  # variables (template_params). El gateo por módulo activo + permiso lo aplica el Authorizer
+  # por el par feature:'jabvox_tasks' + permission read/create/write de cada tool.
+  # ==========================================================================
+
+  # --- Automatizaciones recurrentes de una tarea (JabvoxTaskAutomation) ---
+
+  def list_task_automations(params)
+    task = @account.jabvox_tasks.find(params[:task_id])
+    task.automations.order(:id).limit(capped_limit(params)).map { |a| task_automation_view(a) }
+  end
+
+  def create_task_automation(params)
+    task = @account.jabvox_tasks.find(params[:task_id])
+    a = task.automations.new(build_task_automation_attrs(params))
+    a.account = @account
+    a.created_by_id = @user&.id
+    a.save!
+    task_automation_view(a)
+  end
+
+  def update_task_automation(params)
+    task = @account.jabvox_tasks.find(params[:task_id])
+    a = task.automations.find(params[:id])
+    a.update!(build_task_automation_attrs(params))
+    task_automation_view(a)
+  end
+
+  # Dispara la automatización recurrente ahora (prueba). No altera el calendario más allá del
+  # mark_ran! normal. Igual que el run_now del controller real.
+  def run_task_automation(params)
+    task = @account.jabvox_tasks.find(params[:task_id])
+    a = task.automations.find(params[:id])
+    run = Jabvox::TaskAutomationDispatchService.new(a).perform
+    { id: run.id, automation_id: run.automation_id, status: run.status_jabvox,
+      recipients_count: run.recipients_count_jabvox, run_at: run.run_at_jabvox }
+  end
+
+  def build_task_automation_attrs(params)
+    map = { name: :name_jabvox, channel: :channel_jabvox, recipients: :recipients_jabvox,
+            manual_email: :manual_email_jabvox, manual_phone: :manual_phone_jabvox,
+            interval_unit: :interval_unit_jabvox, interval_count: :interval_count_jabvox,
+            email_template_id: :email_template_id, inbox_id: :inbox_id, sms_provider_id: :sms_provider_id,
+            subject: :subject_jabvox, body: :body_jabvox, active: :active_jabvox,
+            start_at: :start_at_jabvox, end_at: :end_at_jabvox, max_runs: :max_runs_jabvox,
+            schedule_mode: :schedule_mode_jabvox,
+            template_name: :template_name_jabvox, template_language: :template_language_jabvox,
+            template_params: :template_params_jabvox }
+    map.each_with_object({}) { |(from, to), out| out[to] = params[from] if params.key?(from) }
+  end
+
+  def task_automation_view(a)
+    { id: a.id, task_id: a.task_id, name: a.name_jabvox, channel: a.channel_jabvox,
+      interval_unit: a.interval_unit_jabvox, interval_count: a.interval_count_jabvox,
+      inbox_id: a.inbox_id, active: a.active_jabvox,
+      next_run_at: a.next_run_at_jabvox, last_run_at: a.last_run_at_jabvox, runs_count: a.runs_count_jabvox,
+      template_name: a.template_name_jabvox, template_language: a.template_language_jabvox,
+      template_params: a.template_params_jabvox }
+  end
+
+  # --- Automatizaciones de ETAPA de tareas (JabvoxTaskStageAutomation) ---
+
+  def list_task_stage_automations(params)
+    stage = @account.jabvox_task_stages.find(params[:stage_id])
+    stage.automations.order(:id).limit(capped_limit(params)).map { |a| task_stage_automation_view(a) }
+  end
+
+  def create_task_stage_automation(params)
+    stage = @account.jabvox_task_stages.find(params[:stage_id])
+    a = stage.automations.new(build_task_stage_automation_attrs(params))
+    a.account = @account
+    a.save!
+    task_stage_automation_view(a)
+  end
+
+  def update_task_stage_automation(params)
+    stage = @account.jabvox_task_stages.find(params[:stage_id])
+    a = stage.automations.find(params[:id])
+    a.update!(build_task_stage_automation_attrs(params))
+    task_stage_automation_view(a)
+  end
+
+  def build_task_stage_automation_attrs(params)
+    map = { automation_type: :automation_type_jabvox, channel_type: :channel_type_jabvox,
+            message_body: :message_body_jabvox, inbox_id: :inbox_id,
+            email_template_id: :email_template_id, sms_provider_id: :sms_provider_id,
+            webhook_url: :webhook_url_jabvox, webhook_secret: :webhook_secret_jabvox,
+            trigger_hours: :trigger_hours_jabvox, target_stage_id: :target_stage_id, active: :active_jabvox,
+            trigger_value: :trigger_value_jabvox, trigger_unit: :trigger_unit_jabvox,
+            template_name: :template_name_jabvox, template_language: :template_language_jabvox,
+            template_params: :template_params_jabvox }
+    map.each_with_object({}) { |(from, to), out| out[to] = params[from] if params.key?(from) }
+  end
+
+  # webhook_secret NO se devuelve (write-only), solo si está configurado.
+  def task_stage_automation_view(a)
+    { id: a.id, automation_type: a.automation_type_jabvox, channel_type: a.channel_type_jabvox,
+      message_body: a.message_body_jabvox, inbox_id: a.inbox_id,
+      email_template_id: a.email_template_id, sms_provider_id: a.sms_provider_id,
+      webhook_url: a.webhook_url_jabvox, has_webhook_secret: a.webhook_secret_jabvox.present?,
+      trigger_hours: a.trigger_hours_jabvox, target_stage_id: a.target_stage_id, active: a.active_jabvox,
+      trigger_value: a.trigger_value_jabvox, trigger_unit: a.trigger_unit_jabvox,
+      template_name: a.template_name_jabvox, template_language: a.template_language_jabvox,
+      template_params: a.template_params_jabvox }
+  end
 end
 # rubocop:enable Metrics/ModuleLength

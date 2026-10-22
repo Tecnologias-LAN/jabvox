@@ -154,12 +154,16 @@ class Jabvox::Hermes::SessionsClient
     base.end_with?('/v1') ? suffix : "v1/#{suffix}"
   end
 
-  # URL ABSOLUTA del API de administración del agente (.../<agente>/api/...). La base termina
-  # en /v1; se reemplaza ese /v1 final por /api para llegar a model/options y jobs.
+  # URL ABSOLUTA del API de administración del agente (.../<agente>/api/...). El endpoint del chat
+  # del agente termina en /v1 (.../p/<agente>/v1); el de administración cuelga de .../p/<agente>/api.
+  # Antes se asumía que base SIEMPRE terminaba en /v1 y, si no, se colgaba /api del host suelto
+  # (sin el prefijo /p/<agente>), dando 404 -> 502 al pedir model/options. Ahora se quita el
+  # sufijo /v1 SOLO si está presente y se arma .../api/ sobre el root real del agente, venga la
+  # base con o sin /v1.
   def admin_url(suffix)
     base = @base_url.to_s.chomp('/')
-    root = base.end_with?('/v1') ? base[0...-2] : "#{base}/" # quita "v1", deja la barra
-    "#{root}api/#{suffix}"
+    root = base.end_with?('/v1') ? base.delete_suffix('/v1') : base
+    "#{root}/api/#{suffix}"
   end
 
   def api_get(suffix)

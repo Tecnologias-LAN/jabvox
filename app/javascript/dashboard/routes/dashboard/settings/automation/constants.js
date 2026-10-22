@@ -3,6 +3,7 @@ import {
   OPERATOR_TYPES_2,
   OPERATOR_TYPES_3,
   OPERATOR_TYPES_6,
+  OPERATOR_TYPES_TIME,
 } from './operators';
 
 export const AUTOMATIONS = {
@@ -13,6 +14,12 @@ export const AUTOMATIONS = {
         name: 'MESSAGE_TYPE',
         inputType: 'search_select',
         filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'current_time',
+        name: 'CURRENT_TIME',
+        inputType: 'time_range',
+        filterOperators: OPERATOR_TYPES_TIME,
       },
       {
         key: 'private_note',

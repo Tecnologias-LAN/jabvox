@@ -9,10 +9,15 @@ class Jabvox::Flows::RunService
   end
 
   # Ejecuta el run completo. Devuelve el estado final persistido.
-  def call(trigger_type: 'trigger.manual', start_nodes: nil)
+  #
+  # `trigger_node_id` fija el disparador concreto a sembrar: un flujo puede tener
+  # varios triggers del mismo tipo (p. ej. dos `jabvox_event` con filtros distintos)
+  # y solo debe arrancar el que coincidió con el evento.
+  def call(trigger_type: 'trigger.manual', start_nodes: nil, trigger_node_id: nil)
     @run.update!(status: :running, started_at: Time.current)
     executor = build_executor(build_context)
-    finish(executor.run(trigger_type: trigger_type, start_nodes: start_nodes), executor)
+    trigger_match = trigger_node_id.present? ? ->(node) { node.id.to_s == trigger_node_id.to_s } : nil
+    finish(executor.run(trigger_type: trigger_type, start_nodes: start_nodes, trigger_match: trigger_match), executor)
   rescue Jabvox::Flows::Engine::ExecutionError, StandardError => e
     @run.update!(status: :failed, error: e.message, finished_at: Time.current)
     :failed

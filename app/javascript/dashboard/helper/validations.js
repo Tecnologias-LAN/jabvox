@@ -55,6 +55,14 @@ export const validateSingleFilter = filter => {
     return VALUE_REQUIRED;
   }
 
+  // Jabvox: la franja horaria exige ambas horas (desde y hasta).
+  if (
+    filter.attribute_key === 'current_time' &&
+    (!filter.values?.from || !filter.values?.to)
+  ) {
+    return VALUE_REQUIRED;
+  }
+
   if (
     filter.filter_operator === 'days_before' &&
     (parseInt(filter.values, 10) <= 0 || parseInt(filter.values, 10) >= 999)

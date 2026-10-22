@@ -345,6 +345,15 @@ class Jabvox::Hermes::ServiceLayer
     'GET jabvox/kanban_stage_automations' => :list_kanban_stage_automations,
     'POST jabvox/kanban_stage_automations' => :create_kanban_stage_automation,
     'PATCH jabvox/kanban_stage_automations/:id' => :update_kanban_stage_automation,
+    # Automatizaciones de tareas (recurrentes y de etapa). task_id/stage_id van en el cuerpo,
+    # no en el path, para no colisionar con la normalización /\d+ -> /:id.
+    'GET jabvox/task_automations' => :list_task_automations,
+    'POST jabvox/task_automations' => :create_task_automation,
+    'PATCH jabvox/task_automations/:id' => :update_task_automation,
+    'POST jabvox/task_automations/:id/run' => :run_task_automation,
+    'GET jabvox/task_stage_automations' => :list_task_stage_automations,
+    'POST jabvox/task_stage_automations' => :create_task_stage_automation,
+    'PATCH jabvox/task_stage_automations/:id' => :update_task_stage_automation,
     # Calendario: personas externas (listado)
     'GET jabvox/calendar/external_people' => :list_calendar_external_people,
     # Catálogos y configuración

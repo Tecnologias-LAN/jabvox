@@ -1037,7 +1037,7 @@
     "details": "Admite aritmética (+ - * / %), comparaciones (== != > >= < <=), lógica (&& ||), \"contains\" y paréntesis. Referencia el contexto con rutas (vars.total, trigger.monto) o con plantillas. Ejemplos: \"vars.total * 1.19\", \"{{trigger.estado}} == 'abierto'\"."
   },
   {
-    "type": "jabvox.lead.search",
+    "type": "jabvox.contact.search",
     "category": "jabvox",
     "module": "leads",
     "label": "Buscar / Obtener Leads",
@@ -1612,7 +1612,7 @@
     "details": "Cada lead trae DOS identificadores: `lead_number` es el número #N VISIBLE en la pantalla de leads de Jabvox, e `id` es el ID INTERNO (el que esperan los nodos de actualizar/asignar). Puedes encadenar «Repetir por cada elemento» sobre {{node.<id>.items}} en cualquiera de los 6 modos."
   },
   {
-    "type": "jabvox.lead.list",
+    "type": "jabvox.contact.list",
     "category": "jabvox",
     "module": "leads",
     "label": "Listar Leads",
@@ -1694,7 +1694,7 @@
     }
   },
   {
-    "type": "jabvox.lead.get",
+    "type": "jabvox.contact.get",
     "category": "jabvox",
     "module": "leads",
     "label": "Obtener Lead",
@@ -1739,7 +1739,7 @@
     }
   },
   {
-    "type": "jabvox.lead.update_details",
+    "type": "jabvox.contact.update_details",
     "category": "jabvox",
     "module": "leads",
     "label": "Actualizar Lead",
@@ -1833,7 +1833,7 @@
     "details": "Solo se envían los campos que rellenes: los que dejes vacíos NO se tocan."
   },
   {
-    "type": "jabvox.lead.set_custom_fields",
+    "type": "jabvox.contact.set_custom_fields",
     "category": "jabvox",
     "module": "leads",
     "label": "Fijar campo personalizado de Lead",
@@ -1893,7 +1893,7 @@
     }
   },
   {
-    "type": "jabvox.lead.assign",
+    "type": "jabvox.contact.assign",
     "category": "jabvox",
     "module": "leads",
     "label": "Asignar Leads",
@@ -1946,7 +1946,7 @@
     }
   },
   {
-    "type": "jabvox.lead.unassign",
+    "type": "jabvox.contact.unassign",
     "category": "jabvox",
     "module": "leads",
     "label": "Desasignar Leads",
@@ -1992,35 +1992,7 @@
     }
   },
   {
-    "type": "jabvox.lead.sync_contacts",
-    "category": "jabvox",
-    "module": "leads",
-    "label": "Sincronizar contactos → leads",
-    "description": "Crea un lead por cada contacto de la cuenta que aún no lo tenga.",
-    "icon": "refresh-cw",
-    "color": "#186d6a",
-    "inputs": [
-      {
-        "id": "in",
-        "label": "Entrada"
-      }
-    ],
-    "outputs": [
-      {
-        "id": "out",
-        "label": "Salida"
-      }
-    ],
-    "params": [],
-    "hidden": true,
-    "sampleOutput": {
-      "synced": 3,
-      "created": 1,
-      "updated": 2
-    }
-  },
-  {
-    "type": "jabvox.lead.find_by_date",
+    "type": "jabvox.contact.find_by_date",
     "category": "jabvox",
     "module": "leads",
     "label": "Buscar leads por campo de fecha",
@@ -2155,7 +2127,7 @@
     "details": "Modo anual para cumpleaños. Devuelve { leads: [...], count } — encadena «Repetir por cada elemento» sobre {{node.<id>.items}} para enviar plantillas, crear tareas, etc."
   },
   {
-    "type": "jabvox.lead.find_by_field",
+    "type": "jabvox.contact.find_by_field",
     "category": "jabvox",
     "module": "leads",
     "label": "Buscar leads por campo",
@@ -3355,7 +3327,7 @@
     }
   },
   {
-    "type": "jabvox.kanban.move_lead",
+    "type": "jabvox.kanban.move_contact",
     "category": "jabvox",
     "module": "kanban",
     "label": "Mover Lead en Kanban",
@@ -4471,7 +4443,7 @@
     }
   },
   {
-    "type": "jabvox.campaign.add_lead",
+    "type": "jabvox.campaign.add_contact",
     "category": "jabvox",
     "module": "campañas",
     "label": "Asociar Lead a Campaña",
@@ -4905,6 +4877,154 @@
     "sampleOutput": {
       "status": 204,
       "data": null
+    }
+  },
+  {
+    "type": "integration.analytics_query",
+    "category": "integration",
+    "label": "Consultar base de datos (Analytics)",
+    "description": "Ejecuta una consulta de SOLO LECTURA contra una base de datos externa conectada en Analytics y devuelve las filas para usarlas en los pasos siguientes (p. ej. iterarlas y enviar un mensaje).",
+    "icon": "database",
+    "color": "#f59e0b",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "dataSourceId",
+        "label": "Fuente de datos",
+        "type": "select",
+        "required": true,
+        "optionsSource": "analytics_data_sources"
+      },
+      {
+        "key": "mode",
+        "label": "Modo",
+        "type": "select",
+        "default": "builder",
+        "options": [
+          {
+            "label": "Asistente (tabla y columnas)",
+            "value": "builder"
+          },
+          {
+            "label": "SQL (SELECT)",
+            "value": "sql"
+          }
+        ]
+      },
+      {
+        "key": "table",
+        "label": "Tabla",
+        "type": "string",
+        "templatable": true,
+        "visibleWhen": {
+          "field": "mode",
+          "equals": "builder"
+        }
+      },
+      {
+        "key": "columns",
+        "label": "Columnas (vacío = todas)",
+        "type": "string",
+        "placeholder": "nombre, telefono, puntos",
+        "visibleWhen": {
+          "field": "mode",
+          "equals": "builder"
+        }
+      },
+      {
+        "key": "filters",
+        "label": "Filtros",
+        "type": "json",
+        "placeholder": "[{\"column\":\"fecha\",\"operator\":\"eq\",\"value\":\"2026-10-22\"}]",
+        "visibleWhen": {
+          "field": "mode",
+          "equals": "builder"
+        }
+      },
+      {
+        "key": "orderBy",
+        "label": "Ordenar por (columna)",
+        "type": "string",
+        "visibleWhen": {
+          "field": "mode",
+          "equals": "builder"
+        }
+      },
+      {
+        "key": "orderDir",
+        "label": "Dirección",
+        "type": "select",
+        "default": "ASC",
+        "options": [
+          {
+            "label": "Ascendente",
+            "value": "ASC"
+          },
+          {
+            "label": "Descendente",
+            "value": "DESC"
+          }
+        ],
+        "visibleWhen": {
+          "field": "mode",
+          "equals": "builder"
+        }
+      },
+      {
+        "key": "sql",
+        "label": "SQL (solo SELECT)",
+        "type": "code",
+        "language": "sql",
+        "templatable": true,
+        "placeholder": "SELECT nombre, telefono FROM compras WHERE fecha = {{hoy}}",
+        "visibleWhen": {
+          "field": "mode",
+          "equals": "sql"
+        }
+      },
+      {
+        "key": "sqlParams",
+        "label": "Valores de los marcadores {{...}}",
+        "type": "key-value",
+        "visibleWhen": {
+          "field": "mode",
+          "equals": "sql"
+        }
+      },
+      {
+        "key": "limit",
+        "label": "Máximo de filas",
+        "type": "number",
+        "placeholder": "1000"
+      }
+    ],
+    "itemsPath": "rows",
+    "sampleOutput": {
+      "rows": [
+        {
+          "nombre": "Ana",
+          "telefono": "+573001112233",
+          "puntos": 1200
+        }
+      ],
+      "columns": [
+        "nombre",
+        "telefono",
+        "puntos"
+      ],
+      "row_count": 1,
+      "elapsed_ms": 42
     }
   }
 ]

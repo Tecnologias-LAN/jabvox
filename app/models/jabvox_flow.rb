@@ -10,6 +10,7 @@
 #  description        :text
 #  name               :string           not null
 #  status             :integer          default("draft"), not null
+#  webhook_token      :string
 #  created_at         :datetime         not null
 #  updated_at         :datetime         not null
 #  account_id         :bigint           not null
@@ -18,8 +19,9 @@
 #
 # Indexes
 #
-#  idx_jabvox_flows_account_folder  (account_id,folder_id)
-#  idx_jabvox_flows_account_status  (account_id,status)
+#  idx_jabvox_flows_account_folder      (account_id,folder_id)
+#  idx_jabvox_flows_account_status      (account_id,status)
+#  index_jabvox_flows_on_webhook_token  (webhook_token) UNIQUE
 #
 # Foreign Keys
 #
@@ -40,7 +42,27 @@ class JabvoxFlow < ApplicationRecord
   validates :name, presence: true
   validate :folder_belongs_to_account
 
+  # Token para el disparador "Webhook entrante": forma la URL pública única del
+  # flujo. Se genera al crear y se puede rotar. No es el `secret` del nodo (eso es
+  # una verificación adicional opcional dentro del propio payload).
+  before_create :ensure_webhook_token
+
+  def regenerate_webhook_token!
+    update!(webhook_token: self.class.generate_webhook_token)
+  end
+
+  def self.generate_webhook_token
+    loop do
+      token = SecureRandom.urlsafe_base64(24)
+      break token unless exists?(webhook_token: token)
+    end
+  end
+
   private
+
+  def ensure_webhook_token
+    self.webhook_token ||= self.class.generate_webhook_token
+  end
 
   # Sin esto, un PATCH con el id de una carpeta ajena movería el flujo fuera de
   # su cuenta: la clave foránea apunta a la tabla, no a la cuenta.

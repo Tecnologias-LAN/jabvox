@@ -31,6 +31,8 @@
       "is_less_than": "Is lesser than",
       "days_before": "Is x days before",
       "starts_with": "Starts with",
+      "is_between": "Is between",
+      "is_not_between": "Is not between",
       "equalTo": "Equal to",
       "notEqualTo": "Not equal to",
       "contains": "Contains",

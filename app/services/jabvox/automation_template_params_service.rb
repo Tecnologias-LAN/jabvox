@@ -25,9 +25,14 @@ class Jabvox::AutomationTemplateParamsService
     @stage = stage
   end
 
+  # Claves de parámetro válidas: POSICIONALES ({{1}}) o NOMBRADAS ({{nomcliente}}). Meta admite
+  # en el nombre letras, dígitos y guion bajo. Antes solo se aceptaban numéricas, así que las
+  # plantillas con variables nombradas perdían todo su mapeo al ejecutarse la automatización.
+  VALID_PARAM_KEY = /\A[a-zA-Z0-9_]+\z/
+
   def call
     @mapping.each_with_object({}) do |(position, spec), out|
-      next unless position.to_s.match?(/\A\d+\z/)
+      next unless position.to_s.match?(VALID_PARAM_KEY)
 
       out[position.to_s] = value_for(spec.is_a?(Hash) ? spec.stringify_keys : {}).to_s
     end

@@ -90,7 +90,8 @@ class Jabvox::Flows::Nodes::Jabvox::LeadSearchNode < Jabvox::Flows::Nodes::Jabvo
     fail_with!('La búsqueda por etiqueta requiere elegir la etiqueta.') if label.blank?
 
     contact_ids = account.contacts.tagged_with(label).limit(SAFETY_LIMIT).pluck(:id)
-    leads = contact_ids.any? ? base_scope.where(contact_id: contact_ids).limit(limit).to_a : []
+    # El lead ES el contacto: su identificador es `id`, no `contact_id`.
+    leads = contact_ids.any? ? base_scope.where(id: contact_ids).limit(limit).to_a : []
     result('by_label', leads, 'label' => label, 'contactsMatched' => contact_ids.length)
   end
 
@@ -152,7 +153,9 @@ class Jabvox::Flows::Nodes::Jabvox::LeadSearchNode < Jabvox::Flows::Nodes::Jabvo
   end
 
   def by_list
-    leads = base_scope.ordered.limit(limit).to_a
+    # Contact no tiene el scope `ordered` que tenía el viejo JabvoxLead: se ordena
+    # por fecha de creación descendente (lo más reciente primero).
+    leads = base_scope.order(created_at: :desc).limit(limit).to_a
     result('list', leads)
   end
 

@@ -65,7 +65,7 @@ class Jabvox::LeadCustomFieldsSanitizer
   def columns_by_name
     return @columns_by_name if defined?(@columns_by_name)
 
-    table = @account.jabvox_custom_tables.for_leads.first
+    table = @account.jabvox_custom_tables.for_contacts.first
     @columns_by_name = table&.jabvox_custom_columns&.index_by(&:name_jabvox)
   end
 

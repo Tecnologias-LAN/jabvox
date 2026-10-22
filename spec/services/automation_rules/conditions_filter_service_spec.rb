@@ -256,5 +256,103 @@ RSpec.describe AutomationRules::ConditionsFilterService do
         expect(described_class.new(rule, conversation, { changed_attributes: {} }).perform).to be(false)
       end
     end
+
+    # Jabvox: condicion de franja horaria (current_time). Se evalua en Ruby contra
+    # la zona America/Bogota, por eso se congela el tiempo con travel_to.
+    context 'when condition is based on current_time (franja horaria)' do
+      def perform_at(bogota_time, options = {})
+        travel_to(Time.find_zone('America/Bogota').parse(bogota_time)) do
+          described_class.new(rule, conversation, { changed_attributes: {} }.merge(options)).perform
+        end
+      end
+
+      context 'with is_between within the same day (08:00-18:00)' do
+        before do
+          rule.conditions = [{ 'values': { 'from': '08:00', 'to': '18:00' }, 'attribute_key': 'current_time',
+                               'query_operator': nil, 'filter_operator': 'is_between' }]
+          rule.save
+        end
+
+        it 'matches when current time is inside the range' do
+          expect(perform_at('2026-10-21 10:30:00')).to be(true)
+        end
+
+        it 'does not match when current time is outside the range' do
+          expect(perform_at('2026-10-21 20:30:00')).to be(false)
+        end
+
+        it 'does not match exactly at the end bound (exclusive)' do
+          expect(perform_at('2026-10-21 18:00:00')).to be(false)
+        end
+      end
+
+      context 'with is_between crossing midnight (18:30-08:00)' do
+        before do
+          rule.conditions = [{ 'values': { 'from': '18:30', 'to': '08:00' }, 'attribute_key': 'current_time',
+                               'query_operator': nil, 'filter_operator': 'is_between' }]
+          rule.save
+        end
+
+        it 'matches late at night (before midnight)' do
+          expect(perform_at('2026-10-21 23:00:00')).to be(true)
+        end
+
+        it 'matches early in the morning (after midnight)' do
+          expect(perform_at('2026-10-21 03:00:00')).to be(true)
+        end
+
+        it 'does not match during the day' do
+          expect(perform_at('2026-10-21 12:00:00')).to be(false)
+        end
+      end
+
+      context 'with is_not_between (inverse of the range)' do
+        before do
+          rule.conditions = [{ 'values': { 'from': '08:00', 'to': '18:00' }, 'attribute_key': 'current_time',
+                               'query_operator': nil, 'filter_operator': 'is_not_between' }]
+          rule.save
+        end
+
+        it 'matches when current time is outside the range' do
+          expect(perform_at('2026-10-21 20:30:00')).to be(true)
+        end
+
+        it 'does not match when current time is inside the range' do
+          expect(perform_at('2026-10-21 10:30:00')).to be(false)
+        end
+      end
+
+      context 'when combined with another condition (message_type incoming AND franja)' do
+        before do
+          message
+          rule.conditions = [
+            { 'values': ['incoming'], 'attribute_key': 'message_type', 'query_operator': 'AND', 'filter_operator': 'equal_to' },
+            { 'values': { 'from': '18:30', 'to': '08:00' }, 'attribute_key': 'current_time',
+              'query_operator': nil, 'filter_operator': 'is_between' }
+          ]
+          rule.save
+        end
+
+        it 'matches when both the message is incoming and the time is in range' do
+          expect(perform_at('2026-10-21 23:00:00', { message: message })).to be(true)
+        end
+
+        it 'does not match when the time is out of range even if the message is incoming' do
+          expect(perform_at('2026-10-21 12:00:00', { message: message })).to be(false)
+        end
+      end
+
+      context 'with an invalid or incomplete range' do
+        before do
+          rule.conditions = [{ 'values': { 'from': '18:30', 'to': '' }, 'attribute_key': 'current_time',
+                               'query_operator': nil, 'filter_operator': 'is_between' }]
+          rule.save
+        end
+
+        it 'does not match' do
+          expect(perform_at('2026-10-21 23:00:00')).to be(false)
+        end
+      end
+    end
   end
 end

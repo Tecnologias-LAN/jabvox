@@ -55,12 +55,19 @@ class JabvoxKanbanStageAutomation < ApplicationRecord
   # nadie contesta en 30 minutos" y "mover tras 48 horas" son casos igual de reales.
   TRIGGER_UNITS = %w[minutes hours].freeze
 
+  # Impide referenciar recursos de OTRA cuenta en las FKs (aislamiento multi-tenant):
+  # sin esto, Hermes/la API de una cuenta podía crear una automatización apuntando a un
+  # inbox, plantilla, proveedor SMS o etapa de otra cuenta. Igual que los modelos de tareas.
+  include Jabvox::AccountScopedReferences
+
   belongs_to :account
   belongs_to :jabvox_kanban_stage
   belongs_to :target_stage, class_name: 'JabvoxKanbanStage', optional: true
   belongs_to :inbox, optional: true
   belongs_to :jabvox_email_template, optional: true
   belongs_to :jabvox_sms_provider, optional: true
+
+  validates_account_scope :inbox, :jabvox_email_template, :jabvox_sms_provider, :target_stage, :jabvox_kanban_stage
 
   validates :name, presence: true
   validates :automation_type, inclusion: { in: AUTOMATION_TYPES }

@@ -5,12 +5,12 @@
 class Jabvox::Flows::RunJob < ApplicationJob
   queue_as :jabvox_flows
 
-  def perform(run_id, trigger_type: 'trigger.manual')
+  def perform(run_id, trigger_type: 'trigger.manual', trigger_node_id: nil)
     run = JabvoxFlowRun.find_by(id: run_id)
     return if run.nil?
     # Idempotencia: un reintento de Sidekiq no debe repetir un run ya resuelto.
     return unless run.pending? || run.waiting?
 
-    Jabvox::Flows::RunService.new(run).call(trigger_type: trigger_type)
+    Jabvox::Flows::RunService.new(run).call(trigger_type: trigger_type, trigger_node_id: trigger_node_id)
   end
 end

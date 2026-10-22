@@ -38,13 +38,24 @@ const selected = computed(
   () => templates.value.find(tpl => tpl.name === props.templateName) || null
 );
 
-// Las variables de una plantilla son los {{1}}, {{2}}... de su cuerpo. Se leen del texto
-// porque es lo único que Meta devuelve de forma fiable en todas las versiones del API.
+// Las variables de una plantilla son los {{...}} de su cuerpo. Se leen del texto porque es lo
+// único que Meta devuelve de forma fiable en todas las versiones del API. Acepta tanto
+// POSICIONALES ({{1}}, {{2}}) como NOMBRADAS ({{nomcliente}}, {{fechadepago}}): Meta usa
+// nombradas cuando la plantilla es parameter_format NAMED, y antes el regex solo-dígitos las
+// descartaba, así que no se mostraba el mapeo y la plantilla no se podía configurar.
 const variables = computed(() => {
   const body = (selected.value?.components || []).find(c => c.type === 'BODY');
   const text = body?.text || '';
-  const found = [...text.matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map(m => m[1]);
-  return [...new Set(found)].sort((a, b) => Number(a) - Number(b));
+  const found = [...text.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g)].map(m =>
+    m[1].trim()
+  );
+  // Posicionales en orden numérico; nombradas en el orden de aparición.
+  return [...new Set(found)].sort((a, b) => {
+    const na = Number(a);
+    const nb = Number(b);
+    if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+    return 0;
+  });
 });
 
 // Idioma de la plantilla elegida. Se muestra para que quede claro en qué idioma saldrá:
@@ -207,7 +218,10 @@ const fieldClass =
         :key="position"
         class="flex items-center gap-2"
       >
-        <span class="w-10 shrink-0 text-xs font-medium text-n-slate-11">
+        <span
+          class="max-w-[9rem] shrink-0 truncate text-xs font-medium text-n-slate-11"
+          :title="labelForVariable(position)"
+        >
           {{ labelForVariable(position) }}
         </span>
         <select

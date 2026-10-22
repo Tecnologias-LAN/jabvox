@@ -12,8 +12,10 @@ class Jabvox::Flows::Nodes::Jabvox::KanbanMoveLeadNode < Jabvox::Flows::Nodes::J
     funnel = find_funnel!(param(:funnelId))
     stage = find_stage_in_funnel!(param(:stageId), funnel)
     lead = find_lead!(param(:leadId))
-    row, previous = place!(funnel, stage, jabvox_lead_id: lead.id)
+    # El lead ES el contacto: la fila del embudo se indexa por contact_id, y
+    # lead_number ya no existe (se deja vacío por compatibilidad de salida).
+    row, previous = place!(funnel, stage, contact_id: lead.id)
     kanban_view(row, funnel, stage, previous)
-      .merge('lead_id' => lead.id, 'leadId' => lead.id, 'lead_number' => lead.lead_number)
+      .merge('lead_id' => lead.id, 'leadId' => lead.id, 'lead_number' => nil)
   end
 end

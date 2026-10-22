@@ -32,8 +32,15 @@ class AutomationRules::ConditionValidationService
     %w[AND OR].include?(query_operator.upcase)
   end
 
+  # Jabvox: franja horaria. No es un filtro SQL (no toca ninguna columna); se
+  # evalua en Ruby comparando la hora actual contra un rango. Por eso vive fuera
+  # de filter_keys.yml y se valida aqui como caso especial.
+  CURRENT_TIME_OPERATORS = %w[is_between is_not_between].freeze
+
   def valid_condition?(condition)
     key = condition['attribute_key']
+
+    return CURRENT_TIME_OPERATORS.include?(condition['filter_operator']) if key == 'current_time'
 
     conversation_filter = @conversation_filters[key]
     contact_filter = @contact_filters[key]

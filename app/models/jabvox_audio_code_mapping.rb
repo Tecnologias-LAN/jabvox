@@ -1,6 +1,32 @@
 # Mapeo explícito, configurado por el usuario, de un código del nombre de archivo
 # a una tipificación o a un asesor. El sistema NUNCA infiere estos mapeos: si no
 # existe una fila, el parser no resuelve ese código.
+# == Schema Information
+#
+# Table name: jabvox_audio_code_mappings
+#
+#  id              :bigint           not null, primary key
+#  code            :string           not null
+#  kind            :string           not null
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  account_id      :bigint           not null
+#  advisor_id      :bigint
+#  created_by_id   :bigint
+#  typification_id :bigint
+#
+# Indexes
+#
+#  index_audio_code_mappings_on_account_kind_code  (account_id,kind,code) UNIQUE
+#  index_jabvox_audio_code_mappings_on_account_id  (account_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id)
+#  fk_rails_...  (advisor_id => jabvox_audio_advisors.id)
+#  fk_rails_...  (created_by_id => users.id)
+#  fk_rails_...  (typification_id => jabvox_typifications.id)
+#
 class JabvoxAudioCodeMapping < ApplicationRecord
   self.table_name = 'jabvox_audio_code_mappings'
 

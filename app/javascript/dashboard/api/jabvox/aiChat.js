@@ -36,6 +36,9 @@ export const aiChatAPI = {
     axios.get(chatClient.url, { params: { session_id: sessionId, page } }),
   sendMessage: payload => axios.post(chatClient.url, payload),
   deleteSession: sessionId => axios.delete(`${chatClient.url}/${sessionId}`),
+  // Renombra una sesión (compartida por cuenta): PATCH .../ai_chat_messages/:id/rename
+  renameSession: (sessionId, title) =>
+    axios.patch(`${chatClient.url}/${sessionId}/rename`, { title }),
   // URL del endpoint de streaming (SSE) — el componente hace fetch directo para leer el stream.
   streamUrl: () => `${chatClient.url}/stream`,
 };

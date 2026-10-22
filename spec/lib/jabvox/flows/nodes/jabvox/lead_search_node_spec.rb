@@ -11,10 +11,11 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::LeadSearchNode do
   let(:account) { create(:account) }
   let(:ctx) { build_ctx(account) }
 
+  # Los "leads" hoy SON contactos (la tabla jabvox_leads ya no existe).
   def crear_lead(numero, campos: {}, nombre: nil)
-    contact = create(:contact, account: account, name: nombre || "Cliente #{numero}",
-                               phone_number: format('+5730011122%<n>02d', n: numero))
-    account.jabvox_leads.create!(contact: contact, custom_fields_jabvox: campos)
+    create(:contact, account: account, name: nombre || "Cliente #{numero}",
+                     phone_number: format('+5730011122%<n>02d', n: numero),
+                     custom_fields_jabvox: campos)
   end
 
   it 'declara itemsPath para que el bucle reciba la colección' do
@@ -31,11 +32,11 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::LeadSearchNode do
       expect(result.output['lead']['id']).to eq(lead.id)
     end
 
-    it 'encuentra por NÚMERO visible de lead' do
+    it 'encuentra por NÚMERO visible de lead (hoy = id del contacto)' do
       lead = crear_lead(1)
 
       result = run_node(described_class, ctx,
-                        { 'mode' => 'by_id', 'idKind' => 'lead_number', 'leadNumber' => lead.lead_number })
+                        { 'mode' => 'by_id', 'idKind' => 'lead_number', 'leadNumber' => lead.id })
 
       expect(result.output['leads'].first['id']).to eq(lead.id)
     end
@@ -92,7 +93,7 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::LeadSearchNode do
     it 'encuentra los leads cuyo CONTACTO lleva la etiqueta' do
       create(:label, account: account, title: 'prioritario')
       lead = crear_lead(1)
-      lead.contact.update!(label_list: ['prioritario'])
+      lead.update!(label_list: ['prioritario'])
       crear_lead(2)
 
       result = run_node(described_class, ctx, { 'mode' => 'by_label', 'label' => 'prioritario' })
@@ -209,8 +210,7 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::LeadSearchNode do
 
   it 'no ve los leads de otra cuenta' do
     otra = create(:account)
-    contact = create(:contact, account: otra, phone_number: '+573009998877')
-    otra.jabvox_leads.create!(contact: contact, custom_fields_jabvox: {})
+    create(:contact, account: otra, phone_number: '+573009998877')
 
     expect(run_node(described_class, ctx, { 'mode' => 'list' }).output['count']).to be_zero
   end

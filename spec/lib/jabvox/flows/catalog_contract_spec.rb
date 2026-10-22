@@ -60,9 +60,9 @@ RSpec.describe Jabvox::Flows::Catalog do
     end
   end
 
-  it 'los 8 nodos de colección son exactamente los que declaran itemsPath' do
+  it 'los nodos de colección son exactamente los que declaran itemsPath' do
     con_items = described_class.all.select { |n| n['itemsPath'].present? }.pluck('type')
-    expect(con_items.size).to eq(8)
+    expect(con_items.size).to eq(9)
     expect(con_items).to match_array(registry.types.select { |t| registry.items_path(t).present? })
   end
 end

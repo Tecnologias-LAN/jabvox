@@ -172,6 +172,7 @@
     },
     "ATTRIBUTES": {
       "MESSAGE_TYPE": "Tipo de mensaje",
+      "CURRENT_TIME": "Hora actual",
       "PRIVATE_NOTE": "Nota privada",
       "MESSAGE_CONTAINS": "El mensaje contiene",
       "EMAIL": "E-mail",

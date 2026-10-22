@@ -22,6 +22,41 @@ const alert = useAlert;
 
 const currentSessionId = ref(null);
 const messageInput = ref('');
+// Título a aplicar a la próxima sesión nueva (viene de "/new <nombre>"). Se envía en el primer
+// mensaje de esa sesión y se limpia tras enviarlo.
+const pendingTitle = ref('');
+
+// --- Borrador del input (FIX 4): persistir lo escrito-no-enviado por sesión, para no perderlo
+// al salir y volver. Clave por sessionId; el "chat nuevo" (sin sesión) usa una clave global.
+// Todo envuelto en try/catch porque localStorage puede fallar (modo privado, cuota, bloqueo).
+const DRAFT_PREFIX = 'jabvox.aiChat.draft.';
+const draftKey = sessionId => `${DRAFT_PREFIX}${sessionId || '__new__'}`;
+
+function saveDraft(sessionId, text) {
+  try {
+    const key = draftKey(sessionId);
+    if (text && text.trim()) localStorage.setItem(key, text);
+    else localStorage.removeItem(key);
+  } catch {
+    // localStorage no disponible: el borrador es una conveniencia, no se bloquea nada.
+  }
+}
+
+function loadDraft(sessionId) {
+  try {
+    return localStorage.getItem(draftKey(sessionId)) || '';
+  } catch {
+    return '';
+  }
+}
+
+function clearDraft(sessionId) {
+  try {
+    localStorage.removeItem(draftKey(sessionId));
+  } catch {
+    // ignorar
+  }
+}
 
 // Comandos "/" de Hermes: la lista, el filtrado y la navegación del menú viven en
 // useHermesCommands, compartido con la burbuja flotante para que ambas superficies
@@ -34,7 +69,9 @@ const {
   applyCommand,
   handleCommandKeydown,
   isNewChatCommand,
+  isStopCommand,
   isModelCommand,
+  newChatTitle,
 } = useHermesCommands(messageInput);
 
 const messagesContainer = ref(null);
@@ -132,6 +169,8 @@ const modelSelectOptions = computed(() => [
 
 function selectSession(sessionId) {
   currentSessionId.value = sessionId;
+  // Restaura el borrador de ESTA sesión (lo escrito-no-enviado), si lo hay (FIX 4).
+  messageInput.value = loadDraft(sessionId);
   showSessions.value = false;
   // Cada sesión pertenece a UN agente: al abrirla, se selecciona ese agente para que la
   // conversación continúe SIEMPRE con el mismo (no se puede responder con otro).
@@ -184,6 +223,8 @@ onMounted(async () => {
   ]);
   syncPushStatus();
   if (sessions.value.length > 0) selectSession(sessions.value[0].session_id);
+  // Sin sesiones: restaura el borrador del "chat nuevo" (lo escrito-no-enviado) (FIX 4).
+  else messageInput.value = loadDraft(null);
 });
 
 watch(messages, async () => {
@@ -192,9 +233,17 @@ watch(messages, async () => {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
 });
 
+// Persiste el borrador del input por sesión mientras se escribe (FIX 4). La clave es la sesión
+// actual (o la global del "chat nuevo"); no persiste comandos "/" a medio escribir.
+watch(messageInput, text => {
+  if (text.trim().startsWith('/')) return;
+  saveDraft(currentSessionId.value, text);
+});
+
 function newChat() {
   currentSessionId.value = null;
-  messageInput.value = '';
+  // Restaura el borrador del "chat nuevo" (clave global), si lo hay (FIX 4).
+  messageInput.value = loadDraft(null);
   showSessions.value = false;
 }
 
@@ -246,11 +295,19 @@ function upsertTool(tool) {
   };
 }
 
-function handleFrame(eventType, data, sessionId, assistantId) {
+// `getSessionId` devuelve el id de sesión VIGENTE (puede cambiar a mitad del stream cuando se
+// adopta el real), por eso es una función y no un valor fijo.
+function handleFrame(eventType, data, getSessionId, assistantId, onSession) {
   let json;
   try {
     json = JSON.parse(data);
   } catch {
+    return;
+  }
+  // El backend anuncia el session_id REAL de Jabvox al abrir el stream (FIX 4). El llamador
+  // lo adopta: re-clava los mensajes del id temporal "pending_<ts>" al UUID real.
+  if (eventType === 'jabvox.session') {
+    if (json.session_id && onSession) onSession(json.session_id);
     return;
   }
   if (eventType === 'hermes.tool.progress') {
@@ -258,29 +315,30 @@ function handleFrame(eventType, data, sessionId, assistantId) {
     return;
   }
   if (json.error) {
-    appendToMessage(sessionId, assistantId, `\n\nError: ${json.error}`);
+    appendToMessage(getSessionId(), assistantId, `\n\nError: ${json.error}`);
     return;
   }
   const delta = json.choices?.[0]?.delta?.content;
-  if (delta) appendToMessage(sessionId, assistantId, delta);
+  if (delta) appendToMessage(getSessionId(), assistantId, delta);
 }
 
 // Procesa un bloque de líneas SSE ya separadas por salto de línea.
-function processSseLines(lines, ctx, sessionId, assistantId) {
+function processSseLines(lines, ctx, getSessionId, assistantId, onSession) {
   lines.forEach(line => {
     if (line.startsWith('event:')) {
       ctx.eventType = line.slice(6).trim();
     } else if (line.startsWith('data:')) {
       const data = line.slice(5).trim();
       if (data === '[DONE]' || data === '') return;
-      handleFrame(ctx.eventType, data, sessionId, assistantId);
+      handleFrame(ctx.eventType, data, getSessionId, assistantId, onSession);
       ctx.eventType = null;
     }
   });
 }
 
 // Lee el stream SSE: frames de texto (delta.content) y eventos hermes.tool.progress.
-async function consumeStream(res, sessionId, assistantId) {
+// `onSession` recibe el session_id real de Jabvox (evento jabvox.session) para adoptarlo.
+async function consumeStream(res, getSessionId, assistantId, onSession) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   const ctx = { eventType: null };
@@ -290,7 +348,7 @@ async function consumeStream(res, sessionId, assistantId) {
     buffer += decoder.decode(chunk.value, { stream: true });
     const lines = buffer.split('\n');
     buffer = lines.pop();
-    processSseLines(lines, ctx, sessionId, assistantId);
+    processSseLines(lines, ctx, getSessionId, assistantId, onSession);
     // eslint-disable-next-line no-await-in-loop
     chunk = await reader.read();
   }
@@ -309,8 +367,11 @@ async function streamAssistant(
   isStreaming.value = true;
   streamController.value = new AbortController();
   activeTools.value = [];
+  // Id de sesión bajo el que se pintan los mensajes. Empieza siendo el temporal; cuando el
+  // backend anuncia el real (jabvox.session), se adopta y el resto del turno pinta bajo él.
+  let liveSessionId = displaySessionId;
   store.commit('jabvoxAiChat/ADD_MESSAGE', {
-    sessionId: displaySessionId,
+    sessionId: liveSessionId,
     message: {
       id: assistantId,
       role: 'assistant',
@@ -318,6 +379,27 @@ async function streamAssistant(
       created_at: new Date(),
     },
   });
+
+  // Adopta el session_id REAL que envía el backend al abrir el stream (FIX 4): re-clava los
+  // mensajes del id temporal al UUID real y mueve también el borrador, para que salir durante
+  // o justo tras el primer turno no "pierda" la sesión.
+  const adoptSessionId = realId => {
+    if (!realId || realId === liveSessionId) return;
+    const fromId = liveSessionId;
+    store.commit('jabvoxAiChat/REKEY_SESSION', {
+      fromSessionId: fromId,
+      toSessionId: realId,
+    });
+    try {
+      const draft = loadDraft(fromId);
+      if (draft) saveDraft(realId, draft);
+      clearDraft(fromId);
+    } catch {
+      // borrador es conveniencia; no bloquear
+    }
+    if (currentSessionId.value === fromId) currentSessionId.value = realId;
+    liveSessionId = realId;
+  };
 
   try {
     const res = await fetch(aiChatAPI.streamUrl(), {
@@ -333,6 +415,9 @@ async function streamAssistant(
         session_id: apiSessionId,
         connection_id: selectedAgentId.value,
         attachments: sentAttachments,
+        // Título explícito para la sesión nueva (de "/new <nombre>"); el backend lo usa al crear
+        // la fila de sesión en vez del auto-título.
+        ...(pendingTitle.value ? { title: pendingTitle.value } : {}),
         // Modelo/proveedor elegidos en el picker (vacío = default del agente en Hermes).
         // Con "/model ..." se omite: el usuario está eligiendo modelo por comando y mandar
         // además el del picker sobrescribiría justo lo que el comando pide.
@@ -343,20 +428,20 @@ async function streamAssistant(
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || t('JABVOX_AI_CHAT.ERROR'));
     }
-    await consumeStream(res, displaySessionId, assistantId);
+    await consumeStream(res, () => liveSessionId, assistantId, adoptSessionId);
     if (isNewChat) await store.dispatch('jabvoxAiChat/fetchSessions');
   } catch (e) {
     // Si el usuario detuvo el stream (AbortController), no es un error: marca el corte.
     if (e.name === 'AbortError') {
-      appendToMessage(displaySessionId, assistantId, '\n\n_(detenido)_');
+      appendToMessage(liveSessionId, assistantId, '\n\n_(detenido)_');
     } else {
-      appendToMessage(displaySessionId, assistantId, `\n\nError: ${e.message}`);
+      appendToMessage(liveSessionId, assistantId, `\n\nError: ${e.message}`);
     }
   } finally {
     // Guarda las herramientas usadas al final del mensaje (quedan expandibles).
     if (activeTools.value.length) {
       store.commit('jabvoxAiChat/SET_MESSAGE_TOOLS', {
-        sessionId: displaySessionId,
+        sessionId: liveSessionId,
         messageId: assistantId,
         tools: [...activeTools.value],
       });
@@ -364,6 +449,8 @@ async function streamAssistant(
     isStreaming.value = false;
     streamController.value = null;
     activeTools.value = [];
+    // El título pendiente de "/new <nombre>" ya se envió en esta request: se limpia.
+    pendingTitle.value = '';
   }
 }
 
@@ -449,17 +536,20 @@ async function sendMessage() {
 
   // "/new", "/reset" y "/clear" inician una conversación nueva en Jabvox (aparece en la
   // lista izquierda) en vez de enviarse a Hermes. Las demás (/model, /status, /retry...)
-  // sí van a Hermes para que él las interprete.
+  // sí van a Hermes para que él las interprete. Detección por PREFIJO (FIX 5): así
+  // "/new <nombre de la sesión>" también funciona y el nombre se usa como título.
   if (isNewChatCommand(content)) {
     if (isStreaming.value) stopStreaming();
+    const title = newChatTitle(content);
     newChat();
+    pendingTitle.value = title; // se aplicará al crear la sesión en el primer mensaje
     showCommands.value = false;
     messageInput.value = '';
     return;
   }
 
-  // "/stop" a secas: detiene la respuesta en curso sin enviar nada a Hermes.
-  if (content === '/stop' && isStreaming.value) {
+  // "/stop [...]" detiene la respuesta en curso sin enviar nada a Hermes. Por prefijo (FIX 5).
+  if (isStopCommand(content) && isStreaming.value) {
     stopStreaming();
     showCommands.value = false;
     messageInput.value = '';
@@ -528,14 +618,51 @@ function formatSessionLabel(session) {
   );
 }
 
-// Sessions newest-first; numbered so each gets a readable primary label
-// (the backend only sends session_id + timestamps, no title/preview).
+// Sessions newest-first. El rótulo es el TÍTULO de la sesión si existe (auto-título o
+// renombrado por el usuario); si no, cae a "Sesión N" numerada.
 const numberedSessions = computed(() =>
   sessions.value.map((session, idx) => ({
     ...session,
-    label: `${t('JABVOX_AI_CHAT.SESSION_ITEM')} ${sessions.value.length - idx}`,
+    label:
+      session.title ||
+      `${t('JABVOX_AI_CHAT.SESSION_ITEM')} ${sessions.value.length - idx}`,
   }))
 );
+
+// --- Renombrar sesión (FIX 3): input inline en la fila de la sesión.
+const renamingId = ref(null); // session_id en edición, o null
+const renameValue = ref('');
+
+function startRename(session) {
+  renamingId.value = session.session_id;
+  renameValue.value = session.title || '';
+  // Enfoca el input en el siguiente tick (el v-if lo acaba de montar).
+  nextTick(() => {
+    const el = document.getElementById(`ai-chat-rename-${session.session_id}`);
+    el?.focus();
+    el?.select();
+  });
+}
+
+function cancelRename() {
+  renamingId.value = null;
+  renameValue.value = '';
+}
+
+async function confirmRename(sessionId) {
+  const title = renameValue.value.trim();
+  if (!title) {
+    cancelRename();
+    return;
+  }
+  try {
+    await store.dispatch('jabvoxAiChat/renameSession', { sessionId, title });
+  } catch {
+    alert(t('JABVOX_AI_CHAT.ERROR'));
+  } finally {
+    cancelRename();
+  }
+}
 </script>
 
 <template>
@@ -620,7 +747,21 @@ const numberedSessions = computed(() =>
             </span>
             <!-- Label + meta -->
             <div class="flex-1 min-w-0">
+              <!-- Renombrar: input inline (FIX 3). Enter confirma, Escape/blur cancela. -->
+              <input
+                v-if="renamingId === session.session_id"
+                :id="`ai-chat-rename-${session.session_id}`"
+                v-model="renameValue"
+                type="text"
+                maxlength="255"
+                class="reset-base w-full text-sm rounded-md border border-n-weak bg-n-background px-2 py-1 text-n-slate-12 focus:outline-none focus:border-n-slate-7"
+                @click.stop
+                @keydown.enter.prevent="confirmRename(session.session_id)"
+                @keydown.esc.prevent="cancelRename"
+                @blur="confirmRename(session.session_id)"
+              />
               <p
+                v-else
                 class="text-sm truncate"
                 :class="
                   currentSessionId === session.session_id
@@ -646,8 +787,18 @@ const numberedSessions = computed(() =>
                 {{ session.agent }}
               </span>
             </div>
+            <!-- Renombrar (FIX 3) -->
+            <button
+              v-if="renamingId !== session.session_id"
+              class="hidden group-hover:flex items-center justify-center size-6 rounded-md text-n-slate-9 hover:text-n-slate-12 hover:bg-n-alpha-2 shrink-0 transition-colors"
+              :title="t('JABVOX_AI_CHAT.RENAME_SESSION')"
+              @click.stop="startRename(session)"
+            >
+              <span class="i-lucide-pencil size-3.5" />
+            </button>
             <!-- Delete -->
             <button
+              v-if="renamingId !== session.session_id"
               class="hidden group-hover:flex items-center justify-center size-6 rounded-md text-n-slate-9 hover:text-n-ruby-11 hover:bg-n-ruby-3 shrink-0 transition-colors"
               :title="t('JABVOX_AI_CHAT.DELETE_SESSION')"
               @click.stop="askDeleteSession(session.session_id)"

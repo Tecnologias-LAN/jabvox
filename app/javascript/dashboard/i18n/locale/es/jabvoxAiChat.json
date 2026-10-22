@@ -9,6 +9,7 @@
     "STOP": "Detener",
     "NEW_CHAT": "Nueva conversación",
     "DELETE_SESSION": "Eliminar conversación",
+    "RENAME_SESSION": "Renombrar conversación",
     "DELETE_SESSION_CONFIRM": "¿Seguro que deseas eliminar esta conversación?",
     "PLACEHOLDER": "Pregunta algo...",
     "EMPTY_STATE": "Inicia una conversación con el asistente de IA",

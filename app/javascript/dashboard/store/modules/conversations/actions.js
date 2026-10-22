@@ -57,7 +57,9 @@ const actions = {
         params.assigneeType
       );
     } catch (error) {
-      // Handle error
+      // Si el request falla, hay que apagar el spinner igualmente: dejarlo en
+      // true (como hacía el catch vacío) cuelga la lista para siempre.
+      commit(types.CLEAR_LIST_LOADING_STATUS);
     }
   },
 
@@ -72,7 +74,9 @@ const actions = {
         'appliedFilters'
       );
     } catch (error) {
-      // Handle error
+      // Mismo motivo: un filtro que falla no debe dejar el spinner girando sin
+      // fin. Se apaga el loading para que la UI salga del estado de carga.
+      commit(types.CLEAR_LIST_LOADING_STATUS);
     }
   },
 

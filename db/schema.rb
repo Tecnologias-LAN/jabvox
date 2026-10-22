@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_18_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_22_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1084,6 +1084,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_18_120000) do
     t.bigint "hermes_agent_id"
     t.index ["account_id"], name: "index_jabvox_ai_chat_models_on_account_id"
     t.index ["hermes_agent_id"], name: "index_jabvox_ai_chat_models_on_hermes_agent_id"
+  end
+
+  create_table "jabvox_ai_chat_sessions", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "user_id", null: false
+    t.string "session_id_jabvox", limit: 100, null: false
+    t.string "title_jabvox"
+    t.bigint "connection_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "user_id", "session_id_jabvox"], name: "idx_jabvox_ai_chat_sessions_uniq", unique: true
+    t.index ["account_id"], name: "index_jabvox_ai_chat_sessions_on_account_id"
+    t.index ["user_id"], name: "index_jabvox_ai_chat_sessions_on_user_id"
   end
 
   create_table "jabvox_ai_chat_storages", force: :cascade do |t|
@@ -2427,8 +2440,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_18_120000) do
     t.bigint "folder_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "webhook_token"
     t.index ["account_id", "folder_id"], name: "idx_jabvox_flows_account_folder"
     t.index ["account_id", "status"], name: "idx_jabvox_flows_account_status"
+    t.index ["webhook_token"], name: "index_jabvox_flows_on_webhook_token", unique: true
   end
 
   create_table "jabvox_form_configs", force: :cascade do |t|
@@ -4497,6 +4512,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_18_120000) do
   add_foreign_key "jabvox_ai_chat_messages", "users"
   add_foreign_key "jabvox_ai_chat_models", "accounts"
   add_foreign_key "jabvox_ai_chat_models", "jabvox_hermes_agents", column: "hermes_agent_id"
+  add_foreign_key "jabvox_ai_chat_sessions", "accounts"
+  add_foreign_key "jabvox_ai_chat_sessions", "users"
   add_foreign_key "jabvox_ai_chat_user_permissions", "accounts"
   add_foreign_key "jabvox_ai_chat_user_permissions", "users"
   add_foreign_key "jabvox_ai_provider_accounts", "accounts"

@@ -1,5 +1,9 @@
 import types from '../../../mutation-types';
 
+// El backend pagina las conversaciones de a 25 (CONVERSATION_RESULTS_PER_PAGE,
+// ver conversation_finder.rb). Una página con menos de esto es la última.
+const CONVERSATIONS_PER_PAGE = 25;
+
 export const setPageFilter = ({ dispatch, filter, page, markEndReached }) => {
   dispatch('conversationPage/setCurrentPage', { filter, page }, { root: true });
   if (markEndReached) {
@@ -65,6 +69,10 @@ export const buildConversationList = (
     dispatch: context.dispatch,
     filter: filterType,
     page: requestPayload.page,
-    markEndReached: !conversationList.length,
+    // Fin de la lista cuando la página viene incompleta (menos de CONVERSATIONS_PER_PAGE),
+    // no solo cuando viene vacía: con filtros, la última página casi nunca cae en
+    // exactamente 0 elementos, así que marcar fin solo con length===0 deja el scroll
+    // pidiendo página tras página sin frenar (carga infinita).
+    markEndReached: conversationList.length < CONVERSATIONS_PER_PAGE,
   });
 };

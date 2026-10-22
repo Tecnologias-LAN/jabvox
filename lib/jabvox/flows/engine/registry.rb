@@ -9,10 +9,16 @@ class Jabvox::Flows::Engine::Registry
   #  - outputs: puertos declarados; el primero es el puerto por defecto.
   #  - params: especificación declarativa que usa la VALIDACIÓN del grafo
   #    (obligatorios, defaults y visibilidad condicional). Vacía = sin exigencias.
-  Definition = Struct.new(:type, :handler, :items_path, :outputs, :label, :params, keyword_init: true) do
+  Definition = Struct.new(:type, :handler, :items_path, :outputs, :label, :params, :alias_of, keyword_init: true) do
     # Un tipo es disparador por su prefijo: el catálogo no necesita declararlo.
     def trigger?
       type.to_s.start_with?('trigger.')
+    end
+
+    # Un alias es un nombre VIEJO que resuelve al mismo handler que un tipo
+    # canónico (compatibilidad con flujos ya guardados). No es un tipo de catálogo.
+    def alias?
+      alias_of.present?
     end
   end
 
@@ -21,17 +27,32 @@ class Jabvox::Flows::Engine::Registry
   end
 
   # `meta` agrupa los metadatos del catálogo: items_path, outputs, label y params.
-  def register(type, handler: nil, **meta, &block)
+  # `alias_of:` marca este tipo como alias de compatibilidad de un canónico: sigue
+  # siendo ejecutable (handler resoluble) pero no cuenta como tipo de catálogo.
+  def register(type, handler: nil, alias_of: nil, **meta, &block)
     @definitions[type] = Definition.new(
       type: type, handler: handler || block, items_path: meta[:items_path],
-      outputs: meta[:outputs] || [], label: meta[:label], params: meta[:params] || []
+      outputs: meta[:outputs] || [], label: meta[:label], params: meta[:params] || [],
+      alias_of: alias_of
     )
     self
   end
 
-  # Tipos registrados: la validación los usa para detectar tipos desconocidos.
+  # Tipos CANÓNICOS registrados (sin los alias de compatibilidad): es lo que el
+  # catálogo lista y contra lo que se valida la paridad catálogo<->motor. La
+  # validación de tipos desconocidos usa `registered?`, que SÍ acepta alias.
   def types
+    @definitions.reject { |_type, definition| definition.alias? }.keys
+  end
+
+  # Todos los tipos incluyendo alias (para diagnósticos / validación permisiva).
+  def all_types
     @definitions.keys
+  end
+
+  # Alias -> canónico, para resolver un nombre viejo guardado en un flujo.
+  def canonical(type)
+    @definitions[type]&.alias_of || type
   end
 
   # Puertos de salida declarados por el tipo.

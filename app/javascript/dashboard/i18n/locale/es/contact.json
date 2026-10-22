@@ -410,7 +410,7 @@
       }
     },
     "PAGINATION_FOOTER": {
-      "SHOWING": "Mostrando {startItem} - {endItem} de {totalItems} contactos"
+      "SHOWING": "Mostrando {startItem} - {endItem} de {totalItems} contacto | Mostrando {startItem} - {endItem} de {totalItems} contactos"
     },
     "FILTER": {
       "NAME": "Nombre",

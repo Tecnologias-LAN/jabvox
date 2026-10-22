@@ -40,9 +40,14 @@ class Jabvox::Flows::Nodes::Base
 
     # Registra el tipo (y sus alias) en un Engine::Registry.
     def register_on(registry)
-      ([@node_type] + node_aliases).each do |type|
-        registry.register(type, handler: method(:call), items_path: @node_items_path,
-                                outputs: @node_outputs || [], label: @node_label)
+      # El tipo canónico es un tipo de catálogo de primera clase; los aliases son
+      # nombres viejos que resuelven al mismo handler (compatibilidad) pero no
+      # cuentan como tipos de catálogo (ver Registry#types).
+      registry.register(@node_type, handler: method(:call), items_path: @node_items_path,
+                                    outputs: @node_outputs || [], label: @node_label)
+      node_aliases.each do |old_type|
+        registry.register(old_type, handler: method(:call), items_path: @node_items_path,
+                                    outputs: @node_outputs || [], label: @node_label, alias_of: @node_type)
       end
     end
 

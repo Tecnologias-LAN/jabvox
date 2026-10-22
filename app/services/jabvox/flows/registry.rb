@@ -72,11 +72,13 @@ class Jabvox::Flows::Registry
     Jabvox::Flows::Nodes::Jabvox::OrderUpdateNode
   ].freeze
 
-  # Los ÚNICOS nodos que salen a la red. Toda URL pasa antes por UrlGuard.
+  # Los ÚNICOS nodos que salen a la red. Toda URL pasa antes por UrlGuard; el de
+  # base de datos pasa por HostGuard (anti-SSRF) y ejecuta SELECT read-only.
   INTEGRATION = [
     Jabvox::Flows::Nodes::Integration::HttpRequestNode,
     Jabvox::Flows::Nodes::Integration::GraphqlNode,
-    Jabvox::Flows::Nodes::Integration::WebhookOutNode
+    Jabvox::Flows::Nodes::Integration::WebhookOutNode,
+    Jabvox::Flows::Nodes::Integration::AnalyticsQueryNode
   ].freeze
 
   ALL = (TRIGGERS + LOGIC + JABVOX + INTEGRATION).freeze

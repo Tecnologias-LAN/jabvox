@@ -13,7 +13,9 @@ class Jabvox::Flows::Nodes::Jabvox::CampaignAddLeadNode < Jabvox::Flows::Nodes::
     lead = find_lead!(param(:leadId), 'el ID interno del lead')
     campaign = JabvoxCampaign.find_or_create_by!(account: account, name_jabvox: campaign_name)
     lead.update!(jabvox_campaign: campaign)
-    { 'leadId' => lead.id, 'lead_number' => lead.lead_number,
+    # `lead_number` desapareció con la tabla jabvox_leads; se conserva la clave en
+    # la salida (vacía) para no romper flujos que la referencian.
+    { 'leadId' => lead.id, 'lead_number' => nil,
       'campaign_id' => campaign.id, 'campaign' => campaign.name_jabvox }
   end
 

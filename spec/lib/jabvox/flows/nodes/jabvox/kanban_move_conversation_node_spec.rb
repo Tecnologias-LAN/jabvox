@@ -97,7 +97,7 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::KanbanMoveConversationNode do
 
   describe Jabvox::Flows::Nodes::Jabvox::KanbanMoveLeadNode do
     let(:lead) do
-      account.jabvox_leads.create!(contact: create(:contact, account: account, name: 'Cliente'))
+      create(:contact, account: account, name: 'Cliente')
     end
 
     it 'coloca el lead en la etapa del embudo' do
@@ -106,8 +106,8 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::KanbanMoveConversationNode do
 
       expect(result).to be_ok
       row = JabvoxKanbanConversationStage.find(result.output['id'])
-      expect(row.jabvox_lead_id).to eq(lead.id)
-      expect(result.output).to include('lead_id' => lead.id, 'lead_number' => lead.lead_number,
+      expect(row.contact_id).to eq(lead.id)
+      expect(result.output).to include('lead_id' => lead.id, 'lead_number' => nil,
                                        'stage_name' => 'Nuevo')
     end
 
@@ -134,10 +134,10 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::KanbanMoveConversationNode do
     it 'exige el ID del lead y avisa si no está en la cuenta' do
       expect(run_node(described_class, ctx,
                       { 'funnelId' => funnel.id, 'stageId' => stage.id, 'leadId' => '' }).error)
-        .to match(/Falta el ID del lead/)
+        .to match(/Falta el ID del contacto/)
       expect(run_node(described_class, ctx,
                       { 'funnelId' => funnel.id, 'stageId' => stage.id, 'leadId' => 999_999 }).error)
-        .to match(/El lead 999999 no existe/)
+        .to match(/El contacto 999999 no existe/)
     end
   end
 end

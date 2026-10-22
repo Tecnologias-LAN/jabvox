@@ -7,6 +7,11 @@ const generateValues = item => {
     const values = item.values || '';
     return values.split(',');
   }
+  // Jabvox: la franja horaria guarda un objeto { from, to }; se preserva tal cual
+  // (no es una lista de ids como el resto de condiciones).
+  if (item.attribute_key === 'current_time') {
+    return item.values || {};
+  }
   if (Array.isArray(item.values)) {
     return setArrayValues(item);
   }

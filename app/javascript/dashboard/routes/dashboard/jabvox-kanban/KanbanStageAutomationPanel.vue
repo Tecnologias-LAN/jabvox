@@ -325,8 +325,12 @@ const badgeClass = auto => {
 
 <template>
   <teleport to="body">
-    <div class="fixed inset-0 z-50 flex" @click.self="emit('close')">
-      <div class="absolute inset-0 bg-black/40" @click="emit('close')" />
+    <!-- Cerrar con mousedown (no click): el clic que ABRE el panel termina su ciclo
+         (mouseup/click) sobre este overlay recién teleportado bajo el cursor, y con @click
+         lo cerraba al instante (parpadeo). mousedown solo dispara cuando el usuario INICIA
+         un clic sobre el fondo, no cuando aterriza un clic ya en curso. -->
+    <div class="fixed inset-0 z-50 flex" @mousedown.self="emit('close')">
+      <div class="absolute inset-0 bg-black/40" @mousedown="emit('close')" />
       <div
         class="relative ml-auto w-full max-w-md h-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden"
       >

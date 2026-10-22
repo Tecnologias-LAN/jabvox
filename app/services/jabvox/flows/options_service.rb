@@ -16,6 +16,7 @@ class Jabvox::Flows::OptionsService
     kanban_funnels kanban_stages task_boards task_stages typifications campaigns
     lead_custom_fields lead_field_keys lead_filter_fields contact_custom_attrs
     management_states sms_providers calendar_external_people products order_statuses
+    analytics_data_sources
   ].freeze
 
   class UnknownKind < StandardError; end
@@ -129,6 +130,13 @@ class Jabvox::Flows::OptionsService
   def opt_campaigns(_params)
     JabvoxCampaign.where(account_id: @account.id).order(:name_jabvox)
                   .map { |c| option(c.id, c.name_jabvox, 'name' => c.name_jabvox) }
+  end
+
+  # Fuentes de datos externas de Analytics que están CONECTADAS (status ok): son
+  # las únicas sobre las que el nodo de consulta puede leer.
+  def opt_analytics_data_sources(_params)
+    JabvoxAnalyticsDataSource.where(account_id: @account.id, status_jabvox: 'ok').order(:name_jabvox)
+                             .map { |ds| option(ds.id, ds.name_jabvox, 'engine' => ds.engine_jabvox) }
   end
 
   # El estado se registra por NOMBRE (así lo guarda Jabvox), por eso value = nombre.
