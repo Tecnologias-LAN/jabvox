@@ -1,3 +1,13 @@
+<script>
+// Controlador del stream a NIVEL DE MÓDULO (no por componente). Si viviera como
+// ref del setup, al navegar fuera del módulo el componente se desmonta, el fetch
+// se aborta y Hermes trunca la respuesta pendiente. Al nivel de módulo el stream
+// sobrevive la navegación: sigue escribiendo en el store (Vuex) y al volver la
+// respuesta está completa. Es el mismo patrón ya probado en la burbuja
+// (useHermesChat.js). El estado visible de "pensando" vive en Vuex (ver store).
+let activeStreamController = null;
+</script>
+
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
@@ -80,10 +90,20 @@ const selectedAgentId = ref(null); // conexión Hermes elegida en el chat
 // Picker de MODELO LLM del agente (glm-5, etc.). Vacío = usa el default del agente en Hermes.
 const modelOptions = ref([]); // [{ value:'zai::glm-5', label:'glm-5', model, provider }]
 const selectedModelKey = ref(''); // 'provider::model' elegido; '' = default del agente
-const isStreaming = ref(false);
-// Permite ABORTAR el streaming en curso (botón Detener) para no bloquear al usuario.
-const streamController = ref(null);
-const activeTools = ref([]); // chips de herramientas en vivo (Telegram-like)
+// isStreaming y activeTools viven en Vuex (no como ref local): al navegar fuera y
+// volver a mitad de una respuesta, la UI sigue mostrando "está pensando" y las
+// tools en vivo, igual que la burbuja. Se exponen como computed con setter para que
+// el resto del componente las use como antes (.value de lectura/escritura).
+// El AbortController del stream también vive a NIVEL DE MÓDULO (activeStreamController,
+// arriba): así navegar fuera no aborta el fetch y Hermes termina de responder.
+const isStreaming = computed({
+  get: () => store.getters['jabvoxAiChat/getPageIsStreaming'],
+  set: value => store.commit('jabvoxAiChat/SET_PAGE_IS_STREAMING', value),
+});
+const activeTools = computed({
+  get: () => store.getters['jabvoxAiChat/getPageActiveTools'],
+  set: tools => store.commit('jabvoxAiChat/SET_PAGE_ACTIVE_TOOLS', tools),
+});
 const expandedTool = ref(null); // clave "msgId:toolId" de la herramienta desplegada
 const fileInput = ref(null);
 const attachments = ref([]); // [{ type:'image'|'file', name, url(base64 o http) }]
@@ -273,26 +293,34 @@ function appendToMessage(sessionId, messageId, text) {
 // Por eso preservamos el label del primer evento y NO lo pisamos con el segundo.
 function upsertTool(tool) {
   const id = tool.toolCallId || tool.tool;
-  const idx = activeTools.value.findIndex(x => x.id === id);
+  const current = activeTools.value;
+  const idx = current.findIndex(x => x.id === id);
+  // Reasignación inmutable (no push/mutación in-place): activeTools vive en Vuex
+  // vía computed con setter, así que debe recibir un array nuevo para persistir.
   if (idx === -1) {
-    activeTools.value.push({
-      id,
-      emoji: tool.emoji || '🔧',
-      tool: tool.tool || 'tool',
-      label: tool.tool || 'tool', // nombre corto para el chip (terminal, execute_code…)
-      detail: tool.label || tool.detail || tool.output || '', // comando/código completo
-      status: tool.status,
-    });
+    activeTools.value = [
+      ...current,
+      {
+        id,
+        emoji: tool.emoji || '🔧',
+        tool: tool.tool || 'tool',
+        label: tool.tool || 'tool', // nombre corto para el chip (terminal, execute_code…)
+        detail: tool.label || tool.detail || tool.output || '', // comando/código completo
+        status: tool.status,
+      },
+    ];
     return;
   }
   // Actualiza solo lo que llega (status siempre; detalle si viene más completo).
-  const prev = activeTools.value[idx];
-  activeTools.value[idx] = {
+  const prev = current[idx];
+  const updated = current.slice();
+  updated[idx] = {
     ...prev,
     status: tool.status || prev.status,
     detail: tool.label || tool.detail || tool.output || prev.detail,
     emoji: tool.emoji || prev.emoji,
   };
+  activeTools.value = updated;
 }
 
 // `getSessionId` devuelve el id de sesión VIGENTE (puede cambiar a mitad del stream cuando se
@@ -365,7 +393,7 @@ async function streamAssistant(
 ) {
   const assistantId = Date.now() + 1;
   isStreaming.value = true;
-  streamController.value = new AbortController();
+  activeStreamController = new AbortController();
   activeTools.value = [];
   // Id de sesión bajo el que se pintan los mensajes. Empieza siendo el temporal; cuando el
   // backend anuncia el real (jabvox.session), se adopta y el resto del turno pinta bajo él.
@@ -409,7 +437,7 @@ async function streamAssistant(
         ...deviseAuthHeaders(),
       },
       credentials: 'same-origin',
-      signal: streamController.value?.signal,
+      signal: activeStreamController?.signal,
       body: JSON.stringify({
         content,
         session_id: apiSessionId,
@@ -447,7 +475,7 @@ async function streamAssistant(
       });
     }
     isStreaming.value = false;
-    streamController.value = null;
+    activeStreamController = null;
     activeTools.value = [];
     // El título pendiente de "/new <nombre>" ya se envió en esta request: se limpia.
     pendingTitle.value = '';
@@ -456,7 +484,7 @@ async function streamAssistant(
 
 // Detiene la respuesta en curso (aborta el stream). El input queda libre de inmediato.
 function stopStreaming() {
-  streamController.value?.abort();
+  activeStreamController?.abort();
 }
 
 // Carga los modelos LLM que ofrece el agente elegido (para el picker /model). Jabvox
@@ -790,20 +818,20 @@ async function confirmRename(sessionId) {
             <!-- Renombrar (FIX 3) -->
             <button
               v-if="renamingId !== session.session_id"
-              class="hidden group-hover:flex items-center justify-center size-6 rounded-md text-n-slate-9 hover:text-n-slate-12 hover:bg-n-alpha-2 shrink-0 transition-colors"
+              class="hidden group-hover:flex items-center justify-center size-8 rounded-lg text-n-slate-10 hover:text-n-slate-12 bg-n-alpha-1 hover:bg-n-alpha-3 shrink-0 transition-colors"
               :title="t('JABVOX_AI_CHAT.RENAME_SESSION')"
               @click.stop="startRename(session)"
             >
-              <span class="i-lucide-pencil size-3.5" />
+              <span class="i-lucide-pencil size-4" />
             </button>
             <!-- Delete -->
             <button
               v-if="renamingId !== session.session_id"
-              class="hidden group-hover:flex items-center justify-center size-6 rounded-md text-n-slate-9 hover:text-n-ruby-11 hover:bg-n-ruby-3 shrink-0 transition-colors"
+              class="hidden group-hover:flex items-center justify-center size-8 rounded-lg text-n-slate-10 hover:text-n-ruby-11 bg-n-alpha-1 hover:bg-n-ruby-3 shrink-0 transition-colors"
               :title="t('JABVOX_AI_CHAT.DELETE_SESSION')"
               @click.stop="askDeleteSession(session.session_id)"
             >
-              <span class="i-lucide-trash-2 size-3.5" />
+              <span class="i-lucide-trash-2 size-4" />
             </button>
           </div>
           <div

@@ -68,6 +68,13 @@ const state = {
   copilotSessionId: null,
   copilotIsStreaming: false,
   copilotActiveTools: [],
+  // Estado de streaming de la PÁGINA completa (AiChat.vue), separado del de la
+  // burbuja por la misma razón: el componente se desmonta al navegar fuera del
+  // módulo. Guardarlo en Vuex permite que al volver a mitad de una respuesta la UI
+  // siga mostrando "está pensando" + las tools en vivo (el stream en sí vive en el
+  // módulo de AiChat.vue y nunca se corta).
+  pageIsStreaming: false,
+  pageActiveTools: [],
 };
 
 const getters = {
@@ -81,6 +88,8 @@ const getters = {
   getCopilotSessionId: s => s.copilotSessionId,
   getCopilotIsStreaming: s => s.copilotIsStreaming,
   getCopilotActiveTools: s => s.copilotActiveTools,
+  getPageIsStreaming: s => s.pageIsStreaming,
+  getPageActiveTools: s => s.pageActiveTools,
 };
 
 const mutations = {
@@ -158,6 +167,12 @@ const mutations = {
   },
   SET_COPILOT_ACTIVE_TOOLS(s, tools) {
     s.copilotActiveTools = tools;
+  },
+  SET_PAGE_IS_STREAMING(s, value) {
+    s.pageIsStreaming = value;
+  },
+  SET_PAGE_ACTIVE_TOOLS(s, tools) {
+    s.pageActiveTools = tools;
   },
   SET_MODELS(s, models) {
     s.models = models;
