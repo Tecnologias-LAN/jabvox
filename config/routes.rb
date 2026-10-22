@@ -472,12 +472,16 @@ Rails.application.routes.draw do
             end
             resources :kanban_funnels do
               resources :kanban_stages, only: [:index, :create, :update, :destroy] do
+                collection do
+                  post :reorder
+                end
                 resources :kanban_stage_automations, only: [:index, :create, :show, :update, :destroy]
               end
               resource :kanban_board, only: [:show], controller: 'kanban_board'
               resource :kanban_conversation_stages, only: [:update], controller: 'kanban_conversation_stages' do
                 collection do
                   put :update_lead
+                  post :reorder
                 end
               end
             end

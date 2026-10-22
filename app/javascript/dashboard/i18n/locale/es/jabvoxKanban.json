@@ -15,6 +15,12 @@
     "CONTACT_TYPE_COMPANY": "Empresa",
     "NO_CONVERSATION": "Sin contactar",
     "PER_PAGE": "Por columna:",
+    "SORT": {
+      "LABEL": "Ordenar tarjetas",
+      "MANUAL": "Manual",
+      "NUMBER_ASC": "N° ascendente",
+      "NUMBER_DESC": "N° descendente"
+    },
     "SHOW_MORE": "Mostrar {count} más",
     "SHOW_LESS": "Mostrar menos",
     "AUTOMATIONS": {
@@ -156,6 +162,8 @@
         "DELETE_CONFIRM": "¿Eliminar la etapa \"{name}\"? Las conversaciones en esta etapa se moverán a la primera etapa.",
         "DELETE_SUCCESS": "Etapa eliminada.",
         "DELETE_ERROR": "No se pudo eliminar la etapa.",
+        "REORDER_ERROR": "No se pudo reordenar las columnas.",
+        "DRAG_HINT": "Arrastra para reordenar",
         "AUTOMATIONS_BUTTON": "Automatizaciones",
         "AUTO_ADVANCE_INDICATOR": "→ {hours}h",
         "FORM": {

@@ -5,6 +5,7 @@
 #  id                           :bigint           not null, primary key
 #  auto_advance_enabled         :boolean          default(FALSE), not null
 #  auto_advance_hours           :integer
+#  card_sort_jabvox             :string           default("manual"), not null
 #  color_jabvox                 :string           default("#6B7280"), not null
 #  description_jabvox           :text
 #  name_jabvox                  :string           not null
@@ -58,6 +59,10 @@ class JabvoxKanbanStage < ApplicationRecord
   validates :color_jabvox, format: { with: /\A#[0-9A-Fa-f]{6}\z/, message: 'must be a valid hex color' }
   validates :auto_advance_hours, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validate :auto_advance_target_in_same_funnel, if: :auto_advance_target_stage_id?
+
+  # Orden de las tarjetas dentro de la columna, recordado por columna.
+  CARD_SORTS = %w[manual number_asc number_desc].freeze
+  validates :card_sort_jabvox, inclusion: { in: CARD_SORTS }
 
   scope :ordered, -> { order(:position_jabvox) }
 

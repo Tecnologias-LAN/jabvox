@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { useStore } from 'vuex';
 import KanbanCard from './KanbanCard.vue';
-import KanbanStageAutomationPanel from './KanbanStageAutomationPanel.vue';
 
 const props = defineProps({
   stage: {
@@ -23,13 +23,30 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['card-click', 'drop']);
-
-const showAutomations = ref(false);
+const store = useStore();
 
 const isDragOver = ref(false);
 const showAll = ref(false);
 const pageSize = ref(10);
 const pageSizeOptions = [5, 10, 25, 50];
+
+// Orden de las tarjetas de ESTA columna. Se inicializa del valor guardado en el
+// stage (card_sort_jabvox) y al cambiarlo se persiste en BD por columna.
+const cardSort = ref(props.stage.card_sort_jabvox || 'manual');
+watch(
+  () => props.stage.card_sort_jabvox,
+  value => {
+    cardSort.value = value || 'manual';
+  }
+);
+
+const onSortChange = () => {
+  store.dispatch('jabvoxKanban/updateStage', {
+    funnelId: props.funnelId,
+    stageId: props.stage.id,
+    card_sort_jabvox: cardSort.value,
+  });
+};
 
 watch(
   () => pageSize.value,
@@ -38,10 +55,31 @@ watch(
   }
 );
 
-const allCards = computed(() => [
-  ...props.conversations.map(c => ({ ...c, type: 'conversation' })),
-  ...props.leadCards,
-]);
+// Número (#display_id) de una tarjeta; las que no tienen (lead cards) van al final.
+const cardNumber = card =>
+  card.type === 'lead' ? null : (card.display_id ?? card.id);
+
+// Las tarjetas ya vienen ordenadas del backend según card_sort. Aquí solo se
+// aplica el orden en cliente para que el cambio del selector se vea al instante,
+// sin esperar a recargar el tablero.
+const sortedCards = computed(() => {
+  const list = [
+    ...props.conversations.map(c => ({ ...c, type: 'conversation' })),
+    ...props.leadCards,
+  ];
+  if (cardSort.value === 'manual') return list;
+  const dir = cardSort.value === 'number_desc' ? -1 : 1;
+  return [...list].sort((a, b) => {
+    const na = cardNumber(a);
+    const nb = cardNumber(b);
+    if (na == null && nb == null) return 0;
+    if (na == null) return 1; // sin número al final
+    if (nb == null) return -1;
+    return dir * (na - nb);
+  });
+});
+
+const allCards = sortedCards;
 
 const cardCount = computed(() => allCards.value.length);
 const visibleCards = computed(() =>
@@ -61,17 +99,42 @@ const onDragLeave = () => {
   isDragOver.value = false;
 };
 
+const cardsContainer = ref(null);
+
+// Índice de destino dentro de la columna según la posición Y del cursor: cuenta
+// cuántas tarjetas quedan por ENCIMA del punto donde se soltó (su punto medio).
+// Así soltar entre dos tarjetas inserta en medio, no siempre al final.
+const dropIndexFromEvent = event => {
+  const container = cardsContainer.value;
+  if (!container) return null;
+  const cards = [...container.querySelectorAll('[data-card-index]')];
+  let index = cards.length;
+  for (let i = 0; i < cards.length; i += 1) {
+    const rect = cards[i].getBoundingClientRect();
+    if (event.clientY < rect.top + rect.height / 2) {
+      index = i;
+      break;
+    }
+  }
+  return index;
+};
+
 const onDrop = event => {
   event.preventDefault();
   isDragOver.value = false;
   const raw = event.dataTransfer.getData('text/plain');
+  // La posición solo aplica cuando el orden es MANUAL (arrastre); con un filtro de
+  // orden activo (N° asc/desc) el orden lo decide el filtro, no la posición manual.
+  const position =
+    cardSort.value === 'manual' ? dropIndexFromEvent(event) : null;
   if (raw.startsWith('lead_')) {
     const leadId = parseInt(raw.replace('lead_', ''), 10);
-    if (leadId) emit('drop', { leadId, stageId: props.stage.id });
+    if (leadId) emit('drop', { leadId, stageId: props.stage.id, position });
   } else {
     const conversationId = parseInt(raw, 10);
-    if (conversationId)
-      emit('drop', { conversationId, stageId: props.stage.id });
+    if (conversationId) {
+      emit('drop', { conversationId, stageId: props.stage.id, position });
+    }
   }
 };
 </script>
@@ -104,27 +167,37 @@ const onDrop = event => {
           {{ cardCount }}
         </span>
       </div>
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-1.5">
+        <!-- Orden de las tarjetas de esta columna (persiste por columna en BD). -->
+        <select
+          v-model="cardSort"
+          class="reset-base text-xs border border-n-weak rounded-md pl-2 pr-6 h-8 bg-n-background text-n-slate-11 cursor-pointer focus:outline-none focus:border-n-slate-7"
+          :aria-label="$t('JABVOX_KANBAN.SORT.LABEL')"
+          @change="onSortChange"
+        >
+          <option value="manual">{{ $t('JABVOX_KANBAN.SORT.MANUAL') }}</option>
+          <option value="number_asc">
+            {{ $t('JABVOX_KANBAN.SORT.NUMBER_ASC') }}
+          </option>
+          <option value="number_desc">
+            {{ $t('JABVOX_KANBAN.SORT.NUMBER_DESC') }}
+          </option>
+        </select>
+        <!-- Cuántas tarjetas ver por columna. -->
         <select
           v-model="pageSize"
-          class="reset-base text-[11px] border border-n-weak rounded-md pl-2 pr-5 h-7 bg-n-background text-n-slate-11 focus:outline-none focus:border-n-slate-7"
+          class="reset-base text-xs border border-n-weak rounded-md pl-2 pr-6 h-8 bg-n-background text-n-slate-11 cursor-pointer focus:outline-none focus:border-n-slate-7"
           :aria-label="$t('JABVOX_KANBAN.PER_PAGE')"
         >
           <option v-for="size in pageSizeOptions" :key="size" :value="size">
             {{ size }}
           </option>
         </select>
-        <button
-          class="size-7 flex items-center justify-center rounded-lg text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-2 transition-colors"
-          :title="$t('JABVOX_KANBAN.AUTOMATIONS.CONFIGURE')"
-          @click.stop="showAutomations = true"
-        >
-          <span class="i-lucide-settings-2 size-3.5" />
-        </button>
       </div>
     </div>
 
     <div
+      ref="cardsContainer"
       class="flex-1 overflow-y-auto p-2 space-y-2 transition-colors"
       :class="isDragOver ? 'bg-n-alpha-1' : ''"
       @dragover="onDragOver"
@@ -134,6 +207,7 @@ const onDrop = event => {
       <KanbanCard
         v-for="card in visibleCards"
         :key="card.type === 'lead' ? `lead_${card.lead_id}` : card.id"
+        data-card-index
         :card="card"
         @click="emit('card-click', $event)"
       />
@@ -163,11 +237,4 @@ const onDrop = event => {
       </button>
     </div>
   </div>
-
-  <KanbanStageAutomationPanel
-    v-if="showAutomations"
-    :stage="stage"
-    :funnel-id="funnelId"
-    @close="showAutomations = false"
-  />
 </template>

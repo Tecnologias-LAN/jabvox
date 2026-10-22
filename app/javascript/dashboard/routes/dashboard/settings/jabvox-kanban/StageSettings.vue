@@ -50,6 +50,43 @@ const form = ref(defaultForm());
 
 onMounted(() => store.dispatch('jabvoxKanban/fetchFunnels'));
 
+// Reordenar columnas (etapas) arrastrándolas. Orden HTML5 nativo, consistente con
+// el resto del kanban. Al soltar, se persiste el nuevo orden en BD (reorderStages).
+const dragStageId = ref(null);
+const dragOverStageId = ref(null);
+
+const onStageDragStart = stage => {
+  dragStageId.value = stage.id;
+};
+
+const onStageDragOver = (event, stage) => {
+  event.preventDefault();
+  dragOverStageId.value = stage.id;
+};
+
+const onStageDrop = async targetStage => {
+  const fromId = dragStageId.value;
+  dragStageId.value = null;
+  dragOverStageId.value = null;
+  if (!fromId || fromId === targetStage.id) return;
+
+  const ids = stages.value.map(s => s.id);
+  const fromIdx = ids.indexOf(fromId);
+  const toIdx = ids.indexOf(targetStage.id);
+  if (fromIdx === -1 || toIdx === -1) return;
+
+  ids.splice(toIdx, 0, ids.splice(fromIdx, 1)[0]);
+  try {
+    await store.dispatch('jabvoxKanban/reorderStages', {
+      funnelId: funnelId.value,
+      stageIds: ids,
+    });
+  } catch (error) {
+    useAlert(t('JABVOX_KANBAN.SETTINGS.STAGES.REORDER_ERROR'));
+    store.dispatch('jabvoxKanban/fetchFunnels');
+  }
+};
+
 const otherStages = computed(() =>
   stages.value.filter(s => s.id !== editingStage.value?.id)
 );
@@ -220,8 +257,23 @@ const backToFunnels = () =>
         <div
           v-for="stage in stages"
           :key="stage.id"
+          draggable="true"
           class="flex items-center gap-3 px-4 py-3 hover:bg-n-alpha-1 transition-colors"
+          :class="{
+            'ring-2 ring-inset ring-n-brand/40 bg-n-alpha-1':
+              dragOverStageId === stage.id && dragStageId !== stage.id,
+            'opacity-50': dragStageId === stage.id,
+          }"
+          @dragstart="onStageDragStart(stage)"
+          @dragover="onStageDragOver($event, stage)"
+          @dragleave="dragOverStageId = null"
+          @drop="onStageDrop(stage)"
         >
+          <!-- Agarre para arrastrar y reordenar la columna. -->
+          <span
+            class="i-lucide-grip-vertical size-4 text-n-slate-9 cursor-grab active:cursor-grabbing shrink-0"
+            :title="t('JABVOX_KANBAN.SETTINGS.STAGES.DRAG_HINT')"
+          />
           <span
             class="size-7 rounded-lg shrink-0 ring-1 ring-inset ring-n-weak"
             :style="{ backgroundColor: stage.color_jabvox }"

@@ -11,6 +11,7 @@ json.stages @board[:stages] do |stage_data|
   json.name_jabvox stage.name_jabvox
   json.color_jabvox stage.color_jabvox
   json.position_jabvox stage.position_jabvox
+  json.card_sort_jabvox stage.card_sort_jabvox
   json.description_jabvox stage.description_jabvox
 
   json.conversations stage_data[:conversations] do |conversation|

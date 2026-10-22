@@ -15,21 +15,41 @@ class Api::V1::Accounts::Jabvox::KanbanBoardController < Api::V1::Accounts::Jabv
       }
     )
 
-    @board = {
-      funnel: @funnel,
-      stages: stages.map do |stage|
-        entries = stage.jabvox_kanban_conversation_stages.select { |e| visible_entry?(e) }
-        {
-          stage: stage,
-          conversations: entries.filter_map(&:conversation),
-          lead_cards: entries.select { |e| e.contact_id.present? && e.conversation_id.nil? }
-                             .map { |e| build_lead_card(e) }
-        }
-      end
-    }
+    @board = { funnel: @funnel, stages: stages.map { |stage| build_stage_data(stage) } }
   end
 
   private
+
+  def build_stage_data(stage)
+    entries = stage.jabvox_kanban_conversation_stages.select { |e| visible_entry?(e) }
+    entries = sort_entries(entries, stage.card_sort_jabvox)
+    {
+      stage: stage,
+      conversations: entries.filter_map(&:conversation),
+      lead_cards: entries.select { |e| e.contact_id.present? && e.conversation_id.nil? }
+                         .map { |e| build_lead_card(e) }
+    }
+  end
+
+  # Ordena las tarjetas de una columna según su preferencia guardada:
+  #  - 'manual'      -> por posición arrastrada (desempate: más reciente primero)
+  #  - 'number_asc'  -> por número (display_id) de menor a mayor
+  #  - 'number_desc' -> por número (display_id) de mayor a menor
+  # Las tarjetas sin número (lead cards sin conversación) van al final de forma estable.
+  def sort_entries(entries, card_sort)
+    dir = { 'number_asc' => 1, 'number_desc' => -1 }[card_sort]
+    return entries.sort_by { |e| number_sort_key(e, dir) } if dir
+
+    # manual (default): por posición arrastrada, desempate más reciente primero.
+    entries.sort_by { |e| [e.position_jabvox || 0, -(e.created_at&.to_f || 0)] }
+  end
+
+  # Clave de orden por número (display_id). `dir` = 1 asc, -1 desc. Las tarjetas sin
+  # número (lead cards) quedan siempre al final, en orden estable.
+  def number_sort_key(entry, dir)
+    num = entry.conversation&.display_id
+    [num ? 0 : 1, dir * (num || 0)]
+  end
 
   # Admins see the whole funnel; an agent only sees cards that belong to them — leads
   # assigned to them and conversations assigned to them. Mirrors the per-agent scoping the

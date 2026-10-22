@@ -78,26 +78,28 @@ const onCloseDetail = () => {
   selectedConversation.value = null;
 };
 
-const onMoveConversation = async ({ conversationId, stageId }) => {
+const onMoveConversation = async ({ conversationId, stageId, position }) => {
   if (!selectedFunnelId.value) return;
   try {
     await store.dispatch('jabvoxKanban/moveConversation', {
       funnelId: selectedFunnelId.value,
       conversationId,
       stageId,
+      position,
     });
   } catch (error) {
     useAlert(t('JABVOX_KANBAN.MOVE_ERROR'));
   }
 };
 
-const onMoveLead = async ({ leadId, stageId }) => {
+const onMoveLead = async ({ leadId, stageId, position }) => {
   if (!selectedFunnelId.value) return;
   try {
     await store.dispatch('jabvoxKanban/moveLead', {
       funnelId: selectedFunnelId.value,
       leadId,
       stageId,
+      position,
     });
   } catch (error) {
     useAlert(t('JABVOX_KANBAN.MOVE_ERROR'));

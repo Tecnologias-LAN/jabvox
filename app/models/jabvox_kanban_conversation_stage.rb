@@ -3,6 +3,7 @@
 # Table name: jabvox_kanban_conversation_stages
 #
 #  id                      :bigint           not null, primary key
+#  position_jabvox         :integer          default(0), not null
 #  created_at              :datetime         not null
 #  updated_at              :datetime         not null
 #  account_id              :bigint           not null
@@ -15,6 +16,7 @@
 #
 # Indexes
 #
+#  idx_jabvox_conv_stages_stage_position                     (jabvox_kanban_stage_id,position_jabvox)
 #  idx_on_account_id_contact_id_15c04b9163                   (account_id,contact_id)
 #  index_jabvox_conv_stages_account                          (account_id)
 #  index_jabvox_conv_stages_funnel                           (jabvox_kanban_funnel_id)
@@ -45,13 +47,28 @@ class JabvoxKanbanConversationStage < ApplicationRecord
 
   validates :conversation_id, uniqueness: { scope: :jabvox_kanban_funnel_id, allow_nil: true }
   validates :contact_id, uniqueness: { scope: :jabvox_kanban_funnel_id, allow_nil: true }
+  validates :position_jabvox, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validate :stage_belongs_to_funnel
   validate :conversation_belongs_to_account
   validate :has_conversation_or_lead
 
+  # Orden por defecto dentro de una columna: por posición, y a igualdad, la más
+  # reciente primero (desempate estable para filas creadas antes de tener posición).
+  scope :ordered, -> { order(:position_jabvox, created_at: :desc) }
+
+  before_validation :set_default_position, on: :create
   after_commit :fire_stage_automations, on: [:create, :update]
 
   private
+
+  # Nueva tarjeta al final de su columna (max de la etapa + 1).
+  def set_default_position
+    return if position_jabvox.present? && !position_jabvox.zero?
+
+    max = JabvoxKanbanConversationStage.where(jabvox_kanban_stage_id: jabvox_kanban_stage_id)
+                                       .maximum(:position_jabvox) || -1
+    self.position_jabvox = max + 1
+  end
 
   def has_conversation_or_lead
     return if conversation_id.present? || contact_id.present?

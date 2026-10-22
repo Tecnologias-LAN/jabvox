@@ -6,6 +6,7 @@ class Api::V1::Accounts::Jabvox::KanbanStagesController < Api::V1::Accounts::Jab
   before_action :fetch_funnel
   before_action :fetch_stage, only: [:update, :destroy]
   before_action :check_authorization
+  before_action -> { jabvox_authorize_write!('jabvox_kanban_manage') }, only: [:reorder]
 
   def index
     @stages = policy_scope(@funnel.jabvox_kanban_stages.ordered)
@@ -27,6 +28,26 @@ class Api::V1::Accounts::Jabvox::KanbanStagesController < Api::V1::Accounts::Jab
     reassign_conversations_to_first_stage
     @stage.destroy!
     head :ok
+  end
+
+  # Reordena TODAS las columnas (etapas) del embudo según la lista de ids recibida.
+  # Atómico: recompacta position_jabvox a 0..n en el orden dado. Solo toca etapas de
+  # este embudo/cuenta; ids ajenos se ignoran.
+  def reorder
+    ids = Array(params[:stage_ids]).map(&:to_i)
+    valid_ids = @funnel.jabvox_kanban_stages.where(id: ids).pluck(:id)
+    ordered = ids.select { |id| valid_ids.include?(id) }
+    return head :ok if ordered.empty?
+
+    ActiveRecord::Base.transaction do
+      ordered.each_with_index do |id, index|
+        # rubocop:disable Rails/SkipsModelValidations
+        @funnel.jabvox_kanban_stages.where(id: id).update_all(position_jabvox: index)
+        # rubocop:enable Rails/SkipsModelValidations
+      end
+    end
+    @stages = @funnel.jabvox_kanban_stages.ordered
+    render 'api/v1/accounts/jabvox/kanban_stages/index'
   end
 
   private
@@ -52,7 +73,7 @@ class Api::V1::Accounts::Jabvox::KanbanStagesController < Api::V1::Accounts::Jab
 
   def stage_params
     params.require(:stage).permit(
-      :name_jabvox, :description_jabvox, :position_jabvox, :color_jabvox,
+      :name_jabvox, :description_jabvox, :position_jabvox, :color_jabvox, :card_sort_jabvox,
       :auto_advance_enabled, :auto_advance_hours, :auto_advance_target_stage_id
     )
   end

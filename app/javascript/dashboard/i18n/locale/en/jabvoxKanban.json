@@ -15,6 +15,12 @@
     "CONTACT_TYPE_COMPANY": "Company",
     "NO_CONVERSATION": "Sin contactar",
     "PER_PAGE": "Per column:",
+    "SORT": {
+      "LABEL": "Sort cards",
+      "MANUAL": "Manual",
+      "NUMBER_ASC": "No. ascending",
+      "NUMBER_DESC": "No. descending"
+    },
     "SHOW_MORE": "Show {count} more",
     "SHOW_LESS": "Show less",
     "AUTOMATIONS": {
@@ -156,6 +162,8 @@
         "DELETE_CONFIRM": "Delete stage \"{name}\"? Conversations in this stage will be moved to the first stage.",
         "DELETE_SUCCESS": "Stage deleted.",
         "DELETE_ERROR": "Failed to delete stage.",
+        "REORDER_ERROR": "Could not reorder the columns.",
+        "DRAG_HINT": "Drag to reorder",
         "AUTOMATIONS_BUTTON": "Automations",
         "AUTO_ADVANCE_INDICATOR": "→ {hours}h",
         "FORM": {

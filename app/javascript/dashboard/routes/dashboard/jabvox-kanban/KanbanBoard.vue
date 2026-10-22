@@ -17,11 +17,11 @@ const emit = defineEmits(['card-click', 'moveConversation', 'moveLead']);
 
 const stages = computed(() => props.board?.stages || []);
 
-const onDrop = ({ conversationId, leadId, stageId }) => {
+const onDrop = ({ conversationId, leadId, stageId, position }) => {
   if (leadId) {
-    emit('moveLead', { leadId, stageId });
+    emit('moveLead', { leadId, stageId, position });
   } else {
-    emit('moveConversation', { conversationId, stageId });
+    emit('moveConversation', { conversationId, stageId, position });
   }
 };
 </script>

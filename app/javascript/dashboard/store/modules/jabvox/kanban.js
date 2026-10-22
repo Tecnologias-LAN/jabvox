@@ -141,12 +141,21 @@ export const actions = {
 
   moveConversation: async (
     { commit },
-    { funnelId, conversationId, stageId }
+    { funnelId, conversationId, stageId, position = null }
   ) => {
     commit('SET_UI_FLAG', { isMovingConversation: true });
     try {
-      await kanbanAPI.moveConversation(funnelId, conversationId, stageId);
-      commit('MOVE_CONVERSATION_IN_BOARD', { conversationId, stageId });
+      await kanbanAPI.moveConversation(
+        funnelId,
+        conversationId,
+        stageId,
+        position
+      );
+      commit('MOVE_CONVERSATION_IN_BOARD', {
+        conversationId,
+        stageId,
+        position,
+      });
     } catch (error) {
       throw new Error(error?.response?.data?.message || error.message);
     } finally {
@@ -154,16 +163,31 @@ export const actions = {
     }
   },
 
-  moveLead: async ({ commit }, { funnelId, leadId, stageId }) => {
+  moveLead: async (
+    { commit },
+    { funnelId, leadId, stageId, position = null }
+  ) => {
     commit('SET_UI_FLAG', { isMovingConversation: true });
     try {
-      await kanbanAPI.moveLead(funnelId, leadId, stageId);
-      commit('MOVE_LEAD_IN_BOARD', { leadId, stageId });
+      await kanbanAPI.moveLead(funnelId, leadId, stageId, position);
+      commit('MOVE_LEAD_IN_BOARD', { leadId, stageId, position });
     } catch (error) {
       throw new Error(error?.response?.data?.message || error.message);
     } finally {
       commit('SET_UI_FLAG', { isMovingConversation: false });
     }
+  },
+
+  // Reordena las columnas de un embudo (lista de ids) y persiste.
+  reorderStages: async ({ commit }, { funnelId, stageIds }) => {
+    const response = await kanbanAPI.reorderStages(funnelId, stageIds);
+    commit('SET_STAGES_IN_FUNNEL', { funnelId, stages: response.data });
+    return response.data;
+  },
+
+  // Reordena las tarjetas dentro de una columna y persiste.
+  reorderCards: async (_ctx, { funnelId, stageId, cards }) => {
+    await kanbanAPI.reorderCards(funnelId, stageId, cards);
   },
 };
 
@@ -210,7 +234,10 @@ export const mutations = {
     if (funnel) funnel.stages = funnel.stages.filter(s => s.id !== stageId);
   },
 
-  MOVE_CONVERSATION_IN_BOARD(_state, { conversationId, stageId }) {
+  MOVE_CONVERSATION_IN_BOARD(
+    _state,
+    { conversationId, stageId, position = null }
+  ) {
     if (!_state.currentBoard) return;
     let conversation = null;
     _state.currentBoard.stages.forEach(s => {
@@ -221,10 +248,16 @@ export const mutations = {
     });
     if (!conversation) return;
     const targetStage = _state.currentBoard.stages.find(s => s.id === stageId);
-    if (targetStage) targetStage.conversations.push(conversation);
+    if (!targetStage) return;
+    // Inserta en la posición indicada (arrastre vertical) o al final si no viene.
+    const at =
+      position == null
+        ? targetStage.conversations.length
+        : Math.min(position, targetStage.conversations.length);
+    targetStage.conversations.splice(at, 0, conversation);
   },
 
-  MOVE_LEAD_IN_BOARD(_state, { leadId, stageId }) {
+  MOVE_LEAD_IN_BOARD(_state, { leadId, stageId, position = null }) {
     if (!_state.currentBoard) return;
     let card = null;
     _state.currentBoard.stages.forEach(s => {
@@ -235,10 +268,19 @@ export const mutations = {
     });
     if (!card) return;
     const targetStage = _state.currentBoard.stages.find(s => s.id === stageId);
-    if (targetStage) {
-      targetStage.lead_cards = targetStage.lead_cards || [];
-      targetStage.lead_cards.push(card);
-    }
+    if (!targetStage) return;
+    targetStage.lead_cards = targetStage.lead_cards || [];
+    const at =
+      position == null
+        ? targetStage.lead_cards.length
+        : Math.min(position, targetStage.lead_cards.length);
+    targetStage.lead_cards.splice(at, 0, card);
+  },
+
+  // Reemplaza las etapas de un embudo (tras reordenar columnas).
+  SET_STAGES_IN_FUNNEL(_state, { funnelId, stages }) {
+    const funnel = (_state.funnels || []).find(f => f.id === funnelId);
+    if (funnel) funnel.stages = stages;
   },
 };
 
