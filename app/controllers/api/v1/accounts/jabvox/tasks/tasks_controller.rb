@@ -57,12 +57,14 @@ class Api::V1::Accounts::Jabvox::Tasks::TasksController < Api::V1::Accounts::Jab
     head :no_content
   end
 
-  # Move a card to another stage (and optional position). Changing stage_id fires the
-  # destination stage's automations via the model's after_commit hook.
+  # Move a card to another stage at an optional position, recompacting the destination
+  # column so cards never share a position. Changing stage_id fires the destination stage's
+  # automations via the model's after_commit hook. Reordering within the same column (same
+  # stage, new position) just resequences without firing stage automations.
   def move
     stage = Current.account.jabvox_task_stages.find(params.require(:stage_id))
     from_stage = @task.stage
-    @task.update!(stage_id: stage.id, position_jabvox: params[:position].to_i)
+    @task.reorder_within_stage!(stage, params[:position])
     if from_stage.id != stage.id
       @task.log_activity(:stage_changed, current_user,
                          from: from_stage.name_jabvox, to: stage.name_jabvox)

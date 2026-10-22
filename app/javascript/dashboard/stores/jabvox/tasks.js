@@ -43,8 +43,17 @@ export const useTasksStore = defineStore('jabvoxTasks', {
         if (!grouped[task.stageId]) grouped[task.stageId] = [];
         grouped[task.stageId].push(task);
       });
+      // Mismo criterio que el backend (`scope :ordered`): por posición y, a igualdad de
+      // posición, por fecha de creación (desempate por id como último recurso). Sin este
+      // desempate dos tarjetas con la misma posición bailaban entre recargas y el orden se
+      // percibía como aleatorio.
       Object.keys(grouped).forEach(key => {
-        grouped[key].sort((a, b) => a.positionJabvox - b.positionJabvox);
+        grouped[key].sort(
+          (a, b) =>
+            (a.positionJabvox ?? 0) - (b.positionJabvox ?? 0) ||
+            new Date(a.createdAt) - new Date(b.createdAt) ||
+            a.id - b.id
+        );
       });
       return grouped;
     },
@@ -245,19 +254,51 @@ export const useTasksStore = defineStore('jabvoxTasks', {
     },
 
     async moveTask(id, stageId, position) {
-      const idx = this.tasks.findIndex(tk => tk.id === Number(id));
-      // Optimistic update so the card lands immediately.
-      if (idx !== -1) {
-        this.tasks.splice(idx, 1, {
-          ...this.tasks[idx],
-          stage_id: stageId,
-          position_jabvox: position,
-        });
-      }
+      const taskId = Number(id);
+      // Actualización optimista: se mueve la tarjeta a la columna destino en la posición
+      // indicada y se reindexan las posiciones de esa columna (0..n), igual que hace el
+      // backend. Así la tarjeta aterriza de inmediato en su sitio y no comparte posición
+      // con ninguna otra mientras llega la respuesta.
+      this.applyLocalMove(taskId, stageId, position);
+
       const { data } = await tasksAPI.move(id, stageId, position);
-      const after = this.tasks.findIndex(tk => tk.id === Number(id));
+      // El backend devuelve la tarjeta ya con su stage/posición definitivos; se reconcilia
+      // por si el reindexado del servidor difiere del optimista (p. ej. filas concurrentes).
+      const after = this.tasks.findIndex(tk => tk.id === taskId);
       if (after !== -1) this.tasks.splice(after, 1, data);
       return camelcaseKeys(data, { deep: true });
+    },
+
+    // Reordena localmente la columna destino tras mover una tarjeta: la inserta en
+    // `position` entre las demás de ese stage y reescribe `position_jabvox` de todas a
+    // 0..n-1, replicando `reorder_within_stage!` del backend.
+    applyLocalMove(taskId, stageId, position) {
+      const idx = this.tasks.findIndex(tk => tk.id === taskId);
+      if (idx === -1) return;
+      this.tasks[idx] = {
+        ...this.tasks[idx],
+        stage_id: stageId,
+        position_jabvox: position,
+      };
+      const siblings = this.tasks
+        .filter(tk => tk.stage_id === stageId && tk.id !== taskId)
+        .sort(
+          (a, b) =>
+            (a.position_jabvox ?? 0) - (b.position_jabvox ?? 0) ||
+            new Date(a.created_at) - new Date(b.created_at) ||
+            a.id - b.id
+        );
+      const pos = Math.min(
+        Math.max(position ?? siblings.length, 0),
+        siblings.length
+      );
+      siblings.splice(pos, 0, this.tasks[idx]);
+      siblings.forEach((tk, i) => {
+        const at = this.tasks.findIndex(t => t.id === tk.id);
+        if (at !== -1) {
+          this.tasks[at] = { ...this.tasks[at], position_jabvox: i };
+        }
+      });
     },
 
     async deleteTask(id) {

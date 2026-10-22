@@ -126,11 +126,13 @@ const onConfirmDelete = payload => {
   return doTaskDelete(payload?.id ?? payload);
 };
 
-const onDropTask = async ({ taskId, stageId }) => {
+// Soltar una tarjeta: `position` es el índice de inserción que calculó la columna según
+// dónde se soltó (arrastre vertical). Si no viene (p. ej. columna vacía) va al final.
+const onDropTask = async ({ taskId, stageId, position = null }) => {
   const targetTasks = tasksForStage(stageId);
-  const position = targetTasks.length;
+  const dropPosition = position == null ? targetTasks.length : position;
   try {
-    await store.moveTask(taskId, stageId, position);
+    await store.moveTask(taskId, stageId, dropPosition);
   } catch {
     useAlert(t('JABVOX_TASKS.TASK.ERROR'));
   }

@@ -70,6 +70,7 @@ const onDragStart = event => {
 <template>
   <div
     draggable="true"
+    data-task-index
     class="flex flex-col gap-2 p-3 rounded-lg bg-n-solid-1 border border-n-weak cursor-pointer hover:border-n-strong hover:shadow-sm transition-all"
     @dragstart="onDragStart"
     @click="emit('detail', task)"

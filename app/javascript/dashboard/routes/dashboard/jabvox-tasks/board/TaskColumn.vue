@@ -79,6 +79,26 @@ const onDragLeave = () => {
   isDragOver.value = false;
 };
 
+const cardsContainer = ref(null);
+
+// Índice de destino dentro de la columna según la posición Y del cursor: cuenta cuántas
+// tarjetas quedan por ENCIMA del punto donde se soltó (su punto medio). Así soltar entre
+// dos tarjetas inserta en medio, no siempre al final.
+const dropIndexFromEvent = event => {
+  const container = cardsContainer.value;
+  if (!container) return null;
+  const cards = [...container.querySelectorAll('[data-task-index]')];
+  let index = cards.length;
+  for (let i = 0; i < cards.length; i += 1) {
+    const rect = cards[i].getBoundingClientRect();
+    if (event.clientY < rect.top + rect.height / 2) {
+      index = i;
+      break;
+    }
+  }
+  return index;
+};
+
 const onDrop = event => {
   event.preventDefault();
   isDragOver.value = false;
@@ -86,7 +106,8 @@ const onDrop = event => {
   if (raw.startsWith(STAGE_PREFIX)) return;
   const taskId = parseInt(raw, 10);
   if (taskId) {
-    emit('dropTask', { taskId, stageId: props.stage.id });
+    const position = dropIndexFromEvent(event);
+    emit('dropTask', { taskId, stageId: props.stage.id, position });
   }
 };
 </script>
@@ -165,6 +186,7 @@ const onDrop = event => {
     </div>
 
     <div
+      ref="cardsContainer"
       class="flex-1 min-h-0 overflow-y-auto p-2 space-y-2 transition-colors rounded-b-xl"
       :class="isDragOver ? 'bg-n-alpha-1' : ''"
       @dragover="onDragOver"

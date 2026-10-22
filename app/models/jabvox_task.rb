@@ -105,6 +105,15 @@ class JabvoxTask < ApplicationRecord
   scope :ordered, -> { order(:position_jabvox, :created_at) }
   scope :with_due_date, -> { where.not(due_at_jabvox: nil) }
 
+  # Al crear, la tarjeta se coloca al final de su columna en vez de quedar en la posición 0
+  # por defecto. Sin esto, todas las tareas de una columna nacían con `position_jabvox = 0`
+  # y el orden dentro de la columna lo decidía solo el desempate por `created_at`, que el
+  # frontend no replicaba: se percibía como un orden aleatorio que bailaba entre recargas.
+  #
+  # Va en el modelo y no en el controlador para que valga venga de donde venga el alta
+  # (API, consola, importación, recurrencia), igual que `associations_belong_to_account`.
+  before_validation :set_default_position, on: :create
+
   # Columns whose change should re-sync the task's calendar events.
   CALENDAR_RELEVANT = %w[due_at_jabvox due_dates_jabvox title_jabvox description_jabvox
                          status_jabvox contact_id assignee_id].freeze
@@ -179,7 +188,59 @@ class JabvoxTask < ApplicationRecord
     Jabvox::TaskRecurrenceService::UNITS.include?(recurrence_unit_jabvox.to_s)
   end
 
+  # Mueve la tarjeta a `target_stage` en la posición `target_position` y recompacta las
+  # posiciones (origen y destino) a 0..n-1 en una transacción. Así arrastrar una tarjeta
+  # dentro de la misma columna o entre columnas deja un orden consistente, sin huecos ni
+  # empates. El cambio de `stage_id` dispara las automatizaciones de la etapa destino por
+  # el after_commit del modelo, como cualquier otro movimiento.
+  def reorder_within_stage!(target_stage, target_position)
+    transaction do
+      source_stage_id = stage_id
+      update!(stage_id: target_stage.id)
+      siblings = account.jabvox_tasks
+                        .where(stage_id: target_stage.id)
+                        .where.not(id: id)
+                        .order(:position_jabvox, :created_at)
+                        .pluck(:id)
+      pos = target_position.to_i.clamp(0, siblings.length)
+      ordered_ids = siblings.insert(pos, id)
+      resequence_positions!(target_stage.id, ordered_ids)
+      # Si cambió de columna, la de origen queda con un hueco: se recompacta también para
+      # que ambas queden 0..n-1 sin huecos.
+      resequence_stage!(source_stage_id) if source_stage_id != target_stage.id
+    end
+    self
+  end
+
   private
+
+  # Recompacta las posiciones de una columna a 0..n-1 en su orden actual.
+  def resequence_stage!(stage_id)
+    scope = account.jabvox_tasks.where(stage_id: stage_id).order(:position_jabvox, :created_at)
+    resequence_positions!(stage_id, scope.pluck(:id))
+  end
+
+  # update_all a propósito: solo reescribe `position_jabvox`, sin reentrar en los callbacks
+  # de la tarea (dispararían automatizaciones y sync de calendario por un reordenamiento).
+  def resequence_positions!(stage_id, ordered_ids)
+    ordered_ids.each_with_index do |task_id, index|
+      # rubocop:disable Rails/SkipsModelValidations
+      account.jabvox_tasks.where(id: task_id, stage_id: stage_id)
+             .update_all(position_jabvox: index)
+      # rubocop:enable Rails/SkipsModelValidations
+    end
+  end
+
+  # Posición por defecto = final de la columna (max + 1). Solo cuando no se envió una
+  # posición explícita (el default de la columna es 0), para no pisar un alta que ya trae
+  # su posición.
+  def set_default_position
+    return if position_jabvox.present? && position_jabvox.positive?
+    return if stage_id.blank? || account_id.blank?
+
+    max = account.jabvox_tasks.where(stage_id: stage_id).maximum(:position_jabvox)
+    self.position_jabvox = max.nil? ? 0 : max + 1
+  end
 
   # Se compara contra account_id en vez de cargar la cuenta: una consulta por asociación
   # y solo de las que vienen informadas.
