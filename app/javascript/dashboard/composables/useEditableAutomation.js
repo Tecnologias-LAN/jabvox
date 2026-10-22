@@ -46,6 +46,12 @@ export function useEditableAutomation() {
       if (inputType === 'comma_separated_plain_text') {
         return { ...condition, values: condition.values.join(',') };
       }
+      if (inputType === 'time_range') {
+        // La franja horaria guarda un objeto { from, to }, no una lista. Se
+        // preserva tal cual: hacer spread de un objeto ([...values]) revienta con
+        // "f is not iterable" al editar una regla que la usa.
+        return { ...condition, values: condition.values };
+      }
       const dropdownValues = getConditionDropdownValues(
         condition.attribute_key
       );

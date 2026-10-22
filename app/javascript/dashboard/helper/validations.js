@@ -13,7 +13,22 @@ const isEmptyValue = value => {
   }
 
   if (Array.isArray(value)) {
-    return !value.length;
+    if (!value.length) {
+      return true;
+    }
+    // Un select sin elegir deja `[{ id: undefined }]` o `[{}]`: el array tiene un
+    // elemento pero sin valor real. Sin esto, aplicar un filtro (p. ej. de bandeja)
+    // sin seleccionar nada se envía y el backend lo rechaza con 422, dejando la
+    // lista vacía y el spinner colgado.
+    return value.every(
+      item =>
+        item === undefined ||
+        item === null ||
+        item === '' ||
+        (typeof item === 'object' &&
+          !Array.isArray(item) &&
+          (item.id === undefined || item.id === null || item.id === ''))
+    );
   }
 
   // We can safely check the type here as both the null value

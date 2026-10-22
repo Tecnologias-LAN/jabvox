@@ -132,6 +132,18 @@ const resolveValue = candidate => {
  * 2. When filterValue is an array but conversationValue is not: checks if conversationValue is included in filterValue
  * 3. Otherwise: performs strict equality comparison
  */
+// Compara ids de forma laxa en el tipo: el filtro suele traer el id como texto
+// ("86") y la conversación como número (86). Un `includes`/`===` estricto nunca
+// casaría y el filtro por bandeja/equipo/agente vaciaría la lista. Normalizar a
+// texto (ignorando null/undefined) es el mismo criterio que usa el backend, que
+// compara por TEXTO los ids que llegan como number en unos casos y string en otros.
+const looseEqual = (a, b) => {
+  if (a === null || a === undefined || b === null || b === undefined) {
+    return a === b;
+  }
+  return String(a) === String(b);
+};
+
 const equalTo = (filterValue, conversationValue) => {
   if (Array.isArray(filterValue)) {
     if (filterValue.includes('all')) return true;
@@ -140,15 +152,17 @@ const equalTo = (filterValue, conversationValue) => {
     if (Array.isArray(conversationValue)) {
       // For array values like labels, match if any filter value is present.
       // Mirrors the backend SQL `tag_id IN (...)` (OR semantics).
-      return filterValue.some(val => conversationValue.includes(val));
+      return filterValue.some(val =>
+        conversationValue.some(cv => looseEqual(val, cv))
+      );
     }
 
     if (!Array.isArray(conversationValue)) {
-      return filterValue.includes(conversationValue);
+      return filterValue.some(val => looseEqual(val, conversationValue));
     }
   }
 
-  return conversationValue === filterValue;
+  return looseEqual(conversationValue, filterValue);
 };
 
 /**

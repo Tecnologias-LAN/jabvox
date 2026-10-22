@@ -65,6 +65,34 @@ describe('useEditableAutomation', () => {
     ]);
   });
 
+  it('rehydrates a current_time (time_range) condition without crashing', () => {
+    // Regresión: antes reventaba con "f is not iterable" al editar una regla con
+    // la condición de hora, porque sus values son un objeto { from, to }, no una
+    // lista, y el código hacía spread [...values].
+    const automation = {
+      event_name: 'message_created',
+      conditions: [
+        {
+          attribute_key: 'current_time',
+          filter_operator: 'is_between',
+          values: { from: '18:30', to: '08:00' },
+          query_operator: null,
+        },
+      ],
+      actions: [],
+    };
+    const automationTypes = {
+      message_created: {
+        conditions: [{ key: 'current_time', inputType: 'time_range' }],
+      },
+    };
+
+    const { formatAutomation } = useEditableAutomation();
+    const result = formatAutomation(automation, [], automationTypes, []);
+
+    expect(result.conditions[0].values).toEqual({ from: '18:30', to: '08:00' });
+  });
+
   it('rehydrates last responding agent as a selected action option', () => {
     const automation = {
       event_name: 'conversation_created',
