@@ -28,14 +28,14 @@ const TXT = {
   to: 'Hasta',
   apply: 'Aplicar',
   clear: 'Limpiar',
-  emptyTitle: 'Sin actividad de Hermes',
+  emptyTitle: 'Sin actividad de Manty',
   emptySubtitle:
-    'Cuando Hermes ejecute acciones en la app aparecerán aquí sus métricas.',
+    'Cuando Manty ejecute acciones en la app aparecerán aquí sus métricas.',
   kpiTotal: 'Acciones totales',
   kpiSuccess: 'Exitosas',
   kpiBlocked: 'Bloqueadas',
   kpiErrors: 'Errores',
-  byAgent: 'Por agente de Hermes',
+  byAgent: 'Por agente de Manty',
   perDay: 'Acciones por día',
   topTools: 'Herramientas más usadas',
   recent: 'Últimas acciones',
@@ -250,7 +250,7 @@ onMounted(fetch);
                   {{ fmtDate(log.created_at) }}
                 </td>
                 <td class="py-2 pr-3 text-n-slate-11">
-                  {{ log.identity || 'Hermes' }}
+                  {{ log.identity || 'Manty' }}
                 </td>
                 <td class="py-2 pr-3 font-mono text-n-slate-12">
                   {{ log.tool }}

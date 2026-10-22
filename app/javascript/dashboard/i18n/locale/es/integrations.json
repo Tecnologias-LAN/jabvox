@@ -81,7 +81,7 @@
         "ADD_SUBMIT": "Crear webhook",
         "RULES": {
           "TITLE": "Reglas de respuesta (opcional)",
-          "DESCRIPTION": "Controla cuándo se dispara este webhook. Si lo dejas vacío, se envía siempre. Útil para el Chat IA (Hermes): decidir qué bandejas atiende, qué conversaciones ignorar y en qué horario.",
+          "DESCRIPTION": "Controla cuándo se dispara este webhook. Si lo dejas vacío, se envía siempre. Útil para el Chat IA (Manty): decidir qué bandejas atiende, qué conversaciones ignorar y en qué horario.",
           "ALLOWED_INBOXES": {
             "LABEL": "Responder solo estas bandejas",
             "PLACEHOLDER": "Todas las bandejas",

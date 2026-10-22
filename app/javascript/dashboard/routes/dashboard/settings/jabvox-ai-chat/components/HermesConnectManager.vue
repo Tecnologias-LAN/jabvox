@@ -115,10 +115,10 @@ const statusColor = s => {
 
 // Textos estáticos (evita el lint de raw-text en el template).
 const TXT = {
-  title: 'Agentes de Hermes',
-  desc: 'Conecta uno o varios agentes del Hermes de la cuenta. Todos deben usar el mismo host y puerto (mismo Hermes), cada uno con su URL de agente y su token.',
-  empty: 'No hay agentes de Hermes conectados todavía.',
-  noAllowedIps: 'Sin IPs autorizadas: este Hermes no puede ejecutar acciones.',
+  title: 'Agentes de Manty',
+  desc: 'Conecta uno o varios agentes de Manty de la cuenta. Todos deben usar el mismo host y puerto (mismo Manty), cada uno con su URL de agente y su token.',
+  empty: 'No hay agentes de Manty conectados todavía.',
+  noAllowedIps: 'Sin IPs autorizadas: este Manty no puede ejecutar acciones.',
   allowedIpsPrefix: 'IPs: ',
 };
 
@@ -209,7 +209,7 @@ onMounted(load);
         />
         <Input
           v-model="form.hermes_agent_name_jabvox"
-          label="Nombre del agente en Hermes"
+          label="Nombre del agente en Manty"
           placeholder="mi-agente"
           custom-input-class="font-mono"
         />
@@ -231,9 +231,9 @@ onMounted(load);
         />
         <Input
           v-model="form.allowed_ips_jabvox"
-          label="IPs autorizadas de este Hermes"
+          label="IPs autorizadas de este Manty"
           placeholder="203.0.113.5, 10.147.17.0/24"
-          message="Solo desde estas IPs o rangos podrá este Hermes ejecutar acciones. Acepta IP suelta o CIDR, incluidas las de ZeroTier. Si se deja vacío, no podrá ejecutar nada."
+          message="Solo desde estas IPs o rangos podrá este Manty ejecutar acciones. Acepta IP suelta o CIDR, incluidas las de ZeroTier. Si se deja vacío, no podrá ejecutar nada."
           custom-input-class="font-mono"
         />
         <div class="flex gap-2 justify-end">

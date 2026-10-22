@@ -9,7 +9,7 @@
 #  updated_at        :datetime         not null
 #  account_id        :bigint           not null
 #  connection_id     :bigint
-#  user_id           :bigint
+#  user_id           :bigint           not null
 #
 # Indexes
 #

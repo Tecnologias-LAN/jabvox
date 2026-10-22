@@ -1,15 +1,15 @@
 {
   "JABVOX_PROVISIONING_CHAT": {
     "TITLE": "Chat de Aprovisionamiento",
-    "SUBTITLE": "Pídele a Hermes que cree los MCPs de tu cuenta",
-    "PLACEHOLDER": "Escribe un mensaje para Hermes…",
+    "SUBTITLE": "Pídele a Manty que cree los MCPs de tu cuenta",
+    "PLACEHOLDER": "Escribe un mensaje para Manty…",
     "SEND": "Enviar",
     "STOP": "Detener",
     "STOPPED": "(detenido)",
     "TOOLS_USED": "Herramientas usadas",
     "PROVISION_BUTTON": "Aprovisionar mi cuenta",
     "PROVISIONING": "Aprovisionando…",
-    "THINKING": "Hermes está pensando…",
+    "THINKING": "Manty está pensando…",
     "LOADING": "Cargando…",
     "EMPTY": "Aún no hay mensajes. Escribe algo para comenzar.",
     "APPROVAL": {
@@ -29,7 +29,7 @@
     },
     "MODEL_CMD": {
       "USAGE": "Uso: /model <modelo> [proveedor]. Ejemplo: /model gpt-5.5 custom",
-      "NO_SESSION": "Todavía no hay sesión de Hermes. Envía un mensaje primero.",
+      "NO_SESSION": "Todavía no hay sesión de Manty. Envía un mensaje primero.",
       "SET": "Modelo fijado: {model} (proveedor: {provider})"
     },
     "NEW_CONVERSATION": "Nueva conversación",
@@ -44,14 +44,14 @@
       "READY": "Aprovisionamiento listo",
       "FAILED": "El aprovisionamiento falló",
       "UNKNOWN": "Estado desconocido",
-      "PENDING_HINT": "Tu cuenta todavía no tiene MCPs. Pulsa el botón para crear Hermes y sus MCPs.",
-      "PROVISIONING_HINT": "Estamos creando Hermes y sus MCPs. Esto puede tardar un momento.",
-      "READY_HINT": "Hermes y tus MCPs están listos para usarse.",
+      "PENDING_HINT": "Tu cuenta todavía no tiene MCPs. Pulsa el botón para crear Manty y sus MCPs.",
+      "PROVISIONING_HINT": "Estamos creando Manty y sus MCPs. Esto puede tardar un momento.",
+      "READY_HINT": "Manty y tus MCPs están listos para usarse.",
       "FAILED_HINT": "Ocurrió un error durante el aprovisionamiento. Puedes reintentarlo.",
       "VIRTUAL_SERVER": "Servidor virtual",
       "MCP_SERVERS": "Servidores MCP",
       "NO_MCP_SERVERS": "Sin servidores MCP todavía",
-      "BASE_URL": "URL de Hermes",
+      "BASE_URL": "URL de Manty",
       "HAS_TOKEN": "Token configurado",
       "NO_TOKEN": "Sin token",
       "LAST_ERROR": "Último error"

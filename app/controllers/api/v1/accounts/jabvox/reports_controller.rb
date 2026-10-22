@@ -134,8 +134,8 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
       total = by_identity_tool.select { |(ident, _t), _n| ident == identity }.values.sum
       {
         id: "hermes:#{identity}",
-        name: "🤖 #{identity.presence || 'Hermes'}",
-        email: 'Hermes (IA)',
+        name: "🤖 #{identity.presence || 'Manty'}",
+        email: 'Manty (IA)',
         avatar_url: nil,
         is_hermes: true,
         resolved_count: 0,
@@ -263,7 +263,7 @@ class Api::V1::Accounts::Jabvox::ReportsController < Api::V1::Accounts::Jabvox::
                   .sort_by { |_tool, n| -n }
                   .map { |tool, n| { tool: tool, count: n } }
     by_identity = logs.reorder(nil).group(:hermes_identity_jabvox).count
-                      .map { |identity, n| { identity: identity.presence || 'Hermes', count: n } }
+                      .map { |identity, n| { identity: identity.presence || 'Manty', count: n } }
 
     # Serie diaria (para gráfica): fecha local → total de acciones ese día.
     per_day = logs.reorder(nil)

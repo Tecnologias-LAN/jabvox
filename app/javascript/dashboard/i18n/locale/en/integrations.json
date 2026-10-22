@@ -81,7 +81,7 @@
         "ADD_SUBMIT": "Create webhook",
         "RULES": {
           "TITLE": "Response rules (optional)",
-          "DESCRIPTION": "Control when this webhook fires. Leave empty to always send. Useful for the AI Chat (Hermes): choose which inboxes it answers, which conversations to skip, and the time window.",
+          "DESCRIPTION": "Control when this webhook fires. Leave empty to always send. Useful for the AI Chat (Manty): choose which inboxes it answers, which conversations to skip, and the time window.",
           "ALLOWED_INBOXES": {
             "LABEL": "Only respond in these inboxes",
             "PLACEHOLDER": "All inboxes",

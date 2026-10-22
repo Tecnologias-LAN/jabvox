@@ -1,15 +1,15 @@
 {
   "JABVOX_PROVISIONING_CHAT": {
     "TITLE": "Provisioning Chat",
-    "SUBTITLE": "Ask Hermes to create the MCPs for your account",
-    "PLACEHOLDER": "Type a message for Hermes…",
+    "SUBTITLE": "Ask Manty to create the MCPs for your account",
+    "PLACEHOLDER": "Type a message for Manty…",
     "SEND": "Send",
     "STOP": "Stop",
     "STOPPED": "(stopped)",
     "TOOLS_USED": "Tools used",
     "PROVISION_BUTTON": "Provision my account",
     "PROVISIONING": "Provisioning…",
-    "THINKING": "Hermes is thinking…",
+    "THINKING": "Manty is thinking…",
     "LOADING": "Loading…",
     "EMPTY": "No messages yet. Type something to get started.",
     "NEW_CONVERSATION": "New conversation",
@@ -24,14 +24,14 @@
       "READY": "Provisioning ready",
       "FAILED": "Provisioning failed",
       "UNKNOWN": "Unknown status",
-      "PENDING_HINT": "Your account has no MCPs yet. Press the button to create Hermes and its MCPs.",
-      "PROVISIONING_HINT": "We are creating Hermes and its MCPs. This may take a moment.",
-      "READY_HINT": "Hermes and your MCPs are ready to use.",
+      "PENDING_HINT": "Your account has no MCPs yet. Press the button to create Manty and its MCPs.",
+      "PROVISIONING_HINT": "We are creating Manty and its MCPs. This may take a moment.",
+      "READY_HINT": "Manty and your MCPs are ready to use.",
       "FAILED_HINT": "An error occurred during provisioning. You can retry.",
       "VIRTUAL_SERVER": "Virtual server",
       "MCP_SERVERS": "MCP servers",
       "NO_MCP_SERVERS": "No MCP servers yet",
-      "BASE_URL": "Hermes URL",
+      "BASE_URL": "Manty URL",
       "HAS_TOKEN": "Token configured",
       "NO_TOKEN": "No token",
       "LAST_ERROR": "Last error"
@@ -61,7 +61,7 @@
     },
     "MODEL_CMD": {
       "USAGE": "Usage: /model <model> [provider]. Example: /model gpt-5.5 custom",
-      "NO_SESSION": "No Hermes session yet. Send a message first.",
+      "NO_SESSION": "No Manty session yet. Send a message first.",
       "SET": "Model set: {model} (provider: {provider})"
     },
     "TURN_STATUS": {

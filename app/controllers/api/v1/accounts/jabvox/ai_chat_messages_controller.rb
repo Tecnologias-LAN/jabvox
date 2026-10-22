@@ -244,7 +244,7 @@ class Api::V1::Accounts::Jabvox::AiChatMessagesController < Api::V1::Accounts::B
   def hermes_connection_ready?(conn)
     return true if conn.present?
 
-    render(json: { error: 'No tienes un agente de Hermes asignado para chatear.' },
+    render(json: { error: 'No tienes un agente de Manty asignado para chatear.' },
            status: :unprocessable_entity)
     false
   end

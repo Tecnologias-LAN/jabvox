@@ -424,8 +424,8 @@ module Jabvox::Hermes::ServiceHandlers
     { 'sent_by_hermes' => true, 'hermes_agent_name' => name, 'senderName' => name }
   end
 
-  # Fallback cuando la cuenta no tiene una conexión Hermes con nombre configurado.
-  HERMES_DEFAULT_DISPLAY_NAME = 'Hermes'
+  # Fallback (nombre VISIBLE del agente IA) cuando la cuenta no tiene una conexión con nombre.
+  HERMES_DEFAULT_DISPLAY_NAME = 'Manty'
 
   # Nombre visible del agente IA en el CRM: el nombre de la CONEXIÓN Hermes de la cuenta
   # (ej. "Agente de Miguel Estrada"), no el técnico (hermes_account_N) ni un fijo. Cada cuenta

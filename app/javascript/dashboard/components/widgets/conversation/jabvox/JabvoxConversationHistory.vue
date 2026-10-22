@@ -75,7 +75,7 @@ const formatQty = val => {
 // el del usuario técnico ligado (additional_attributes.sent_by_hermes lo marca el backend).
 const senderName = msg => {
   const attrs = msg?.additional_attributes || msg?.content_attributes || {};
-  if (attrs.sent_by_hermes) return attrs.hermes_agent_name || 'Hermes';
+  if (attrs.sent_by_hermes) return attrs.hermes_agent_name || 'Manty';
   return msg?.meta?.sender?.name || msg?.sender?.name || '';
 };
 

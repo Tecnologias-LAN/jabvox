@@ -9,9 +9,9 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import SectionCard from './SectionCard.vue';
 
 const TXT = {
-  title: 'Historial de Hermes',
-  desc: 'Todo lo que Hermes ha hecho en la app: cada acción queda auditada en el backend (nunca guarda secretos).',
-  empty: 'Hermes aún no ha ejecutado ninguna acción.',
+  title: 'Historial de Manty',
+  desc: 'Todo lo que Manty ha hecho en la app: cada acción queda auditada en el backend (nunca guarda secretos).',
+  empty: 'Manty aún no ha ejecutado ninguna acción.',
   allStatuses: 'Todos los estados',
   allTools: 'Todas las herramientas',
   records: 'registro(s)',

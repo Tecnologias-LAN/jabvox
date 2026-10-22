@@ -15,7 +15,7 @@ class Jabvox::Hermes::ServiceLayer
     @user = user
     # Nombre visible del agente Hermes (para atribuir mensajes/notas a "Hermes", no al
     # usuario técnico ligado). Puede venir nil si no se propaga.
-    @hermes_name = hermes_name.presence || 'Hermes'
+    @hermes_name = hermes_name.presence || 'Manty'
   end
 
   Forbidden = Class.new(StandardError)

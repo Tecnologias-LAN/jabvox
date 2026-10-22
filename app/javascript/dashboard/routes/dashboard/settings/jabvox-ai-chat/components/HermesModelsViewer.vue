@@ -14,9 +14,9 @@ const connections = ref([]);
 const modelsByConn = ref({}); // { [connId]: { loading, error, items: [] } }
 
 const TXT = {
-  title: 'Modelos por agente de Hermes',
-  desc: 'Modelos que ofrece cada agente conectado. Los gestiona Hermes; aquí solo se consultan.',
-  empty: 'No hay agentes de Hermes conectados.',
+  title: 'Modelos por agente de Manty',
+  desc: 'Modelos que ofrece cada agente conectado. Los gestiona Manty; aquí solo se consultan.',
+  empty: 'No hay agentes de Manty conectados.',
   none: 'Este agente no reporta modelos disponibles.',
 };
 
