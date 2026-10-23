@@ -40,7 +40,18 @@ class Jabvox::Flows::Nodes::Integration::AnalyticsQueryNode < Jabvox::Flows::Nod
   end
 
   def run_sql(service)
-    service.run_sql(param(:sql), params: placeholder_params)
+    service.run_sql(raw_sql, params: placeholder_params)
+  end
+
+  # El SQL se lee CRUDO del nodo (sin pasar por el resolver de plantillas del
+  # motor): sus `{{marcadores}}` son binds que resuelve AnalyticsQueryService como
+  # parámetros ligados, no referencias del flujo. Si se tomara de los params ya
+  # resueltos, el motor los habría vaciado ({{hoy}} -> "") y el bind se perdería.
+  # Los VALORES de esos binds sí salen de sqlParams (resueltos), que pueden traer
+  # {{trigger.*}} u otras referencias del flujo con normalidad.
+  def raw_sql
+    raw = node.params['sql'] || node.params[:sql]
+    raw.to_s
   end
 
   def run_builder(service)

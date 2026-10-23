@@ -50,6 +50,34 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::WhatsappSendTemplateNode do
       expect(result.output['slots']).to eq([])
     end
 
+    # Las plantillas nuevas de Meta usan variables con NOMBRE ({{nombreasesor}}) en
+    # vez de numéricas. El nodo debe detectarlas y rellenarlas por su nombre, no
+    # colapsarlas a posiciones (antes las ignoraba y Meta rechazaba el envío).
+    it 'envía una plantilla con variables NOMBRADAS resolviéndolas por su nombre' do
+      crear_plantilla(
+        body_content: 'Te saluda {{nombreasesor}} de {{empresa}}.',
+        variables_json: { 'nombreasesor' => '', 'empresa' => '' }
+      )
+
+      result = enviar('variableMap' => { 'nombreasesor' => 'text:Manty', 'empresa' => 'text:Jabvox' })
+
+      expect(result).to be_ok
+      expect(result.output['processedParams']).to eq('nombreasesor' => 'Manty', 'empresa' => 'Jabvox')
+      expect(result.output['content']).to eq('Te saluda Manty de Jabvox.')
+    end
+
+    it 'detecta como faltantes los huecos NOMBRADOS sin valor' do
+      crear_plantilla(
+        body_content: 'Te saluda {{nombreasesor}} de {{empresa}}.',
+        variables_json: { 'nombreasesor' => '', 'empresa' => '' }
+      )
+
+      result = enviar('variableMap' => { 'nombreasesor' => 'text:Manty' })
+
+      expect(result).not_to be_ok
+      expect(result.error).to include('empresa')
+    end
+
     it 'guarda template_params en el mensaje, que es lo que lee el canal' do
       crear_plantilla
       result = enviar('variableMap' => { '1' => 'text:Ana', '2' => 'text:hoy' })

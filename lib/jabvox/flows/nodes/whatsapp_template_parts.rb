@@ -30,10 +30,13 @@ module Jabvox::Flows::Nodes::WhatsappTemplateParts
 
   def from_variable_keys(keys)
     return [] if keys.empty?
-    # Claves numéricas → son los propios números del marcador.
+    # Claves numéricas → son los propios números del marcador, en orden.
     return keys.sort_by(&:to_i) if keys.all? { |k| k.match?(/\A\d+\z/) }
 
-    positional(keys.length)
+    # Claves NOMBRADAS → se devuelven tal cual (son los nombres de los huecos,
+    # p.ej. "nombreasesor"). Antes se colapsaban a posicionales ["1","2"], que no
+    # casan con una plantilla nombrada y Meta rechazaba el envío.
+    keys
   end
 
   def positional(count)

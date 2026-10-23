@@ -3,17 +3,22 @@
 # Estructura de una plantilla de WhatsApp: ÚNICA autoridad que deduce qué puntos
 # variables tiene, para que el selector y el envío no puedan discrepar (era el
 # fallo: el selector decía "2 variables" y el envío exigía otra cosa).
+# rubocop:disable Metrics/ModuleLength -- autoridad única de la estructura de plantilla; partirlo dispersa la lógica.
 module Jabvox::Flows::Nodes::WhatsappTemplateStructure
-  PLACEHOLDER_RE = /\{\{\s*(\d+)\s*\}\}/
+  # Marcadores `{{...}}` del cuerpo: numéricos `{{1}}` y NOMBRADOS `{{nombreasesor}}`
+  # (Meta soporta ambos; las plantillas nuevas usan nombres). Antes solo capturaba
+  # dígitos y una plantilla nombrada quedaba "sin variables" (Meta la rechazaba).
+  PLACEHOLDER_RE = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/
   MEDIA_NAMES = { 'image' => 'imagen', 'video' => 'vídeo', 'document' => 'documento' }.freeze
 
   Parts = Jabvox::Flows::Nodes::WhatsappTemplateParts
 
   module_function
 
-  # Números de los marcadores `{{n}}` distintos, en orden ascendente.
+  # Marcadores distintos: numéricos por su número, nombrados por orden de aparición.
   def extract_placeholders(text)
-    text.to_s.scan(PLACEHOLDER_RE).flatten.uniq.sort_by(&:to_i)
+    found = text.to_s.scan(PLACEHOLDER_RE).flatten.uniq
+    found.all? { |k| k.match?(/\A\d+\z/) } ? found.sort_by(&:to_i) : found
   end
 
   # Deduce la estructura desde el registro de plantilla del fork.
@@ -135,3 +140,4 @@ module Jabvox::Flows::Nodes::WhatsappTemplateStructure
       "faltan #{missing.length}: #{detail}. Rellénalos en \"Variables de la plantilla\" antes de ejecutar."
   end
 end
+# rubocop:enable Metrics/ModuleLength
