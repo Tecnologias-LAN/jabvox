@@ -533,8 +533,9 @@ module Jabvox::Hermes::ServiceHandlers
   # de webhooks del Hermes de la cuenta. Idempotente por (account, url). Devuelve el SECRET y
   # las instrucciones de firma HMAC para que Hermes se AUTOCONFIGURE (solo el propio Hermes,
   # autenticado por su token, recibe este secret).
-  def create_hermes_webhook(_params)
-    hook = upsert_hermes_webhook(webhook_type: :account_type, inbox_id: nil)
+  def create_hermes_webhook(params = {})
+    hook = upsert_hermes_webhook(webhook_type: :account_type, inbox_id: nil,
+                                 route_suffix: params[:route_suffix])
     hermes_webhook_setup(hook)
   end
 
@@ -542,7 +543,8 @@ module Jabvox::Hermes::ServiceHandlers
   # message_created de ESA inbox → Hermes recibe solo esa bandeja. Devuelve secret + firma.
   def create_hermes_inbox_webhook(params)
     inbox = @account.inboxes.find(params[:inbox_id]) # scoped → no cross-account
-    hook = upsert_hermes_webhook(webhook_type: :inbox_type, inbox_id: inbox.id)
+    hook = upsert_hermes_webhook(webhook_type: :inbox_type, inbox_id: inbox.id,
+                                 route_suffix: params[:route_suffix])
     hermes_webhook_setup(hook).merge(inbox_id: inbox.id)
   end
 
@@ -616,8 +618,8 @@ module Jabvox::Hermes::ServiceHandlers
   end
 
   # Crea/actualiza el webhook al Hermes de la cuenta suscrito a message_created.
-  def upsert_hermes_webhook(webhook_type:, inbox_id:)
-    hook = @account.webhooks.find_or_initialize_by(url: hermes_webhook_url)
+  def upsert_hermes_webhook(webhook_type:, inbox_id:, route_suffix: nil)
+    hook = @account.webhooks.find_or_initialize_by(url: hermes_webhook_url(route_suffix))
     hook.webhook_type = webhook_type
     hook.inbox_id = inbox_id
     hook.subscriptions = %w[message_created]
@@ -628,12 +630,31 @@ module Jabvox::Hermes::ServiceHandlers
   # URL del endpoint de WEBHOOKS de Hermes (distinto del chat). Deriva del hermes_url del
   # handoff: reemplaza el chat (.../v1) por el endpoint de webhooks del agente. Puerto y ruta
   # configurables por ENV para tu setup (por defecto :8644 y /webhooks/jabvox).
-  def hermes_webhook_url
+  #
+  # `route_suffix` deja que el AGENTE añada SOLO una query string al final (p. ej.
+  # "turno=dia"), para que distinga endpoints sin poder cambiar el host/puerto/ruta — eso lo
+  # sigue fijando Jabvox. Así no puede redirigir los eventos a otro servidor (exfiltración);
+  # el sufijo se sanea a `clave=valor` con caracteres seguros y se antepone '?'.
+  def hermes_webhook_url(route_suffix = nil)
     base = hermes_outgoing_url! # http://host:8642/p/<agente>/v1
     prefix = base.sub(%r{/v1/?\z}, '') # http://host:8642/p/<agente>
     port = ENV['HERMES_WEBHOOK_PORT'].presence || '8644'
     path = ENV['HERMES_WEBHOOK_PATH'].presence || 'webhooks/jabvox'
-    prefix.sub(/:\d+/, ":#{port}") + "/#{path}"
+    url = prefix.sub(/:\d+/, ":#{port}") + "/#{path}"
+    suffix = sanitize_webhook_route_suffix(route_suffix)
+    suffix.present? ? "#{url}?#{suffix}" : url
+  end
+
+  # Query string segura para el sufijo del webhook de Hermes. Solo pares clave=valor con
+  # caracteres inocuos [A-Za-z0-9_.-] separados por '&'; cualquier otra cosa (/, :, @, ?,
+  # espacios, %, host nuevo…) se descarta. Default-deny: lo que no encaje, fuera.
+  SUFFIX_PAIR = /\A[A-Za-z0-9_.\-]+=[A-Za-z0-9_.\-]*\z/
+  def sanitize_webhook_route_suffix(raw)
+    text = raw.to_s.strip.delete_prefix('?')
+    return nil if text.blank?
+
+    pairs = text.split('&').grep(SUFFIX_PAIR)
+    pairs.first(10).join('&').presence
   end
 
   # Gestiones (management states)

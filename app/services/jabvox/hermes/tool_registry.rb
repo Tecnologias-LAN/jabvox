@@ -105,11 +105,15 @@ module Jabvox::Hermes::ToolRegistry
     'get_webhooks' => { permission: 'read', method: :get, path: 'webhooks',
                         mcp: 'jabvox_core', feature: 'core' },
     # Crea la integración de webhook Hermes para TODAS las bandejas (account_type).
+    # `route_suffix` (opcional): SOLO una query string al final de la URL de Hermes
+    # (p. ej. "turno=dia"), para distinguir endpoints por turno/horario. El host/puerto/ruta
+    # los sigue fijando Jabvox; el sufijo se sanea a clave=valor seguro.
     'create_hermes_webhook' => { permission: 'create', method: :post, path: 'webhooks',
-                                 params: {}, mcp: 'jabvox_core', feature: 'core' },
+                                 params: { route_suffix: :string }, mcp: 'jabvox_core', feature: 'core' },
     # Crea la integración de webhook Hermes para UNA bandeja concreta (inbox_type).
     'create_hermes_inbox_webhook' => { permission: 'create', method: :post, path: 'webhooks/inbox',
-                                       params: { inbox_id: :integer }, mcp: 'jabvox_core', feature: 'core' },
+                                       params: { inbox_id: :integer, route_suffix: :string },
+                                       mcp: 'jabvox_core', feature: 'core' },
     # Reglas de respuesta del webhook (cuándo responde Hermes): ver/editar las conditions
     # (bandejas permitidas, etiquetas excluidas, solo-en-horario). Leer el webhook incluye
     # sus conditions vía get_webhooks/list_webhooks (webhook_view ya las expone).

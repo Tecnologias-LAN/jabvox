@@ -124,5 +124,33 @@ RSpec.describe Jabvox::Hermes::ServiceLayer do
       expect { service.call(method: :post, path: 'webhooks', params: {}) }
         .to raise_error(described_class::UnknownAction, /sin hermes_url/)
     end
+
+    it 'route_suffix añade una query string al endpoint fijo (turno=dia)' do
+      hook = service.call(method: :post, path: 'webhooks', params: { route_suffix: 'turno=dia' })
+      expect(hook[:url]).to eq('http://10.147.0.49:8644/webhooks/jabvox?turno=dia')
+      expect(hook[:webhook_type]).to eq('account_type')
+    end
+
+    it 'distintos route_suffix crean webhooks separados (dia/noche)' do
+      service.call(method: :post, path: 'webhooks', params: { route_suffix: 'turno=dia' })
+      service.call(method: :post, path: 'webhooks', params: { route_suffix: 'turno=noche' })
+      urls = account.webhooks.pluck(:url)
+      expect(urls).to include('http://10.147.0.49:8644/webhooks/jabvox?turno=dia')
+      expect(urls).to include('http://10.147.0.49:8644/webhooks/jabvox?turno=noche')
+    end
+
+    it 'NO deja al agente cambiar el host: descarta lo peligroso del sufijo' do
+      # Intento de redirigir a otro servidor: el par con "/" y ":" se descarta,
+      # el host real sigue siendo el de Hermes.
+      hook = service.call(method: :post, path: 'webhooks',
+                          params: { route_suffix: 'turno=dia&redir=http://evil.com/x' })
+      expect(hook[:url]).to eq('http://10.147.0.49:8644/webhooks/jabvox?turno=dia')
+      expect(hook[:url]).not_to include('evil.com')
+    end
+
+    it 'un sufijo totalmente inválido se ignora (URL base limpia)' do
+      hook = service.call(method: :post, path: 'webhooks', params: { route_suffix: '@evil.com/../admin' })
+      expect(hook[:url]).to eq('http://10.147.0.49:8644/webhooks/jabvox')
+    end
   end
 end
