@@ -44,6 +44,34 @@ describe WebhookListener do
       end
     end
 
+    context 'with directional events (incoming/outgoing)' do
+      it 'delivers message_created_outgoing for an outgoing message' do
+        webhook = create(:webhook, subscriptions: ['message_created_outgoing'], inbox: inbox, account: account)
+        expect(WebhookJob).to receive(:perform_later).with(
+          webhook.url, message.webhook_data.merge(event: 'message_created_outgoing'), :account_webhook,
+          secret: webhook.secret, delivery_id: instance_of(String)
+        ).once
+        listener.message_created(message_created_event)
+      end
+
+      it 'does NOT deliver message_created_incoming for an outgoing message' do
+        create(:webhook, subscriptions: ['message_created_incoming'], inbox: inbox, account: account)
+        expect(WebhookJob).not_to receive(:perform_later)
+        listener.message_created(message_created_event)
+      end
+
+      it 'delivers message_created_incoming for an incoming message' do
+        incoming = create(:message, message_type: 'incoming', account: account, inbox: inbox, conversation: conversation)
+        incoming_event = Events::Base.new(event_name, Time.zone.now, message: incoming)
+        webhook = create(:webhook, subscriptions: ['message_created_incoming'], inbox: inbox, account: account)
+        expect(WebhookJob).to receive(:perform_later).with(
+          webhook.url, incoming.webhook_data.merge(event: 'message_created_incoming'), :account_webhook,
+          secret: webhook.secret, delivery_id: instance_of(String)
+        ).once
+        listener.message_created(incoming_event)
+      end
+    end
+
     context 'when API and webhook access is disabled for the account' do
       before do
         allow(account).to receive(:api_and_webhooks_enabled?).and_return(false)

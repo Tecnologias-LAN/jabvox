@@ -24,6 +24,8 @@ const SUPPORTED_WEBHOOK_EVENTS = [
   'conversation_status_changed',
   'conversation_updated',
   'message_created',
+  'message_created_incoming',
+  'message_created_outgoing',
   'message_updated',
   'webwidget_triggered',
   'contact_created',
@@ -78,7 +80,9 @@ export default {
         ? [...SUPPORTED_WEBHOOK_EVENTS, 'inbox_updated']
         : SUPPORTED_WEBHOOK_EVENTS,
       // Reglas de entrega (Jabvox): limitar bandejas, excluir etiquetas, horario propio.
-      allowedInboxIds: (conditions.allowed_inbox_ids || []).map(id => Number(id)),
+      allowedInboxIds: (conditions.allowed_inbox_ids || []).map(id =>
+        Number(id)
+      ),
       excludedLabels: conditions.excluded_labels || [],
       // Horario PROPIO de la regla (no el de la bandeja): días + franja.
       scheduleEnabled: !!schedule.enabled,
@@ -295,14 +299,22 @@ export default {
             {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.TITLE') }}
           </p>
         </div>
-        <p class="mb-4 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+        <p
+          class="mb-4 text-xs leading-relaxed text-slate-500 dark:text-slate-400"
+        >
           {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.DESCRIPTION') }}
         </p>
 
         <!-- Bandejas: chips + checklist desplegable (una o varias) -->
         <div class="mb-5">
-          <p class="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
-            {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.ALLOWED_INBOXES.LABEL') }}
+          <p
+            class="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200"
+          >
+            {{
+              $t(
+                'INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.ALLOWED_INBOXES.LABEL'
+              )
+            }}
           </p>
           <div class="relative">
             <button
@@ -324,7 +336,11 @@ export default {
                 </span>
               </template>
               <span v-else class="text-sm text-slate-400">
-                {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.ALLOWED_INBOXES.PLACEHOLDER') }}
+                {{
+                  $t(
+                    'INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.ALLOWED_INBOXES.PLACEHOLDER'
+                  )
+                }}
               </span>
               <span
                 class="ml-auto i-lucide-chevron-down w-4 h-4 text-slate-400 shrink-0"
@@ -345,22 +361,39 @@ export default {
                   :checked="allowedInboxIds.includes(inbox.id)"
                   @change="toggleInbox(inbox.id)"
                 />
-                <span class="text-slate-700 dark:text-slate-200">{{ inbox.name }}</span>
+                <span class="text-slate-700 dark:text-slate-200">{{
+                  inbox.name
+                }}</span>
               </label>
-              <p v-if="!inboxes.length" class="px-3 py-2 text-xs text-slate-400">
-                {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.ALLOWED_INBOXES.EMPTY') }}
+              <p
+                v-if="!inboxes.length"
+                class="px-3 py-2 text-xs text-slate-400"
+              >
+                {{
+                  $t(
+                    'INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.ALLOWED_INBOXES.EMPTY'
+                  )
+                }}
               </p>
             </div>
           </div>
           <span class="block mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.ALLOWED_INBOXES.HELP') }}
+            {{
+              $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.ALLOWED_INBOXES.HELP')
+            }}
           </span>
         </div>
 
         <!-- Etiquetas excluidas: chips + checklist desplegable (una o varias) -->
         <div class="mb-5">
-          <p class="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
-            {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.EXCLUDED_LABELS.LABEL') }}
+          <p
+            class="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200"
+          >
+            {{
+              $t(
+                'INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.EXCLUDED_LABELS.LABEL'
+              )
+            }}
           </p>
           <div class="relative">
             <button
@@ -386,7 +419,11 @@ export default {
                 </span>
               </template>
               <span v-else class="text-sm text-slate-400">
-                {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.EXCLUDED_LABELS.PLACEHOLDER') }}
+                {{
+                  $t(
+                    'INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.EXCLUDED_LABELS.PLACEHOLDER'
+                  )
+                }}
               </span>
               <span
                 class="ml-auto i-lucide-chevron-down w-4 h-4 text-slate-400 shrink-0"
@@ -411,15 +448,23 @@ export default {
                   class="w-2.5 h-2.5 rounded-full shrink-0"
                   :style="{ backgroundColor: label.color }"
                 />
-                <span class="text-slate-700 dark:text-slate-200">{{ label.title }}</span>
+                <span class="text-slate-700 dark:text-slate-200">{{
+                  label.title
+                }}</span>
               </label>
               <p v-if="!labels.length" class="px-3 py-2 text-xs text-slate-400">
-                {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.EXCLUDED_LABELS.EMPTY') }}
+                {{
+                  $t(
+                    'INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.EXCLUDED_LABELS.EMPTY'
+                  )
+                }}
               </p>
             </div>
           </div>
           <span class="block mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.EXCLUDED_LABELS.HELP') }}
+            {{
+              $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.EXCLUDED_LABELS.HELP')
+            }}
           </span>
         </div>
 
@@ -428,19 +473,19 @@ export default {
           class="p-3 border rounded-lg border-slate-100 dark:border-slate-700/50"
         >
           <label class="flex items-center gap-2.5 cursor-pointer !mb-0">
-            <input
-              v-model="scheduleEnabled"
-              type="checkbox"
-              class="!mb-0"
-            />
-            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">
+            <input v-model="scheduleEnabled" type="checkbox" class="!mb-0" />
+            <span
+              class="text-sm font-medium text-slate-700 dark:text-slate-200"
+            >
               {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.SCHEDULE.LABEL') }}
             </span>
           </label>
 
           <div v-if="scheduleEnabled" class="mt-3 pl-0.5">
             <!-- Días -->
-            <p class="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+            <p
+              class="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400"
+            >
               {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.SCHEDULE.DAYS') }}
             </p>
             <div class="flex flex-wrap gap-1.5 mb-4">
@@ -463,15 +508,23 @@ export default {
             <!-- Franja horaria -->
             <div class="flex items-end gap-3">
               <label class="flex-1 !mb-0">
-                <span class="block mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.SCHEDULE.FROM') }}
+                <span
+                  class="block mb-1 text-xs font-medium text-slate-500 dark:text-slate-400"
+                >
+                  {{
+                    $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.SCHEDULE.FROM')
+                  }}
                 </span>
                 <input v-model="scheduleStart" type="time" class="!mb-0" />
               </label>
               <span class="pb-2.5 text-slate-400">—</span>
               <label class="flex-1 !mb-0">
-                <span class="block mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.SCHEDULE.TO') }}
+                <span
+                  class="block mb-1 text-xs font-medium text-slate-500 dark:text-slate-400"
+                >
+                  {{
+                    $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.RULES.SCHEDULE.TO')
+                  }}
                 </span>
                 <input v-model="scheduleEnd" type="time" class="!mb-0" />
               </label>

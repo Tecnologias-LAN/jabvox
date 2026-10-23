@@ -30,6 +30,11 @@ class WebhookListener < BaseListener
 
     payload = message.webhook_data.merge(event: __method__.to_s)
     deliver_webhook_payloads(payload, inbox)
+
+    # Sub-evento por dirección (entrante/saliente) para quien se suscribió SOLO a uno de
+    # los dos. Va únicamente a los webhooks de cuenta e inbox, que filtran por suscripción;
+    # el del canal API no filtra, así que no se le reenvía para no duplicarle el POST.
+    deliver_directional_message_created(message, inbox)
   end
 
   def message_updated(event)
@@ -148,6 +153,22 @@ class WebhookListener < BaseListener
   def deliver_webhook_payloads(payload, inbox)
     deliver_account_webhooks(payload, inbox.account)
     deliver_api_inbox_webhooks(payload, inbox)
+    deliver_inbox_webhooks(payload, inbox)
+  end
+
+  # Entrega el sub-evento message_created_incoming / message_created_outgoing a los
+  # webhooks de cuenta e inbox suscritos a él. No toca el webhook del canal API (ese no
+  # filtra por suscripción y ya recibió el message_created genérico).
+  def deliver_directional_message_created(message, inbox)
+    sub_event = if message.incoming?
+                  'message_created_incoming'
+                elsif message.outgoing?
+                  'message_created_outgoing'
+                end
+    return if sub_event.nil?
+
+    payload = message.webhook_data.merge(event: sub_event)
+    deliver_account_webhooks(payload, inbox.account)
     deliver_inbox_webhooks(payload, inbox)
   end
 end

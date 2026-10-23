@@ -30,8 +30,13 @@ class Webhook < ApplicationRecord
   validate :validate_webhook_subscriptions
   enum webhook_type: { account_type: 0, inbox_type: 1 }
 
+  # message_created_incoming / message_created_outgoing: variantes de message_created que
+  # solo disparan para mensajes entrantes o salientes, respectivamente. message_created
+  # sigue existiendo y dispara para ambos (compatibilidad). El listener emite el sub-evento
+  # según message.incoming?/outgoing?; el payload ya trae message_type.
   ALLOWED_WEBHOOK_EVENTS = %w[conversation_status_changed conversation_updated conversation_created contact_created contact_updated
-                              message_created message_updated webwidget_triggered inbox_created inbox_updated
+                              message_created message_created_incoming message_created_outgoing message_updated
+                              webwidget_triggered inbox_created inbox_updated
                               conversation_typing_on conversation_typing_off].freeze
 
   # ----- Reglas de entrega (Jabvox) -----------------------------------------
