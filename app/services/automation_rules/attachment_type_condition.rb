@@ -13,7 +13,11 @@ module AutomationRules::AttachmentTypeCondition
   # Tipos de adjunto evaluables + 'text' (sin adjunto). Se validan contra esta lista
   # para no depender de que el enum traiga tipos que la UI no ofrece.
   SUPPORTED_TYPES = %w[text image audio video file].freeze
-  ATTACHMENT_OPERATORS = %w[contains does_not_contain].freeze
+  # La UI ofrece los cuatro operadores de OPERATOR_TYPES_2. Para esta condición "igual a"
+  # significa lo mismo que "contiene" (el mensaje ES de ese tipo = contiene ese tipo), y
+  # "distinto de" = "no contiene". Se normalizan aquí para que una regla guardada con
+  # equal_to/not_equal_to funcione igual que con contains/does_not_contain.
+  NEGATIVE_OPERATORS = %w[does_not_contain not_equal_to].freeze
 
   def attachment_type_attribute?(query_hash)
     query_hash['attribute_key'] == ATTACHMENT_TYPE_KEY
@@ -41,7 +45,8 @@ module AutomationRules::AttachmentTypeCondition
     return false if wanted.nil?
 
     present = message_has_type?(wanted)
-    query_hash['filter_operator'].to_s == 'does_not_contain' ? !present : present
+    negated = NEGATIVE_OPERATORS.include?(query_hash['filter_operator'].to_s)
+    negated ? !present : present
   end
 
   private

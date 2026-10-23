@@ -37,7 +37,11 @@ class AutomationRules::ConditionValidationService
   # de filter_keys.yml y se valida aqui como caso especial.
   CURRENT_TIME_OPERATORS = %w[is_between is_not_between].freeze
   # attachment_type: tipo de contenido del mensaje, evaluado en Ruby (no es SQL).
-  ATTACHMENT_TYPE_OPERATORS = %w[contains does_not_contain].freeze
+  # La UI ofrece los cuatro operadores de OPERATOR_TYPES_2, así que se aceptan todos:
+  # equal_to se trata como contains y not_equal_to como does_not_contain (ver
+  # AttachmentTypeCondition). Si solo se aceptaran contains/does_not_contain, una regla
+  # guardada con "Igual a" fallaba la validación y se DESACTIVABA sola sin disparar.
+  ATTACHMENT_TYPE_OPERATORS = %w[contains does_not_contain equal_to not_equal_to].freeze
 
   # Condiciones evaluadas en Ruby (no en filter_keys.yml) y sus operadores validos.
   RUBY_CONDITION_OPERATORS = {

@@ -402,6 +402,26 @@ RSpec.describe AutomationRules::ConditionsFilterService do
         expect(match?(:image, 'does_not_contain', 'image')).to be(false)
       end
 
+      # La UI ofrece "Igual a"/"Distinto de" además de "Contiene"/"No contiene"
+      # (OPERATOR_TYPES_2). Para esta condición equal_to == contains y
+      # not_equal_to == does_not_contain: una regla guardada con "Igual a" debe disparar
+      # (antes fallaba la validación y se desactivaba sola).
+      it 'equal_to: matchea cuando el mensaje es de ese tipo (= contains)' do
+        expect(match?(:audio, 'equal_to', 'audio')).to be(true)
+      end
+
+      it 'equal_to: NO matchea cuando el mensaje es de otro tipo' do
+        expect(match?(:audio, 'equal_to', 'image')).to be(false)
+      end
+
+      it 'not_equal_to: matchea cuando el mensaje NO es de ese tipo (= does_not_contain)' do
+        expect(match?(:audio, 'not_equal_to', 'image')).to be(true)
+      end
+
+      it 'not_equal_to: NO matchea cuando el mensaje SÍ es de ese tipo' do
+        expect(match?(:audio, 'not_equal_to', 'audio')).to be(false)
+      end
+
       it 'combinado con message_type incoming (ambas deben cumplirse)' do
         rule.conditions = [
           { 'values' => ['incoming'], 'attribute_key' => 'message_type', 'query_operator' => 'AND', 'filter_operator' => 'equal_to' },
