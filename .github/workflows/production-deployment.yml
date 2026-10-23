@@ -157,7 +157,7 @@ jobs:
             done
 
             # Workers Sidekiq aislados por servicio (ver deploy/workers/README.md).
-            for w in export lead-import meta ami cdr media analytics broadcast click-to-call automations payments sms; do
+            for w in export lead-import meta ami cdr media analytics broadcast click-to-call payments sms flows transcription; do
               restart_optional "chatwoot-worker-$w.service"
             done
 
