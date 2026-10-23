@@ -23,4 +23,11 @@ class JabvoxKanbanStagePolicy < ApplicationPolicy
   def destroy?
     can_manage?
   end
+
+  # Reordenar columnas es gestionar el embudo: mismo permiso que crear/editar/borrar.
+  # Sin este método, `authorize` en la acción reorder lanzaba Pundit::NotDefinedError
+  # y el frontend mostraba "No se pudo reordenar las columnas".
+  def reorder?
+    can_manage?
+  end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_23_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_23_000003) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -3535,6 +3535,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_23_000002) do
     t.datetime "updated_at", null: false
     t.bigint "created_by_id"
     t.string "role_jabvox"
+    t.string "card_sort_jabvox", default: "manual", null: false
     t.index ["account_id"], name: "index_jabvox_task_stages_on_account_id"
     t.index ["board_id", "position_jabvox"], name: "index_jabvox_task_stages_on_board_id_and_position_jabvox"
     t.index ["board_id", "role_jabvox"], name: "index_jabvox_task_stages_on_board_and_role", unique: true, where: "(role_jabvox IS NOT NULL)"

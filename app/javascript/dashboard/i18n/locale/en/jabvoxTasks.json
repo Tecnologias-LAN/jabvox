@@ -1,6 +1,14 @@
 {
   "JABVOX_TASKS": {
     "TITLE": "Tasks",
+    "SORT": {
+      "LABEL": "Sort cards",
+      "MANUAL": "Manual (drag)",
+      "DATE_DESC": "Newest first",
+      "DATE_ASC": "Oldest first",
+      "TITLE_ASC": "Title A-Z",
+      "TITLE_DESC": "Title Z-A"
+    },
     "COMMON": {
       "DELETE": "Delete",
       "CANCEL": "Cancel"

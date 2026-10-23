@@ -1,6 +1,14 @@
 {
   "JABVOX_TASKS": {
     "TITLE": "Tareas",
+    "SORT": {
+      "LABEL": "Ordenar tarjetas",
+      "MANUAL": "Manual (arrastrar)",
+      "DATE_DESC": "Más recientes",
+      "DATE_ASC": "Más antiguas",
+      "TITLE_ASC": "Título A-Z",
+      "TITLE_DESC": "Título Z-A"
+    },
     "BOARDS": {
       "HEADER": "Tableros",
       "NEW": "Nuevo tablero",

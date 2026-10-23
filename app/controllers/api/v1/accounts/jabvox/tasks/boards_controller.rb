@@ -87,7 +87,8 @@ class Api::V1::Accounts::Jabvox::Tasks::BoardsController < Api::V1::Accounts::Ja
   def stage_json(stage)
     {
       id: stage.id, name_jabvox: stage.name_jabvox, color_jabvox: stage.color_jabvox,
-      position_jabvox: stage.position_jabvox
+      position_jabvox: stage.position_jabvox, role_jabvox: stage.role_jabvox,
+      card_sort_jabvox: stage.card_sort_jabvox
     }
   end
 end

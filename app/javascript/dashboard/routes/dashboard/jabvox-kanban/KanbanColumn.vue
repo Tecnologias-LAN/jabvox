@@ -89,17 +89,10 @@ const hiddenCount = computed(() =>
   Math.max(0, allCards.value.length - pageSize.value)
 );
 
-const onDragOver = event => {
-  event.preventDefault();
-  event.dataTransfer.dropEffect = 'move';
-  isDragOver.value = true;
-};
-
-const onDragLeave = () => {
-  isDragOver.value = false;
-};
-
 const cardsContainer = ref(null);
+// Índice donde caería la tarjeta ahora mismo (para dibujar la línea indicadora). null = no
+// se está arrastrando sobre esta columna.
+const dropIndex = ref(null);
 
 // Índice de destino dentro de la columna según la posición Y del cursor: cuenta
 // cuántas tarjetas quedan por ENCIMA del punto donde se soltó (su punto medio).
@@ -119,14 +112,31 @@ const dropIndexFromEvent = event => {
   return index;
 };
 
+const onDragOver = event => {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  isDragOver.value = true;
+  dropIndex.value = dropIndexFromEvent(event);
+};
+
+const onDragLeave = () => {
+  isDragOver.value = false;
+  dropIndex.value = null;
+};
+
 const onDrop = event => {
   event.preventDefault();
   isDragOver.value = false;
+  dropIndex.value = null;
   const raw = event.dataTransfer.getData('text/plain');
-  // La posición solo aplica cuando el orden es MANUAL (arrastre); con un filtro de
-  // orden activo (N° asc/desc) el orden lo decide el filtro, no la posición manual.
-  const position =
-    cardSort.value === 'manual' ? dropIndexFromEvent(event) : null;
+  // Si el usuario arrastra una tarjeta a una posición concreta, manda el arrastre: la
+  // columna pasa a orden Manual (si estaba en N° asc/desc) y respeta dónde se soltó. Así
+  // mover una ficha nunca queda bloqueado por tener un filtro de orden activo.
+  if (cardSort.value !== 'manual') {
+    cardSort.value = 'manual';
+    onSortChange();
+  }
+  const position = dropIndexFromEvent(event);
   if (raw.startsWith('lead_')) {
     const leadId = parseInt(raw.replace('lead_', ''), 10);
     if (leadId) emit('drop', { leadId, stageId: props.stage.id, position });
@@ -204,12 +214,25 @@ const onDrop = event => {
       @dragleave="onDragLeave"
       @drop="onDrop"
     >
-      <KanbanCard
-        v-for="card in visibleCards"
+      <template
+        v-for="(card, idx) in visibleCards"
         :key="card.type === 'lead' ? `lead_${card.lead_id}` : card.id"
-        data-card-index
-        :card="card"
-        @click="emit('card-click', $event)"
+      >
+        <!-- Línea que marca dónde quedaría la tarjeta al soltar. -->
+        <div
+          v-if="dropIndex === idx"
+          class="h-0.5 -my-1 rounded-full bg-n-brand shadow-[0_0_0_1px] shadow-n-brand/40"
+        />
+        <KanbanCard
+          data-card-index
+          :card="card"
+          @click="emit('card-click', $event)"
+        />
+      </template>
+      <!-- Indicador al final de la columna (soltar debajo de todas). -->
+      <div
+        v-if="dropIndex !== null && dropIndex >= visibleCards.length"
+        class="h-0.5 -my-1 rounded-full bg-n-brand shadow-[0_0_0_1px] shadow-n-brand/40"
       />
 
       <div

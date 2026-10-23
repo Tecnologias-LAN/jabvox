@@ -90,13 +90,15 @@ class Api::V1::Accounts::Jabvox::Tasks::StagesController < Api::V1::Accounts::Ja
   end
 
   def stage_params
-    params.require(:stage).permit(:name_jabvox, :color_jabvox, :position_jabvox, :role_jabvox)
+    params.require(:stage).permit(:name_jabvox, :color_jabvox, :position_jabvox, :role_jabvox,
+                                  :card_sort_jabvox)
   end
 
   def serialize(stage)
     {
       id: stage.id, name_jabvox: stage.name_jabvox, color_jabvox: stage.color_jabvox,
-      position_jabvox: stage.position_jabvox, role_jabvox: stage.role_jabvox
+      position_jabvox: stage.position_jabvox, role_jabvox: stage.role_jabvox,
+      card_sort_jabvox: stage.card_sort_jabvox
     }
   end
 end

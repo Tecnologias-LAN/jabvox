@@ -36,7 +36,17 @@ class JabvoxTaskStage < ApplicationRecord
   # Solo puede haber una de cada por tablero (índice único parcial en la migración).
   ROLES = %w[initial done inactive].freeze
 
+  # Orden de las tarjetas dentro de la columna (persistido por columna):
+  #   manual        — orden por arrastre (position_jabvox)
+  #   date_desc     — más recientes primero (created_at desc)
+  #   date_asc      — más antiguas primero
+  #   title_asc     — A-Z por título
+  #   title_desc    — Z-A por título
+  # El orden efectivo se aplica en el cliente; el backend solo lo guarda.
+  CARD_SORTS = %w[manual date_desc date_asc title_asc title_desc].freeze
+
   validates :role_jabvox, inclusion: { in: ROLES }, allow_blank: true
+  validates :card_sort_jabvox, inclusion: { in: CARD_SORTS }
   self.table_name = 'jabvox_task_stages'
 
   belongs_to :account

@@ -138,6 +138,17 @@ const onDropTask = async ({ taskId, stageId, position = null }) => {
   }
 };
 
+// Cambio del selector de orden de una columna: se persiste en BD por columna.
+const onSortChange = async ({ stageId, cardSort }) => {
+  try {
+    await store.updateStage(props.boardId, stageId, {
+      card_sort_jabvox: cardSort,
+    });
+  } catch {
+    useAlert(t('JABVOX_TASKS.STAGE.ERROR'));
+  }
+};
+
 // Stages --------------------------------------------------------------
 const openCreateStage = () => {
   editingStage.value = null;
@@ -230,6 +241,7 @@ defineExpose({ openAutomations, stages });
           @reorder-stage="onReorderStage"
           @open-automations="openAutomations"
           @drop-task="onDropTask"
+          @sort-change="onSortChange"
         />
 
         <div v-if="isAdmin" class="shrink-0 w-[300px]">
