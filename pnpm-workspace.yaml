@@ -1,0 +1,22 @@
+# Settings de pnpm. Desde pnpm 11 el campo "pnpm" de package.json ya NO se lee:
+# overrides y la política de build-scripts viven aquí.
+
+overrides:
+  vite: 6.4.2
+  vitest: 3.0.5
+  minimatch@<4: 3.1.5
+  minimatch@>=9.0.0 <9.0.7: 9.0.9
+  rollup: '>=4.59.0'
+
+# Supply-chain: por defecto NINGÚN paquete ejecuta scripts. Allowlist de los que
+# sí lo necesitan de verdad (esbuild baja su binario; vue-demi escribe su shim).
+# core-js queda FUERA: su postinstall es solo un banner, se ignora a propósito.
+onlyBuiltDependencies:
+  - esbuild
+  - vue-demi
+
+# No abortar el install porque core-js (fuera de la allowlist) traiga postinstall:
+# lo ignoramos, no lo ejecutamos. Sin esto pnpm 12 falla con ERR_PNPM_IGNORED_BUILDS.
+strictDepBuilds: false
+
+minimumReleaseAge: 1440

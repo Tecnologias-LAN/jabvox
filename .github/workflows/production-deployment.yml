@@ -98,7 +98,11 @@ jobs:
               # bundle can leave them owned by root -> "error writing Gemfile.lock").
               chmod u+w Gemfile.lock yarn.lock pnpm-lock.yaml 2>/dev/null || true
               bundle install
-              pnpm install --no-frozen-lockfile --force
+              # corepack resuelve pnpm desde "packageManager" del package.json (pnpm 12).
+              # --frozen-lockfile: no mutar el lock en silencio; si no cuadra, falla y se
+              # revisa. Validado en local que pnpm 12 no reescribe este lockfile.
+              corepack enable
+              pnpm install --frozen-lockfile
 
               # --- STEP 4: MIGRATIONS & ASSETS ---
               echo "Running DB migrations and assets precompile..."
