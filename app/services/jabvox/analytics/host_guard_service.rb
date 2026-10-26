@@ -33,12 +33,24 @@ class Jabvox::Analytics::HostGuardService
 
   DEFAULT_ALLOWED_PORTS = [5432, 3306, 5433, 3307, 1433].freeze
 
-  # Las BD externas de clientes a menudo escuchan en puertos no estándar, así que
-  # se acepta cualquier puerto no privilegiado (1024-65535). La protección real
-  # anti-SSRF no es la lista de puertos sino el bloqueo de IPs privadas/metadata
-  # (PRIVATE_RANGES / HARD_BLOCKED), que sigue vigente en #call.
+  # Sentinel para "cualquier puerto válido 1-65535". Lo pasan los webhooks
+  # salientes, que deben poder apuntar a cualquier puerto del endpoint del cliente.
+  ANY_PORT = :any
+
+  # Reglas de puerto:
+  #  - allowed_ports == ANY_PORT  -> cualquier puerto 1-65535 (webhooks salientes).
+  #  - allowed_ports lista        -> el puerto debe estar en la lista, O ser un
+  #    puerto no privilegiado (1024-65535). Esto cubre las BD externas de Analytics,
+  #    que escuchan en puertos variados.
+  # El puerto NO es la defensa anti-SSRF: esa es el bloqueo de IPs privadas/metadata
+  # (PRIVATE_RANGES / HARD_BLOCKED), que sigue vigente en #call pase lo que pase aquí.
+  # Antes esta comprobación ignoraba @allowed_ports y rechazaba 443/80 (puertos
+  # privilegiados), bloqueando TODO webhook HTTP/HTTPS.
   def port_allowed?
-    @port.to_i.between?(1024, 65_535)
+    port = @port.to_i
+    return port.between?(1, 65_535) if @allowed_ports == ANY_PORT
+
+    @allowed_ports.map(&:to_i).include?(port) || port.between?(1024, 65_535)
   end
 
   def initialize(host:, port: nil, allow_private: false, allowed_ports: DEFAULT_ALLOWED_PORTS)

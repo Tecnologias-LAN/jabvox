@@ -5,8 +5,6 @@ require 'uri'
 # records an audit row, then POSTs a signed (HMAC-SHA256) payload via the shared
 # Webhooks::Trigger path. Never disables the SSRF/security checks.
 class Jabvox::TaskWebhookService
-  WEBHOOK_PORTS = [80, 443, 8080, 8443].freeze
-
   def initialize(automation:, task:)
     @automation = automation
     @task = task
@@ -45,7 +43,8 @@ class Jabvox::TaskWebhookService
     return denied('URL inválida') unless uri.is_a?(URI::HTTP) && uri.host.present?
 
     Jabvox::Analytics::HostGuardService.new(
-      host: uri.host, port: uri.port || default_port(uri), allowed_ports: WEBHOOK_PORTS
+      host: uri.host, port: uri.port || default_port(uri),
+      allowed_ports: Jabvox::Analytics::HostGuardService::ANY_PORT
     ).call
   end
 

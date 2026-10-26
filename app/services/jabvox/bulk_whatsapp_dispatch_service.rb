@@ -14,7 +14,6 @@ require 'net/http'
 # The webhook URL runs through the same SSRF host guard as task webhooks. The report email is
 # chosen per send and forwarded to n8n so it can email the result there.
 class Jabvox::BulkWhatsappDispatchService
-  WEBHOOK_PORTS = [80, 443, 8080, 8443].freeze
   # El archivo cargado ahora SOLO aporta destinatario y valores de variables: la
   # plantilla y su idioma se eligen en la UI (como en el flujo de leads). Lo único
   # obligatorio es una columna de número; el nombre y las columnas de variables son
@@ -800,7 +799,8 @@ class Jabvox::BulkWhatsappDispatchService
     raise Error, 'La URL del webhook no es válida.' unless uri.is_a?(URI::HTTP) && uri.host.present?
 
     guard = Jabvox::Analytics::HostGuardService.new(
-      host: uri.host, port: uri.port || (uri.scheme == 'https' ? 443 : 80), allowed_ports: WEBHOOK_PORTS
+      host: uri.host, port: uri.port || (uri.scheme == 'https' ? 443 : 80),
+      allowed_ports: Jabvox::Analytics::HostGuardService::ANY_PORT
     ).call
     raise Error, "URL de webhook bloqueada: #{guard.reason}" unless guard.allowed?
   end
