@@ -6,6 +6,7 @@ import { useAlert } from 'dashboard/composables';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import ConfirmDialog from './ConfirmDialog.vue';
 import TemplateParamsPicker from 'dashboard/components/jabvox/automations/TemplateParamsPicker.vue';
+import AssigneeContactMap from './AssigneeContactMap.vue';
 
 const props = defineProps({
   taskId: { type: [Number, String], required: true },
@@ -68,6 +69,9 @@ const emptyForm = () => ({
   template_name_jabvox: '',
   template_language_jabvox: '',
   template_params_jabvox: {},
+  // Mapeo responsable->contacto para WhatsApp: { "<user_id>": <contact_id> }. Un
+  // responsable no tiene teléfono, así que se le asigna un contacto para la plantilla.
+  assignee_contact_map_jabvox: {},
   active_jabvox: true,
 });
 const form = ref(emptyForm());
@@ -123,13 +127,20 @@ const formatDate = value => {
     : d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 };
 
+// Responsables (assignees) de la tarea, para el mapeo responsable->contacto de WhatsApp.
+const taskAssignees = ref([]);
+
 const load = async () => {
   isLoading.value = true;
   try {
-    [automations.value, runs.value] = await Promise.all([
+    const [autos, rns, task] = await Promise.all([
       store.fetchTaskAutomations(props.taskId),
       store.fetchTaskAutomationRuns(props.taskId),
+      store.getTask(props.taskId).catch(() => null),
     ]);
+    automations.value = autos;
+    runs.value = rns;
+    taskAssignees.value = task?.assignees || [];
   } catch {
     useAlert(t('JABVOX_TASKS.AUTOMATION.ERROR'));
   } finally {
@@ -163,6 +174,7 @@ const openEdit = a => {
     template_name_jabvox: a.templateNameJabvox || '',
     template_language_jabvox: a.templateLanguageJabvox || '',
     template_params_jabvox: a.templateParamsJabvox || {},
+    assignee_contact_map_jabvox: a.assigneeContactMapJabvox || {},
     active_jabvox: a.activeJabvox,
   };
   showForm.value = true;
@@ -190,6 +202,7 @@ const buildPayload = () => ({
   template_name_jabvox: form.value.template_name_jabvox,
   template_language_jabvox: form.value.template_language_jabvox,
   template_params_jabvox: form.value.template_params_jabvox,
+  assignee_contact_map_jabvox: form.value.assignee_contact_map_jabvox,
   active_jabvox: form.value.active_jabvox,
 });
 
@@ -688,6 +701,20 @@ onMounted(() => {
               allow-task
               :custom-attribute-keys="customAttributeKeys"
             />
+            <!-- Mapeo responsable->contacto: solo si el destinatario incluye "responsables".
+                 Un responsable no tiene teléfono, así que se le asigna un contacto real. -->
+            <div
+              v-if="form.recipients.includes('assignees')"
+              class="pt-3 mt-1 border-t border-n-weak"
+            >
+              <label class="block mb-2 text-xs font-medium text-n-slate-12">
+                {{ t('JABVOX_TASKS.AUTOMATION.ASSIGNEE_MAP.TITLE') }}
+              </label>
+              <AssigneeContactMap
+                v-model="form.assignee_contact_map_jabvox"
+                :assignees="taskAssignees"
+              />
+            </div>
           </div>
 
           <!-- SMS provider -->

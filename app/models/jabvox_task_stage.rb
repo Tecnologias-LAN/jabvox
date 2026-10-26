@@ -3,16 +3,17 @@
 #
 # Table name: jabvox_task_stages
 #
-#  id              :bigint           not null, primary key
-#  color_jabvox    :string           default("#6b7280"), not null
-#  name_jabvox     :string           not null
-#  position_jabvox :integer          default(0), not null
-#  role_jabvox     :string
-#  created_at      :datetime         not null
-#  updated_at      :datetime         not null
-#  account_id      :bigint           not null
-#  board_id        :bigint           not null
-#  created_by_id   :bigint
+#  id               :bigint           not null, primary key
+#  card_sort_jabvox :string           default("manual"), not null
+#  color_jabvox     :string           default("#6b7280"), not null
+#  name_jabvox      :string           not null
+#  position_jabvox  :integer          default(0), not null
+#  role_jabvox      :string
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  account_id       :bigint           not null
+#  board_id         :bigint           not null
+#  created_by_id    :bigint
 #
 # Indexes
 #

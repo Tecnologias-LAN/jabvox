@@ -6,35 +6,36 @@
 #
 # Table name: jabvox_task_automations
 #
-#  id                       :bigint           not null, primary key
-#  active_jabvox            :boolean          default(TRUE), not null
-#  body_jabvox              :text
-#  channel_jabvox           :string           not null
-#  end_at_jabvox            :datetime
-#  interval_count_jabvox    :integer          default(1), not null
-#  interval_unit_jabvox     :string           default("day"), not null
-#  last_run_at_jabvox       :datetime
-#  manual_email_jabvox      :string           default(""), not null
-#  manual_phone_jabvox      :string           default(""), not null
-#  max_runs_jabvox          :integer
-#  name_jabvox              :string           default(""), not null
-#  next_run_at_jabvox       :datetime
-#  recipients_jabvox        :string           default("lead"), not null
-#  runs_count_jabvox        :integer          default(0), not null
-#  schedule_mode_jabvox     :string           default("recurring"), not null
-#  start_at_jabvox          :datetime
-#  subject_jabvox           :string           default(""), not null
-#  template_language_jabvox :string
-#  template_name_jabvox     :string
-#  template_params_jabvox   :jsonb            not null
-#  created_at               :datetime         not null
-#  updated_at               :datetime         not null
-#  account_id               :bigint           not null
-#  created_by_id            :bigint
-#  email_template_id        :bigint
-#  inbox_id                 :bigint
-#  sms_provider_id          :bigint
-#  task_id                  :bigint           not null
+#  id                          :bigint           not null, primary key
+#  active_jabvox               :boolean          default(TRUE), not null
+#  assignee_contact_map_jabvox :jsonb            not null
+#  body_jabvox                 :text
+#  channel_jabvox              :string           not null
+#  end_at_jabvox               :datetime
+#  interval_count_jabvox       :integer          default(1), not null
+#  interval_unit_jabvox        :string           default("day"), not null
+#  last_run_at_jabvox          :datetime
+#  manual_email_jabvox         :string           default(""), not null
+#  manual_phone_jabvox         :string           default(""), not null
+#  max_runs_jabvox             :integer
+#  name_jabvox                 :string           default(""), not null
+#  next_run_at_jabvox          :datetime
+#  recipients_jabvox           :string           default("lead"), not null
+#  runs_count_jabvox           :integer          default(0), not null
+#  schedule_mode_jabvox        :string           default("recurring"), not null
+#  start_at_jabvox             :datetime
+#  subject_jabvox              :string           default(""), not null
+#  template_language_jabvox    :string
+#  template_name_jabvox        :string
+#  template_params_jabvox      :jsonb            not null
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  account_id                  :bigint           not null
+#  created_by_id               :bigint
+#  email_template_id           :bigint
+#  inbox_id                    :bigint
+#  sms_provider_id             :bigint
+#  task_id                     :bigint           not null
 #
 # Indexes
 #
@@ -96,6 +97,9 @@ class JabvoxTaskAutomation < ApplicationRecord
   validates :max_runs_jabvox, numericality: { greater_than: 0, allow_nil: true }
   validates :schedule_mode_jabvox, inclusion: { in: SCHEDULE_MODES }
   validate :before_due_is_schedulable, if: :before_due?
+  # El mapeo responsable->contacto solo puede apuntar a contactos de ESTA cuenta
+  # (seguridad: evita referenciar contactos de otra cuenta vía el payload).
+  validate :assignee_contact_map_belongs_to_account
 
   # Due automations exclude tasks that are already done: completing a task stops
   # its recurring automations from firing (without deactivating them, so they
@@ -112,6 +116,16 @@ class JabvoxTaskAutomation < ApplicationRecord
   # Parsed recipient kinds (e.g. ["lead", "assignees"]).
   def recipient_kinds
     recipients_jabvox.to_s.split(',').map(&:strip).reject(&:blank?) & RECIPIENT_KINDS
+  end
+
+  # Contacto mapeado a un responsable (assignee/User), para enviarle la plantilla de
+  # WhatsApp (que necesita un contacto real). Devuelve nil si no hay mapeo o el contacto
+  # ya no existe en la cuenta. Scopeado a @account por seguridad.
+  def assignee_contact_for(user_id)
+    contact_id = (assignee_contact_map_jabvox || {})[user_id.to_s]
+    return nil if contact_id.blank?
+
+    account.contacts.find_by(id: contact_id)
   end
 
   # Step length for one recurrence as an ActiveSupport::Duration.
@@ -198,5 +212,22 @@ class JabvoxTaskAutomation < ApplicationRecord
     # Por WhatsApp solo sale la plantilla. Un cuerpo escrito a mano aquí no se enviaría
     # nunca, así que guardarlo solo serviría para hacer creer que sí.
     self.body_jabvox = nil
+  end
+
+  # El mapeo { "<user_id>" => <contact_id> } solo puede referenciar contactos de esta
+  # cuenta. Se ignoran entradas vacías; cualquier contact_id que no sea de la cuenta
+  # invalida el registro (defensa anti cross-account vía payload).
+  def assignee_contact_map_belongs_to_account
+    map = assignee_contact_map_jabvox
+    return if map.blank?
+    return errors.add(:assignee_contact_map_jabvox, 'formato inválido') unless map.is_a?(Hash)
+
+    contact_ids = map.values.reject(&:blank?).map(&:to_i).uniq
+    return if contact_ids.empty?
+
+    found = account.contacts.where(id: contact_ids).count
+    return if found == contact_ids.size
+
+    errors.add(:assignee_contact_map_jabvox, 'contiene contactos que no son de esta cuenta')
   end
 end

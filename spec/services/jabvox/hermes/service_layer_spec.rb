@@ -152,5 +152,18 @@ RSpec.describe Jabvox::Hermes::ServiceLayer do
       hook = service.call(method: :post, path: 'webhooks', params: { route_suffix: '@evil.com/../admin' })
       expect(hook[:url]).to eq('http://10.147.0.49:8644/webhooks/jabvox')
     end
+
+    it 'un route_suffix no-string no rompe (se trata como texto y se sanea)' do
+      hook = service.call(method: :post, path: 'webhooks', params: { route_suffix: 12_345 })
+      # "12345" no tiene formato clave=valor → se descarta, URL base limpia.
+      expect(hook[:url]).to eq('http://10.147.0.49:8644/webhooks/jabvox')
+    end
+
+    it 'route_suffix también funciona en el webhook por bandeja (inbox_type)' do
+      hook = service.call(method: :post, path: 'webhooks/inbox',
+                          params: { inbox_id: inbox.id, route_suffix: 'turno=noche' })
+      expect(hook[:url]).to eq('http://10.147.0.49:8644/webhooks/jabvox?turno=noche')
+      expect(hook[:webhook_type]).to eq('inbox_type')
+    end
   end
 end

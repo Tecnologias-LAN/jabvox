@@ -181,6 +181,15 @@
       },
       "MANUAL_EMAIL": "Correo de destino",
       "MANUAL_PHONE": "Teléfono de destino",
+      "ASSIGNEE_MAP": {
+        "TITLE": "Contacto por responsable (WhatsApp)",
+        "HELP": "Un responsable no tiene número propio. Asigna un contacto a cada responsable para enviarle la plantilla de WhatsApp.",
+        "NO_ASSIGNEES": "Esta tarea aún no tiene responsables asignados.",
+        "SEARCH": "Buscar contacto por nombre o teléfono…",
+        "CURRENT": "Contacto asignado",
+        "MAPPED": "Contacto #{id}",
+        "CLEAR": "Quitar"
+      },
       "EMAIL_TEMPLATE": "Plantilla de correo",
       "EMAIL_TEMPLATE_NONE": "Sin plantilla (escribe abajo)",
       "SUBJECT": "Asunto",

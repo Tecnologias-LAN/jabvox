@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_23_000003) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_26_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -3468,6 +3468,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_23_000003) do
     t.jsonb "template_params_jabvox", default: {}, null: false
     t.integer "max_runs_jabvox"
     t.string "schedule_mode_jabvox", default: "recurring", null: false
+    t.jsonb "assignee_contact_map_jabvox", default: {}, null: false
     t.index ["account_id", "task_id"], name: "index_jabvox_task_automations_on_account_id_and_task_id"
     t.index ["account_id"], name: "index_jabvox_task_automations_on_account_id"
     t.index ["active_jabvox", "next_run_at_jabvox"], name: "idx_on_active_jabvox_next_run_at_jabvox_c67e09e205"

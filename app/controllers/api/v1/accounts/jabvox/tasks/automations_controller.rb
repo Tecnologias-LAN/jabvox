@@ -65,7 +65,10 @@ class Api::V1::Accounts::Jabvox::Tasks::AutomationsController < Api::V1::Account
       :template_name_jabvox, :template_language_jabvox,
       # El mapeo de variables es un hash de forma libre ({"1" => {source:, field:}}), así
       # que se permite entero y el servicio que lo lee valida campo por campo.
-      template_params_jabvox: {}
+      template_params_jabvox: {},
+      # Mapeo responsable->contacto ({"<user_id>" => <contact_id>}): hash libre; el
+      # modelo valida que los contactos sean de la cuenta.
+      assignee_contact_map_jabvox: {}
     )
   end
 
@@ -95,7 +98,8 @@ class Api::V1::Accounts::Jabvox::Tasks::AutomationsController < Api::V1::Account
       schedule_mode_jabvox: automation.schedule_mode_jabvox,
       template_name_jabvox: automation.template_name_jabvox,
       template_language_jabvox: automation.template_language_jabvox,
-      template_params_jabvox: automation.template_params_jabvox
+      template_params_jabvox: automation.template_params_jabvox,
+      assignee_contact_map_jabvox: automation.assignee_contact_map_jabvox
     }
   end
 

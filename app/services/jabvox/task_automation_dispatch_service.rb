@@ -77,7 +77,16 @@ class Jabvox::TaskAutomationDispatchService
 
   def assignee_recipients
     @task.assignees.map do |u|
-      Recipient.new(label: u.name, email: u.email, phone: nil, contact: nil)
+      # Un responsable es un usuario (agente): tiene email pero NO teléfono ni contacto.
+      # Para WhatsApp hace falta un contacto real, así que se usa el mapeado en la
+      # automatización (responsable -> contacto). Para email se sigue usando su correo.
+      mapped = @automation.assignee_contact_for(u.id)
+      Recipient.new(
+        label: u.name,
+        email: u.email,
+        phone: mapped&.phone_number,
+        contact: mapped
+      )
     end
   end
 
@@ -133,7 +142,11 @@ class Jabvox::TaskAutomationDispatchService
   # Plantilla aprobada de WhatsApp. El texto libre solo sale dentro de la ventana de 24h y
   # una automatización programada dispara casi siempre fuera de ella.
   def deliver_template(recipient)
-    contact = recipient.contact
+    # WhatsApp necesita un CONTACTO (con contact_inbox y conversación). El lead de la tarea
+    # ya lo trae; un destinatario manual o un responsable solo traen un teléfono suelto, así
+    # que se busca/crea el contacto por ese número en la cuenta. Antes esto fallaba siempre
+    # con `sin_contacto` al mandar plantilla a una "Dirección manual".
+    contact = recipient.contact || contact_from_phone(recipient.phone)
     raise 'sin_contacto' unless contact
 
     inbox = @automation.inbox
@@ -151,6 +164,30 @@ class Jabvox::TaskAutomationDispatchService
                                  }).perform
   end
 
+  # Contacto de la cuenta para un teléfono suelto (destinatario manual o responsable sin
+  # contacto propio): se busca por el número normalizado y, si no existe, se crea. Devuelve
+  # nil si no hay teléfono utilizable, para que caiga en `sin_contacto`.
+  def contact_from_phone(phone)
+    normalized = normalize_phone(phone)
+    return nil if normalized.blank?
+
+    @account.contacts.find_by(phone_number: normalized) ||
+      @account.contacts.create!(name: normalized, phone_number: normalized)
+  rescue ActiveRecord::RecordInvalid
+    nil
+  end
+
+  # Normaliza a E.164 best-effort: deja solo dígitos y antepone '+'. Un número ya con '+'
+  # se respeta. Suficiente para que WhatsApp lo acepte; la normalización fina la hace el canal.
+  def normalize_phone(phone)
+    digits = phone.to_s.strip
+    return '' if digits.blank?
+    return digits if digits.start_with?('+')
+
+    only = digits.gsub(/\D/, '')
+    only.present? ? "+#{only}" : ''
+  end
+
   def template_payload(contact)
     {
       name: @automation.template_name_jabvox,
@@ -163,11 +200,16 @@ class Jabvox::TaskAutomationDispatchService
   end
 
   def find_or_create_conversation(contact, inbox)
-    contact_inbox = ContactInbox.find_or_create_by!(contact: contact, inbox: inbox)
+    # ContactInbox exige un source_id con formato propio de cada canal (para WhatsApp,
+    # el teléfono sin '+'). find_or_create_by! sin source_id fallaba la validación
+    # (-> sin_conversacion). ContactInboxBuilder lo genera correctamente por canal.
+    contact_inbox = ContactInboxBuilder.new(contact: contact, inbox: inbox).perform
+    return nil unless contact_inbox
+
     contact_inbox.conversations.last || Conversation.create!(
       account: @account, inbox: inbox, contact: contact, contact_inbox: contact_inbox
     )
-  rescue ActiveRecord::RecordInvalid
+  rescue ActiveRecord::RecordInvalid, ActionController::ParameterMissing
     nil
   end
 

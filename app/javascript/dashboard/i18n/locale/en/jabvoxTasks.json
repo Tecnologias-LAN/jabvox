@@ -185,6 +185,15 @@
       },
       "MANUAL_EMAIL": "Destination email",
       "MANUAL_PHONE": "Destination phone",
+      "ASSIGNEE_MAP": {
+        "TITLE": "Contact per assignee (WhatsApp)",
+        "HELP": "An assignee has no phone of their own. Map a contact to each assignee to send them the WhatsApp template.",
+        "NO_ASSIGNEES": "This task has no assignees yet.",
+        "SEARCH": "Search contact by name or phone…",
+        "CURRENT": "Mapped contact",
+        "MAPPED": "Contact #{id}",
+        "CLEAR": "Remove"
+      },
       "EMAIL_TEMPLATE": "Email template",
       "EMAIL_TEMPLATE_NONE": "No template (write below)",
       "SUBJECT": "Subject",

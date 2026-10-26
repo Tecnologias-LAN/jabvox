@@ -115,4 +115,115 @@ RSpec.describe 'Jabvox task automations' do # rubocop:disable RSpec/DescribeClas
       expect(automation.reload.runs_count_jabvox).to eq(0)
     end
   end
+
+  # WhatsApp a una "Dirección manual" (número suelto, el del responsable): antes fallaba
+  # siempre con `sin_contacto` porque deliver_template exigía un contacto existente. Ahora
+  # busca/crea el contacto por ese número en la cuenta.
+  describe 'plantilla WhatsApp a número manual' do
+    let(:wa_channel) do
+      create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false)
+    end
+
+    def wa_automation(target)
+      target.automations.create!(
+        account_id: account.id, name_jabvox: 'Recordatorio', channel_jabvox: 'whatsapp_template',
+        recipients_jabvox: 'manual', manual_phone_jabvox: '3024696389',
+        inbox_id: wa_channel.inbox.id, template_name_jabvox: 'recordatorio_tareas',
+        template_language_jabvox: 'es', interval_unit_jabvox: 'day', interval_count_jabvox: 1,
+        start_at_jabvox: 2.days.ago, created_by_id: user.id
+      )
+    end
+
+    before { allow(SendReplyJob).to receive(:perform_now) }
+
+    it 'crea el contacto por el número manual y NO falla con sin_contacto' do
+      pendiente = task
+      automation = wa_automation(pendiente)
+
+      expect { Jabvox::TaskAutomationDispatchService.new(automation).perform }
+        .to change { account.contacts.where(phone_number: '+3024696389').count }.by(1)
+
+      run = pendiente.automation_runs.last
+      expect(run.detail_jabvox.to_s).not_to include('sin_contacto')
+      expect(run.status_jabvox).to eq('sent')
+    end
+
+    it 'reutiliza un contacto existente con ese número' do
+      create(:contact, account: account, phone_number: '+3024696389', name: 'Keiner')
+      pendiente = task
+      automation = wa_automation(pendiente)
+
+      expect { Jabvox::TaskAutomationDispatchService.new(automation).perform }
+        .not_to(change { account.contacts.count })
+      expect(pendiente.automation_runs.last.detail_jabvox.to_s).not_to include('sin_contacto')
+    end
+  end
+
+  # WhatsApp a RESPONSABLES (assignees): un responsable es un usuario sin teléfono ni
+  # contacto, así que antes la plantilla fallaba con `sin_contacto`. Ahora se mapea un
+  # contacto a cada responsable y la plantilla sale por ese contacto.
+  describe 'plantilla WhatsApp a responsables (mapeo responsable->contacto)' do
+    let(:wa_channel) do
+      create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false)
+    end
+    let(:responsable) { create(:user, account: account, name: 'Melany') }
+    let(:contacto_responsable) do
+      create(:contact, account: account, name: 'Contacto Melany', phone_number: '+573001112233')
+    end
+
+    before { allow(SendReplyJob).to receive(:perform_now) }
+
+    def wa_assignee_automation(target, map:)
+      target.automations.create!(
+        account_id: account.id, name_jabvox: 'Aviso responsable', channel_jabvox: 'whatsapp_template',
+        recipients_jabvox: 'assignees', inbox_id: wa_channel.inbox.id,
+        template_name_jabvox: 'recordatorio_tareas', template_language_jabvox: 'es',
+        interval_unit_jabvox: 'day', interval_count_jabvox: 1, start_at_jabvox: 2.days.ago,
+        created_by_id: user.id, assignee_contact_map_jabvox: map
+      )
+    end
+
+    it 'envía la plantilla al contacto mapeado del responsable (NO falla con sin_contacto)' do
+      pendiente = task
+      pendiente.sync_assignees!([responsable.id])
+      automation = wa_assignee_automation(pendiente, map: { responsable.id.to_s => contacto_responsable.id })
+
+      Jabvox::TaskAutomationDispatchService.new(automation).perform
+
+      run = pendiente.automation_runs.last
+      expect(run.detail_jabvox.to_s).not_to include('sin_contacto')
+      expect(run.status_jabvox).to eq('sent')
+      # La conversación se creó sobre el contacto mapeado, no sobre otro.
+      expect(contacto_responsable.conversations.count).to be >= 1
+    end
+
+    it 'falla solo ese responsable si no tiene contacto mapeado (sin romper el resto)' do
+      pendiente = task
+      pendiente.sync_assignees!([responsable.id])
+      automation = wa_assignee_automation(pendiente, map: {}) # sin mapeo
+
+      Jabvox::TaskAutomationDispatchService.new(automation).perform
+
+      run = pendiente.automation_runs.last
+      expect(run.detail_jabvox.to_s).to include('sin_contacto')
+      expect(run.detail_jabvox.to_s).to include('Melany') # el error nombra al responsable
+    end
+
+    it 'rechaza un mapeo que apunta a un contacto de OTRA cuenta' do
+      otra_cuenta = create(:account)
+      contacto_ajeno = create(:contact, account: otra_cuenta, phone_number: '+573009998877')
+      pendiente = task
+
+      automation = pendiente.automations.build(
+        account_id: account.id, name_jabvox: 'x', channel_jabvox: 'whatsapp_template',
+        recipients_jabvox: 'assignees', inbox_id: wa_channel.inbox.id,
+        template_name_jabvox: 't', template_language_jabvox: 'es',
+        interval_unit_jabvox: 'day', interval_count_jabvox: 1, start_at_jabvox: 2.days.ago,
+        created_by_id: user.id, assignee_contact_map_jabvox: { responsable.id.to_s => contacto_ajeno.id }
+      )
+
+      expect(automation.valid?).to be(false)
+      expect(automation.errors[:assignee_contact_map_jabvox].join).to include('no son de esta cuenta')
+    end
+  end
 end
