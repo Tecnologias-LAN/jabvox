@@ -11,9 +11,68 @@ export function useEditableAutomation() {
   const { getConditionDropdownValues, getActionDropdownValues } =
     useAutomationValues();
 
+  // Da formato a una condición plana (resuelve inputType y normaliza values) para
+  // mostrarla en el modal de edición. Extraído para reutilizarlo en las hijas de
+  // un grupo.
+  const manifestFlatCondition = (
+    condition,
+    customAttributes,
+    automation,
+    automationTypes
+  ) => {
+    const customAttr = isCustomAttribute(
+      customAttributes,
+      condition.attribute_key
+    );
+    let inputType = 'plain_text';
+    if (customAttr) {
+      inputType = getCustomAttributeInputType(customAttr.type);
+    } else {
+      inputType = getStandardAttributeInputType(
+        automationTypes,
+        automation.event_name,
+        condition.attribute_key
+      );
+    }
+    if (inputType === 'plain_text' || inputType === 'date') {
+      return { ...condition, values: condition.values[0] };
+    }
+    if (inputType === 'comma_separated_plain_text') {
+      return { ...condition, values: condition.values.join(',') };
+    }
+    if (inputType === 'time_range') {
+      // La franja horaria guarda un objeto { from, to }, no una lista. Se
+      // preserva tal cual: hacer spread de un objeto ([...values]) revienta con
+      // "f is not iterable" al editar una regla que la usa.
+      return { ...condition, values: condition.values };
+    }
+    const dropdownValues = getConditionDropdownValues(condition.attribute_key);
+    const hasBooleanOptions =
+      inputType === 'search_select' &&
+      dropdownValues.length &&
+      dropdownValues.every(item => typeof item.id === 'boolean');
+
+    if (hasBooleanOptions) {
+      return {
+        ...condition,
+        query_operator: condition.query_operator || 'and',
+        values: dropdownValues.find(item => item.id === condition.values[0]),
+      };
+    }
+    return {
+      ...condition,
+      query_operator: condition.query_operator || 'and',
+      values: [...dropdownValues].filter(item =>
+        [...condition.values].includes(item.id)
+      ),
+    };
+  };
+
   /**
    * This function sets the conditions for automation.
    * It help to format the conditions for the automation when we open the edit automation modal.
+   * Soporta GRUPOS (paréntesis): un grupo conserva su estructura y sus hijas se
+   * manifiestan una a una como condiciones planas.
    * @param {Object} automation - The automation object containing conditions to manifest.
    * @param {Array} allCustomAttributes - List of all custom attributes.
    * @param {Object} automationTypes - Object containing automation type definitions.
@@ -25,55 +84,26 @@ export function useEditableAutomation() {
     automationTypes
   ) => {
     const customAttributes = filterCustomAttributes(allCustomAttributes);
-    return automation.conditions.map(condition => {
-      const customAttr = isCustomAttribute(
-        customAttributes,
-        condition.attribute_key
-      );
-      let inputType = 'plain_text';
-      if (customAttr) {
-        inputType = getCustomAttributeInputType(customAttr.type);
-      } else {
-        inputType = getStandardAttributeInputType(
-          automationTypes,
-          automation.event_name,
-          condition.attribute_key
-        );
-      }
-      if (inputType === 'plain_text' || inputType === 'date') {
-        return { ...condition, values: condition.values[0] };
-      }
-      if (inputType === 'comma_separated_plain_text') {
-        return { ...condition, values: condition.values.join(',') };
-      }
-      if (inputType === 'time_range') {
-        // La franja horaria guarda un objeto { from, to }, no una lista. Se
-        // preserva tal cual: hacer spread de un objeto ([...values]) revienta con
-        // "f is not iterable" al editar una regla que la usa.
-        return { ...condition, values: condition.values };
-      }
-      const dropdownValues = getConditionDropdownValues(
-        condition.attribute_key
-      );
-      const hasBooleanOptions =
-        inputType === 'search_select' &&
-        dropdownValues.length &&
-        dropdownValues.every(item => typeof item.id === 'boolean');
 
-      if (hasBooleanOptions) {
+    const manifestOne = condition =>
+      manifestFlatCondition(
+        condition,
+        customAttributes,
+        automation,
+        automationTypes
+      );
+
+    return automation.conditions.map(condition => {
+      // Un GRUPO (paréntesis) conserva su estructura; manifestamos sus hijas.
+      if (condition?.type === 'group') {
         return {
           ...condition,
           query_operator: condition.query_operator || 'and',
-          values: dropdownValues.find(item => item.id === condition.values[0]),
+          child_operator: condition.child_operator || 'or',
+          conditions: (condition.conditions || []).map(manifestOne),
         };
       }
-      return {
-        ...condition,
-        query_operator: condition.query_operator || 'and',
-        values: [...dropdownValues].filter(item =>
-          [...condition.values].includes(item.id)
-        ),
-      };
+      return manifestOne(condition);
     });
   };
 

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useOperators } from 'dashboard/components-next/filter/operators';
 import ConditionRow from 'dashboard/components-next/filter/ConditionRow.vue';
+import ConditionGroup from 'dashboard/components-next/filter/ConditionGroup.vue';
 import AutomationActionInput from 'dashboard/components/widgets/AutomationActionInput.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
@@ -37,6 +38,10 @@ const props = defineProps({
   appendNewCondition: {
     type: Function,
     required: true,
+  },
+  appendNewGroup: {
+    type: Function,
+    default: () => {},
   },
   appendNewAction: {
     type: Function,
@@ -163,7 +168,7 @@ const automationRuleEvents = computed(() =>
 const hasAutomationMutated = computed(() => {
   return Boolean(
     automation.value?.conditions[0]?.values ||
-      automation.value?.actions[0]?.action_params?.length
+    automation.value?.actions[0]?.action_params?.length
   );
 });
 
@@ -310,8 +315,23 @@ defineExpose({ open, close });
           "
         >
           <template v-for="(condition, i) in automation.conditions" :key="i">
+            <!-- GRUPO (paréntesis): "(A O B)" -->
+            <ConditionGroup
+              v-if="condition.type === 'group'"
+              ref="conditionsRef"
+              v-model:query-operator="
+                automation.conditions[i - 1].query_operator
+              "
+              v-model:child-operator="automation.conditions[i].child_operator"
+              v-model:conditions="automation.conditions[i].conditions"
+              :filter-types="filterTypes"
+              :show-query-operator="i !== 0"
+              snake-keys
+              @remove="removeFilter(i)"
+            />
+            <!-- Condición plana, primera fila -->
             <ConditionRow
-              v-if="i === 0"
+              v-else-if="i === 0"
               ref="conditionsRef"
               v-model:attribute-key="automation.conditions[i].attribute_key"
               v-model:filter-operator="automation.conditions[i].filter_operator"
@@ -320,6 +340,7 @@ defineExpose({ open, close });
               :show-query-operator="false"
               @remove="removeFilter(i)"
             />
+            <!-- Condición plana, resto de filas -->
             <ConditionRow
               v-else
               ref="conditionsRef"
@@ -334,7 +355,7 @@ defineExpose({ open, close });
               @remove="removeFilter(i)"
             />
           </template>
-          <div>
+          <div class="flex gap-2">
             <NextButton
               icon="i-lucide-plus"
               blue
@@ -342,6 +363,14 @@ defineExpose({ open, close });
               sm
               :label="$t('AUTOMATION.ADD.CONDITION_BUTTON_LABEL')"
               @click="appendNewCondition"
+            />
+            <NextButton
+              icon="i-lucide-plus"
+              blue
+              faded
+              sm
+              :label="$t('FILTER.GROUP.ADD_GROUP')"
+              @click="appendNewGroup"
             />
           </div>
         </ul>

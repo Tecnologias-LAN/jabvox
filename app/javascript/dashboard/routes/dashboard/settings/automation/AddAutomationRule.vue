@@ -37,6 +37,7 @@ const {
   onEventChange,
   getConditionDropdownValues,
   appendNewCondition,
+  appendNewGroup,
   appendNewAction,
   removeFilter,
   removeAction,
@@ -87,6 +88,7 @@ defineExpose({ open, close });
     :get-condition-dropdown-values="getConditionDropdownValues"
     :get-action-dropdown-values="getActionDropdownValues"
     :append-new-condition="appendNewCondition"
+    :append-new-group="appendNewGroup"
     :append-new-action="appendNewAction"
     :remove-filter="removeFilter"
     :remove-action="removeAction"

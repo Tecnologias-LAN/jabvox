@@ -15,13 +15,31 @@ class AutomationRules::ConditionValidationService
 
   def perform
     @rule.conditions.each do |condition|
-      return false unless valid_condition?(condition) && valid_query_operator?(condition)
+      valid = group?(condition) ? valid_group?(condition) : valid_leaf?(condition)
+      return false unless valid
     end
 
     true
   end
 
   private
+
+  def group?(condition)
+    condition.is_a?(Hash) && (condition['type'].to_s == 'group' || condition[:type].to_s == 'group')
+  end
+
+  # El grupo en sí solo necesita un query_operator válido; sus hijas se validan una a
+  # una como condiciones normales.
+  def valid_group?(condition)
+    return false unless valid_query_operator?(condition)
+
+    children = condition['conditions'] || condition[:conditions] || []
+    children.all? { |child| valid_leaf?(child) }
+  end
+
+  def valid_leaf?(condition)
+    valid_condition?(condition) && valid_query_operator?(condition)
+  end
 
   def valid_query_operator?(condition)
     query_operator = condition['query_operator']

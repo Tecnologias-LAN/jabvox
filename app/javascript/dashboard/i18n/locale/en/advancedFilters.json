@@ -18,6 +18,11 @@
       "AND": "AND",
       "OR": "OR"
     },
+    "GROUP": {
+      "ADD_GROUP": "Add group",
+      "ADD_CONDITION": "Add condition to group",
+      "LABEL": "Group — match"
+    },
     "INPUT_PLACEHOLDER": "Enter value",
     "CONTACT_SEARCH_PLACEHOLDER": "Search contacts",
     "CONTACT_FALLBACK": "Contact #{id}",

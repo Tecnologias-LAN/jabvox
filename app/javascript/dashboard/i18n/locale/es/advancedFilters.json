@@ -18,6 +18,11 @@
       "AND": "Y",
       "OR": "O"
     },
+    "GROUP": {
+      "ADD_GROUP": "Añadir grupo",
+      "ADD_CONDITION": "Añadir condición al grupo",
+      "LABEL": "Grupo — cumplir"
+    },
     "INPUT_PLACEHOLDER": "Introducir valor",
     "CONTACT_SEARCH_PLACEHOLDER": "Buscar contactos",
     "CONTACT_FALLBACK": "Contacto #{id}",

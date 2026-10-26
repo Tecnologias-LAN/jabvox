@@ -76,7 +76,13 @@ class Conversations::FilterService < FilterService
     }
   end
 
+  # Aplica el orden pedido por el front (params[:sort_by]) a los resultados del
+  # filtro personalizado. Antes esto estaba HARDCODEADO a sort_on_last_activity_at,
+  # así que el selector "Ordenar por" no tenía efecto con filtros activos.
+  # Reutiliza el mismo mapa que las vistas normales (SortHandler::SORT_OPTIONS) y
+  # cae a last_activity_at_desc ante cualquier valor desconocido o ausente.
   def conversations
-    @conversations.sort_on_last_activity_at.page(current_page)
+    sort_by, sort_direction = SortHandler.resolve_sort(@params[:sort_by])
+    @conversations.send(sort_by, sort_direction).page(current_page)
   end
 end

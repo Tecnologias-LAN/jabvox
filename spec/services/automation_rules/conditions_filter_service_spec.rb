@@ -198,6 +198,14 @@ RSpec.describe AutomationRules::ConditionsFilterService do
           conversation.add_labels(['feature'])
           expect(described_class.new(rule, conversation, { changed_attributes: {} }).perform).to be(false)
         end
+
+        # Caso que estaba roto: una conversación SIN NINGUNA etiqueta debe cumplir
+        # "No igual a feature" (no tiene esa etiqueta). Antes devolvía false porque
+        # `tags.name != 'feature'` sobre un LEFT JOIN da NULL cuando no hay filas.
+        it 'will return true when conversation has NO labels at all' do
+          conversation.update_labels([])
+          expect(described_class.new(rule, conversation, { changed_attributes: {} }).perform).to be(true)
+        end
       end
 
       context 'when filter_operator is is_present' do
@@ -235,202 +243,345 @@ RSpec.describe AutomationRules::ConditionsFilterService do
           expect(described_class.new(rule, conversation, { changed_attributes: {} }).perform).to be(true)
         end
       end
-    end
 
-    context 'when conditions based on contact country_code' do
-      before do
-        conversation.update(additional_attributes: { country_code: 'US' })
-        conversation.contact.update(additional_attributes: { country_code: 'IN' })
-        rule.conditions = [
-          { 'values': ['IN'], 'attribute_key': 'country_code', 'query_operator': nil, 'filter_operator': 'equal_to' }
-        ]
-        rule.save
-      end
-
-      it 'matches against the contact additional_attributes' do
-        expect(described_class.new(rule, conversation, { changed_attributes: {} }).perform).to be(true)
-      end
-
-      it 'returns false when the contact country_code does not match' do
-        conversation.contact.update(additional_attributes: { country_code: 'GB' })
-        expect(described_class.new(rule, conversation, { changed_attributes: {} }).perform).to be(false)
-      end
-    end
-
-    # Jabvox: condicion de franja horaria (current_time). Se evalua en Ruby contra
-    # la zona America/Bogota, por eso se congela el tiempo con travel_to.
-    context 'when condition is based on current_time (franja horaria)' do
-      def perform_at(bogota_time, options = {})
-        travel_to(Time.find_zone('America/Bogota').parse(bogota_time)) do
-          described_class.new(rule, conversation, { changed_attributes: {} }.merge(options)).perform
+      # Regla real de producción: "mensaje entrante Y Etiquetas No igual a
+      # asesor-diferente" (asignar a un agente). Debe disparar para el cliente que
+      # escribe SIN la etiqueta asesor-diferente, tenga o no otras etiquetas, y NO
+      # disparar si ya tiene asesor-diferente. Una SOLA condición de etiqueta cubre
+      # ambos casos, sin necesidad del OR "No está presente".
+      context 'when combining incoming message AND labels not_equal_to (regla asignación)' do
+        let(:incoming) do
+          create(:message, account: account, conversation: conversation, content: 'hola',
+                           inbox: conversation.inbox, message_type: :incoming)
         end
-      end
 
-      context 'with is_between within the same day (08:00-18:00)' do
         before do
-          rule.conditions = [{ 'values': { 'from': '08:00', 'to': '18:00' }, 'attribute_key': 'current_time',
-                               'query_operator': nil, 'filter_operator': 'is_between' }]
-          rule.save
-        end
-
-        it 'matches when current time is inside the range' do
-          expect(perform_at('2026-10-21 10:30:00')).to be(true)
-        end
-
-        it 'does not match when current time is outside the range' do
-          expect(perform_at('2026-10-21 20:30:00')).to be(false)
-        end
-
-        it 'does not match exactly at the end bound (exclusive)' do
-          expect(perform_at('2026-10-21 18:00:00')).to be(false)
-        end
-      end
-
-      context 'with is_between crossing midnight (18:30-08:00)' do
-        before do
-          rule.conditions = [{ 'values': { 'from': '18:30', 'to': '08:00' }, 'attribute_key': 'current_time',
-                               'query_operator': nil, 'filter_operator': 'is_between' }]
-          rule.save
-        end
-
-        it 'matches late at night (before midnight)' do
-          expect(perform_at('2026-10-21 23:00:00')).to be(true)
-        end
-
-        it 'matches early in the morning (after midnight)' do
-          expect(perform_at('2026-10-21 03:00:00')).to be(true)
-        end
-
-        it 'does not match during the day' do
-          expect(perform_at('2026-10-21 12:00:00')).to be(false)
-        end
-      end
-
-      context 'with is_not_between (inverse of the range)' do
-        before do
-          rule.conditions = [{ 'values': { 'from': '08:00', 'to': '18:00' }, 'attribute_key': 'current_time',
-                               'query_operator': nil, 'filter_operator': 'is_not_between' }]
-          rule.save
-        end
-
-        it 'matches when current time is outside the range' do
-          expect(perform_at('2026-10-21 20:30:00')).to be(true)
-        end
-
-        it 'does not match when current time is inside the range' do
-          expect(perform_at('2026-10-21 10:30:00')).to be(false)
-        end
-      end
-
-      context 'when combined with another condition (message_type incoming AND franja)' do
-        before do
-          message
+          conversation.update_labels([])
           rule.conditions = [
             { 'values': ['incoming'], 'attribute_key': 'message_type', 'query_operator': 'AND', 'filter_operator': 'equal_to' },
-            { 'values': { 'from': '18:30', 'to': '08:00' }, 'attribute_key': 'current_time',
-              'query_operator': nil, 'filter_operator': 'is_between' }
+            { 'values': ['asesor-diferente'], 'attribute_key': 'labels', 'query_operator': nil, 'filter_operator': 'not_equal_to' }
           ]
           rule.save
         end
 
-        it 'matches when both the message is incoming and the time is in range' do
-          expect(perform_at('2026-10-21 23:00:00', { message: message })).to be(true)
+        it 'dispara: entrante y SIN ninguna etiqueta (cliente nuevo)' do
+          expect(described_class.new(rule, conversation, { message: incoming, changed_attributes: {} }).perform).to be(true)
         end
 
-        it 'does not match when the time is out of range even if the message is incoming' do
-          expect(perform_at('2026-10-21 12:00:00', { message: message })).to be(false)
-        end
-      end
-
-      context 'with an invalid or incomplete range' do
-        before do
-          rule.conditions = [{ 'values': { 'from': '18:30', 'to': '' }, 'attribute_key': 'current_time',
-                               'query_operator': nil, 'filter_operator': 'is_between' }]
-          rule.save
+        it 'dispara: entrante y con OTRA etiqueta distinta de asesor-diferente' do
+          conversation.add_labels(['interesado'])
+          expect(described_class.new(rule, conversation, { message: incoming, changed_attributes: {} }).perform).to be(true)
         end
 
-        it 'does not match' do
-          expect(perform_at('2026-10-21 23:00:00')).to be(false)
+        it 'NO dispara: entrante pero con la etiqueta asesor-diferente' do
+          conversation.add_labels(['asesor-diferente'])
+          expect(described_class.new(rule, conversation, { message: incoming, changed_attributes: {} }).perform).to be(false)
         end
       end
     end
 
-    # Jabvox: condicion por TIPO de contenido del mensaje (attachment_type).
-    # Se evalua en Ruby sobre el mensaje del evento (message_created), igual que la
-    # franja horaria. 'text' = mensaje sin adjuntos.
-    context 'when condition is based on attachment_type (tipo de contenido)' do
-      def mensaje_con_adjunto(tipo)
-        msg = create(:message, account: account, conversation: conversation,
-                               inbox: conversation.inbox, message_type: :incoming, content: 'hola')
-        msg.attachments.create!(account_id: account.id, file_type: tipo) unless tipo.nil?
-        msg
+    # AGRUPACIÓN (paréntesis): "A AND (B OR C)". El grupo envuelve varias
+    # condiciones entre paréntesis y las une con su propio operador (OR/AND),
+    # permitiendo "obligatoria Y (una de varias)".
+    context 'when using a GROUP of conditions (parentheses)' do
+      let(:incoming) do
+        create(:message, account: account, conversation: conversation, content: 'hola',
+                         inbox: conversation.inbox, message_type: :incoming)
       end
 
-      def match?(tipo_mensaje, operador, tipo_buscado)
-        rule.conditions = [{ 'values' => [tipo_buscado], 'attribute_key' => 'attachment_type',
-                             'query_operator' => nil, 'filter_operator' => operador }]
-        rule.save!
-        msg = mensaje_con_adjunto(tipo_mensaje)
-        described_class.new(rule, msg.conversation, { message: msg, changed_attributes: {} }).perform
-      end
-
-      it 'matchea cuando el mensaje contiene una imagen' do
-        expect(match?(:image, 'contains', 'image')).to be(true)
-      end
-
-      it 'matchea cuando el mensaje contiene un audio' do
-        expect(match?(:audio, 'contains', 'audio')).to be(true)
-      end
-
-      it 'NO matchea cuando se busca imagen pero el adjunto es audio' do
-        expect(match?(:audio, 'contains', 'image')).to be(false)
-      end
-
-      it "matchea 'text' cuando el mensaje no tiene adjuntos" do
-        expect(match?(nil, 'contains', 'text')).to be(true)
-      end
-
-      it "NO matchea 'text' cuando el mensaje sí tiene adjunto" do
-        expect(match?(:image, 'contains', 'text')).to be(false)
-      end
-
-      it 'does_not_contain: matchea cuando el mensaje NO tiene ese tipo' do
-        expect(match?(:audio, 'does_not_contain', 'image')).to be(true)
-      end
-
-      it 'does_not_contain: NO matchea cuando el mensaje SÍ tiene ese tipo' do
-        expect(match?(:image, 'does_not_contain', 'image')).to be(false)
-      end
-
-      # La UI ofrece "Igual a"/"Distinto de" además de "Contiene"/"No contiene"
-      # (OPERATOR_TYPES_2). Para esta condición equal_to == contains y
-      # not_equal_to == does_not_contain: una regla guardada con "Igual a" debe disparar
-      # (antes fallaba la validación y se desactivaba sola).
-      it 'equal_to: matchea cuando el mensaje es de ese tipo (= contains)' do
-        expect(match?(:audio, 'equal_to', 'audio')).to be(true)
-      end
-
-      it 'equal_to: NO matchea cuando el mensaje es de otro tipo' do
-        expect(match?(:audio, 'equal_to', 'image')).to be(false)
-      end
-
-      it 'not_equal_to: matchea cuando el mensaje NO es de ese tipo (= does_not_contain)' do
-        expect(match?(:audio, 'not_equal_to', 'image')).to be(true)
-      end
-
-      it 'not_equal_to: NO matchea cuando el mensaje SÍ es de ese tipo' do
-        expect(match?(:audio, 'not_equal_to', 'audio')).to be(false)
-      end
-
-      it 'combinado con message_type incoming (ambas deben cumplirse)' do
+      # entrante Y ( etiqueta=vip  O  etiqueta=premium )
+      def build_rule(child_operator)
+        conversation.update_labels([])
         rule.conditions = [
-          { 'values' => ['incoming'], 'attribute_key' => 'message_type', 'query_operator' => 'AND', 'filter_operator' => 'equal_to' },
-          { 'values' => ['image'], 'attribute_key' => 'attachment_type', 'query_operator' => nil, 'filter_operator' => 'contains' }
+          { 'values': ['incoming'], 'attribute_key': 'message_type', 'query_operator': 'AND', 'filter_operator': 'equal_to' },
+          { 'type': 'group', 'query_operator': nil, 'child_operator': child_operator, 'conditions': [
+            { 'values': ['vip'], 'attribute_key': 'labels', 'query_operator': 'OR', 'filter_operator': 'equal_to' },
+            { 'values': ['premium'], 'attribute_key': 'labels', 'query_operator': nil, 'filter_operator': 'equal_to' }
+          ] }
         ]
-        rule.save!
-        msg = mensaje_con_adjunto(:image)
-        expect(described_class.new(rule, msg.conversation, { message: msg, changed_attributes: {} }).perform).to be(true)
+        rule.save
       end
+
+      context 'with child_operator OR (cumplir una)' do
+        before { build_rule('OR') }
+
+        it 'dispara si tiene vip' do
+          conversation.add_labels(['vip'])
+          expect(described_class.new(rule, conversation, { message: incoming, changed_attributes: {} }).perform).to be(true)
+        end
+
+        it 'dispara si tiene premium' do
+          conversation.add_labels(['premium'])
+          expect(described_class.new(rule, conversation, { message: incoming, changed_attributes: {} }).perform).to be(true)
+        end
+
+        it 'NO dispara si no tiene ninguna de las dos' do
+          conversation.add_labels(['otra'])
+          expect(described_class.new(rule, conversation, { message: incoming, changed_attributes: {} }).perform).to be(false)
+        end
+
+        it 'NO dispara si cumple el grupo pero NO es entrante (la obligatoria falla)' do
+          conversation.add_labels(['vip'])
+          outgoing = create(:message, account: account, conversation: conversation, content: 'resp',
+                                      inbox: conversation.inbox, message_type: :outgoing)
+          expect(described_class.new(rule, conversation, { message: outgoing, changed_attributes: {} }).perform).to be(false)
+        end
+      end
+
+      # child_operator AND: grupo donde se deben cumplir TODAS las hijas. Usamos
+      # dos atributos distintos (etiqueta + prioridad), porque "tags.name = A AND
+      # tags.name = B" nunca es cierto sobre una sola fila del join de etiquetas
+      # (eso es una limitación del operador equal_to sobre labels, no del grupo).
+      context 'with child_operator AND (cumplir todas)' do
+        before do
+          conversation.update_labels([])
+          rule.conditions = [
+            { 'values': ['incoming'], 'attribute_key': 'message_type', 'query_operator': 'AND', 'filter_operator': 'equal_to' },
+            { 'type': 'group', 'query_operator': nil, 'child_operator': 'AND', 'conditions': [
+              { 'values': ['vip'], 'attribute_key': 'labels', 'query_operator': 'AND', 'filter_operator': 'equal_to' },
+              { 'values': ['urgent'], 'attribute_key': 'priority', 'query_operator': nil, 'filter_operator': 'equal_to' }
+            ] }
+          ]
+          rule.save
+        end
+
+        it 'dispara si tiene vip Y prioridad urgent' do
+          conversation.add_labels(['vip'])
+          conversation.update!(priority: 'urgent')
+          expect(described_class.new(rule, conversation, { message: incoming, changed_attributes: {} }).perform).to be(true)
+        end
+
+        it 'NO dispara si tiene vip pero NO prioridad urgent' do
+          conversation.add_labels(['vip'])
+          conversation.update!(priority: 'low')
+          expect(described_class.new(rule, conversation, { message: incoming, changed_attributes: {} }).perform).to be(false)
+        end
+      end
+
+      # Tu caso real: entrante Y ( No igual a asesor-diferente  O  sin etiquetas ).
+      context 'with the real production pattern' do
+        before do
+          conversation.update_labels([])
+          rule.conditions = [
+            { 'values': ['incoming'], 'attribute_key': 'message_type', 'query_operator': 'AND', 'filter_operator': 'equal_to' },
+            { 'type': 'group', 'query_operator': nil, 'child_operator': 'OR', 'conditions': [
+              { 'values': ['asesor-diferente'], 'attribute_key': 'labels', 'query_operator': 'OR', 'filter_operator': 'not_equal_to' },
+              { 'values': [], 'attribute_key': 'labels', 'query_operator': nil, 'filter_operator': 'is_not_present' }
+            ] }
+          ]
+          rule.save
+        end
+
+        it 'dispara: cliente nuevo sin etiquetas' do
+          expect(described_class.new(rule, conversation, { message: incoming, changed_attributes: {} }).perform).to be(true)
+        end
+
+        it 'dispara: con otra etiqueta distinta de asesor-diferente' do
+          conversation.add_labels(['interesado'])
+          expect(described_class.new(rule, conversation, { message: incoming, changed_attributes: {} }).perform).to be(true)
+        end
+
+        it 'NO dispara: con la etiqueta asesor-diferente' do
+          conversation.add_labels(['asesor-diferente'])
+          expect(described_class.new(rule, conversation, { message: incoming, changed_attributes: {} }).perform).to be(false)
+        end
+      end
+    end
+  end
+
+  context 'when conditions based on contact country_code' do
+    before do
+      conversation.update(additional_attributes: { country_code: 'US' })
+      conversation.contact.update(additional_attributes: { country_code: 'IN' })
+      rule.conditions = [
+        { 'values': ['IN'], 'attribute_key': 'country_code', 'query_operator': nil, 'filter_operator': 'equal_to' }
+      ]
+      rule.save
+    end
+
+    it 'matches against the contact additional_attributes' do
+      expect(described_class.new(rule, conversation, { changed_attributes: {} }).perform).to be(true)
+    end
+
+    it 'returns false when the contact country_code does not match' do
+      conversation.contact.update(additional_attributes: { country_code: 'GB' })
+      expect(described_class.new(rule, conversation, { changed_attributes: {} }).perform).to be(false)
+    end
+  end
+
+  # Jabvox: condicion de franja horaria (current_time). Se evalua en Ruby contra
+  # la zona America/Bogota, por eso se congela el tiempo con travel_to.
+  context 'when condition is based on current_time (franja horaria)' do
+    def perform_at(bogota_time, options = {})
+      travel_to(Time.find_zone('America/Bogota').parse(bogota_time)) do
+        described_class.new(rule, conversation, { changed_attributes: {} }.merge(options)).perform
+      end
+    end
+
+    context 'with is_between within the same day (08:00-18:00)' do
+      before do
+        rule.conditions = [{ 'values': { 'from': '08:00', 'to': '18:00' }, 'attribute_key': 'current_time',
+                             'query_operator': nil, 'filter_operator': 'is_between' }]
+        rule.save
+      end
+
+      it 'matches when current time is inside the range' do
+        expect(perform_at('2026-10-21 10:30:00')).to be(true)
+      end
+
+      it 'does not match when current time is outside the range' do
+        expect(perform_at('2026-10-21 20:30:00')).to be(false)
+      end
+
+      it 'does not match exactly at the end bound (exclusive)' do
+        expect(perform_at('2026-10-21 18:00:00')).to be(false)
+      end
+    end
+
+    context 'with is_between crossing midnight (18:30-08:00)' do
+      before do
+        rule.conditions = [{ 'values': { 'from': '18:30', 'to': '08:00' }, 'attribute_key': 'current_time',
+                             'query_operator': nil, 'filter_operator': 'is_between' }]
+        rule.save
+      end
+
+      it 'matches late at night (before midnight)' do
+        expect(perform_at('2026-10-21 23:00:00')).to be(true)
+      end
+
+      it 'matches early in the morning (after midnight)' do
+        expect(perform_at('2026-10-21 03:00:00')).to be(true)
+      end
+
+      it 'does not match during the day' do
+        expect(perform_at('2026-10-21 12:00:00')).to be(false)
+      end
+    end
+
+    context 'with is_not_between (inverse of the range)' do
+      before do
+        rule.conditions = [{ 'values': { 'from': '08:00', 'to': '18:00' }, 'attribute_key': 'current_time',
+                             'query_operator': nil, 'filter_operator': 'is_not_between' }]
+        rule.save
+      end
+
+      it 'matches when current time is outside the range' do
+        expect(perform_at('2026-10-21 20:30:00')).to be(true)
+      end
+
+      it 'does not match when current time is inside the range' do
+        expect(perform_at('2026-10-21 10:30:00')).to be(false)
+      end
+    end
+
+    context 'when combined with another condition (message_type incoming AND franja)' do
+      before do
+        message
+        rule.conditions = [
+          { 'values': ['incoming'], 'attribute_key': 'message_type', 'query_operator': 'AND', 'filter_operator': 'equal_to' },
+          { 'values': { 'from': '18:30', 'to': '08:00' }, 'attribute_key': 'current_time',
+            'query_operator': nil, 'filter_operator': 'is_between' }
+        ]
+        rule.save
+      end
+
+      it 'matches when both the message is incoming and the time is in range' do
+        expect(perform_at('2026-10-21 23:00:00', { message: message })).to be(true)
+      end
+
+      it 'does not match when the time is out of range even if the message is incoming' do
+        expect(perform_at('2026-10-21 12:00:00', { message: message })).to be(false)
+      end
+    end
+
+    context 'with an invalid or incomplete range' do
+      before do
+        rule.conditions = [{ 'values': { 'from': '18:30', 'to': '' }, 'attribute_key': 'current_time',
+                             'query_operator': nil, 'filter_operator': 'is_between' }]
+        rule.save
+      end
+
+      it 'does not match' do
+        expect(perform_at('2026-10-21 23:00:00')).to be(false)
+      end
+    end
+  end
+
+  # Jabvox: condicion por TIPO de contenido del mensaje (attachment_type).
+  # Se evalua en Ruby sobre el mensaje del evento (message_created), igual que la
+  # franja horaria. 'text' = mensaje sin adjuntos.
+  context 'when condition is based on attachment_type (tipo de contenido)' do
+    def mensaje_con_adjunto(tipo)
+      msg = create(:message, account: account, conversation: conversation,
+                             inbox: conversation.inbox, message_type: :incoming, content: 'hola')
+      msg.attachments.create!(account_id: account.id, file_type: tipo) unless tipo.nil?
+      msg
+    end
+
+    def match?(tipo_mensaje, operador, tipo_buscado)
+      rule.conditions = [{ 'values' => [tipo_buscado], 'attribute_key' => 'attachment_type',
+                           'query_operator' => nil, 'filter_operator' => operador }]
+      rule.save!
+      msg = mensaje_con_adjunto(tipo_mensaje)
+      described_class.new(rule, msg.conversation, { message: msg, changed_attributes: {} }).perform
+    end
+
+    it 'matchea cuando el mensaje contiene una imagen' do
+      expect(match?(:image, 'contains', 'image')).to be(true)
+    end
+
+    it 'matchea cuando el mensaje contiene un audio' do
+      expect(match?(:audio, 'contains', 'audio')).to be(true)
+    end
+
+    it 'NO matchea cuando se busca imagen pero el adjunto es audio' do
+      expect(match?(:audio, 'contains', 'image')).to be(false)
+    end
+
+    it "matchea 'text' cuando el mensaje no tiene adjuntos" do
+      expect(match?(nil, 'contains', 'text')).to be(true)
+    end
+
+    it "NO matchea 'text' cuando el mensaje sí tiene adjunto" do
+      expect(match?(:image, 'contains', 'text')).to be(false)
+    end
+
+    it 'does_not_contain: matchea cuando el mensaje NO tiene ese tipo' do
+      expect(match?(:audio, 'does_not_contain', 'image')).to be(true)
+    end
+
+    it 'does_not_contain: NO matchea cuando el mensaje SÍ tiene ese tipo' do
+      expect(match?(:image, 'does_not_contain', 'image')).to be(false)
+    end
+
+    # La UI ofrece "Igual a"/"Distinto de" además de "Contiene"/"No contiene"
+    # (OPERATOR_TYPES_2). Para esta condición equal_to == contains y
+    # not_equal_to == does_not_contain: una regla guardada con "Igual a" debe disparar
+    # (antes fallaba la validación y se desactivaba sola).
+    it 'equal_to: matchea cuando el mensaje es de ese tipo (= contains)' do
+      expect(match?(:audio, 'equal_to', 'audio')).to be(true)
+    end
+
+    it 'equal_to: NO matchea cuando el mensaje es de otro tipo' do
+      expect(match?(:audio, 'equal_to', 'image')).to be(false)
+    end
+
+    it 'not_equal_to: matchea cuando el mensaje NO es de ese tipo (= does_not_contain)' do
+      expect(match?(:audio, 'not_equal_to', 'image')).to be(true)
+    end
+
+    it 'not_equal_to: NO matchea cuando el mensaje SÍ es de ese tipo' do
+      expect(match?(:audio, 'not_equal_to', 'audio')).to be(false)
+    end
+
+    it 'combinado con message_type incoming (ambas deben cumplirse)' do
+      rule.conditions = [
+        { 'values' => ['incoming'], 'attribute_key' => 'message_type', 'query_operator' => 'AND', 'filter_operator' => 'equal_to' },
+        { 'values' => ['image'], 'attribute_key' => 'attachment_type', 'query_operator' => nil, 'filter_operator' => 'contains' }
+      ]
+      rule.save!
+      msg = mensaje_con_adjunto(:image)
+      expect(described_class.new(rule, msg.conversation, { message: msg, changed_attributes: {} }).perform).to be(true)
     end
   end
 end

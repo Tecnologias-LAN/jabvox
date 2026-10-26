@@ -14,6 +14,13 @@ defineProps({
     type: Boolean,
     required: true,
   },
+  // Cuando hay un filtro personalizado o carpeta activa, el "Estado" ya lo define
+  // el propio filtro, así que ocultamos ese selector y dejamos SOLO "Ordenar por".
+  // Esto permite ordenar también dentro de filtros (antes el control desaparecía).
+  onlySort: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['changeFilter']);
@@ -157,7 +164,10 @@ const handleSortChange = value => {
         'ltr:right-0 rtl:left-0': isOnExpandedLayout,
       }"
     >
-      <div class="flex items-center justify-between last:mt-4 gap-2">
+      <div
+        v-if="!onlySort"
+        class="flex items-center justify-between last:mt-4 gap-2"
+      >
         <span class="text-sm truncate text-n-slate-12">
           {{ $t('CHAT_LIST.CHAT_SORT.STATUS') }}
         </span>

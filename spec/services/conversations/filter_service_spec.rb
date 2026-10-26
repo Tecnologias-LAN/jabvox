@@ -677,4 +677,138 @@ describe Conversations::FilterService do
       expect(result[:conversations].count).to eq 1
     end
   end
+
+  # Antes el orden estaba hardcodeado a last_activity_at dentro del filtro, así que
+  # el selector "Ordenar por" no tenía efecto con filtros activos. Ahora respeta
+  # params[:sort_by] reutilizando el mismo mapa que las vistas normales.
+  describe '#perform with sort_by' do
+    let!(:account) { create(:account) }
+    let!(:admin) { create(:user, account: account, role: :administrator) }
+    let!(:inbox) { create(:inbox, account: account, enable_auto_assignment: false) }
+
+    let!(:old_conv) { create(:conversation, account: account, inbox: inbox) }
+    let!(:new_conv) { create(:conversation, account: account, inbox: inbox) }
+
+    before do
+      account.conversations.where.not(id: [old_conv.id, new_conv.id]).destroy_all
+      old_conv.update!(created_at: 3.days.ago, last_activity_at: 3.days.ago)
+      new_conv.update!(created_at: 1.hour.ago, last_activity_at: 1.hour.ago)
+    end
+
+    def ids_for(sort_by)
+      params = { payload: [], page: 1, sort_by: sort_by }
+      filter_service.new(params, admin, account).perform[:conversations].map(&:id)
+    end
+
+    it 'orders by created_at_asc (más antigua primero)' do
+      expect(ids_for('created_at_asc')).to eq [old_conv.id, new_conv.id]
+    end
+
+    it 'orders by created_at_desc (más reciente primero)' do
+      expect(ids_for('created_at_desc')).to eq [new_conv.id, old_conv.id]
+    end
+
+    it 'orders by last_activity_at_asc' do
+      expect(ids_for('last_activity_at_asc')).to eq [old_conv.id, new_conv.id]
+    end
+
+    it 'defaults to last_activity_at_desc when sort_by is missing' do
+      params = { payload: [], page: 1 }
+      expect(filter_service.new(params, admin, account).perform[:conversations].map(&:id))
+        .to eq [new_conv.id, old_conv.id]
+    end
+
+    it 'falls back to last_activity_at_desc on an unknown sort_by (no explota)' do
+      expect(ids_for('valor_invalido_xyz')).to eq [new_conv.id, old_conv.id]
+    end
+
+    # Los scopes con ORDER complejo (joins / columnas de otras tablas) no deben
+    # romper al combinarse con el includes/permission del filtro.
+    %w[unread waiting_since_asc waiting_since_desc priority_desc priority_asc
+       priority_desc_created_at_asc].each do |sort_by|
+      it "does not raise for sort_by=#{sort_by}" do
+        expect { ids_for(sort_by) }.not_to raise_error
+      end
+    end
+  end
+
+  # AGRUPACIÓN (paréntesis) en filtros de conversación: "A AND (B OR C)".
+  describe '#perform with condition GROUPS (parentheses)' do
+    let!(:account) { create(:account) }
+    let!(:admin) { create(:user, account: account, role: :administrator) }
+    let!(:inbox) { create(:inbox, account: account, enable_auto_assignment: false) }
+
+    let!(:conv_high_vip) { create(:conversation, account: account, inbox: inbox, priority: :high) }
+    let!(:conv_high_plain) { create(:conversation, account: account, inbox: inbox, priority: :high) }
+    let!(:conv_low_vip) { create(:conversation, account: account, inbox: inbox, priority: :low) }
+
+    before do
+      account.conversations.where.not(id: [conv_high_vip.id, conv_high_plain.id, conv_low_vip.id]).destroy_all
+      conv_high_vip.update!(label_list: ['vip'])
+      conv_low_vip.update!(label_list: ['vip'])
+    end
+
+    def run(payload)
+      params = ActionController::Parameters.new(payload: payload, page: 1).permit!
+      filter_service.new(params, admin, account).perform[:conversations].map(&:id)
+    end
+
+    # prioridad = high  AND  ( etiqueta vip  OR  etiqueta premium )
+    it 'matches A AND (B OR C): only high-priority with vip/premium' do
+      payload = [
+        { attribute_key: 'priority', filter_operator: 'equal_to', values: ['high'], query_operator: 'AND' },
+        { type: 'group', query_operator: nil, child_operator: 'OR', conditions: [
+          { attribute_key: 'labels', filter_operator: 'equal_to', values: ['vip'], query_operator: 'OR' },
+          { attribute_key: 'labels', filter_operator: 'equal_to', values: ['premium'], query_operator: nil }
+        ] }
+      ]
+      ids = run(payload)
+      expect(ids).to include(conv_high_vip.id)       # high + vip  -> sí
+      expect(ids).not_to include(conv_low_vip.id)    # low + vip   -> no (falla la obligatoria)
+      expect(ids).not_to include(conv_high_plain.id) # high sin etiqueta -> no (falla el grupo)
+    end
+
+    it 'keeps backward compatibility with a flat payload (no groups)' do
+      payload = [
+        { attribute_key: 'priority', filter_operator: 'equal_to', values: ['high'], query_operator: nil }
+      ]
+      ids = run(payload)
+      expect(ids).to contain_exactly(conv_high_vip.id, conv_high_plain.id)
+    end
+
+    # SEGURIDAD (capa 1 — validación): un query_operator de grupo que no sea AND/OR
+    # se rechaza con InvalidQueryOperator antes de construir el SQL.
+    it 'rejects an invalid group query_operator (validation layer)' do
+      params = ActionController::Parameters.new(
+        payload: [
+          { attribute_key: 'priority', filter_operator: 'equal_to', values: ['high'], query_operator: 'AND' },
+          { type: 'group', query_operator: ') OR 1=1 --', child_operator: 'OR',
+            conditions: [
+              { attribute_key: 'labels', filter_operator: 'equal_to', values: ['vip'], query_operator: nil }
+            ] }
+        ],
+        page: 1
+      ).permit!
+      expect { filter_service.new(params, admin, account).perform }
+        .to raise_error(CustomExceptions::CustomFilter::InvalidQueryOperator)
+    end
+
+    # SEGURIDAD (capa 2 — normalización): aunque se saltara la validación, el operador
+    # del grupo se normaliza a AND/OR o se descarta; nunca se interpola texto crudo.
+    it 'normalizes group operators so no SQL injection reaches the WHERE' do
+      # child_operator malicioso: se fuerza a OR por defecto; query_operator vacío (último).
+      payload = [
+        { attribute_key: 'priority', filter_operator: 'equal_to', values: ['high'], query_operator: 'AND' },
+        { type: 'group', query_operator: nil, child_operator: '; DROP TABLE conversations; --',
+          conditions: [
+            { attribute_key: 'labels', filter_operator: 'equal_to', values: ['vip'], query_operator: nil }
+          ] }
+      ]
+      ids = run(payload)
+      expect(ids).to include(conv_high_vip.id)
+      expect(ids).not_to include(conv_low_vip.id) # low priority -> excluido por la obligatoria
+      # La tabla sigue existiendo (si hubiera inyección de DROP, esto fallaría).
+      expect(Conversation.count).to be >= 3
+    end
+  end
 end

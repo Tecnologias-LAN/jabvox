@@ -85,4 +85,71 @@ describe('#filterQueryGenerator', () => {
       ],
     });
   });
+
+  it('serializes a GROUP with camelCase child keys to snake_case', () => {
+    const result = filterQueryGenerator([
+      {
+        attribute_key: 'status',
+        filter_operator: 'equal_to',
+        values: [{ id: 'open', name: 'Open' }],
+        query_operator: 'and',
+      },
+      {
+        type: 'group',
+        queryOperator: 'and',
+        childOperator: 'or',
+        conditions: [
+          {
+            attributeKey: 'labels',
+            filterOperator: 'equal_to',
+            values: [{ id: 'vip', name: 'vip' }],
+            queryOperator: 'or',
+          },
+          {
+            attributeKey: 'labels',
+            filterOperator: 'equal_to',
+            values: [{ id: 'premium', name: 'premium' }],
+            queryOperator: 'or',
+          },
+        ],
+      },
+    ]);
+
+    expect(result).toMatchObject({
+      payload: [
+        {
+          attribute_key: 'status',
+          filter_operator: 'equal_to',
+          values: ['open'],
+          query_operator: 'and',
+        },
+        {
+          type: 'group',
+          child_operator: 'or',
+          conditions: [
+            {
+              attribute_key: 'labels',
+              filter_operator: 'equal_to',
+              values: ['vip'],
+              query_operator: 'or',
+            },
+            {
+              attribute_key: 'labels',
+              filter_operator: 'equal_to',
+              values: ['premium'],
+            },
+          ],
+        },
+      ],
+    });
+
+    // La última condición del grupo y el último elemento raíz no llevan operador.
+    const group = result.payload[1];
+    expect(
+      group.conditions[group.conditions.length - 1].query_operator
+    ).toBeUndefined();
+    expect(
+      result.payload[result.payload.length - 1].query_operator
+    ).toBeUndefined();
+  });
 });

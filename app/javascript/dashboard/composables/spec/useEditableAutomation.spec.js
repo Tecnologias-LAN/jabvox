@@ -93,6 +93,62 @@ describe('useEditableAutomation', () => {
     expect(result.conditions[0].values).toEqual({ from: '18:30', to: '08:00' });
   });
 
+  it('rehydrates a GROUP (parentheses) condition preserving its structure', () => {
+    // Al editar una regla guardada con un grupo "A AND (B OR C)", el grupo debe
+    // conservar type/child_operator y manifestar cada hija como condición plana,
+    // sin reventar al leer condition.attribute_key (que en el grupo es undefined).
+    const automation = {
+      event_name: 'message_created',
+      conditions: [
+        {
+          attribute_key: 'private_note',
+          filter_operator: 'equal_to',
+          values: [true],
+          query_operator: 'and',
+        },
+        {
+          type: 'group',
+          query_operator: null,
+          child_operator: 'or',
+          conditions: [
+            {
+              attribute_key: 'private_note',
+              filter_operator: 'equal_to',
+              values: [false],
+              query_operator: 'or',
+            },
+            {
+              attribute_key: 'private_note',
+              filter_operator: 'equal_to',
+              values: [true],
+              query_operator: null,
+            },
+          ],
+        },
+      ],
+      actions: [],
+    };
+    const automationTypes = {
+      message_created: {
+        conditions: [{ key: 'private_note', inputType: 'search_select' }],
+      },
+    };
+
+    const { formatAutomation } = useEditableAutomation();
+    const result = formatAutomation(automation, [], automationTypes, []);
+
+    // La condición plana se manifiesta normal.
+    expect(result.conditions[0].attribute_key).toBe('private_note');
+    // El grupo conserva su estructura.
+    const group = result.conditions[1];
+    expect(group.type).toBe('group');
+    expect(group.child_operator).toBe('or');
+    expect(group.conditions).toHaveLength(2);
+    // Sus hijas se manifiestan (values resueltos a la opción seleccionada).
+    expect(group.conditions[0].values).toEqual({ id: false, name: 'False' });
+    expect(group.conditions[1].values).toEqual({ id: true, name: 'True' });
+  });
+
   it('rehydrates last responding agent as a selected action option', () => {
     const automation = {
       event_name: 'conversation_created',

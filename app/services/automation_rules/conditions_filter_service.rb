@@ -1,6 +1,6 @@
 require 'json'
 
-class AutomationRules::ConditionsFilterService < FilterService
+class AutomationRules::ConditionsFilterService < FilterService # rubocop:disable Metrics/ClassLength
   include AutomationRules::CurrentTimeCondition
   include AutomationRules::AttachmentTypeCondition
   include AutomationRules::AttributeChangedFilter
@@ -64,16 +64,63 @@ class AutomationRules::ConditionsFilterService < FilterService
   # horaria en Ruby y acumula el resto como filtro SQL. Devuelve false si una
   # condicion de hora no se cumple.
   def build_filters
-    @rule.conditions.each_with_index do |query_hash, current_index|
-      @attribute_changed_query_filter << query_hash and next if query_hash['filter_operator'] == 'attribute_changed'
-
-      case ruby_condition_outcome(query_hash)
-      when :skip then next        # condicion Ruby cumplida: no aporta SQL
-      when :fail then return false # condicion Ruby no cumplida: la regla no matchea
-      else apply_filter(query_hash, current_index) # condicion SQL normal
+    # Índice GLOBAL de condición: los binds (:value_N) deben ser únicos aunque las
+    # condiciones vivan dentro de grupos. No se reinicia por grupo.
+    @condition_index = 0
+    @rule.conditions.each do |query_hash|
+      if group?(query_hash)
+        return false unless build_group_filter(query_hash)
+      else
+        return false unless apply_single_condition(query_hash)
       end
     end
     true
+  end
+
+  # Procesa una condición plana (legacy). Devuelve false solo si una condición Ruby
+  # (franja horaria) no se cumple y por tanto la regla no matchea.
+  def apply_single_condition(query_hash)
+    @attribute_changed_query_filter << query_hash and return true if query_hash['filter_operator'] == 'attribute_changed'
+
+    case ruby_condition_outcome(query_hash)
+    when :skip then true          # condicion Ruby cumplida: no aporta SQL
+    when :fail then false         # condicion Ruby no cumplida: la regla no matchea
+    else
+      apply_filter(query_hash, @condition_index) # condicion SQL normal
+      @condition_index += 1
+      true
+    end
+  end
+
+  # Emite "( hija1 OP hija2 ... ) query_operator" acumulando el SQL de cada hija por
+  # separado, para expresar "A AND (B OR C)". child_operator une las hijas;
+  # query_operator une el grupo con lo siguiente. Las condiciones Ruby (franja horaria)
+  # dentro del grupo se evalúan igual: si una falla, la regla no matchea (coherente con
+  # el AND global). Devuelve false si una hija Ruby no se cumple.
+  def build_group_filter(group_hash)
+    pieces = []
+    group_children(group_hash).each do |child|
+      fragment = capture_child_fragment(child) { |ok| return false unless ok }
+      pieces << fragment if fragment.present?
+    end
+    return true if pieces.empty?
+
+    @query_string += " (#{pieces.join(" #{group_child_operator(group_hash)} ")}) #{safe_group_operator(group_hash)} "
+    true
+  end
+
+  # Ejecuta una hija del grupo capturando SOLO el SQL que produce (aislándolo de
+  # @query_string) y quitándole su query_operator final, para no tocar los AND
+  # internos de una subconsulta (ej. labels NOT IN (... AND ...)). Cede el resultado
+  # de evaluación (ok) al bloque para que el llamador pueda cortar si una hija falla.
+  def capture_child_fragment(child)
+    saved = @query_string
+    @query_string = ''
+    ok = apply_single_condition(child)
+    fragment = @query_string
+    @query_string = saved
+    yield ok
+    strip_trailing_operator(fragment.strip)
   end
 
   def rule_valid?
@@ -174,7 +221,7 @@ class AutomationRules::ConditionsFilterService < FilterService
 
       value_placeholder = "value_#{current_index}"
       @filter_values[value_placeholder] = query_hash['values'].first
-      " tags.name != :#{value_placeholder} #{query_operator} "
+      "#{label_not_equal_sql(value_placeholder)} #{query_operator} "
     when 'is_present'
       " tags.id IS NOT NULL #{query_operator} "
     when 'is_not_present'
@@ -185,6 +232,20 @@ class AutomationRules::ConditionsFilterService < FilterService
   end
 
   private
+
+  # "No igual a X" debe ser verdadero cuando la conversación NO tiene la etiqueta X
+  # — ya sea porque no tiene NINGUNA etiqueta, o porque tiene otras distintas de X.
+  # Con el LEFT JOIN, `tags.name != :x` fallaba para las conversaciones SIN
+  # etiquetas (tags.name = NULL => NULL != 'x' = NULL, no TRUE), así que la regla no
+  # disparaba para clientes nuevos sin etiquetar. Usamos una subconsulta a nivel de
+  # conversación (igual que el filtro de conversaciones) para que ambos casos
+  # coincidan. El placeholder va sanitizado por el bind de @filter_values.
+  def label_not_equal_sql(value_placeholder)
+    'conversations.id NOT IN (' \
+      'SELECT taggings.taggable_id FROM taggings ' \
+      'INNER JOIN tags ON taggings.tag_id = tags.id ' \
+      "WHERE taggings.taggable_type = 'Conversation' AND tags.name = :#{value_placeholder})"
+  end
 
   def base_relation
     records = Conversation.where(id: @conversation.id).joins(
@@ -206,7 +267,9 @@ class AutomationRules::ConditionsFilterService < FilterService
     records
   end
 
+  # Detecta condiciones de etiquetas también DENTRO de grupos, para añadir el JOIN
+  # a taggings/tags cuando corresponda (si no, el SQL de labels del grupo no resuelve).
   def label_conditions?
-    @rule.conditions.any? { |condition| condition['attribute_key'] == 'labels' }
+    flatten_conditions(@rule.conditions).any? { |condition| group_attr(condition, :attribute_key) == 'labels' }
   end
 end

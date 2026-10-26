@@ -36,6 +36,10 @@ class ConversationApi extends ApiClient {
     return axios.post(`${this.url}/filter`, payload.queryData, {
       params: {
         page: payload.page,
+        // Orden elegido en el selector "Ordenar por". El backend
+        // (Conversations::FilterService) lo lee de params[:sort_by]; si no viene,
+        // cae a last_activity_at_desc. Permite ordenar también con filtros activos.
+        sort_by: payload.sortBy,
       },
     });
   }

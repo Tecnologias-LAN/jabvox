@@ -400,6 +400,7 @@ function fetchFilteredConversations(payload) {
     .dispatch('fetchFilteredConversations', {
       queryData: filterQueryGenerator(payload),
       page,
+      sortBy: activeSortBy.value,
     })
     .then(emitConversationLoaded);
 
@@ -413,6 +414,7 @@ function fetchSavedFilteredConversations(payload) {
     .dispatch('fetchFilteredConversations', {
       queryData: payload,
       page,
+      sortBy: activeSortBy.value,
     })
     .then(emitConversationLoaded);
 }
@@ -522,7 +524,9 @@ function initializeFolderToFilterModal(newActiveFolder) {
   const query = unref(newActiveFolder)?.query?.payload;
   if (!Array.isArray(query)) return;
 
-  const newFilters = query.map(filter => {
+  // Reconstruye una condición plana guardada (snake_case) a la forma camelCase
+  // que usa la UI, resolviendo sus values para mostrarlos en los selectores.
+  const buildFlatCondition = filter => {
     const transformed = useCamelCase(filter);
     const values = Array.isArray(transformed.values)
       ? generateValuesForEditCustomViews(
@@ -539,6 +543,19 @@ function initializeFolderToFilterModal(newActiveFolder) {
       queryOperator: transformed.queryOperator ?? 'and',
       values,
     };
+  };
+
+  const newFilters = query.map(filter => {
+    // Un GRUPO guardado conserva su estructura; reconstruimos sus hijas una a una.
+    if (filter?.type === 'group') {
+      return {
+        type: 'group',
+        queryOperator: useCamelCase(filter).queryOperator ?? 'and',
+        childOperator: useCamelCase(filter).childOperator ?? 'or',
+        conditions: (filter.conditions || []).map(buildFlatCondition),
+      };
+    }
+    return buildFlatCondition(filter);
   });
 
   appliedFilter.value = [...appliedFilter.value, ...newFilters];

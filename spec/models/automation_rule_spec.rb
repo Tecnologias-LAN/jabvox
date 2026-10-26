@@ -105,6 +105,42 @@ RSpec.describe AutomationRule do
       rule = FactoryBot.build(:automation_rule, params)
       expect(rule.valid?).to be true
     end
+
+    # GRUPOS (paréntesis) — validación y seguridad.
+    it 'allows a valid GROUP of conditions' do
+      params[:conditions] = [
+        { attribute_key: 'browser_language', filter_operator: 'equal_to', values: ['en'], query_operator: 'AND' },
+        { type: 'group', query_operator: nil, child_operator: 'or', conditions: [
+          { attribute_key: 'labels', filter_operator: 'equal_to', values: ['bug'], query_operator: 'OR' },
+          { attribute_key: 'labels', filter_operator: 'equal_to', values: ['feature'], query_operator: nil }
+        ] }
+      ]
+      rule = FactoryBot.build(:automation_rule, params)
+      expect(rule.valid?).to be true
+    end
+
+    it 'rejects a GROUP containing an unsupported attribute_key' do
+      params[:conditions] = [
+        { type: 'group', query_operator: nil, child_operator: 'or', conditions: [
+          { attribute_key: 'definitely_not_a_real_attribute', filter_operator: 'equal_to', values: ['x'], query_operator: nil }
+        ] }
+      ]
+      rule = FactoryBot.build(:automation_rule, params)
+      expect(rule.valid?).to be false
+      expect(rule.errors.messages[:conditions].join).to include('not supported')
+    end
+
+    it 'rejects a GROUP with more than one child missing a query operator' do
+      params[:conditions] = [
+        { type: 'group', query_operator: nil, child_operator: 'or', conditions: [
+          { attribute_key: 'labels', filter_operator: 'equal_to', values: ['bug'], query_operator: nil },
+          { attribute_key: 'labels', filter_operator: 'equal_to', values: ['feature'], query_operator: nil }
+        ] }
+      ]
+      rule = FactoryBot.build(:automation_rule, params)
+      expect(rule.valid?).to be false
+      expect(rule.errors.messages[:conditions].join).to include('Group conditions should have query operator')
+    end
   end
 
   describe 'reauthorizable' do

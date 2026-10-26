@@ -11,6 +11,7 @@ import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import Button from 'next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import ConditionRow from './ConditionRow.vue';
+import ConditionGroup from './ConditionGroup.vue';
 
 const props = defineProps({
   isFolderView: {
@@ -58,6 +59,31 @@ const addFilter = () => {
   filters.value.push({ ...DEFAULT_FILTER });
 };
 
+// Un GRUPO (paréntesis) arranca con dos condiciones unidas por OR: "(A O B)".
+const addGroup = () => {
+  filters.value.push({
+    type: 'group',
+    queryOperator: 'and',
+    childOperator: 'or',
+    conditions: [
+      {
+        attributeKey: 'status',
+        filterOperator: 'equal_to',
+        values: [],
+        queryOperator: 'or',
+      },
+      {
+        attributeKey: 'status',
+        filterOperator: 'equal_to',
+        values: [],
+        queryOperator: 'or',
+      },
+    ],
+  });
+};
+
+const isGroup = filter => filter?.type === 'group';
+
 const conditionsRef = useTemplateRef('conditionsRef');
 
 const isConditionsValid = () => {
@@ -81,11 +107,19 @@ function validateAndSubmit() {
   );
   emit('applyFilter', filters.value);
   useTrack(CONVERSATION_EVENTS.APPLY_FILTER, {
-    appliedFilters: filters.value.map(filter => ({
-      key: filter.attributeKey,
-      operator: filter.filterOperator,
-      queryOperator: filter.queryOperator,
-    })),
+    appliedFilters: filters.value.map(filter =>
+      isGroup(filter)
+        ? {
+            key: 'group',
+            childOperator: filter.childOperator,
+            queryOperator: filter.queryOperator,
+          }
+        : {
+            key: filter.attributeKey,
+            operator: filter.filterOperator,
+            queryOperator: filter.queryOperator,
+          }
+    ),
   });
 }
 
@@ -120,11 +154,22 @@ const outsideClickHandler = [
       </div>
     </div>
     <ul class="grid gap-4 list-none">
-      <template v-for="(filter, index) in filters" :key="filter.id">
-        <ConditionRow
-          v-if="index === 0"
+      <template v-for="(filter, index) in filters" :key="index">
+        <!-- GRUPO (paréntesis): "(A O B)" -->
+        <ConditionGroup
+          v-if="isGroup(filter)"
           ref="conditionsRef"
-          :key="`filter-${filter.attributeKey}-0`"
+          v-model:query-operator="filters[index - 1].queryOperator"
+          v-model:child-operator="filter.childOperator"
+          v-model:conditions="filter.conditions"
+          :filter-types="filterTypes"
+          :show-query-operator="index !== 0"
+          @remove="removeFilter(index)"
+        />
+        <!-- Condición plana, primera fila (sin operador Y/O delante) -->
+        <ConditionRow
+          v-else-if="index === 0"
+          ref="conditionsRef"
           v-model:attribute-key="filter.attributeKey"
           v-model:filter-operator="filter.filterOperator"
           v-model:values="filter.values"
@@ -132,9 +177,9 @@ const outsideClickHandler = [
           :show-query-operator="false"
           @remove="removeFilter(index)"
         />
+        <!-- Condición plana, resto de filas (con operador Y/O delante) -->
         <ConditionRow
           v-else
-          :key="`filter-${filter.attributeKey}-${index}`"
           ref="conditionsRef"
           v-model:attribute-key="filter.attributeKey"
           v-model:filter-operator="filter.filterOperator"
@@ -147,9 +192,14 @@ const outsideClickHandler = [
       </template>
     </ul>
     <div class="flex gap-2 justify-between">
-      <Button sm ghost blue @click="addFilter">
-        {{ $t('FILTER.ADD_NEW_FILTER') }}
-      </Button>
+      <div class="flex gap-2">
+        <Button sm ghost blue @click="addFilter">
+          {{ $t('FILTER.ADD_NEW_FILTER') }}
+        </Button>
+        <Button sm ghost blue @click="addGroup">
+          {{ $t('FILTER.GROUP.ADD_GROUP') }}
+        </Button>
+      </div>
       <div class="flex gap-2">
         <Button sm faded slate @click="resetFilter">
           {{ t('FILTER.CLEAR_BUTTON_LABEL') }}

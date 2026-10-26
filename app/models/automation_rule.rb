@@ -66,13 +66,26 @@ class AutomationRule < ApplicationRecord
 
   private
 
+  # Una condición puede ser plana o un GRUPO ({ type: 'group', conditions: [...] }).
+  # flattened_conditions aplana los grupos para validar sus hijas como si fueran
+  # condiciones de primer nivel (mantiene la retrocompatibilidad con el array plano).
+  def flattened_conditions
+    (conditions || []).flat_map do |obj|
+      group_condition?(obj) ? (obj['conditions'] || obj[:conditions] || []) : [obj]
+    end
+  end
+
+  def group_condition?(obj)
+    obj.is_a?(Hash) && (obj['type'].to_s == 'group' || obj[:type].to_s == 'group')
+  end
+
   def json_conditions_format
     return if conditions.blank?
 
-    attributes = conditions.map { |obj, _| obj['attribute_key'] }
-    conditions = attributes - conditions_attributes
-    conditions -= account.custom_attribute_definitions.pluck(:attribute_key)
-    errors.add(:conditions, "Automation conditions #{conditions.join(',')} not supported.") if conditions.any?
+    attributes = flattened_conditions.map { |obj| obj['attribute_key'] } # rubocop:disable Rails/Pluck
+    unsupported = attributes - conditions_attributes
+    unsupported -= account.custom_attribute_definitions.pluck(:attribute_key)
+    errors.add(:conditions, "Automation conditions #{unsupported.join(',')} not supported.") if unsupported.any?
   end
 
   def json_actions_format
@@ -87,16 +100,32 @@ class AutomationRule < ApplicationRecord
   def query_operator_presence
     return if conditions.blank?
 
-    operators = conditions.select { |obj, _| obj['query_operator'].nil? }
-    errors.add(:conditions, 'Automation conditions should have query operator.') if operators.length > 1
+    # A nivel raíz solo la última condición/grupo puede ir sin query_operator.
+    root_dangling = conditions.count { |obj| obj['query_operator'].nil? }
+    errors.add(:conditions, 'Automation conditions should have query operator.') if root_dangling > 1
+
+    # Dentro de cada grupo, igual: solo su última hija puede ir sin operador.
+    errors.add(:conditions, 'Group conditions should have query operator.') if any_group_with_dangling_operators?
+  end
+
+  def any_group_with_dangling_operators?
+    conditions.any? do |obj|
+      group_condition?(obj) && group_children_of(obj).count { |child| child['query_operator'].nil? } > 1
+    end
+  end
+
+  def group_children_of(obj)
+    obj['conditions'] || obj[:conditions] || []
   end
 
   # This validation ensures logical operators are being used correctly in automation conditions.
   # And we don't push any unsanitized query operators to the database.
   def query_operator_value
-    conditions.each do |obj|
+    flattened_conditions.each do |obj|
       validate_single_condition(obj)
     end
+    # También valida el operador del grupo en sí.
+    (conditions || []).each { |obj| validate_single_condition(obj) if group_condition?(obj) }
   end
 
   def validate_single_condition(condition)

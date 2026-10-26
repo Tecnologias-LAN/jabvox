@@ -1,8 +1,9 @@
 require 'json'
 
-class FilterService
+class FilterService # rubocop:disable Metrics/ClassLength
   include Filters::FilterHelper
   include Filters::CustomAttributeFilterHelper
+  include Filters::ConditionGroupSupport
   include CustomExceptions::CustomFilter
 
   ATTRIBUTE_MODEL = 'conversation_attribute'.freeze
@@ -205,16 +206,60 @@ class FilterService
     "NOT LIKE :value_#{current_index}"
   end
 
+  # Construye el WHERE a partir del payload. Cada elemento del array puede ser:
+  #  - una condición PLANA (formato legacy): { attribute_key, filter_operator, values, query_operator }
+  #  - un GRUPO (nuevo): { type: 'group', query_operator, child_operator, conditions: [ ...planas... ] }
+  # Un grupo se emite entre paréntesis uniendo sus hijas con child_operator (AND/OR),
+  # lo que permite expresar "A AND (B OR C)". El formato plano sigue intacto
+  # (retrocompatibilidad: reglas/filtros guardados antes siguen funcionando igual).
   def query_builder(model_filters)
-    @params[:payload].each_with_index do |query_hash, current_index|
-      @query_string += " #{build_condition_query(model_filters, query_hash, current_index).strip}"
+    # Índice GLOBAL de condición, para que los placeholders de binds (:value_N) sean
+    # únicos aunque las condiciones estén repartidas entre grupos y el nivel raíz.
+    @condition_index = 0
+    @params[:payload].each do |query_hash|
+      fragment = if group?(query_hash)
+                   build_group_query(model_filters, query_hash)
+                 else
+                   piece = build_condition_query(model_filters, query_hash, @condition_index).strip
+                   @condition_index += 1
+                   piece
+                 end
+      @query_string += " #{fragment}" if fragment.present?
     end
-    base_relation.where(@query_string, @filter_values.with_indifferent_access)
+    base_relation.where(@query_string.strip, @filter_values.with_indifferent_access)
+  end
+
+  # Emite "( hija1 OP hija2 OP ... ) query_operator" para un grupo.
+  # child_operator (AND/OR) une las condiciones DENTRO del grupo; query_operator
+  # (AND/OR) une el grupo entero con lo que venga DESPUÉS (igual que una condición plana).
+  def build_group_query(model_filters, group_hash)
+    child_operator = group_child_operator(group_hash)
+    group_operator = safe_group_operator(group_hash)
+
+    pieces = group_children(group_hash).map { |child| group_child_fragment(model_filters, child) }.reject(&:blank?)
+    return '' if pieces.empty?
+
+    "(#{pieces.join(" #{child_operator} ")}) #{group_operator}".strip
+  end
+
+  # Fragmento SQL de una hija del grupo, sin su query_operator final (el grupo pone
+  # el child_operator entre hijas), avanzando el índice global de binds.
+  def group_child_fragment(model_filters, child)
+    frag = strip_trailing_operator(build_condition_query(model_filters, child, @condition_index).strip)
+    @condition_index += 1
+    frag
   end
 
   def validate_query_operator
     @params[:payload].each do |query_hash|
-      validate_single_condition(query_hash)
+      if group?(query_hash)
+        # Defensa en profundidad: validar el operador del PROPIO nodo grupo (además
+        # de normalizarlo en build_group_query) y el de cada hija.
+        validate_single_condition(query_hash)
+        group_children(query_hash).each { |child| validate_single_condition(child) }
+      else
+        validate_single_condition(query_hash)
+      end
     end
   end
 end

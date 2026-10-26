@@ -63,6 +63,25 @@ export function useAutomation(startValue = null) {
   };
 
   /**
+   * Appends a new GROUP (parentheses) of conditions to the automation.
+   * A group lets you express "A AND (B OR C)". It starts with two generic
+   * conditions joined by OR; the user then edits attribute/operator/value.
+   */
+  const appendNewGroup = () => {
+    const [base] = getDefaultConditions(eventName.value);
+    const child = () => ({ ...base, query_operator: 'or' });
+    automation.value.conditions = [
+      ...automation.value.conditions,
+      {
+        type: 'group',
+        query_operator: 'and',
+        child_operator: 'or',
+        conditions: [child(), child()],
+      },
+    ];
+  };
+
+  /**
    * Appends a new action to the automation.value.
    */
   const appendNewAction = () => {
@@ -198,6 +217,7 @@ export function useAutomation(startValue = null) {
     onEventChange,
     getConditionDropdownValues,
     appendNewCondition,
+    appendNewGroup,
     appendNewAction,
     removeFilter,
     removeAction,
