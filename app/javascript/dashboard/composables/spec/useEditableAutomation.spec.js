@@ -149,6 +149,48 @@ describe('useEditableAutomation', () => {
     expect(group.conditions[1].values).toEqual({ id: true, name: 'True' });
   });
 
+  it('preserves a stored label value even if the dropdown has not loaded', () => {
+    // Regresión (regla "Asignar a melany", cuenta 37): una condición de etiquetas
+    // con values ["asesor-diferente"]. Si getConditionDropdownValues('labels')
+    // devuelve [] (etiquetas aún sin cargar, renombradas o id como texto), el
+    // valor NO debe perderse: se preserva como opción sintética { id, name } para
+    // que la validación no marque el recuadro de condiciones en rojo sin texto.
+    const automation = {
+      event_name: 'message_created',
+      conditions: [
+        {
+          attribute_key: 'message_type',
+          filter_operator: 'equal_to',
+          values: ['incoming'],
+          query_operator: 'and',
+        },
+        {
+          attribute_key: 'labels',
+          filter_operator: 'not_equal_to',
+          values: ['asesor-diferente'],
+          query_operator: null,
+        },
+      ],
+      actions: [],
+    };
+    const automationTypes = {
+      message_created: {
+        conditions: [
+          { key: 'message_type', inputType: 'multi_select' },
+          { key: 'labels', inputType: 'multi_select' },
+        ],
+      },
+    };
+
+    const { formatAutomation } = useEditableAutomation();
+    const result = formatAutomation(automation, [], automationTypes, []);
+
+    // El valor de la etiqueta se conserva aunque el dropdown esté vacío.
+    expect(result.conditions[1].values).toEqual([
+      { id: 'asesor-diferente', name: 'asesor-diferente' },
+    ]);
+  });
+
   it('rehydrates last responding agent as a selected action option', () => {
     const automation = {
       event_name: 'conversation_created',

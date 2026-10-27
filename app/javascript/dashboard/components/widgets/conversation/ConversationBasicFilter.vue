@@ -168,30 +168,34 @@ const handleSortChange = value => {
         v-if="!onlySort"
         class="flex items-center justify-between last:mt-4 gap-2"
       >
-        <span class="text-sm truncate text-n-slate-12">
+        <span class="text-sm shrink-0 text-n-slate-12">
           {{ $t('CHAT_LIST.CHAT_SORT.STATUS') }}
         </span>
-        <SelectMenu
-          wide
-          :model-value="chatStatusFilter"
-          :options="chatStatusOptions"
-          :label="activeChatStatusLabel"
-          :sub-menu-position="isOnExpandedLayout ? 'left' : 'right'"
-          @update:model-value="handleStatusChange"
-        />
+        <div class="flex justify-end flex-1 min-w-0">
+          <SelectMenu
+            wide
+            :model-value="chatStatusFilter"
+            :options="chatStatusOptions"
+            :label="activeChatStatusLabel"
+            sub-menu-position="bottom"
+            @update:model-value="handleStatusChange"
+          />
+        </div>
       </div>
       <div class="flex items-center justify-between last:mt-4 gap-2">
-        <span class="text-sm truncate text-n-slate-12">
+        <span class="text-sm shrink-0 text-n-slate-12">
           {{ $t('CHAT_LIST.CHAT_SORT.ORDER_BY') }}
         </span>
-        <SelectMenu
-          wide
-          :model-value="chatSortFilter"
-          :options="chatSortOptions"
-          :label="activeChatSortLabel"
-          :sub-menu-position="isOnExpandedLayout ? 'left' : 'right'"
-          @update:model-value="handleSortChange"
-        />
+        <div class="flex justify-end flex-1 min-w-0">
+          <SelectMenu
+            wide
+            :model-value="chatSortFilter"
+            :options="chatSortOptions"
+            :label="activeChatSortLabel"
+            sub-menu-position="bottom"
+            @update:model-value="handleSortChange"
+          />
+        </div>
       </div>
     </div>
   </div>

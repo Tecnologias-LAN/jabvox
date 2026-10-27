@@ -50,7 +50,8 @@ const handleSelect = value => {
 <template>
   <div
     v-on-clickaway="() => (isOpen = false)"
-    class="relative flex flex-col gap-1 w-fit"
+    class="relative flex flex-col gap-1 min-w-0"
+    :class="wide ? 'w-full' : 'w-fit'"
   >
     <Button
       icon="i-lucide-chevron-down"
@@ -58,9 +59,8 @@ const handleSelect = value => {
       trailing-icon
       color="slate"
       variant="faded"
-      class="!w-fit"
       :class="[
-        wide ? 'max-w-full' : 'max-w-40',
+        wide ? '!w-full max-w-full min-w-0' : '!w-fit max-w-40',
         { 'dark:!bg-n-alpha-2 !bg-n-slate-9/20': isOpen },
       ]"
       :label="labelValue"

@@ -59,12 +59,23 @@ export function useEditableAutomation() {
         values: dropdownValues.find(item => item.id === condition.values[0]),
       };
     }
+    // Reconstruye los valores guardados a partir del dropdown. Si un valor
+    // guardado no está en el dropdown (etiqueta renombrada/borrada, opciones aún
+    // sin cargar, o id guardado como texto), NO se descarta: se preserva como
+    // opción sintética { id, name }. Sin esto, el valor quedaba vacío al editar y
+    // la validación marcaba el recuadro de condiciones en rojo sin texto visible.
+    const storedValues = [...(condition.values || [])];
+    const matched = [...dropdownValues].filter(item =>
+      storedValues.includes(item.id)
+    );
+    const matchedIds = matched.map(item => item.id);
+    const missing = storedValues
+      .filter(id => !matchedIds.includes(id))
+      .map(id => ({ id, name: String(id) }));
     return {
       ...condition,
       query_operator: condition.query_operator || 'and',
-      values: [...dropdownValues].filter(item =>
-        [...condition.values].includes(item.id)
-      ),
+      values: [...matched, ...missing],
     };
   };
 

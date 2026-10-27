@@ -128,6 +128,24 @@ export const validateConditions = conditions => {
   }
 
   conditions.forEach((condition, index) => {
+    // Un grupo (paréntesis) no tiene attribute_key/filter_operator propios:
+    // validar como filtro plano siempre fallaría. En su lugar, validamos cada
+    // condición hija del grupo; si el grupo no tiene hijos válidos, es un error.
+    if (condition?.type === 'group') {
+      const children = condition.conditions || [];
+      if (children.length === 0) {
+        errors[`condition_${index}`] = ATLEAST_ONE_CONDITION_REQUIRED;
+        return;
+      }
+      children.forEach((child, childIndex) => {
+        const childError = validateSingleFilter(child);
+        if (childError) {
+          errors[`condition_${index}_${childIndex}`] = childError;
+        }
+      });
+      return;
+    }
+
     const error = validateSingleFilter(condition);
     if (error) {
       errors[`condition_${index}`] = error;
