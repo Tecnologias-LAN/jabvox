@@ -97,7 +97,14 @@ const validate = () => {
   return (rowsRef.value || []).every(row => row.validate());
 };
 
-defineExpose({ validate });
+// El formulario padre resetea la validación de cada condición (fila o grupo).
+// Sin exponer esto, resetValidation() del padre reventaba con
+// "resetValidation is not a function" al guardar una regla con grupo.
+const resetValidation = () => {
+  (rowsRef.value || []).forEach(row => row.resetValidation?.());
+};
+
+defineExpose({ validate, resetValidation });
 </script>
 
 <template>

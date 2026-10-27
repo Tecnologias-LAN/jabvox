@@ -203,12 +203,15 @@ watch(
 
 const isConditionsValid = () => {
   if (!conditionsRef.value) return true;
-  return conditionsRef.value.every(condition => condition.validate());
+  // Defensivo: una fila o grupo podría no exponer validate().
+  return conditionsRef.value.every(condition => condition.validate?.() ?? true);
 };
 
 const resetValidation = () => {
   errors.value = {};
-  conditionsRef.value?.forEach(c => c.resetValidation());
+  // Defensivo: no todos los componentes de condición exponen resetValidation
+  // (un grupo no lo hacía), y sin el ?. esto reventaba el guardado con grupos.
+  conditionsRef.value?.forEach(c => c.resetValidation?.());
 };
 
 const syncCustomAttributeTypes = () => {
