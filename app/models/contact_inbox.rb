@@ -67,7 +67,12 @@ class ContactInbox < ApplicationRecord
   end
 
   def validate_whatsapp_source_id
+    # Número o BSUID (direccionable), o "username:<usuario>" (historial importado de
+    # Evolution, NO direccionable). El username se acepta como source_id válido para poder
+    # guardar la conversación, pero NO entra en WHATSAPP_CHANNEL_REGEX, así que los guards
+    # de envío lo siguen bloqueando hasta que llegue número/BSUID.
     return if WHATSAPP_CHANNEL_REGEX.match?(source_id)
+    return if RegexHelper::WHATSAPP_USERNAME_SOURCE_ID_REGEX.match?(source_id)
 
     errors.add(:source_id, "invalid source id for whatsapp inbox. valid Regex #{WHATSAPP_CHANNEL_REGEX}")
   end

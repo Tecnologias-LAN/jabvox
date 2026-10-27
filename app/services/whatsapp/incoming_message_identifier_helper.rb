@@ -23,19 +23,31 @@ module Whatsapp::IncomingMessageIdentifierHelper
     attrs = contact_attributes_from_contact_params(contact_params, source_ids.first)
     @contact_inbox = find_or_create_contact_inbox(
       source_ids: source_ids,
-      contact_attributes: attrs
+      contact_attributes: attrs,
+      username_source_id: username_source_id_for(contact_params.dig(:profile, :username))
     )
     @contact = @contact_inbox.contact
     update_whatsapp_identifiers(source_ids: source_ids, username: contact_params.dig(:profile, :username), phone_number: attrs[:phone_number])
     update_contact_with_profile_name(contact_params)
   end
 
-  def find_or_create_contact_inbox(source_ids:, contact_attributes:)
+  def find_or_create_contact_inbox(source_ids:, contact_attributes:, username_source_id: nil)
     ContactInboxSourceIdResolver.new(
       inbox: inbox,
       source_ids: source_ids,
-      contact_attributes: contact_attributes
+      contact_attributes: contact_attributes,
+      username_source_id: username_source_id
     ).perform
+  end
+
+  # Construye el source_id "username:<usuario>" a partir del profile.username del webhook,
+  # para reconectar con una conversación importada de Evolution. Normaliza igual que el
+  # importador (sin arroba, minúsculas no forzadas). Devuelve nil si no hay username.
+  def username_source_id_for(username)
+    normalized = username.to_s.sub(/\A@+/, '').strip
+    return if normalized.blank?
+
+    "#{RegexHelper::WHATSAPP_USERNAME_SOURCE_ID_PREFIX}#{normalized}"
   end
 
   def incoming_message_source_ids(contact_params)

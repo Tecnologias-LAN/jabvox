@@ -21,4 +21,14 @@ module RegexHelper
   WHATSAPP_BSUID_SQL_PATTERN = '^[A-Z]{2}\.(ENT\.)?[A-Za-z0-9]{1,128}$'.freeze
   TWILIO_CHANNEL_WHATSAPP_REGEX = Regexp.new("\\A(?:whatsapp:\\+\\d{1,15}|whatsapp:#{WHATSAPP_BSUID_PATTERN})\\z")
   WHATSAPP_CHANNEL_REGEX = Regexp.new("\\A(?:\\d{1,15}|#{WHATSAPP_BSUID_PATTERN})\\z")
+
+  # Source_id de un contact_inbox de WhatsApp que SOLO tiene username (sin número ni BSUID),
+  # típico de historial importado desde Evolution. Formato OBLIGATORIO con prefijo:
+  #   "username:<usuario>"   p.ej. "username:estrada477"
+  # El prefijo lo hace inequívoco (no se confunde con número ni BSUID) y NO direccionable:
+  # a propósito NO forma parte de WHATSAPP_CHANNEL_REGEX ni de WHATSAPP_BSUID_REGEX, para que
+  # los guards de envío lo sigan rechazando (no se puede enviar por username). Al escribir la
+  # persona, llega número/BSUID y la conversación se reconecta a un source_id direccionable.
+  WHATSAPP_USERNAME_SOURCE_ID_REGEX = Regexp.new('\Ausername:[A-Za-z0-9._-]{1,128}\z')
+  WHATSAPP_USERNAME_SOURCE_ID_PREFIX = 'username:'.freeze
 end
