@@ -112,7 +112,7 @@
         "DUPLICATE": "This phone number is in use for another contact."
       },
       "USERNAME": {
-        "PLACEHOLDER": "e.g. username (without the @)",
+        "PLACEHOLDER": "e.g. username (without the {'@'})",
         "LABEL": "WhatsApp username",
         "HELP": "WhatsApp username of the contact, used when they do not share a phone number."
       },
@@ -486,7 +486,7 @@
             "DUPLICATE": "This phone number is in use for another contact."
           },
           "USERNAME": {
-            "PLACEHOLDER": "WhatsApp username (without the @)",
+            "PLACEHOLDER": "WhatsApp username (without the {'@'})",
             "DUPLICATE": "This WhatsApp username is in use for another contact."
           },
           "CITY": {
