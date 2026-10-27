@@ -16,6 +16,9 @@ module RegexHelper
   TWILIO_CHANNEL_SMS_REGEX = Regexp.new('\A\+\d{1,15}\z')
   WHATSAPP_BSUID_PATTERN = '[A-Z]{2}\.(?:ENT\.)?[A-Za-z0-9]{1,128}'.freeze
   WHATSAPP_BSUID_REGEX = Regexp.new("\\A#{WHATSAPP_BSUID_PATTERN}\\z")
+  # Versión POSIX (para el operador ~ de Postgres, que no admite grupos no-captura (?:...)).
+  # Anclada, para distinguir un source_id que es BSUID de uno que es número.
+  WHATSAPP_BSUID_SQL_PATTERN = '^[A-Z]{2}\.(ENT\.)?[A-Za-z0-9]{1,128}$'.freeze
   TWILIO_CHANNEL_WHATSAPP_REGEX = Regexp.new("\\A(?:whatsapp:\\+\\d{1,15}|whatsapp:#{WHATSAPP_BSUID_PATTERN})\\z")
   WHATSAPP_CHANNEL_REGEX = Regexp.new("\\A(?:\\d{1,15}|#{WHATSAPP_BSUID_PATTERN})\\z")
 end

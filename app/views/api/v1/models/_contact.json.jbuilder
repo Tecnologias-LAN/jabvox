@@ -9,6 +9,9 @@ json.phone_number jabvox_mask('phone', resource.phone_number)
 # teléfono, tampoco puede reconstruirlo juntando las partes.
 json.phone_country_code jabvox_mask('phone', resource.phone_country_code_jabvox)
 json.phone_national jabvox_mask('phone', resource.phone_national_jabvox)
+# Username de WhatsApp: mismo candado de visibilidad que el teléfono (es otro canal de
+# contacto directo del cliente).
+json.username jabvox_mask('phone', resource.username)
 json.blocked resource.blocked
 json.identifier resource.identifier
 json.company_id resource.company_id if Current.account&.feature_enabled?('companies')

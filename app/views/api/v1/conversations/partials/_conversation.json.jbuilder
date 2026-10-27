@@ -42,6 +42,11 @@ json.additional_attributes conversation.additional_attributes
 json.agent_last_seen_at conversation.agent_last_seen_at.to_i
 json.assignee_last_seen_at conversation.assignee_last_seen_at.to_i
 json.can_reply conversation.can_reply?
+# Direccionabilidad WhatsApp: false solo si es WhatsApp y el contacto no tiene número ni
+# BSUID (solo username). El front usa esto para bloquear el envío con un aviso tipo 24h.
+if conversation.inbox&.channel_type == 'Channel::Whatsapp'
+  json.whatsapp_addressable conversation.contact&.whatsapp_addressable?(conversation.inbox) || false
+end
 json.contact_last_seen_at conversation.contact_last_seen_at.to_i
 json.custom_attributes conversation.custom_attributes
 json.inbox_id conversation.inbox_id

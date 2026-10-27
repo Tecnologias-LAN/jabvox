@@ -38,6 +38,7 @@
       "EMAIL": "E-mail",
       "PHONE_NUMBER": "Número de teléfono",
       "IDENTIFIER": "Idenrificador",
+      "USERNAME": "Usuario de WhatsApp",
       "CITY": "Ciudad",
       "COUNTRY": "País",
       "CUSTOM_ATTRIBUTE_LIST": "Lista",

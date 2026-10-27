@@ -4,6 +4,7 @@
     "EMAIL_ADDRESS": "Dirección de correo",
     "PHONE_NUMBER": "Número de teléfono",
     "IDENTIFIER": "Idenrificador",
+    "WHATSAPP_USERNAME": "Usuario de WhatsApp",
     "COPY_SUCCESSFUL": "Copiado al portapapeles satisfactoriamente",
     "COMPANY": "Empresa",
     "LOCATION": "Ubicación",
@@ -109,6 +110,11 @@
         "ERROR": "El número telefónico debe estar vacío o en formato E.164",
         "DIAL_CODE_ERROR": "Por favor, seleccione un código de marcado de la lista",
         "DUPLICATE": "Este número de teléfono está en uso para otro contacto."
+      },
+      "USERNAME": {
+        "PLACEHOLDER": "ej. usuario (sin la @)",
+        "LABEL": "Usuario de WhatsApp",
+        "HELP": "Usuario de WhatsApp del contacto, usado cuando no comparte número de teléfono."
       },
       "LOCATION": {
         "PLACEHOLDER": "Escriba la ubicación del contacto",
@@ -462,6 +468,10 @@
           "PHONE_NUMBER": {
             "PLACEHOLDER": "Ingrese el número de teléfono",
             "DUPLICATE": "Este número de teléfono está en uso para otro contacto."
+          },
+          "USERNAME": {
+            "PLACEHOLDER": "Usuario de WhatsApp (sin la @)",
+            "DUPLICATE": "Este usuario de WhatsApp está en uso para otro contacto."
           },
           "CITY": {
             "PLACEHOLDER": "Introduzca el nombre de la ciudad"

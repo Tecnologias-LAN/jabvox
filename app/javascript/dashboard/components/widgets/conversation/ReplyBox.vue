@@ -507,11 +507,22 @@ export default {
     isDefaultEditorMode() {
       return !this.showAudioRecorderEditor && !this.copilot.isActive.value;
     },
+    isWhatsAppNotAddressable() {
+      // Contacto de WhatsApp sin número ni BSUID (solo username): Meta no lo puede
+      // entregar. Se bloquea TODO (texto y plantilla) hasta que escriba o se agregue
+      // el número. El backend expone whatsapp_addressable solo en canales WhatsApp.
+      return (
+        this.isAWhatsAppChannel &&
+        this.currentChat.whatsapp_addressable === false &&
+        !this.isOnPrivateNote
+      );
+    },
     isEditorDisabled() {
       return (
-        (this.isAWhatsAppChannel || this.isAPIInbox) &&
-        !this.isOnPrivateNote &&
-        !this.currentChat.can_reply
+        this.isWhatsAppNotAddressable ||
+        ((this.isAWhatsAppChannel || this.isAPIInbox) &&
+          !this.isOnPrivateNote &&
+          !this.currentChat.can_reply)
       );
     },
   },

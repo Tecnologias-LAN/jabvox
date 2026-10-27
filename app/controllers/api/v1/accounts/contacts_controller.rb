@@ -28,7 +28,8 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
     render json: { error: 'Specify search string with parameter q' }, status: :unprocessable_entity if params[:q].blank? && return
 
     contacts = Current.account.contacts.where(
-      'name ILIKE :search OR email ILIKE :search OR phone_number ILIKE :search OR contacts.identifier LIKE :search',
+      'name ILIKE :search OR email ILIKE :search OR phone_number ILIKE :search OR ' \
+      'contacts.username ILIKE :search OR contacts.identifier LIKE :search',
       search: "%#{params[:q].strip}%"
     ).visible_to(Current.account_user)
     @contacts = fetch_contacts_with_has_more(contacts)
@@ -240,9 +241,11 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   def find_existing_contact
     identifier = permitted_params[:identifier].presence
     phone = permitted_params[:phone_number].presence
+    username = permitted_params[:username].to_s.sub(/\A@+/, '').strip.presence
 
     contact = Current.account.contacts.find_by(identifier: identifier) if identifier.present?
     contact ||= Current.account.contacts.find_by(phone_number: phone) if phone.present?
+    contact ||= Current.account.contacts.where('LOWER(username) = ?', username.downcase).first if username.present?
     contact
   end
 
@@ -258,7 +261,8 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   end
 
   def permitted_params
-    params.permit(:name, :identifier, :email, :phone_number, :avatar, :blocked, :avatar_url, additional_attributes: {}, custom_attributes: {})
+    params.permit(:name, :identifier, :email, :phone_number, :username, :avatar, :blocked, :avatar_url, additional_attributes: {},
+                                                                                                        custom_attributes: {})
   end
 
   def contact_custom_attributes

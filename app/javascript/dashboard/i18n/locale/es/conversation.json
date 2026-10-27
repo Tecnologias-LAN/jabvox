@@ -45,6 +45,7 @@
     "BOT_HANDOFF_ERROR": "Failed to take over the conversation. Please try again.",
     "TWILIO_WHATSAPP_CAN_REPLY": "Sólo puede responder a esta conversación usando una plantilla de mensaje debido a",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "Restricción de la ventana de mensajes de 24 horas",
+    "WHATSAPP_CONTACT_NOT_ADDRESSABLE": "Aún no puedes escribirle a este contacto: no tiene número de teléfono ni identificador de WhatsApp. Espera a que te escriba, o agrega su número de teléfono al contacto.",
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "Esta cuenta de Instagram fue migrada a la nueva bandeja de entrada del canal Instagram. Todos los nuevos mensajes aparecerán allí. Ya no podrás enviar mensajes de esta conversación.",
     "INSTAGRAM_RESTRICTION_BANNER": "Instagram está restringido. Algunos mensajes o acciones pueden retrasarse o no estar disponibles mientras restauramos el soporte completo.",
     "INSTAGRAM_RESTRICTION_STATUS_LINK": "Ver actualización de estado",

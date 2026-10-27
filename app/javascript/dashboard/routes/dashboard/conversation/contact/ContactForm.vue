@@ -45,6 +45,7 @@ export default {
       email: '',
       name: '',
       phoneNumber: '',
+      username: '',
       activeDialCode: '',
       avatarFile: null,
       avatarUrl: '',
@@ -159,6 +160,7 @@ export default {
       const {
         email: emailAddress,
         phone_number: phoneNumber,
+        username,
         name,
       } = this.contact;
       const additionalAttributes = this.contact.additional_attributes || {};
@@ -166,6 +168,12 @@ export default {
       this.name = name || '';
       this.email = emailAddress || '';
       this.phoneNumber = phoneNumber || '';
+      // Username de WhatsApp: columna propia, con respaldo al valor histórico del jsonb.
+      this.username =
+        username ||
+        additionalAttributes.social_whatsapp_user_name ||
+        (additionalAttributes.social_profiles || {}).whatsapp ||
+        '';
       this.companyName = additionalAttributes.company_name || '';
       this.country = {
         id: additionalAttributes.country_code || '',
@@ -201,11 +209,15 @@ export default {
           name: '',
         };
       }
+      const existingSocialProfiles =
+        (this.contact.additional_attributes || {}).social_profiles || {};
       const contactObject = {
         id: this.contact.id,
         name: this.name,
         email: this.email,
         phone_number: this.setPhoneNumber,
+        // Username de WhatsApp como columna propia (sin arroba; el backend la normaliza).
+        username: this.username,
         additional_attributes: {
           ...this.contact.additional_attributes,
           description: this.description,
@@ -219,7 +231,12 @@ export default {
           city: this.city,
           jabvox_contact_type: this.jabvoxContactType,
           jabvox_identification_number: this.jabvoxIdentificationNumber,
-          social_profiles: this.socialProfileUserNames,
+          // Preserva el whatsapp que escribió el webhook: socialProfileUserNames no lo
+          // incluye, así que sin esto se perdería al editar.
+          social_profiles: {
+            ...this.socialProfileUserNames,
+            whatsapp: existingSocialProfiles.whatsapp,
+          },
         },
       };
       if (this.avatarFile) {
@@ -376,6 +393,13 @@ export default {
         </div>
       </div>
     </div>
+    <woot-input
+      v-model="username"
+      class="w-full"
+      :label="$t('CONTACT_FORM.FORM.USERNAME.LABEL')"
+      :placeholder="$t('CONTACT_FORM.FORM.USERNAME.PLACEHOLDER')"
+      :help-text="$t('CONTACT_FORM.FORM.USERNAME.HELP')"
+    />
     <woot-input
       v-model="companyName"
       class="w-full"

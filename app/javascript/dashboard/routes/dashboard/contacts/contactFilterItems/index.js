@@ -38,6 +38,14 @@ const filterTypes = [
     attribute_type: 'standard',
   },
   {
+    attributeKey: 'username',
+    attributeI18nKey: 'USERNAME',
+    inputType: 'plain_text',
+    dataType: 'text',
+    filterOperators: OPERATOR_TYPES_3,
+    attribute_type: 'standard',
+  },
+  {
     attributeKey: 'country_code',
     attributeI18nKey: 'COUNTRY',
     inputType: 'search_select',
@@ -123,6 +131,10 @@ export const filterAttributeGroups = [
       {
         key: 'identifier',
         i18nKey: 'IDENTIFIER',
+      },
+      {
+        key: 'username',
+        i18nKey: 'USERNAME',
       },
       {
         key: 'country_code',

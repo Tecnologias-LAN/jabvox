@@ -24,6 +24,7 @@
 #  phone_country_code_jabvox :string
 #  phone_national_jabvox     :string
 #  phone_number              :string
+#  username                  :string
 #  created_at                :datetime         not null
 #  updated_at                :datetime         not null
 #  account_id                :integer          not null
@@ -77,6 +78,9 @@ class Contact < ApplicationRecord
   validates :phone_number,
             allow_blank: true, uniqueness: { scope: [:account_id] },
             format: { with: /\+[1-9]\d{1,14}\z/, message: I18n.t('errors.contacts.phone_number.invalid') }
+  # Username de WhatsApp: el "@usuario" que Meta entrega cuando el cliente no comparte
+  # número. Se guarda sin la arroba y no puede repetirse dentro de la cuenta.
+  validates :username, allow_blank: true, uniqueness: { scope: [:account_id], case_sensitive: false }
 
   belongs_to :account
   has_many :conversations, dependent: :destroy_async
@@ -188,6 +192,21 @@ class Contact < ApplicationRecord
     contact_inboxes.find_by!(inbox_id: inbox_id).source_id
   end
 
+  # ¿Se puede INICIAR/ENVIAR WhatsApp a este contacto en este inbox?
+  # Regla: necesita número de teléfono O un contact_inbox con BSUID (el identificador
+  # que entrega Meta cuando la persona no comparte número). Si solo tiene username
+  # (sin número ni BSUID) NO es direccionable: hay que esperar a que escriba o cargar
+  # su número. Es independiente de la ventana de 24h (eso lo mide can_reply?).
+  def whatsapp_addressable?(inbox)
+    return true if phone_number.present?
+    return false if inbox.blank?
+
+    inbox.contact_inboxes
+         .where(contact_id: id)
+         .where('source_id ~ ?', RegexHelper::WHATSAPP_BSUID_SQL_PATTERN)
+         .exists?
+  end
+
   def push_event_data
     data = {
       additional_attributes: additional_attributes,
@@ -197,6 +216,7 @@ class Contact < ApplicationRecord
       identifier: identifier,
       name: name,
       phone_number: phone_number,
+      username: username,
       thumbnail: avatar_url,
       blocked: blocked,
       type: 'contact'
@@ -216,6 +236,7 @@ class Contact < ApplicationRecord
       identifier: identifier,
       name: name,
       phone_number: phone_number,
+      username: username,
       thumbnail: avatar_url,
       blocked: blocked
     }
@@ -259,7 +280,14 @@ class Contact < ApplicationRecord
 
   def prepare_contact_attributes
     prepare_email_attribute
+    prepare_username_attribute
     prepare_jsonb_attributes
+  end
+
+  # El username de WhatsApp se guarda SIN arroba y normalizado; '' pasa a nil para que
+  # el índice único parcial por cuenta no choque entre contactos sin username.
+  def prepare_username_attribute
+    self.username = username.to_s.sub(/\A@+/, '').strip.presence
   end
 
   def prepare_email_attribute

@@ -4,6 +4,7 @@
     "EMAIL_ADDRESS": "Email Address",
     "PHONE_NUMBER": "Phone number",
     "IDENTIFIER": "Identifier",
+    "WHATSAPP_USERNAME": "WhatsApp username",
     "COPY_SUCCESSFUL": "Copied to clipboard successfully",
     "COMPANY": "Company",
     "LOCATION": "Location",
@@ -109,6 +110,11 @@
         "ERROR": "Phone number should be either empty or of E.164 format",
         "DIAL_CODE_ERROR": "Please select a dial code from the list",
         "DUPLICATE": "This phone number is in use for another contact."
+      },
+      "USERNAME": {
+        "PLACEHOLDER": "e.g. username (without the @)",
+        "LABEL": "WhatsApp username",
+        "HELP": "WhatsApp username of the contact, used when they do not share a phone number."
       },
       "LOCATION": {
         "PLACEHOLDER": "Enter the location of the contact",
@@ -478,6 +484,10 @@
           "PHONE_NUMBER": {
             "PLACEHOLDER": "Enter the phone number",
             "DUPLICATE": "This phone number is in use for another contact."
+          },
+          "USERNAME": {
+            "PLACEHOLDER": "WhatsApp username (without the @)",
+            "DUPLICATE": "This WhatsApp username is in use for another contact."
           },
           "CITY": {
             "PLACEHOLDER": "Enter the city name"

@@ -170,6 +170,14 @@ export default {
         instagramInbox
       );
     },
+    isWhatsAppNotAddressable() {
+      // Contacto de WhatsApp sin número ni BSUID (solo username): no se le puede enviar
+      // hasta que escriba o se agregue el número. Tiene prioridad sobre el banner de 24h.
+      return (
+        this.isAWhatsAppChannel &&
+        this.currentChat?.whatsapp_addressable === false
+      );
+    },
     replyWindowBannerMessage() {
       if (this.isAWhatsAppChannel) {
         return this.$t('CONVERSATION.TWILIO_WHATSAPP_CAN_REPLY');
@@ -454,7 +462,13 @@ export default {
   >
     <div ref="topBannerRef">
       <Banner
-        v-if="!currentChat.can_reply"
+        v-if="isWhatsAppNotAddressable"
+        color-scheme="alert"
+        class="mx-2 mt-2 overflow-hidden rounded-lg"
+        :banner-message="$t('CONVERSATION.WHATSAPP_CONTACT_NOT_ADDRESSABLE')"
+      />
+      <Banner
+        v-else-if="!currentChat.can_reply"
         color-scheme="alert"
         class="mx-2 mt-2 overflow-hidden rounded-lg"
         :banner-message="replyWindowBannerMessage"

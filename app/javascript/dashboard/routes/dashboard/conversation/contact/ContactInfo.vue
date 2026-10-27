@@ -260,6 +260,16 @@ export default {
             @update="value => onFieldUpdate('phone_number', value)"
           />
           <ContactInfoRow
+            v-if="contact.username || contact.phone_number"
+            :value="contact.username"
+            icon="chat"
+            emoji="💬"
+            :title="$t('CONTACT_PANEL.WHATSAPP_USERNAME')"
+            show-copy
+            editable
+            @update="value => onFieldUpdate('username', value)"
+          />
+          <ContactInfoRow
             v-if="contact.identifier"
             :value="contact.identifier"
             icon="contact-identify"

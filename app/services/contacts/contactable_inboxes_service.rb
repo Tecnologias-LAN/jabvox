@@ -48,10 +48,24 @@ class Contacts::ContactableInboxesService
   end
 
   def whatsapp_contactable_inbox(inbox)
-    return if @contact.phone_number.blank?
+    # Prioridad teléfono > username/BSUID: si el contacto tiene número se inicia por él
+    # (sin el '+', formato que usa la Cloud API). Si NO tiene número pero sí existe un
+    # contact_inbox de esta bandeja cuyo source_id es un BSUID (llegó un @usuario sin
+    # teléfono), se inicia por ese identificador. Si no hay ninguno, no es contactable.
+    source_id = whatsapp_source_id(inbox)
+    return if source_id.blank?
 
-    # Remove the plus since thats the format 360 dialog uses
-    { source_id: @contact.phone_number.delete('+'), inbox: inbox }
+    { source_id: source_id, inbox: inbox }
+  end
+
+  def whatsapp_source_id(inbox)
+    return @contact.phone_number.delete('+') if @contact.phone_number.present?
+
+    inbox.contact_inboxes
+         .where(contact: @contact)
+         .where('source_id ~ ?', RegexHelper::WHATSAPP_BSUID_SQL_PATTERN)
+         .order(created_at: :desc)
+         .first&.source_id
   end
 
   def sms_contactable_inbox(inbox)

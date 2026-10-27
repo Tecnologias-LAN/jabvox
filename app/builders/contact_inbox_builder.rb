@@ -41,10 +41,20 @@ class ContactInboxBuilder
   end
 
   def wa_source_id
-    raise ActionController::ParameterMissing, 'contact phone number' unless @contact.phone_number
+    # Prioridad teléfono > username/BSUID. Con número: source_id = E.164 sin '+'.
+    # Sin número: reutiliza el contact_inbox de este inbox cuyo source_id sea un BSUID
+    # (un @usuario de WhatsApp que escribió sin compartir teléfono). Solo si no hay
+    # ni número ni BSUID se considera que falta el dato para iniciar.
+    return @contact.phone_number.delete('+').to_s if @contact.phone_number.present?
 
-    # whatsapp doesn't want the + in e164 format
-    @contact.phone_number.delete('+').to_s
+    bsuid = @inbox.contact_inboxes
+                  .where(contact: @contact)
+                  .where('source_id ~ ?', RegexHelper::WHATSAPP_BSUID_SQL_PATTERN)
+                  .order(created_at: :desc)
+                  .first&.source_id
+    return bsuid if bsuid.present?
+
+    raise ActionController::ParameterMissing, 'contact phone number'
   end
 
   def twilio_source_id

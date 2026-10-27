@@ -40,7 +40,21 @@ class Whatsapp::IdentifierSyncService
     username = normalize_username(username)
     return if username.blank?
 
-    synced_contact.update!(additional_attributes: additional_attributes_with_username(username))
+    attrs = { additional_attributes: additional_attributes_with_username(username) }
+    # Columna de primera clase: solo se rellena si está vacía y el @usuario no lo tiene ya
+    # otro contacto de la cuenta (mismo criterio anti-duplicado que el teléfono). El jsonb
+    # se mantiene siempre para compatibilidad hacia atrás.
+    attrs[:username] = username if assignable_username?(username)
+    synced_contact.update!(attrs)
+  end
+
+  def assignable_username?(username)
+    return false if synced_contact.username.present?
+
+    !synced_contact.account.contacts
+                   .where('LOWER(username) = ?', username.downcase)
+                   .where.not(id: synced_contact.id)
+                   .exists?
   end
 
   def synced_contact

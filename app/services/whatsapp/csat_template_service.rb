@@ -1,7 +1,7 @@
 class Whatsapp::CsatTemplateService
   DEFAULT_BUTTON_TEXT = 'Please rate us'.freeze
   DEFAULT_LANGUAGE = 'en'.freeze
-  WHATSAPP_API_VERSION = 'v14.0'.freeze
+  WHATSAPP_API_VERSION = GlobalConfigService.load('WHATSAPP_API_VERSION', 'v22.0').freeze
   TEMPLATE_CATEGORY = 'UTILITY'.freeze
   TEMPLATE_STATUS_PENDING = 'PENDING'.freeze
 

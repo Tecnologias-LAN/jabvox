@@ -6,10 +6,27 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
   end
 
   def perform_reply
+    # Guard de direccionabilidad: si el contacto no tiene número ni BSUID (solo username),
+    # Meta no lo puede entregar. Bloquea AMBOS caminos (plantilla y sesión) antes de gastar
+    # una request contra Meta, que además con un BSUID inválido en `to` devolvería 200 y
+    # descartaría el mensaje en silencio. Es independiente de la ventana de 24h.
+    unless contact_whatsapp_addressable?
+      message.update!(status: :failed, external_error: I18n.t('errors.whatsapp.contact_not_addressable'))
+      return
+    end
+
     return send_template_message if template_params.present?
     return send_session_message if message.conversation.can_reply?
 
     message.update!(status: :failed, external_error: I18n.t('errors.whatsapp.message_outside_messaging_window'))
+  end
+
+  def contact_whatsapp_addressable?
+    conversation = message.conversation
+    # El source_id con el que se creó la conversación ya es número o BSUID -> direccionable.
+    return true if conversation.contact_inbox&.source_id.to_s.match?(RegexHelper::WHATSAPP_CHANNEL_REGEX)
+
+    conversation.contact&.whatsapp_addressable?(conversation.inbox) || false
   end
 
   def send_template_message

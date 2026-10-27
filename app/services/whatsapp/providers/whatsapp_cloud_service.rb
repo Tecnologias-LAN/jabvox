@@ -90,7 +90,7 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
   end
 
   def media_url(media_id)
-    "#{api_base_path}/v13.0/#{media_id}"
+    "#{api_base_path}/#{graph_api_version}/#{media_id}"
   end
 
   private
@@ -113,13 +113,20 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     ENV.fetch('WHATSAPP_CLOUD_BASE_URL', 'https://graph.facebook.com')
   end
 
-  # TODO: See if we can unify the API versions and for both paths and make it consistent with out facebook app API versions
-  def phone_id_path(version = 'v13.0')
+  # Versión única de la Graph API para el canal Cloud. v22.0 es el mínimo que soporta
+  # enviar a un BSUID (campo `recipient` / usuarios de WhatsApp sin número). Configurable
+  # por WHATSAPP_API_VERSION. v13/v14 anteriores NO conocen `recipient` y descartan el
+  # envío por BSUID en silencio.
+  def graph_api_version
+    GlobalConfigService.load('WHATSAPP_API_VERSION', 'v22.0')
+  end
+
+  def phone_id_path(version = graph_api_version)
     "#{api_base_path}/#{version}/#{whatsapp_channel.provider_config['phone_number_id']}"
   end
 
   def business_account_path
-    "#{api_base_path}/v14.0/#{whatsapp_channel.provider_config['business_account_id']}"
+    "#{api_base_path}/#{graph_api_version}/#{whatsapp_channel.provider_config['business_account_id']}"
   end
 
   def send_text_message(phone_number, message)
