@@ -435,7 +435,7 @@ defineExpose({ open, close });
           <NextButton
             solid
             blue
-            type="submit"
+            type="button"
             :label="$t(submitKey)"
             @click="emitSaveAutomation"
           />
