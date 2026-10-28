@@ -35,6 +35,7 @@
       "STAGE": "Stage",
       "PHONE": "Phone",
       "EMAIL": "Email",
+      "COMPANY": "Company",
       "CAMPAIGN": "Campaign",
       "ASSIGNEE": "Assigned to",
       "CREATED": "Created",

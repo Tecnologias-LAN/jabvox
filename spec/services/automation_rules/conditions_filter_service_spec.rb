@@ -505,6 +505,67 @@ RSpec.describe AutomationRules::ConditionsFilterService do
         expect(perform_at('2026-10-21 23:00:00')).to be(false)
       end
     end
+
+    # Regresión del caso real (regla "Primera interacción 8am-12 / 1pm-5pm"):
+    # un GRUPO con child_operator OR y DOS franjas horarias. El bug era que una hija
+    # de hora no cumplida (la otra franja) tumbaba todo el grupo aunque el operador
+    # fuese OR, así que la regla no disparaba en la mañana porque la franja de la
+    # tarde era falsa. Debe disparar si la hora cae en CUALQUIERA de las dos franjas.
+    context 'with a GROUP of two time ranges (OR): morning or afternoon' do
+      before do
+        rule.conditions = [
+          { 'values': ['all'], 'attribute_key': 'status', 'query_operator': 'AND', 'filter_operator': 'equal_to' },
+          { 'type': 'group', 'query_operator': nil, 'child_operator': 'OR', 'conditions': [
+            { 'values': { 'from': '08:30', 'to': '12:00' }, 'attribute_key': 'current_time',
+              'query_operator': 'OR', 'filter_operator': 'is_between' },
+            { 'values': { 'from': '13:01', 'to': '17:00' }, 'attribute_key': 'current_time',
+              'query_operator': nil, 'filter_operator': 'is_between' }
+          ] }
+        ]
+        rule.save
+      end
+
+      it 'dispara en la franja de la mañana (10:42)' do
+        expect(perform_at('2026-10-21 10:42:00')).to be(true)
+      end
+
+      it 'dispara en la franja de la tarde (15:00)' do
+        expect(perform_at('2026-10-21 15:00:00')).to be(true)
+      end
+
+      it 'NO dispara en el hueco del mediodía (12:30)' do
+        expect(perform_at('2026-10-21 12:30:00')).to be(false)
+      end
+
+      it 'NO dispara de madrugada (06:00)' do
+        expect(perform_at('2026-10-21 06:00:00')).to be(false)
+      end
+    end
+
+    # El mismo grupo con child_operator AND: debe cumplirse en AMBAS franjas a la vez,
+    # lo cual es imposible con rangos disjuntos → nunca dispara. Verifica que el AND
+    # dentro del grupo también se respeta para condiciones de hora.
+    context 'with a GROUP of two disjoint time ranges (AND): impossible' do
+      before do
+        rule.conditions = [
+          { 'type': 'group', 'query_operator': nil, 'child_operator': 'AND', 'conditions': [
+            { 'values': { 'from': '08:30', 'to': '12:00' }, 'attribute_key': 'current_time',
+              'query_operator': 'AND', 'filter_operator': 'is_between' },
+            { 'values': { 'from': '13:01', 'to': '17:00' }, 'attribute_key': 'current_time',
+              'query_operator': nil, 'filter_operator': 'is_between' }
+          ] }
+        ]
+        rule.save
+      end
+
+      it 'NO dispara en la mañana (solo cumple una de las dos)' do
+        expect(perform_at('2026-10-21 10:42:00')).to be(false)
+      end
+
+      it 'NO dispara en la tarde (solo cumple una de las dos)' do
+        expect(perform_at('2026-10-21 15:00:00')).to be(false)
+      end
+    end
   end
 
   # Jabvox: condicion por TIPO de contenido del mensaje (attachment_type).

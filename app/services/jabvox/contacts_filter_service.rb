@@ -69,9 +69,27 @@ class Jabvox::ContactsFilterService
     # un IN, así que el mismo código sirve para ambos casos.
     scope = scope.where(lifecycle_stage_jabvox: Array(@filters[:lifecycle_stage])) if @filters[:lifecycle_stage].present?
     scope = scope.where(jabvox_campaign_id: Array(@filters[:campaign_id])) if @filters[:campaign_id].present?
+    scope = apply_company_filter(scope)
     scope = apply_label_filter(scope)
     scope = apply_sold_filter(scope)
     apply_affiliate_filter(scope)
+  end
+
+  # Filtro por EMPRESA (entidad). Solo si el módulo companies está activo; con él apagado
+  # no existe company_id útil, así que se ignora para no filtrar por una columna sin datos.
+  # Acepta uno o varios ids (IN). El valor 'none' trae los contactos SIN empresa.
+  def apply_company_filter(scope)
+    return scope unless @account.feature_enabled?('companies')
+
+    values = Array(@filters[:company_id]).reject(&:blank?)
+    return scope if values.empty?
+
+    if values.include?('none')
+      ids = values.reject { |v| v == 'none' }
+      ids.any? ? scope.where('contacts.company_id IN (?) OR contacts.company_id IS NULL', ids) : scope.where(company_id: nil)
+    else
+      scope.where(company_id: values)
+    end
   end
 
   # Contactos que tengan CUALQUIERA de las etiquetas pedidas.

@@ -235,6 +235,19 @@ const syncCustomAttributeTypes = () => {
   });
 };
 
+// El query_operator (Y/O) que se muestra ANTES de la fila/grupo `i` vive, por
+// convención del backend, en la condición ANTERIOR (`conditions[i-1]`). Acceder a
+// `conditions[i-1].query_operator` directo en el template revienta cuando `i-1` no
+// existe (fila/grupo en índice 0, o un re-render transitorio tras eliminar una
+// condición): `undefined.query_operator` tira un TypeError que deja la pantalla en
+// blanco. Este helper devuelve un get/set a prueba de `undefined` para el v-model.
+const getPrevQueryOperator = i =>
+  automation.value?.conditions?.[i - 1]?.query_operator;
+const setPrevQueryOperator = (i, value) => {
+  const prev = automation.value?.conditions?.[i - 1];
+  if (prev) prev.query_operator = value;
+};
+
 const open = () => {
   resetValidation();
   dialogRef.value?.open();
@@ -331,14 +344,13 @@ defineExpose({ open, close });
             <ConditionGroup
               v-if="condition.type === 'group'"
               ref="conditionsRef"
-              v-model:query-operator="
-                automation.conditions[i - 1].query_operator
-              "
               v-model:child-operator="automation.conditions[i].child_operator"
               v-model:conditions="automation.conditions[i].conditions"
+              :query-operator="getPrevQueryOperator(i)"
               :filter-types="filterTypes"
               :show-query-operator="i !== 0"
               snake-keys
+              @update:query-operator="val => setPrevQueryOperator(i, val)"
               @remove="removeFilter(i)"
             />
             <!-- Condición plana, primera fila -->
@@ -358,12 +370,11 @@ defineExpose({ open, close });
               ref="conditionsRef"
               v-model:attribute-key="automation.conditions[i].attribute_key"
               v-model:filter-operator="automation.conditions[i].filter_operator"
-              v-model:query-operator="
-                automation.conditions[i - 1].query_operator
-              "
               v-model:values="automation.conditions[i].values"
+              :query-operator="getPrevQueryOperator(i)"
               :filter-types="filterTypes"
               show-query-operator
+              @update:query-operator="val => setPrevQueryOperator(i, val)"
               @remove="removeFilter(i)"
             />
           </template>

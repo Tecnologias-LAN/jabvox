@@ -8,7 +8,7 @@
 #
 # Vive aparte del ContactsController de Chatwoot a propósito: aquel sirve al núcleo (búsqueda,
 # segmentos, import) y no conviene mezclarle la lógica comercial de Jabvox.
-class Api::V1::Accounts::Jabvox::ContactsListController < Api::V1::Accounts::Jabvox::BaseController
+class Api::V1::Accounts::Jabvox::ContactsListController < Api::V1::Accounts::Jabvox::BaseController # rubocop:disable Metrics/ClassLength
   # Contactos es del núcleo, no un módulo: sin esto heredaba el flag por defecto
   # (`jabvox_kanban`) al retirarse el de Leads, y una cuenta sin Kanban recibía 403 al
   # abrir su propia lista de contactos. El acceso sigue acotado por rol.
@@ -21,7 +21,7 @@ class Api::V1::Accounts::Jabvox::ContactsListController < Api::V1::Accounts::Jab
   def index
     scope = filter_scope
     @total = scope.count
-    @contacts = scope.includes(:jabvox_campaign, :assignee, :jabvox_affiliate)
+    @contacts = scope.includes([:jabvox_campaign, :assignee, :jabvox_affiliate, company_association].compact)
                      .page(params[:page] || 1).per(per_page)
     ids = @contacts.map(&:id)
     @conv_data = conversation_data(ids)
@@ -196,9 +196,30 @@ class Api::V1::Accounts::Jabvox::ContactsListController < Api::V1::Accounts::Jab
     {
       campaign: contact.jabvox_campaign && { id: contact.jabvox_campaign_id, name: contact.jabvox_campaign.name_jabvox },
       affiliate: contact.jabvox_affiliate && { id: contact.jabvox_affiliate_id, name: contact.jabvox_affiliate.name },
+      company: company_for(contact),
       assignee: assignee_for(contact, conv),
       conversation: conv && { id: conv.id, display_id: conv.display_id, status: conv.status, inbox_id: conv.inbox_id }
     }
+  end
+
+  # Empresa (entidad) del contacto. Solo cuando el módulo está activo y el contacto tiene
+  # una ligada; si no, nil (la columna muestra "—"). `respond_to?` protege de instalaciones
+  # sin el modelo enterprise Company.
+  def company_for(contact)
+    return nil unless companies_enabled?
+    return nil unless contact.respond_to?(:company) && contact.company
+
+    { id: contact.company_id, name: contact.company.name }
+  end
+
+  def companies_enabled?
+    @companies_enabled ||= Current.account.feature_enabled?('companies')
+  end
+
+  # Se incluye la asociación company en el eager-load SOLO si el módulo está activo, para no
+  # intentar un JOIN a una tabla/relación que la instalación podría no tener.
+  def company_association
+    companies_enabled? ? :company : nil
   end
 
   # Responsable del contacto. Si no tiene uno propio se usa el de su conversación más
@@ -224,8 +245,20 @@ class Api::V1::Accounts::Jabvox::ContactsListController < Api::V1::Accounts::Jab
       management_states: Current.account.jabvox_management_states.active.ordered
                                 .map { |s| { id: s.name_jabvox, name: s.name_jabvox, color: s.color_jabvox } },
       campaigns: Current.account.jabvox_campaigns.ordered.map { |c| { id: c.id, name: c.name_jabvox } },
-      labels: Current.account.labels.order(:title).map { |l| { id: l.title, name: l.title, color: l.color } }
+      labels: Current.account.labels.order(:title).map { |l| { id: l.title, name: l.title, color: l.color } },
+      # Empresas para el filtro "Empresa": solo si el módulo está activo. Sin él, lista
+      # vacía y el frontend no muestra ese filtro ni esa columna con datos.
+      companies: company_filter_options
     }
+  end
+
+  # Opciones del filtro de empresa. 'none' = "Sin empresa", útil para encontrar los contactos
+  # que aún no se han ligado a ninguna. Vacío si el módulo está apagado.
+  def company_filter_options
+    return [] unless companies_enabled?
+
+    [{ id: 'none', name: I18n.t('jabvox.contacts.no_company', default: 'Sin empresa') }] +
+      Current.account.companies.order(:name).map { |c| { id: c.id, name: c.name } }
   end
 
   # Campos personalizados del contacto como filtros SELECCIONABLES: cada uno ofrece las

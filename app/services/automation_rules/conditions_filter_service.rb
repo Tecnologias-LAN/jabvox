@@ -92,34 +92,71 @@ class AutomationRules::ConditionsFilterService < FilterService # rubocop:disable
     end
   end
 
-  # Emite "( hija1 OP hija2 ... ) query_operator" acumulando el SQL de cada hija por
-  # separado, para expresar "A AND (B OR C)". child_operator une las hijas;
-  # query_operator une el grupo con lo siguiente. Las condiciones Ruby (franja horaria)
-  # dentro del grupo se evalúan igual: si una falla, la regla no matchea (coherente con
-  # el AND global). Devuelve false si una hija Ruby no se cumple.
+  # Construye el filtro de un GRUPO (paréntesis): "( hija1 OP hija2 ... )" unido a lo
+  # siguiente por query_operator, para expresar "A AND (B OR C)".
+  #
+  # Dentro de un grupo cada hija es de UNA de estas clases (se clasifica por tipo,
+  # cada una en su rama — no se colapsa todo a un booleano a ciegas):
+  #   - :sql   → status, labels, prioridad... produce un fragmento de WHERE.
+  #   - :skip  → condición Ruby (franja horaria / tipo de adjunto) que SÍ se cumple.
+  #   - :fail  → condición Ruby que NO se cumple.
+  # Las hijas Ruby (:skip/:fail) se combinan con el child_operator del grupo, NO
+  # cortan el grupo entero. Antes, una hija Ruby :fail devolvía false y tumbaba el
+  # grupo aunque el operador fuese OR (bug real: "(mañana O tarde)" no disparaba en la
+  # mañana porque la rama "tarde" era falsa).
   def build_group_filter(group_hash)
-    pieces = []
-    group_children(group_hash).each do |child|
-      fragment = capture_child_fragment(child) { |ok| return false unless ok }
-      pieces << fragment if fragment.present?
-    end
-    return true if pieces.empty?
+    operator = group_child_operator(group_hash) # 'AND' | 'OR'
+    sql_pieces = []
+    ruby_flags = []
 
-    @query_string += " (#{pieces.join(" #{group_child_operator(group_hash)} ")}) #{safe_group_operator(group_hash)} "
+    group_children(group_hash).each do |child|
+      case ruby_condition_outcome(child)
+      when :sql
+        fragment = capture_child_sql_fragment(child)
+        sql_pieces << fragment if fragment.present?
+      when :skip
+        ruby_flags << true  # condición Ruby cumplida
+      when :fail
+        ruby_flags << false # condición Ruby no cumplida
+      end
+    end
+
+    emit_group_sql(sql_pieces, ruby_flags, operator, group_hash)
+  end
+
+  # Combina el lado SQL y el lado Ruby del grupo según el operador y lo acumula en el
+  # WHERE. Devuelve false SOLO cuando el grupo no puede matchear (grupo 100% Ruby cuyo
+  # resultado es falso): entonces la regla no dispara. En cualquier otro caso añade el
+  # SQL (si lo hay) y devuelve true.
+  def emit_group_sql(sql_pieces, ruby_flags, operator, group_hash)
+    # Lado Ruby combinado: OR = alguna se cumple; AND = todas se cumplen. Sin hijas
+    # Ruby, es neutro (no condiciona).
+    ruby_ok = ruby_flags.empty? || (operator == 'AND' ? ruby_flags.all? : ruby_flags.any?)
+
+    if sql_pieces.empty?
+      # Grupo sin SQL (p. ej. solo franjas horarias): su booleano Ruby decide directo.
+      return ruby_ok
+    end
+
+    # Hay SQL. Representamos el booleano Ruby como una verdad/falsedad SQL (1=1 / 1=0),
+    # igual que el filtro de labels ya usa "1=0" para un valor imposible. Así el
+    # operador del grupo (AND/OR) combina ambos lados de forma consistente dentro del
+    # WHERE, sin reinterpretar el SQL en Ruby.
+    sql_pieces << (ruby_ok ? '1=1' : '1=0') unless ruby_flags.empty?
+
+    @query_string += " (#{sql_pieces.join(" #{operator} ")}) #{safe_group_operator(group_hash)} "
     true
   end
 
-  # Ejecuta una hija del grupo capturando SOLO el SQL que produce (aislándolo de
+  # Ejecuta una hija SQL del grupo capturando SOLO el SQL que produce (aislándolo de
   # @query_string) y quitándole su query_operator final, para no tocar los AND
-  # internos de una subconsulta (ej. labels NOT IN (... AND ...)). Cede el resultado
-  # de evaluación (ok) al bloque para que el llamador pueda cortar si una hija falla.
-  def capture_child_fragment(child)
+  # internos de una subconsulta (ej. labels NOT IN (... AND ...)).
+  def capture_child_sql_fragment(child)
     saved = @query_string
     @query_string = ''
-    ok = apply_single_condition(child)
+    apply_single_condition(child)
     fragment = @query_string
     @query_string = saved
-    yield ok
     strip_trailing_operator(fragment.strip)
   end
 

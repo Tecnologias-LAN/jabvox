@@ -49,6 +49,7 @@ const TEXT_FIELDS = [
 const MULTI_FIELDS = [
   'lifecycle_stage',
   'campaign_id',
+  'company_id',
   'affiliate_id',
   'assignee_id',
   'inbox_id',
@@ -130,6 +131,13 @@ const TEXT_LABELS = {
 // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
 const textFieldLabel = field => t(TEXT_LABELS[field] || field);
 
+// ¿La cuenta tiene el módulo de empresas activo? Se infiere de que el backend mande
+// opciones de empresa (solo las envía con el módulo encendido). Así el filtro y la columna
+// de empresa aparecen únicamente donde aplican, sin un flag extra en el frontend.
+const hasCompanies = computed(
+  () => (filterOptions.value.companies || []).length > 0
+);
+
 // Grupos de selección múltiple, con sus opciones del backend.
 const multiFilterGroups = computed(() => [
   {
@@ -147,6 +155,16 @@ const multiFilterGroups = computed(() => [
     label: t('JABVOX_CONTACTS.FILTERS.CAMPAIGN'),
     options: filterOptions.value.campaigns || [],
   },
+  // Empresa (entidad): solo si el módulo está activo (el backend mandó opciones).
+  ...(hasCompanies.value
+    ? [
+        {
+          key: 'company_id',
+          label: t('JABVOX_CONTACTS.COLUMNS.COMPANY'),
+          options: filterOptions.value.companies || [],
+        },
+      ]
+    : []),
   {
     key: 'assignee_id',
     label: t('JABVOX_CONTACTS.FILTERS.ASSIGNEE'),
@@ -250,6 +268,11 @@ const DEFAULT_COLUMNS = [
   { id: 'lifecycle', labelKey: 'JABVOX_CONTACTS.COLUMNS.STAGE' },
   { id: 'phone', labelKey: 'JABVOX_CONTACTS.COLUMNS.PHONE' },
   { id: 'email', labelKey: 'JABVOX_CONTACTS.COLUMNS.EMAIL' },
+  {
+    id: 'company',
+    labelKey: 'JABVOX_CONTACTS.COLUMNS.COMPANY',
+    requiresCompanies: true,
+  },
   { id: 'country', labelKey: 'JABVOX_CONTACTS.COLUMNS.COUNTRY' },
   { id: 'campaign', labelKey: 'JABVOX_CONTACTS.COLUMNS.CAMPAIGN' },
   { id: 'affiliate', labelKey: 'JABVOX_CONTACTS.COLUMNS.AFFILIATE' },
@@ -307,24 +330,38 @@ function toggleColumn(value) {
   saveColumnConfig();
 }
 
+// Columnas base disponibles: se oculta la de Empresa si el módulo no está activo, para no
+// ofrecer una columna que siempre mostraría "—".
+const availableDefaultColumns = computed(() =>
+  DEFAULT_COLUMNS.filter(c => !c.requiresCompanies || hasCompanies.value)
+);
+
 const columnOptions = computed(() => [
   // Clave dinámica a propósito: las columnas se declaran en DEFAULT_COLUMNS.
   // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
-  ...DEFAULT_COLUMNS.map(c => ({ value: `d:${c.id}`, label: t(c.labelKey) })),
+  ...availableDefaultColumns.value.map(c => ({
+    value: `d:${c.id}`,
+    label: t(c.labelKey),
+  })),
   ...customFieldDefs.value.map(f => ({ value: `c:${f.key}`, label: f.label })),
 ]);
 
 const visibleColumns = computed(() =>
-  columnConfig.value.map((cfg, i) => {
-    const [kind, id] = cfg.split(':');
-    if (kind === 'c') {
-      const def = customFieldDefs.value.find(f => f.key === id);
-      return { key: cfg, custom: id, label: def?.label || id };
-    }
-    const col = DEFAULT_COLUMNS.find(c => c.id === id) || DEFAULT_COLUMNS[i];
-    // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
-    return { key: cfg, id: col.id, label: t(col.labelKey) };
-  })
+  columnConfig.value
+    .map((cfg, i) => {
+      const [kind, id] = cfg.split(':');
+      if (kind === 'c') {
+        const def = customFieldDefs.value.find(f => f.key === id);
+        return { key: cfg, custom: id, label: def?.label || id };
+      }
+      const col = DEFAULT_COLUMNS.find(c => c.id === id) || DEFAULT_COLUMNS[i];
+      // Una columna que exige el módulo de empresas no se pinta si el módulo está off,
+      // aunque quedara guardada en localStorage de cuando sí estaba activo.
+      if (col.requiresCompanies && !hasCompanies.value) return null;
+      // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
+      return { key: cfg, id: col.id, label: t(col.labelKey) };
+    })
+    .filter(Boolean)
 );
 
 // Orden local de la página por la columna pulsada (a-z / z-a).
@@ -362,6 +399,8 @@ const CELL = {
     ),
   campaign: (c, x) => x.campaign?.name || '—',
   affiliate: (c, x) => x.affiliate?.name || '—',
+  // Empresa (entidad) ligada al contacto. Llega del backend como { id, name }.
+  company: (c, x) => x.company?.name || '—',
   assignee: (c, x) => x.assignee?.name || '—',
   labels: (c, x) => (x.labels?.length ? x.labels.join(', ') : '—'),
   // Sin rango de fechas: el título de la última gestión. Con rango: cuántas hubo y cuáles.
