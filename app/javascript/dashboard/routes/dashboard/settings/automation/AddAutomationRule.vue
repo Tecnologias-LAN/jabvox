@@ -3,8 +3,6 @@ import { ref, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'dashboard/composables/store';
 import { useAutomation } from 'dashboard/composables/useAutomation';
 import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
-import { useAccount } from 'dashboard/composables/useAccount';
-import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useCompaniesStore } from 'dashboard/stores/companies';
 import AutomationRuleForm from './AutomationRuleForm.vue';
 
@@ -33,7 +31,6 @@ const START_VALUE = {
 
 const store = useStore();
 const formRef = ref(null);
-const { isCloudFeatureEnabled } = useAccount();
 const companiesStore = useCompaniesStore();
 
 const {
@@ -79,12 +76,11 @@ onMounted(() => {
   store.dispatch('teams/get');
   store.dispatch('labels/get');
   store.dispatch('campaigns/get');
-  // Empresas solo si el módulo está activo: el endpoint es enterprise y daría 403
-  // si la cuenta no lo tiene. Necesario para resolver el nombre de la empresa en los
-  // desplegables de la condición "empresa del contacto" y la acción "asignar empresa".
-  if (isCloudFeatureEnabled(FEATURE_FLAGS.COMPANIES)) {
-    companiesStore.get({});
-  }
+  // Empresas para los desplegables de la condición "empresa del contacto" y la
+  // acción "asignar empresa". El endpoint degrada a lista vacía si el módulo no
+  // aplica, así que no dependemos del feature-check (que puede no estar resuelto al
+  // montar y dejaba el desplegable vacío).
+  companiesStore.get({}).catch(() => {});
 });
 
 defineExpose({ open, close });

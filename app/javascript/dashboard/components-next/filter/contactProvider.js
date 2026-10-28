@@ -154,25 +154,16 @@ export function useContactFilterContext() {
       filterOperators: containmentOperators.value,
       attributeModel: 'standard',
     },
-    {
-      attributeKey: CONTACT_ATTRIBUTES.COMPANY_NAME,
-      value: CONTACT_ATTRIBUTES.COMPANY_NAME,
-      attributeName: t('CONTACTS_LAYOUT.FILTER.COMPANY'),
-      label: t('CONTACTS_LAYOUT.FILTER.COMPANY'),
-      inputType: 'plainText',
-      dataType: 'text',
-      filterOperators: containmentOperators.value,
-      attributeModel: 'standard',
-    },
     // Empresa como ENTIDAD (company_id). Solo si el módulo está activo. Permite filtrar
     // por la empresa ligada (incluye "tiene / no tiene empresa" vía is_present).
+    // Reemplaza al antiguo filtro por texto libre company_name.
     ...(hasCompaniesFeature.value
       ? [
           {
             attributeKey: CONTACT_ATTRIBUTES.COMPANY_ID,
             value: CONTACT_ATTRIBUTES.COMPANY_ID,
-            attributeName: t('CONTACTS_LAYOUT.FILTER.COMPANY_ENTITY'),
-            label: t('CONTACTS_LAYOUT.FILTER.COMPANY_ENTITY'),
+            attributeName: t('CONTACTS_LAYOUT.FILTER.COMPANY'),
+            label: t('CONTACTS_LAYOUT.FILTER.COMPANY'),
             inputType: 'searchSelect',
             options: companyOptions.value,
             dataType: 'number',

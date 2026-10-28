@@ -88,12 +88,6 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_6,
       },
       {
-        key: 'company_name',
-        name: 'COMPANY_NAME',
-        inputType: 'plain_text',
-        filterOperators: OPERATOR_TYPES_2,
-      },
-      {
         // NIT/documento del contacto. Para identificar clientes por su documento.
         key: 'jabvox_identification_number',
         name: 'JABVOX_IDENTIFICATION_NUMBER',
@@ -223,12 +217,6 @@ export const AUTOMATIONS = {
         name: 'PHONE_NUMBER',
         inputType: 'plain_text',
         filterOperators: OPERATOR_TYPES_6,
-      },
-      {
-        key: 'company_name',
-        name: 'COMPANY_NAME',
-        inputType: 'plain_text',
-        filterOperators: OPERATOR_TYPES_2,
       },
       {
         // NIT/documento del contacto. Para identificar clientes por su documento.
@@ -388,12 +376,6 @@ export const AUTOMATIONS = {
         name: 'PHONE_NUMBER',
         inputType: 'plain_text',
         filterOperators: OPERATOR_TYPES_6,
-      },
-      {
-        key: 'company_name',
-        name: 'COMPANY_NAME',
-        inputType: 'plain_text',
-        filterOperators: OPERATOR_TYPES_2,
       },
       {
         // NIT/documento del contacto. Para identificar clientes por su documento.
@@ -567,12 +549,6 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_6,
       },
       {
-        key: 'company_name',
-        name: 'COMPANY_NAME',
-        inputType: 'plain_text',
-        filterOperators: OPERATOR_TYPES_2,
-      },
-      {
         // NIT/documento del contacto. Para identificar clientes por su documento.
         key: 'jabvox_identification_number',
         name: 'JABVOX_IDENTIFICATION_NUMBER',
@@ -726,12 +702,6 @@ export const AUTOMATIONS = {
         name: 'PHONE_NUMBER',
         inputType: 'plain_text',
         filterOperators: OPERATOR_TYPES_6,
-      },
-      {
-        key: 'company_name',
-        name: 'COMPANY_NAME',
-        inputType: 'plain_text',
-        filterOperators: OPERATOR_TYPES_2,
       },
       {
         // NIT/documento del contacto. Para identificar clientes por su documento.
