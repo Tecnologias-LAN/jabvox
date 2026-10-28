@@ -215,6 +215,13 @@ jabvox_flows_sweep_due_runs_job:
   class: 'Jabvox::Flows::SweepDueRunsJob'
   queue: jabvox_flows_scheduled
 
+# Cada 5 min: libera runs atascados en running/pending (worker caído o servidor
+# reiniciado a mitad). Sin esto quedarían huérfanos para siempre. Los marca failed.
+jabvox_flows_stale_run_reaper_job:
+  cron: '*/5 * * * *'
+  class: 'Jabvox::Flows::StaleRunReaperJob'
+  queue: jabvox_flows_scheduled
+
 # Día 1 de cada mes a las 00:05: restablece el saldo de IA del PLAN de cada cuenta a su
 # presupuesto mensual (el saldo comprado aparte se conserva). Dispatcher que hace fan-out a
 # un job por cuenta; idempotente por periodo (no restablece dos veces el mismo mes).
@@ -237,3 +244,11 @@ jabvox_task_due_sweeper_job:
   cron: '0 7 * * *'
   class: 'Jabvox::TaskDueSweeperJob'
   queue: scheduled_jobs
+
+# jabvox-drive: cada 2 minutos reencola las operaciones DURABLES pendientes/due
+# (ingesta de medios a MinIO, borrados, regularización). Red de seguridad para que
+# ningún adjunto se pierda si MinIO estuvo caído o un worker murió a mitad.
+jabvox_drive_pending_operation_retry_job:
+  cron: '*/2 * * * *'
+  class: 'Jabvox::Drive::PendingOperationRetryJob'
+  queue: jabvox_drive

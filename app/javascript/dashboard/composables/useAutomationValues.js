@@ -31,8 +31,15 @@ export default function useAutomationValues() {
   const slaPolicies = useMapGetter('sla/getSLA');
   // Empresas (entidad) para condición "empresa del contacto" y acción "asignar empresa".
   // Es un store Pinia, no Vuex; la precarga la hace el componente del formulario.
-  const companiesStore = useCompaniesStore();
-  const companies = computed(() => companiesStore.getCompaniesList || []);
+  // Defensivo: si Pinia no está disponible en este contexto, no debe tumbar el
+  // composable entero (si no, se quedarían sin opciones TODAS las condiciones).
+  let companiesStore = null;
+  try {
+    companiesStore = useCompaniesStore();
+  } catch (error) {
+    companiesStore = null;
+  }
+  const companies = computed(() => companiesStore?.getCompaniesList || []);
 
   const booleanFilterOptions = computed(() => [
     { id: true, name: t('FILTER.ATTRIBUTE_LABELS.TRUE') },

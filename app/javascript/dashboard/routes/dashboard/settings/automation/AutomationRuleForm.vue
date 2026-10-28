@@ -124,38 +124,47 @@ const filterTypes = computed(() => {
 
   const attributes = getTranslatedAttributes(props.automationTypes, event);
 
-  return attributes.map(attr => {
-    if (attr.disabled) {
-      return { value: attr.key, label: attr.name, disabled: true };
-    }
+  // Un fallo al construir UNA condición (p. ej. su dropdown remoto falla) no debe
+  // vaciar TODA la lista: se omite esa entrada y se muestran las demás. Antes, una
+  // excepción aquí tiraba el computed entero y el desplegable quedaba vacío.
+  return attributes
+    .map(attr => {
+      try {
+        if (attr.disabled) {
+          return { value: attr.key, label: attr.name, disabled: true };
+        }
 
-    const mappedInputType = INPUT_TYPE_MAP[attr.inputType] || 'plainText';
-    const options = props.getConditionDropdownValues(attr.key) || [];
+        const mappedInputType = INPUT_TYPE_MAP[attr.inputType] || 'plainText';
+        const options = props.getConditionDropdownValues(attr.key) || [];
 
-    const filterOperators = (attr.filterOperators || []).map(op => {
-      const enriched = operators.value[op.value];
-      if (enriched) return enriched;
-      return {
-        value: op.value,
-        label: t(`FILTER.OPERATOR_LABELS.${op.value}`),
-        hasInput: true,
-        inputOverride: null,
-        icon: h('span', { class: 'i-ph-equals-bold !text-n-blue-11' }),
-      };
-    });
+        const filterOperators = (attr.filterOperators || []).map(op => {
+          const enriched = operators.value[op.value];
+          if (enriched) return enriched;
+          return {
+            value: op.value,
+            label: t(`FILTER.OPERATOR_LABELS.${op.value}`),
+            hasInput: true,
+            inputOverride: null,
+            icon: h('span', { class: 'i-ph-equals-bold !text-n-blue-11' }),
+          };
+        });
 
-    return {
-      attributeKey: attr.key,
-      value: attr.key,
-      attributeName: attr.name,
-      label: attr.name,
-      inputType: mappedInputType,
-      options,
-      filterOperators,
-      dataType: 'text',
-      attributeModel: attr.customAttributeType || 'standard',
-    };
-  });
+        return {
+          attributeKey: attr.key,
+          value: attr.key,
+          attributeName: attr.name,
+          label: attr.name,
+          inputType: mappedInputType,
+          options,
+          filterOperators,
+          dataType: 'text',
+          attributeModel: attr.customAttributeType || 'standard',
+        };
+      } catch (error) {
+        return null;
+      }
+    })
+    .filter(Boolean);
 });
 
 const automationRuleEvents = computed(() =>

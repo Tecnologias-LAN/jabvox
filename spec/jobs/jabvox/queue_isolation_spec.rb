@@ -47,7 +47,8 @@ RSpec.describe 'Aislamiento de colas Sidekiq de Jabvox' do
       'Jabvox::Flows::RunFromJob' => 'jabvox_flows',
       'Jabvox::Flows::ResumeRunJob' => 'jabvox_flows',
       'Jabvox::Flows::TriggerScheduledFlowsJob' => 'jabvox_flows_scheduled',
-      'Jabvox::Flows::SweepDueRunsJob' => 'jabvox_flows_scheduled'
+      'Jabvox::Flows::SweepDueRunsJob' => 'jabvox_flows_scheduled',
+      'Jabvox::Flows::StaleRunReaperJob' => 'jabvox_flows_scheduled'
     }
   end
 

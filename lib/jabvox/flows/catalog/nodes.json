@@ -2771,6 +2771,52 @@
     }
   },
   {
+    "type": "jabvox.conversation.add_private_note",
+    "category": "jabvox",
+    "module": "conversaciones",
+    "label": "Nota privada en conversación",
+    "description": "Añade una nota interna a la conversación, visible solo para los agentes. Nunca se envía al contacto.",
+    "icon": "sticky-note",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "conversationId",
+        "label": "ID de conversación",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{node.crear_conversacion.output.conversationId}}",
+        "description": "Número de conversación de Jabvox (el que devuelve \"Crear Conversación\" en `conversationId`)."
+      },
+      {
+        "key": "content",
+        "label": "Nota",
+        "type": "text",
+        "required": true,
+        "templatable": true,
+        "description": "Texto interno para el equipo. No se envía al contacto."
+      }
+    ],
+    "sampleOutput": {
+      "id": 901,
+      "content": "Cliente pendiente de pago",
+      "conversation_id": 55,
+      "private": true
+    }
+  },
+  {
     "type": "jabvox.conversation.assign",
     "category": "jabvox",
     "module": "conversaciones",

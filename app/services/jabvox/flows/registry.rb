@@ -33,6 +33,7 @@ class Jabvox::Flows::Registry
     Jabvox::Flows::Nodes::Jabvox::ContactAddLabelsNode,
     Jabvox::Flows::Nodes::Jabvox::ContactRemoveLabelsNode,
     Jabvox::Flows::Nodes::Jabvox::ConversationSendMessageNode,
+    Jabvox::Flows::Nodes::Jabvox::ConversationAddPrivateNoteNode,
     Jabvox::Flows::Nodes::Jabvox::NoteCreateNode,
     Jabvox::Flows::Nodes::Jabvox::WhatsappSendTemplateNode,
     Jabvox::Flows::Nodes::Jabvox::ContactCreateNode,
