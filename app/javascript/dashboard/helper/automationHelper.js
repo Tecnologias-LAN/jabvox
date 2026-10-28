@@ -202,8 +202,14 @@ export const filterCustomAttributes = customAttributes => {
 };
 
 export const getStandardAttributeInputType = (automationTypes, event, key) => {
-  return automationTypes[event].conditions.find(item => item.key === key)
-    .inputType;
+  // Una condición guardada puede referirse a un atributo que ya no está en el
+  // catálogo del evento (atributo retirado, módulo desactivado, o regla antigua).
+  // Sin esta guarda, `.inputType` sobre undefined rompe la EDICIÓN de la regla
+  // entera. Fallback a 'plain_text' (texto libre), que es el tipo más permisivo.
+  const condition = automationTypes[event]?.conditions?.find(
+    item => item.key === key
+  );
+  return condition?.inputType || 'plain_text';
 };
 
 export const generateAutomationPayload = payload => {
@@ -292,7 +298,9 @@ export const getInputType = (
     return getCustomAttributeInputType(customAttribute.attribute_display_type);
   }
   const type = getAutomationType(automationTypes, automation, key);
-  return type.inputType;
+  // Atributo no encontrado en el catálogo del evento: fallback seguro para no
+  // romper el render de la condición.
+  return type?.inputType || 'plain_text';
 };
 
 /**
@@ -318,7 +326,7 @@ export const getOperators = (
     }
   }
   const type = getAutomationType(automationTypes, automation, key);
-  return type.filterOperators;
+  return type?.filterOperators || [];
 };
 
 /**
@@ -329,9 +337,9 @@ export const getOperators = (
  * @returns {string} The custom attribute type.
  */
 export const getCustomAttributeType = (automationTypes, automation, key) => {
-  return automationTypes[automation.event_name].conditions.find(
+  return automationTypes[automation.event_name]?.conditions?.find(
     i => i.key === key
-  ).customAttributeType;
+  )?.customAttributeType;
 };
 
 /**

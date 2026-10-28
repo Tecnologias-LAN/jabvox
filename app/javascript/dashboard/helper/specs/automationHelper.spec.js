@@ -326,6 +326,23 @@ describe('getStandardAttributeInputType', () => {
       )
     ).toEqual('plain_text');
   });
+
+  it('no revienta y cae a plain_text si el atributo no está en el catálogo', () => {
+    expect(() =>
+      helpers.getStandardAttributeInputType(
+        AUTOMATIONS,
+        'conversation_created',
+        'atributo_inexistente'
+      )
+    ).not.toThrow();
+    expect(
+      helpers.getStandardAttributeInputType(
+        AUTOMATIONS,
+        'conversation_created',
+        'atributo_inexistente'
+      )
+    ).toEqual('plain_text');
+  });
 });
 
 describe('generateAutomationPayload', () => {
