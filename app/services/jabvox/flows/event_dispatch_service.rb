@@ -66,6 +66,10 @@ class Jabvox::Flows::EventDispatchService
   end
 
   def enqueue_run(flow, trigger_node)
+    # Guardia anti-bucle: si el flujo se está disparando en bucle (su acción
+    # re-genera su propio evento), se auto-pausa y se salta este disparo. Fail-open.
+    return if Jabvox::Flows::LoopGuard.tripped?(flow)
+
     run = JabvoxFlowRun.create!(
       account_id: @account.id, flow: flow, version: flow.current_version,
       status: :pending, trigger: @payload.merge('type' => EVENT_TRIGGER_TYPE),

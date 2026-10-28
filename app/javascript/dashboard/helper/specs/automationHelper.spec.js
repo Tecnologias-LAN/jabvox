@@ -509,4 +509,10 @@ describe('showActionInput', () => {
     const mockActionTypes = [{ key: 'some_action', inputType: null }];
     expect(helpers.showActionInput(mockActionTypes, 'some_action')).toBe(false);
   });
+
+  it('returns false (does not throw) when the action is not in the list', () => {
+    // Caso del módulo desactivado: la acción guardada no está en la lista.
+    expect(() => helpers.showActionInput([], 'assign_company')).not.toThrow();
+    expect(helpers.showActionInput([], 'assign_company')).toBe(false);
+  });
 });

@@ -343,6 +343,9 @@ export const getCustomAttributeType = (automationTypes, automation, key) => {
 export const showActionInput = (automationActionTypes, action) => {
   if (action === 'send_email_to_team' || action === 'send_message')
     return false;
-  const type = automationActionTypes.find(i => i.key === action).inputType;
-  return !!type;
+  // La acción puede no estar en la lista cuando su módulo está desactivado en la
+  // cuenta (p. ej. assign_company sin el feature companies). Sin esta guarda,
+  // `.inputType` sobre undefined rompe la edición de una regla que ya la usa.
+  const actionType = automationActionTypes.find(i => i.key === action);
+  return !!actionType?.inputType;
 };

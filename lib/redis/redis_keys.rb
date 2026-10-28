@@ -90,6 +90,14 @@ module Redis::RedisKeys
   CRM_PROCESS_MUTEX = 'CRM_PROCESS_MUTEX::%<hook_id>s'.freeze
   CAPTAIN_DOCUMENT_SYNC_MUTEX = 'CAPTAIN_DOCUMENT_SYNC_LOCK::%<document_id>s'.freeze
   CAPTAIN_CONVERSATION_FAQ_MUTEX = 'CAPTAIN_CONVERSATION_FAQ_LOCK::%<assistant_id>s::%<language>s'.freeze
+  # jabvox-drive: serializa la ingesta durable de un mismo medio (por idempotency_key)
+  # para que dos workers no suban/registren el mismo objeto a la vez.
+  JABVOX_DRIVE_INGEST_MUTEX = 'JABVOX_DRIVE_INGEST_LOCK::%<idempotency_key>s'.freeze
+
+  # Flows anti-bucle: contador de ejecuciones por flow en una ventana (INCR+EXPIRE)
+  # y marca de "ya avisado" para no spamear el log/tracker al auto-pausar.
+  JABVOX_FLOW_RUN_RATE = 'JABVOX_FLOW_RUN_RATE::%<flow_id>d'.freeze
+  JABVOX_FLOW_LOOP_NOTIFIED = 'JABVOX_FLOW_LOOP_NOTIFIED::%<flow_id>d'.freeze
 
   ## Auto Assignment Keys
   # Track conversation assignments to agents for rate limiting

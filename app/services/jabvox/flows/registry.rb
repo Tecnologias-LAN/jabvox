@@ -39,6 +39,7 @@ class Jabvox::Flows::Registry
     Jabvox::Flows::Nodes::Jabvox::ContactUpdateNode,
     Jabvox::Flows::Nodes::Jabvox::ContactFindNode,
     Jabvox::Flows::Nodes::Jabvox::ContactSetCustomAttrsNode,
+    Jabvox::Flows::Nodes::Jabvox::ContactCompanyConditionNode,
     Jabvox::Flows::Nodes::Jabvox::LeadSearchNode,
     Jabvox::Flows::Nodes::Jabvox::TaskCreateNode,
     Jabvox::Flows::Nodes::Jabvox::TaskUpdateNode,

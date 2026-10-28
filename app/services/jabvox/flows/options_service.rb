@@ -16,7 +16,7 @@ class Jabvox::Flows::OptionsService
     kanban_funnels kanban_stages task_boards task_stages typifications campaigns
     lead_custom_fields lead_field_keys lead_filter_fields contact_custom_attrs
     management_states sms_providers calendar_external_people products order_statuses
-    analytics_data_sources
+    analytics_data_sources companies
   ].freeze
 
   class UnknownKind < StandardError; end
@@ -48,6 +48,16 @@ class Jabvox::Flows::OptionsService
 
   def opt_teams(_params)
     @account.teams.order(:name).map { |team| option(team.id, team.name) }
+  end
+
+  # Empresas (entidad) de la cuenta, para ligar el contacto desde un flujo. Vacío si
+  # el módulo de empresas no está activo (la asociación vive en enterprise).
+  def opt_companies(_params)
+    return [] unless @account.feature_enabled?('companies')
+
+    @account.companies.order(:name).map do |company|
+      option(company.id, company.name, 'nit' => company.additional_attributes&.dig('nit'))
+    end
   end
 
   # Las etiquetas se aplican por TÍTULO, por eso el valor es el título y no el id.

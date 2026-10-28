@@ -126,9 +126,12 @@ export function useEditableAutomation() {
    */
   const generateActionsArray = (action, automationActionTypes) => {
     const params = action.action_params;
-    const inputType = automationActionTypes.find(
+    // Guarda: una acción guardada podría no estar en la lista (módulo desactivado).
+    // Sin esto, `.inputType` sobre undefined rompe la edición de la regla.
+    const actionType = automationActionTypes.find(
       item => item.key === action.action_name
-    ).inputType;
+    );
+    const inputType = actionType?.inputType;
     if (inputType === 'multi_select' || inputType === 'search_select') {
       return [...getActionDropdownValues(action.action_name)].filter(item =>
         [...params].includes(item.id)

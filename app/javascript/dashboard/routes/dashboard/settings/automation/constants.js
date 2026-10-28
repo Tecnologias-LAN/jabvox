@@ -101,13 +101,11 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_2,
       },
       {
-        // Empresa del contacto como ENTIDAD (companies.id). Solo visible si el módulo
-        // de empresas está activo en la cuenta (gating en el componente del form).
+        // Empresa del contacto como ENTIDAD (companies.id).
         key: 'company_id',
         name: 'COMPANY',
         inputType: 'search_select',
         filterOperators: OPERATOR_TYPES_3,
-        requiresFeature: 'companies',
       },
       {
         key: 'labels',
@@ -126,10 +124,9 @@ export const AUTOMATIONS = {
         name: 'ASSIGN_TEAM',
       },
       {
-        // Liga el contacto a una empresa (entidad). Solo si el módulo está activo.
+        // Liga el contacto a una empresa (entidad).
         key: 'assign_company',
         name: 'ASSIGN_COMPANY',
-        requiresFeature: 'companies',
       },
       {
         key: 'remove_assigned_agent',
@@ -280,10 +277,9 @@ export const AUTOMATIONS = {
         name: 'ASSIGN_TEAM',
       },
       {
-        // Liga el contacto a una empresa (entidad). Solo si el módulo está activo.
+        // Liga el contacto a una empresa (entidad).
         key: 'assign_company',
         name: 'ASSIGN_COMPANY',
-        requiresFeature: 'companies',
       },
       {
         key: 'remove_assigned_agent',
@@ -438,10 +434,9 @@ export const AUTOMATIONS = {
         name: 'ASSIGN_TEAM',
       },
       {
-        // Liga el contacto a una empresa (entidad). Solo si el módulo está activo.
+        // Liga el contacto a una empresa (entidad).
         key: 'assign_company',
         name: 'ASSIGN_COMPANY',
-        requiresFeature: 'companies',
       },
       {
         key: 'remove_assigned_agent',
@@ -590,10 +585,9 @@ export const AUTOMATIONS = {
         name: 'ASSIGN_TEAM',
       },
       {
-        // Liga el contacto a una empresa (entidad). Solo si el módulo está activo.
+        // Liga el contacto a una empresa (entidad).
         key: 'assign_company',
         name: 'ASSIGN_COMPANY',
-        requiresFeature: 'companies',
       },
       {
         key: 'remove_assigned_agent',
@@ -732,10 +726,9 @@ export const AUTOMATIONS = {
         name: 'ASSIGN_TEAM',
       },
       {
-        // Liga el contacto a una empresa (entidad). Solo si el módulo está activo.
+        // Liga el contacto a una empresa (entidad).
         key: 'assign_company',
         name: 'ASSIGN_COMPANY',
-        requiresFeature: 'companies',
       },
       {
         key: 'remove_assigned_agent',

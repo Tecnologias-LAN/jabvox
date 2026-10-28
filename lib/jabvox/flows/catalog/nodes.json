@@ -1809,6 +1809,14 @@
         "optionsSource": "agents"
       },
       {
+        "key": "companyId",
+        "label": "Empresa",
+        "type": "select",
+        "optionsSource": "companies",
+        "templatable": true,
+        "description": "Liga el contacto a una empresa registrada. Escribe 'nil' para desvincular. Requiere el módulo de Empresas activo."
+      },
+      {
         "key": "custom_fields",
         "label": "Campos personalizados",
         "type": "fieldmap",
@@ -2432,6 +2440,82 @@
       "hasMore": false
     },
     "details": "Devuelve { count, contacts: [...], hasMore, page } — encadena «Repetir por cada elemento» sobre {{node.<id>.items}}. La API devuelve como mucho 15 contactos por página."
+  },
+  {
+    "type": "jabvox.contact.company_is",
+    "category": "jabvox",
+    "module": "contactos",
+    "label": "Empresa del contacto",
+    "description": "Bifurca según la empresa (entidad) a la que pertenece el contacto. Útil para identificar clientes empresariales existentes.",
+    "icon": "building",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "true",
+        "label": "Verdadero"
+      },
+      {
+        "id": "false",
+        "label": "Falso"
+      }
+    ],
+    "params": [
+      {
+        "key": "contactId",
+        "label": "ID interno del contacto",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{trigger.id}}",
+        "description": "ID INTERNO del contacto (campo `id`)."
+      },
+      {
+        "key": "operator",
+        "label": "Operador",
+        "type": "select",
+        "required": true,
+        "default": "equals",
+        "options": [
+          {
+            "label": "es la empresa",
+            "value": "equals"
+          },
+          {
+            "label": "no es la empresa",
+            "value": "not_equals"
+          },
+          {
+            "label": "tiene empresa",
+            "value": "is_not_empty"
+          },
+          {
+            "label": "no tiene empresa",
+            "value": "is_empty"
+          }
+        ],
+        "details": "«tiene empresa» y «no tiene empresa» ignoran la empresa seleccionada."
+      },
+      {
+        "key": "companyId",
+        "label": "Empresa",
+        "type": "select",
+        "optionsSource": "companies",
+        "templatable": true,
+        "description": "Empresa contra la que comparar. Requiere el módulo de Empresas activo."
+      }
+    ],
+    "sampleOutput": {
+      "result": true,
+      "contactId": 10,
+      "companyId": 1,
+      "operator": "equals"
+    }
   },
   {
     "type": "jabvox.contact.set_custom_attrs",

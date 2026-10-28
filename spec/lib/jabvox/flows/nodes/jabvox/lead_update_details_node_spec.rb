@@ -52,6 +52,40 @@ RSpec.describe Jabvox::Flows::Nodes::Jabvox::LeadUpdateDetailsNode do
     expect(lead.reload.phone_number).to eq(telefono)
   end
 
+  context 'with the companies module (empresa entidad)' do
+    before { account.enable_features!('companies') }
+
+    let(:company) { create(:company, account: account) }
+
+    it 'liga el contacto a una empresa de la cuenta' do
+      lead = crear_lead(1)
+      run_node(described_class, ctx, { 'leadId' => lead.id, 'companyId' => company.id })
+      expect(lead.reload.company_id).to eq(company.id)
+    end
+
+    it 'desvincula la empresa con "nil"' do
+      lead = crear_lead(1)
+      lead.update!(company: company)
+      run_node(described_class, ctx, { 'leadId' => lead.id, 'companyId' => 'nil' })
+      expect(lead.reload.company_id).to be_nil
+    end
+
+    it 'rechaza una empresa de otra cuenta' do
+      lead = crear_lead(1)
+      ajena = create(:company, account: create(:account))
+      expect(run_node(described_class, ctx, { 'leadId' => lead.id, 'companyId' => ajena.id }).error)
+        .to match(/no pertenece a esta cuenta/)
+      expect(lead.reload.company_id).to be_nil
+    end
+
+    it 'no hace nada si el módulo de empresas está desactivado' do
+      account.disable_features!('companies')
+      lead = crear_lead(1)
+      run_node(described_class, ctx, { 'leadId' => lead.id, 'companyId' => company.id })
+      expect(lead.reload.company_id).to be_nil
+    end
+  end
+
   it 'crea la campaña si no existe y la asigna al lead' do
     lead = crear_lead(1)
 

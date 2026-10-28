@@ -18,6 +18,7 @@ class Jabvox::Flows::Nodes::Jabvox::LeadUpdateDetailsNode < Jabvox::Flows::Nodes
     ActiveRecord::Base.transaction do
       update_contact_fields(lead)
       update_assignee(lead)
+      update_company(lead)
       update_campaign(lead)
       update_custom_fields(lead)
     end
@@ -70,6 +71,25 @@ class Jabvox::Flows::Nodes::Jabvox::LeadUpdateDetailsNode < Jabvox::Flows::Nodes
 
     lead.update!(assignee: assignee)
     Jabvox::ContactConversationAssignmentSync.new(account).sync_contact(lead, assignee)
+  end
+
+  # Liga (o desliga) el contacto a una EMPRESA entidad (companies.id). Solo si el
+  # módulo de empresas está activo; la empresa debe pertenecer a la cuenta (aislamiento).
+  # 'nil'/vacío desasigna. Reutiliza el servicio de membresía (sincroniza company_name).
+  def update_company(lead)
+    return if blank_param?(param(:companyId))
+    return unless account.feature_enabled?('companies')
+
+    value = param(:companyId).to_s.strip
+    if %w[nil 0].include?(value)
+      Companies::ContactMembershipService.new(company: lead.company).remove(contact: lead) if lead.company_id.present?
+      return
+    end
+
+    company = account.companies.find_by(id: value)
+    fail_with!("La empresa #{value} no pertenece a esta cuenta.") if company.nil?
+
+    Companies::ContactMembershipService.new(company: company).assign(contact: lead)
   end
 
   def update_campaign(lead)
