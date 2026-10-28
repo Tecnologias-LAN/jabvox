@@ -135,6 +135,17 @@
         "PLACEHOLDER": "Introduzca el nombre de la ciudad",
         "LABEL": "Nombre de ciudad"
       },
+      "JABVOX_IDENTIFICATION": {
+        "CEDULA_LABEL": "Cédula",
+        "CEDULA_PLACEHOLDER": "Ej: 1234567890",
+        "NIT_LABEL": "NIT",
+        "NIT_PLACEHOLDER": "Ej: 900123456-7"
+      },
+      "JABVOX_CAMPAIGN": {
+        "LABEL": "Campaña",
+        "PLACEHOLDER": "Seleccione una campaña",
+        "NONE": "Sin campaña"
+      },
       "SOCIAL_PROFILES": {
         "FACEBOOK": {
           "PLACEHOLDER": "Escriba el usuario de Facebook",
@@ -425,7 +436,8 @@
       "IDENTIFIER": "Idenrificador",
       "COUNTRY": "País",
       "CITY": "Ciudad",
-      "COMPANY": "Empresa",
+      "COMPANY": "Empresa (texto)",
+      "COMPANY_ENTITY": "Empresa",
       "CREATED_AT": "Creado el",
       "LAST_ACTIVITY": "Última actividad",
       "REFERER_LINK": "Enlace de referencia",

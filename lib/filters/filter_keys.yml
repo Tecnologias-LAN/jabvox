@@ -231,6 +231,28 @@ contacts:
       - "not_equal_to"
       - "contains"
       - "does_not_contain"
+  # Empresa del contacto como ENTIDAD (companies.id), no el texto libre company_name.
+  # Permite condicionar automatizaciones por "la empresa del contacto es X".
+  company_id:
+    attribute_type: "standard"
+    data_type: "number"
+    filter_operators:
+      - "equal_to"
+      - "not_equal_to"
+      - "is_present"
+      - "is_not_present"
+  # NIT/documento del contacto, dentro de additional_attributes. Disponible como
+  # condición de automatización (identificar clientes por su documento).
+  jabvox_identification_number:
+    attribute_type: "additional_attributes"
+    data_type: "text_case_insensitive"
+    filter_operators:
+      - "equal_to"
+      - "not_equal_to"
+      - "contains"
+      - "does_not_contain"
+      - "is_present"
+      - "is_not_present"
   labels:
     attribute_type: "standard"
     data_type: "labels"

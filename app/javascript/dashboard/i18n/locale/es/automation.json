@@ -141,6 +141,7 @@
     "ACTIONS": {
       "ASSIGN_AGENT": "Asignar al agente",
       "ASSIGN_TEAM": "Asignar equipo",
+      "ASSIGN_COMPANY": "Asignar una empresa",
       "REMOVE_ASSIGNED_AGENT": "Remove Assigned Agent",
       "REMOVE_ASSIGNED_TEAM": "Remove Assigned Team",
       "ADD_LABEL": "Añadir etiqueta",
@@ -191,7 +192,9 @@
       "BROWSER_LANGUAGE": "Idioma del navegador",
       "MAIL_SUBJECT": "Asunto de Email",
       "COUNTRY_NAME": "País",
-      "COMPANY_NAME": "Empresa",
+      "COMPANY_NAME": "Empresa (texto)",
+      "COMPANY": "Empresa",
+      "JABVOX_IDENTIFICATION_NUMBER": "NIT / Documento del contacto",
       "REFERER_LINK": "Enlace de referencia",
       "ASSIGNEE_NAME": "Asignado a",
       "TEAM_NAME": "Equipo",

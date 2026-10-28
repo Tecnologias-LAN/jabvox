@@ -477,5 +477,46 @@ describe Contacts::FilterService do
         expect { filter_service.new(account, first_user, params).perform }.to raise_error(CustomExceptions::CustomFilter::InvalidValue)
       end
     end
+
+    # Filtro por EMPRESA (entidad): contacts.company_id. Distinto del texto company_name.
+    context 'with company_id (company entity) filter' do
+      before { account.enable_features!('companies') }
+
+      let!(:company) { create(:company, account: account) }
+      let!(:company_contact) do
+        create(:contact, account: account, email: Faker::Internet.unique.email).tap do |c|
+          c.update!(company: company)
+        end
+      end
+
+      it 'returns contacts linked to the given company with equal_to' do
+        params[:payload] = [
+          {
+            attribute_key: 'company_id',
+            filter_operator: 'equal_to',
+            values: [company.id],
+            query_operator: nil
+          }.with_indifferent_access
+        ]
+        result = filter_service.new(account, first_user, params).perform
+        expect(result[:contacts].map(&:id)).to include(company_contact.id)
+        expect(result[:contacts].map(&:id)).not_to include(en_contact.id)
+      end
+
+      it 'returns contacts without a company with is_not_present' do
+        params[:payload] = [
+          {
+            attribute_key: 'company_id',
+            filter_operator: 'is_not_present',
+            values: [],
+            query_operator: nil
+          }.with_indifferent_access
+        ]
+        result = filter_service.new(account, first_user, params).perform
+        ids = result[:contacts].map(&:id)
+        expect(ids).to include(en_contact.id)
+        expect(ids).not_to include(company_contact.id)
+      end
+    end
   end
 end

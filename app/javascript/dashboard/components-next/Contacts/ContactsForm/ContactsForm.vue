@@ -106,7 +106,10 @@ const defaultState = {
     countryCode: '',
     country: '',
     city: '',
-    jabvoxContactType: '',
+    // Todo contacto es una persona: la empresa es una entidad aparte que se liga
+    // por `companyId`. El tipo queda fijo en 'persona' para no romper import/dialer
+    // ni los filtros que ya esperan ese valor.
+    jabvoxContactType: 'persona',
     jabvoxIdentificationNumber: '',
     socialProfiles: {
       facebook: '',
@@ -184,7 +187,7 @@ const prepareStateBasedOnProps = () => {
     countryCode = '',
     country = '',
     city = '',
-    jabvox_contact_type: jabvoxContactType = '',
+    jabvox_contact_type: jabvoxContactType = 'persona',
     jabvox_identification_number: jabvoxIdentificationNumber = '',
     socialTelegramUserName = '',
     socialProfiles = {},
@@ -212,7 +215,7 @@ const prepareStateBasedOnProps = () => {
       countryCode: cm(countryCode),
       country: cm(country),
       city: cm(city),
-      jabvoxContactType: cm(jabvoxContactType),
+      jabvoxContactType: cm(jabvoxContactType) || 'persona',
       jabvoxIdentificationNumber: cm(jabvoxIdentificationNumber),
       socialProfiles: {
         ...cleanedSocialProfiles,
@@ -390,54 +393,27 @@ defineExpose({
             class="w-full"
             @input="
               isValidationField(item.key) &&
-                v$[getValidationKey(item.key)].$touch()
+              v$[getValidationKey(item.key)].$touch()
             "
             @blur="
               isValidationField(item.key) &&
-                v$[getValidationKey(item.key)].$touch()
+              v$[getValidationKey(item.key)].$touch()
             "
           />
         </template>
       </div>
     </div>
-    <!-- Jabvox: contact type + identification -->
+    <!-- Jabvox: documento del contacto (cédula).
+         Todo contacto es una persona; la empresa es una entidad aparte (companyId),
+         por eso ya no hay selector persona/empresa. El documento se muestra siempre. -->
     <div class="flex flex-col items-start gap-3">
       <span class="py-1 text-sm font-medium text-n-slate-12">
-        {{ t('CONTACT_FORM.FORM.JABVOX_CONTACT_TYPE.LABEL') }}
+        {{ t('CONTACT_FORM.FORM.JABVOX_IDENTIFICATION.CEDULA_LABEL') }}
       </span>
-      <div class="flex items-center gap-4">
-        <label
-          class="flex items-center gap-1.5 cursor-pointer text-sm text-n-slate-12"
-        >
-          <input
-            v-model="state.additionalAttributes.jabvoxContactType"
-            type="radio"
-            value="persona"
-            class="accent-n-brand"
-            @change="emit('update', state)"
-          />
-          {{ t('CONTACT_FORM.FORM.JABVOX_CONTACT_TYPE.PERSONA') }}
-        </label>
-        <label
-          class="flex items-center gap-1.5 cursor-pointer text-sm text-n-slate-12"
-        >
-          <input
-            v-model="state.additionalAttributes.jabvoxContactType"
-            type="radio"
-            value="empresa"
-            class="accent-n-brand"
-            @change="emit('update', state)"
-          />
-          {{ t('CONTACT_FORM.FORM.JABVOX_CONTACT_TYPE.EMPRESA') }}
-        </label>
-      </div>
       <Input
-        v-if="state.additionalAttributes.jabvoxContactType"
         v-model="state.additionalAttributes.jabvoxIdentificationNumber"
         :placeholder="
-          state.additionalAttributes.jabvoxContactType === 'empresa'
-            ? t('CONTACT_FORM.FORM.JABVOX_IDENTIFICATION.NIT_PLACEHOLDER')
-            : t('CONTACT_FORM.FORM.JABVOX_IDENTIFICATION.CEDULA_PLACEHOLDER')
+          t('CONTACT_FORM.FORM.JABVOX_IDENTIFICATION.CEDULA_PLACEHOLDER')
         "
         :custom-input-class="`h-8 !pt-1 !pb-1 ${!isDetailsView ? '[&:not(.error,.focus)]:!outline-transparent' : ''}`"
         class="w-full"

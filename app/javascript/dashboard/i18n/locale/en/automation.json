@@ -141,6 +141,7 @@
     "ACTIONS": {
       "ASSIGN_AGENT": "Assign to Agent",
       "ASSIGN_TEAM": "Assign a Team",
+      "ASSIGN_COMPANY": "Assign a Company",
       "REMOVE_ASSIGNED_AGENT": "Remove Assigned Agent",
       "REMOVE_ASSIGNED_TEAM": "Remove Assigned Team",
       "ADD_LABEL": "Add a Label",
@@ -191,7 +192,9 @@
       "BROWSER_LANGUAGE": "Browser Language",
       "MAIL_SUBJECT": "Email Subject",
       "COUNTRY_NAME": "Country",
-      "COMPANY_NAME": "Company",
+      "COMPANY_NAME": "Company (text)",
+      "COMPANY": "Company",
+      "JABVOX_IDENTIFICATION_NUMBER": "Contact NIT / ID",
       "REFERER_LINK": "Referrer Link",
       "ASSIGNEE_NAME": "Assignee",
       "TEAM_NAME": "Team",

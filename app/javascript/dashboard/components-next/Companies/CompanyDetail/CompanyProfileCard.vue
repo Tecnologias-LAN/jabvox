@@ -18,7 +18,7 @@ const props = defineProps({
 const { t } = useI18n();
 const companiesStore = useCompaniesStore();
 
-const form = reactive({ name: '', domain: '', description: '' });
+const form = reactive({ name: '', domain: '', description: '', nit: '' });
 const avatarPreviewUrl = ref('');
 const isUploadingAvatar = ref(false);
 
@@ -36,11 +36,14 @@ const avatarSource = computed(
   () => avatarPreviewUrl.value || props.company?.avatarUrl || ''
 );
 const isFormInvalid = computed(() => !form.name.trim());
+const companyNit = company =>
+  company?.additionalAttributes?.nit || company?.nit || '';
 const hasChanges = computed(
   () =>
     form.name.trim() !== (props.company?.name || '').trim() ||
     form.domain.trim() !== (props.company?.domain || '').trim() ||
-    form.description.trim() !== (props.company?.description || '').trim()
+    form.description.trim() !== (props.company?.description || '').trim() ||
+    form.nit.trim() !== companyNit(props.company).trim()
 );
 
 const summary = computed(() => {
@@ -63,6 +66,7 @@ const syncForm = company => {
   form.name = company?.name || '';
   form.domain = company?.domain || '';
   form.description = company?.description || '';
+  form.nit = companyNit(company);
 };
 
 const isCurrentCompany = companyId => Number(props.company?.id) === companyId;
@@ -73,6 +77,7 @@ watch(
     props.company?.name,
     props.company?.domain,
     props.company?.description,
+    companyNit(props.company),
     props.company?.avatarUrl,
   ],
   () => {
@@ -115,6 +120,12 @@ const handleUpdateCompany = async () => {
       name: form.name.trim(),
       domain: form.domain.trim() || null,
       description: form.description.trim() || null,
+      // El NIT (identificador fiscal de la empresa) vive en additional_attributes.
+      // Se fusiona con lo existente para no pisar otros atributos de la empresa.
+      additionalAttributes: {
+        ...(props.company?.additionalAttributes || {}),
+        nit: form.nit.trim() || null,
+      },
     });
     if (!isCurrentCompany(companyId)) return;
 

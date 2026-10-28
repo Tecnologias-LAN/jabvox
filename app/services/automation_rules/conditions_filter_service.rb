@@ -187,7 +187,15 @@ class AutomationRules::ConditionsFilterService < FilterService # rubocop:disable
     when 'additional_attributes'
       " contacts.additional_attributes ->> '#{attribute_key}' #{filter_operator_value} #{query_operator} "
     when 'standard'
-      " contacts.#{attribute_key} #{filter_operator_value} #{query_operator} "
+      # "La empresa del contacto NO es X" debe incluir también a los contactos SIN
+      # empresa (company_id NULL). Con el LEFT JOIN, `company_id NOT IN (:v)` da NULL
+      # (no TRUE) para esos contactos, así que la regla no dispararía para quien no
+      # tiene empresa. Se añade el OR explícito, igual que en el filtro de labels.
+      if attribute_key == 'company_id' && query_hash['filter_operator'] == 'not_equal_to'
+        " (contacts.#{attribute_key} #{filter_operator_value} OR contacts.#{attribute_key} IS NULL) #{query_operator} "
+      else
+        " contacts.#{attribute_key} #{filter_operator_value} #{query_operator} "
+      end
     end
   end
 

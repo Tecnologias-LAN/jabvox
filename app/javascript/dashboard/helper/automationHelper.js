@@ -97,6 +97,7 @@ export const generateConditionOptions = (options, key = 'id') => {
 export const getActionOptions = ({
   agents,
   teams,
+  companies,
   labels,
   slaPolicies,
   type,
@@ -106,6 +107,7 @@ export const getActionOptions = ({
   const actionsMap = {
     assign_agent: addNoneToListFn ? addNoneToListFn(agents) : agents,
     assign_team: addNoneToListFn ? addNoneToListFn(teams) : teams,
+    assign_company: addNoneToListFn ? addNoneToListFn(companies) : companies,
     send_email_to_team: teams,
     add_label: generateConditionOptions(labels, 'title'),
     remove_label: generateConditionOptions(labels, 'title'),
@@ -119,6 +121,7 @@ export const getConditionOptions = ({
   agents,
   booleanFilterOptions,
   campaigns,
+  companies,
   contacts,
   countries,
   customAttributes,
@@ -144,6 +147,7 @@ export const getConditionOptions = ({
     status: statusFilterOptions,
     assignee_id: agents,
     contact: contacts,
+    company_id: companies,
     inbox_id: inboxes,
     team_id: teams,
     campaigns: generateConditionOptions(campaigns),

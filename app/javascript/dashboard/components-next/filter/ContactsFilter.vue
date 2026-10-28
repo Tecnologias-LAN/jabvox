@@ -1,8 +1,11 @@
 <script setup>
-import { useTemplateRef, onBeforeUnmount, computed, ref } from 'vue';
+import { useTemplateRef, onBeforeUnmount, onMounted, computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useTrack } from 'dashboard/composables';
 import { useStore } from 'dashboard/composables/store';
+import { useAccount } from 'dashboard/composables/useAccount';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import { useCompaniesStore } from 'dashboard/stores/companies';
 import { vOnClickOutside } from '@vueuse/components';
 import { CONTACTS_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 import { useContactFilterContext } from './contactProvider.js';
@@ -41,6 +44,16 @@ const DEFAULT_FILTER = {
 
 const { t } = useI18n();
 const store = useStore();
+const { isCloudFeatureEnabled } = useAccount();
+const companiesStore = useCompaniesStore();
+
+onMounted(() => {
+  // Precarga la lista de empresas para poblar el filtro "Empresa" (entidad).
+  // Solo si el módulo está activo (endpoint enterprise).
+  if (isCloudFeatureEnabled(FEATURE_FLAGS.COMPANIES)) {
+    companiesStore.get({});
+  }
+});
 
 const resetFilter = () => {
   emit('clearFilters');

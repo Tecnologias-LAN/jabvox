@@ -584,4 +584,61 @@ RSpec.describe AutomationRules::ConditionsFilterService do
       expect(described_class.new(rule, msg.conversation, { message: msg, changed_attributes: {} }).perform).to be(true)
     end
   end
+
+  # Condición "empresa del contacto" (company_id). El contacto se liga a una empresa
+  # (entidad) para identificar clientes existentes en las automatizaciones.
+  describe 'condición company_id (empresa del contacto)' do
+    before do
+      account.enable_features!('companies')
+      # Evita la autoasociación por dominio de email, para controlar company_id a mano.
+      conversation.contact.update!(email: nil, company_id: nil)
+    end
+
+    let(:company) { create(:company, account: account) }
+    let(:other_company) { create(:company, account: account) }
+
+    def perform_rule
+      described_class.new(rule, conversation, { changed_attributes: {} }).perform
+    end
+
+    it 'equal_to: matchea cuando el contacto pertenece a esa empresa' do
+      conversation.contact.update!(company: company)
+      rule.conditions = [{ 'values' => [company.id], 'attribute_key' => 'company_id', 'query_operator' => nil,
+                           'filter_operator' => 'equal_to' }]
+      rule.save!
+      expect(perform_rule).to be(true)
+    end
+
+    it 'equal_to: NO matchea cuando el contacto pertenece a otra empresa' do
+      conversation.contact.update!(company: other_company)
+      rule.conditions = [{ 'values' => [company.id], 'attribute_key' => 'company_id', 'query_operator' => nil,
+                           'filter_operator' => 'equal_to' }]
+      rule.save!
+      expect(perform_rule).to be(false)
+    end
+
+    it 'not_equal_to: matchea también cuando el contacto NO tiene empresa (incluye nulos)' do
+      conversation.contact.update!(company: nil)
+      rule.conditions = [{ 'values' => [company.id], 'attribute_key' => 'company_id', 'query_operator' => nil,
+                           'filter_operator' => 'not_equal_to' }]
+      rule.save!
+      expect(perform_rule).to be(true)
+    end
+
+    it 'is_present: matchea cuando el contacto tiene cualquier empresa' do
+      conversation.contact.update!(company: company)
+      rule.conditions = [{ 'values' => [], 'attribute_key' => 'company_id', 'query_operator' => nil,
+                           'filter_operator' => 'is_present' }]
+      rule.save!
+      expect(perform_rule).to be(true)
+    end
+
+    it 'is_not_present: matchea cuando el contacto no tiene empresa' do
+      conversation.contact.update!(company: nil)
+      rule.conditions = [{ 'values' => [], 'attribute_key' => 'company_id', 'query_operator' => nil,
+                           'filter_operator' => 'is_not_present' }]
+      rule.save!
+      expect(perform_rule).to be(true)
+    end
+  end
 end

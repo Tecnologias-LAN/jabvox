@@ -124,7 +124,8 @@
         },
         "FIELDS": {
           "NAME": "Nombre",
-          "DOMAIN": "Dominio"
+          "DOMAIN": "Dominio",
+          "NIT": "NIT"
         }
       },
       "DELETE": {

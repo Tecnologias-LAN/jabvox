@@ -246,7 +246,7 @@
   column: feature_flags_ext_1
 - name: companies
   display_name: Companies
-  enabled: false
+  enabled: true
   premium: true
   jabvox_internal: true
 - name: channel_tiktok

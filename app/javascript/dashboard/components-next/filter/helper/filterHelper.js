@@ -31,6 +31,7 @@ export const CONTACT_ATTRIBUTES = {
   COUNTRY_CODE: 'country_code',
   CITY: 'city',
   COMPANY_NAME: 'company_name',
+  COMPANY_ID: 'company_id',
   CREATED_AT: 'created_at',
   LAST_ACTIVITY_AT: 'last_activity_at',
   REFERER: 'referer',

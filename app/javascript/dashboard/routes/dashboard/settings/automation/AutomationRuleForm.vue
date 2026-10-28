@@ -15,6 +15,7 @@ import {
   showActionInput,
 } from 'dashboard/helper/automationHelper';
 import { validateAutomation } from 'dashboard/helper/validations';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { AUTOMATION_RULE_EVENTS, AUTOMATION_ACTION_TYPES } from './constants';
 
 const props = defineProps({
@@ -122,7 +123,13 @@ const filterTypes = computed(() => {
   const event = eventName.value;
   if (!event || !props.automationTypes[event]) return [];
 
-  const attributes = getTranslatedAttributes(props.automationTypes, event);
+  const attributes = getTranslatedAttributes(props.automationTypes, event)
+    // Oculta condiciones que exigen un módulo (p. ej. "empresa") cuando la cuenta
+    // no lo tiene activo. El backend igual degrada, pero no ofrecemos lo que no aplica.
+    .filter(
+      attr =>
+        !attr.requiresFeature || isCloudFeatureEnabled(attr.requiresFeature)
+    );
 
   return attributes.map(attr => {
     if (attr.disabled) {
@@ -173,9 +180,13 @@ const hasAutomationMutated = computed(() => {
 });
 
 const automationActionTypes = computed(() => {
-  const actionTypes = isCloudFeatureEnabled('sla')
-    ? AUTOMATION_ACTION_TYPES
-    : AUTOMATION_ACTION_TYPES.filter(({ key }) => key !== 'add_sla');
+  const actionTypes = AUTOMATION_ACTION_TYPES.filter(({ key }) => {
+    if (key === 'add_sla') return isCloudFeatureEnabled('sla');
+    // "assign_company" solo si el módulo de empresas está activo en la cuenta.
+    if (key === 'assign_company')
+      return isCloudFeatureEnabled(FEATURE_FLAGS.COMPANIES);
+    return true;
+  });
 
   return actionTypes.map(action => ({
     ...action,

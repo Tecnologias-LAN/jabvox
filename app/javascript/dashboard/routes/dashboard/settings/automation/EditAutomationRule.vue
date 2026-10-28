@@ -1,9 +1,12 @@
 <script setup>
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, onMounted } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAutomation } from 'dashboard/composables/useAutomation';
 import { useEditableAutomation } from 'dashboard/composables/useEditableAutomation';
 import { useUnsavedChanges } from 'dashboard/composables/jabvox/useUnsavedChanges';
+import { useAccount } from 'dashboard/composables/useAccount';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import { useCompaniesStore } from 'dashboard/stores/companies';
 import AutomationRuleForm from './AutomationRuleForm.vue';
 import { AUTOMATION_ACTION_TYPES } from './constants';
 
@@ -18,6 +21,16 @@ const emit = defineEmits(['saveAutomation']);
 
 const allCustomAttributes = useMapGetter('attributes/getAttributes');
 const formRef = ref(null);
+const { isCloudFeatureEnabled } = useAccount();
+const companiesStore = useCompaniesStore();
+
+onMounted(() => {
+  // Precarga de empresas para resolver el nombre de un company_id ya guardado en la
+  // regla. Solo si el módulo está activo (endpoint enterprise, 403 si no).
+  if (isCloudFeatureEnabled(FEATURE_FLAGS.COMPANIES)) {
+    companiesStore.get({});
+  }
+});
 
 const {
   automation,

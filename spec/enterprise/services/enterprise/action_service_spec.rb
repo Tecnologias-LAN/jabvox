@@ -3,6 +3,57 @@ require 'rails_helper'
 describe ActionService do
   let(:account) { create(:account) }
 
+  describe '#assign_company' do
+    let(:conversation) { create(:conversation, account: account) }
+    let(:contact) { conversation.contact }
+    let(:company) { create(:company, account: account) }
+    let(:action_service) { described_class.new(conversation) }
+
+    context 'when the companies feature is enabled' do
+      before do
+        account.enable_features!('companies')
+        # El contacto del factory trae email con dominio corporativo y se autoasocia a una
+        # empresa por dominio (callback associate_company_from_email). Lo limpiamos para que
+        # los casos de "no debe asignar" partan de company_id nil y sean deterministas.
+        contact.update!(email: nil, company_id: nil)
+      end
+
+      it 'links the conversation contact to a company of the account' do
+        action_service.assign_company([company.id])
+        expect(contact.reload.company_id).to eq(company.id)
+      end
+
+      it 'syncs company_name into additional_attributes via the model callback' do
+        action_service.assign_company([company.id])
+        expect(contact.reload.additional_attributes['company_name']).to eq(company.name)
+      end
+
+      it 'unassigns the company when the value is "nil"' do
+        contact.update!(company: company)
+        action_service.assign_company(['nil'])
+        expect(contact.reload.company_id).to be_nil
+      end
+
+      it 'ignores a company that belongs to another account' do
+        other_company = create(:company, account: create(:account))
+        action_service.assign_company([other_company.id])
+        expect(contact.reload.company_id).to be_nil
+      end
+
+      it 'does nothing when the company does not exist' do
+        action_service.assign_company([company.id + 999])
+        expect(contact.reload.company_id).to be_nil
+      end
+    end
+
+    context 'when the companies feature is disabled' do
+      it 'does not link the contact to any company' do
+        action_service.assign_company([company.id])
+        expect(contact.reload.company_id).to be_nil
+      end
+    end
+  end
+
   describe '#add_sla' do
     let(:sla_policy) { create(:sla_policy, account: account) }
     let(:conversation) { create(:conversation, account: account) }

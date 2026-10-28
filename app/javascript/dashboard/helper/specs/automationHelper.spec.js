@@ -158,6 +158,34 @@ describe('getActionOptions', () => {
       })
     ).toEqual(agents);
   });
+
+  it('returns companies for assign_company action', () => {
+    const companies = [
+      { id: 10, name: 'Acme' },
+      { id: 11, name: 'Globex' },
+    ];
+    expect(
+      helpers.getActionOptions({ companies, type: 'assign_company' })
+    ).toEqual(companies);
+  });
+
+  it('adds None option to assign_company when addNoneToListFn is provided', () => {
+    const mockAddNoneToListFn = list => [
+      { id: 'nil', name: 'None' },
+      ...(list || []),
+    ];
+    const companies = [{ id: 10, name: 'Acme' }];
+    expect(
+      helpers.getActionOptions({
+        companies,
+        type: 'assign_company',
+        addNoneToListFn: mockAddNoneToListFn,
+      })
+    ).toEqual([
+      { id: 'nil', name: 'None' },
+      { id: 10, name: 'Acme' },
+    ]);
+  });
 });
 
 describe('getConditionOptions', () => {
@@ -192,6 +220,20 @@ describe('getConditionOptions', () => {
         type: 'private_note',
       })
     ).toEqual(booleanOptions);
+  });
+
+  it('returns companies for company_id condition', () => {
+    const companies = [
+      { id: 10, name: 'Acme' },
+      { id: 11, name: 'Globex' },
+    ];
+    expect(
+      helpers.getConditionOptions({
+        companies,
+        customAttributes,
+        type: 'company_id',
+      })
+    ).toEqual(companies);
   });
 });
 

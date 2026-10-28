@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n';
 import languages from 'dashboard/components/widgets/conversation/advancedFilterItems/languages';
 import countries from 'shared/constants/countries';
 import { useStoreGetters, useMapGetter } from 'dashboard/composables/store';
+import { useCompaniesStore } from 'dashboard/stores/companies';
 
 import {
   getActionOptions,
@@ -28,6 +29,10 @@ export default function useAutomationValues() {
   const labels = useMapGetter('labels/getLabels');
   const teams = useMapGetter('teams/getTeams');
   const slaPolicies = useMapGetter('sla/getSLA');
+  // Empresas (entidad) para condición "empresa del contacto" y acción "asignar empresa".
+  // Es un store Pinia, no Vuex; la precarga la hace el componente del formulario.
+  const companiesStore = useCompaniesStore();
+  const companies = computed(() => companiesStore.getCompaniesList || []);
 
   const booleanFilterOptions = computed(() => [
     { id: true, name: t('FILTER.ATTRIBUTE_LABELS.TRUE') },
@@ -109,6 +114,7 @@ export default function useAutomationValues() {
       agents: agents.value,
       booleanFilterOptions: booleanFilterOptions.value,
       campaigns: campaigns.value,
+      companies: companies.value,
       contacts: contacts.value,
       customAttributes: getters['attributes/getAttributes'].value,
       inboxes: inboxes.value,
@@ -145,6 +151,7 @@ export default function useAutomationValues() {
       agents: agentsList,
       labels: labels.value,
       teams: teams.value,
+      companies: companies.value,
       slaPolicies: slaPolicies.value,
       languages,
       type,
@@ -164,6 +171,7 @@ export default function useAutomationValues() {
     getActionDropdownValues,
     agents,
     campaigns,
+    companies,
     contacts,
     inboxes,
     labels,

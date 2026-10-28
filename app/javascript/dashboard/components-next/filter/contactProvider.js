@@ -2,6 +2,9 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useOperators } from './operators';
 import { useMapGetter } from 'dashboard/composables/store.js';
+import { useAccount } from 'dashboard/composables/useAccount';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import { useCompaniesStore } from 'dashboard/stores/companies';
 import {
   buildAttributesFilterTypes,
   CONTACT_ATTRIBUTES,
@@ -52,9 +55,25 @@ export function useContactFilterContext() {
   const contactAttributes = useMapGetter('attributes/getContactAttributes');
   const labels = useMapGetter('labels/getLabels');
 
+  // Empresas (entidad) para el filtro "Empresa" por company_id. Solo cuando el módulo
+  // está activo; la lista la mantiene su store Pinia (precargado por la vista de
+  // contactos / automatizaciones).
+  const { isCloudFeatureEnabled } = useAccount();
+  const companiesStore = useCompaniesStore();
+  const hasCompaniesFeature = computed(() =>
+    isCloudFeatureEnabled(FEATURE_FLAGS.COMPANIES)
+  );
+  const companyOptions = computed(() =>
+    (companiesStore.getCompaniesList || []).map(company => ({
+      id: company.id,
+      name: company.name,
+    }))
+  );
+
   const {
     equalityOperators,
     containmentOperators,
+    presenceOperators,
     dateOperators,
     getOperatorTypes,
   } = useOperators();
@@ -145,6 +164,23 @@ export function useContactFilterContext() {
       filterOperators: containmentOperators.value,
       attributeModel: 'standard',
     },
+    // Empresa como ENTIDAD (company_id). Solo si el módulo está activo. Permite filtrar
+    // por la empresa ligada (incluye "tiene / no tiene empresa" vía is_present).
+    ...(hasCompaniesFeature.value
+      ? [
+          {
+            attributeKey: CONTACT_ATTRIBUTES.COMPANY_ID,
+            value: CONTACT_ATTRIBUTES.COMPANY_ID,
+            attributeName: t('CONTACTS_LAYOUT.FILTER.COMPANY_ENTITY'),
+            label: t('CONTACTS_LAYOUT.FILTER.COMPANY_ENTITY'),
+            inputType: 'searchSelect',
+            options: companyOptions.value,
+            dataType: 'number',
+            filterOperators: presenceOperators.value,
+            attributeModel: 'standard',
+          },
+        ]
+      : []),
     {
       attributeKey: CONTACT_ATTRIBUTES.CREATED_AT,
       value: CONTACT_ATTRIBUTES.CREATED_AT,

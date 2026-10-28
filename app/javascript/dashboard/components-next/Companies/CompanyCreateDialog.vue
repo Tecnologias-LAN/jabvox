@@ -16,7 +16,7 @@ const emit = defineEmits(['create']);
 const { t } = useI18n();
 const dialogRef = ref(null);
 
-const form = reactive({ name: '', domain: '', description: '' });
+const form = reactive({ name: '', domain: '', description: '', nit: '' });
 
 const isFormInvalid = computed(() => !form.name.trim());
 
@@ -24,22 +24,27 @@ const resetForm = () => {
   form.name = '';
   form.domain = '';
   form.description = '';
+  form.nit = '';
 };
 
 const open = (company = {}) => {
   form.name = company.name || '';
   form.domain = company.domain || '';
   form.description = company.description || '';
+  form.nit = company.additionalAttributes?.nit || company.nit || '';
   dialogRef.value?.open();
 };
 
 const handleConfirm = () => {
   if (isFormInvalid.value) return;
 
+  // El NIT es el identificador fiscal de la EMPRESA (fuente de verdad del cliente);
+  // vive en additional_attributes de la empresa, no en el contacto persona.
   emit('create', {
     name: form.name.trim(),
     domain: form.domain.trim() || null,
     description: form.description.trim() || null,
+    additionalAttributes: { nit: form.nit.trim() || null },
   });
 };
 
@@ -79,6 +84,12 @@ defineExpose({ dialogRef, onSuccess, open });
           <Input
             v-model="form.domain"
             :placeholder="t('COMPANIES.DETAIL.PROFILE.FIELDS.DOMAIN')"
+            :disabled="isLoading"
+            custom-input-class="h-8 !pt-1 !pb-1 [&:not(.error,.focus)]:!outline-transparent"
+          />
+          <Input
+            v-model="form.nit"
+            :placeholder="t('COMPANIES.DETAIL.PROFILE.FIELDS.NIT')"
             :disabled="isLoading"
             custom-input-class="h-8 !pt-1 !pb-1 [&:not(.error,.focus)]:!outline-transparent"
           />
