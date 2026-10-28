@@ -231,6 +231,20 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_2,
       },
       {
+        // NIT/documento del contacto. Para identificar clientes por su documento.
+        key: 'jabvox_identification_number',
+        name: 'JABVOX_IDENTIFICATION_NUMBER',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
+        // Empresa del contacto como ENTIDAD (companies.id).
+        key: 'company_id',
+        name: 'COMPANY',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_3,
+      },
+      {
         key: 'referer',
         name: 'REFERER_LINK',
         inputType: 'plain_text',
@@ -380,6 +394,20 @@ export const AUTOMATIONS = {
         name: 'COMPANY_NAME',
         inputType: 'plain_text',
         filterOperators: OPERATOR_TYPES_2,
+      },
+      {
+        // NIT/documento del contacto. Para identificar clientes por su documento.
+        key: 'jabvox_identification_number',
+        name: 'JABVOX_IDENTIFICATION_NUMBER',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
+        // Empresa del contacto como ENTIDAD (companies.id).
+        key: 'company_id',
+        name: 'COMPANY',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_3,
       },
       {
         key: 'assignee_id',
@@ -545,6 +573,20 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_2,
       },
       {
+        // NIT/documento del contacto. Para identificar clientes por su documento.
+        key: 'jabvox_identification_number',
+        name: 'JABVOX_IDENTIFICATION_NUMBER',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
+        // Empresa del contacto como ENTIDAD (companies.id).
+        key: 'company_id',
+        name: 'COMPANY',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_3,
+      },
+      {
         key: 'team_id',
         name: 'TEAM_NAME',
         inputType: 'search_select',
@@ -690,6 +732,20 @@ export const AUTOMATIONS = {
         name: 'COMPANY_NAME',
         inputType: 'plain_text',
         filterOperators: OPERATOR_TYPES_2,
+      },
+      {
+        // NIT/documento del contacto. Para identificar clientes por su documento.
+        key: 'jabvox_identification_number',
+        name: 'JABVOX_IDENTIFICATION_NUMBER',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
+        // Empresa del contacto como ENTIDAD (companies.id).
+        key: 'company_id',
+        name: 'COMPANY',
+        inputType: 'search_select',
+        filterOperators: OPERATOR_TYPES_3,
       },
       {
         key: 'team_id',
