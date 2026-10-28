@@ -187,11 +187,22 @@ const prepareStateBasedOnProps = () => {
     countryCode = '',
     country = '',
     city = '',
-    jabvox_contact_type: jabvoxContactType = 'persona',
-    jabvox_identification_number: jabvoxIdentificationNumber = '',
     socialTelegramUserName = '',
     socialProfiles = {},
   } = additionalAttributes || {};
+
+  // additional_attributes llega camelizado por el getter del store (getContactById
+  // no lo tiene en stopPaths), así que las claves internas vienen en camelCase.
+  // Se admite también el snake_case por si la fuente no está camelizada (p. ej. el
+  // remitente de una conversación, que trae additional_attributes crudo).
+  const jabvoxContactType =
+    additionalAttributes?.jabvoxContactType ??
+    additionalAttributes?.jabvox_contact_type ??
+    'persona';
+  const jabvoxIdentificationNumber =
+    additionalAttributes?.jabvoxIdentificationNumber ??
+    additionalAttributes?.jabvox_identification_number ??
+    '';
 
   const telegramUsername =
     socialProfiles?.telegram || socialTelegramUserName || '';
