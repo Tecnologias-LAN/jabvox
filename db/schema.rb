@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_27_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_29_000006) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -3519,6 +3519,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_27_000001) do
     t.jsonb "template_params_jabvox", default: {}, null: false
     t.string "trigger_unit_jabvox"
     t.integer "trigger_value_jabvox"
+    t.string "recipients_jabvox", default: "lead", null: false
+    t.jsonb "assignee_contact_map_jabvox", default: {}, null: false
+    t.string "manual_email_jabvox", default: "", null: false
+    t.string "manual_phone_jabvox", default: "", null: false
     t.index ["account_id", "stage_id"], name: "index_jabvox_task_stage_automations_on_account_id_and_stage_id"
     t.index ["account_id"], name: "index_jabvox_task_stage_automations_on_account_id"
     t.index ["email_template_id"], name: "index_jabvox_task_stage_automations_on_email_template_id"

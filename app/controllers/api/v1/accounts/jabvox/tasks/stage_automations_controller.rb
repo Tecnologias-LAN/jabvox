@@ -49,9 +49,13 @@ class Api::V1::Accounts::Jabvox::Tasks::StageAutomationsController < Api::V1::Ac
       :trigger_hours_jabvox, :target_stage_id, :active_jabvox,
       :trigger_value_jabvox, :trigger_unit_jabvox,
       :template_name_jabvox, :template_language_jabvox,
+      # Destinatario: a quién enviar (lead/assignees/manual, por coma) y datos asociados.
+      :recipients_jabvox, :manual_email_jabvox, :manual_phone_jabvox,
       # El mapeo de variables es un hash de forma libre ({"1" => {source:, field:}}), así
       # que se permite entero y el servicio que lo lee valida campo por campo.
-      template_params_jabvox: {}
+      template_params_jabvox: {},
+      # Mapeo responsable->contacto { "<user_id>" => <contact_id> } para WhatsApp.
+      assignee_contact_map_jabvox: {}
     )
   end
 
@@ -70,7 +74,11 @@ class Api::V1::Accounts::Jabvox::Tasks::StageAutomationsController < Api::V1::Ac
       trigger_unit_jabvox: automation.trigger_unit_jabvox,
       template_name_jabvox: automation.template_name_jabvox,
       template_language_jabvox: automation.template_language_jabvox,
-      template_params_jabvox: automation.template_params_jabvox
+      template_params_jabvox: automation.template_params_jabvox,
+      recipients_jabvox: automation.recipients_jabvox,
+      manual_email_jabvox: automation.manual_email_jabvox,
+      manual_phone_jabvox: automation.manual_phone_jabvox,
+      assignee_contact_map_jabvox: automation.assignee_contact_map_jabvox
     }
   end
 end

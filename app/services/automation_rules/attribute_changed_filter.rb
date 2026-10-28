@@ -21,7 +21,15 @@ module AutomationRules::AttributeChangedFilter
       @changed_attributes = @changed_attributes.with_indifferent_access
       changed_attribute = @changed_attributes[filter['attribute_key']].presence
 
-      if changed_attribute[0].in?(filter['values']['from']) && changed_attribute[1].in?(filter['values']['to'])
+      # El atributo de la condición puede no estar entre los que cambiaron en este evento
+      # (p. ej. la regla mira "estado cambió" pero el evento cambió otra cosa). En ese caso
+      # `changed_attribute` es nil y `nil[0]` reventaría (NoMethodError), que el rescue de
+      # ConditionsFilterService tragaba dejando la regla en false sin rastro. Se salta.
+      next if changed_attribute.nil?
+
+      from = filter.dig('values', 'from')
+      to = filter.dig('values', 'to')
+      if changed_attribute[0].in?(from) && changed_attribute[1].in?(to)
         @attribute_changed_records = attribute_changed_filter_query(filter, records, current_attribute_changed_record)
       end
       current_attribute_changed_record = @attribute_changed_records

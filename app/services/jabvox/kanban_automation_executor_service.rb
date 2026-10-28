@@ -9,7 +9,7 @@ class Jabvox::KanbanAutomationExecutorService
   def perform
     return if @contact.nil?
 
-    @stage.jabvox_kanban_stage_automations.active.where(automation_type: 'send_message').each do |automation|
+    @stage.jabvox_kanban_stage_automations.active.where(automation_type: 'send_message').find_each do |automation|
       execute(automation)
     rescue StandardError => e
       Rails.logger.error("[KanbanAutomation] id=#{automation.id} error=#{e.message}")
@@ -98,9 +98,14 @@ class Jabvox::KanbanAutomationExecutorService
   def find_or_create_conversation(inbox)
     return @cs.conversation if @cs.conversation&.inbox_id == inbox.id
 
-    contact_inbox = ContactInbox.find_or_create_by!(contact: @contact, inbox: inbox)
+    # ContactInboxBuilder genera el source_id con el formato propio de cada canal (para
+    # WhatsApp, el teléfono sin '+'), que ContactInbox exige. find_or_create_by! sin él
+    # fallaba la validación y la plantilla de WhatsApp no salía (la tragaba el rescue).
+    contact_inbox = ContactInboxBuilder.new(contact: @contact, inbox: inbox).perform
+    return nil unless contact_inbox
+
     contact_inbox.conversations.last || build_new_conversation(contact_inbox, inbox)
-  rescue ActiveRecord::RecordInvalid
+  rescue ActiveRecord::RecordInvalid, ActionController::ParameterMissing
     nil
   end
 

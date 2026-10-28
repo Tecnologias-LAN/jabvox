@@ -6,6 +6,7 @@ import { useAlert } from 'dashboard/composables';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import TemplateParamsPicker from 'dashboard/components/jabvox/automations/TemplateParamsPicker.vue';
+import AssigneeContactMap from '../components/AssigneeContactMap.vue';
 
 const props = defineProps({
   boardId: {
@@ -34,6 +35,8 @@ const emailTemplates = computed(
   () => rootStore.getters['jabvoxEmail/getTemplates']
 );
 const smsProviders = useMapGetter('jabvoxSms/getProviders');
+// Agentes de la cuenta = responsables posibles para el mapeo responsable->contacto.
+const agents = useMapGetter('agents/getAgents');
 
 const automations = ref([]);
 const isLoading = ref(false);
@@ -61,6 +64,16 @@ const triggerHours = ref('');
 const targetStageId = ref(null);
 const active = ref(true);
 const confirmDialog = ref(null);
+
+// Destinatario del mensaje (igual que en automatizaciones de tarea específica): a quién
+// enviar (lead / responsables / manual). Por defecto al lead, para no cambiar lo existente.
+const RECIPIENTS = ['lead', 'assignees', 'manual'];
+const recipients = ref(['lead']);
+const manualEmail = ref('');
+const manualPhone = ref('');
+// Mapeo responsable->contacto para WhatsApp: { "<userId>": contactId }. Un responsable no
+// tiene teléfono, así que se le asigna un contacto real para poder enviarle la plantilla.
+const assigneeContactMap = ref({});
 
 const typeOptions = computed(() => [
   {
@@ -118,6 +131,22 @@ const customAttributeKeys = computed(() =>
     .filter(Boolean)
 );
 
+// Etiqueta traducida de cada tipo de destinatario (Lead / Responsables / Manual).
+const recipientLabel = key =>
+  // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
+  t(`JABVOX_TASKS.AUTOMATION.RECIPIENT.${key.toUpperCase()}`);
+
+const toggleRecipient = key => {
+  const set = new Set(recipients.value);
+  if (set.has(key)) set.delete(key);
+  else set.add(key);
+  // Nunca quedarse sin destinatario: si se desmarca el último, vuelve a "lead".
+  recipients.value = set.size ? [...set] : ['lead'];
+};
+
+const hasManual = computed(() => recipients.value.includes('manual'));
+const hasAssignees = computed(() => recipients.value.includes('assignees'));
+
 const selectedChannelKey = computed({
   get: () => {
     if (channelType.value === 'whatsapp_template' && inboxId.value)
@@ -148,6 +177,10 @@ const resetForm = () => {
   triggerHours.value = '';
   targetStageId.value = null;
   active.value = true;
+  recipients.value = ['lead'];
+  manualEmail.value = '';
+  manualPhone.value = '';
+  assigneeContactMap.value = {};
   editing.value = null;
 };
 
@@ -194,6 +227,14 @@ const openEdit = automation => {
     : '';
   targetStageId.value = automation.targetStageId || null;
   active.value = automation.activeJabvox !== false;
+  recipients.value = (automation.recipientsJabvox || 'lead')
+    .split(',')
+    .map(r => r.trim())
+    .filter(Boolean);
+  if (!recipients.value.length) recipients.value = ['lead'];
+  manualEmail.value = automation.manualEmailJabvox || '';
+  manualPhone.value = automation.manualPhoneJabvox || '';
+  assigneeContactMap.value = automation.assigneeContactMapJabvox || {};
   showForm.value = true;
 };
 
@@ -215,6 +256,11 @@ const buildPayload = () => {
     payload.sms_provider_id = smsProviderId.value
       ? Number(smsProviderId.value)
       : null;
+    // Destinatario: a quién enviar y los datos que cada opción necesita.
+    payload.recipients_jabvox = recipients.value.join(',');
+    payload.manual_email_jabvox = manualEmail.value;
+    payload.manual_phone_jabvox = manualPhone.value;
+    payload.assignee_contact_map_jabvox = assigneeContactMap.value;
   } else if (automationType.value === 'webhook') {
     payload.webhook_url_jabvox = webhookUrl.value;
     if (webhookSecret.value) {
@@ -290,6 +336,9 @@ onMounted(() => {
   rootStore.dispatch('jabvoxEmail/fetchTemplates');
   rootStore.dispatch('jabvoxSms/fetchProviders');
   rootStore.dispatch('attributes/get');
+  // Responsables posibles para el mapeo responsable->contacto (son todos los agentes de la
+  // cuenta, porque la automatización de etapa aplica a cualquier tarea que entre a la etapa).
+  rootStore.dispatch('agents/get');
 });
 </script>
 
@@ -406,6 +455,46 @@ onMounted(() => {
           </div>
 
           <template v-if="automationType === 'send_message'">
+            <!-- Destinatario: a quién enviar el mensaje (lead / responsables / manual). -->
+            <div class="space-y-1">
+              <label class="block text-sm font-medium text-n-slate-11">
+                {{ t('JABVOX_TASKS.AUTOMATION.RECIPIENTS') }}
+              </label>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="r in RECIPIENTS"
+                  :key="r"
+                  type="button"
+                  class="px-3 py-1.5 rounded-full text-xs border transition-colors"
+                  :class="
+                    recipients.includes(r)
+                      ? 'border-n-brand bg-n-brand/10 text-n-slate-12'
+                      : 'border-n-weak text-n-slate-10'
+                  "
+                  @click="toggleRecipient(r)"
+                >
+                  {{ recipientLabel(r) }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Destinatario manual (email o teléfono según el canal). -->
+            <div v-if="hasManual" class="space-y-1">
+              <input
+                v-if="channelType === 'email'"
+                v-model="manualEmail"
+                type="email"
+                :placeholder="t('JABVOX_TASKS.AUTOMATION.MANUAL_EMAIL')"
+                class="w-full px-3 py-2 text-sm rounded-lg bg-n-solid-1 border border-n-weak text-n-slate-12 focus:outline-none focus:border-n-strong"
+              />
+              <input
+                v-else
+                v-model="manualPhone"
+                :placeholder="t('JABVOX_TASKS.AUTOMATION.MANUAL_PHONE')"
+                class="w-full px-3 py-2 text-sm rounded-lg bg-n-solid-1 border border-n-weak text-n-slate-12 focus:outline-none focus:border-n-strong"
+              />
+            </div>
+
             <div class="space-y-1">
               <label class="block text-sm font-medium text-n-slate-11">
                 {{ t('JABVOX_TASKS.AUTOMATIONS.CHANNEL') }}
@@ -464,6 +553,20 @@ onMounted(() => {
               allow-task
               :custom-attribute-keys="customAttributeKeys"
             />
+            <!-- Mapeo responsable->contacto: solo si se envía por WhatsApp a responsables.
+                 Un responsable no tiene teléfono, así que se le asigna un contacto real. -->
+            <div
+              v-if="channelType === 'whatsapp_template' && hasAssignees"
+              class="pt-3 mt-1 border-t border-n-weak"
+            >
+              <label class="block mb-2 text-xs font-medium text-n-slate-12">
+                {{ t('JABVOX_TASKS.AUTOMATION.ASSIGNEE_MAP.TITLE') }}
+              </label>
+              <AssigneeContactMap
+                v-model="assigneeContactMap"
+                :assignees="agents"
+              />
+            </div>
             <div v-if="channelType === 'sms'" class="space-y-1">
               <label class="block text-sm font-medium text-n-slate-11">
                 {{ t('JABVOX_TASKS.AUTOMATIONS.MESSAGE_BODY') }}

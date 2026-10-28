@@ -526,6 +526,37 @@ RSpec.describe AutomationRules::ConditionsFilterService do
       end
     end
 
+    # Regresión: un GRUPO 100%-Ruby (solo franjas horarias) unido por OR a nivel raíz con
+    # otra condición. El grupo falso NO debe cortar la evaluación del OR: si la otra
+    # condición se cumple, la regla dispara. Bug: "(solo-tarde) OR status=open" por la
+    # mañana con status=open no disparaba porque el grupo Ruby falso tumbaba todo.
+    context 'with a RUBY-only group OR another condition at root level' do
+      before do
+        conversation.update!(status: :open)
+        rule.conditions = [
+          { 'type': 'group', 'query_operator': 'OR', 'child_operator': 'OR', 'conditions': [
+            { 'values': { 'from': '14:00', 'to': '18:00' }, 'attribute_key': 'current_time',
+              'query_operator': nil, 'filter_operator': 'is_between' }
+          ] },
+          { 'values': ['open'], 'attribute_key': 'status', 'query_operator': nil, 'filter_operator': 'equal_to' }
+        ]
+        rule.save
+      end
+
+      it 'dispara por la condición status aunque el grupo horario sea falso (mañana)' do
+        expect(perform_at('2026-10-21 10:00:00')).to be(true)
+      end
+
+      it 'dispara también cuando el grupo horario SÍ se cumple (tarde)' do
+        expect(perform_at('2026-10-21 15:00:00')).to be(true)
+      end
+
+      it 'NO dispara cuando ni el grupo ni el status se cumplen' do
+        conversation.update!(status: :resolved)
+        expect(perform_at('2026-10-21 10:00:00')).to be(false)
+      end
+    end
+
     # Dos franjas planas con AND: deben cumplirse ambas, imposible con rangos disjuntos.
     context 'with TWO flat time ranges joined by AND (no group): impossible' do
       before do

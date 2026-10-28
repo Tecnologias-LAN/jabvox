@@ -47,6 +47,14 @@ describe ActionService do
     end
 
     context 'when the companies feature is disabled' do
+      before do
+        # Determinista: el módulo companies viene habilitado por defecto en features.yml, así
+        # que para este caso lo apagamos explícitamente y partimos de un contacto sin empresa
+        # (el factory lo autoasocia por dominio de email).
+        account.disable_features!('companies')
+        contact.update_columns(email: nil, company_id: nil) # rubocop:disable Rails/SkipsModelValidations
+      end
+
       it 'does not link the contact to any company' do
         action_service.assign_company([company.id])
         expect(contact.reload.company_id).to be_nil

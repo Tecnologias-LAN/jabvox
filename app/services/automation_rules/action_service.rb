@@ -27,7 +27,10 @@ class AutomationRules::ActionService < ActionService
 
     return unless @rule.files.attached?
 
-    blobs = ActiveStorage::Blob.where(id: blob_ids)
+    # Solo se adjuntan blobs que pertenezcan a ESTA regla: `blob_ids` viene del payload de
+    # la acción y, sin acotarlo a `@rule.files`, un id manipulado podría referenciar un
+    # adjunto de otra cuenta. Se cruza contra los blobs realmente adjuntos a la regla.
+    blobs = @rule.files.blobs.where(id: blob_ids)
 
     return if blobs.blank?
 
@@ -55,7 +58,9 @@ class AutomationRules::ActionService < ActionService
   end
 
   def send_email_to_team(params)
-    teams = Team.where(id: params[0][:team_ids])
+    # Scopeado a los equipos de la cuenta de la regla: `team_ids` viene del payload y un id
+    # ajeno notificaría a un equipo de otra cuenta.
+    teams = @account.teams.where(id: params[0][:team_ids])
 
     teams.each do |team|
       break unless @account.within_email_rate_limit?

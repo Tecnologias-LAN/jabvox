@@ -57,7 +57,10 @@ class JabvoxKanbanConversationStage < ApplicationRecord
   scope :ordered, -> { order(:position_jabvox, created_at: :desc) }
 
   before_validation :set_default_position, on: :create
-  after_commit :fire_stage_automations, on: [:create, :update]
+  # Solo al crear la tarjeta o cuando CAMBIA de etapa. Antes disparaba en cualquier update
+  # (reordenar, cambiar moved_by/posición, re-colocar en la misma etapa), lo que reenviaba
+  # la plantilla/email/SMS al contacto y gastaba saldo de más. Mismo criterio que las tareas.
+  after_commit :fire_stage_automations, on: %i[create update], if: :should_fire_stage_automations?
 
   private
 
@@ -86,6 +89,12 @@ class JabvoxKanbanConversationStage < ApplicationRecord
     return if conversation.nil? || conversation.account_id == account_id
 
     errors.add(:conversation, 'must belong to the same account')
+  end
+
+  # Dispara al crear la tarjeta, o en un update SOLO si cambió la etapa. Un reorder o un
+  # cambio de responsable/posición no debe re-ejecutar las automatizaciones de la etapa.
+  def should_fire_stage_automations?
+    saved_change_to_id? || saved_change_to_jabvox_kanban_stage_id?
   end
 
   def fire_stage_automations

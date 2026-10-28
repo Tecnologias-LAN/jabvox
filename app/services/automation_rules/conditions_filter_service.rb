@@ -72,7 +72,7 @@ class AutomationRules::ConditionsFilterService < FilterService # rubocop:disable
     @condition_index = 0
     @rule.conditions.each do |query_hash|
       if group?(query_hash)
-        return false unless build_group_filter(query_hash)
+        build_group_filter(query_hash)
       else
         apply_single_condition(query_hash)
       end
@@ -142,17 +142,22 @@ class AutomationRules::ConditionsFilterService < FilterService # rubocop:disable
   end
 
   # Combina el lado SQL y el lado Ruby del grupo según el operador y lo acumula en el
-  # WHERE. Devuelve false SOLO cuando el grupo no puede matchear (grupo 100% Ruby cuyo
-  # resultado es falso): entonces la regla no dispara. En cualquier otro caso añade el
-  # SQL (si lo hay) y devuelve true.
+  # WHERE. El grupo NUNCA corta la evaluación: aporta su verdad al @query_string con el
+  # query_operator que lo une a lo siguiente, igual que una condición plana. Así un grupo
+  # falso unido por OR a nivel raíz no tumba las demás condiciones (bug: "(solo-tarde) OR
+  # status=open" por la mañana con status=open no disparaba porque el grupo Ruby falso
+  # cortaba antes de evaluar el status).
   def emit_group_sql(sql_pieces, ruby_flags, operator, group_hash)
     # Lado Ruby combinado: OR = alguna se cumple; AND = todas se cumplen. Sin hijas
     # Ruby, es neutro (no condiciona).
     ruby_ok = ruby_flags.empty? || (operator == 'AND' ? ruby_flags.all? : ruby_flags.any?)
 
     if sql_pieces.empty?
-      # Grupo sin SQL (p. ej. solo franjas horarias): su booleano Ruby decide directo.
-      return ruby_ok
+      # Grupo sin SQL (p. ej. solo franjas horarias): su booleano Ruby se expresa como
+      # 1=1 / 1=0 con el operador del grupo hacia lo siguiente, para participar en el
+      # OR/AND del nivel raíz en vez de cortar.
+      @query_string += " #{ruby_ok ? '1=1' : '1=0'} #{safe_group_operator(group_hash)} "
+      return
     end
 
     # Hay SQL. Representamos el booleano Ruby como una verdad/falsedad SQL (1=1 / 1=0),
@@ -162,7 +167,6 @@ class AutomationRules::ConditionsFilterService < FilterService # rubocop:disable
     sql_pieces << (ruby_ok ? '1=1' : '1=0') unless ruby_flags.empty?
 
     @query_string += " (#{sql_pieces.join(" #{operator} ")}) #{safe_group_operator(group_hash)} "
-    true
   end
 
   # Ejecuta una hija SQL del grupo capturando SOLO el SQL que produce (aislándolo de
