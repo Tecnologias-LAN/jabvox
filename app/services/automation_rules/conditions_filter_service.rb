@@ -61,8 +61,11 @@ class AutomationRules::ConditionsFilterService < FilterService # rubocop:disable
   end
 
   # Itera las condiciones de la regla: separa attribute_changed, evalua la franja
-  # horaria en Ruby y acumula el resto como filtro SQL. Devuelve false si una
-  # condicion de hora no se cumple.
+  # horaria en Ruby y acumula el resto como filtro SQL. Las condiciones de nivel
+  # superior se unen por su query_operator (AND/OR), así que una condición de hora
+  # que no se cumple NO corta la regla: aporta su verdad/falsedad al WHERE y deja que
+  # el OR/AND decida. Antes cortaba con `return false`, lo que convertía todo OR entre
+  # franjas horarias en un AND (bug: "(mañana O tarde)" sin grupo no disparaba nunca).
   def build_filters
     # Índice GLOBAL de condición: los binds (:value_N) deben ser únicos aunque las
     # condiciones vivan dentro de grupos. No se reinicia por grupo.
@@ -71,25 +74,39 @@ class AutomationRules::ConditionsFilterService < FilterService # rubocop:disable
       if group?(query_hash)
         return false unless build_group_filter(query_hash)
       else
-        return false unless apply_single_condition(query_hash)
+        apply_single_condition(query_hash)
       end
     end
     true
   end
 
-  # Procesa una condición plana (legacy). Devuelve false solo si una condición Ruby
-  # (franja horaria) no se cumple y por tanto la regla no matchea.
+  # Procesa una condición plana del nivel superior.
+  #   - attribute_changed: se posterga a su filtro propio.
+  #   - condición Ruby (franja horaria / adjunto): NO corta; aporta su verdad como
+  #     fragmento SQL (1=1 cumplida / 1=0 no cumplida) con su query_operator, para que
+  #     el OR/AND entre condiciones la combine correctamente.
+  #   - condición SQL normal: su fragmento al WHERE.
   def apply_single_condition(query_hash)
     @attribute_changed_query_filter << query_hash and return true if query_hash['filter_operator'] == 'attribute_changed'
 
     case ruby_condition_outcome(query_hash)
-    when :skip then true          # condicion Ruby cumplida: no aporta SQL
-    when :fail then false         # condicion Ruby no cumplida: la regla no matchea
+    when :skip then append_ruby_truth(query_hash, true)
+    when :fail then append_ruby_truth(query_hash, false)
     else
       apply_filter(query_hash, @condition_index) # condicion SQL normal
       @condition_index += 1
-      true
     end
+    true
+  end
+
+  # Emite la verdad de una condición Ruby como SQL (1=1 / 1=0) seguida de su
+  # query_operator, igual que una condición SQL. Así una franja horaria participa en el
+  # OR/AND del WHERE en vez de cortar la regla. El query_operator se sanea a AND/OR/''
+  # (el último no lleva); `sanitize_dangling_operators` limpia cualquier sobrante.
+  def append_ruby_truth(query_hash, truthy)
+    op = query_hash['query_operator'].to_s.strip.upcase
+    op = '' unless %w[AND OR].include?(op)
+    @query_string += " #{truthy ? '1=1' : '1=0'} #{op} "
   end
 
   # Construye el filtro de un GRUPO (paréntesis): "( hija1 OP hija2 ... )" unido a lo

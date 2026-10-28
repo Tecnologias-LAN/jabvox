@@ -494,6 +494,59 @@ RSpec.describe AutomationRules::ConditionsFilterService do
       end
     end
 
+    # Regresión del caso "Horario de almuerzo": DOS condiciones de hora PLANAS (sin
+    # grupo) unidas por OR. El bug era que una franja no cumplida cortaba la regla con
+    # return false, convirtiendo el OR en AND, así que "(mañana O tarde)" no disparaba
+    # nunca. Debe disparar si la hora cae en CUALQUIERA de las dos franjas.
+    context 'with TWO flat time ranges joined by OR (no group): morning or afternoon' do
+      before do
+        rule.conditions = [
+          { 'values': { 'from': '08:26', 'to': '12:26' }, 'attribute_key': 'current_time',
+            'query_operator': 'or', 'filter_operator': 'is_between' },
+          { 'values': { 'from': '14:00', 'to': '21:00' }, 'attribute_key': 'current_time',
+            'query_operator': nil, 'filter_operator': 'is_between' }
+        ]
+        rule.save
+      end
+
+      it 'dispara en la primera franja (11:27)' do
+        expect(perform_at('2026-10-21 11:27:00')).to be(true)
+      end
+
+      it 'dispara en la segunda franja (15:00)' do
+        expect(perform_at('2026-10-21 15:00:00')).to be(true)
+      end
+
+      it 'NO dispara entre las dos franjas (13:00)' do
+        expect(perform_at('2026-10-21 13:00:00')).to be(false)
+      end
+
+      it 'NO dispara de madrugada (05:00)' do
+        expect(perform_at('2026-10-21 05:00:00')).to be(false)
+      end
+    end
+
+    # Dos franjas planas con AND: deben cumplirse ambas, imposible con rangos disjuntos.
+    context 'with TWO flat time ranges joined by AND (no group): impossible' do
+      before do
+        rule.conditions = [
+          { 'values': { 'from': '08:00', 'to': '12:00' }, 'attribute_key': 'current_time',
+            'query_operator': 'and', 'filter_operator': 'is_between' },
+          { 'values': { 'from': '14:00', 'to': '18:00' }, 'attribute_key': 'current_time',
+            'query_operator': nil, 'filter_operator': 'is_between' }
+        ]
+        rule.save
+      end
+
+      it 'NO dispara en la mañana (solo cumple una)' do
+        expect(perform_at('2026-10-21 10:00:00')).to be(false)
+      end
+
+      it 'NO dispara en la tarde (solo cumple una)' do
+        expect(perform_at('2026-10-21 15:00:00')).to be(false)
+      end
+    end
+
     context 'with an invalid or incomplete range' do
       before do
         rule.conditions = [{ 'values': { 'from': '18:30', 'to': '' }, 'attribute_key': 'current_time',
