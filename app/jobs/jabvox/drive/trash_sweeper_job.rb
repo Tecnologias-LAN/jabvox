@@ -12,6 +12,10 @@
 class Jabvox::Drive::TrashSweeperJob < ApplicationJob
   queue_as :jabvox_drive
 
+  # Despachado por sidekiq-cron: sin reintentos (corre a diario) y alineado con
+  # sidekiq-cron para que lo encole como ActiveJob (evita `undefined method 'jid='`).
+  sidekiq_options retry: 0
+
   BATCH = 200
 
   def perform

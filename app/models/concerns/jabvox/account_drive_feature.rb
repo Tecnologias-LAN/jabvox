@@ -1,14 +1,18 @@
 module Jabvox::AccountDriveFeature
   extend ActiveSupport::Concern
 
+  # El Drive está disponible POR DEFECTO en TODAS las cuentas: es almacenamiento
+  # base del producto, no un módulo de pago opcional. Por eso el feature siempre
+  # está habilitado, sin depender de la columna jabvox_drive_enabled_jabvox ni del
+  # plan. (La columna se conserva por compatibilidad; la cuota sí viene del plan.)
   def feature_enabled?(name)
-    return jabvox_drive_enabled_jabvox? if name.to_s == 'jabvox_drive'
+    return true if name.to_s == 'jabvox_drive'
 
     super
   end
 
   def enabled_features
-    super.merge('jabvox_drive' => jabvox_drive_enabled_jabvox?)
+    super.merge('jabvox_drive' => true)
   end
 
   # ¿Cambió `limits` de forma que la cuota efectiva de almacenamiento AUMENTÓ?

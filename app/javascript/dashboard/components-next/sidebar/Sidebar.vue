@@ -614,6 +614,24 @@ const menuItems = computed(() => {
       : []),
     ...(isFeatureEnabledonAccount.value(
       accountId.value,
+      FEATURE_FLAGS.JABVOX_DRIVE
+    )
+      ? [
+          {
+            name: 'Jabvox Drive',
+            label: t('SIDEBAR.JABVOX_DRIVE'),
+            icon: 'i-lucide-hard-drive',
+            to: accountScopedRoute('jabvox_drive_index'),
+            activeOn: [
+              'jabvox_drive_index',
+              'jabvox_drive_folder',
+              'jabvox_drive_contact',
+            ],
+          },
+        ]
+      : []),
+    ...(isFeatureEnabledonAccount.value(
+      accountId.value,
       FEATURE_FLAGS.JABVOX_AI_CHAT
     )
       ? [

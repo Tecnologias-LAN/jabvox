@@ -10,6 +10,7 @@ import { frontendURL } from '../../helper/URLHelper';
 import helpcenterRoutes from './helpcenter/helpcenter.routes';
 import campaignsRoutes from './campaigns/campaigns.routes';
 import { routes as jabvoxKanbanRoutes } from './jabvox-kanban/routes';
+import { routes as jabvoxDriveRoutes } from './jabvox-drive/routes';
 import { routes as jabvoxProductsRoutes } from './jabvox-products/routes';
 import { routes as jabvoxSmsRoutes } from './jabvox-sms/routes';
 import { routes as jabvoxAiChatRoutes } from './jabvox-ai-chat/routes';
@@ -47,6 +48,7 @@ export default {
         ...helpcenterRoutes.routes,
         ...campaignsRoutes.routes,
         ...jabvoxKanbanRoutes,
+        ...jabvoxDriveRoutes,
         ...jabvoxProductsRoutes,
         ...jabvoxSmsRoutes,
         ...jabvoxAiChatRoutes,

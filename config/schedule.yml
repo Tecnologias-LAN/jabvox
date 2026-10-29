@@ -259,6 +259,7 @@ jabvox_task_due_sweeper_job:
 jabvox_drive_pending_operation_retry_job:
   cron: '*/2 * * * *'
   class: 'Jabvox::Drive::PendingOperationRetryJob'
+  active_job: true
   queue: jabvox_drive
 
 # jabvox-drive: una vez al día purga la papelera (archivos con >7 días borrados).
@@ -266,4 +267,5 @@ jabvox_drive_pending_operation_retry_job:
 jabvox_drive_trash_sweeper_job:
   cron: '15 3 * * *'
   class: 'Jabvox::Drive::TrashSweeperJob'
+  active_job: true
   queue: jabvox_drive

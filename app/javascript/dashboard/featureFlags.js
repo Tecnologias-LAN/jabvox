@@ -56,6 +56,7 @@ export const FEATURE_FLAGS = {
   ADVANCED_SEARCH: 'advanced_search',
   CONVERSATION_REQUIRED_ATTRIBUTES: 'conversation_required_attributes',
   JABVOX_KANBAN: 'jabvox_kanban',
+  JABVOX_DRIVE: 'jabvox_drive',
   JABVOX_PRODUCTS: 'jabvox_products',
   JABVOX_VOIP: 'jabvox_voip',
   JABVOX_SALDO: 'jabvox_saldo',

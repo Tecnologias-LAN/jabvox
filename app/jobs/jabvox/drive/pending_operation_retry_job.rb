@@ -12,6 +12,11 @@
 class Jabvox::Drive::PendingOperationRetryJob < ApplicationJob
   queue_as :jabvox_drive
 
+  # Despachado por sidekiq-cron: sin reintentos (corre cada 2 min, el siguiente ciclo
+  # recupera lo que falte). `sidekiq_options` además alinea el job con sidekiq-cron para
+  # que lo encole como ActiveJob y no falle con `undefined method 'jid='`.
+  sidekiq_options retry: 0
+
   BATCH_SIZE = 500
 
   def perform
