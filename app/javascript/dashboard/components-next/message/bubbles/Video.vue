@@ -5,6 +5,7 @@ import Icon from 'next/icon/Icon.vue';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import { useMessageContext } from '../provider.js';
 import GalleryView from 'dashboard/components/widgets/conversation/components/GalleryView.vue';
+import StorageBlockedNotice from './StorageBlockedNotice.vue';
 import { ATTACHMENT_TYPES } from '../constants';
 
 const emit = defineEmits(['error']);
@@ -24,15 +25,20 @@ const attachment = computed(() => {
 const isReel = computed(() => {
   return attachment.value.fileType === ATTACHMENT_TYPES.IG_REEL;
 });
+
+const storageBlocked = computed(
+  () => attachment.value?.storageBlocked === true
+);
 </script>
 
 <template>
   <BaseBubble
     class="overflow-hidden p-3"
     data-bubble-name="video"
-    @click="showGallery = true"
+    @click="!storageBlocked && (showGallery = true)"
   >
-    <div class="relative group rounded-lg overflow-hidden">
+    <StorageBlockedNotice v-if="storageBlocked" file-type="video" />
+    <div v-else class="relative group rounded-lg overflow-hidden">
       <div
         v-if="isReel"
         class="absolute p-2 flex items-start justify-end right-0 pointer-events-none"

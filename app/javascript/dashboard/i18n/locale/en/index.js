@@ -46,6 +46,7 @@ import sessionLimit from './sessionLimit.json';
 import yearInReview from './yearInReview.json';
 import jabvoxAutomations from './jabvoxAutomations.json';
 import jabvoxKanban from './jabvoxKanban.json';
+import jabvoxDrive from './jabvoxDrive.json';
 import jabvoxProducts from './jabvoxProducts.json';
 import jabvoxVoip from './jabvoxVoip.json';
 import jabvoxCdr from './jabvoxCdr.json';
@@ -134,6 +135,7 @@ export default {
   ...yearInReview,
   ...jabvoxAutomations,
   ...jabvoxKanban,
+  ...jabvoxDrive,
   ...jabvoxProducts,
   ...jabvoxVoip,
   ...jabvoxCdr,

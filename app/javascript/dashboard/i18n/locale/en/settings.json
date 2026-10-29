@@ -298,7 +298,12 @@
     },
     "MEDIA": {
       "IMAGE_UNAVAILABLE": "This image is no longer available.",
-      "LOADING_FAILED": "Loading failed"
+      "LOADING_FAILED": "Loading failed",
+      "STORAGE_FULL_IMAGE": "Image unavailable — not enough space",
+      "STORAGE_FULL_VIDEO": "Video unavailable — not enough space",
+      "STORAGE_FULL_AUDIO": "Audio unavailable — not enough space",
+      "STORAGE_FULL_FILE": "File unavailable — not enough space",
+      "STORAGE_FULL_HINT": "It was saved and not lost. Free up space or upgrade your plan to view it."
     }
   },
   "CONFIRM_EMAIL": "Verifying...",
@@ -417,6 +422,7 @@
     "DOCS": "Read docs",
     "SECURITY": "Security",
     "JABVOX_KANBAN": "Kanban",
+    "JABVOX_DRIVE": "Drive",
     "JABVOX_PRODUCTS": "Products",
     "JABVOX_REPORTS": "Reports",
     "JABVOX_VOIP": "VoIP",
@@ -436,6 +442,7 @@
     "JABVOX_TYPIFICATIONS": "Typifications",
     "JABVOX_SALDO": "Saldo",
     "JABVOX_AI_BUDGET": "Saldo IA",
+    "JABVOX_BILLING": "Billing & plans",
     "JABVOX_SMS": "SMS",
     "JABVOX_IP_WHITELIST": "IP Whitelist",
     "CAPTAIN_AI": "Jabvox IA",

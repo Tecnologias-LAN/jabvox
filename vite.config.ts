@@ -14,4 +14,10 @@ export default defineConfig({
     },
   },
   resolve: { alias: aliases },
+  // Pre-empaqueta los visores pesados del Drive (Word/Excel) al arrancar, en vez
+  // de compilarlos en caliente la primera vez que se abre uno (lo que hacía que
+  // "Cargando vista previa…" se demorara varios segundos en dev).
+  optimizeDeps: {
+    include: ['mammoth/mammoth.browser', 'xlsx', 'jszip'],
+  },
 });

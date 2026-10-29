@@ -6,6 +6,7 @@ import { useAlert } from 'dashboard/composables';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useConfig } from 'dashboard/composables/useConfig';
 import { useAccount } from 'dashboard/composables/useAccount';
+import { formatBytes } from 'shared/helpers/FileHelper';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import WithLabel from 'v3/components/Form/WithLabel.vue';
 import NextInput from 'next/input/Input.vue';
@@ -135,19 +136,26 @@ export default {
         key,
         label,
         gb: byType[key]?.gb || 0,
-        gbLabel: this.formatGb(byType[key]?.gb || 0),
+        gbLabel: this.formatSize(byType[key]?.bytes || 0),
       }));
     },
     storageDescription() {
-      return `${this.formatGb(this.storageUsage.used_gb || 0)} de ${
-        this.storageUsage.quota_gb || 'ilimitado'
-      }`;
+      const quota = this.storageUsage.quota_bytes;
+      const quotaLabel = quota == null ? 'ilimitado' : this.formatSize(quota);
+      return `${this.formatSize(this.storageUsage.used_bytes || 0)} de ${quotaLabel}`;
     },
     storagePercent() {
       return Math.min(Number(this.storageUsage.percent_used || 0), 100);
     },
     storagePercentLabel() {
       return `${this.storageUsage.percent_used ?? 0}%`;
+    },
+    // Bytes en la papelera (siguen ocupando hasta eliminarse definitivamente).
+    trashBytes() {
+      return Number(this.storageUsage.trash_bytes || 0);
+    },
+    trashLabel() {
+      return this.formatSize(this.trashBytes);
     },
     extraPriceLabel() {
       const cents = this.jabvoxBilling.extra_price_cents || 0;
@@ -235,8 +243,9 @@ export default {
         useAlert(this.$t('GENERAL_SETTINGS.UPDATE.ERROR'));
       }
     },
-    formatGb(value) {
-      return `${value} GB`;
+    // Tamaño legible (B/KB/MB/GB automático), igual que el Drive (formatBytes).
+    formatSize(bytes) {
+      return formatBytes(Number(bytes) || 0, 1);
     },
     limitUsageLabel(limit) {
       const used = limit.used || 0;
@@ -385,6 +394,16 @@ export default {
               </p>
             </div>
           </div>
+          <!-- Papelera: ocupa espacio hasta eliminarse definitivamente (o a los 7 días). -->
+          <p
+            v-if="trashBytes > 0"
+            class="mt-3 flex items-center gap-1.5 text-xs text-n-slate-11"
+          >
+            <span class="i-lucide-trash-2 size-3.5 text-n-slate-10" />
+            {{
+              $t('GENERAL_SETTINGS.STORAGE_TRASH_NOTICE', { size: trashLabel })
+            }}
+          </p>
         </div>
 
         <div class="grid gap-2">

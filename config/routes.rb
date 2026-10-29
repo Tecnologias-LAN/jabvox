@@ -430,6 +430,27 @@ Rails.application.routes.draw do
               # (registrado/en llamada/caído) para el panel de estado del super admin.
               resource :presence, only: [:update], controller: 'presence'
             end
+            # Drive: almacenamiento privado multiempresa sobre MinIO/S3.
+            namespace :drive do
+              resources :folders
+              resources :files do
+                member do
+                  # Descarga segura: redirección a presigned de vida corta o stream.
+                  get :download, to: 'downloads#show'
+                  # Papelera: restaurar y eliminar definitivamente (solo admin).
+                  post :restore
+                  delete :purge
+                end
+                collection do
+                  # Listado de la papelera (archivos borrados aún no purgados).
+                  get :trash
+                end
+              end
+              # Resumen de cuota (usado/tope/%) para el panel.
+              resources :storage, only: [:index]
+              # Historial de actividad (quién subió/descargó/renombró/movió/eliminó).
+              resources :audit_logs, only: [:index]
+            end
             # Cobro/aprovisionamiento: inicia el checkout (token firmado + URL de la web)
             # y expone el estado de pago para el modal de bloqueo del frontend.
             namespace :billing do
@@ -437,6 +458,14 @@ Rails.application.routes.draw do
               resource :status, only: [:show], controller: 'status'
               # Historial de pagos de la cuenta (medio, monto, fecha, estado).
               resources :payments, only: [:index], controller: 'payments'
+              # Compra self-service de add-ons (más usuarios/bandejas/storage/saldo IA/módulos).
+              resources :addons, only: [:index], controller: 'addons' do
+                post :checkout, on: :collection
+              end
+              # Suscripción / cobro recurrente: método de pago guardado y auto-renovación.
+              resource :subscription, only: [:show, :update], controller: 'subscription' do
+                delete :payment_method, on: :member
+              end
             end
             # Fecha en que se aplicó una etiqueta (para automatizaciones que la retiran
             # tras cierto tiempo). No lo ofrece la API estándar de Chatwoot.
@@ -1334,6 +1363,8 @@ Rails.application.routes.draw do
   namespace :public do
     post 'register', to: 'registration#create'
     resources :plans, only: [:index, :show]
+    # Documentos legales vigentes (términos/privacidad/otros) para registro y pago.
+    resources :legal, only: [:index], controller: 'legal'
   end
 
   # Cobro/aprovisionamiento por pasarela de pago (Bold/Wompi/Mono).
@@ -1449,6 +1480,8 @@ Rails.application.routes.draw do
       resources :jabvox_plans
       resources :jabvox_payment_gateway_configs, except: [:destroy]
       resource :jabvox_billing_config, only: [:edit, :update]
+      # Documentos legales versionados (términos, privacidad, otros).
+      resources :jabvox_legal_documents
       resources :jabvox_provisioning_transactions, only: [:index, :show] do
         post :retry_provisioning, on: :member
         post :mark_paid_manually, on: :member

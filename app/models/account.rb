@@ -29,16 +29,19 @@
 #  jabvox_customization_enabled_jabvox         :boolean          default(FALSE), not null
 #  jabvox_data_export_enabled_jabvox           :boolean          default(FALSE), not null
 #  jabvox_dialer_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_drive_enabled_jabvox                 :boolean          default(FALSE), not null
 #  jabvox_email_enabled_jabvox                 :boolean          default(FALSE), not null
 #  jabvox_field_security_enabled_jabvox        :boolean          default(TRUE), not null
 #  jabvox_forms_enabled_jabvox                 :boolean          default(FALSE), not null
 #  jabvox_internal_chat_enabled_jabvox         :boolean          default(FALSE), not null
 #  jabvox_ip_whitelist_enabled_jabvox          :boolean          default(TRUE), not null
 #  jabvox_kanban_enabled_jabvox                :boolean          default(FALSE), not null
+#  jabvox_last_recurring_attempt_at            :datetime
 #  jabvox_lead_delete_enabled_jabvox           :boolean          default(FALSE), not null
 #  jabvox_lead_import_enabled_jabvox           :boolean          default(FALSE), not null
 #  jabvox_leads_enabled_jabvox                 :boolean          default(FALSE), not null
 #  jabvox_management_states_enabled_jabvox     :boolean          default(TRUE), not null
+#  jabvox_next_charge_at                       :datetime
 #  jabvox_plan_expires_at                      :datetime
 #  jabvox_products_enabled_jabvox              :boolean          default(FALSE), not null
 #  jabvox_response_bot_enabled_jabvox          :boolean          default(FALSE), not null
@@ -65,6 +68,7 @@
 #
 # Indexes
 #
+#  idx_accounts_on_recurring_due     (jabvox_auto_renew,jabvox_next_charge_at)
 #  index_accounts_on_jabvox_plan_id  (jabvox_plan_id)
 #  index_accounts_on_status          (status)
 #
@@ -141,11 +145,19 @@ class Account < ApplicationRecord
   # tienen plan asignado (creadas por otros medios).
   belongs_to :jabvox_plan, optional: true
   has_many :jabvox_provisioning_transactions, dependent: :nullify
+  # Billing: métodos de pago tokenizados (cobro recurrente) y aceptaciones legales.
+  has_many :jabvox_payment_methods, dependent: :destroy
+  has_many :jabvox_legal_acceptances, dependent: :nullify
   # Softphone WebRTC (módulo nuevo, independiente del dialer AMI).
   has_one :jabvox_softphone_config, dependent: :destroy
   has_many :jabvox_softphone_extensions, dependent: :destroy
   has_many :jabvox_softphone_call_logs, dependent: :destroy
   has_many :jabvox_softphone_call_events, dependent: :destroy
+  has_one :jabvox_drive_storage_account, dependent: :destroy
+  has_many :jabvox_drive_folders, dependent: :destroy_async
+  has_many :jabvox_drive_files, dependent: :destroy_async
+  has_many :jabvox_drive_pending_operations, dependent: :destroy_async
+  has_many :jabvox_drive_audit_logs, dependent: :delete_all
   has_many :jabvox_tickets, dependent: :destroy_async
   has_many :jabvox_ticket_categories, dependent: :destroy_async
   has_many :jabvox_kanban_funnels, dependent: :destroy_async
@@ -295,6 +307,8 @@ class Account < ApplicationRecord
   before_validation :validate_limit_keys
   after_create_commit :notify_creation
   after_update_commit :clear_unread_conversation_counts_cache, if: :saved_change_to_feature_conversation_unread_counts?
+  # Drive: al ampliar la cuota (upgrade de plan) se regularizan los excedentes.
+  after_update_commit :enqueue_drive_regularization, if: :drive_quota_increased?
   after_destroy :remove_account_sequences
 
   def agents

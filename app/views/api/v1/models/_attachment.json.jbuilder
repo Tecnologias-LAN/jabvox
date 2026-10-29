@@ -11,3 +11,9 @@ json.width attachment_data[:width]
 json.height attachment_data[:height]
 json.created_at attachment.message.created_at.to_i
 json.sender attachment.message.sender.push_event_data if attachment.message.sender
+# jabvox-drive: adjunto retenido por falta de espacio (overflow). El front muestra
+# "no se puede ver por falta de espacio" en vez de la imagen.
+if attachment_data[:storage_blocked]
+  json.storage_blocked true
+  json.storage_state attachment_data[:storage_state]
+end

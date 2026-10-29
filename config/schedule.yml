@@ -201,6 +201,14 @@ jabvox_billing_renewal_reminder_job:
   class: 'Jabvox::Billing::RenewalReminderJob'
   queue: jabvox_payments
 
+# Diario a las 8 AM: cobro recurrente de cuentas con auto-renovación. Si la pasarela activa
+# tokeniza (Wompi/ePayco) y la cuenta tiene método guardado, cobra automático; si no (Bold),
+# genera y envía el link de pago del período. Dispatcher con fan-out por cuenta.
+jabvox_billing_recurring_charge_job:
+  cron: '0 8 * * *'
+  class: 'Jabvox::Billing::RecurringChargeJob'
+  queue: jabvox_payments
+
 # Cada minuto: dispara los flujos programados a los que les toca ahora. La hora
 # se evalúa en la zona horaria de cada nodo, no en la del servidor (UTC).
 jabvox_flows_trigger_scheduled_job:
@@ -251,4 +259,11 @@ jabvox_task_due_sweeper_job:
 jabvox_drive_pending_operation_retry_job:
   cron: '*/2 * * * *'
   class: 'Jabvox::Drive::PendingOperationRetryJob'
+  queue: jabvox_drive
+
+# jabvox-drive: una vez al día purga la papelera (archivos con >7 días borrados).
+# Solo entonces se libera el espacio; antes se pueden restaurar y siguen ocupando cuota.
+jabvox_drive_trash_sweeper_job:
+  cron: '15 3 * * *'
+  class: 'Jabvox::Drive::TrashSweeperJob'
   queue: jabvox_drive

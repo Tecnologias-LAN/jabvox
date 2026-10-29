@@ -3,6 +3,7 @@ Rails.application.config.to_prepare do
   # Asignar una conversación asigna también el contacto: es lo que filtra la lista y Kanban.
   Conversation.include Jabvox::ConversationContactAssignment
   Account.prepend Jabvox::AccountKanbanFeature
+  Account.prepend Jabvox::AccountDriveFeature
   Account.prepend Jabvox::AccountProductsFeature
   Account.prepend Jabvox::AccountVoipFeature
   Account.prepend Jabvox::AccountSaldoFeature
@@ -46,6 +47,17 @@ Rails.application.config.to_prepare do
   Account.include Jabvox::AccountStorageSync
 
   Contact.include Jabvox::ContactIdentifierFallback
+  # Drive: ingesta de adjuntos entrantes de CUALQUIER bandeja conectada (aditivo,
+  # detrás del feature flag jabvox_drive).
+  Attachment.include Jabvox::AttachmentDriveIngest
+  # Drive: organiza los adjuntos de mensajes en MinIO por cuenta y conversación
+  # (acct-<id>/conversaciones/conversacion-<id>/...). Aditivo, solo con S3/MinIO y
+  # detrás del flag jabvox_drive. NO se mezcla con los archivos subidos manual.
+  Attachment.include Jabvox::AttachmentDriveStorageKey
+  # Drive: si el adjunto está retenido por falta de espacio (overflow), el payload
+  # (dashboard + webhook) no expone su URL y lo marca storage_blocked para que el chat
+  # muestre "no se puede ver por falta de espacio". PREPEND: envuelve file_metadata.
+  Attachment.prepend Jabvox::AttachmentDriveState
   Note.include Jabvox::NoteManagementAnswers
   # Records label apply/remove intervals per conversation for the WhatsApp report.
   Conversation.include Jabvox::ConversationLabelLogging

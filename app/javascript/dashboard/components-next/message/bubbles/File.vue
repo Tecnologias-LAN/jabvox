@@ -4,11 +4,17 @@ import { useI18n } from 'vue-i18n';
 
 import { useMessageContext } from '../provider.js';
 import BaseAttachmentBubble from './BaseAttachment.vue';
+import BaseBubble from './Base.vue';
+import StorageBlockedNotice from './StorageBlockedNotice.vue';
 import FileIcon from 'next/icon/FileIcon.vue';
 
 const { attachments } = useMessageContext();
 
 const { t } = useI18n();
+
+const storageBlocked = computed(
+  () => attachments.value[0]?.storageBlocked === true
+);
 
 const url = computed(() => {
   return attachments.value[0].dataUrl;
@@ -28,7 +34,15 @@ const fileType = computed(() => {
 </script>
 
 <template>
+  <BaseBubble
+    v-if="storageBlocked"
+    class="overflow-hidden p-3"
+    data-bubble-name="file"
+  >
+    <StorageBlockedNotice file-type="file" />
+  </BaseBubble>
   <BaseAttachmentBubble
+    v-else
     icon="i-teenyicons-user-circle-solid"
     icon-bg-color="bg-n-alpha-3 dark:bg-n-alpha-white"
     sender-translation-key="CONVERSATION.SHARED_ATTACHMENT.FILE"

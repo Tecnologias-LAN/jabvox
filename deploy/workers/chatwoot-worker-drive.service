@@ -1,0 +1,20 @@
+[Unit]
+Description=Jabvox Sidekiq worker — jabvox-drive (cola aislada)
+After=network.target postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=jabvox
+WorkingDirectory=/home/jabvox/jabvox
+Environment=RAILS_ENV=production
+# rbenv en el PATH (igual que el worker principal)
+Environment=PATH=/home/jabvox/.rbenv/shims:/home/jabvox/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/jabvox/.rbenv/shims/bundle exec sidekiq -C config/sidekiq_drive.yml
+Restart=always
+RestartSec=5
+# Reinicio de memoria: la ingesta puede leer archivos grandes; si el worker crece
+# demasiado systemd lo recicla (evita OOM global). Ajustar según JABVOX_DRIVE_MAX_FILE_MB.
+MemoryMax=900M
+
+[Install]
+WantedBy=multi-user.target

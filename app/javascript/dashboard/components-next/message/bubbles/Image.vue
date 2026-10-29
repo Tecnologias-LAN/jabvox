@@ -11,6 +11,7 @@ import { useMessageContext } from '../provider.js';
 import { downloadFile } from '@chatwoot/utils';
 
 import GalleryView from 'dashboard/components/widgets/conversation/components/GalleryView.vue';
+import StorageBlockedNotice from './StorageBlockedNotice.vue';
 
 const { t } = useI18n();
 
@@ -25,8 +26,14 @@ const { isLoaded, hasError, loadWithRetry } = useLoadWithRetry();
 const showGallery = ref(false);
 const isDownloading = ref(false);
 
+// jabvox-drive: adjunto retenido por falta de espacio. No hay URL que cargar; se
+// muestra el aviso. El archivo NO se perdió; se verá al ampliar/liberar espacio.
+const storageBlocked = computed(
+  () => attachment.value?.storageBlocked === true
+);
+
 onMounted(() => {
-  if (attachment.value?.dataUrl) {
+  if (!storageBlocked.value && attachment.value?.dataUrl) {
     loadWithRetry(attachment.value.dataUrl);
   }
 });
@@ -52,9 +59,13 @@ const handleImageError = () => {
   <BaseBubble
     class="overflow-hidden p-3"
     data-bubble-name="image"
-    @click="showGallery = true"
+    @click="!storageBlocked && (showGallery = true)"
   >
-    <div v-if="hasError" class="flex items-center gap-1 text-center rounded-lg">
+    <StorageBlockedNotice v-if="storageBlocked" file-type="image" />
+    <div
+      v-else-if="hasError"
+      class="flex items-center gap-1 text-center rounded-lg"
+    >
       <Icon icon="i-lucide-circle-off" class="text-n-slate-11" />
       <p class="mb-0 text-n-slate-11">
         {{ $t('COMPONENTS.MEDIA.IMAGE_UNAVAILABLE') }}

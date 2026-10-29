@@ -128,7 +128,8 @@
     "PAYMENT_PENDING": "Tu pago está pendiente. Por favor actualiza tu información de pago para seguir usando Jabvox",
     "UPGRADE": "Upgrade to continue using Jabvox",
     "LIMITS_UPGRADE": "Su cuenta ha excedido los límites de uso, por favor actualice su plan para seguir usando Jabvox",
-    "OPEN_BILLING": "Abrir facturación"
+    "OPEN_BILLING": "Abrir facturación",
+    "STORAGE_TRASH_NOTICE": "{size} en la papelera (sigue ocupando espacio hasta eliminarse definitivamente)"
   },
   "FORMS": {
     "MULTISELECT": {
@@ -150,8 +151,8 @@
       "EMPTY_MESSAGE": "No tiene notificaciones sin leer"
     },
     "LIST": {
-      "LOADING_MESSAGE": "Cargando notificaciones...",
       "404": "Aún no hay notificaciones",
+      "LOADING_MESSAGE": "Cargando notificaciones...",
       "TABLE_HEADER": [
         "Nombre",
         "Número telefónico",

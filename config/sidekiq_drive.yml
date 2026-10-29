@@ -1,0 +1,11 @@
+# jabvox-drive (almacenamiento MinIO multiempresa)
+# Worker Sidekiq dedicado y AISLADO: procesa solo su(s) cola(s). Así la ingesta de
+# adjuntos a MinIO, la regularización de cuota y la recuperación de la cola durable
+# no pueden taponar los mensajes ni otros servicios (y viceversa).
+---
+:verbose: false
+:concurrency: <%= ENV.fetch("JABVOX_DRIVE_CONCURRENCY", "5").to_i %>
+:timeout: 25
+:max_retries: 3
+:queues:
+  - jabvox_drive
