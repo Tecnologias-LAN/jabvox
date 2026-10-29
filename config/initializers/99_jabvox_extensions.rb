@@ -58,6 +58,10 @@ Rails.application.config.to_prepare do
   # (dashboard + webhook) no expone su URL y lo marca storage_blocked para que el chat
   # muestre "no se puede ver por falta de espacio". PREPEND: envuelve file_metadata.
   Attachment.prepend Jabvox::AttachmentDriveState
+  # Drive: al borrar un mensaje/conversación, preserva el objeto en MinIO si ya está
+  # indexado por el Drive (lo desvincula del blob sin purgarlo), para que el archivo
+  # del Drive sobreviva. Aditivo, detrás del flag jabvox_drive.
+  Attachment.include Jabvox::AttachmentDrivePreserve
   Note.include Jabvox::NoteManagementAnswers
   # Records label apply/remove intervals per conversation for the WhatsApp report.
   Conversation.include Jabvox::ConversationLabelLogging

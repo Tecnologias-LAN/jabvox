@@ -25,6 +25,9 @@ module Jabvox
     class StorageService
       class InvalidKeyError < StandardError; end
       class StorageUnavailableError < StandardError; end
+      # El objeto no existe en MinIO (p. ej. la fila del Drive quedó huérfana). Es
+      # distinto de "MinIO caído": el controller debe responder 404, no 503.
+      class ObjectNotFoundError < StandardError; end
 
       PRIMARY = 'primary'
       OVERFLOW = 'overflow'
@@ -96,6 +99,9 @@ module Jabvox
       def stream(key, bucket: PRIMARY, &)
         assert_owned!(key)
         client.get_object(bucket: bucket_name(bucket), key: key, &)
+      rescue Aws::S3::Errors::NoSuchKey, Aws::S3::Errors::NotFound => e
+        # Objeto inexistente (fila huérfana): NO es MinIO caído. 404, no 503.
+        raise ObjectNotFoundError, e.message
       rescue Seahorse::Client::NetworkingError, Aws::S3::Errors::ServiceError => e
         raise StorageUnavailableError, e.message
       end

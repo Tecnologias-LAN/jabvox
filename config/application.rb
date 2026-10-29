@@ -37,6 +37,19 @@ module Jabvox
     config.load_defaults 7.0
     config.rails_i18n.enabled_modules = [:pluralization]
 
+    # Jabvox: idioma por defecto en español. Sin esto, Rails cae a :en y los flujos
+    # pre-sesión (recuperar/cambiar contraseña, 2FA, correos sin cuenta) salen en
+    # inglés aunque el usuario tenga su idioma en español. ENV['DEFAULT_LOCALE'] y el
+    # locale del usuario/cuenta siguen teniendo prioridad (ver SwitchLocale).
+    config.i18n.default_locale = :es
+    # Fallback SIEMPRE a :en (único locale con el árbol COMPLETO de mensajes base de
+    # Rails/ActiveRecord). Sin esto, al ser :es el default, una clave que solo exista
+    # en :en (p. ej. activerecord.errors.messages.record_invalid) lanzaría
+    # "Translation missing" y rompería validaciones/formularios. Debe ir aquí (no solo
+    # en production.rb) para cubrir todos los entornos; production.rb lo re-aplicaba
+    # a default_locale, que ahora es :es y dejaría el fallback circular.
+    config.i18n.fallbacks = [:en]
+
     config.eager_load_paths << Rails.root.join('lib')
     config.eager_load_paths << Rails.root.join('enterprise/lib')
     config.eager_load_paths << Rails.root.join('enterprise/listeners')

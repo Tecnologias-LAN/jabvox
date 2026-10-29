@@ -19,35 +19,35 @@
   detail_rows << ['Nuevo correo', @resource.unconfirmed_email] if @resource.unconfirmed_email.present?
 
   if @resource.unconfirmed_email.present?
-    eyebrow = 'Email update'
-    heading = 'Confirm your new email address'
-    intro_text = "We received a request to update the email address on your #{brand_name} account."
-    supporting_text = 'Confirm the new address below to finish the change.'
-    action_text = 'Confirm email address'
+    eyebrow = 'Cambio de correo'
+    heading = 'Confirma tu nuevo correo electrónico'
+    intro_text = "Recibimos una solicitud para cambiar el correo electrónico de tu cuenta de #{brand_name}."
+    supporting_text = 'Confirma el nuevo correo a continuación para finalizar el cambio.'
+    action_text = 'Confirmar correo'
   elsif @resource.confirmed?
-    eyebrow = 'Account ready'
-    heading = 'Your account is ready'
-    intro_text = "Your #{brand_name} account is already active."
-    supporting_text = 'Use the button below to sign in and continue where you left off.'
-    action_text = 'Open my account'
+    eyebrow = 'Cuenta lista'
+    heading = 'Tu cuenta está lista'
+    intro_text = "Tu cuenta de #{brand_name} ya está activa."
+    supporting_text = 'Usa el botón de abajo para iniciar sesión y continuar donde lo dejaste.'
+    action_text = 'Abrir mi cuenta'
     action_url = frontend_url('auth/sign_in')
     detail_rows = []
   elsif invited_user
-    eyebrow = 'Workspace invitation'
-    heading = account_name.present? ? "You're invited to join #{account_name}" : "You're invited to try #{brand_name}"
+    eyebrow = 'Invitación al espacio de trabajo'
+    heading = account_name.present? ? "Te invitaron a unirte a #{account_name}" : "Te invitaron a probar #{brand_name}"
     intro_text = if account_name.present?
-      "#{inviter.name} invited you to join the #{account_name} workspace on #{brand_name}."
+      "#{inviter.name} te invitó a unirte al espacio de trabajo #{account_name} en #{brand_name}."
     else
-      "#{inviter.name} invited you to try #{brand_name}."
+      "#{inviter.name} te invitó a probar #{brand_name}."
     end
-    supporting_text = 'Create your account to start collaborating with your team.'
-    action_text = 'Accept invitation'
+    supporting_text = 'Crea tu cuenta para empezar a colaborar con tu equipo.'
+    action_text = 'Aceptar invitación'
     action_url = frontend_url(
       'auth/password/edit',
       reset_password_token: @resource.send(:set_reset_password_token)
     )
-    detail_rows = [['Invited by', inviter.name]]
-    detail_rows << ['Workspace', account_name] if account_name.present?
+    detail_rows = [['Invitado por', inviter.name]]
+    detail_rows << ['Espacio de trabajo', account_name] if account_name.present?
   end
 %>
 

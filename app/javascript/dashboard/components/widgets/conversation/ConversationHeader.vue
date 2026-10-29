@@ -21,6 +21,8 @@ import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
+import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 const props = defineProps({
   chat: {
@@ -32,6 +34,11 @@ const props = defineProps({
     default: false,
   },
 });
+
+// Abre/cierra la barra de búsqueda dentro del hilo de la conversación.
+const toggleConversationSearch = () => {
+  emitter.emit(BUS_EVENTS.TOGGLE_CONVERSATION_SEARCH);
+};
 
 const { t } = useI18n();
 const store = useStore();
@@ -242,6 +249,14 @@ const copyConversationId = async () => {
         size="sm"
       />
       <ConversationCallButton :inbox="inbox" :chat="currentChat" />
+      <button
+        type="button"
+        class="flex items-center justify-center size-8 rounded-lg text-n-slate-11 hover:bg-n-alpha-2"
+        :title="t('CONVERSATION.SEARCH_IN_CHAT.BUTTON')"
+        @click="toggleConversationSearch"
+      >
+        <span class="i-lucide-search size-4" />
+      </button>
       <MoreActions :conversation-id="currentChat.id" />
     </div>
   </div>

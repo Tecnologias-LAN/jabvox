@@ -8,6 +8,7 @@ import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 // components
 import ReplyBox from './ReplyBox.vue';
 import MessageList from 'next/message/MessageList.vue';
+import ConversationSearch from './ConversationSearch.vue';
 import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -42,6 +43,7 @@ export default {
     MessageList,
     ReplyBox,
     Banner,
+    ConversationSearch,
     ConversationLabelSuggestion,
     Spinner,
     ResizableEditorWrapper,
@@ -461,6 +463,7 @@ export default {
     class="flex flex-col justify-between flex-grow h-full min-w-0 m-0"
   >
     <div ref="topBannerRef">
+      <ConversationSearch :messages="getMessages" />
       <Banner
         v-if="isWhatsAppNotAddressable"
         color-scheme="alert"

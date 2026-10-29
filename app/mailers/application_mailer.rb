@@ -55,7 +55,11 @@ class ApplicationMailer < ActionMailer::Base
     # expose variables you want to be exposed in liquid
     locals = {
       global_config: GlobalConfig.get('BRAND_NAME', 'BRAND_URL'),
-      action_url: @action_url
+      action_url: @action_url,
+      # URL base real de esta instalación (pruebas vs producción). Se usa como
+      # fallback del logo/enlaces cuando BRAND_URL no está configurado, para no
+      # quemar un dominio fijo en la plantilla.
+      frontend_url: ENV.fetch('FRONTEND_URL', '')
     }
 
     locals.merge({ attachment_url: @attachment_url }) if @attachment_url

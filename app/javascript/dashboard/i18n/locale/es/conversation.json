@@ -1,5 +1,13 @@
 {
   "CONVERSATION": {
+    "SEARCH_IN_CHAT": {
+      "BUTTON": "Buscar en la conversación",
+      "PLACEHOLDER": "Buscar en la conversación…",
+      "NO_RESULTS": "Sin resultados",
+      "PREVIOUS": "Anterior",
+      "NEXT": "Siguiente",
+      "CLOSE": "Cerrar"
+    },
     "SELECT_A_CONVERSATION": "Por favor, selecciona una conversación del panel izquierdo",
     "CSAT_REPLY_MESSAGE": "Por favor, valora la conversación",
     "404": "Lo sentimos, no podemos encontrar la conversación. Por favor, inténtalo de nuevo",

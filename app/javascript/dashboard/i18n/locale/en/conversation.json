@@ -1,5 +1,13 @@
 {
   "CONVERSATION": {
+    "SEARCH_IN_CHAT": {
+      "BUTTON": "Search in conversation",
+      "PLACEHOLDER": "Search in conversation…",
+      "NO_RESULTS": "No results",
+      "PREVIOUS": "Previous",
+      "NEXT": "Next",
+      "CLOSE": "Close"
+    },
     "SELECT_A_CONVERSATION": "Please select a conversation from left pane",
     "CSAT_REPLY_MESSAGE": "Please rate the conversation",
     "404": "Sorry, we cannot find the conversation. Please try again",

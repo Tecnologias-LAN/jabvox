@@ -14,7 +14,10 @@ FactoryBot.define do
     uid { SecureRandom.uuid }
     name { Faker::Name.name }
     display_name { Faker::Name.first_name }
-    email { display_name + "@#{SecureRandom.uuid}.com" }
+    # Email SIEMPRE válido e independiente del nombre: con locale :es (default de la
+    # app) Faker genera nombres con acentos/ñ (p. ej. "José") que, concatenados, dan
+    # un email no-ASCII inválido para Devise.email_regexp. Usamos solo ASCII.
+    email { "user-#{SecureRandom.hex(8)}@example.com" }
     password { 'Password1!' }
 
     after(:build) do |user, evaluator|

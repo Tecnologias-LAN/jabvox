@@ -2,16 +2,10 @@
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useAlert } from 'dashboard/composables';
-import FormInput from '../../../components/Form/Input.vue';
-import NextButton from 'dashboard/components-next/button/Button.vue';
 import { DEFAULT_REDIRECT_URL } from 'dashboard/constants/globals';
 import { setNewPassword } from '../../../api/auth';
 
 export default {
-  components: {
-    FormInput,
-    NextButton,
-  },
   props: {
     resetPasswordToken: { type: String, default: '' },
   },
@@ -20,8 +14,8 @@ export default {
   },
   data() {
     return {
-      // We need to initialize the component with any
-      // properties that will be used in it
+      jabvoxLogoUrl: '/jabvox/public/logo.png',
+      jabvoxLogoAlt: 'Jabvox',
       credentials: {
         confirmPassword: '',
         password: '',
@@ -34,8 +28,7 @@ export default {
     };
   },
   mounted() {
-    // If url opened without token
-    // redirect to login
+    // Si se abre sin token, volver al login.
     if (!this.resetPasswordToken) {
       window.location = DEFAULT_REDIRECT_URL;
     }
@@ -60,7 +53,6 @@ export default {
   },
   methods: {
     showAlertMessage(message) {
-      // Reset loading, current selected agent
       this.newPasswordAPI.showLoading = false;
       useAlert(message);
     },
@@ -86,54 +78,179 @@ export default {
 </script>
 
 <template>
-  <div
-    class="flex flex-col justify-center w-full min-h-screen py-12 bg-n-brand/5 dark:bg-n-background sm:px-6 lg:px-8"
-  >
-    <form
-      class="bg-white shadow sm:mx-auto sm:w-full sm:max-w-lg dark:bg-n-solid-2 p-11 sm:shadow-lg sm:rounded-lg"
-      @submit.prevent="submitForm"
-    >
-      <h1
-        class="mb-1 text-2xl font-medium tracking-tight text-left text-n-slate-12"
-      >
-        {{ $t('SET_NEW_PASSWORD.TITLE') }}
-      </h1>
-
-      <div class="space-y-5">
-        <FormInput
-          v-model="credentials.password"
-          class="mt-3"
-          name="password"
-          type="password"
-          :has-error="v$.credentials.password.$error"
-          :error-message="$t('SET_NEW_PASSWORD.PASSWORD.ERROR')"
-          :placeholder="$t('SET_NEW_PASSWORD.PASSWORD.PLACEHOLDER')"
-          @blur="v$.credentials.password.$touch"
+  <div class="jabvox-pwedit-layout">
+    <div class="jabvox-pwedit-bg" />
+    <div class="jabvox-pwedit-center">
+      <div class="jabvox-pwedit-box">
+        <img
+          :src="jabvoxLogoUrl"
+          :alt="jabvoxLogoAlt"
+          class="jabvox-pwedit-logo"
         />
-        <FormInput
-          v-model="credentials.confirmPassword"
-          class="mt-3"
-          name="confirm_password"
-          type="password"
-          :has-error="v$.credentials.confirmPassword.$error"
-          :error-message="$t('SET_NEW_PASSWORD.CONFIRM_PASSWORD.ERROR')"
-          :placeholder="$t('SET_NEW_PASSWORD.CONFIRM_PASSWORD.PLACEHOLDER')"
-          @blur="v$.credentials.confirmPassword.$touch"
-        />
-        <NextButton
-          lg
-          type="submit"
-          data-testid="submit_button"
-          class="w-full"
-          :label="$t('SET_NEW_PASSWORD.SUBMIT')"
-          :disabled="
-            v$.credentials.password.$invalid ||
-            v$.credentials.confirmPassword.$invalid ||
-            newPasswordAPI.showLoading
-          "
-          :is-loading="newPasswordAPI.showLoading"
-        />
+        <h1 class="jabvox-pwedit-title">
+          {{ $t('SET_NEW_PASSWORD.TITLE') }}
+        </h1>
+        <form @submit.prevent="submitForm">
+          <div class="jabvox-pwedit-field">
+            <label class="jabvox-pwedit-label">
+              {{ $t('SET_NEW_PASSWORD.PASSWORD.LABEL') }}
+            </label>
+            <input
+              v-model="credentials.password"
+              type="password"
+              name="password"
+              class="jabvox-pwedit-input"
+              :placeholder="$t('SET_NEW_PASSWORD.PASSWORD.PLACEHOLDER')"
+              @blur="v$.credentials.password.$touch"
+            />
+            <span
+              v-if="v$.credentials.password.$error"
+              class="jabvox-pwedit-error"
+            >
+              {{ $t('SET_NEW_PASSWORD.PASSWORD.ERROR') }}
+            </span>
+          </div>
+          <div class="jabvox-pwedit-field">
+            <label class="jabvox-pwedit-label">
+              {{ $t('SET_NEW_PASSWORD.CONFIRM_PASSWORD.LABEL') }}
+            </label>
+            <input
+              v-model="credentials.confirmPassword"
+              type="password"
+              name="confirm_password"
+              class="jabvox-pwedit-input"
+              :placeholder="$t('SET_NEW_PASSWORD.CONFIRM_PASSWORD.PLACEHOLDER')"
+              @blur="v$.credentials.confirmPassword.$touch"
+            />
+            <span
+              v-if="v$.credentials.confirmPassword.$error"
+              class="jabvox-pwedit-error"
+            >
+              {{ $t('SET_NEW_PASSWORD.CONFIRM_PASSWORD.ERROR') }}
+            </span>
+          </div>
+          <button
+            type="submit"
+            data-testid="submit_button"
+            class="jabvox-pwedit-btn"
+            :disabled="
+              v$.credentials.password.$invalid ||
+              v$.credentials.confirmPassword.$invalid ||
+              newPasswordAPI.showLoading
+            "
+          >
+            <span v-if="!newPasswordAPI.showLoading">
+              {{ $t('SET_NEW_PASSWORD.SUBMIT') }}
+            </span>
+            <span v-else>{{ $t('SET_NEW_PASSWORD.SUBMITTING') }}</span>
+          </button>
+        </form>
       </div>
-    </form>
+    </div>
   </div>
 </template>
+
+<style>
+.jabvox-pwedit-layout {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Comfortaa', sans-serif;
+}
+.jabvox-pwedit-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('/jabvox/public/login-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+}
+.jabvox-pwedit-center {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.jabvox-pwedit-box {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+.jabvox-pwedit-logo {
+  height: 4rem;
+  width: auto;
+  display: block;
+  margin: 0 auto 1.75rem;
+}
+.jabvox-pwedit-title {
+  font-size: 1.4rem;
+  font-weight: 300;
+  color: #15605a;
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+.jabvox-pwedit-field {
+  margin-bottom: 1.25rem;
+}
+.jabvox-pwedit-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #24292d;
+  margin-bottom: 0.4rem;
+}
+.jabvox-pwedit-input {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1px solid #daebdb;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #24292d;
+  background: #ffffff;
+  outline: none;
+  font-family: 'Comfortaa', sans-serif;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+  box-sizing: border-box;
+}
+.jabvox-pwedit-input:focus {
+  border-color: #40b5b4;
+  box-shadow: 0 0 0 3px rgba(64, 181, 180, 0.15);
+}
+.jabvox-pwedit-error {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  color: #e5484d;
+}
+.jabvox-pwedit-btn {
+  width: 100%;
+  padding: 0.8rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: #15605a;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 300;
+  cursor: pointer;
+  font-family: 'Comfortaa', sans-serif;
+  transition: background 0.2s;
+  margin-top: 0.25rem;
+}
+.jabvox-pwedit-btn:hover:not(:disabled) {
+  background: #40b5b4;
+}
+.jabvox-pwedit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+</style>

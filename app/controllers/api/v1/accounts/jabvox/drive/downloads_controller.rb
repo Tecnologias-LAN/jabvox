@@ -55,6 +55,10 @@ class Api::V1::Accounts::Jabvox::Drive::DownloadsController < Api::V1::Accounts:
     else
       redirect_to presigned_url, allow_other_host: true
     end
+  rescue Jabvox::Drive::StorageService::ObjectNotFoundError
+    # El objeto ya no existe en MinIO (fila huérfana). No es un fallo del servidor:
+    # respondemos 404 claro en vez de un 503 engañoso.
+    render json: { error: 'archivo no disponible' }, status: :not_found
   rescue Jabvox::Drive::StorageService::StorageUnavailableError
     render json: { error: 'almacenamiento no disponible, intenta más tarde' }, status: :service_unavailable
   end
@@ -114,14 +118,27 @@ class Api::V1::Accounts::Jabvox::Drive::DownloadsController < Api::V1::Accounts:
   end
 
   # Streaming desde la app, sin exponer MinIO. Cabeceras endurecidas.
+  #
+  # Se verifica la existencia del objeto con head ANTES de abrir el stream: con
+  # ActionController::Live, una vez escrita la cabecera no se puede cambiar el status,
+  # así que un objeto inexistente debe detectarse aquí para poder devolver 404 (lo
+  # convierte el rescue del #show). head también propaga StorageUnavailableError si
+  # MinIO está caído (→ 503).
   def stream_file
+    stream_opened = false
+    # Verificación de existencia ANTES de abrir el stream (head propaga
+    # ObjectNotFoundError → 404, o StorageUnavailableError → 503). Si no existe,
+    # salimos sin tocar la respuesta para que el rescue del #show renderice el JSON.
+    raise Jabvox::Drive::StorageService::ObjectNotFoundError if storage.head(@file.object_key, bucket: bucket).nil?
+
     set_stream_headers
     response.status = 200
+    stream_opened = true
     storage.stream(@file.object_key, bucket: bucket) do |chunk|
       response.stream.write(chunk)
     end
   ensure
-    response.stream.close
+    response.stream.close if stream_opened
   end
 
   def set_stream_headers

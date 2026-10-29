@@ -181,8 +181,12 @@ export const actions = {
   // Reordena las columnas de un embudo (lista de ids) y persiste.
   reorderStages: async ({ commit }, { funnelId, stageIds }) => {
     const response = await kanbanAPI.reorderStages(funnelId, stageIds);
-    commit('SET_STAGES_IN_FUNNEL', { funnelId, stages: response.data });
-    return response.data;
+    // La respuesta viene envuelta como { payload: [...stages] } (index.json.jbuilder);
+    // hay que desenvolverla, igual que normalizeFunnelsPayload, o funnel.stages queda
+    // como objeto y la UI no refleja el nuevo orden (el reorder "no se aplica").
+    const stages = normalizeFunnelsPayload(response.data);
+    commit('SET_STAGES_IN_FUNNEL', { funnelId, stages });
+    return stages;
   },
 
   // Reordena las tarjetas dentro de una columna y persiste.

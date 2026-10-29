@@ -95,6 +95,13 @@
     {% assign brand_name = 'Chatwoot' %}
   {% endif %}
   {% assign brand_url = global_config['BRAND_URL'] %}
+  {% comment %} Si BRAND_URL está vacío o nil, el logo/enlaces caen a FRONTEND_URL
+     (el dominio real de ESTA instalación: pruebas o producción). Nunca se quema un
+     dominio fijo. El filtro `default` de Liquid solo cubre nil, no la cadena vacía,
+     por eso una config BRAND_URL="" dejaba el logo roto. {% endcomment %}
+  {% if brand_url == nil or brand_url == '' %}
+    {% assign brand_url = frontend_url %}
+  {% endif %}
 
   <body itemscope itemtype="http://schema.org/EmailMessage" style="font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,Helvetica,Arial,sans-serif; box-sizing: border-box; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; width: 100% !important; line-height: 21px; background-color: #F4F7FB; margin: 0; padding: 0;" bgcolor="#F4F7FB">
     <table class="body-wrap" role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width: 100%; background-color: #F4F7FB; margin: 0;" bgcolor="#F4F7FB">
@@ -109,7 +116,7 @@
                   </tr>
                   <tr style="margin: 0;">
                     <td align="center" style="padding: 28px 36px 0;">
-                      <img src="{{ brand_url | default: 'https://app.jabvox.co' }}/jabvox/public/logo.png" alt="{{ brand_name }}" height="44" style="height: 44px; width: auto; display: block;" />
+                      <img src="{{ brand_url }}/jabvox/public/logo.png" alt="{{ brand_name }}" height="44" style="height: 44px; width: auto; display: block;" />
                     </td>
                   </tr>
                   <tr style="margin: 0;">

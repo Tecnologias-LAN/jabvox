@@ -59,9 +59,10 @@ Rails.application.configure do
   config.active_job.queue_adapter = :sidekiq
   # config.active_job.queue_name_prefix = "Jabvox_#{Rails.env}"
 
-  # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
-  # the I18n.default_locale when a translation cannot be found).
-  config.i18n.fallbacks = [I18n.default_locale]
+  # Enable locale fallbacks for I18n. Se cae a :en (único locale con el árbol base
+  # COMPLETO de Rails/ActiveRecord). No se usa I18n.default_locale porque ahora es :es
+  # (ver config/application.rb) y el fallback quedaría circular.
+  config.i18n.fallbacks = [:en]
 
   # Send deprecation notices to registered listeners.
   config.active_support.deprecation = :notify
