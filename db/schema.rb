@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_29_000006) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_29_000010) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -153,6 +153,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_000006) do
     t.boolean "jabvox_sla_enabled_jabvox", default: true, null: false
     t.boolean "jabvox_audit_logs_enabled_jabvox", default: true, null: false
     t.boolean "jabvox_canned_responses_enabled_jabvox", default: true, null: false
+    t.boolean "jabvox_drive_enabled_jabvox", default: false, null: false
     t.index ["jabvox_plan_id"], name: "index_accounts_on_jabvox_plan_id"
     t.index ["status"], name: "index_accounts_on_status"
   end
@@ -2270,6 +2271,107 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_000006) do
     t.index ["account_id", "name_jabvox"], name: "index_jabvox_discounts_account_name", unique: true
     t.index ["account_id"], name: "index_jabvox_discounts_on_account_id"
     t.index ["created_by_id"], name: "index_jabvox_discounts_on_created_by_id"
+  end
+
+  create_table "jabvox_drive_audit_logs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "user_id"
+    t.string "action", null: false
+    t.string "result", default: "success", null: false
+    t.string "auditable_type"
+    t.bigint "auditable_id"
+    t.string "ip_address"
+    t.string "user_agent"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["account_id", "action"], name: "index_jabvox_drive_audit_logs_on_account_id_and_action"
+    t.index ["account_id", "auditable_type", "auditable_id"], name: "idx_drive_audit_auditable"
+    t.index ["account_id", "created_at"], name: "index_jabvox_drive_audit_logs_on_account_id_and_created_at"
+    t.index ["account_id"], name: "index_jabvox_drive_audit_logs_on_account_id"
+    t.index ["user_id"], name: "index_jabvox_drive_audit_logs_on_user_id"
+  end
+
+  create_table "jabvox_drive_files", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "folder_id"
+    t.bigint "contact_id"
+    t.bigint "message_id"
+    t.bigint "conversation_id"
+    t.string "filename", null: false
+    t.string "content_type"
+    t.string "bucket", default: "primary", null: false
+    t.string "object_key", null: false
+    t.bigint "byte_size", default: 0, null: false
+    t.string "sha256"
+    t.integer "status", default: 0, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.bigint "created_by_id"
+    t.datetime "deleted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "purged_at"
+    t.bigint "trashed_by_id"
+    t.bigint "purged_by_id"
+    t.index ["account_id", "contact_id"], name: "index_jabvox_drive_files_on_account_id_and_contact_id"
+    t.index ["account_id", "deleted_at"], name: "idx_drive_files_in_trash", where: "((deleted_at IS NOT NULL) AND (purged_at IS NULL))"
+    t.index ["account_id", "folder_id"], name: "index_jabvox_drive_files_on_account_id_and_folder_id"
+    t.index ["account_id", "message_id"], name: "index_jabvox_drive_files_on_account_id_and_message_id"
+    t.index ["account_id", "object_key"], name: "idx_drive_files_unique_object", unique: true
+    t.index ["account_id", "sha256"], name: "index_jabvox_drive_files_on_account_id_and_sha256"
+    t.index ["account_id", "status"], name: "index_jabvox_drive_files_on_account_id_and_status"
+    t.index ["account_id"], name: "index_jabvox_drive_files_on_account_id"
+    t.index ["contact_id"], name: "index_jabvox_drive_files_on_contact_id"
+    t.index ["conversation_id"], name: "index_jabvox_drive_files_on_conversation_id"
+    t.index ["created_by_id"], name: "index_jabvox_drive_files_on_created_by_id"
+    t.index ["folder_id"], name: "index_jabvox_drive_files_on_folder_id"
+    t.index ["message_id"], name: "index_jabvox_drive_files_on_message_id"
+  end
+
+  create_table "jabvox_drive_folders", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "parent_id"
+    t.bigint "contact_id"
+    t.string "name", null: false
+    t.string "path", default: "/", null: false
+    t.boolean "system_folder", default: false, null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "contact_id"], name: "index_jabvox_drive_folders_on_account_id_and_contact_id"
+    t.index ["account_id", "parent_id", "name"], name: "idx_drive_folders_unique_name", unique: true
+    t.index ["account_id", "path"], name: "idx_drive_folders_unique_path", unique: true
+    t.index ["account_id", "path"], name: "index_jabvox_drive_folders_on_account_id_and_path"
+    t.index ["account_id"], name: "index_jabvox_drive_folders_on_account_id"
+    t.index ["contact_id"], name: "index_jabvox_drive_folders_on_contact_id"
+    t.index ["created_by_id"], name: "index_jabvox_drive_folders_on_created_by_id"
+    t.index ["parent_id"], name: "index_jabvox_drive_folders_on_parent_id"
+  end
+
+  create_table "jabvox_drive_pending_operations", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "kind", null: false
+    t.string "idempotency_key", null: false
+    t.integer "status", default: 0, null: false
+    t.integer "attempts", default: 0, null: false
+    t.jsonb "payload", default: {}, null: false
+    t.text "last_error"
+    t.datetime "next_attempt_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "idempotency_key"], name: "idx_drive_pending_unique_key", unique: true
+    t.index ["account_id"], name: "index_jabvox_drive_pending_operations_on_account_id"
+    t.index ["status", "next_attempt_at"], name: "idx_on_status_next_attempt_at_53f7587c2e"
+  end
+
+  create_table "jabvox_drive_storage_accounts", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "used_bytes", default: 0, null: false
+    t.bigint "reserved_bytes", default: 0, null: false
+    t.bigint "overflow_bytes", default: 0, null: false
+    t.datetime "last_reconciled_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_jabvox_drive_storage_accounts_on_account_id", unique: true
   end
 
   create_table "jabvox_email_send_logs", force: :cascade do |t|
@@ -4690,6 +4792,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_000006) do
   add_foreign_key "jabvox_dialer_states", "users", column: "created_by_id"
   add_foreign_key "jabvox_discounts", "accounts"
   add_foreign_key "jabvox_discounts", "users", column: "created_by_id"
+  add_foreign_key "jabvox_drive_audit_logs", "accounts"
+  add_foreign_key "jabvox_drive_audit_logs", "users"
+  add_foreign_key "jabvox_drive_files", "accounts"
+  add_foreign_key "jabvox_drive_files", "contacts", on_delete: :nullify
+  add_foreign_key "jabvox_drive_files", "conversations", on_delete: :nullify
+  add_foreign_key "jabvox_drive_files", "jabvox_drive_folders", column: "folder_id"
+  add_foreign_key "jabvox_drive_files", "messages", on_delete: :nullify
+  add_foreign_key "jabvox_drive_files", "users", column: "created_by_id"
+  add_foreign_key "jabvox_drive_folders", "accounts"
+  add_foreign_key "jabvox_drive_folders", "jabvox_drive_folders", column: "parent_id"
+  add_foreign_key "jabvox_drive_folders", "users", column: "created_by_id"
+  add_foreign_key "jabvox_drive_pending_operations", "accounts"
+  add_foreign_key "jabvox_drive_storage_accounts", "accounts"
   add_foreign_key "jabvox_email_send_logs", "accounts"
   add_foreign_key "jabvox_email_send_logs", "users"
   add_foreign_key "jabvox_email_templates", "accounts"

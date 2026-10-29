@@ -44,14 +44,29 @@ class Jabvox::Drive::ReconciliationService
     { promoted: promoted, skipped: skipped, failed: failed }
   end
 
-  # Audita filas vs objetos físicos. Devuelve { missing_objects:, orphan_objects: }.
+  # Audita filas vs objetos físicos. Devuelve { missing_objects:, orphan_objects:,
+  # reindexed_attachments: }.
+  #
+  # reindexed_attachments cierra el hueco de sincronización REAL: si un adjunto se
+  # subió a MinIO (vía Active Storage) pero NUNCA creó su fila en el Drive —porque el
+  # enganche after_create_commit no corrió (deploy a medias, worker sin la clase
+  # recargada, feature flag apagado en ese instante, excepción silenciada) y por eso
+  # tampoco quedó una operación durable que reintentar—, aquí se detecta y se reencola
+  # su ingesta. Así se cumple la regla: TODO objeto de la cuenta en MinIO termina en el
+  # Drive, de forma autosanable, sin depender de que el enganche de creación corriera.
   def reconcile!
     missing = mark_missing_objects
     orphans = log_orphan_objects
+    reindexed = reindex_message_orphans!
     quota.recalculate!
     quota.storage_account.update!(last_reconciled_at: Time.current)
-    { missing_objects: missing, orphan_objects: orphans }
+    { missing_objects: missing, orphan_objects: orphans, reindexed_attachments: reindexed }
   end
+
+  # Ventana de adjuntos a revisar en cada pase (los más recientes). Los antiguos ya
+  # fueron reconciliados en pases anteriores; esto acota el costo del barrido.
+  REINDEX_LOOKBACK = 2.days
+  REINDEX_BATCH = 500
 
   private
 
@@ -176,6 +191,54 @@ class Jabvox::Drive::ReconciliationService
       next
     end
     count
+  end
+
+  # Reencola la ingesta de los adjuntos de mensajes de la cuenta que YA tienen su
+  # blob almacenado pero NO tienen fila en el Drive (ni en la papelera). Idempotente:
+  # AttachmentIngestJob deduplica por object_key/sha256, así que reencolar uno ya
+  # indexado no hace nada. Solo mira la ventana reciente (REINDEX_LOOKBACK) para no
+  # recorrer el histórico completo en cada pase.
+  #
+  # Devuelve cuántos adjuntos se reencolaron.
+  def reindex_message_orphans!
+    return 0 unless account.feature_enabled?('jabvox_drive')
+
+    # object_keys ya conocidas por el Drive (incluye papelera: si está en papelera,
+    # NO se re-ingiere, respeta la decisión del usuario de borrarlo).
+    known_keys = account.jabvox_drive_files.pluck(:object_key).to_set
+    reindexed = 0
+
+    message_attachments_in_window.find_each(batch_size: REINDEX_BATCH) do |attachment|
+      next unless reindexable_orphan?(attachment, known_keys)
+
+      Jabvox::Drive::AttachmentIngestJob.perform_later(account.id, attachment.id)
+      reindexed += 1
+    end
+    Rails.logger.info("[jabvox-drive] reconcile: reindex huérfanos account_id=#{account.id} n=#{reindexed}") if reindexed.positive?
+    reindexed
+  rescue StandardError => e
+    Rails.logger.warn("[jabvox-drive] reconcile: reindex_message_orphans error account_id=#{account.id}: #{e.class}")
+    0
+  end
+
+  # Adjuntos de mensajes de la cuenta, de tipo archivo real, dentro de la ventana.
+  def message_attachments_in_window
+    Attachment.where(account_id: account.id)
+              .where(file_type: Jabvox::AttachmentDriveIngest::DRIVE_FILE_TYPES)
+              .where('attachments.created_at >= ?', REINDEX_LOOKBACK.ago)
+  end
+
+  # ¿Es un adjunto huérfano reindexable? Tiene blob y su key no está ya en el Drive.
+  def reindexable_orphan?(attachment, known_keys)
+    return false unless attachment.file.attached?
+
+    key = attachment.file.blob&.key
+    return false if key.blank?
+    return false if known_keys.include?(key)
+
+    true
+  rescue StandardError
+    false
   end
 
   # Detecta objetos físicos sin fila (solo log; no se borran automáticamente).

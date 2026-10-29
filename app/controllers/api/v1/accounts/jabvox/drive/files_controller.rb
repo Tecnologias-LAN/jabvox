@@ -131,8 +131,10 @@ class Api::V1::Accounts::Jabvox::Drive::FilesController < Api::V1::Accounts::Jab
     scope = scope.where(contact_id: params[:contact_id]) if params[:contact_id].present?
     # Al BUSCAR o filtrar (texto/tipo/fecha) la búsqueda es GLOBAL en la cuenta: se
     # ignora la carpeta actual para encontrar archivos en cualquier contacto/bandeja.
-    # Sin filtros, se respeta folder_id para navegar carpeta por carpeta.
-    scope = scope.where(folder_id: params[:folder_id]) if params[:folder_id].present? && !searching?
+    # Sin filtros, se navega carpeta por carpeta: dentro de una carpeta se muestran sus
+    # archivos; en la RAÍZ (sin folder_id) solo los sueltos (folder_id NULL), NO todos
+    # los de la cuenta — así los que están en subcarpetas no aparecen duplicados arriba.
+    scope = scope.where(folder_id: params[:folder_id].presence) unless searching? || params[:contact_id].present?
     scope = filter_by_query(scope)
     scope = filter_by_type(scope, params[:type]) if params[:type].present?
     filter_by_date(scope)

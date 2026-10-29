@@ -1,9 +1,12 @@
 # Autorización de carpetas del Drive.
 #
-# Convención del módulo (ver ContactPolicy): administradores todo; los agentes
-# pueden navegar y crear/renombrar/mover carpetas, pero no borrar. El aislamiento
-# por cuenta es ESTRICTO: el Scope solo expone carpetas de la cuenta activa, y los
-# controllers además buscan dentro de `Current.account.jabvox_drive_folders`.
+# REGLA DE SEGURIDAD (RBAC): solo los ADMINISTRADORES crean, renombran, mueven y
+# borran carpetas. Los agentes y los ROLES PERSONALIZADOS solo NAVEGAN (ver). Un rol
+# personalizado se guarda con role=agent, así que `administrator?` es false para él:
+# queda del lado de solo-lectura por diseño.
+#
+# El aislamiento por cuenta es ESTRICTO: el Scope solo expone carpetas de la cuenta
+# activa, y los controllers además buscan dentro de `Current.account.jabvox_drive_folders`.
 class JabvoxDriveFolderPolicy < ApplicationPolicy
   def index?
     agent_or_admin?
@@ -13,12 +16,13 @@ class JabvoxDriveFolderPolicy < ApplicationPolicy
     agent_or_admin?
   end
 
+  # Crear, renombrar, mover y borrar carpetas: SOLO administradores.
   def create?
-    agent_or_admin?
+    @account_user.administrator?
   end
 
   def update?
-    agent_or_admin?
+    @account_user.administrator?
   end
 
   def destroy?

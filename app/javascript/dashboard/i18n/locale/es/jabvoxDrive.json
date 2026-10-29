@@ -50,6 +50,8 @@
     "FOLDER": {
       "ACTIONS": "Acciones de carpeta",
       "SYSTEM_FOLDER": "Carpeta de sistema (no se puede modificar ni eliminar)",
+      "SOURCE_ALIVE": "El contacto de esta carpeta existe",
+      "SOURCE_GONE": "El contacto de esta carpeta fue eliminado (archivos conservados)",
       "RENAME": "Renombrar",
       "DELETE": "Eliminar",
       "CREATE_TITLE": "Nueva carpeta",

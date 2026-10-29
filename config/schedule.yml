@@ -269,3 +269,15 @@ jabvox_drive_trash_sweeper_job:
   class: 'Jabvox::Drive::TrashSweeperJob'
   active_job: true
   queue: jabvox_drive
+
+# jabvox-drive: cada 15 min reconcilia cada cuenta con actividad de Drive. Red de
+# seguridad del SYNC: reindexa los adjuntos que están en MinIO pero sin fila en el
+# Drive (p. ej. porque el enganche after_create_commit no corrió en un deploy a
+# medias), marca quarantined las filas sin objeto físico y recalcula contadores.
+# Garantiza que TODO objeto de la cuenta en MinIO termine visible en el Drive sin
+# intervención manual. Barato: solo cuentas con storage_account y ventana reciente.
+jabvox_drive_reconcile_scheduler_job:
+  cron: '*/15 * * * *'
+  class: 'Jabvox::Drive::ReconcileSchedulerJob'
+  active_job: true
+  queue: jabvox_drive

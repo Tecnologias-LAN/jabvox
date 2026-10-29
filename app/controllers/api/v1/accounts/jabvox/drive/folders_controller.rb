@@ -14,7 +14,10 @@ class Api::V1::Accounts::Jabvox::Drive::FoldersController < Api::V1::Accounts::J
       # Navegación normal: carpetas hijas del nivel actual.
       folders = folders.where(parent_id: params[:parent_id].presence)
     end
-    folders = folders.order(:name)
+    folders = folders.order(:name).to_a
+    # En lote (sin N+1): qué contactos de estas carpetas AÚN existen, para pintar la
+    # bolita verde (origen vivo) o roja (contacto borrado → carpeta huérfana).
+    @existing_contact_ids = existing_contact_ids_for(folders)
     render json: { payload: folders.map { |f| serialize_folder(f) } }
   end
 
@@ -101,7 +104,30 @@ class Api::V1::Accounts::Jabvox::Drive::FoldersController < Api::V1::Accounts::J
       parent_id: folder.parent_id,
       contact_id: folder.contact_id,
       system_folder: folder.system_folder,
+      # source_alive: estado del CONTACTO de origen de la carpeta.
+      #   true  -> el contacto existe (bolita verde).
+      #   false -> era carpeta de un contacto que ya se borró (bolita roja, huérfana).
+      #   nil   -> la carpeta no es de un contacto (p. ej. "contactos" o carpetas
+      #            manuales): no aplica indicador.
+      source_alive: folder_source_alive(folder),
       created_at: folder.created_at
     }
+  end
+
+  # ¿El contacto de origen de la carpeta sigue existiendo? nil si la carpeta no es
+  # de un contacto. Usa el conjunto precalculado en #index para evitar N+1; en #show
+  # (una sola carpeta) consulta puntualmente.
+  def folder_source_alive(folder)
+    return nil if folder.contact_id.blank?
+
+    ids = @existing_contact_ids || existing_contact_ids_for([folder])
+    ids.include?(folder.contact_id)
+  end
+
+  def existing_contact_ids_for(folders)
+    contact_ids = folders.filter_map(&:contact_id).uniq
+    return [].to_set if contact_ids.empty?
+
+    Current.account.contacts.where(id: contact_ids).pluck(:id).to_set
   end
 end

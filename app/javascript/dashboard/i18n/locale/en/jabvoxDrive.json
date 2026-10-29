@@ -50,6 +50,8 @@
     "FOLDER": {
       "ACTIONS": "Folder actions",
       "SYSTEM_FOLDER": "System folder (cannot be modified or deleted)",
+      "SOURCE_ALIVE": "This folder's contact exists",
+      "SOURCE_GONE": "This folder's contact was deleted (files kept)",
       "RENAME": "Rename",
       "DELETE": "Delete",
       "CREATE_TITLE": "New folder",

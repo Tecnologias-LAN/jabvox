@@ -57,10 +57,12 @@ const storage = useMapGetter('jabvoxDrive/getStorage');
 const meta = useMapGetter('jabvoxDrive/getMeta');
 const uiFlags = useMapGetter('jabvoxDrive/getUIFlags');
 
-const canManage = computed(() =>
-  ['administrator', 'agent'].includes(currentRole.value)
-);
 const isAdmin = computed(() => currentRole.value === 'administrator');
+// RBAC: solo los administradores GESTIONAN el Drive (subir, eliminar, renombrar,
+// mover, papelera, historial). Los agentes y roles personalizados solo ven y
+// descargan. El backend lo exige igual (Pundit); esto oculta los controles para que
+// no aparezcan acciones que el servidor va a rechazar.
+const canManage = computed(() => isAdmin.value);
 
 const goToHistory = () => {
   router.push({

@@ -1,9 +1,13 @@
 # Autorización de archivos del Drive.
 #
-# Convención del módulo (ver ContactPolicy): administradores todo; los agentes
-# pueden listar, ver, descargar, subir, renombrar y mover; solo los admins borran.
+# REGLA DE SEGURIDAD (RBAC): solo los ADMINISTRADORES cargan, eliminan, renombran,
+# mueven, restauran y purgan. Los agentes y los ROLES PERSONALIZADOS solo pueden VER
+# y DESCARGAR — nunca modificar ni eliminar. Un rol personalizado se guarda con
+# role=agent (+ custom_role_id), así que `administrator?` es false para él: queda del
+# lado de solo-lectura por diseño, sin importar sus permisos personalizados.
+#
 # El Scope restringe a la cuenta activa y oculta lo no-visible (borrados y filas en
-# excedentes/cuarentena) para los agentes; los admins ven todo lo de su cuenta.
+# excedentes/cuarentena) para los no-admin; los admins ven todo lo de su cuenta.
 class JabvoxDriveFilePolicy < ApplicationPolicy
   def index?
     agent_or_admin?
@@ -18,12 +22,13 @@ class JabvoxDriveFilePolicy < ApplicationPolicy
     agent_or_admin?
   end
 
+  # Cargar, renombrar, mover y borrar: SOLO administradores.
   def create?
-    agent_or_admin?
+    @account_user.administrator?
   end
 
   def update?
-    agent_or_admin?
+    @account_user.administrator?
   end
 
   def destroy?

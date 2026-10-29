@@ -125,6 +125,18 @@ const statusBadge = file => {
             :title="t('JABVOX_DRIVE.FOLDER.SYSTEM_FOLDER')"
             aria-hidden="true"
           />
+          <span
+            v-if="folder.source_alive === true"
+            class="size-2 shrink-0 rounded-full bg-n-teal-9"
+            :title="t('JABVOX_DRIVE.FOLDER.SOURCE_ALIVE')"
+            aria-hidden="true"
+          />
+          <span
+            v-else-if="folder.source_alive === false"
+            class="size-2 shrink-0 rounded-full bg-n-ruby-9"
+            :title="t('JABVOX_DRIVE.FOLDER.SOURCE_GONE')"
+            aria-hidden="true"
+          />
           <span class="truncate text-sm font-medium text-n-slate-12">
             {{ folder.name }}
           </span>
@@ -266,6 +278,18 @@ const statusBadge = file => {
                 v-if="folder.system_folder"
                 class="i-lucide-star size-3.5 shrink-0 text-amber-500"
                 :title="t('JABVOX_DRIVE.FOLDER.SYSTEM_FOLDER')"
+                aria-hidden="true"
+              />
+              <span
+                v-if="folder.source_alive === true"
+                class="size-2 shrink-0 rounded-full bg-n-teal-9"
+                :title="t('JABVOX_DRIVE.FOLDER.SOURCE_ALIVE')"
+                aria-hidden="true"
+              />
+              <span
+                v-else-if="folder.source_alive === false"
+                class="size-2 shrink-0 rounded-full bg-n-ruby-9"
+                :title="t('JABVOX_DRIVE.FOLDER.SOURCE_GONE')"
                 aria-hidden="true"
               />
               <span class="truncate">{{ folder.name }}</span>
