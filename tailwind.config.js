@@ -6,6 +6,37 @@ const {
   iconsPlugin,
   getIconCollections,
 } = require('@egoist/tailwindcss-icons');
+const fs = require('fs');
+const path = require('path');
+
+// Iconos del catálogo de Automatizaciones avanzadas (Flows). El editor pinta el
+// icono de cada nodo con la clase dinámica `i-lucide-${node.icon}`, que Tailwind
+// JIT NO detecta al escanear el código (no aparece literal). Sin esto, solo se
+// compilan los iconos que por casualidad usa otra pantalla y el resto de nodos
+// salen EN BLANCO. Derivamos la safelist del propio catálogo para que nunca se
+// desincronice: cualquier icono nuevo de un nodo se compila solo.
+const flowNodeIconSafelist = (() => {
+  try {
+    const catalogPath = path.join(
+      __dirname,
+      'lib/jabvox/flows/catalog/nodes.json'
+    );
+    const nodes = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+    const flowIcons = new Set(
+      nodes.map(node => node && node.icon).filter(Boolean)
+    );
+    return Array.from(flowIcons, icon => `i-lucide-${icon}`);
+  } catch (error) {
+    // Si el catálogo no se puede leer, no rompas el build de CSS: el peor caso
+    // es volver al comportamiento anterior (algunos iconos sin compilar).
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[tailwind] no se pudo leer el catálogo de Flows:',
+      error.message
+    );
+    return [];
+  }
+})();
 
 const defaultSansFonts = [
   '-apple-system',
@@ -36,6 +67,9 @@ const tailwindConfig = {
     './app/javascript/dashboard/routes/dashboard/**/**/*.js',
     './app/views/**/*.erb',
   ],
+  // Clases que Tailwind debe generar aunque no aparezcan literales en el código.
+  // Los iconos de los nodos de Flows se usan con clase dinámica (ver arriba).
+  safelist: [...flowNodeIconSafelist],
   theme: {
     extend: {
       fontFamily: {

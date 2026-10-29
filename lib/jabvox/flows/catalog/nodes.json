@@ -540,7 +540,7 @@
     "category": "logic",
     "label": "Fecha y hora actual",
     "description": "Devuelve la fecha/hora actual en una zona horaria, con desplazamiento opcional.",
-    "icon": "clock",
+    "icon": "clock-arrow-down",
     "color": "#8b5cf6",
     "inputs": [
       {
@@ -1700,7 +1700,7 @@
     "module": "contactos",
     "label": "Obtener Contacto",
     "description": "Obtiene el detalle de un lead (incluye contacto y campos personalizados).",
-    "icon": "user-search",
+    "icon": "user-round",
     "color": "#186d6a",
     "inputs": [
       {
@@ -2320,7 +2320,7 @@
     "module": "contactos",
     "label": "Actualizar Contacto",
     "description": "Actualiza los datos de un contacto existente.",
-    "icon": "user-cog",
+    "icon": "user-pen",
     "color": "#186d6a",
     "inputs": [
       {
@@ -2395,7 +2395,7 @@
     "module": "contactos",
     "label": "Buscar Contacto",
     "description": "Busca contactos por un criterio seleccionable (nombre, email, teléfono, empresa, etiqueta o atributo personalizado). El valor se adapta al criterio elegido.",
-    "icon": "user-search",
+    "icon": "user-round-search",
     "color": "#186d6a",
     "inputs": [
       {
@@ -2555,7 +2555,7 @@
     "module": "contactos",
     "label": "Fijar atributo personalizado de Contacto",
     "description": "Fija el valor de UN atributo personalizado del contacto; el resto de atributos se conservan. Para varios a la vez usa \"Actualizar Contacto\".",
-    "icon": "pencil",
+    "icon": "pencil-line",
     "color": "#186d6a",
     "inputs": [
       {
@@ -2808,7 +2808,7 @@
     "module": "conversaciones",
     "label": "Nota privada en conversación",
     "description": "Añade una nota interna a la conversación, visible solo para los agentes. Nunca se envía al contacto.",
-    "icon": "sticky-note",
+    "icon": "notebook-pen",
     "color": "#186d6a",
     "inputs": [
       {
@@ -2854,7 +2854,7 @@
     "module": "conversaciones",
     "label": "Asignar Conversación",
     "description": "Asigna la conversación a un agente, a un equipo, o a ambos. Debes elegir al menos uno de los dos.",
-    "icon": "user-check",
+    "icon": "user-round-check",
     "color": "#186d6a",
     "inputs": [
       {
@@ -2991,7 +2991,7 @@
     "module": "conversaciones",
     "label": "Añadir etiquetas a Conversación",
     "description": "Añade etiquetas a la conversación CONSERVANDO las que ya tuviera (el nodo lee las actuales y envía la unión). Si una etiqueta no existe en la cuenta, Jabvox la crea al vuelo.",
-    "icon": "tags",
+    "icon": "bookmark",
     "color": "#186d6a",
     "inputs": [
       {
@@ -3039,7 +3039,7 @@
     "module": "conversaciones",
     "label": "Asignar a Equipo",
     "description": "Asigna la conversación a un equipo (sin tocar el agente asignado).",
-    "icon": "users",
+    "icon": "users-round",
     "color": "#186d6a",
     "inputs": [
       {
@@ -3781,7 +3781,7 @@
     "module": "kanban",
     "label": "Mover Contacto en Kanban",
     "description": "Mueve un lead a una etapa de un embudo Kanban.",
-    "icon": "columns-3",
+    "icon": "between-horizontal-start",
     "color": "#186d6a",
     "inputs": [
       {
@@ -3833,7 +3833,7 @@
     "module": "kanban",
     "label": "Obtener Contactos de Kanban",
     "description": "Obtiene las tarjetas (contactos) de un embudo Kanban: todas las columnas o una columna concreta. Devuelve { operation, count, cards: [...] }.",
-    "icon": "columns-3",
+    "icon": "kanban",
     "color": "#186d6a",
     "inputs": [
       {
@@ -4676,7 +4676,7 @@
     "module": "tipificaciones",
     "label": "Crear Tipificación",
     "description": "Crea una tipificación en el catálogo de la cuenta.",
-    "icon": "list-checks",
+    "icon": "clipboard-list",
     "color": "#186d6a",
     "inputs": [
       {
@@ -4723,7 +4723,7 @@
     "module": "etiquetas",
     "label": "Conversaciones por antigüedad de etiqueta",
     "description": "Busca conversaciones que llevan al menos N horas con una etiqueta puesta (y que la siguen teniendo).",
-    "icon": "clock",
+    "icon": "clock-alert",
     "color": "#186d6a",
     "inputs": [
       {
@@ -4870,7 +4870,7 @@
     "module": "etiquetas",
     "label": "Añadir Etiqueta",
     "description": "Añade etiquetas a una conversación (conserva las existentes).",
-    "icon": "tag",
+    "icon": "tag-plus",
     "color": "#186d6a",
     "inputs": [
       {
@@ -4916,7 +4916,7 @@
     "module": "etiquetas",
     "label": "Quitar Etiqueta",
     "description": "Quita etiquetas de una conversación (conserva el resto).",
-    "icon": "tag",
+    "icon": "tag-x",
     "color": "#186d6a",
     "inputs": [
       {
@@ -4961,7 +4961,7 @@
     "module": "etiquetas",
     "label": "Añadir Etiqueta al Contacto",
     "description": "Añade etiquetas al CONTACTO (conserva las existentes). Distinto de \"Añadir Etiqueta\", que etiqueta la conversación: son listas separadas.",
-    "icon": "tag",
+    "icon": "tags",
     "color": "#186d6a",
     "inputs": [
       {
@@ -5007,7 +5007,7 @@
     "module": "etiquetas",
     "label": "Quitar Etiqueta del Contacto",
     "description": "Quita etiquetas del CONTACTO (conserva el resto).",
-    "icon": "tag",
+    "icon": "bookmark-x",
     "color": "#186d6a",
     "inputs": [
       {
@@ -5443,7 +5443,7 @@
     "category": "integration",
     "label": "Webhook saliente",
     "description": "Envía un POST a una URL externa (notificación saliente).",
-    "icon": "send",
+    "icon": "arrow-up-right",
     "color": "#f59e0b",
     "inputs": [
       {
