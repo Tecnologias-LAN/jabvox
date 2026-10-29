@@ -62,7 +62,8 @@ RSpec.describe Jabvox::Flows::Catalog do
 
   it 'los nodos de colección son exactamente los que declaran itemsPath' do
     con_items = described_class.all.select { |n| n['itemsPath'].present? }.pluck('type')
-    expect(con_items.size).to eq(9)
+    # 9 originales + jabvox.task.search + jabvox.kanban.list (nodos de lectura).
+    expect(con_items.size).to eq(11)
     expect(con_items).to match_array(registry.types.select { |t| registry.items_path(t).present? })
   end
 end

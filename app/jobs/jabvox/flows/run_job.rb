@@ -4,6 +4,11 @@
 # no puede taponar mensajes ni ningún otro servicio (worker sidekiq_flows.yml).
 class Jabvox::Flows::RunJob < ApplicationJob
   queue_as :jabvox_flows
+  # Techo explícito de reintentos: un fallo de INFRAESTRUCTURA (p. ej. BD caída un
+  # instante) reintenta como mucho 3 veces y no 25 (el defecto de Sidekiq), para no
+  # retener un slot del worker. Un fallo de NODO no llega aquí: RunService lo captura
+  # y deja el run `failed`, así que el job termina OK y no reintenta.
+  sidekiq_options retry: 3
 
   def perform(run_id, trigger_type: 'trigger.manual', trigger_node_id: nil)
     run = JabvoxFlowRun.find_by(id: run_id)

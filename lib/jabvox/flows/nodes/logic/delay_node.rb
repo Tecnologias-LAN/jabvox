@@ -6,7 +6,11 @@ class Jabvox::Flows::Nodes::Logic::DelayNode < Jabvox::Flows::Nodes::Base
   type 'logic.delay'
   label 'Esperar'
 
-  SYNC_THRESHOLD_MS = 5_000
+  # Por ENCIMA de este umbral la espera SUSPENDE el run (libera el worker). Por
+  # debajo se duerme en el sitio: un sleep de hasta 1 s no justifica el coste de
+  # suspender y reanudar. Antes el umbral era 5 s, lo que podía retener un slot de
+  # Sidekiq 5 s por nodo y, con muchos runs, congestionar la cola `jabvox_flows`.
+  SYNC_THRESHOLD_MS = 1_000
   MAX_DELAY_MS = 30 * 24 * 60 * 60 * 1000
 
   def perform

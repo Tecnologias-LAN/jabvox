@@ -42,11 +42,30 @@ class Jabvox::Flows::Nodes::Jabvox::Base < Jabvox::Flows::Nodes::Base
     fail_with!("La bandeja #{inbox_id} no existe en esta cuenta.")
   end
 
-  # Vista compacta de un contacto para la salida de los nodos.
+  # Vista de un contacto para la salida de los nodos. Las cinco primeras claves
+  # son el contrato HISTÓRICO (los flujos guardados las referencian y no cambian).
+  # El resto se añadió para que la búsqueda/listado traiga la ficha COMPLETA:
+  # atributos personalizados (los de Chatwoot y los de Jabvox) y la empresa.
   def contact_view(contact)
     return nil if contact.nil?
 
     { 'id' => contact.id, 'name' => contact.name, 'email' => contact.email,
-      'phone_number' => contact.phone_number, 'identifier' => contact.identifier }
+      'phone_number' => contact.phone_number, 'identifier' => contact.identifier,
+      'custom_attributes' => contact.custom_attributes || {},
+      'additional_attributes' => contact.additional_attributes || {},
+      'custom_fields_jabvox' => contact.custom_fields_jabvox || {},
+      'company' => company_view(contact) }
+  end
+
+  # Empresa asociada al contacto. Solo cuando el módulo de empresas está activo
+  # (la asociación vive en enterprise); si no, `nil` en vez de levantar la relación.
+  def company_view(contact)
+    return nil unless account.feature_enabled?('companies')
+
+    company = contact.company
+    return nil if company.nil?
+
+    { 'id' => company.id, 'name' => company.name,
+      'nit' => company.additional_attributes&.dig('nit') }
   end
 end

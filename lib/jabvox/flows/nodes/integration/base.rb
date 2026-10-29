@@ -14,7 +14,10 @@ class Jabvox::Flows::Nodes::Integration::Base < Jabvox::Flows::Nodes::Base
 
   # Respuesta cruda: { 'status', 'headers', 'data' }. NO sigue redirecciones.
   def http_call(method:, url:, headers: nil, body: nil, timeout_ms: nil)
-    uri = Jabvox::Flows::Nodes::Integration::UrlGuard.assert_safe_url!(url)
+    # El guard RESUELVE el host y valida TODAS sus IPs (no solo el nombre): si
+    # cualquiera cae en un rango interno, se rechaza aquí, antes de conectar. Así
+    # un dominio que apunta a una IP interna no pasa aunque el nombre parezca público.
+    uri = Jabvox::Flows::Nodes::Integration::UrlGuard.resolved_endpoint!(url).first
     request = build_request(method, uri, headers, body)
     response = send_request(uri, request, timeout_ms)
 

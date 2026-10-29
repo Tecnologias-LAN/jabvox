@@ -5,6 +5,9 @@
 # seguridad para cuando este job se pierde.
 class Jabvox::Flows::ResumeRunJob < ApplicationJob
   queue_as :jabvox_flows
+  # Techo de reintentos ante fallo de infraestructura. La toma atómica
+  # (claim_for_resume) impide que un reintento reanude el run dos veces.
+  sidekiq_options retry: 3
 
   def perform(run_id, timed_out: nil)
     run = JabvoxFlowRun.find_by(id: run_id)

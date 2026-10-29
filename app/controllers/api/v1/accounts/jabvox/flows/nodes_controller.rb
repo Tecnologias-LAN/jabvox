@@ -4,7 +4,8 @@
 # configuración. Es estático por cuenta, así que se cachea en el navegador.
 class Api::V1::Accounts::Jabvox::Flows::NodesController < Api::V1::Accounts::Jabvox::Flows::BaseController
   def index
-    render json: { 'nodes' => Jabvox::Flows::Catalog.all,
-                   'enabledModules' => [], 'hiddenByModule' => [] }
+    mods = Jabvox::Flows::Catalog.modules_for(Current.account)
+    render json: { 'nodes' => Jabvox::Flows::Catalog.all_for(Current.account),
+                   'enabledModules' => mods[:enabled], 'hiddenByModule' => mods[:hidden] }
   end
 end

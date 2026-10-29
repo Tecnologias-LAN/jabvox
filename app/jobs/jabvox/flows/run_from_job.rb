@@ -4,6 +4,8 @@
 # de en el disparador. Aparece en el historial como cualquier otra.
 class Jabvox::Flows::RunFromJob < ApplicationJob
   queue_as :jabvox_flows
+  # Techo de reintentos ante fallo de infraestructura (ver RunJob).
+  sidekiq_options retry: 3
 
   def perform(run_id, node_id)
     run = JabvoxFlowRun.find_by(id: run_id)

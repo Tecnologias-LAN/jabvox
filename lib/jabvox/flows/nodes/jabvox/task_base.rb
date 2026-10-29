@@ -88,14 +88,32 @@ class Jabvox::Flows::Nodes::Jabvox::TaskBase < Jabvox::Flows::Nodes::Jabvox::Bas
   end
 
   def task_view(task)
+    task_core(task).merge(task_relations(task))
+  end
+
+  def task_core(task)
     { 'id' => task.id, 'taskId' => task.id, 'title' => task.title_jabvox,
       'description' => task.description_jabvox, 'status' => task.status_jabvox,
       'priority' => task.priority_jabvox, 'position' => task.position_jabvox,
-      'due_at' => task.due_at_jabvox&.iso8601,
-      'board_id' => task.board_id, 'board_name' => task.board&.name_jabvox,
+      'due_at' => task.due_at_jabvox&.iso8601, 'created_at' => task.created_at&.iso8601 }
+  end
+
+  # Tablero, columna, responsables y las fichas del contacto vinculado y del
+  # responsable principal: así un nodo siguiente puede ramificar sin volver a
+  # buscarlos. `contact` trae la ficha completa (atributos y empresa) vía contact_view.
+  def task_relations(task)
+    { 'board_id' => task.board_id, 'board_name' => task.board&.name_jabvox,
       'stage_id' => task.stage_id, 'stage_name' => task.stage&.name_jabvox,
       'lead_id' => task.contact_id, 'assignee_id' => task.assignee_id,
       'assignee_ids' => task.assignees.pluck(:id),
-      'assignee_names' => task.assignees.pluck(:name) }
+      'assignee_names' => task.assignees.pluck(:name),
+      'contact' => contact_view(task.contact), 'assignee' => user_view(task.assignee) }
+  end
+
+  # Vista mínima de un usuario (responsable) para la salida.
+  def user_view(user)
+    return nil if user.nil?
+
+    { 'id' => user.id, 'name' => user.name, 'email' => user.email }
   end
 end

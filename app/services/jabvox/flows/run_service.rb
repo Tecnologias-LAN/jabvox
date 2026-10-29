@@ -121,9 +121,12 @@ class Jabvox::Flows::RunService
   # (job puntual + barrido, o dos respuestas) no ejecutan la continuación dos
   # veces. El segundo ve 0 filas afectadas y sale.
   def claim_for_resume
+    # Se re-sella `started_at` al tomar el run: marca el inicio de ESTE tramo
+    # running, que es lo que el reaper mide para no matar un run recién reanudado.
     claimed = JabvoxFlowRun.where(id: @run.id, status: :waiting)
                            # rubocop:disable Rails/SkipsModelValidations
-                           .update_all(status: JabvoxFlowRun.statuses[:running])
+                           .update_all(status: JabvoxFlowRun.statuses[:running],
+                                       started_at: Time.current, updated_at: Time.current)
     # rubocop:enable Rails/SkipsModelValidations
     @run.reload if claimed.positive?
     claimed.positive?

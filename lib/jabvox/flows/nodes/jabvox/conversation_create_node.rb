@@ -10,7 +10,7 @@ class Jabvox::Flows::Nodes::Jabvox::ConversationCreateNode < Jabvox::Flows::Node
   STATUSES = Conversation.statuses.keys.freeze
 
   def perform
-    inbox = find_inbox!(first_filled(param(:inbox), param(:inboxId)), 'la "Bandeja"')
+    inbox = find_inbox!(param(:inboxId), 'la "Bandeja"')
     contact = find_contact!(param(:contactId))
     conversation = create_conversation(inbox, contact)
     message = create_initial_message(conversation)

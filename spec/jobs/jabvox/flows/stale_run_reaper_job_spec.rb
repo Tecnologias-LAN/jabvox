@@ -49,4 +49,26 @@ RSpec.describe Jabvox::Flows::StaleRunReaperJob do
     described_class.new.perform
     expect(run.reload).to be_waiting
   end
+
+  it 'NO mata un run reanudado: created_at antiguo pero started_at reciente' do
+    # Un run que esperó 1 h en waiting y acaba de reanudarse (started_at ahora)
+    # está ejecutando su tramo final legítimamente: el reaper no debe tocarlo.
+    run = JabvoxFlowRun.create!(account: account, flow: flow, version: version,
+                                status: :running, trigger: { 'type' => 'test' })
+    run.update_columns(created_at: 1.hour.ago, started_at: 10.seconds.ago) # rubocop:disable Rails/SkipsModelValidations
+
+    described_class.new.perform
+
+    expect(run.reload).to be_running
+  end
+
+  it 'SÍ mata un run running cuyo tramo (started_at) ya es antiguo' do
+    run = JabvoxFlowRun.create!(account: account, flow: flow, version: version,
+                                status: :running, trigger: { 'type' => 'test' })
+    run.update_columns(created_at: 2.hours.ago, started_at: 1.hour.ago) # rubocop:disable Rails/SkipsModelValidations
+
+    described_class.new.perform
+
+    expect(run.reload).to be_failed
+  end
 end

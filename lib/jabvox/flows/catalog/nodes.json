@@ -1039,8 +1039,8 @@
   {
     "type": "jabvox.contact.search",
     "category": "jabvox",
-    "module": "leads",
-    "label": "Buscar / Obtener Leads",
+    "module": "contactos",
+    "label": "Buscar / Obtener Contactos",
     "description": "Obtiene leads de Jabvox en 6 modalidades, según el campo «Modo». Siempre devuelve { mode, count, leads: [...] }.",
     "icon": "user-search",
     "color": "#186d6a",
@@ -1609,13 +1609,14 @@
         "total_pages": 1
       }
     },
-    "details": "Cada lead trae DOS identificadores: `lead_number` es el número #N VISIBLE en la pantalla de leads de Jabvox, e `id` es el ID INTERNO (el que esperan los nodos de actualizar/asignar). Puedes encadenar «Repetir por cada elemento» sobre {{node.<id>.items}} en cualquiera de los 6 modos."
+    "details": "Cada lead trae DOS identificadores: `lead_number` es el número #N VISIBLE en la pantalla de leads de Jabvox, e `id` es el ID INTERNO (el que esperan los nodos de actualizar/asignar). Puedes encadenar «Repetir por cada elemento» sobre {{node.<id>.items}} en cualquiera de los 6 modos.",
+    "hidden": true
   },
   {
     "type": "jabvox.contact.list",
     "category": "jabvox",
-    "module": "leads",
-    "label": "Listar Leads",
+    "module": "contactos",
+    "label": "Listar Contactos",
     "description": "Lista los leads de la cuenta con filtros opcionales.",
     "icon": "users",
     "color": "#186d6a",
@@ -1696,8 +1697,8 @@
   {
     "type": "jabvox.contact.get",
     "category": "jabvox",
-    "module": "leads",
-    "label": "Obtener Lead",
+    "module": "contactos",
+    "label": "Obtener Contacto",
     "description": "Obtiene el detalle de un lead (incluye contacto y campos personalizados).",
     "icon": "user-search",
     "color": "#186d6a",
@@ -1741,8 +1742,8 @@
   {
     "type": "jabvox.contact.update_details",
     "category": "jabvox",
-    "module": "leads",
-    "label": "Actualizar Lead",
+    "module": "contactos",
+    "label": "Actualizar Contacto (detalles)",
     "description": "Actualiza datos del contacto, campaña, agente asignado y campos personalizados del lead.",
     "icon": "user-cog",
     "color": "#186d6a",
@@ -1843,8 +1844,8 @@
   {
     "type": "jabvox.contact.set_custom_fields",
     "category": "jabvox",
-    "module": "leads",
-    "label": "Fijar campo personalizado de Lead",
+    "module": "contactos",
+    "label": "Fijar campo personalizado de Contacto",
     "description": "Fija el valor de UN campo personalizado del lead (los demás campos se conservan). Para varios campos a la vez usa \"Actualizar Lead\".",
     "icon": "pencil",
     "color": "#186d6a",
@@ -1903,8 +1904,8 @@
   {
     "type": "jabvox.contact.assign",
     "category": "jabvox",
-    "module": "leads",
-    "label": "Asignar Leads",
+    "module": "contactos",
+    "label": "Asignar Contactos",
     "description": "Asigna uno o varios leads a un agente. Devuelve cuántos se asignaron de verdad y avisa si algún id no existe en la cuenta.",
     "icon": "user-check",
     "color": "#186d6a",
@@ -1956,8 +1957,8 @@
   {
     "type": "jabvox.contact.unassign",
     "category": "jabvox",
-    "module": "leads",
-    "label": "Desasignar Leads",
+    "module": "contactos",
+    "label": "Desasignar Contactos",
     "description": "Quita el agente asignado de uno o varios leads. Devuelve cuántos se desasignaron y avisa si algún id no existe en la cuenta.",
     "icon": "user-x",
     "color": "#186d6a",
@@ -2002,8 +2003,8 @@
   {
     "type": "jabvox.contact.find_by_date",
     "category": "jabvox",
-    "module": "leads",
-    "label": "Buscar leads por campo de fecha",
+    "module": "contactos",
+    "label": "Buscar contactos por campo de fecha",
     "description": "Busca leads (o contactos) cuyo campo de fecha coincida con hoy, dentro de N días o hace N días.",
     "icon": "cake",
     "color": "#186d6a",
@@ -2137,8 +2138,8 @@
   {
     "type": "jabvox.contact.find_by_field",
     "category": "jabvox",
-    "module": "leads",
-    "label": "Buscar leads por campo",
+    "module": "contactos",
+    "label": "Buscar contactos por campo",
     "description": "Busca leads cuyo campo personalizado cumpla el filtro: contiene, es igual a, vacío o no vacío.",
     "icon": "search",
     "color": "#186d6a",
@@ -2393,7 +2394,7 @@
     "category": "jabvox",
     "module": "contactos",
     "label": "Buscar Contacto",
-    "description": "Busca contactos por texto: nombre, email, teléfono o identificador.",
+    "description": "Busca contactos por un criterio seleccionable (nombre, email, teléfono, empresa, etiqueta o atributo personalizado). El valor se adapta al criterio elegido.",
     "icon": "user-search",
     "color": "#186d6a",
     "inputs": [
@@ -2410,36 +2411,67 @@
     ],
     "params": [
       {
-        "key": "q",
-        "label": "Texto a buscar",
-        "type": "string",
+        "key": "field",
+        "label": "Criterio",
+        "type": "select",
         "required": true,
-        "templatable": true,
-        "description": "Coincidencia parcial sobre nombre, email, teléfono o identificador."
+        "optionsSource": "contact_search_fields",
+        "description": "Por qué campo buscar. El operador y el valor se adaptan al criterio."
       },
       {
-        "key": "page",
-        "label": "Página",
+        "key": "operator",
+        "label": "Operador",
+        "type": "dynamic_operator",
+        "optionsFrom": "field",
+        "description": "Cómo comparar. Las opciones dependen del tipo de criterio.",
+        "criterionSource": "contact_search_fields"
+      },
+      {
+        "key": "value",
+        "label": "Valor",
+        "type": "dynamic_value",
+        "optionsFrom": "field",
+        "templatable": true,
+        "description": "Valor a buscar. Si el criterio es una lista (empresa, etiqueta…), se elige de un desplegable.",
+        "criterionSource": "contact_search_fields"
+      },
+      {
+        "key": "limit",
+        "label": "Resultados por página",
         "type": "number",
-        "default": 1,
-        "description": "15 resultados por página (lo fija Jabvox). Usa `hasMore` de la salida para saber si hay más."
+        "default": 50,
+        "description": "Máximo 500. Usa `truncated` de la salida para saber si hay más."
       }
     ],
     "itemsPath": "contacts",
     "sampleOutput": {
+      "field": "company",
+      "operator": "in",
+      "value": "7",
       "count": 1,
+      "limit": 50,
+      "truncated": false,
       "contacts": [
         {
           "id": 10,
           "name": "Estrada",
           "email": null,
-          "phone_number": "+573233653776"
+          "phone_number": "+573233653776",
+          "custom_attributes": {},
+          "additional_attributes": {
+            "company_name": "ACME"
+          },
+          "custom_fields_jabvox": {},
+          "company": {
+            "id": 7,
+            "name": "ACME",
+            "nit": "900123"
+          },
+          "contactId": 10
         }
-      ],
-      "page": 1,
-      "hasMore": false
+      ]
     },
-    "details": "Devuelve { count, contacts: [...], hasMore, page } — encadena «Repetir por cada elemento» sobre {{node.<id>.items}}. La API devuelve como mucho 15 contactos por página."
+    "details": "Devuelve { field, operator, value, count, truncated, contacts: [...] } — encadena «Repetir por cada elemento» sobre {{node.<id>.items}}. Cada contacto trae la ficha completa (atributos personalizados y empresa). Máximo 500 por página. Compatibilidad: un flujo antiguo que mandaba `q` (texto único) sigue funcionando."
   },
   {
     "type": "jabvox.contact.company_is",
@@ -3405,6 +3437,293 @@
     }
   },
   {
+    "type": "jabvox.task.search",
+    "category": "jabvox",
+    "module": "tareas",
+    "label": "Obtener Tareas",
+    "description": "Obtiene tareas de un tablero con filtros combinables, o una tarea concreta por su ID. Devuelve { operation, count, tasks: [...] }.",
+    "icon": "list-checks",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "operation",
+        "label": "Operación",
+        "type": "select",
+        "required": true,
+        "default": "list",
+        "options": [
+          {
+            "label": "Obtener tareas (con filtros)",
+            "value": "list"
+          },
+          {
+            "label": "Una tarea concreta (por ID)",
+            "value": "by_id"
+          }
+        ],
+        "description": "Qué quieres hacer. Cambia los campos de abajo."
+      },
+      {
+        "key": "taskId",
+        "label": "ID de la tarea",
+        "type": "string",
+        "required": true,
+        "templatable": true,
+        "placeholder": "{{item.id}}",
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "by_id"
+          ]
+        }
+      },
+      {
+        "key": "boardId",
+        "label": "Tablero",
+        "type": "select",
+        "optionsSource": "task_boards",
+        "description": "Filtra las tareas de este tablero (y acota las columnas del selector).",
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "stageId",
+        "label": "Columna (etapa)",
+        "type": "select",
+        "optionsSource": "task_stages",
+        "dependsOn": "boardId",
+        "description": "Opcional. Solo tareas de esta columna.",
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "assigneeId",
+        "label": "Asignado a",
+        "type": "select",
+        "optionsSource": "agents",
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "status",
+        "label": "Estado",
+        "type": "select",
+        "options": [
+          {
+            "label": "Abierta",
+            "value": "open"
+          },
+          {
+            "label": "Completada",
+            "value": "done"
+          }
+        ],
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "priority",
+        "label": "Prioridad",
+        "type": "select",
+        "options": [
+          {
+            "label": "Baja",
+            "value": "low"
+          },
+          {
+            "label": "Normal",
+            "value": "normal"
+          },
+          {
+            "label": "Alta",
+            "value": "high"
+          },
+          {
+            "label": "Urgente",
+            "value": "urgent"
+          }
+        ],
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "contactId",
+        "label": "Contacto vinculado (ID interno)",
+        "type": "string",
+        "templatable": true,
+        "description": "ID interno del contacto para traer solo sus tareas. Encadena {{item.contact_id}} de Kanban o Contactos.",
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "dueFrom",
+        "label": "Vence desde",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-01",
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "dueTo",
+        "label": "Vence hasta",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-31",
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "createdFrom",
+        "label": "Creada desde",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-01",
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "createdTo",
+        "label": "Creada hasta",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-31",
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "limit",
+        "label": "Resultados por página",
+        "type": "number",
+        "default": 50,
+        "description": "Máximo 500. Usa `hasMore` para saber si hay más.",
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      },
+      {
+        "key": "page",
+        "label": "Página",
+        "type": "number",
+        "default": 1,
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "list"
+          ]
+        }
+      }
+    ],
+    "itemsPath": "tasks",
+    "sampleOutput": {
+      "operation": "list",
+      "count": 1,
+      "total": 1,
+      "page": 1,
+      "per_page": 50,
+      "hasMore": false,
+      "tasks": [
+        {
+          "id": 31,
+          "taskId": 31,
+          "title": "Llamar al cliente",
+          "status": "open",
+          "priority": "high",
+          "due_at": "2026-08-15T09:00:00-05:00",
+          "board_id": 2,
+          "board_name": "Operaciones",
+          "stage_id": 3,
+          "stage_name": "En curso",
+          "lead_id": 10,
+          "assignee_id": 4,
+          "assignee_ids": [
+            4
+          ],
+          "assignee_names": [
+            "Ana"
+          ],
+          "contact": {
+            "id": 10,
+            "name": "Estrada",
+            "email": null,
+            "phone_number": "+573233653776",
+            "custom_attributes": {},
+            "additional_attributes": {
+              "company_name": "ACME"
+            },
+            "custom_fields_jabvox": {},
+            "company": {
+              "id": 7,
+              "name": "ACME",
+              "nit": "900123"
+            }
+          },
+          "assignee": {
+            "id": 4,
+            "name": "Ana",
+            "email": "ana@acme.co"
+          }
+        }
+      ]
+    },
+    "details": "Devuelve { operation, count, total, page, hasMore, tasks: [...] } — encadena «Repetir por cada elemento» sobre {{node.<id>.items}}. Cada tarea trae la ficha del contacto vinculado (con empresa y atributos personalizados) y del responsable principal. El máximo por página es 500."
+  },
+  {
     "type": "jabvox.kanban.move_conversation",
     "category": "jabvox",
     "module": "kanban",
@@ -3460,7 +3779,7 @@
     "type": "jabvox.kanban.move_contact",
     "category": "jabvox",
     "module": "kanban",
-    "label": "Mover Lead en Kanban",
+    "label": "Mover Contacto en Kanban",
     "description": "Mueve un lead a una etapa de un embudo Kanban.",
     "icon": "columns-3",
     "color": "#186d6a",
@@ -3507,6 +3826,161 @@
       "stage_id": 3,
       "stage_name": "En curso"
     }
+  },
+  {
+    "type": "jabvox.kanban.list",
+    "category": "jabvox",
+    "module": "kanban",
+    "label": "Obtener Contactos de Kanban",
+    "description": "Obtiene las tarjetas (contactos) de un embudo Kanban: todas las columnas o una columna concreta. Devuelve { operation, count, cards: [...] }.",
+    "icon": "columns-3",
+    "color": "#186d6a",
+    "inputs": [
+      {
+        "id": "in",
+        "label": "Entrada"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out",
+        "label": "Salida"
+      }
+    ],
+    "params": [
+      {
+        "key": "operation",
+        "label": "Operación",
+        "type": "select",
+        "required": true,
+        "default": "by_funnel",
+        "options": [
+          {
+            "label": "Todo el embudo (todas las columnas)",
+            "value": "by_funnel"
+          },
+          {
+            "label": "Una columna concreta",
+            "value": "by_stage"
+          }
+        ],
+        "description": "Qué quieres traer. «Una columna» muestra el selector de etapa."
+      },
+      {
+        "key": "funnelId",
+        "label": "Embudo",
+        "type": "select",
+        "required": true,
+        "optionsSource": "kanban_funnels"
+      },
+      {
+        "key": "stageId",
+        "label": "Columna/Etapa",
+        "type": "select",
+        "required": true,
+        "optionsSource": "kanban_stages",
+        "dependsOn": "funnelId",
+        "visibleWhen": {
+          "param": "operation",
+          "values": [
+            "by_stage"
+          ]
+        }
+      },
+      {
+        "key": "assigneeId",
+        "label": "Agente asignado",
+        "type": "select",
+        "optionsSource": "agents",
+        "description": "Filtra las tarjetas cuyo contacto o conversación está asignado a este agente."
+      },
+      {
+        "key": "label",
+        "label": "Etiqueta",
+        "type": "select",
+        "optionsSource": "labels",
+        "description": "Solo tarjetas cuyo contacto tiene esta etiqueta."
+      },
+      {
+        "key": "createdFrom",
+        "label": "Colocada desde",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-01"
+      },
+      {
+        "key": "createdTo",
+        "label": "Colocada hasta",
+        "type": "string",
+        "templatable": true,
+        "placeholder": "2026-08-31"
+      },
+      {
+        "key": "limit",
+        "label": "Resultados por página",
+        "type": "number",
+        "default": 100,
+        "description": "Máximo 500. Usa `hasMore` para saber si hay más."
+      },
+      {
+        "key": "page",
+        "label": "Página",
+        "type": "number",
+        "default": 1
+      }
+    ],
+    "itemsPath": "cards",
+    "sampleOutput": {
+      "operation": "by_stage",
+      "funnel_id": 1,
+      "funnel_name": "Ventas",
+      "stage_id": 3,
+      "stage_name": "En curso",
+      "count": 1,
+      "total": 1,
+      "page": 1,
+      "per_page": 100,
+      "hasMore": false,
+      "cards": [
+        {
+          "id": 55,
+          "position": 0,
+          "funnel_id": 1,
+          "funnel_name": "Ventas",
+          "stage_id": 3,
+          "stage_name": "En curso",
+          "stage_position": 2,
+          "lead_id": 10,
+          "contact_id": 10,
+          "contact": {
+            "id": 10,
+            "name": "Estrada",
+            "email": null,
+            "phone_number": "+573233653776",
+            "custom_attributes": {},
+            "additional_attributes": {
+              "company_name": "ACME"
+            },
+            "custom_fields_jabvox": {
+              "ciudad": "Bogotá"
+            },
+            "company": {
+              "id": 7,
+              "name": "ACME",
+              "nit": "900123"
+            }
+          },
+          "conversation_id": 120,
+          "conversation_display_id": 45,
+          "assignee": {
+            "id": 4,
+            "name": "Ana",
+            "email": "ana@acme.co"
+          }
+        }
+      ]
+    },
+    "details": "Devuelve { operation, funnel_id, stage_id, count, total, page, hasMore, cards: [...] } — encadena «Repetir por cada elemento» sobre {{node.<id>.items}}. Cada tarjeta trae el contacto (ficha completa con empresa y atributos personalizados), el embudo y la columna actuales, la conversación asociada (si la hay) y el agente asignado. No coloca tarjetas automáticamente: solo lee las ya colocadas. El máximo por página es 500."
   },
   {
     "type": "jabvox.calendar.create_event",
@@ -4576,8 +5050,8 @@
     "type": "jabvox.campaign.add_contact",
     "category": "jabvox",
     "module": "campañas",
-    "label": "Asociar Lead a Campaña",
-    "description": "Asocia un lead a una campaña de leads (por id de campaña o por nombre; si el nombre no existe, se crea).",
+    "label": "Asociar Contacto a Campaña",
+    "description": "Asocia un contacto a una campaña de la cuenta.",
     "icon": "megaphone",
     "color": "#186d6a",
     "inputs": [
@@ -4595,12 +5069,12 @@
     "params": [
       {
         "key": "leadId",
-        "label": "ID interno del lead",
+        "label": "Contacto (ID interno)",
         "type": "string",
         "required": true,
         "templatable": true,
         "placeholder": "{{item.id}}",
-        "description": "ID INTERNO del lead, NO el número de lead visible (\"#5\"). Si solo tienes el número, resuélvelo antes con el nodo \"Buscar Lead\"."
+        "description": "ID interno del contacto. Encadena {{item.contact_id}} de Buscar Contacto o Kanban."
       },
       {
         "key": "campaign",
@@ -4614,9 +5088,9 @@
       }
     ],
     "sampleOutput": {
-      "campaign_id": 9,
-      "lead_id": 1,
-      "added": true
+      "leadId": 10,
+      "campaign_id": 3,
+      "campaign": "Promo"
     }
   },
   {
@@ -4989,19 +5463,15 @@
         "label": "URL",
         "type": "string",
         "required": true,
-        "templatable": true
+        "templatable": true,
+        "placeholder": "https://ejemplo.com/webhook",
+        "description": "Dirección a la que se envía el POST. Admite expresiones."
       },
       {
-        "key": "payload",
-        "label": "Payload",
-        "type": "json",
-        "default": {}
-      },
-      {
-        "key": "headers",
-        "label": "Cabeceras",
-        "type": "key-value",
-        "default": {}
+        "key": "description",
+        "label": "Descripción",
+        "type": "text",
+        "description": "Nota para ti: para qué sirve este webhook. No se envía, solo documenta el paso."
       }
     ],
     "sampleOutput": {
@@ -5058,8 +5528,10 @@
         "type": "string",
         "templatable": true,
         "visibleWhen": {
-          "field": "mode",
-          "equals": "builder"
+          "param": "mode",
+          "values": [
+            "builder"
+          ]
         }
       },
       {
@@ -5068,8 +5540,10 @@
         "type": "string",
         "placeholder": "nombre, telefono, puntos",
         "visibleWhen": {
-          "field": "mode",
-          "equals": "builder"
+          "param": "mode",
+          "values": [
+            "builder"
+          ]
         }
       },
       {
@@ -5078,8 +5552,10 @@
         "type": "json",
         "placeholder": "[{\"column\":\"fecha\",\"operator\":\"eq\",\"value\":\"2026-10-22\"}]",
         "visibleWhen": {
-          "field": "mode",
-          "equals": "builder"
+          "param": "mode",
+          "values": [
+            "builder"
+          ]
         }
       },
       {
@@ -5087,8 +5563,10 @@
         "label": "Ordenar por (columna)",
         "type": "string",
         "visibleWhen": {
-          "field": "mode",
-          "equals": "builder"
+          "param": "mode",
+          "values": [
+            "builder"
+          ]
         }
       },
       {
@@ -5107,8 +5585,10 @@
           }
         ],
         "visibleWhen": {
-          "field": "mode",
-          "equals": "builder"
+          "param": "mode",
+          "values": [
+            "builder"
+          ]
         }
       },
       {
@@ -5119,8 +5599,10 @@
         "templatable": true,
         "placeholder": "SELECT nombre, telefono FROM compras WHERE fecha = {{hoy}}",
         "visibleWhen": {
-          "field": "mode",
-          "equals": "sql"
+          "param": "mode",
+          "values": [
+            "sql"
+          ]
         }
       },
       {
@@ -5128,8 +5610,10 @@
         "label": "Valores de los marcadores {{...}}",
         "type": "key-value",
         "visibleWhen": {
-          "field": "mode",
-          "equals": "sql"
+          "param": "mode",
+          "values": [
+            "sql"
+          ]
         }
       },
       {

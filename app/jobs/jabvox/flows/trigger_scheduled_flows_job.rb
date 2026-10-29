@@ -5,6 +5,8 @@
 # evaluando la hora en la ZONA de cada nodo.
 class Jabvox::Flows::TriggerScheduledFlowsJob < ApplicationJob
   queue_as :jabvox_flows_scheduled
+  # Cron: una pasada fallida la repite el siguiente tick; sin reintentos.
+  sidekiq_options retry: 0
 
   def perform
     now = Time.current.change(sec: 0)

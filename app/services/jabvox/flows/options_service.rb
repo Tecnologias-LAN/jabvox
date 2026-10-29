@@ -8,6 +8,7 @@
 # puede listar bandejas, plantillas ni productos de otra.
 class Jabvox::Flows::OptionsService
   include Jabvox::Flows::LeadFieldOptions
+  include Jabvox::Flows::ContactSearchFields
 
   # Kinds servidos. Un kind fuera de esta lista es un 400, no una lista vacía:
   # un select vacío por una errata es indistinguible de "no hay datos".
@@ -16,7 +17,7 @@ class Jabvox::Flows::OptionsService
     kanban_funnels kanban_stages task_boards task_stages typifications campaigns
     lead_custom_fields lead_field_keys lead_filter_fields contact_custom_attrs
     management_states sms_providers calendar_external_people products order_statuses
-    analytics_data_sources companies
+    analytics_data_sources companies contact_search_fields
   ].freeze
 
   class UnknownKind < StandardError; end
@@ -74,6 +75,8 @@ class Jabvox::Flows::OptionsService
              'type' => attr.attribute_display_type, 'options' => attr.attribute_values)
     end
   end
+
+  # El kind `contact_search_fields` lo sirve el módulo ContactSearchFields.
 
   # ----------------------------- Jabvox --------------------------------------
 
