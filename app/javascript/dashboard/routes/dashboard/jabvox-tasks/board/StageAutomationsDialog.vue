@@ -184,6 +184,18 @@ const resetForm = () => {
   editing.value = null;
 };
 
+// Muestra la causa real que devuelve el backend (errors.full_messages o message)
+// y solo cae al texto genérico cuando no vino ningún detalle.
+const errorMessage = error => {
+  const data = error?.response?.data;
+  const detail =
+    (Array.isArray(data?.errors) && data.errors.join(', ')) ||
+    data?.error ||
+    data?.message ||
+    error?.message;
+  return detail || t('JABVOX_TASKS.AUTOMATIONS.ERROR');
+};
+
 const load = async () => {
   isLoading.value = true;
   try {
@@ -191,8 +203,8 @@ const load = async () => {
       props.boardId,
       props.stage.id
     );
-  } catch {
-    useAlert(t('JABVOX_TASKS.AUTOMATIONS.ERROR'));
+  } catch (error) {
+    useAlert(errorMessage(error));
   } finally {
     isLoading.value = false;
   }
@@ -303,8 +315,8 @@ const onSubmit = async () => {
     showForm.value = false;
     resetForm();
     await load();
-  } catch {
-    useAlert(t('JABVOX_TASKS.AUTOMATIONS.ERROR'));
+  } catch (error) {
+    useAlert(errorMessage(error));
   } finally {
     isSaving.value = false;
   }
@@ -325,8 +337,8 @@ const doDelete = async automationId => {
     await store.deleteAutomation(props.boardId, props.stage.id, automationId);
     useAlert(t('JABVOX_TASKS.AUTOMATIONS.DELETED'));
     await load();
-  } catch {
-    useAlert(t('JABVOX_TASKS.AUTOMATIONS.ERROR'));
+  } catch (error) {
+    useAlert(errorMessage(error));
   }
 };
 

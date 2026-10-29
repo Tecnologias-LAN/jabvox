@@ -11,7 +11,7 @@ defineProps({
   },
 });
 
-const emit = defineEmits(['select']);
+const emit = defineEmits(['select', 'delete']);
 
 const { t } = useI18n();
 const store = useAnalyticsDashboardsStore();
@@ -41,6 +41,7 @@ const { folderTree } = storeToRefs(store);
       :folder="folder"
       :selected-id="selectedId"
       @select="emit('select', $event)"
+      @delete="emit('delete', $event)"
     />
   </nav>
 </template>

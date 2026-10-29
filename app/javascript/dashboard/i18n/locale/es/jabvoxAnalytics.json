@@ -65,6 +65,13 @@
       "NONE": "Ninguno",
       "RETRY": "Reintentar"
     },
+    "FOLDERS": {
+      "DELETE": "Eliminar carpeta",
+      "DELETE_SUCCESS": "Carpeta eliminada",
+      "DELETE_ERROR": "No se pudo eliminar la carpeta",
+      "DELETE_CONFIRM_TITLE": "Eliminar carpeta",
+      "DELETE_CONFIRM_BODY": "¿Seguro que quieres eliminar la carpeta «{name}»? Los tableros que contiene no se eliminan, solo dejarán de estar en esta carpeta."
+    },
     "DATA_SOURCES": {
       "TITLE": "Fuentes de datos",
       "NEW": "Nueva fuente de datos",

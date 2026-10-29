@@ -30,7 +30,6 @@ const groupName = ref('');
 const selectedGroupMembers = ref([]);
 const userSearch = ref('');
 const messagesContainer = ref(null);
-const pollingTimer = ref(null);
 const textareaRef = ref(null);
 const pushEnabled = ref(false);
 
@@ -235,18 +234,6 @@ function formatTime(dateStr) {
   });
 }
 
-function startPolling() {
-  pollingTimer.value = setInterval(async () => {
-    await store.dispatch('jabvoxInternalChat/fetchChats');
-    if (currentChatId.value) {
-      await store.dispatch(
-        'jabvoxInternalChat/fetchMessages',
-        currentChatId.value
-      );
-    }
-  }, 5000);
-}
-
 function syncPushStatus() {
   if (!pushSupported.value || !hasPushPermissions()) {
     pushEnabled.value = false;
@@ -273,10 +260,13 @@ function enablePushNotifications() {
   });
 }
 
+// El store ya aplicó el mensaje entrante de forma incremental vía `receiveMessage`
+// (actionCable.js), así que aquí NO re-fetcheamos: eso reemplazaba el array completo
+// de mensajes/chats y hacía titilar toda la lista en cada mensaje. Solo bajamos el
+// scroll si el mensaje llegó al chat abierto.
 function onWsMessage({ chat_id: chatId }) {
-  store.dispatch('jabvoxInternalChat/fetchChats');
   if (currentChatId.value === chatId) {
-    store.dispatch('jabvoxInternalChat/fetchMessages', chatId);
+    scrollToBottom();
   }
 }
 
@@ -289,11 +279,9 @@ onMounted(async () => {
   ]);
   syncPushStatus();
   emitter.on('jabvox.internal_chat.message_created', onWsMessage);
-  startPolling();
 });
 
 onUnmounted(() => {
-  clearInterval(pollingTimer.value);
   emitter.off('jabvox.internal_chat.message_created', onWsMessage);
 });
 </script>
@@ -571,7 +559,14 @@ onUnmounted(() => {
             </template>
 
             <template v-else>
-              <div v-for="(item, idx) in groupedMessages" :key="idx">
+              <div
+                v-for="item in groupedMessages"
+                :key="
+                  item.type === 'date'
+                    ? `date-${item.label}`
+                    : `msg-${item.msg.id}`
+                "
+              >
                 <!-- Separador de fecha -->
                 <div
                   v-if="item.type === 'date'"

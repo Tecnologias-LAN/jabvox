@@ -12,6 +12,8 @@
     "FORM": {
       "PICTURE": "Profile Picture",
       "AVATAR": "Profile Image",
+      "AVATAR_TYPE_ERROR": "Unsupported image format. Use JPG, PNG, GIF or WEBP.",
+      "AVATAR_SIZE_ERROR": "The image is too big. The maximum size is {size} MB.",
       "ERROR": "Please fix form errors",
       "REMOVE_IMAGE": "Remove",
       "UPLOAD_IMAGE": "Upload image",

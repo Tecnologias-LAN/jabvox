@@ -77,9 +77,14 @@ export default {
     },
     onRequestPermissions(value) {
       if (value) {
-        // Enable / re-enable push notifications
+        // Enable / re-enable push notifications. Si falla (permiso denegado, sin
+        // soporte, sin HTTPS, etc.) revertimos el toggle: antes quedaba encendido
+        // aunque el push no se hubiera activado realmente.
         requestPushPermissions({
           onSuccess: this.onRegistrationSuccess,
+          onError: () => {
+            this.hasEnabledPushPermissions = false;
+          },
         });
       } else {
         // Disable push notifications

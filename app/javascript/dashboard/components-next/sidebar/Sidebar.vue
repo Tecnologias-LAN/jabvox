@@ -775,8 +775,19 @@ const menuItems = computed(() => {
             to: accountScopedRoute('jabvox_analytics_index'),
             activeOn: [
               'jabvox_analytics_index',
+              // La ruta índice redirige a overview, así que sin este name el ítem
+              // nunca se resaltaba al aterrizar en Analítica.
+              'jabvox_analytics_overview',
               'jabvox_analytics_data_sources',
+              'jabvox_analytics_ds_tables',
+              'jabvox_analytics_ds_viewer',
+              'jabvox_analytics_query_builder',
+              'jabvox_analytics_sql',
               'jabvox_analytics_dashboards',
+              'jabvox_analytics_dashboard_show',
+              'jabvox_analytics_cross_reports',
+              'jabvox_analytics_cross_report_new',
+              'jabvox_analytics_cross_report_edit',
               'jabvox_analytics_permissions',
             ],
           },

@@ -12,6 +12,8 @@
     "FORM": {
       "PICTURE": "Foto de perfil",
       "AVATAR": "Imagen de perfil",
+      "AVATAR_TYPE_ERROR": "Formato de imagen no admitido. Usa JPG, PNG, GIF o WEBP.",
+      "AVATAR_SIZE_ERROR": "La imagen es demasiado grande. El tamaño máximo es {size} MB.",
       "ERROR": "Por favor, corrija los errores de formulario",
       "REMOVE_IMAGE": "Eliminar",
       "UPLOAD_IMAGE": "Subir imagen",

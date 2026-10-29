@@ -35,6 +35,31 @@ const generateKeys = str =>
     .replace(/\+/g, '-')
     .replace(/\//g, '_');
 
+// Convierte la clave VAPID pública (string base64url) al Uint8Array de 65 bytes
+// (empezando por 0x04) que exige la Push API. Chrome/Edge toleran otros formatos,
+// pero Firefox/Safari rechazan cualquier cosa que no sea exactamente esto, que era
+// la causa de que el push "solo funcionara en Chrome".
+export const urlBase64ToUint8Array = base64String => {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i += 1) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+};
+
+// La clave puede llegar como string base64url (nuevo formato) o como Uint8Array/array
+// serializado (compatibilidad con lo que ya estaba inyectado). Normaliza a BufferSource.
+const applicationServerKey = () => {
+  const key = window.jabvoxConfig?.vapidPublicKey;
+  if (!key) return null;
+  if (typeof key === 'string') return urlBase64ToUint8Array(key);
+  // Ya es un Uint8Array o un array de bytes (formato antiguo).
+  return key instanceof Uint8Array ? key : new Uint8Array(key);
+};
+
 export const getPushSubscriptionPayload = subscription => ({
   subscription_type: 'browser_push',
   subscription_attributes: {
@@ -67,22 +92,28 @@ const PUSH_MESSAGES = {
     'Bloqueaste las notificaciones. Actívalas en los permisos del sitio en tu navegador y vuelve a intentar.',
 };
 
-export const registerSubscription = (onSuccess = () => {}, messages = {}) => {
+export const registerSubscription = (
+  onSuccess = () => {},
+  messages = {},
+  onError = () => {}
+) => {
   const msg = { ...PUSH_MESSAGES, ...messages };
+  const serverKey = applicationServerKey();
   // Without a VAPID public key the browser can't be subscribed. Surface it
   // instead of failing silently (common cause of a "dead" enable button).
-  if (!window.jabvoxConfig?.vapidPublicKey) {
+  if (!serverKey) {
     // eslint-disable-next-line no-console
     console.error(
       '[push] Missing window.jabvoxConfig.vapidPublicKey — push cannot be enabled.'
     );
     useAlert(msg.vapidMissing);
+    onError();
     return;
   }
   const subscribe = registration =>
     registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: window.jabvoxConfig.vapidPublicKey,
+      applicationServerKey: serverKey,
     });
 
   // Si ya existe una suscripción con OTRA applicationServerKey (VAPID cambió), el navegador
@@ -106,32 +137,46 @@ export const registerSubscription = (onSuccess = () => {}, messages = {}) => {
       // eslint-disable-next-line no-console
       console.error('Push subscription registration failed:', error);
       useAlert(msg.subscribeFailed);
+      onError();
     });
 };
 
-export const requestPushPermissions = ({ onSuccess, messages = {} }) => {
+// `onError` permite al componente revertir el toggle cuando la activación falla
+// (antes el switch quedaba encendido aunque el push no se hubiera activado).
+export const requestPushPermissions = ({
+  onSuccess,
+  messages = {},
+  onError = () => {},
+}) => {
   const msg = { ...PUSH_MESSAGES, ...messages };
   // Push requires a secure context (HTTPS, or localhost in dev). Browsers do
   // nothing — and show no prompt — when this isn't met, so explain it.
   if (!window.isSecureContext) {
     useAlert(msg.insecureContext);
+    onError();
     return;
   }
   if (!('Notification' in window)) {
     useAlert(msg.unsupported);
+    onError();
     return;
   }
   if (Notification.permission === 'granted') {
-    registerSubscription(onSuccess, messages);
+    registerSubscription(onSuccess, messages, onError);
   } else if (Notification.permission === 'denied') {
     // The browser won't re-prompt once denied; the user must reset it manually.
     useAlert(msg.permissionDenied);
+    onError();
   } else {
     Notification.requestPermission().then(permission => {
       if (permission === 'granted') {
-        registerSubscription(onSuccess, messages);
+        registerSubscription(onSuccess, messages, onError);
       } else if (permission === 'denied') {
         useAlert(msg.permissionDenied);
+        onError();
+      } else {
+        // 'default' = el usuario cerró el prompt sin decidir: también revertir.
+        onError();
       }
     });
   }

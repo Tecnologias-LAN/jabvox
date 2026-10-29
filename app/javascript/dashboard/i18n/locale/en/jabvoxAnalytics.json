@@ -65,6 +65,13 @@
       "NONE": "None",
       "RETRY": "Retry"
     },
+    "FOLDERS": {
+      "DELETE": "Delete folder",
+      "DELETE_SUCCESS": "Folder deleted",
+      "DELETE_ERROR": "Could not delete the folder",
+      "DELETE_CONFIRM_TITLE": "Delete folder",
+      "DELETE_CONFIRM_BODY": "Are you sure you want to delete the folder \"{name}\"? The dashboards inside are not deleted, they will just no longer belong to this folder."
+    },
     "DATA_SOURCES": {
       "TITLE": "Data Sources",
       "NEW": "New Data Source",

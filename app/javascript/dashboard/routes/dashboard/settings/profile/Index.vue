@@ -187,6 +187,30 @@ export default {
       await this.dispatchUpdate(payload, successMessage, errorMessage);
     },
     updateProfilePicture({ file, url }) {
+      // Validamos en el cliente (mismo límite y tipos que el backend en
+      // avatarable.rb) para mostrar el error TRADUCIDO; antes el rechazo venía del
+      // servidor con un texto fijo en inglés y se mostraba sin traducir.
+      if (file) {
+        const allowedTypes = [
+          'image/jpeg',
+          'image/png',
+          'image/gif',
+          'image/webp',
+        ];
+        const maxSizeMB = 15;
+        if (!allowedTypes.includes(file.type)) {
+          useAlert(this.$t('PROFILE_SETTINGS.FORM.AVATAR_TYPE_ERROR'));
+          return;
+        }
+        if (file.size > maxSizeMB * 1024 * 1024) {
+          useAlert(
+            this.$t('PROFILE_SETTINGS.FORM.AVATAR_SIZE_ERROR', {
+              size: maxSizeMB,
+            })
+          );
+          return;
+        }
+      }
       this.avatarFile = file;
       this.avatarUrl = url;
     },

@@ -89,6 +89,32 @@ const createFolder = async () => {
   }
 };
 
+// Borrado de carpeta (los dashboards dentro NO se borran: quedan sin carpeta).
+const pendingFolderDelete = ref(null);
+const deletingFolder = ref(false);
+
+const onDeleteFolder = folder => {
+  pendingFolderDelete.value = folder;
+};
+
+const confirmDeleteFolder = async () => {
+  if (!pendingFolderDelete.value) return;
+  deletingFolder.value = true;
+  try {
+    await store.destroyFolder(pendingFolderDelete.value.id);
+    useAlert(t('JABVOX_ANALYTICS.FOLDERS.DELETE_SUCCESS'));
+    // Si estabas filtrando por esa carpeta, vuelve a "todas".
+    if (selectedFolderId.value === pendingFolderDelete.value.id) {
+      selectedFolderId.value = null;
+    }
+    pendingFolderDelete.value = null;
+  } catch (error) {
+    showError(error, 'JABVOX_ANALYTICS.FOLDERS.DELETE_ERROR');
+  } finally {
+    deletingFolder.value = false;
+  }
+};
+
 const fetchingList = computed(() => store.uiFlags.fetchingList);
 
 const filteredDashboards = computed(() => {
@@ -168,6 +194,7 @@ const confirmDelete = async () => {
         <FolderTree
           :selected-id="selectedFolderId"
           @select="selectedFolderId = $event"
+          @delete="onDeleteFolder"
         />
       </aside>
 
@@ -379,6 +406,48 @@ const confirmDelete = async () => {
           >
             <span
               v-if="deleting"
+              class="i-lucide-loader-circle size-4 animate-spin"
+            />
+            {{ t('JABVOX_ANALYTICS.COMMON.DELETE') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Folder delete confirmation -->
+    <div
+      v-if="pendingFolderDelete"
+      class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-n-alpha-3 p-4 pt-24"
+    >
+      <div
+        class="w-full max-w-md rounded-xl border border-n-weak bg-n-solid-1 p-6 shadow-xl"
+      >
+        <h3 class="text-base font-medium text-n-slate-12">
+          {{ t('JABVOX_ANALYTICS.FOLDERS.DELETE_CONFIRM_TITLE') }}
+        </h3>
+        <p class="mt-2 text-sm text-n-slate-11">
+          {{
+            t('JABVOX_ANALYTICS.FOLDERS.DELETE_CONFIRM_BODY', {
+              name: pendingFolderDelete.nameJabvox || pendingFolderDelete.name,
+            })
+          }}
+        </p>
+        <div class="mt-6 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            class="rounded-lg bg-n-alpha-2 px-3 py-2 text-sm font-medium text-n-slate-12"
+            @click="pendingFolderDelete = null"
+          >
+            {{ t('JABVOX_ANALYTICS.COMMON.CANCEL') }}
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-lg bg-n-ruby-9 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="deletingFolder"
+            @click="confirmDeleteFolder"
+          >
+            <span
+              v-if="deletingFolder"
               class="i-lucide-loader-circle size-4 animate-spin"
             />
             {{ t('JABVOX_ANALYTICS.COMMON.DELETE') }}

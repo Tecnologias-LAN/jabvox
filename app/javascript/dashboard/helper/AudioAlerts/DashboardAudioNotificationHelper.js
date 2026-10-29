@@ -12,7 +12,6 @@ import {
 } from './AudioMessageHelper';
 import WindowVisibilityHelper from './WindowVisibilityHelper';
 import { useAlert } from 'dashboard/composables';
-import { hasPushPermissions } from 'dashboard/helper/pushHelper';
 
 const NOTIFICATION_TIME = 30000;
 const ALERT_DURATION = 10000;
@@ -101,20 +100,31 @@ export class DashboardAudioNotificationHelper {
     }
   };
 
-  // Plays the configured tone unconditionally (for internal chat, AI chat, etc.)
+  // Plays the configured tone (for internal chat, AI chat, etc.).
   // Initializes audio on demand if set() hasn't been called yet.
+  // Importante: el sonido NO depende del permiso de notificaciones PUSH del
+  // navegador (son cosas distintas). Antes consultaba hasPushPermissions() y, como
+  // casi nadie concede push, el chat de equipo/IA no sonaba nunca. Igual que
+  // playAudioAlert, suena directamente y avisa una vez si el navegador bloquea el
+  // autoplay (requiere un gesto previo del usuario).
   playSimpleAlert = async () => {
-    if (!hasPushPermissions()) {
-      return;
-    }
     if (!this.audioConfig.audio) {
       this.intializeAudio();
     }
     try {
       this.audioConfig.audio.currentTime = 0;
       await this.audioConfig.audio.play();
-    } catch {
-      // Ignore NotAllowedError — browser requires a user gesture before autoplay
+    } catch (error) {
+      if (
+        error.name === 'NotAllowedError' &&
+        !this.hasSentSoundPermissionsRequest
+      ) {
+        this.hasSentSoundPermissionsRequest = true;
+        useAlert(
+          'PROFILE_SETTINGS.FORM.AUDIO_NOTIFICATIONS_SECTION.SOUND_PERMISSION_ERROR',
+          { usei18n: true, duration: ALERT_DURATION }
+        );
+      }
     }
   };
 
