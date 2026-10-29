@@ -71,6 +71,7 @@ import jabvoxCampaigns from './modules/jabvox/campaigns';
 import jabvoxEmail from './modules/jabvox/email';
 import jabvoxForms from './modules/jabvox/forms';
 import jabvoxCustomization from './modules/jabvox/customization';
+import jabvoxDrive from './modules/jabvox/drive';
 
 const plugins = [];
 
@@ -147,6 +148,7 @@ export default createStore({
     jabvoxEmail,
     jabvoxForms,
     jabvoxCustomization,
+    jabvoxDrive,
   },
   plugins,
 });
