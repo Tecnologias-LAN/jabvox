@@ -58,20 +58,18 @@ class JabvoxDriveFolder < ApplicationRecord
 
   # Carpeta raíz "contactos/" de la cuenta (creada bajo demanda, idempotente).
   def self.contacts_root(account)
-    find_or_create_by!(account: account, parent_id: nil, name: ROOT_CONTACTS) do |f|
-      f.system_folder = true
-      f.path = "/#{ROOT_CONTACTS}/"
-    end
+    upsert_system_folder!(account, parent: nil, name: ROOT_CONTACTS,
+                                   path: "/#{ROOT_CONTACTS}/")
   end
 
   # Carpeta de un contacto bajo "contactos/", con nombre legible y buscable
-  # (<nombre>-<telefono>-<username>-<id>). Idempotente por contact_id.
+  # (<nombre>-<telefono>-<username>-<id>). Idempotente por path.
   def self.for_contact(account, contact)
     root = contacts_root(account)
-    find_or_create_by!(account: account, parent_id: root.id, contact_id: contact.id) do |f|
-      f.name = Jabvox::Drive::PathBuilder.contact_slug(contact)
-      f.system_folder = true
-    end
+    name = Jabvox::Drive::PathBuilder.contact_slug(contact)
+    upsert_system_folder!(account, parent: root, name: name,
+                                   path: "#{root.path}#{name}/".squeeze('/'),
+                                   contact_id: contact.id)
   end
 
   # Carpeta de BANDEJA dentro del contacto: contactos/<contacto>/<bandeja>/.
@@ -81,10 +79,25 @@ class JabvoxDriveFolder < ApplicationRecord
 
     parent = for_contact(account, contact)
     name = Jabvox::Drive::PathBuilder.inbox_slug(inbox)
-    find_or_create_by!(account: account, parent_id: parent.id, name: name) do |f|
-      f.contact_id = contact.id
-      f.system_folder = true
-    end
+    upsert_system_folder!(account, parent: parent, name: name,
+                                   path: "#{parent.path}#{name}/".squeeze('/'),
+                                   contact_id: contact.id)
+  end
+
+  # Busca-o-crea una carpeta de sistema por su PATH (clave única, a prueba de
+  # concurrencia). Si dos requests simultáneos intentan crearla, el índice único
+  # [account_id, path] hace fallar al segundo con RecordNotUnique; lo reintentamos
+  # como búsqueda. Evita las carpetas duplicadas que producía el parent_id NULL.
+  def self.upsert_system_folder!(account, parent:, name:, path:, contact_id: nil)
+    existing = account.jabvox_drive_folders.find_by(path: path)
+    return existing if existing
+
+    account.jabvox_drive_folders.create!(
+      parent_id: parent&.id, name: name, path: path,
+      contact_id: contact_id, system_folder: true
+    )
+  rescue ActiveRecord::RecordNotUnique
+    account.jabvox_drive_folders.find_by!(path: path)
   end
 
   private

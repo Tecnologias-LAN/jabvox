@@ -58,11 +58,14 @@ RSpec.describe Jabvox::AttachmentDriveState do
     end
   end
 
-  context 'con el módulo jabvox_drive desactivado' do
+  context 'con el feature jabvox_drive apagado' do
     it 'nunca bloquea aunque exista una fila restricted' do
-      account.update!(jabvox_drive_enabled_jabvox: false)
       att = attachment_with_file
       index_drive_file(att, status: :restricted)
+      # El Drive está habilitado por defecto; simulamos el gating apagado.
+      allow(att).to receive(:account).and_return(account)
+      allow(account).to receive(:feature_enabled?).and_call_original
+      allow(account).to receive(:feature_enabled?).with('jabvox_drive').and_return(false)
       expect(att.push_event_data[:storage_blocked]).to be_nil
     end
   end

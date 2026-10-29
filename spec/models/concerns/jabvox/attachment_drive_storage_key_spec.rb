@@ -56,10 +56,14 @@ RSpec.describe Jabvox::AttachmentDriveStorageKey do
   end
 
   context 'cuando NO aplica (comportamiento aditivo/seguro)' do
-    it 'con el Drive DESACTIVADO deja la key plana por defecto' do
+    it 'si el feature jabvox_drive no está habilitado, deja la key plana' do
       allow_any_instance_of(described_class).to receive(:jabvox_drive_s3_service?).and_return(true)
-      account.update!(jabvox_drive_enabled_jabvox: false)
+      # El Drive está habilitado por defecto; aquí simulamos el gating apagado
+      # stubeando el feature en la cuenta concreta de este test.
+      allow(account).to receive(:feature_enabled?).and_call_original
+      allow(account).to receive(:feature_enabled?).with('jabvox_drive').and_return(false)
       att = build_attachment
+      allow(att).to receive(:account).and_return(account)
       att.save!
       expect(att.file.blob.key).not_to include('contactos')
     end
