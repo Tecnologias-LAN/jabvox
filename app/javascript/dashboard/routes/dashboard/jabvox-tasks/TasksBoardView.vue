@@ -7,7 +7,6 @@ import { useStoreGetters } from 'dashboard/composables/store';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import TaskBoard from './board/TaskBoard.vue';
 import BoardAutomationsDrawer from './board/BoardAutomationsDrawer.vue';
-import LeadContactsPanel from './LeadContactsPanel.vue';
 import LeadSelect from './components/LeadSelect.vue';
 import TasksCalendar from './calendar/TasksCalendar.vue';
 import TasksEmptyState from './components/TasksEmptyState.vue';
@@ -179,8 +178,6 @@ watch(view, value => {
         </div>
       </template>
     </div>
-
-    <LeadContactsPanel v-if="boardId" />
 
     <BoardAutomationsDrawer
       v-if="showAutomations"
