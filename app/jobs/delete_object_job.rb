@@ -60,29 +60,64 @@ class DeleteObjectJob < ApplicationJob
   # Deletes every Jabvox row that holds a FK to this inbox WITHOUT ON DELETE
   # CASCADE (RESTRICT/NO ACTION). Missing any of these makes the inbox DELETE
   # raise ActiveRecord::InvalidForeignKey. jabvox_whatsapp_templates is CASCADE
-  # but cleared too (belt-and-suspenders); the two batch/automation tables were
-  # the ones missing and caused inboxes to reappear after "deleted".
+  # but cleared too (belt-and-suspenders). Las tablas de batch/automation,
+  # jabvox_whatsapp_flows (+ hijos) y jabvox_response_bot_configs eran las que
+  # faltaban y hacían reaparecer la bandeja tras "eliminarla" (sobre todo las de
+  # WhatsApp, que son las que suelen tener flows/response-bot asociados).
   def clear_inbox_fk_rows(inbox)
     JabvoxKanbanFunnelInbox.where(inbox_id: inbox.id).delete_all
     JabvoxKanbanStageAutomation.where(inbox_id: inbox.id).delete_all
     JabvoxTaskStageAutomation.where(inbox_id: inbox.id).delete_all
     JabvoxWhatsappTemplate.where(inbox_id: inbox.id).delete_all
+    clear_bulk_whatsapp_rows(inbox)
+    clear_task_automation_rows(inbox)
+    clear_whatsapp_flow_rows(inbox)
+    clear_response_bot_rows(inbox)
+  end
 
-    # Bulk WhatsApp batches and task automations have RESTRICT FKs to inboxes,
-    # AND their own children (recipients / runs) have RESTRICT FKs back to them.
-    # delete_all does not fire dependent: :destroy, so clear the children first,
-    # then the parents — otherwise either delete raises InvalidForeignKey.
+  # Bulk WhatsApp batches (RESTRICT) y sus recipients (RESTRICT de vuelta): hijos
+  # primero, porque delete_all no dispara dependent: :destroy.
+  def clear_bulk_whatsapp_rows(inbox)
     batch_ids = JabvoxBulkWhatsappBatch.where(inbox_id: inbox.id).ids
-    if batch_ids.any?
-      JabvoxBulkWhatsappRecipient.where(bulk_whatsapp_batch_id: batch_ids).delete_all
-      JabvoxBulkWhatsappBatch.where(id: batch_ids).delete_all
-    end
+    return if batch_ids.empty?
 
+    JabvoxBulkWhatsappRecipient.where(bulk_whatsapp_batch_id: batch_ids).delete_all
+    JabvoxBulkWhatsappBatch.where(id: batch_ids).delete_all
+  end
+
+  # Task automations (RESTRICT) y sus runs (RESTRICT de vuelta): hijos primero.
+  def clear_task_automation_rows(inbox)
     automation_ids = JabvoxTaskAutomation.where(inbox_id: inbox.id).ids
-    return unless automation_ids.any?
+    return if automation_ids.empty?
 
     JabvoxTaskAutomationRun.where(automation_id: automation_ids).delete_all
     JabvoxTaskAutomation.where(id: automation_ids).delete_all
+  end
+
+  # jabvox_whatsapp_flows tiene FK RESTRICT a inboxes, y sus hijos (versions,
+  # submissions y los answers que cuelgan de submissions) tienen FK RESTRICT de
+  # vuelta. Hay que borrar de abajo hacia arriba: answers -> submissions ->
+  # versions -> flows. Eran la causa de que las bandejas de WhatsApp "se borraran"
+  # pero reaparecieran al recargar.
+  def clear_whatsapp_flow_rows(inbox)
+    flow_ids = JabvoxWhatsappFlow.where(inbox_id: inbox.id).ids
+    return if flow_ids.empty?
+
+    submission_ids = JabvoxWhatsappFlowSubmission.where(jabvox_whatsapp_flow_id: flow_ids).ids
+    JabvoxWhatsappFlowAnswer.where(jabvox_whatsapp_flow_submission_id: submission_ids).delete_all if submission_ids.any?
+    JabvoxWhatsappFlowSubmission.where(jabvox_whatsapp_flow_id: flow_ids).delete_all
+    JabvoxWhatsappFlowVersion.where(jabvox_whatsapp_flow_id: flow_ids).delete_all
+    JabvoxWhatsappFlow.where(id: flow_ids).delete_all
+  end
+
+  # jabvox_response_bot_configs tiene FK RESTRICT a inboxes y no hay un modelo
+  # Ruby propio en este repo, así que se limpia por SQL con el nombre de tabla.
+  def clear_response_bot_rows(inbox)
+    ActiveRecord::Base.connection.exec_delete(
+      'DELETE FROM jabvox_response_bot_configs WHERE inbox_id = $1',
+      'DeleteObjectJob clear_response_bot_rows',
+      [ActiveRecord::Relation::QueryAttribute.new('inbox_id', inbox.id, ActiveRecord::Type::Integer.new)]
+    )
   end
 
   def purge_inbox_associations(inbox, delete_mode, target_inbox_id = nil)
