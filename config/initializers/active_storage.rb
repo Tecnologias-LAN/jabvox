@@ -1,3 +1,13 @@
+# Servir los adjuntos en modo PROXY (no redirect). Con MinIO en una red interna
+# (ej. http://10.200.3.6:9000), el modo redirect por defecto de Active Storage
+# genera URLs firmadas que apuntan al endpoint de MinIO; el navegador del usuario
+# NO puede alcanzar esa IP privada y la descarga se queda colgada. En modo proxy,
+# Rails lee el objeto desde MinIO por la red interna y lo transmite él mismo al
+# navegador (todo pasa por app.jabvox.com), igual que el Drive propio con
+# JABVOX_DRIVE_ALWAYS_STREAM. Solo aplica cuando el servicio es S3/MinIO; con disco
+# local no hay endpoint externo y da igual.
+Rails.application.config.active_storage.resolve_model_to_route = :rails_storage_proxy if ENV.fetch('ACTIVE_STORAGE_SERVICE', 'local').to_sym != :local
+
 # Allow audio attachments (call recordings, voice notes) to serve inline so the
 # in-app <audio> player can stream them. Without this, ActiveStorage's blob model
 # forces Content-Disposition: attachment for any MIME outside the default allowlist
