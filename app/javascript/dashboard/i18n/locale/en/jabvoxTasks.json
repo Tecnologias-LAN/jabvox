@@ -39,6 +39,7 @@
       "DELETED": "Board deleted",
       "ERROR": "Something went wrong. Please try again."
     },
+    "SEARCH_TASK_PLACEHOLDER": "Search task by name…",
     "VIEW": {
       "BOARD": "Board",
       "CALENDAR": "Calendar"

@@ -35,6 +35,7 @@
       "DELETED": "Tablero eliminado",
       "ERROR": "Algo salió mal. Inténtalo de nuevo."
     },
+    "SEARCH_TASK_PLACEHOLDER": "Buscar tarea por nombre…",
     "VIEW": {
       "BOARD": "Tablero",
       "CALENDAR": "Calendario"

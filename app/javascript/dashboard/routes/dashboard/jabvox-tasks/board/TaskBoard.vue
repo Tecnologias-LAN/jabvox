@@ -18,6 +18,11 @@ const props = defineProps({
     type: [Number, String],
     required: true,
   },
+  // Texto de búsqueda por nombre de tarea (filtra las tarjetas en vivo).
+  searchQuery: {
+    type: String,
+    default: '',
+  },
 });
 
 const { t } = useI18n();
@@ -40,7 +45,14 @@ const confirmDialog = ref(null);
 const stages = computed(() => store.stages);
 const tasksByStage = computed(() => store.tasksByStage);
 
-const tasksForStage = stageId => tasksByStage.value[stageId] || [];
+const tasksForStage = stageId => {
+  const list = tasksByStage.value[stageId] || [];
+  const q = (props.searchQuery || '').trim().toLowerCase();
+  if (!q) return list;
+  return list.filter(task =>
+    (task.titleJabvox || '').toLowerCase().includes(q)
+  );
+};
 
 // Tasks ---------------------------------------------------------------
 const openCreateTask = stage => {

@@ -7,7 +7,6 @@ import { useStoreGetters } from 'dashboard/composables/store';
 import { useTasksStore } from 'dashboard/stores/jabvox/tasks';
 import TaskBoard from './board/TaskBoard.vue';
 import BoardAutomationsDrawer from './board/BoardAutomationsDrawer.vue';
-import LeadSelect from './components/LeadSelect.vue';
 import TasksCalendar from './calendar/TasksCalendar.vue';
 import TasksEmptyState from './components/TasksEmptyState.vue';
 
@@ -19,6 +18,8 @@ const store = useTasksStore();
 
 const view = ref('board');
 const appliedLeadId = ref(null);
+// Búsqueda por nombre de tarea en el tablero (filtra las tarjetas en vivo).
+const taskQuery = ref('');
 const taskBoardRef = ref(null);
 const showAutomations = ref(false);
 
@@ -67,11 +68,6 @@ const loadBoard = async id => {
   }
 };
 
-const onLeadFilterChange = async leadId => {
-  appliedLeadId.value = leadId ? Number(leadId) : null;
-  await refreshTasks();
-};
-
 // Opening a task from the calendar navigates to its detail view (same as the board).
 const openCalendarTask = task => {
   router.push({
@@ -113,10 +109,17 @@ watch(view, value => {
             class="flex items-center gap-2 sm:gap-3 order-3 sm:order-2 w-full sm:w-auto"
           >
             <div class="flex-1 sm:flex-none sm:w-56">
-              <LeadSelect
-                :model-value="appliedLeadId"
-                @update:model-value="onLeadFilterChange"
-              />
+              <div class="relative">
+                <span
+                  class="i-lucide-search size-4 absolute left-3 top-1/2 -translate-y-1/2 text-n-slate-10"
+                  aria-hidden="true"
+                />
+                <input
+                  v-model="taskQuery"
+                  class="reset-base w-full text-sm rounded-lg border border-n-weak bg-n-alpha-1 pl-9 pr-3 py-2"
+                  :placeholder="t('JABVOX_TASKS.SEARCH_TASK_PLACEHOLDER')"
+                />
+              </div>
             </div>
 
             <button
@@ -167,6 +170,7 @@ watch(view, value => {
             ref="taskBoardRef"
             :key="boardId"
             :board-id="boardId"
+            :search-query="taskQuery"
           />
 
           <TasksCalendar
