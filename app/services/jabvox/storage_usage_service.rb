@@ -88,8 +88,13 @@ class Jabvox::StorageUsageService
     account.jabvox_drive_files.in_trash.sum(:byte_size)
   end
 
+  # Mismo criterio que usa el resto del Drive (controllers/servicios):
+  # feature_enabled?('jabvox_drive'), NO la columna cruda jabvox_drive_enabled_jabvox.
+  # El Drive está habilitado por defecto para toda cuenta vía ese override; si aquí se
+  # mirara solo la columna (que puede estar en false), el panel de "Uso del plan"
+  # mostraría 0 Bytes aunque el Drive sí tenga archivos (descuadre con la vista del Drive).
   def drive_enabled?
-    account.respond_to?(:jabvox_drive_enabled_jabvox?) && account.jabvox_drive_enabled_jabvox?
+    account.respond_to?(:feature_enabled?) && account.feature_enabled?('jabvox_drive')
   end
 
   def drive_category_sql

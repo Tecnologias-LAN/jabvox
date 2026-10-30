@@ -75,7 +75,10 @@ RSpec.describe Jabvox::StorageUsageService do
 
   describe 'Drive deshabilitado' do
     it 'no suma nada del Drive si el módulo está apagado' do
-      account.update!(jabvox_drive_enabled_jabvox: false)
+      # El criterio es feature_enabled?('jabvox_drive') (el mismo que usa el Drive),
+      # no la columna cruda: el Drive está activo por defecto en toda cuenta.
+      allow(account).to receive(:feature_enabled?).and_call_original
+      allow(account).to receive(:feature_enabled?).with('jabvox_drive').and_return(false)
       drive_file(content_type: 'image/png', byte_size: 1_000)
       expect(described_class.new(account).call[:used_bytes]).to eq(0)
     end
