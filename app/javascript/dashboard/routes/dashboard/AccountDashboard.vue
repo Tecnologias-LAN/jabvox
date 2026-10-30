@@ -326,7 +326,7 @@ onMounted(loadSummary);
   <main
     class="dashboard-page min-h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-8"
   >
-    <div class="mx-auto flex w-full max-w-[1440px] flex-col gap-7">
+    <div class="flex w-full flex-col gap-7">
       <header
         class="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between"
       >
@@ -944,17 +944,24 @@ onMounted(loadSummary);
   color: #165f75;
 }
 
-/* Input de fecha nativo: el navegador ya dibuja su propio ícono de calendario a
-   la derecha, por eso no ponemos un ícono custom encima (se solapaba con el valor).
-   Aquí solo le damos aire al picker y que su ícono herede el color del tema. */
+/* Input de fecha sin ningún ícono de calendario: ocultamos el indicador nativo del
+   navegador (se solapaba con el valor y el usuario lo pidió sin iconos). El campo
+   sigue abriendo el selector de fecha al hacer clic en cualquier parte del input. */
 .jabvox-date-input::-webkit-calendar-picker-indicator {
-  margin-inline-start: 0.25rem;
-  cursor: pointer;
-  opacity: 0.65;
+  display: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.jabvox-date-input::-webkit-calendar-picker-indicator:hover {
-  opacity: 1;
+.jabvox-date-input::-webkit-inner-spin-button,
+.jabvox-date-input::-webkit-clear-button {
+  display: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.jabvox-date-input {
+  cursor: pointer;
 }
 
 .chart-wrap {
