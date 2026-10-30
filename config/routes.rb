@@ -1450,7 +1450,11 @@ Rails.application.routes.draw do
       resources :jabvox_payment_gateway_configs, except: [:destroy]
       resource :jabvox_billing_config, only: [:edit, :update]
       # Documentos legales versionados (términos, privacidad, otros).
-      resources :jabvox_legal_documents
+      # Desactivado: falta JabvoxLegalDocumentDashboard (y el modelo). Administrate arma el
+      # menú del super admin recorriendo los recursos ruteados aquí, así que una ruta sin su
+      # dashboard rompía TODO el super admin con `uninitialized constant`. Reactivar cuando el
+      # dashboard y el modelo del módulo de documentos legales existan en el código desplegado.
+      # resources :jabvox_legal_documents
       resources :jabvox_provisioning_transactions, only: [:index, :show] do
         post :retry_provisioning, on: :member
         post :mark_paid_manually, on: :member
