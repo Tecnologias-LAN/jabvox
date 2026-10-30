@@ -12,9 +12,9 @@
 class Jabvox::Drive::TrashSweeperJob < ApplicationJob
   queue_as :jabvox_drive
 
-  # Despachado por sidekiq-cron: sin reintentos (corre a diario) y alineado con
-  # sidekiq-cron para que lo encole como ActiveJob (evita `undefined method 'jid='`).
-  sidekiq_options retry: 0
+  # Despachado por sidekiq-cron (corre a diario).
+  # NO usar `sidekiq_options`: no existe en ApplicationJob (ActiveJob) y era lo que
+  # hacía fallar el job con `undefined method 'jid='` al invocarlo desde sidekiq-cron.
 
   BATCH = 200
 

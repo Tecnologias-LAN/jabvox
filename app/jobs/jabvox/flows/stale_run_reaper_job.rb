@@ -14,7 +14,9 @@
 class Jabvox::Flows::StaleRunReaperJob < ApplicationJob
   queue_as :jabvox_flows_scheduled
   # Cron cada 5 min: sin reintentos, la siguiente pasada recoge lo que quede.
-  sidekiq_options retry: 0
+  # OJO: `sidekiq_options` NO existe en ApplicationJob (ActiveJob) y rompía el job
+  # al invocarlo desde sidekiq-cron ("undefined method 'jid='"). No hace falta: el
+  # cron ya re-dispara cada 5 min, igual que DialerStaleCallReaperJob.
 
   # Un run vivo rara vez supera el `:timeout: 25s` de Sidekiq; 15 min es holgado
   # para no tocar nunca un run realmente en curso. Configurable por ENV.

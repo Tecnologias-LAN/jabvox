@@ -16,9 +16,9 @@
 class Jabvox::Drive::ReconcileSchedulerJob < ApplicationJob
   queue_as :jabvox_drive
 
-  # Despachado por sidekiq-cron: sin reintentos (el siguiente ciclo recupera lo que
-  # falte) y como ActiveJob para no fallar con `undefined method 'jid='`.
-  sidekiq_options retry: 0
+  # Despachado por sidekiq-cron (el siguiente ciclo recupera lo que falte).
+  # NO usar `sidekiq_options`: no existe en ApplicationJob (ActiveJob) y era lo que
+  # hacía fallar el job con `undefined method 'jid='` al invocarlo desde sidekiq-cron.
 
   BATCH_SIZE = 500
 

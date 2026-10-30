@@ -1,7 +1,8 @@
 module Jabvox
   class SslProvisionJob < ApplicationJob
     queue_as :default
-    sidekiq_options retry: 0
+    # ActiveJob no soporta `sidekiq_options`; para no reintentar se usa retry_on/discard
+    # si hiciera falta. Aquí no reintentamos por defecto.
 
     def perform(form_config_id)
       config = JabvoxFormConfig.find(form_config_id)

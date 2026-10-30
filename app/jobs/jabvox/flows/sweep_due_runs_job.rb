@@ -5,9 +5,9 @@
 # barrido periódico los recoge y ninguno queda colgado para siempre.
 class Jabvox::Flows::SweepDueRunsJob < ApplicationJob
   queue_as :jabvox_flows_scheduled
-  # Cron cada minuto: si una pasada falla, la siguiente recoge lo mismo. Sin
-  # reintentos para no acumular pasadas duplicadas en la cola.
-  sidekiq_options retry: 0
+  # Cron cada minuto: si una pasada falla, la siguiente recoge lo mismo.
+  # NO usar `sidekiq_options` (no existe en ApplicationJob; rompía con 'jid=' al
+  # invocarlo desde sidekiq-cron).
 
   def perform(limit = 50)
     JabvoxFlowRun.due.order(:resume_at).limit(limit).pluck(:id).each do |run_id|
