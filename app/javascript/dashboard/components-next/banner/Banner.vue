@@ -49,7 +49,7 @@ const triggerAction = () => {
 
 <template>
   <div
-    class="text-sm rounded-xl flex items-center justify-between gap-2 border"
+    class="text-sm rounded-xl flex flex-wrap items-center justify-between gap-2 border"
     :class="[
       bannerClass,
       {
@@ -58,7 +58,7 @@ const triggerAction = () => {
       },
     ]"
   >
-    <div>
+    <div class="min-w-0 flex-1">
       <slot />
     </div>
     <div class="flex-shrink-0">
