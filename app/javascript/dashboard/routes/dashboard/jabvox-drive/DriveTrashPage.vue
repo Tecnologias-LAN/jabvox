@@ -7,6 +7,7 @@ import { useAlert } from 'dashboard/composables';
 import driveAPI from 'dashboard/api/jabvox/drive';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 import { iconForFile, humanSize } from './helper';
 
 const { t } = useI18n();
@@ -19,6 +20,11 @@ const page = ref(1);
 const hasMore = ref(false);
 // Ids de archivos con una acción en curso (restaurar/purgar), para deshabilitar botones.
 const busyIds = ref(new Set());
+
+// Confirmación de borrado definitivo con el diálogo propio de la app (no el
+// window.confirm nativo del navegador).
+const confirmDialog = ref(null);
+const pendingPurge = ref(null);
 
 const isBusy = id => busyIds.value.has(id);
 
@@ -89,22 +95,33 @@ const onRestore = async file => {
   }
 };
 
-const onPurge = async file => {
+const purgeDescription = computed(() => {
+  if (!pendingPurge.value) return '';
+  return t('JABVOX_DRIVE.TRASH.DELETE_CONFIRM', {
+    name: pendingPurge.value.filename,
+  });
+});
+
+const requestPurge = file => {
   if (isBusy(file.id)) return;
-  // eslint-disable-next-line no-alert
-  const confirmed = window.confirm(
-    t('JABVOX_DRIVE.TRASH.DELETE_CONFIRM', { name: file.filename })
-  );
-  if (!confirmed) return;
+  pendingPurge.value = file;
+  confirmDialog.value?.open();
+};
+
+const confirmPurge = async () => {
+  const file = pendingPurge.value;
+  if (!file) return;
   setBusy(file.id, true);
   try {
     await driveAPI.purgeFile(file.id);
     removeItem(file.id);
     useAlert(t('JABVOX_DRIVE.TRASH.PURGED'));
+    confirmDialog.value?.close();
   } catch (e) {
     useAlert(t('JABVOX_DRIVE.TRASH.PURGE_ERROR'));
   } finally {
     setBusy(file.id, false);
+    pendingPurge.value = null;
   }
 };
 
@@ -252,7 +269,7 @@ onMounted(() => fetchTrash(true));
                     icon="i-lucide-trash"
                     :label="t('JABVOX_DRIVE.TRASH.DELETE_FOREVER')"
                     :disabled="isBusy(file.id)"
-                    @click="onPurge(file)"
+                    @click="requestPurge(file)"
                   />
                 </div>
               </td>
@@ -272,5 +289,14 @@ onMounted(() => fetchTrash(true));
         />
       </div>
     </div>
+
+    <ConfirmDialog
+      ref="confirmDialog"
+      :title="t('JABVOX_DRIVE.TRASH.DELETE_FOREVER')"
+      :description="purgeDescription"
+      :confirm-label="t('JABVOX_DRIVE.TRASH.DELETE_FOREVER')"
+      :is-loading="pendingPurge ? isBusy(pendingPurge.id) : false"
+      @confirm="confirmPurge"
+    />
   </div>
 </template>
