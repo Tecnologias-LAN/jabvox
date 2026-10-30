@@ -4,6 +4,8 @@ import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import MessagesView from 'dashboard/components/widgets/conversation/MessagesView.vue';
+import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 // Chat del contacto dentro de su ficha: selector de bandeja arriba y, debajo, la
 // conversación elegida con su caja de respuesta completa (plantillas, adjuntos, audio y el
@@ -18,6 +20,11 @@ const props = defineProps({
 
 const store = useStore();
 const { t } = useI18n();
+
+// Abre/cierra la barra de búsqueda dentro del hilo (la barra vive en MessagesView).
+const toggleConversationSearch = () => {
+  emitter.emit(BUS_EVENTS.TOGGLE_CONVERSATION_SEARCH);
+};
 
 const selectedId = ref(null);
 const isLoadingChat = ref(false);
@@ -130,6 +137,15 @@ onBeforeUnmount(() => {
           {{ tab.unread }}
         </span>
       </button>
+      <button
+        v-if="currentChat?.id"
+        type="button"
+        class="ml-auto shrink-0 flex items-center justify-center size-7 rounded-lg text-n-slate-11 hover:bg-n-alpha-2"
+        :title="t('CONVERSATION.SEARCH_IN_CHAT.BUTTON')"
+        @click="toggleConversationSearch"
+      >
+        <span class="i-lucide-search size-4" />
+      </button>
     </div>
 
     <!-- Una sola bandeja: se indica cuál sin ocupar una fila de pestañas -->
@@ -140,6 +156,15 @@ onBeforeUnmount(() => {
       <span :class="channelIcon(tabs[0].channel)" class="size-3.5" />
       {{ tabs[0].label }}
       <span class="text-n-slate-10">{{ `· ${tabs[0].status}` }}</span>
+      <button
+        v-if="currentChat?.id"
+        type="button"
+        class="ml-auto shrink-0 flex items-center justify-center size-7 rounded-lg text-n-slate-11 hover:bg-n-alpha-2"
+        :title="t('CONVERSATION.SEARCH_IN_CHAT.BUTTON')"
+        @click="toggleConversationSearch"
+      >
+        <span class="i-lucide-search size-4" />
+      </button>
     </div>
 
     <!-- Conversación -->
