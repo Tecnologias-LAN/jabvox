@@ -31,13 +31,10 @@ const rootStore = useStore();
 const PER_PAGE = 25;
 
 // ── Filters ────────────────────────────────────────────────────────────────
-// Mirrors every filter the leads list supports (Jabvox::LeadsFilterService).
+// Solo filtros SELECCIONABLES (desplegables/fechas). La búsqueda por texto
+// (nombre/teléfono/usuario de WhatsApp/identificador) vive en la barra `search`
+// de abajo, no aquí.
 const filters = ref({
-  q: '',
-  email: '',
-  phone: '',
-  document: '',
-  country: '',
   campaign_id: '',
   assignee_id: '',
   team_id: '',
@@ -49,6 +46,9 @@ const filters = ref({
   date_from: '',
   date_to: '',
 });
+// Barra de búsqueda unificada (nombre, teléfono, usuario de WhatsApp, identificador).
+// La selección NO se pierde al cambiar de búsqueda (es acumulativa por id).
+const search = ref('');
 // Select options returned by the leads index (campaigns, assignees, teams…).
 const filterOptions = ref({});
 const SOLD_OPTIONS = ['quotes', 'sales'];
@@ -56,8 +56,9 @@ const STATUS_OPTIONS = ['open', 'pending', 'snoozed', 'resolved'];
 // Lead custom-field definitions + the current filter value for each one.
 const customFields = ref([]);
 const customValues = ref({});
-// Filters panel can be collapsed to keep the view uncluttered.
-const filtersOpen = ref(false);
+// Filters panel can be collapsed to keep the view uncluttered. Abierto por
+// defecto para que los filtros seleccionables se vean al entrar al paso 3.
+const filtersOpen = ref(true);
 
 // A custom-field value counts as "set" when it's a non-empty string OR a
 // non-empty array (option selectors store an array of chosen options).
@@ -296,6 +297,7 @@ const activeFilters = computed(() => {
   Object.entries(filters.value).forEach(([k, v]) => {
     if (v !== '' && v != null) f[k] = v;
   });
+  if (search.value.trim()) f.search = search.value.trim();
   // Custom-field filters go under `custom` as { field_key: value }. Value is an
   // array (option selectors) or a string (text/number); both are honored by the
   // backend LeadsFilterService.
@@ -402,19 +404,32 @@ const loadLeads = async () => {
   }
 };
 
+// Al cambiar filtros o búsqueda se recarga la lista pero la selección EXPLÍCITA
+// (selectedIds) se CONSERVA: el usuario puede buscar "miguel", marcar algunos,
+// buscar otra cosa y marcar más sin perder los primeros (selección acumulativa).
+// Solo se apaga el modo "seleccionar todos" (selectAll), porque "todos los que
+// cumplen el filtro" deja de tener el mismo significado al cambiar el filtro.
 const applyFilters = () => {
   page.value = 1;
-  // Changing the filter resets the "all" selection to avoid sending to an unexpected set.
-  selectAll.value = false;
-  selectedIds.value = new Set();
-  excludedIds.value = new Set();
+  if (selectAll.value) {
+    selectAll.value = false;
+    excludedIds.value = new Set();
+  }
   loadLeads();
+};
+
+// Barra de búsqueda con debounce: recarga la lista sin tocar la selección.
+const searchTimer = ref(null);
+const runSearch = () => {
+  clearTimeout(searchTimer.value);
+  searchTimer.value = setTimeout(() => applyFilters(), 300);
 };
 
 const clearFilters = () => {
   Object.keys(filters.value).forEach(k => {
     filters.value[k] = '';
   });
+  search.value = '';
   customValues.value = {};
   applyFilters();
 };
@@ -611,61 +626,6 @@ onMounted(() => {
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div class="flex flex-col gap-1">
             <label class="text-[11px] text-n-slate-10">
-              {{ t('JABVOX_BULK_WA.LEADS.FILTER_NAME') }}
-            </label>
-            <input
-              v-model="filters.q"
-              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
-              :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_NAME')"
-              @keyup.enter="applyFilters"
-            />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-[11px] text-n-slate-10">
-              {{ t('JABVOX_BULK_WA.LEADS.FILTER_EMAIL') }}
-            </label>
-            <input
-              v-model="filters.email"
-              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
-              :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_EMAIL')"
-              @keyup.enter="applyFilters"
-            />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-[11px] text-n-slate-10">
-              {{ t('JABVOX_BULK_WA.LEADS.FILTER_PHONE') }}
-            </label>
-            <input
-              v-model="filters.phone"
-              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
-              :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_PHONE')"
-              @keyup.enter="applyFilters"
-            />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-[11px] text-n-slate-10">
-              {{ t('JABVOX_BULK_WA.LEADS.FILTER_DOCUMENT') }}
-            </label>
-            <input
-              v-model="filters.document"
-              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
-              :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_DOCUMENT')"
-              @keyup.enter="applyFilters"
-            />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-[11px] text-n-slate-10">
-              {{ t('JABVOX_BULK_WA.LEADS.FILTER_COUNTRY') }}
-            </label>
-            <input
-              v-model="filters.country"
-              class="reset-base text-sm rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2"
-              :placeholder="t('JABVOX_BULK_WA.LEADS.FILTER_COUNTRY')"
-              @keyup.enter="applyFilters"
-            />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-[11px] text-n-slate-10">
               {{ t('JABVOX_BULK_WA.LEADS.FILTER_CAMPAIGN') }}
             </label>
             <select
@@ -852,6 +812,31 @@ onMounted(() => {
               {{ t('JABVOX_BULK_WA.LEADS.CLEAR_FILTERS') }}
             </button>
           </div>
+        </div>
+
+        <!-- Barra de búsqueda unificada: nombre, teléfono, usuario de WhatsApp o
+             identificador. La selección es acumulativa: lo marcado NO se pierde al
+             cambiar la búsqueda. -->
+        <div class="flex flex-col gap-1 pt-1 border-t border-n-weak">
+          <label class="text-[11px] text-n-slate-10">
+            {{ t('JABVOX_BULK_WA.LEADS.SEARCH_LABEL') }}
+          </label>
+          <div class="relative">
+            <span
+              class="i-lucide-search size-4 absolute left-3 top-1/2 -translate-y-1/2 text-n-slate-10"
+              aria-hidden="true"
+            />
+            <input
+              v-model="search"
+              class="reset-base w-full text-sm rounded-lg border border-n-weak bg-n-alpha-1 pl-9 pr-3 py-2"
+              :placeholder="t('JABVOX_BULK_WA.LEADS.SEARCH_PLACEHOLDER')"
+              @input="runSearch"
+              @keyup.enter="applyFilters"
+            />
+          </div>
+          <p class="text-[11px] text-n-slate-9">
+            {{ t('JABVOX_BULK_WA.LEADS.SEARCH_HINT') }}
+          </p>
         </div>
 
         <!-- Custom-field filters (dynamic, from the account's lead custom columns) -->

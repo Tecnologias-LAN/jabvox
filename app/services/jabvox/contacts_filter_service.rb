@@ -61,7 +61,25 @@ class Jabvox::ContactsFilterService
     scope = scope.where('contacts.email ILIKE ?', "%#{like(@filters[:email])}%") if @filters[:email].present?
     scope = scope.where('contacts.phone_number ILIKE ?', "%#{like(@filters[:phone])}%") if @filters[:phone].present?
     scope = scope.where("contacts.additional_attributes->>'country' ILIKE ?", "%#{like(@filters[:country])}%") if @filters[:country].present?
+    scope = apply_unified_search(scope)
     apply_document_filter(scope)
+  end
+
+  # Barra de búsqueda unificada (`search`): busca el mismo texto en nombre, teléfono,
+  # identificador y el usuario de WhatsApp del contacto (guardado en additional_attributes:
+  # social_whatsapp_user_name y social_profiles->whatsapp). Un solo OR para que escribir
+  # "miguel" o un número traiga cualquier coincidencia.
+  def apply_unified_search(scope)
+    return scope if @filters[:search].blank?
+
+    term = "%#{like(@filters[:search])}%"
+    scope.where(
+      'contacts.name ILIKE :t OR contacts.phone_number ILIKE :t OR contacts.email ILIKE :t ' \
+      'OR contacts.identifier ILIKE :t ' \
+      "OR contacts.additional_attributes->>'social_whatsapp_user_name' ILIKE :t " \
+      "OR contacts.additional_attributes->'social_profiles'->>'whatsapp' ILIKE :t",
+      t: term
+    )
   end
 
   def apply_commercial_filters(scope)
