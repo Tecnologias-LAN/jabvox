@@ -103,14 +103,15 @@ class Webhooks::Jabvox::HermesAgentController < ActionController::API
   # ya no puede usarse para ejecutar: dejarlo pasar sería una puerta trasera que anula esta
   # verificación entera.
   #
-  # Se valida la IP de la conexión TCP DIRECTA (request.remote_addr = REMOTE_ADDR de Rack),
-  # NO request.remote_ip: este último deriva de X-Forwarded-For y sería falsificable por
-  # cabeceras. Hermes llega directo a Jabvox (sin proxy intermedio), así que remote_addr es la
-  # IP real del Hermes y no puede suplantarse con un header.
+  # Jabvox está detrás de nginx (proxy_pass a 127.0.0.1:3000; Puma escucha SOLO en loopback),
+  # así que la conexión TCP que ve Rack (remote_addr) es SIEMPRE 127.0.0.1: nadie puede llegar
+  # directo a Puma. Por eso remote_addr a secas ya no filtra nada —dejaría pasar a cualquiera
+  # que alcance nginx con un token—, pero tampoco se puede confiar a ciegas en X-Forwarded-For
+  # (falsificable por cabecera). La regla anti-spoofing vive en #client_source_ip.
   def authorize_source_ip!
     return head :forbidden if @connection.nil?
 
-    source_ip = request.remote_addr
+    source_ip = client_source_ip
     return if @connection.ip_allowed?(source_ip)
 
     Rails.logger.warn(
@@ -118,6 +119,24 @@ class Webhooks::Jabvox::HermesAgentController < ActionController::API
       "account_id=#{@account&.id} ip=#{source_ip}"
     )
     head :forbidden
+  end
+
+  # IP real del cliente, a prueba de suplantación por cabecera.
+  #
+  # Solo se confía en X-Forwarded-For cuando la conexión TCP viene de NUESTRO nginx (loopback):
+  # en ese caso la IP real es la ÚLTIMA entrada de XFF, la que nginx añadió con
+  # $proxy_add_x_forwarded_for (= remote_addr del cliente que le llegó). Las entradas anteriores
+  # las pudo poner el propio cliente, así que no son de fiar y se descartan. Si remote_addr NO
+  # es loopback (llegada directa, sin nuestro proxy), se usa remote_addr y se ignoran cabeceras.
+  LOOPBACK_IPS = %w[127.0.0.1 ::1].freeze
+
+  def client_source_ip
+    remote = request.remote_addr.to_s
+    return remote unless LOOPBACK_IPS.include?(remote)
+
+    forwarded = request.get_header('HTTP_X_FORWARDED_FOR').to_s
+    last = forwarded.split(',').map(&:strip).reject(&:blank?).last
+    last.presence || remote
   end
 
   # Soporta Authorization: Bearer <token> además del header propio.
