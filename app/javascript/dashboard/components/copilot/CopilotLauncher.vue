@@ -53,7 +53,7 @@ const toggleSidebar = () => {
 <template>
   <div
     v-if="showCopilotLauncher"
-    class="fixed bottom-4 ltr:right-4 rtl:left-4 z-50"
+    class="fixed bottom-36 ltr:right-4 rtl:left-4 z-50"
   >
     <ButtonGroup
       class="rounded-full bg-n-alpha-2 backdrop-blur-lg p-1 shadow hover:shadow-md"

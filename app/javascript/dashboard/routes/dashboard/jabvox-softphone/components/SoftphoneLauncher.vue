@@ -51,7 +51,7 @@ const toggle = () => (isOpen.value ? hide() : open());
   <div
     v-show="isEnabled"
     data-jabvox-softphone
-    class="fixed z-50 flex items-stretch right-0 bottom-28 sm:bottom-32"
+    class="fixed z-50 flex items-end right-0 bottom-24 sm:bottom-28"
   >
     <!-- Pestaña con flecha para ocultar/sacar el teléfono -->
     <button
