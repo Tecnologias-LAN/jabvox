@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import { humanSize } from '../helper';
 
@@ -17,6 +18,25 @@ const selectedFiles = ref([]);
 const fileInput = ref(null);
 const isDragging = ref(false);
 
+// Límite por archivo: 1 GB. Debe coincidir con el backend (JABVOX_DRIVE_MAX_FILE_MB)
+// y con client_max_body_size de nginx; aquí se valida ANTES de subir para avisar al
+// instante sin gastar la subida (y sin chocar con el 413 de nginx).
+const MAX_FILE_BYTES = 1024 * 1024 * 1024;
+
+// Filtra los que exceden el límite y avisa cuáles se descartaron.
+const filterBySize = files => {
+  const tooBig = files.filter(f => f.size > MAX_FILE_BYTES);
+  if (tooBig.length) {
+    useAlert(
+      t('JABVOX_DRIVE.UPLOAD.FILE_TOO_LARGE', {
+        names: tooBig.map(f => f.name).join(', '),
+        max: '1 GB',
+      })
+    );
+  }
+  return files.filter(f => f.size <= MAX_FILE_BYTES);
+};
+
 const open = () => {
   selectedFiles.value = [];
   isDragging.value = false;
@@ -28,12 +48,14 @@ const close = () => {
 };
 
 const onFilesPicked = event => {
-  selectedFiles.value = Array.from(event.target.files || []);
+  selectedFiles.value = filterBySize(Array.from(event.target.files || []));
 };
 
 const onDrop = event => {
   isDragging.value = false;
-  selectedFiles.value = Array.from(event.dataTransfer.files || []);
+  selectedFiles.value = filterBySize(
+    Array.from(event.dataTransfer.files || [])
+  );
 };
 
 const removeFile = index => {
@@ -89,6 +111,9 @@ defineExpose({ open, close });
         <p class="text-sm text-n-slate-11">
           {{ t('JABVOX_DRIVE.UPLOAD.DROP_HERE') }}
         </p>
+        <p class="text-xs text-n-slate-10">
+          {{ t('JABVOX_DRIVE.UPLOAD.MAX_SIZE_HINT') }}
+        </p>
         <input
           ref="fileInput"
           type="file"
@@ -116,13 +141,14 @@ defineExpose({ open, close });
             <button
               v-if="!isLoading"
               type="button"
-              class="flex items-center justify-center size-5 rounded text-n-slate-10 transition-colors hover:bg-n-alpha-2 hover:text-n-slate-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-n-brand"
+              class="flex items-center justify-center size-7 rounded-md text-n-ruby-9 bg-n-ruby-3 transition-colors hover:bg-n-ruby-9 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-n-ruby-9"
+              :title="t('JABVOX_DRIVE.UPLOAD.REMOVE_FILE', { name: file.name })"
               :aria-label="
                 t('JABVOX_DRIVE.UPLOAD.REMOVE_FILE', { name: file.name })
               "
               @click="removeFile(index)"
             >
-              <span class="i-lucide-x size-3.5" aria-hidden="true" />
+              <span class="i-lucide-trash-2 size-4" aria-hidden="true" />
             </button>
           </div>
         </li>

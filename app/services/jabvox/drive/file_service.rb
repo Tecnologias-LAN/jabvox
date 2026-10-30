@@ -26,6 +26,12 @@ class Jabvox::Drive::FileService
     ENV.fetch('JABVOX_DRIVE_MAX_FILE_MB', '200').to_i.megabytes
   end
 
+  # Tamaño máximo legible para mensajes (GB si es múltiplo de 1024 MB, si no MB).
+  def self.human_max_size
+    mb = max_file_bytes / 1.megabyte
+    mb >= 1024 && (mb % 1024).zero? ? "#{mb / 1024} GB" : "#{mb} MB"
+  end
+
   # Sube un archivo desde el dashboard. Devuelve el JabvoxDriveFile.
   # `upload` puede ser un ActionDispatch::Http::UploadedFile o cualquier objeto
   # con #read / #original_filename / #content_type. También acepta bytes sueltos.
@@ -139,7 +145,7 @@ class Jabvox::Drive::FileService
     max = self.class.max_file_bytes
     return if max <= 0 || size <= max
 
-    raise FileTooLargeError, "el archivo supera el máximo permitido (#{self.class.max_file_bytes / 1.megabyte} MB)"
+    raise FileTooLargeError, "El archivo supera el máximo permitido. Solo se aceptan archivos de hasta #{self.class.human_max_size} por archivo."
   end
 
   def relative_key(sha)

@@ -113,6 +113,8 @@
       "TITLE": "Upload files",
       "DROP_HERE": "Drag files here or click to select",
       "DROP_TO_UPLOAD": "Drop the files to upload them",
+      "MAX_SIZE_HINT": "Up to 1 GB per file.",
+      "FILE_TOO_LARGE": "Can't upload {names}: exceeds the {max} per-file limit.",
       "REMOVE_FILE": "Remove {name}",
       "UPLOADING": "Uploading…",
       "SUCCESS": "File uploaded",

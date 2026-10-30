@@ -113,6 +113,8 @@
       "TITLE": "Subir archivos",
       "DROP_HERE": "Arrastra archivos aquí o haz clic para seleccionar",
       "DROP_TO_UPLOAD": "Suelta los archivos para subirlos",
+      "MAX_SIZE_HINT": "Máximo 1 GB por archivo.",
+      "FILE_TOO_LARGE": "No se puede subir {names}: supera el máximo de {max} por archivo.",
       "REMOVE_FILE": "Quitar {name}",
       "UPLOADING": "Subiendo…",
       "SUCCESS": "Archivo subido",
